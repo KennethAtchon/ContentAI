@@ -32,7 +32,7 @@ export function UsageMeter({
     );
   }
 
-  const percentageUsed = Math.min((currentUsage / usageLimit) * 100, 100);
+  const percentageUsed = usageLimit === 0 ? 0 : Math.min((currentUsage / usageLimit) * 100, 100);
   const isWarning = percentageUsed >= 80;
   const isLimitReached = percentageUsed >= 100;
 

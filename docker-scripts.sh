@@ -120,13 +120,38 @@ case "${1:-help}" in
         ;;
     
     "clean")
-        log_warn "This will remove all containers, networks, and volumes. Continue? (y/N)"
+        log_warn "This will remove ALL Docker resources including containers, images, volumes, networks, and build cache. Continue? (y/N)"
         read -r response
         if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-            log_info "Cleaning up Docker resources..."
-            docker compose down -v --remove-orphans
-            docker system prune -f
-            log_info "Cleanup completed."
+            log_info "Cleaning up ALL Docker resources..."
+            
+            # Stop and remove all containers
+            log_info "Stopping and removing all containers..."
+            docker stop $(docker ps -aq) 2>/dev/null || true
+            docker rm $(docker ps -aq) 2>/dev/null || true
+            
+            # Remove all images
+            log_info "Removing all Docker images..."
+            docker rmi $(docker images -q) 2>/dev/null || true
+            docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
+            
+            # Remove all volumes
+            log_info "Removing all Docker volumes..."
+            docker volume rm $(docker volume ls -q) 2>/dev/null || true
+            
+            # Remove all networks
+            log_info "Removing all Docker networks..."
+            docker network rm $(docker network ls -q) 2>/dev/null || true
+            
+            # Clean up system
+            log_info "Cleaning up Docker system..."
+            docker system prune -af --volumes
+            
+            # Remove compose-specific resources
+            log_info "Removing compose-specific resources..."
+            docker compose down -v --remove-orphans 2>/dev/null || true
+            
+            log_info "Complete cleanup finished. All Docker resources removed."
         else
             log_info "Cleanup cancelled."
         fi

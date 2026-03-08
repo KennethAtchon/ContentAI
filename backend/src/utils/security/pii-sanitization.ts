@@ -354,21 +354,5 @@ export function safeLogError(message: string, error: any, context?: any): void {
   });
 }
 
-/**
- * Configuration for production vs development logging
- */
-export const LOGGING_CONFIG = {
-  production: {
-    sanitizeAll: true,
-    preserveStructure: true,
-    maxDepth: 3,
-  },
-  development: {
-    sanitizeAll: IS_PRODUCTION,
-    preserveStructure: true,
-    maxDepth: 5,
-  },
-};
-
 // Export default sanitization function
 export const sanitize = sanitizeObject;

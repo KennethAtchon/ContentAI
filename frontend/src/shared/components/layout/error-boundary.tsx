@@ -37,7 +37,28 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    debugLog.error("ErrorBoundary caught an error:", { error, errorInfo });
+    // Enhanced error logging with location details
+    const errorDetails = {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      location: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+    };
+    
+    debugLog.error("ErrorBoundary caught an error:", errorDetails);
+    
+    // In development, log additional details using debugLog
+    if (IS_DEVELOPMENT) {
+      debugLog.error("🚨 ErrorBoundary Error Details", {
+        error: error.message,
+        errorInfo: errorInfo,
+        componentStack: errorInfo.componentStack,
+        location: window.location.href,
+        stack: error.stack,
+      });
+    }
   }
 
   handleReset = () => {
@@ -63,8 +84,7 @@ export class ErrorBoundary extends React.Component<
 }
 
 /**
- * Error boundary content component with hardcoded English strings.
- * Intentionally not translated - if users see this, something is critically broken.
+ * Enhanced error boundary content with development details and cute production messages
  */
 function ErrorBoundaryContent({
   error,
@@ -73,26 +93,73 @@ function ErrorBoundaryContent({
   error: Error | null;
   onReset: () => void;
 }) {
+  // Cute dog messages for production
+  const dogMessages = [
+    "🐕 Oops! Even the best dogs sometimes trip over their own paws!",
+    "🦴 Woof! Something went wrong, but don't worry - we're on it!",
+    "🐾 Our coding doggo is confused! Let's try that again.",
+    "🐶 Sit. Stay. Refresh the page. Good human!",
+    "🦮 Lead developer is investigating! (Probably napping, but still...)",
+  ];
+
+  const randomDogMessage = dogMessages[Math.floor(Math.random() * dogMessages.length)];
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
-            <CardTitle>Something went wrong</CardTitle>
+            <CardTitle>
+              {IS_DEVELOPMENT ? "Development Error" : "Oops! Something went wrong"}
+            </CardTitle>
           </div>
           <CardDescription>
-            An unexpected error occurred. Please try again or refresh the page.
+            {IS_DEVELOPMENT 
+              ? "An error occurred in development. Check the details below."
+              : randomDogMessage
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {IS_DEVELOPMENT && error && (
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-sm font-mono text-destructive">
-                {error.message}
+            <div className="space-y-3">
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+                <p className="text-sm font-semibold text-destructive mb-2">Error Message:</p>
+                <p className="text-sm font-mono text-destructive">
+                  {error.message}
+                </p>
+              </div>
+              
+              {error.stack && (
+                <div className="rounded-md bg-muted p-3 max-h-32 overflow-y-auto">
+                  <p className="text-sm font-semibold mb-2">Stack Trace:</p>
+                  <pre className="text-xs font-mono whitespace-pre-wrap">
+                    {error.stack}
+                  </pre>
+                </div>
+              )}
+
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+                <p className="text-sm font-semibold text-blue-800 mb-1">Debug Info:</p>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <p><strong>Location:</strong> {window.location.href}</p>
+                  <p><strong>Time:</strong> {new Date().toLocaleString()}</p>
+                  <p><strong>User Agent:</strong> {navigator.userAgent.split(' ')[0]}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!IS_DEVELOPMENT && (
+            <div className="text-center space-y-3">
+              <div className="text-4xl">🐕‍🦺</div>
+              <p className="text-sm text-muted-italic">
+                {randomDogMessage}
               </p>
             </div>
           )}
+
           <div className="flex gap-2">
             <Button onClick={onReset} variant="outline" className="flex-1">
               Try Again

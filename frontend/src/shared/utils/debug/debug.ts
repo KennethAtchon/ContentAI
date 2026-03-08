@@ -49,8 +49,10 @@ interface DebugContext {
 class DebugLogger {
   private enabled: boolean;
 
-  constructor(enabled: boolean = DEBUG_ENABLED) {
-    this.enabled = enabled;
+  constructor(enabled?: boolean) {
+    // Default to false to avoid initialization issues
+    // Will be properly set after initialization
+    this.enabled = enabled ?? false;
   }
 
   private formatMessage(
@@ -250,6 +252,11 @@ class DebugLogger {
 
 // Export singleton instance
 export const debugLog = new DebugLogger();
+
+// Initialize after module loading to avoid circular dependencies
+setTimeout(() => {
+  debugLog.setEnabled(DEBUG_ENABLED);
+}, 0);
 
 // Export helper functions for common patterns
 export const logTimeConversion = (

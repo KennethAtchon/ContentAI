@@ -27,6 +27,8 @@ import {
   useSmartRedirect,
   REDIRECT_PATHS as _REDIRECT_PATHS,
 } from "@/shared/utils/redirect/redirect-util";
+import { toast } from "sonner";
+import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 
 const SIGN_UP_PATH = "/sign-up";
 
@@ -106,10 +108,22 @@ function SignInPage() {
         isNewUser: false,
       });
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
+      // Fast error handling - immediately show toast and stop loading
+      setLoading(false);
+      
+      // Development: show actual error message, Production: show generic message
+      const errorMessage = IS_DEVELOPMENT
+        ? error instanceof Error
           ? error.message
-          : t("auth_sign_in_google_failed");
+          : t("auth_sign_in_google_failed")
+        : t("auth_sign_in_google_failed");
+      
+      // Show toast error immediately for better UX
+      toast.error(errorMessage);
+      
+      // Also set error state for the alert component (as backup)
+      setError(errorMessage);
+      
       debugLog.error(
         t("common_google_signin_failed"),
         {
@@ -118,10 +132,11 @@ function SignInPage() {
         },
         error
       );
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+      return; // Early return to avoid finally block setting loading to false again
     }
+    
+    // Only set loading to false if we didn't error
+    setLoading(false);
   };
 
   // Show loading state while checking authentication or if user is authenticated (will redirect)

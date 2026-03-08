@@ -49,9 +49,9 @@ export function useCalculator(): UseCalculatorResult {
   const { user } = useApp();
   const queryClient = useQueryClient();
   const fetcher = useQueryFetcher<{
-    currentUsage: number;
-    usageLimit: number | null;
-    percentageUsed: number;
+    used: number;
+    limit: number | string;
+    remaining: number | string;
   }>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,13 +71,23 @@ export function useCalculator(): UseCalculatorResult {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  // Extract usage stats from SWR response
+  // Extract usage stats from API response
   const usageStats = useMemo(() => {
     if (!usageStatsData) return null;
+    
+    const currentUsage = usageStatsData.used;
+    const usageLimit = usageStatsData.limit === "unlimited" ? null : 
+                      typeof usageStatsData.limit === "string" ? parseInt(usageStatsData.limit, 10) : 
+                      usageStatsData.limit;
+    
+    // Calculate percentage, handling division by zero
+    const percentageUsed = usageLimit === null || usageLimit === 0 ? 0 : 
+                         Math.min((currentUsage / usageLimit) * 100, 100);
+    
     return {
-      currentUsage: usageStatsData.currentUsage,
-      usageLimit: usageStatsData.usageLimit,
-      percentageUsed: usageStatsData.percentageUsed,
+      currentUsage,
+      usageLimit,
+      percentageUsed,
     };
   }, [usageStatsData]);
 
@@ -105,12 +115,12 @@ export function useCalculator(): UseCalculatorResult {
     }
 
     if (usageStatsData) {
-      const limitReached = usageStatsData.percentageUsed >= 100;
+      const limitReached = usageStats.percentageUsed >= 100;
       return { canUseCalculator: true, usageLimitReached: limitReached };
     }
 
     return { canUseCalculator: false, usageLimitReached: false };
-  }, [user, role, subscriptionLoading, usageStatsData, usageStatsError]);
+  }, [user, role, subscriptionLoading, usageStats, usageStatsError]);
 
   // Check access function for programmatic access checks
   const checkAccess = useCallback(async (): Promise<{
@@ -129,7 +139,13 @@ export function useCalculator(): UseCalculatorResult {
     const { data: freshData } = await refetchUsageStats();
 
     if (freshData) {
-      const limitReached = freshData.percentageUsed >= 100;
+      const currentUsage = freshData.used;
+      const limit = freshData.limit === "unlimited" ? null : 
+                   typeof freshData.limit === "string" ? parseInt(freshData.limit, 10) : 
+                   freshData.limit;
+      const percentageUsed = limit === null || limit === 0 ? 0 : 
+                            Math.min((currentUsage / limit) * 100, 100);
+      const limitReached = percentageUsed >= 100;
       return { canUse: true, limitReached };
     }
 

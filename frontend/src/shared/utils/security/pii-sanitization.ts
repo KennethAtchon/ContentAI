@@ -7,7 +7,7 @@
  * Addresses Ticket #20: PII Data Exposure in Logs and API Responses
  */
 
-import { IS_PRODUCTION, IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
+import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 import { debugLog } from "../debug/debug";
 
 export interface SanitizationConfig {
@@ -353,22 +353,6 @@ export function safeLogError(message: string, error: any, context?: any): void {
     context: sanitizedContext,
   });
 }
-
-/**
- * Configuration for production vs development logging
- */
-export const LOGGING_CONFIG = {
-  production: {
-    sanitizeAll: true,
-    preserveStructure: true,
-    maxDepth: 3,
-  },
-  development: {
-    sanitizeAll: IS_PRODUCTION,
-    preserveStructure: true,
-    maxDepth: 5,
-  },
-};
 
 // Export default sanitization function
 export const sanitize = sanitizeObject;

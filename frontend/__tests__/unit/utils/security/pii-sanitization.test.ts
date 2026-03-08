@@ -9,7 +9,6 @@ import {
   sanitizeObject,
   safeLogError,
   sanitize,
-  LOGGING_CONFIG,
 } from "@/shared/utils/security/pii-sanitization";
 
 describe("pii-sanitization", () => {
@@ -53,13 +52,6 @@ describe("pii-sanitization", () => {
     it("does not throw when called", () => {
       const err = new Error("test");
       expect(() => safeLogError("msg", err)).not.toThrow();
-    });
-  });
-
-  describe("LOGGING_CONFIG", () => {
-    it("is exported (mock may use empty object)", () => {
-      expect(LOGGING_CONFIG).toBeDefined();
-      expect(typeof LOGGING_CONFIG).toBe("object");
     });
   });
 });

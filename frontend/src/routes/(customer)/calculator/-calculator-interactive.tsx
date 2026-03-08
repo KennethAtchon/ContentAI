@@ -81,7 +81,7 @@ export function CalculatorInteractive() {
                   {usageStats.currentUsage} /{" "}
                   {usageStats.usageLimit === null
                     ? "∞"
-                    : usageStats.usageLimit.toLocaleString()}
+                    : usageStats.usageLimit?.toLocaleString() || "0"}
                 </p>
               </div>
               {usageStats.usageLimit !== null && (

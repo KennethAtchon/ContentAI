@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { PageLayout } from "@/shared/components/layout/page-layout";
 import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
+import { Toaster } from "@/shared/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 
 function RootLayout() {
@@ -12,6 +13,7 @@ function RootLayout() {
         fallback={<div className="p-6 text-center">{t("common_loading")}</div>}
       >
         <Outlet />
+        <Toaster />
       </Suspense>
     </ErrorBoundary>
   );

@@ -28,6 +28,8 @@ import {
   useSmartRedirect,
   REDIRECT_PATHS,
 } from "@/shared/utils/redirect/redirect-util";
+import { toast } from "sonner";
+import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -133,10 +135,22 @@ function SignUpPage() {
         isNewUser: true,
       });
     } catch (submitError: unknown) {
-      const errorMessage =
-        submitError instanceof Error
+      // Fast error handling - immediately show toast and stop loading
+      setLoading(false);
+      
+      // Development: show actual error message, Production: show generic message
+      const errorMessage = IS_DEVELOPMENT
+        ? submitError instanceof Error
           ? submitError.message
-          : t("auth_sign_up_google_failed");
+          : t("auth_sign_up_google_failed")
+        : t("auth_sign_up_google_failed");
+      
+      // Show toast error immediately for better UX
+      toast.error(errorMessage);
+      
+      // Also set error state for the alert component (as backup)
+      setError(errorMessage);
+      
       debugLog.error(
         t("common_google_signup_failed"),
         {
@@ -145,10 +159,11 @@ function SignUpPage() {
         },
         submitError
       );
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+      return; // Early return to avoid finally block setting loading to false again
     }
+    
+    // Only set loading to false if we didn't error
+    setLoading(false);
   };
 
   if (authLoading || user) {
