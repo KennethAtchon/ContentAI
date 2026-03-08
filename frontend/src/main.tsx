@@ -1,0 +1,55 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { HelmetProvider } from "react-helmet-async";
+import { RouterProvider } from "@tanstack/react-router";
+import { I18nextProvider } from "react-i18next";
+import { router } from "./router";
+import i18n from "@/shared/lib/i18n";
+import { ThemeProvider } from "@/shared/providers/theme-provider";
+import { AppProvider } from "@/shared/contexts/app-context";
+
+// Initialize Sentry for error tracking
+import { initializeSentry } from "@/shared/services/monitoring/sentry";
+initializeSentry();
+
+import "./styles/globals.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/lora/400.css";
+import "@fontsource/lora/500.css";
+import "@fontsource/lora/600.css";
+import "@fontsource/lora/700.css";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+    },
+  },
+});
+
+const rootElement = document.getElementById("root")!;
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <I18nextProvider i18n={i18n}>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider storageKey="ui-theme">
+            <AppProvider>
+              <RouterProvider router={router} />
+              {import.meta.env.DEV && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
+            </AppProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    </I18nextProvider>
+  </React.StrictMode>
+);

@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /account/
+Disallow: /payment/
+Disallow: /_next/
+Disallow: /private/
+Disallow: /temp/
+Disallow: /*.json
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /account/
+Disallow: /payment/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /account/
+Disallow: /payment/
+
+Sitemap: http://localhost:5173/sitemap.xml
+Host: http://localhost:5173

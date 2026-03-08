@@ -1,0 +1,342 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Confirmation - {{APP_NAME}}</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+        color: #374151;
+        background-color: #f9fafb;
+        padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+        color: white;
+        padding: 32px 24px;
+        text-align: center;
+      }
+      .header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .header p {
+        font-size: 16px;
+        opacity: 0.9;
+      }
+      .content {
+        padding: 32px 24px;
+      }
+      .greeting {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+      }
+      .intro {
+        font-size: 16px;
+        color: #6b7280;
+        margin-bottom: 32px;
+      }
+      .section {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 28px;
+        margin-bottom: 28px;
+      }
+      .section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+      }
+      .section h3::before {
+        content: "";
+        width: 4px;
+        height: 20px;
+        background: #0d9488;
+        border-radius: 2px;
+        margin-right: 12px;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #e5e7eb;
+        gap: 20px;
+      }
+      .info-row:last-child {
+        border-bottom: none;
+      }
+      .info-label {
+        font-weight: 500;
+        color: #374151;
+        min-width: 120px;
+        flex-shrink: 0;
+      }
+      .info-value {
+        color: #6b7280;
+        text-align: right;
+        word-break: break-all;
+      }
+      .product-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 0;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .product-item:last-child {
+        border-bottom: none;
+      }
+      .product-name {
+        font-weight: 500;
+        color: #374151;
+      }
+      .product-quantity {
+        font-size: 14px;
+        color: #6b7280;
+        margin-left: 8px;
+      }
+      .product-price {
+        font-weight: 600;
+        color: #0d9488;
+      }
+      .total-row {
+        background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+        border: 1px solid #10b981;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .total-label {
+        font-size: 20px;
+        font-weight: 600;
+        color: #065f46;
+      }
+      .total-amount {
+        font-size: 20px;
+        font-weight: 700;
+        color: #059669;
+      }
+      .next-steps {
+        background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+        border: 1px solid #3b82f6;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      .next-steps h3 {
+        color: #1e40af;
+        margin-bottom: 16px;
+      }
+      .next-steps ol {
+        padding-left: 20px;
+      }
+      .next-steps li {
+        margin-bottom: 12px;
+        color: #1f2937;
+        line-height: 1.6;
+      }
+      .next-steps li strong {
+        color: #1e40af;
+      }
+      .contact-info {
+        background: linear-gradient(135deg, #fef3c7 0%, #fef9e7 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 24px;
+      }
+      .contact-info h3 {
+        color: #92400e;
+        margin-bottom: 16px;
+      }
+      .contact-info p {
+        color: #78350f;
+        margin-bottom: 8px;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 24px;
+        text-align: center;
+        border-top: 1px solid #e5e7eb;
+      }
+      .footer p {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 8px;
+      }
+      .footer .brand {
+        font-weight: 600;
+        color: #0d9488;
+      }
+      .medical-notes-section {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+      .medical-notes-section h3 {
+        color: #991b1b;
+      }
+      .medical-notes-section p {
+        color: #7f1d1d;
+        line-height: 1.6;
+      }
+      @media (max-width: 600px) {
+        .container {
+          margin: 0;
+          border-radius: 0;
+        }
+        .header,
+        .content {
+          padding: 24px 16px;
+        }
+        .section {
+          padding: 16px;
+        }
+        .info-row,
+        .product-item {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        .info-value {
+          text-align: left;
+        }
+        .total-row {
+          flex-direction: column;
+          gap: 8px;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>✓ Order Confirmed</h1>
+        <p>Thank you for choosing {{APP_NAME}}!</p>
+      </div>
+
+      <div class="content">
+        <div class="greeting">Hello {{CUSTOMER_NAME}},</div>
+        <div class="intro">
+          We've received your order and are excited to provide you with
+          exceptional services. Your order is being prepared with care.
+        </div>
+
+        <div class="section">
+          <h3>Order Information</h3>
+          <div class="info-row">
+            <span class="info-label">Order ID</span>
+            <span class="info-value">#{{ORDER_ID_SHORT}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Customer</span>
+            <span class="info-value">{{CUSTOMER_NAME}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value">{{CUSTOMER_EMAIL}}</span>
+          </div>
+          {{PHONE_SECTION}}
+          <div class="info-row">
+            <span class="info-label">Service Address</span>
+            <span class="info-value">{{ADDRESS}}</span>
+          </div>
+          {{PREFERRED_CONTACT_SECTION}}
+        </div>
+
+        <div class="section">
+          <h3>Selected Products</h3>
+          {{PRODUCTS_LIST}}
+          <div class="total-row">
+            <span class="total-label">Total Amount </span>
+            <span class="total-amount">${{TOTAL_AMOUNT}}</span>
+          </div>
+        </div>
+
+        {{MEDICAL_NOTES_SECTION}}
+
+        <div class="next-steps">
+          <h3>🚀 What Happens Next?</h3>
+          <ol>
+            <li>
+              <strong>Confirmation Call:</strong> Our team will contact you
+              within 24 hours to answer any questions.
+            </li>
+            <li>
+              <strong>Pre-Service Preparation:</strong> We'll send you detailed
+              preparation instructions to ensure optimal results from your
+              service.
+            </li>
+            <li>
+              <strong>Service Day:</strong> Our licensed professionals will
+              arrive at your location with all necessary equipment and
+              medications.
+            </li>
+            <li>
+              <strong>Payment:</strong> Payment will be collected at the time of
+              service for your convenience.
+            </li>
+          </ol>
+        </div>
+
+        <div class="contact-info">
+          <h3>📞 Need Assistance?</h3>
+          <p>
+            Our wellness specialists are here to help with any questions or
+            concerns:
+          </p>
+          <p><strong>Email:</strong> {{SUPPORT_EMAIL}}</p>
+          <p><strong>Phone:</strong> {{SUPPORT_PHONE}}</p>
+          <p><strong>Hours:</strong> Monday - Sunday, 8 AM - 8 PM CST</p>
+          <p>
+            <strong>Emergency:</strong> For urgent medical concerns, please
+            contact your healthcare provider or emergency services.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p class="brand">{{APP_NAME}} - Premium Services</p>
+        <p>This confirmation was sent to {{CUSTOMER_EMAIL}}</p>
+        <p>
+          If you received this email in error, please contact our support team.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,38 @@
+# E2E Testing Dockerfile
+# Uses node:18 (Debian) — Playwright's downloaded binaries require glibc,
+# which is not available on Alpine (musl libc).
+
+FROM node:18 AS base
+
+WORKDIR /app
+
+# Install bun
+RUN npm install -g bun
+ENV PATH="/root/.bun/bin:/usr/local/bin:${PATH}"
+
+# Copy package files
+COPY package*.json bun.lock* ./
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+
+# Install Playwright browser + all required OS-level dependencies
+RUN bunx playwright install --with-deps chromium
+
+# Copy source code
+COPY . .
+
+# E2E stage
+FROM base AS e2e
+
+ENV NODE_ENV=test
+ENV E2E_BASE_URL=http://frontend:3000
+
+# Create directories for test results
+RUN mkdir -p test-results/auth test-results/report
+
+# Make scripts executable
+RUN chmod +x scripts/*.sh
+
+# Default command
+CMD ["bun", "test:e2e"]

@@ -1,0 +1,5 @@
+node_modules/
+
+# Don't accidentally commit a local .env here — scripts read from backend/.env
+.env
+.env.local

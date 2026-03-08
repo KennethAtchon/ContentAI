@@ -1,0 +1,15 @@
+# Docker
+docker-compose.yml
+docker-compose.override.yml
+.env
+.env.local
+.env.production
+
+# Docker directories
+docker/
+
+# Docker scripts
+docker-scripts.sh
+
+# Nginx
+nginx/

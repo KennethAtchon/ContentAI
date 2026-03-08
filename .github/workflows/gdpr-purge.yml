@@ -1,0 +1,54 @@
+name: GDPR Data Purge
+
+on:
+  # Run weekly on Sunday at 02:00 UTC
+  schedule:
+    - cron: "0 2 * * 0"
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no data deleted)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  BUN_VERSION: "1.2.14"
+
+jobs:
+  gdpr-purge:
+    name: GDPR Data Purge
+    runs-on: ubuntu-latest
+    # Only run if GDPR_PURGE_ENABLED repo variable is set to 'true'
+    if: vars.GDPR_PURGE_ENABLED == 'true'
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run GDPR data purge (dry run)
+        if: ${{ github.event.inputs.dry_run != 'false' }}
+        run: bun run gdpr:purge -- --dry-run
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run GDPR data purge (live)
+        if: ${{ github.event.inputs.dry_run == 'false' || github.event_name == 'schedule' }}
+        run: bun run gdpr:purge
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

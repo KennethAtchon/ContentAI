@@ -1,0 +1,30 @@
+{
+  "name": "e2e-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.14",
+  "scripts": {
+    "test": "bun test",
+    "test:e2e": "./scripts/run-e2e-local.sh",
+    "test:e2e:headed": "./scripts/run-e2e-local.sh --headed",
+    "test:e2e:ui": "./scripts/run-e2e-local.sh --ui",
+    "test:e2e:docker": "./scripts/run-e2e-docker.sh test",
+    "test:e2e:docker:seed": "./scripts/run-e2e-docker.sh seed",
+    "test:e2e:docker:shell": "./scripts/run-e2e-docker.sh shell",
+    "pre:test:e2e": "bun run test:e2e:seed",
+    "pre:test:e2e:headed": "bun run test:e2e:seed",
+    "pre:test:e2e:ui": "bun run test:e2e:seed",
+    "test:e2e:seed": "bun __tests__/helpers/e2e-seed.ts",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "bun": "latest"
+  }
+}

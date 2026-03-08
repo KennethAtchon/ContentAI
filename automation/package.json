@@ -1,0 +1,18 @@
+{
+  "name": "automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.14",
+  "scripts": {
+    "stripe:setup": "bun stripe/setup-products.ts",
+    "stripe:cancel-subs": "bun stripe/cancel-subscriptions.ts",
+    "stripe:reset": "bun stripe/reset.ts",
+    "firebase:clear-customers": "bun firebase/clear-customers.ts",
+    "firebase:clear-users": "bun firebase/clear-users.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "stripe": "^17.0.0"
+  }
+}

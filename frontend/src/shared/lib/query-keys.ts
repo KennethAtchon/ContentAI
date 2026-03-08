@@ -1,0 +1,39 @@
+/**
+ * Centralized query keys for React Query.
+ * Use for consistent cache keys and invalidation (e.g. by prefix or predicate).
+ */
+
+export const queryKeys = {
+  api: {
+    profile: () => ["api", "customer", "profile"] as const,
+    calculatorUsage: () => ["api", "calculator", "usage"] as const,
+    calculatorHistory: (params?: { page?: number; limit?: number }) =>
+      ["api", "calculator", "history", params] as const,
+    trialEligibility: () =>
+      ["api", "subscriptions", "trial-eligibility"] as const,
+    currentSubscription: () => ["api", "subscriptions", "current"] as const,
+    portalLink: () => ["api", "subscriptions", "portal-link"] as const,
+    usageStats: () => ["api", "account", "usage"] as const,
+    admin: {
+      orders: (params?: { page?: number; limit?: number }) =>
+        ["api", "admin", "orders", params] as const,
+      users: () => ["api", "admin", "users"] as const,
+      customers: (params?: { page?: number; limit?: number }) =>
+        ["api", "admin", "customers", params] as const,
+      dashboard: () => ["api", "admin", "dashboard"] as const,
+      customersCount: () => ["api", "users", "customers-count"] as const,
+      conversion: () => ["api", "admin", "analytics"] as const,
+      revenue: () => ["api", "customer", "orders", "total-revenue"] as const,
+      subscriptionsAnalytics: () =>
+        ["api", "admin", "subscriptions", "analytics"] as const,
+      subscriptions: () => ["api", "admin", "subscriptions"] as const,
+      subscriptionStats: () =>
+        ["api", "admin", "subscriptions", "stats"] as const,
+      contactMessages: (params?: { page?: number; limit?: number }) =>
+        ["api", "shared", "contact-messages", params] as const,
+    },
+    /** Paginated list key prefix; full key includes url or resource id */
+    paginated: (resource: string, params: Record<string, unknown>) =>
+      ["api", "paginated", resource, params] as const,
+  },
+};

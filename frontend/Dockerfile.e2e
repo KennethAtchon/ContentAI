@@ -1,0 +1,59 @@
+# E2E Testing Dockerfile
+# Multi-stage build for Playwright E2E tests with access to backend environment
+
+FROM node:18-alpine AS base
+
+# Install Playwright browsers dependencies
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    curl
+
+# Install Python for some Playwright dependencies
+RUN apk add --no-cache python3 make g++
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json bun.lock* ./
+COPY backend/package*.json backend/bun.lock* ./backend/
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+RUN cd backend && bun install --frozen-lockfile
+
+# Install Playwright browsers
+RUN bunx playwright install chromium
+RUN bunx playwright install-deps
+
+# Copy source code
+COPY . .
+
+# Build the application (if needed)
+RUN bun run build
+
+# E2E stage
+FROM base AS e2e
+
+# Set environment for testing
+ENV NODE_ENV=test
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+
+# Copy test files and scripts
+COPY __tests__ ./__tests__
+COPY scripts ./scripts
+
+# Create directories for test results
+RUN mkdir -p test-results/auth test-results/report
+
+# Make scripts executable
+RUN chmod +x scripts/*.sh
+
+# Default command
+CMD ["bun", "test:e2e"]

@@ -1,0 +1,85 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [master]
+
+# Only one deploy at a time; cancel any pending deploy if a new push arrives
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Only deploy after all CI checks pass
+    needs: []
+    # This workflow runs after ci.yml — Railway deploy is triggered by the push
+    # and Railway pulls the latest commit. The CI workflow must pass first.
+    #
+    # To enforce CI-before-deploy: enable "Required status checks" in the
+    # GitHub branch protection settings for master, requiring:
+    #   - "Lint & Type Check"
+    #   - "Unit Tests"
+    #   - "Integration Tests"
+    #   - "Build"
+    #
+    # Railway then auto-deploys on push to master (configured in Railway dashboard).
+    # This workflow exists to surface the deploy status in GitHub and run
+    # post-deploy health checks.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trigger Railway Deploy
+        # Railway auto-deploys on push to master if connected to this GitHub repo.
+        # This step uses the Railway CLI to trigger + wait for the deploy if you
+        # want explicit deploy status in GitHub Actions.
+        # Requires: RAILWAY_TOKEN secret set in GitHub repo settings.
+        # Get token: railway.app → Account Settings → Tokens → Create token
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN not set — Railway will auto-deploy via GitHub integration."
+            echo "To get explicit deploy status here, add RAILWAY_TOKEN to GitHub Secrets."
+            exit 0
+          fi
+
+          # Install Railway CLI
+          curl -fsSL https://railway.app/install.sh | sh
+
+          # Deploy and wait for completion
+          railway up --detach
+          echo "Deploy triggered. Monitor at https://railway.app"
+
+      - name: Wait for deployment
+        # Give Railway time to spin up before health checking
+        run: sleep 30
+
+      - name: Post-deploy health check
+        # Verifies the production app is healthy after deploy.
+        # Set PRODUCTION_URL secret to your domain (e.g. https://yourdomain.com)
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          if [ -z "$PRODUCTION_URL" ]; then
+            echo "PRODUCTION_URL not set — skipping health check."
+            echo "Add PRODUCTION_URL secret (e.g. https://yourdomain.com) to enable this check."
+            exit 0
+          fi
+
+          echo "Checking health at $PRODUCTION_URL/api/health ..."
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✓ Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "  Attempt $i: status $STATUS — retrying in 15s..."
+            sleep 15
+          done
+
+          echo "✗ Health check failed after 5 attempts"
+          exit 1

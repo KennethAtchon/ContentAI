@@ -1,0 +1,8 @@
+[test]
+preload = ["./__tests__/setup/bun-preload.ts"]
+testMatch = ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"]
+testIgnore = ["**/node_modules/**"]
+# Shorter timeout to prevent hanging
+timeout = 10000
+# Run tests in series to avoid race conditions
+concurrency = 1
