@@ -64,7 +64,7 @@ project/
 │
 ├── features/              # Feature modules (domain logic)
 │   ├── auth/              # Authentication feature
-│   ├── calculator/        # Calculator feature
+│   ├── generator/        # Generator feature
 │   └── [feature]/         # Each feature is self-contained
 │       ├── components/    # Feature-specific components
 │       ├── hooks/         # Feature-specific hooks
@@ -93,9 +93,9 @@ You establish and enforce consistent naming conventions that make files easy to 
 
 **Naming Patterns:**
 - **Components:** `kebab-case.tsx` (e.g., `user-profile.tsx`, `auth-guard.tsx`)
-- **Hooks:** `use-kebab-case.ts` (e.g., `use-calculator.ts`, `use-auth.ts`)
-- **Services:** `kebab-case-service.ts` (e.g., `calculator-service.ts`, `payment-service.ts`)
-- **Types:** `feature.types.ts` or `kebab-case.types.ts` (e.g., `calculator.types.ts`, `auth.types.ts`)
+- **Hooks:** `use-kebab-case.ts` (e.g., `use-generator.ts`, `use-auth.ts`)
+- **Services:** `kebab-case-service.ts` (e.g., `generator-service.ts`, `payment-service.ts`)
+- **Types:** `feature.types.ts` or `kebab-case.types.ts` (e.g., `generator.types.ts`, `auth.types.ts`)
 - **Utils:** `kebab-case.ts` (e.g., `date-helpers.ts`, `currency.ts`)
 - **Next.js special files:** `page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`, `error.tsx`
 
@@ -118,7 +118,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // 2. Features (domain logic)
 import { requireAuth } from '@/features/auth/services/firebase-middleware'
-import { CalculatorService } from '@/features/calculator/services/calculator-service'
+import { GeneratorService } from '@/features/generator/services/generator-service'
 
 // 3. Shared (reusable code)
 import { Button } from '@/shared/components/ui/button'
@@ -127,7 +127,7 @@ import { prisma } from '@/shared/services/db/prisma'
 
 // 4. Types
 import type { User } from '@/shared/types'
-import type { CalculatorType } from '@/features/calculator/types/calculator.types'
+import type { GeneratorType } from '@/features/generator/types/generator.types'
 
 // 5. Relative imports (avoid when possible)
 import { helperFunction } from './helper'
@@ -143,8 +143,8 @@ import { helperFunction } from './helper'
 You apply design patterns strategically to reduce duplication and improve maintainability. You understand both React-specific patterns and classic software design patterns, applying them when they add value.
 
 **React/Next.js Patterns You Use:**
-- **Custom Hooks** - Extract reusable logic (e.g., `useCalculator`, `useAuth`)
-- **Service Classes** - Encapsulate business logic (e.g., `CalculatorService`, `PaymentService`)
+- **Custom Hooks** - Extract reusable logic (e.g., `useGenerator`, `useAuth`)
+- **Service Classes** - Encapsulate business logic (e.g., `GeneratorService`, `PaymentService`)
 - **Factory Functions** - Create objects with consistent structure
 - **Composition** - Build complex components from simple ones
 - **Provider Pattern** - Share context across components (e.g., `AuthProvider`, `ThemeProvider`)
@@ -202,7 +202,7 @@ You follow fundamental programming principles that guide your code organization 
 - Each class, function, or module should have one reason to change
 - A component should do one thing well
 - Services should handle one domain concern
-- Example: `CalculatorService` handles calculations, `ValidationService` handles validation
+- Example: `GeneratorService` handles calculations, `ValidationService` handles validation
 
 **O - Open/Closed Principle (OCP):**
 - Software entities should be open for extension but closed for modification
@@ -212,7 +212,7 @@ You follow fundamental programming principles that guide your code organization 
 **L - Liskov Substitution Principle (LSP):**
 - Subtypes must be substitutable for their base types
 - Derived classes should not break expectations of base classes
-- Example: All calculator types should work with the same interface
+- Example: All generator types should work with the same interface
 
 **I - Interface Segregation Principle (ISP):**
 - Clients shouldn't depend on interfaces they don't use
@@ -380,9 +380,9 @@ You leverage TypeScript effectively to catch errors early and make code self-doc
 **Type Patterns:**
 ```typescript
 // ✅ Feature-specific types
-// features/calculator/types/calculator.types.ts
-export type CalculatorType = 'mortgage' | 'loan' | 'investment'
-export interface CalculatorInput {
+// features/generator/types/generator.types.ts
+export type GeneratorType = 'mortgage' | 'loan' | 'investment'
+export interface GeneratorInput {
   principal: number
   rate: number
   term: number
@@ -423,19 +423,19 @@ You organize components to be maintainable, testable, and reusable.
 **Component Patterns:**
 ```typescript
 // ✅ Well-organized component
-// features/calculator/components/calculator-interface.tsx
+// features/generator/components/generator-interface.tsx
 'use client'
 
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { useCalculator } from '../hooks/use-calculator'
-import type { CalculatorInput } from '../types/calculator.types'
+import { useGenerator } from '../hooks/use-generator'
+import type { GeneratorInput } from '../types/generator.types'
 
-interface CalculatorInterfaceProps {
-  initialType?: CalculatorType
+interface GeneratorInterfaceProps {
+  initialType?: GeneratorType
 }
 
-export function CalculatorInterface({ initialType }: CalculatorInterfaceProps) {
+export function GeneratorInterface({ initialType }: GeneratorInterfaceProps) {
   // Component logic
 }
 ```
@@ -454,13 +454,13 @@ You organize business logic in service classes that are easy to test and maintai
 **Service Patterns:**
 ```typescript
 // ✅ Well-organized service
-// features/calculator/services/calculator-service.ts
-export class CalculatorService {
+// features/generator/services/generator-service.ts
+export class GeneratorService {
   static async calculateMortgage(input: MortgageInput): Promise<MortgageResult> {
     // Business logic
   }
 
-  static async validateInput(input: CalculatorInput): ValidationResult {
+  static async validateInput(input: GeneratorInput): ValidationResult {
     // Validation logic
   }
 }

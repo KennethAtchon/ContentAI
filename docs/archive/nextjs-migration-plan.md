@@ -165,7 +165,7 @@ WebsiteTemplate2/
 │   │   │   ├── pricing.tsx
 │   │   │   ├── faq.tsx
 │   │   │   ├── _auth/              # Auth-guarded routes
-│   │   │   │   ├── calculator.tsx
+│   │   │   │   ├── generator.tsx
 │   │   │   │   ├── account.tsx
 │   │   │   │   └── checkout.tsx
 │   │   │   └── admin/              # Admin routes
@@ -176,7 +176,7 @@ WebsiteTemplate2/
 │   │   │   ├── account/
 │   │   │   ├── admin/
 │   │   │   ├── auth/
-│   │   │   ├── calculator/
+│   │   │   ├── generator/
 │   │   │   ├── contact/
 │   │   │   ├── faq/
 │   │   │   ├── payments/
@@ -220,7 +220,7 @@ WebsiteTemplate2/
 │   │   │   │   ├── customers.ts
 │   │   │   │   ├── orders.ts
 │   │   │   │   └── subscriptions.ts
-│   │   │   ├── calculator/
+│   │   │   ├── generator/
 │   │   │   │   ├── calculate.ts
 │   │   │   │   ├── history.ts
 │   │   │   │   └── usage.ts

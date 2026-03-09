@@ -15,7 +15,7 @@ Set these first so your app name and tagline appear everywhere (UI, SEO, manifes
 - **APP_TAGLINE** – Tagline used in manifest and marketing.
 - **SUPPORT_EMAIL** – Support/contact email.
 - **SUPPORT_PHONE** – Support phone (SEO structured data and email template).
-- **CORE_FEATURE_SLUG** – URL slug for the main app feature (default `"calculator"`). Used to build `/calculator` and `/api/calculator/*`. Change to `"tools"`, `"documents"`, etc. if you build a different product.
+- **CORE_FEATURE_SLUG** – URL slug for the main app feature (default `"generator"`). Used to build `/generator` and `/api/generator/*`. Change to `"tools"`, `"documents"`, etc. if you build a different product.
 - **CORE_FEATURE_PATH** – Derived: `/${CORE_FEATURE_SLUG}` (use for links).
 - **CORE_FEATURE_API_PREFIX** – Derived: `/api/${CORE_FEATURE_SLUG}` (use for API calls).
 
@@ -25,24 +25,24 @@ No need to search the codebase for your product name; change this file and (wher
 
 ## 2. Core feature (where your main product lives)
 
-The template ships with one **default implementation**: financial calculators.
+The template ships with one **default implementation**: AI content generators.
 
-**Location:** `frontend/src/features/calculator/`
+**Location:** `frontend/src/features/generator/`
 
 | Part | Path | Purpose |
 |------|------|--------|
-| **Config** | `features/calculator/constants/calculator.constants.ts` | Defines calculator types, tier requirements, names, icons. Add or remove types here. |
-| **Types** | `features/calculator/types/calculator.types.ts` | Input/output types per calculator type. |
-| **Validation** | `features/calculator/types/calculator-validation.ts` | Zod schemas for API validation. |
-| **Service** | `features/calculator/services/calculator-service.ts` | Pure calculation logic. |
-| **Hook** | `features/calculator/hooks/use-calculator.ts` | Client-side: calls API, checks access, usage. |
-| **Components** | `features/calculator/components/` | UI for each calculator (mortgage, loan, investment, retirement). |
-| **Component map** | `features/calculator/components/calculator-component-map.tsx` | Maps calculator type → component. |
+| **Config** | `features/generator/constants/generator.constants.ts` | Defines generator types, tier requirements, names, icons. Add or remove types here. |
+| **Types** | `features/generator/types/generator.types.ts` | Input/output types per generator type. |
+| **Validation** | `features/generator/types/generator-validation.ts` | Zod schemas for API validation. |
+| **Service** | `features/generator/services/generator-service.ts` | Pure calculation logic. |
+| **Hook** | `features/generator/hooks/use-generator.ts` | Client-side: calls API, checks access, usage. |
+| **Components** | `features/generator/components/` | UI for each generator (mortgage, loan, investment, retirement). |
+| **Component map** | `features/generator/components/generator-component-map.tsx` | Maps generator type → component. |
 
-**Routes (default slug `calculator`):**
+**Routes (default slug `generator`):**
 
-- App: `/calculator` → `frontend/src/routes/(customer)/calculator/`
-- API: `/api/calculator/*` → `backend/src/routes/calculator.ts`
+- App: `/generator` → `frontend/src/routes/(customer)/generator/`
+- API: `/api/generator/*` → `backend/src/routes/generator.ts`
 
 Permissions and usage limits are wired to this feature (see `project/shared/utils/permissions/` and subscription tier config).
 
@@ -50,16 +50,16 @@ Permissions and usage limits are wired to this feature (see `project/shared/util
 
 ## 3. Adding new “feature types” (same product)
 
-Example: adding a new calculator (e.g. “savings”) while keeping the same product concept.
+Example: adding a new generator (e.g. “savings”) while keeping the same product concept.
 
-1. **Config** – Add an entry in `calculator.constants.ts` (`CALCULATOR_CONFIG`).
-2. **Types** – Add input/output types in `calculator.types.ts`.
-3. **Validation** – Add a Zod schema in `calculator-validation.ts`.
-4. **Service** – Add a method in `calculator-service.ts` and a branch in `performCalculation`.
-5. **Component** – Add a component (e.g. `savings-calculator.tsx`) and register it in `calculator-component-map.tsx`.
+1. **Config** – Add an entry in `generator.constants.ts` (`CALCULATOR_CONFIG`).
+2. **Types** – Add input/output types in `generator.types.ts`.
+3. **Validation** – Add a Zod schema in `generator-validation.ts`.
+4. **Service** – Add a method in `generator-service.ts` and a branch in `performCalculation`.
+5. **Component** – Add a component (e.g. `savings-generator.tsx`) and register it in `generator-component-map.tsx`.
 6. **API** – The calculate route uses the config and validation; add a `case` for the new type in the route’s switch if needed.
 
-Details: [Calculator system – Adding new calculators](AI_Orchestrator/architecture/domain/calculator-system.md#adding-new-calculators).
+Details: [Generator system – Adding new generators](AI_Orchestrator/architecture/domain/generator-system.md#adding-new-generators).
 
 ---
 
@@ -67,7 +67,7 @@ Details: [Calculator system – Adding new calculators](AI_Orchestrator/architec
 
 **For a full step-by-step swap (e.g. to ResumeHelper), use the [Core Feature Swap Expert](AI_Orchestrator/roles/core-feature-swap-expert.md) role:** it lists every file to touch and the exact contract your new feature must fulfill.
 
-If your product is not “calculators” (e.g. document generator, image tools):
+If your product is not “generators” (e.g. document generator, image tools):
 
 1. **Keep the same structure** – One feature module that provides:
    - A config of “feature types” (with tier requirements),
@@ -76,8 +76,8 @@ If your product is not “calculators” (e.g. document generator, image tools):
    - Components and a component map (or equivalent).
 
 2. **Option A – Replace in place**  
-   - Reuse `features/calculator/` (or rename the folder) and swap the config, types, service, and components for your product.  
-   - Keep using the same routes (`/calculator` and `/api/calculator`) or change `CORE_FEATURE_SLUG` in `app.constants.ts` and add corresponding routes (e.g. `app/(customer)/(main)/tools/` and `app/api/tools/`).
+   - Reuse `features/generator/` (or rename the folder) and swap the config, types, service, and components for your product.  
+   - Keep using the same routes (`/generator` and `/api/generator`) or change `CORE_FEATURE_SLUG` in `app.constants.ts` and add corresponding routes (e.g. `app/(customer)/(main)/tools/` and `app/api/tools/`).
 
 3. **Option B – New feature module**  
    - Add e.g. `features/documents/` with its own config, types, service, and components.  
@@ -92,7 +92,7 @@ If your product is not “calculators” (e.g. document generator, image tools):
 
 - **Permissions:** `frontend/src/shared/utils/permissions/`  
   - Access to feature types is driven by subscription tier.  
-  - The default implementation uses “calculator” types; the same pattern applies if you add another feature (tier requirement per type, check in API and UI).
+  - The default implementation uses “generator” types; the same pattern applies if you add another feature (tier requirement per type, check in API and UI).
 
 - **Usage limits:** Subscription tiers define “usage per month” (e.g. calculations, documents).  
   - Config: `frontend/src/shared/constants/subscription.constants.ts` (tier features and limits).  
@@ -106,7 +106,7 @@ If your product is not “calculators” (e.g. document generator, image tools):
 |------------|--------|
 | Change app name / tagline / support email | `project/shared/constants/app.constants.ts` |
 | Change the main app URL slug | `CORE_FEATURE_SLUG` in `app.constants.ts` |
-| Add or edit a calculator (or default feature) type | `features/calculator/constants/calculator.constants.ts` and the related types/service/components |
+| Add or edit a generator (or default feature) type | `features/generator/constants/generator.constants.ts` and the related types/service/components |
 | Change subscription tiers or limits | `project/shared/constants/subscription.constants.ts` |
 | Change marketing and UI copy | `project/translations/en.json` and public pages (see [i18n](#6-i18n-copy) below) |
 | Understand the full template plan | [Template roadmap](template-roadmap.md) |
@@ -120,4 +120,4 @@ All user-facing strings should go through **translations** so you can switch cop
 - **Translation file:** `frontend/src/translations/en.json`  
   Replace or add keys for your product name, tagline, feature names, and marketing copy. The template uses `react-i18next`; use `useTranslation()` in all components.
 - **Product name in code:** Use `APP_NAME` and `APP_DESCRIPTION` from `app.constants.ts` instead of hardcoding; the rest can live in translations.
-- **Topic-agnostic keys:** For a different product (e.g. “documents” instead of “calculators”), add or replace keys such as `core_feature_title`, `core_feature_usage_label`, etc., and use them in components. The default keys are calculator-oriented; you can keep them as the default set or duplicate and adapt for another topic.
+- **Topic-agnostic keys:** For a different product (e.g. “documents” instead of “generators”), add or replace keys such as `core_feature_title`, `core_feature_usage_label`, etc., and use them in components. The default keys are generator-oriented; you can keep them as the default set or duplicate and adapt for another topic.

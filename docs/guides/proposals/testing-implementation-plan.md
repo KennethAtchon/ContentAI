@@ -18,7 +18,7 @@ This document outlines a comprehensive plan for adding unit and integration test
 - Supertest (API route tests)
 
 **⚠️ Code Organization Requirement:**
-- **All business logic must be in `/business` folders** (e.g., `features/calculator/business/calculator-service.ts`)
+- **All business logic must be in `/business` folders** (e.g., `features/generator/business/generator-service.ts`)
 - This clearly separates domain-specific business logic from core infrastructure services
 - Test organization mirrors source code: business logic tests in `__tests__/unit/business/`, infrastructure tests in `__tests__/unit/services/`
 
@@ -37,14 +37,14 @@ This document outlines a comprehensive plan for adding unit and integration test
 - ✅ File validation (`__tests__/unit/validation/file-validation.test.ts`)
 - ✅ Search validation (`__tests__/unit/validation/search-validation.test.ts`)
 - ✅ Data validation (`__tests__/unit/utils/data-validation.test.ts`)
-- ✅ Permissions (`__tests__/unit/permissions/calculator-permissions.test.ts`, `core-feature-permissions.test.ts`)
+- ✅ Permissions (`__tests__/unit/permissions/generator-permissions.test.ts`, `core-feature-permissions.test.ts`)
 - ✅ Config (`__tests__/unit/config/envUtil.test.ts`, `mock.test.ts`), stripe-map-loader (`__tests__/unit/utils/stripe-map-loader.test.ts`)
 - ✅ Security/rate limit: csrf-protection, rate-limit-config, request-identity, middleware/helper
 - ✅ Core services: safe-fetch, prisma, performance-monitor, resend
 - ✅ Error handling & observability: api-error-wrapper, auth-error-handler, global-error-handler, system-logger, metrics
-- ✅ Business logic (Phase 7): calculator-service, calculator-constants, calculator-validation, payment-service
+- ✅ Business logic (Phase 7): generator-service, generator-constants, generator-validation, payment-service
 - ✅ Shared lib (Phase 8): query-keys, query-client
-- ✅ Integration (Phase 9): api-security, api-health-and-calculator
+- ✅ Integration (Phase 9): api-security, api-health-and-generator
 - ✅ SEO & security (Phase 10): metadata, page-metadata, structured-data, pii-sanitization
 - ✅ Components & hooks with DOM (Phase 11): `__tests__/unit/components/query-provider.test.tsx`, `__tests__/unit/hooks/use-query-fetcher.test.tsx` (happy-dom in preload)
 - ✅ Phase 12 – Middleware: `__tests__/integration/middleware.test.ts` (CORS preflight, security headers, config matcher)
@@ -62,7 +62,7 @@ This document outlines a comprehensive plan for adding unit and integration test
 ### Gaps Identified
 
 **Critical Missing Tests:**
-1. **Calculator Service** - Core business logic with complex financial calculations
+1. **Generator Service** - Core business logic with complex financial calculations
 2. **Payment Services** - Stripe integration, payment processing
 3. **Subscription Services** - Subscription management, tier validation
 4. **Rate Limiting** - Security-critical service
@@ -124,7 +124,7 @@ These services have the highest impact if broken and must be tested first:
 
 These services contain critical business logic that must work correctly:
 
-#### 5. **Calculator Service** (`features/calculator/business/calculator-service.ts`)
+#### 5. **Generator Service** (`features/generator/business/generator-service.ts`)
 - **Why Critical:** Core product functionality
 - **Risk:** Incorrect financial calculations, user trust
 - **Note:** This service should be moved to `/business` folder if not already there
@@ -147,12 +147,12 @@ These services contain critical business logic that must work correctly:
   - Subscription status checks
   - Tier upgrade/downgrade logic
 
-#### 7. **Calculator Permissions** (`shared/utils/permissions/calculator-permissions.ts`)
+#### 7. **Generator Permissions** (`shared/utils/permissions/generator-permissions.ts`)
 - **Why Critical:** Access control for paid features
 - **Risk:** Unauthorized access, revenue loss
 - **Test Focus:**
   - Tier-based access rules
-  - Free vs paid calculator access
+  - Free vs paid generator access
   - Permission checking logic
 
 ### 🟢 Tier 3: Infrastructure & Integration Services
@@ -214,10 +214,10 @@ These services support the application but are less critical:
 - `GET /api/subscriptions/current` - Current subscription status
 - `GET /api/subscriptions/portal-link` - Customer portal access
 
-#### 2. **Calculator API**
-- `POST /api/calculator/calculate` - Core calculation endpoint
-- `GET /api/calculator/usage` - Usage tracking
-- `GET /api/calculator/history` - Calculation history
+#### 2. **Generator API**
+- `POST /api/generator/calculate` - Core calculation endpoint
+- `GET /api/generator/usage` - Usage tracking
+- `GET /api/generator/history` - Calculation history
 
 #### 3. **Order APIs**
 - `POST /api/customer/orders/create` - Order creation
@@ -283,8 +283,8 @@ These services support the application but are less critical:
 
 **Goal:** Ensure core product functionality works correctly
 
-#### Week 3: Calculator Service
-5. **Calculator Service Tests** (`features/calculator/business/calculator-service.ts`)
+#### Week 3: Generator Service
+5. **Generator Service Tests** (`features/generator/business/generator-service.ts`)
    - **Ensure service is in `/business` folder before testing**
    - Mortgage calculation tests (multiple scenarios)
    - Loan calculation tests
@@ -294,9 +294,9 @@ These services support the application but are less critical:
    - Edge case tests (zero, negative, very large numbers)
    - Accuracy tests (compare against known results)
 
-6. **Calculator Permissions Tests**
+6. **Generator Permissions Tests**
    - Tier-based access tests
-   - Free calculator access tests
+   - Free generator access tests
    - Permission validation tests
 
 #### Week 4: Subscription Services
@@ -308,7 +308,7 @@ These services support the application but are less critical:
    - Subscription status checks
 
 **Deliverables:**
-- ✅ Calculator service fully tested
+- ✅ Generator service fully tested
 - ✅ Subscription logic fully tested
 - **Coverage Target:** 75%+ on business logic services
 
@@ -357,7 +357,7 @@ These services support the application but are less critical:
     - Current subscription endpoint
     - Portal link generation
 
-13. **Calculator API Tests**
+13. **Generator API Tests**
     - Calculation endpoint
     - Usage tracking
     - History retrieval
@@ -390,8 +390,8 @@ These services support the application but are less critical:
 project/__tests__/
 ├── unit/
 │   ├── business/                    # ⭐ BUSINESS LOGIC TESTS
-│   │   ├── calculator/
-│   │   │   └── calculator-service.test.ts
+│   │   ├── generator/
+│   │   │   └── generator-service.test.ts
 │   │   ├── payment/
 │   │   │   └── payment-service.test.ts
 │   │   ├── subscription/
@@ -419,7 +419,7 @@ project/__tests__/
 │   │
 │   ├── utils/                       # Utility function tests
 │   │   ├── permissions/
-│   │   │   └── calculator-permissions.test.ts
+│   │   │   └── generator-permissions.test.ts
 │   │   └── validation/
 │   │       └── input-validation.test.ts (existing)
 │   │
@@ -428,7 +428,7 @@ project/__tests__/
 │
 ├── integration/
 │   ├── business/                     # ⭐ BUSINESS LOGIC INTEGRATION TESTS
-│   │   ├── calculator-integration.test.ts
+│   │   ├── generator-integration.test.ts
 │   │   ├── payment-integration.test.ts
 │   │   ├── subscription-integration.test.ts
 │   │   └── order-integration.test.ts
@@ -438,7 +438,7 @@ project/__tests__/
 │   │   │   ├── checkout.test.ts
 │   │   │   ├── current.test.ts
 │   │   │   └── portal-link.test.ts
-│   │   ├── calculator/
+│   │   ├── generator/
 │   │   │   ├── calculate.test.ts
 │   │   │   ├── usage.test.ts
 │   │   │   └── history.test.ts
@@ -477,7 +477,7 @@ feature-name/
 ├── components/          # UI components
 ├── hooks/               # React hooks
 ├── business/            # ⭐ BUSINESS LOGIC (domain-specific)
-│   ├── calculator-service.ts
+│   ├── generator-service.ts
 │   ├── payment-service.ts
 │   ├── subscription-service.ts
 │   └── order-service.ts
@@ -511,12 +511,12 @@ shared/
 **Example:**
 ```typescript
 // ✅ CORRECT: Business logic in /business folder
-features/calculator/business/calculator-service.ts
+features/generator/business/generator-service.ts
 features/payments/business/payment-service.ts
 features/subscriptions/business/subscription-service.ts
 
 // ❌ WRONG: Business logic mixed with services
-features/calculator/services/calculator-service.ts
+features/generator/services/generator-service.ts
 shared/services/payment-service.ts
 ```
 
@@ -585,7 +585,7 @@ jest.mock('stripe', () => {
 ### 5. Test Naming Conventions
 
 ```typescript
-describe('CalculatorService', () => {
+describe('GeneratorService', () => {
   describe('calculateMortgage', () => {
     it('should calculate monthly payment correctly', () => {});
     it('should handle zero down payment', () => {});
@@ -635,7 +635,7 @@ Update `jest.config.js` to include:
 - ✅ All security tests passing
 
 ### Phase 2 Success Criteria
-- ✅ Calculator service: 75%+ coverage
+- ✅ Generator service: 75%+ coverage
 - ✅ Subscription services: 75%+ coverage
 - ✅ All business logic tests passing
 - ✅ Calculation accuracy verified
@@ -689,7 +689,7 @@ Update `jest.config.js` to include:
 - [Testing Plan: 100% Coverage](./testing-100-coverage-plan.md) – Phased plan to reach 100% coverage
 - [Testing Strategy](../architecture/core/testing-strategy.md)
 - [Production Readiness Checklist](./production-readiness.md)
-- [Calculator System](../architecture/domain/calculator-system.md)
+- [Generator System](../architecture/domain/generator-system.md)
 - [Subscription Architecture](../architecture/domain/subscription-architecture.md)
 - [Payment Flows](../architecture/domain/payment-flows.md)
 

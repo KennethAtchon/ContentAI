@@ -355,11 +355,11 @@ if (!ANTHROPIC_API_KEY) {
 
 ## Migration Notes
 
-### From Calculator Template
+### From Generator Template
 
 **Removed Components**:
-- `features/calculator/` - Entire calculator system
-- Calculator-specific routing and UI
+- `features/generator/` - Entire generator system
+- Generator-specific routing and UI
 - Financial calculation logic
 
 **Added Components**:
@@ -378,7 +378,7 @@ if (!ANTHROPIC_API_KEY) {
 ### Data Migration
 
 - Users and subscriptions preserved
-- Calculator usage data archived
+- Generator usage data archived
 - New reels/analysis/generation tables added
 - Feature usage tracking adapted for studio metrics
 

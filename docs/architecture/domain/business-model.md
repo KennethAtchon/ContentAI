@@ -1,13 +1,13 @@
-# YourApp Business Model - Domain Architecture
+# ReelStudio Business Model - Domain Architecture
 
 ## Overview
 
-YourApp's subscription-based financial calculator SaaS with three tiers (Basic, Pro, Enterprise), monthly usage limits, one-time purchases, and automated subscription management.
+ReelStudio is a subscription-based AI content generation platform with three tiers (Basic, Pro, Enterprise), monthly generation limits, one-time purchases, and automated subscription management.
 
 **Business Model:**
 - Three subscription tiers with hierarchical access
-- Monthly calculation limits (50/500/unlimited)
-- Free calculators + tier-gated premium calculators
+- Monthly AI generation limits (50/500/unlimited)
+- Free basic generators + tier-gated premium tools (Scripts, Voiceovers)
 - One-time purchases separate from subscriptions
 - Automated billing via Stripe + Firebase
 
@@ -28,20 +28,20 @@ YourApp's subscription-based financial calculator SaaS with three tiers (Basic, 
 ### Tier Hierarchy
 
 ```
-Enterprise (unlimited calculations, all features)
+Enterprise (unlimited generations, all features)
     ↑
-  Pro (500 calculations/month, premium calculators)
+  Pro (500 generations/month, premium templates)
     ↑
- Basic (50 calculations/month, loan calculator)
+  Basic (50 generations/month, viral hooks)
     ↑
-  Free (mortgage calculator only)
+  Free (basic captions only)
 ```
 
 **Access Rules:**
-- **Enterprise** users get all features (Enterprise + Pro + Basic + Free)
+- **Enterprise** users get all features
 - **Pro** users get Pro + Basic + Free features
 - **Basic** users get Basic + Free features
-- **Free** users only get free calculators
+- **Free** users only get free basic generators
 
 ### Configuration
 
@@ -65,25 +65,25 @@ export type SubscriptionTier = typeof SUBSCRIPTION_TIERS[keyof typeof SUBSCRIPTI
 
 | Feature | Free | Basic ($9/mo) | Pro ($29/mo) | Enterprise ($99/mo) |
 |---------|------|---------------|--------------|---------------------|
-| **Calculations/Month** | Unlimited* | 50 | 500 | Unlimited |
-| **Mortgage Calculator** | ✅ | ✅ | ✅ | ✅ |
-| **Loan Calculator** | ❌ | ✅ | ✅ | ✅ |
-| **Investment Calculator** | ❌ | ❌ | ✅ | ✅ |
-| **Retirement Calculator** | ❌ | ❌ | ❌ | ✅ |
-| **Export to PDF** | ✅ | ✅ | ✅ | ✅ |
-| **Export to Excel/CSV** | ❌ | ❌ | ✅ | ✅ |
+| **Generations/Month** | Unlimited* | 50 | 500 | Unlimited |
+| **Basic Captions** | ✅ | ✅ | ✅ | ✅ |
+| **Viral Hooks** | ❌ | ✅ | ✅ | ✅ |
+| **Full Video Scripts** | ❌ | ❌ | ✅ | ✅ |
+| **Competitor Analysis** | ❌ | ❌ | ❌ | ✅ |
+| **Export Options** | Local | Local | Direct Post | Multi-Platform API |
+| **AI Voiceovers** | ❌ | ❌ | ✅ | ✅ |
 | **API Access** | ❌ | ❌ | ✅ | ✅ |
 | **Custom Branding** | ❌ | ❌ | ❌ | ✅ |
 | **Support** | Community | Email | Priority | Dedicated |
 
-*Free users: unlimited for free calculators only (mortgage)
+*Free users: unlimited for free tools only (basic captions)
 
-### Calculator Access by Tier
+### Generator Access by Tier
 
-**Location:** `shared/utils/permissions/calculator-permissions.ts`
+**Location:** `shared/utils/permissions/generator-permissions.ts`
 
 ```typescript
-// Single source of truth for calculator access
+// Single source of truth for generator access
 export const CALCULATOR_TIER_REQUIREMENTS = {
   mortgage: null,        // FREE - no subscription required
   loan: 'basic',         // Requires Basic or higher
@@ -92,13 +92,13 @@ export const CALCULATOR_TIER_REQUIREMENTS = {
 } as const;
 
 // Check if user has access
-export function hasCalculatorAccess(
+export function hasGeneratorAccess(
   userTier: SubscriptionTier | null,
-  calculatorType: CalculationType
+  generatorType: CalculationType
 ): boolean {
-  const required = CALCULATOR_TIER_REQUIREMENTS[calculatorType];
+  const required = CALCULATOR_TIER_REQUIREMENTS[generatorType];
   
-  // Free calculator
+  // Free generator
   if (required === null) return true;
   
   // No subscription
@@ -114,29 +114,29 @@ export function hasCalculatorAccess(
 
 ## Usage Limits
 
-### Monthly Calculation Limits
+### Monthly Generation Limits
 
 ```typescript
 // shared/constants/subscription.constants.ts
 export const TIER_LIMITS = {
-  basic: { maxCalculationsPerMonth: 50 },
-  pro: { maxCalculationsPerMonth: 500 },
-  enterprise: { maxCalculationsPerMonth: -1 }, // Unlimited
+  basic: { maxGenerationsPerMonth: 50 },
+  pro: { maxGenerationsPerMonth: 500 },
+  enterprise: { maxGenerationsPerMonth: -1 }, // Unlimited //
 };
 ```
 
 ### Usage Tracking
 
-**Database Model:** `CalculatorUsage`
+**Database Model:** `GenerationHistory`
 
 ```prisma
-model CalculatorUsage {
+model GenerationHistory {
   id              String   @id @default(uuid())
   userId          String
-  calculationType String   // "mortgage", "loan", etc.
-  inputData       Json     // Calculation inputs
-  resultData      Json     // Calculation results
-  calculationTime Int      // Milliseconds
+  generationType  String   // "hook", "caption", etc.
+  inputData       Json     // Prompt inputs
+  resultData      Json     // Generated text
+  generationTime  Int      // Milliseconds
   createdAt       DateTime @default(now())
   
   @@index([userId, createdAt])
@@ -146,18 +146,18 @@ model CalculatorUsage {
 ### Usage Flow
 
 ```
-1. User submits calculation
-2. Check: Does user have access to this calculator type?
+1. User submits generation prompt
+2. Check: Does user have access to this AI tool type?
 3. Check: Has user reached monthly limit?
-4. Perform calculation
-5. Save to CalculatorUsage table
+4. Generate content via LLM
+5. Save to GenerationHistory table
 6. Return result + updated usage stats
 ```
 
 ### Usage Statistics
 
-Users see real-time stats on their account page:
-- **Current Usage:** 23/50 calculations this month
+Users see real-time stats on their account dashboard:
+- **Current Usage:** 23/50 generations this month
 - **Percentage Used:** 46%
 - **Limit Reached:** Warning when >= 80%, error at 100%
 - **Resets:** Monthly on the 1st
@@ -290,15 +290,15 @@ pending → processing → completed → delivered
 ### Subscription Rules
 
 1. **Hierarchy:** Higher tiers include all lower tier features
-2. **Limits:** Only paid tiers have calculation limits (free calculators are unlimited)
+2. **Limits:** Only paid tiers have calculation limits (free generators are unlimited)
 3. **Custom Claims:** `stripeRole` in Firebase is source of truth for tier
 4. **Downgrade:** User keeps access until current billing period ends
 5. **Cancellation:** Subscription continues until period end, then reverts to free
 
 ### Usage Rules
 
-1. **Free Calculators:** No usage tracking or limits (mortgage calculator)
-2. **Paid Calculators:** Count toward monthly limit
+1. **Free Generators:** No usage tracking or limits (mortgage generator)
+2. **Paid Generators:** Count toward monthly limit
 3. **Monthly Reset:** Usage resets on 1st of each month
 4. **Overage:** Hard limit - users can't calculate once limit reached
 5. **Upgrade:** Instantly get new tier's higher limit
@@ -317,7 +317,7 @@ pending → processing → completed → delivered
 - [Subscription Portal-Only Refactor Plan](../plantofix/subscription-portal-only-refactor.md) - Complete refactor documentation
 - [Subscription Upgrade/Downgrade Flow](../troubleshooting/subscription-upgrade-downgrade-flow.md) - Detailed flow explanation
 - [Subscription System](./subscription-system.md) - Technical architecture details
-- [Calculator System](./calculator-system.md) - Calculator types and implementation
+- [Generator System](./generator-system.md) - Generator types and implementation
 - [Account Management](./account-management.md) - User account features
 - [Admin Dashboard](./admin-dashboard.md) - Admin management features
 

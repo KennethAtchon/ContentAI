@@ -152,7 +152,7 @@ export const REDIRECT_PATHS = {
   PRICING: "/pricing", 
   ACCOUNT: "/account",
   CHECKOUT: "/checkout",
-  DASHBOARD: "/account?tab=calculator"
+  DASHBOARD: "/account?tab=generator"
 };
 ```
 

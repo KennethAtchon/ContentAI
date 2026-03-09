@@ -46,7 +46,7 @@
 | **App context** | `shared/contexts/app-context.tsx` | Profile + logout cache clear via `mutate(key => …)` |
 | **Pagination** | `shared/hooks/use-paginated-data.ts` | `useSWR(swrKey, paginatedFetcher)` + local page state |
 | **Portal link** | `shared/hooks/use-portal-link.ts` | `useSWR` with long dedupe, no revalidate on focus |
-| **Calculator** | `features/calculator/hooks/use-calculator.ts` | Usage stats + post-calculation invalidation |
+| **Generator** | `features/generator/hooks/use-generator.ts` | Usage stats + post-calculation invalidation |
 | **Subscription** | `features/subscriptions/hooks/use-subscription.ts` | `mutate(predicate)` when role changes |
 | **Account** | `usage-dashboard.tsx`, `subscription-management.tsx` | Usage stats, export invalidation |
 | **Admin** | dashboard, orders, customers, subscriptions, contact messages | Lists, analytics, forms |
@@ -140,7 +140,7 @@ export function makeQueryClient() {
 export type QueryClientInstance = ReturnType<typeof makeQueryClient>;
 ```
 
-- Use **query key arrays** consistently, e.g. `["api", "profile"]`, `["api", "calculator", "usage"]`, so you can invalidate by prefix.
+- Use **query key arrays** consistently, e.g. `["api", "profile"]`, `["api", "generator", "usage"]`, so you can invalidate by prefix.
 - For Next.js App Router, create the client in a **client component** (or via `useState(() => makeQueryClient())`) so it’s not shared across requests if you ever do SSR with React Query.
 
 ### 3.3 Provider – Replace SWRProvider
@@ -244,9 +244,9 @@ Centralize query keys so invalidation and refetch are consistent.
 export const queryKeys = {
   api: {
     profile: () => ["api", "customer", "profile"] as const,
-    calculatorUsage: () => ["api", "calculator", "usage"] as const,
-    calculatorHistory: (params?: { page?: number; limit?: number }) =>
-      ["api", "calculator", "history", params] as const,
+    generatorUsage: () => ["api", "generator", "usage"] as const,
+    generatorHistory: (params?: { page?: number; limit?: number }) =>
+      ["api", "generator", "history", params] as const,
     trialEligibility: () => ["api", "subscriptions", "trial-eligibility"] as const,
     currentSubscription: () => ["api", "subscriptions", "current"] as const,
     portalLink: () => ["api", "subscriptions", "portal-link"] as const,
@@ -266,8 +266,8 @@ export const queryKeys = {
 Then invalidation becomes:
 
 ```typescript
-queryClient.invalidateQueries({ queryKey: queryKeys.api.calculatorUsage() });
-queryClient.invalidateQueries({ predicate: (q) => queryKeyMatches(q.queryKey, ["api", "calculator", "history"]) });
+queryClient.invalidateQueries({ queryKey: queryKeys.api.generatorUsage() });
+queryClient.invalidateQueries({ predicate: (q) => queryKeyMatches(q.queryKey, ["api", "generator", "history"]) });
 ```
 
 ---
@@ -305,17 +305,17 @@ Use this as a checklist; implement in an order that avoids breaking the app (e.g
 | `features/account/components/usage-dashboard.tsx` | useSWR usage + history, mutate after export | `useQuery` for usage + history; after export call `queryClient.invalidateQueries` for usage and history keys |
 | `features/account/components/subscription-management.tsx` | useSWR usage stats | `useQuery` with `queryKeys.api.usageStats()` |
 
-### 5.5 Features – Calculator
+### 5.5 Features – Generator
 
 | File | Current | Migration |
 |------|--------|-----------|
-| `features/calculator/hooks/use-calculator.ts` | useSWR usage; mutate + mutateUsageStats after calculate | `useQuery` for usage; after calculation `queryClient.invalidateQueries(usage)` and history; optionally `refetch()` from the usage query |
+| `features/generator/hooks/use-generator.ts` | useSWR usage; mutate + mutateUsageStats after calculate | `useQuery` for usage; after calculation `queryClient.invalidateQueries(usage)` and history; optionally `refetch()` from the usage query |
 
 ### 5.6 Features – Subscriptions
 
 | File | Current | Migration |
 |------|--------|-----------|
-| `features/subscriptions/hooks/use-subscription.ts` | mutate(predicate) when role changes | On role change call `queryClient.invalidateQueries({ predicate })` for keys containing `/api/admin/subscriptions`, `/api/calculator/usage`, `/api/subscriptions` (or use query key helpers). |
+| `features/subscriptions/hooks/use-subscription.ts` | mutate(predicate) when role changes | On role change call `queryClient.invalidateQueries({ predicate })` for keys containing `/api/admin/subscriptions`, `/api/generator/usage`, `/api/subscriptions` (or use query key helpers). |
 
 ### 5.7 Features – Admin
 
@@ -348,11 +348,11 @@ Use this as a checklist; implement in an order that avoids breaking the app (e.g
 
 ### 6.1 Invalidation Patterns
 
-- **Single query:** `queryClient.invalidateQueries({ queryKey: queryKeys.api.calculatorUsage() })`.
-- **By prefix:** `queryClient.invalidateQueries({ queryKey: ["api", "calculator"] })` (invalidates all queries whose key starts with that).
+- **Single query:** `queryClient.invalidateQueries({ queryKey: queryKeys.api.generatorUsage() })`.
+- **By prefix:** `queryClient.invalidateQueries({ queryKey: ["api", "generator"] })` (invalidates all queries whose key starts with that).
 - **By predicate:**  
   `queryClient.removeQueries({ predicate: (q) => keyMatches(q.queryKey, ["api"]) })` for logout.  
-  For “all calculator and subscription related”: predicate that checks `queryKey` array for substrings or key segments.
+  For “all generator and subscription related”: predicate that checks `queryKey` array for substrings or key segments.
 
 ### 6.2 After Mutations (e.g. create order, run calculation, export)
 
@@ -417,11 +417,11 @@ After migration:
 ```tsx
 const fetcher = useSWRFetcher<UsageStats>();
 const { data, error, isLoading, mutate } = useSWR(
-  user ? "/api/calculator/usage" : null,
+  user ? "/api/generator/usage" : null,
   fetcher,
   { revalidateOnFocus: false }
 );
-// later: mutate("/api/calculator/usage"); mutate((k) => ...);
+// later: mutate("/api/generator/usage"); mutate((k) => ...);
 ```
 
 **After (React Query):**
@@ -429,12 +429,12 @@ const { data, error, isLoading, mutate } = useSWR(
 ```tsx
 const fetcher = useQueryFetcher<UsageStats>();
 const { data, error, isLoading, refetch } = useQuery({
-  queryKey: queryKeys.api.calculatorUsage(),
-  queryFn: () => fetcher("/api/calculator/usage"),
+  queryKey: queryKeys.api.generatorUsage(),
+  queryFn: () => fetcher("/api/generator/usage"),
   enabled: !!user,
   refetchOnWindowFocus: false,
 });
-// later: queryClient.invalidateQueries({ queryKey: queryKeys.api.calculatorUsage() });
+// later: queryClient.invalidateQueries({ queryKey: queryKeys.api.generatorUsage() });
 ```
 
 ---

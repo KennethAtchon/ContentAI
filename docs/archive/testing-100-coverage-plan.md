@@ -51,14 +51,14 @@ Raise thresholds gradually (e.g. 80 → 90 → 100) as each phase is completed s
 - **Existing tests:** 55 files (51 unit, 4 integration), 672 tests.
 - **Phase 0 (done):** Fixed failing tests in `api-route-protection.test.ts`; test runner is Bun (`bun test --coverage`).
 - **Phase 1 (done):** Unit tests for: `date.ts`, `pagination.ts`, `subscription-type-guards.ts`, `add-timezone-header.ts`, `response-helpers.ts`, `encryption.ts`; coverage 92–100%.
-- **Phase 2 (done):** Validation and permissions at high coverage; `calculator-permissions` and `core-feature-permissions` at 100%.
+- **Phase 2 (done):** Validation and permissions at high coverage; `generator-permissions` and `core-feature-permissions` at 100%.
 - **Phase 3 (done):** Config and safe wrappers: `envUtil.ts`, `mock.ts`, `stripe-map-loader.ts` (100%).
 - **Phase 4 (done):** Security and rate limiting: `rate-limit.config.ts` (100%), `request-identity`, `middleware/helper`, CSRF exports tested.
 - **Phase 5 (done):** Core services: `safe-fetch`, `prisma`, `performance-monitor`, `resend`.
 - **Phase 6 (done):** Error handling and observability: `api-error-wrapper`, `auth-error-handler`, `global-error-handler`, `system-logger`, `metrics`.
-- **Phase 7 (partial):** Business logic: calculator-service, calculator.constants (100%), calculator-validation (100%), payment-service. Hooks and stripe-checkout deferred.
+- **Phase 7 (partial):** Business logic: generator-service, generator.constants (100%), generator-validation (100%), payment-service. Hooks and stripe-checkout deferred.
 - **Phase 8 (done):** Shared lib: query-keys (100%), query-client (100%), use-query-fetcher (100%).
-- **Phase 9 (partial):** API routes: api-security, api-health-and-calculator (live, calculator/calculate: mortgage, loan, investment, retirement), api-csrf (GET 401/200).
+- **Phase 9 (partial):** API routes: api-security, api-health-and-generator (live, generator/calculate: mortgage, loan, investment, retirement), api-csrf (GET 401/200).
 - **Phase 10 (partial):** SEO: metadata, page-metadata, structured-data. PII sanitization (API). Storage R2 and TimeService deferred.
 - **Phase 11 (partial):** DOM via happy-dom in preload; QueryProvider and useQueryFetcher tests (RTL + renderHook). Layout/feature components can be added incrementally.
 - **Phase 12 (done):** Root middleware: `__tests__/integration/middleware.test.ts` (config matcher, CORS preflight OPTIONS /api/*, security headers on all requests).
@@ -113,7 +113,7 @@ Target: **100%** for all validation and permission modules.
 | 6 | `shared/utils/validation/data-validation.ts` | ✅ `data-validation.test.ts` (under `unit/utils/`) |
 | 7 | `shared/utils/validation/file-validation.ts` | ✅ `file-validation.test.ts` |
 | 8 | `shared/utils/validation/search-validation.ts` | ✅ `search-validation.test.ts` – 100% lines |
-| 9 | `shared/utils/permissions/calculator-permissions.ts` | ✅ `calculator-permissions.test.ts` – 100% |
+| 9 | `shared/utils/permissions/generator-permissions.ts` | ✅ `generator-permissions.test.ts` – 100% |
 | 10 | `shared/utils/permissions/core-feature-permissions.ts` | ✅ `core-feature-permissions.test.ts` – 100% |
 
 **Test location:** `__tests__/unit/validation/`, `__tests__/unit/permissions/`, `__tests__/unit/utils/data-validation.test.ts`.
@@ -188,24 +188,24 @@ Target: **100%** for error handlers and logging (mock logger and env).
 
 ---
 
-## Phase 7: Business logic (calculator, subscriptions, payments) ✅ (partial)
+## Phase 7: Business logic (generator, subscriptions, payments) ✅ (partial)
 
 Target: **100%** for services and pure business logic.
 
 | Priority | Path / area | Notes |
 |----------|-------------|--------|
-| 1 | `features/calculator/services/calculator-service.ts` | ✅ `__tests__/unit/features/calculator/calculator-service.test.ts` – mortgage, loan, investment, retirement, performCalculation |
-| 2 | `features/calculator/constants/calculator.constants.ts` | ✅ `__tests__/unit/features/calculator/calculator-constants.test.ts` – 100% lines |
-| 3 | `features/calculator/types/calculator-validation.ts` | ✅ `__tests__/unit/features/calculator/calculator-validation.test.ts` – 100% lines |
-| 4 | `shared/utils/permissions/calculator-permissions.ts` | Done in Phase 2 |
+| 1 | `features/generator/services/generator-service.ts` | ✅ `__tests__/unit/features/generator/generator-service.test.ts` – mortgage, loan, investment, retirement, performCalculation |
+| 2 | `features/generator/constants/generator.constants.ts` | ✅ `__tests__/unit/features/generator/generator-constants.test.ts` – 100% lines |
+| 3 | `features/generator/types/generator-validation.ts` | ✅ `__tests__/unit/features/generator/generator-validation.test.ts` – 100% lines |
+| 4 | `shared/utils/permissions/generator-permissions.ts` | Done in Phase 2 |
 | 5 | `features/subscriptions/hooks/use-subscription.ts` | Defer: React hook; use integration or RTL |
 | 6 | `features/payments/services/payment-service.ts` | ✅ `__tests__/unit/features/payments/payment-service.test.ts` – validation, processPayment throw |
 | 7 | `features/payments/services/stripe-checkout.ts` | Defer: Firestore/addDoc/onSnapshot; mock in integration |
 | 8 | `features/auth/services/firebase-middleware.ts` | Mocked in preload; cover via integration |
 | 9 | `features/auth/hooks/use-authenticated-fetch.ts` | Auth fetch; cover via integration |
-| 10 | `features/calculator/hooks/use-calculator.ts` | Defer: React hook + API; use RTL or integration |
+| 10 | `features/generator/hooks/use-generator.ts` | Defer: React hook + API; use RTL or integration |
 
-**Test location:** `__tests__/unit/features/calculator/`, `__tests__/unit/features/payments/`.
+**Test location:** `__tests__/unit/features/generator/`, `__tests__/unit/features/payments/`.
 
 ---
 
@@ -230,13 +230,13 @@ Target: **100%** for shared hooks and query/API helpers.
 Target: **100%** for every API route handler (app route handlers).
 
 - Use **integration tests** that call the route with mocked auth, DB, and external services.
-- Group by domain: auth, admin, calculator, customer, subscriptions, analytics, health, etc.
+- Group by domain: auth, admin, generator, customer, subscriptions, analytics, health, etc.
 
 **Existing:** `__tests__/integration/api-security.test.ts` (auth, admin, customer profile, CSRF, security headers).
 
-**Added:** `__tests__/integration/api-health-and-calculator.test.ts`:
+**Added:** `__tests__/integration/api-health-and-generator.test.ts`:
 - GET /api/live (200, alive, process details)
-- POST /api/calculator/calculate: 401 unauthenticated, 200 valid mortgage, 400 invalid type, 400 invalid inputs
+- POST /api/generator/calculate: 401 unauthenticated, 200 valid mortgage, 400 invalid type, 400 invalid inputs
 
 **Preload:** Prisma mock extended with `featureUsage` (count, create, findMany, findFirst) and `$queryRaw` for routes that need them.
 
@@ -301,7 +301,7 @@ Target: **100%** for any remaining logic in `app/` and root middleware.
 | 4 | Security and rate limiting | Medium |
 | 5 | Core services (DB, API, auth, email) | Large |
 | 6 | Error handling, logging, observability | Medium |
-| 7 | Business logic (calculator, subscriptions, payments) | Large |
+| 7 | Business logic (generator, subscriptions, payments) | Large |
 | 8 | Shared hooks and lib | Small |
 | 9 | API routes | Large |
 | 10 | SEO, storage, timezone, PII | Medium |

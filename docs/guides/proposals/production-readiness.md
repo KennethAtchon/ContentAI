@@ -501,7 +501,7 @@ A comprehensive checklist of items that MUST be completed before launching **thi
   - Test complete user journey (signup → subscription → core feature usage)
   - Test payment flow with real payment methods (small amounts)
   - Test admin dashboard functionality
-  - Test all core feature types (default: calculator types; or your replacement feature)
+  - Test all core feature types (default: generator types; or your replacement feature)
 
 - [ ] **Cross-browser testing**
   - Test on Chrome, Firefox, Safari, Edge

@@ -78,7 +78,7 @@
 
 ## Business Metrics
 
-- [x] User activity tracked — `FeatureUsage` table records all calculator uses
+- [x] User activity tracked — `FeatureUsage` table records all generator uses
 - [x] Conversion metrics tracked — signup + subscription events tracked
 - [x] Revenue metrics tracked — Stripe Dashboard provides MRR, churn, revenue
 - [x] Feature usage tracked — `FeatureUsage.featureType` per user per calculation

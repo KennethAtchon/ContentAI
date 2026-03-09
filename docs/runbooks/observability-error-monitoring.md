@@ -72,7 +72,7 @@ Create the following alert rules (Sentry → Alerts → Create Alert):
 
 ### Current state
 
-Business events are tracked in the app (calculator usage, signups, conversions).
+Business events are tracked in the app (generator usage, signups, conversions).
 No dashboard consumes them yet.
 
 ### Option A — Railway Metrics + Custom Dashboard
@@ -82,7 +82,7 @@ The `/api/metrics` endpoint exposes Prometheus metrics. Create a Grafana dashboa
 | Panel | Metric | Visualization |
 |-------|--------|--------------|
 | Daily active users | `your_app_active_users_total` | Time series |
-| Calculator usage by type | `your_app_feature_usage_total{type}` | Bar chart |
+| Generator usage by type | `your_app_feature_usage_total{type}` | Bar chart |
 | Subscription signups | `your_app_subscriptions_created_total` | Counter |
 | Revenue (MRR) | `your_app_mrr_usd` | Gauge |
 | Churn rate | `your_app_subscriptions_cancelled_total` | Time series |
@@ -103,7 +103,7 @@ bun add posthog-js posthog-node
 Track events:
 - `signup_completed`
 - `subscription_started`
-- `calculator_used` (with `type` property)
+- `generator_used` (with `type` property)
 - `export_downloaded`
 - `subscription_cancelled`
 

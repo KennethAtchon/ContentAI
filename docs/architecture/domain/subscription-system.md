@@ -55,7 +55,7 @@ YourApp's subscription system is a fully automated, Firebase Stripe Extension-po
 │                                                              │
 │  PRISMA/PostgreSQL (Usage Tracking)                         │
 │  ┌────────────────────────────────────────────────────┐     │
-│  │ CalculatorUsage (monthly calculation counts)      │     │
+│  │ GeneratorUsage (monthly calculation counts)      │     │
 │  └────────────────────────────────────────────────────┘     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -81,11 +81,11 @@ User Action → Client Component → API/Firestore → Firebase Extension → St
 ```
 Enterprise ($99/mo) - Unlimited calculations, all features
     ↑
-  Pro ($29/mo) - 500 calculations/month, premium calculators
+  Pro ($29/mo) - 500 calculations/month, premium generators
     ↑
- Basic ($9/mo) - 50 calculations/month, loan calculator
+ Basic ($9/mo) - 50 calculations/month, loan generator
     ↑
- Free - Mortgage calculator only (unlimited)
+ Free - Mortgage generator only (unlimited)
 ```
 
 ### Tier Configuration
@@ -892,7 +892,7 @@ export function FeatureGate({
 **Usage:**
 ```typescript
 <FeatureGate requiredTier="pro" fallback={<UpgradePrompt />}>
-  <InvestmentCalculator />
+  <InvestmentGenerator />
 </FeatureGate>
 ```
 
@@ -955,16 +955,16 @@ function hasTierAccess(
 }
 ```
 
-**Calculator Access:**
+**Generator Access:**
 ```typescript
-// Check calculator access
-export function hasCalculatorAccess(
+// Check generator access
+export function hasGeneratorAccess(
   userTier: SubscriptionTier | null,
-  calculatorType: CalculationType
+  generatorType: CalculationType
 ): boolean {
-  const required = CALCULATOR_TIER_REQUIREMENTS[calculatorType];
+  const required = CALCULATOR_TIER_REQUIREMENTS[generatorType];
   
-  // Free calculator
+  // Free generator
   if (required === null) return true;
   
   // No subscription
@@ -983,17 +983,17 @@ export function hasCalculatorAccess(
 ### Usage Limits
 
 **Monthly Calculation Limits:**
-- **Free:** Unlimited (for free calculators only)
+- **Free:** Unlimited (for free generators only)
 - **Basic:** 50 calculations/month
 - **Pro:** 500 calculations/month
 - **Enterprise:** Unlimited
 
 ### Usage Storage
 
-**Location:** Prisma/PostgreSQL `CalculatorUsage` table
+**Location:** Prisma/PostgreSQL `GeneratorUsage` table
 
 ```prisma
-model CalculatorUsage {
+model GeneratorUsage {
   id              String   @id @default(uuid())
   userId          String
   calculationType String   // "mortgage", "loan", "investment", "retirement"
@@ -1010,16 +1010,16 @@ model CalculatorUsage {
 
 ```
 1. User submits calculation
-2. Check: Does user have access to calculator type?
-3. Check: Has user reached monthly limit? (for paid calculators)
+2. Check: Does user have access to generator type?
+3. Check: Has user reached monthly limit? (for paid generators)
 4. Perform calculation
-5. Save to CalculatorUsage table (only for gated calculators)
+5. Save to GeneratorUsage table (only for gated generators)
 6. Return result + updated usage stats
 ```
 
 ### Usage Statistics
 
-**API:** `/api/calculator/usage` (GET)
+**API:** `/api/generator/usage` (GET)
 
 **Response:**
 ```json
@@ -1035,8 +1035,8 @@ model CalculatorUsage {
 ```
 
 **Calculation:**
-- Count `CalculatorUsage` records for current month
-- Exclude free calculators (mortgage)
+- Count `GeneratorUsage` records for current month
+- Exclude free generators (mortgage)
 - Compare against tier limit
 - Reset on 1st of each month
 
@@ -1168,7 +1168,7 @@ model CalculatorUsage {
 - [Subscription Portal-Only Refactor Plan](../plantofix/subscription-portal-only-refactor.md) - Complete refactor documentation
 - [Subscription Upgrade/Downgrade Flow](../troubleshooting/subscription-upgrade-downgrade-flow.md) - Detailed flow explanation
 - [Business Model](./business-model.md) - Subscription tiers, pricing, features
-- [Calculator System](./calculator-system.md) - Calculator access rules
+- [Generator System](./generator-system.md) - Generator access rules
 - [Account Management](./account-management.md) - User subscription management
 - [Admin Dashboard](./admin-dashboard.md) - Admin subscription management
 - [Authentication](../core/authentication.md) - Custom claims and access control

@@ -25,7 +25,7 @@ YourApp uses Stripe.js and the Stripe Customer Portal for all payment flows. Car
 ### Audit Trail
 
 The app maintains an audit trail via:
-- `FeatureUsage` table — all calculator uses with timestamps
+- `FeatureUsage` table — all generator uses with timestamps
 - `Order` table — all payment events with Stripe session IDs
 - Stripe Dashboard — complete payment history and invoices
 - Railway logs — API access logs with timestamps

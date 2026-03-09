@@ -86,7 +86,7 @@ From `next.config.ts`:
 **Item 54 — Decision: Not applicable at this time.**
 
 YourApp is a SaaS web application, not a Progressive Web App. PWA features (service worker, offline support, app manifest install) would only add value if:
-- Users need offline access to calculator results
+- Users need offline access to generator results
 - Mobile install-to-homescreen is a priority
 
 **Revisit:** If product pivots to mobile-first or offline use cases.

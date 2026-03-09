@@ -499,7 +499,7 @@ admin (highest privilege)
 user (standard)
   ├─ Own profile access
   ├─ Subscription management
-  └─ Calculator access
+  └─ Generator access
 ```
 
 ### Setting Custom Claims

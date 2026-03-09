@@ -19,7 +19,7 @@
 - [x] API endpoint tests written — 180 tests across 13 files
 - [x] All API routes covered per [Integration Tests Plan](../AI_Orchestrator/consider/integration-tests-plan.md) (phases 1–7)
   - [x] Phase 1: Health & readiness (`api-health-ready.test.ts`) — `/api/health`, `/api/ready`, `/api/metrics`
-  - [x] Phase 2: Calculator (`api-calculator.test.ts`) — types, history, usage, export
+  - [x] Phase 2: Generator (`api-generator.test.ts`) — types, history, usage, export
   - [x] Phase 3: Customer orders (`api-customer-orders.test.ts`) — list, create, by-id, create, total-revenue, by-session
   - [x] Phase 4: Subscriptions (`api-subscriptions.test.ts`) — current, portal-link, trial-eligibility
   - [x] Phase 5: Admin (`api-admin.test.ts`) — orders CRUD, orders/[id], subscriptions, subscriptions/[id], subscriptions/analytics, analytics, sync-firebase, schema, database/health, verify

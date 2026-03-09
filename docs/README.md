@@ -1,6 +1,6 @@
-# Documentation
+# ReelStudio Documentation
 
-This is the documentation hub for the SaaS template. The template ships with auth, subscriptions, payments, and admin pre-built so you can focus on your core product.
+This is the central documentation hub for **ReelStudio**, an AI-powered Content Intelligence Platform. This folder contains architecture overviews, runbooks, and domain-specific documentation covering the app's split-stack infrastructure.
 
 ---
 
@@ -21,9 +21,8 @@ This is the documentation hub for the SaaS template. The template ships with aut
 ## Quick navigation by role
 
 ### New to the project?
-1. Read [TEMPLATE_GUIDE.md](./TEMPLATE_GUIDE.md) — the master reference for what's built and how to make it yours
-2. Read [where-to-start-coding.md](./where-to-start-coding.md) — points you to the exact files to edit
-3. Read [architecture/overview.md](./architecture/overview.md) — tech stack and system design
+1. Read [where-to-start-coding.md](./where-to-start-coding.md) — points you to the exact files to edit
+2. Read [architecture/overview.md](./architecture/overview.md) — tech stack and system design
 
 ### Building a feature?
 - **API patterns:** [architecture/core/api.md](./architecture/core/api.md)
@@ -33,7 +32,7 @@ This is the documentation hub for the SaaS template. The template ships with aut
 
 ### Working on a specific domain?
 - **Business model / subscriptions:** [architecture/domain/business-model.md](./architecture/domain/business-model.md)
-- **Calculator (default feature):** [architecture/domain/calculator-system.md](./architecture/domain/calculator-system.md)
+- **AI Generators (Hooks, Captions):** [architecture/domain/generation-system.md](./architecture/domain/generation-system.md)
 - **Admin dashboard:** [architecture/domain/admin-dashboard.md](./architecture/domain/admin-dashboard.md)
 - **Account management:** [architecture/domain/account-management.md](./architecture/domain/account-management.md)
 

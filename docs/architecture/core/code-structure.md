@@ -30,7 +30,7 @@ frontend/src/
 │   │   └── ...
 │   ├── (auth)/                # Sign-in, sign-up
 │   ├── (customer)/            # Authenticated pages
-│   │   ├── calculator/        # Core feature UI
+│   │   ├── generator/        # Core feature UI
 │   │   ├── account/           # Profile, usage dashboard
 │   │   ├── checkout/
 │   │   └── payment/
@@ -44,11 +44,11 @@ frontend/src/
 │   ├── account/               # Usage dashboard, profile editor, subscription management
 │   ├── admin/                 # Admin components: tables, modals, stats
 │   ├── auth/                  # Auth guard, user button, useAuthenticatedFetch
-│   ├── calculator/            # Default core feature (swappable)
+│   ├── generator/            # Default core feature (swappable)
 │   │   ├── components/
 │   │   ├── constants/         # CALCULATOR_CONFIG — types, tier requirements
-│   │   ├── hooks/             # use-calculator.ts
-│   │   ├── services/          # calculator-service.ts (pure logic)
+│   │   ├── hooks/             # use-generator.ts
+│   │   ├── services/          # generator-service.ts (pure logic)
 │   │   └── types/             # Input/output types, Zod schemas
 │   ├── contact/
 │   ├── faq/
@@ -93,7 +93,7 @@ backend/src/
 │
 ├── routes/                    # Route handlers, one file per resource
 │   ├── admin.ts
-│   ├── calculator.ts
+│   ├── generator.ts
 │   ├── customer.ts
 │   ├── health.ts
 │   ├── metrics.ts
@@ -120,12 +120,12 @@ backend/src/
 
 | Thing | Convention | Example |
 |-------|-----------|---------|
-| Files | kebab-case | `user-profile.tsx`, `use-calculator.ts` |
+| Files | kebab-case | `user-profile.tsx`, `use-generator.ts` |
 | React components | PascalCase | `UserProfile`, `CalcCard` |
 | Functions/hooks | camelCase | `calculateTotal`, `useSubscription` |
 | Constants | UPPER_SNAKE_CASE | `APP_NAME`, `MAX_RETRIES` |
-| Types/interfaces | PascalCase | `UserProfile`, `CalculatorInput` |
-| Route files (Hono) | noun.ts | `calculator.ts`, `admin.ts` |
+| Types/interfaces | PascalCase | `UserProfile`, `GeneratorInput` |
+| Route files (Hono) | noun.ts | `generator.ts`, `admin.ts` |
 
 ---
 
@@ -153,34 +153,34 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 // 2. Feature imports
-import { CalculatorService } from '@/features/calculator/services/calculator-service'
+import { GeneratorService } from '@/features/generator/services/generator-service'
 
 // 3. Shared imports
 import { Button } from '@/shared/components/ui/button'
 import { queryKeys } from '@/shared/lib/query-keys'
 
 // 4. Types
-import type { CalculatorInput } from '@/features/calculator/types/calculator.types'
+import type { GeneratorInput } from '@/features/generator/types/generator.types'
 ```
 
 ---
 
 ## Feature module contract
 
-Every feature module should have a consistent internal structure. Using the calculator as the reference:
+Every feature module should have a consistent internal structure. Using the generator as the reference:
 
 ```
-features/calculator/
+features/generator/
 ├── components/               # UI components
 ├── constants/
-│   └── calculator.constants.ts  # Config: types, tier requirements, metadata
+│   └── generator.constants.ts  # Config: types, tier requirements, metadata
 ├── hooks/
-│   └── use-calculator.ts    # Client-side: calls API, checks access
+│   └── use-generator.ts    # Client-side: calls API, checks access
 ├── services/
-│   └── calculator-service.ts  # Pure logic (no side effects)
+│   └── generator-service.ts  # Pure logic (no side effects)
 └── types/
-    ├── calculator.types.ts  # Input/output TypeScript types
-    └── calculator-validation.ts  # Zod schemas for API validation
+    ├── generator.types.ts  # Input/output TypeScript types
+    └── generator-validation.ts  # Zod schemas for API validation
 ```
 
 When replacing the core feature with your own product, your new feature module should follow this same structure. See [TEMPLATE_GUIDE.md](../../TEMPLATE_GUIDE.md) for the full swap guide.
@@ -211,8 +211,8 @@ Always use TanStack Query for data fetching. Never call `fetch` directly in comp
 // GET requests with caching
 const fetcher = useQueryFetcher()
 const { data, isLoading } = useQuery({
-  queryKey: queryKeys.api.calculatorUsage(),
-  queryFn: () => fetcher('/api/calculator/usage'),
+  queryKey: queryKeys.api.generatorUsage(),
+  queryFn: () => fetcher('/api/generator/usage'),
   enabled: !!user,
 })
 

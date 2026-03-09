@@ -14,7 +14,7 @@ The project has **44 existing unit tests** under `frontend/__tests__/unit/`. The
 - Utilities (cn, date, pagination, data-validation, stripe-map-loader)
 - Validation (api, auth, checkout, contact, file, input, search)
 - Constants (subscription-constants)
-- Permissions (calculator, core-feature)
+- Permissions (generator, core-feature)
 
 ### Running existing tests
 

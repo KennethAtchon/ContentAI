@@ -32,7 +32,7 @@ End-to-end tests verify complete user flows through a real browser against a run
 ### In scope
 - **Public marketing pages** — load, render, navigation
 - **Authentication flows** — sign-in, sign-up, sign-out, protected page redirect
-- **Calculator** — input, calculate, view history, export
+- **Generator** — input, calculate, view history, export
 - **Checkout & payment** — pricing page → checkout → Stripe redirect → success/cancel
 - **Account management** — profile update, subscription portal
 - **Contact form** — submission, validation errors
@@ -59,7 +59,7 @@ project/__tests__/e2e/
 │   ├── sign-up.spec.ts
 │   └── protected-redirect.spec.ts
 ├── customer/
-│   ├── calculator.spec.ts
+│   ├── generator.spec.ts
 │   ├── account.spec.ts
 │   └── payment.spec.ts
 ├── admin/
@@ -136,7 +136,7 @@ Uses Firebase. Strategy: create a dedicated test account in Firebase Emulator or
 | Sign-in page renders | Email + password fields visible |
 | Submit with empty fields | Validation errors shown |
 | Submit with wrong password | Error message shown |
-| Valid credentials | Redirected to `/calculator` or `/account` |
+| Valid credentials | Redirected to `/generator` or `/account` |
 | "Forgot password" link visible | Link present |
 
 **File:** `e2e/auth/sign-up.spec.ts`
@@ -150,21 +150,21 @@ Uses Firebase. Strategy: create a dedicated test account in Firebase Emulator or
 **File:** `e2e/auth/protected-redirect.spec.ts`
 | Test | Assertion |
 |------|-----------|
-| `/calculator` unauthenticated | Redirected to `/sign-in` |
+| `/generator` unauthenticated | Redirected to `/sign-in` |
 | `/account` unauthenticated | Redirected to `/sign-in` |
 | `/admin/dashboard` as regular user | Redirected or 403 page |
 | Sign-out | Redirected to `/sign-in`, session cleared |
 
 ---
 
-### Phase 4 — Calculator (Authenticated) ✅
+### Phase 4 — Generator (Authenticated) ✅
 Uses saved `storageState` from Phase 3 to skip login.
 
-**File:** `e2e/customer/calculator.spec.ts`
+**File:** `e2e/customer/generator.spec.ts`
 | Test | Assertion |
 |------|-----------|
-| Calculator page loads | Input form visible |
-| Select calculator type | Type selector works |
+| Generator page loads | Input form visible |
+| Select generator type | Type selector works |
 | Fill inputs and calculate | Result displayed |
 | Invalid input | Validation error shown |
 | View calculation history | History list renders |
@@ -297,7 +297,7 @@ npx playwright show-report
 | 1 | Phase 1 — Infrastructure | Unblocks everything else |
 | 2 | Phase 2 — Public pages | Zero auth complexity, quick wins |
 | 3 | Phase 3 — Auth flows | Core user journey |
-| 4 | Phase 4 — Calculator | Primary product feature |
+| 4 | Phase 4 — Generator | Primary product feature |
 | 5 | Phase 7 — Admin | Operational risk |
 | 6 | Phase 5 — Account | Lower risk |
 | 7 | Phase 6 — Payment | Most complex (Stripe dependency) |
@@ -309,7 +309,7 @@ npx playwright show-report
 
 - **Use data-testid attributes** for selectors, not CSS classes or text content that changes.
   ```tsx
-  <button data-testid="submit-calculator">Calculate</button>
+  <button data-testid="submit-generator">Calculate</button>
   ```
 - **Avoid `page.waitForTimeout`** — use `page.waitForSelector` or `expect(locator).toBeVisible()` instead.
 - **Use `storageState` for auth** — never re-login via UI in every test; it's slow and fragile.

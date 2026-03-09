@@ -6,13 +6,13 @@
 ## Context
 
 The app needs to store:
-1. Structured business data (users, orders, calculator usage)
+1. Structured business data (users, orders, generator usage)
 2. Subscription state (managed by Firebase Stripe Extension, which writes to Firestore)
 
 ## Decision
 
 Use a **split data strategy**:
-- **PostgreSQL (via Prisma):** Users, orders, calculator usage history, contact messages
+- **PostgreSQL (via Prisma):** Users, orders, generator usage history, contact messages
 - **Firestore:** Subscriptions only (managed exclusively by Firebase Stripe Extension)
 
 ## Alternatives Considered

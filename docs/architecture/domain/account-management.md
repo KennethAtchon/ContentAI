@@ -2,13 +2,13 @@
 
 ## Overview
 
-YourApp's account management system provides users with comprehensive control over their profile, subscription, usage statistics, calculator access, and order history. The account page is the central hub for all user-facing features.
+YourApp's account management system provides users with comprehensive control over their profile, subscription, usage statistics, generator access, and order history. The account page is the central hub for all user-facing features.
 
 **Key Features:**
 - **Profile Management:** Edit name, email, phone, address, notes
 - **Subscription Management:** View current plan, upgrade/downgrade, billing portal
-- **Usage Dashboard:** Real-time calculator usage and limits
-- **Calculator Interface:** Access to financial calculators
+- **Usage Dashboard:** Real-time generator usage and limits
+- **Generator Interface:** Access to AI content generators
 - **Order History:** View past one-time purchases
 
 ---
@@ -19,7 +19,7 @@ YourApp's account management system provides users with comprehensive control ov
 2. [Profile Editor](#profile-editor)
 3. [Subscription Management](#subscription-management)
 4. [Usage Dashboard](#usage-dashboard)
-5. [Calculator Interface](#calculator-interface)
+5. [Generator Interface](#generator-interface)
 6. [Best Practices](#best-practices)
 
 ---
@@ -39,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui
 import { ProfileEditor } from '@/features/account/components/profile-editor';
 import { SubscriptionManagement } from '@/features/account/components/subscription-management';
 import { UsageDashboard } from '@/features/account/components/usage-dashboard';
-import { CalculatorInterface } from '@/features/account/components/calculator-interface';
+import { GeneratorInterface } from '@/features/account/components/generator-interface';
 
 export default function AccountPage() {
   const { user } = useApp();
@@ -54,7 +54,7 @@ export default function AccountPage() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="usage">Usage</TabsTrigger>
-            <TabsTrigger value="calculator">Calculator</TabsTrigger>
+            <TabsTrigger value="generator">Generator</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -69,8 +69,8 @@ export default function AccountPage() {
             <UsageDashboard />
           </TabsContent>
 
-          <TabsContent value="calculator">
-            <CalculatorInterface />
+          <TabsContent value="generator">
+            <GeneratorInterface />
           </TabsContent>
         </Tabs>
       </div>
@@ -162,7 +162,7 @@ The Subscription Management component displays the user's current subscription t
 ### Key Features
 
 - **Current Plan Display:** Tier, price, billing cycle
-- **Usage Meter:** Visual progress bar for calculator usage
+- **Usage Meter:** Visual progress bar for generator usage
 - **Plan Features:** List of features included in current tier
 - **Upgrade/Downgrade:** Links to pricing page
 - **Stripe Portal:** Manage subscription via Stripe Customer Portal
@@ -219,7 +219,7 @@ const [usageStats, setUsageStats] = useState<{
 
 useEffect(() => {
   const loadUsageData = async () => {
-    const usage = await authenticatedFetchJson('/api/calculator/usage');
+    const usage = await authenticatedFetchJson('/api/generator/usage');
     setUsageStats(usage);
   };
   loadUsageData();
@@ -253,7 +253,7 @@ useEffect(() => {
 
 ### Overview
 
-The Usage Dashboard shows detailed calculator usage history and statistics.
+The Usage Dashboard shows detailed generator usage history and statistics.
 
 **Location:** `features/account/components/usage-dashboard.tsx`
 
@@ -267,7 +267,7 @@ The Usage Dashboard shows detailed calculator usage history and statistics.
 ### Usage History Table
 
 ```typescript
-interface CalculatorUsageRecord {
+interface GeneratorUsageRecord {
   id: string;
   calculationType: 'mortgage' | 'loan' | 'investment' | 'retirement';
   createdAt: Date;
@@ -296,26 +296,26 @@ interface CalculatorUsageRecord {
 
 ---
 
-## Calculator Interface
+## Generator Interface
 
 ### Overview
 
-The Calculator Interface provides direct access to financial calculators from the account page, with feature gating based on subscription tier.
+The Generator Interface provides direct access to AI content generators from the account page, with feature gating based on subscription tier.
 
-**Location:** `features/account/components/calculator-interface.tsx`
+**Location:** `features/account/components/generator-interface.tsx`
 
-### Calculator Selection
+### Generator Selection
 
 ```typescript
-const calculators = [
-  { type: 'mortgage', name: 'Mortgage Calculator', tier: 'basic' },
-  { type: 'loan', name: 'Loan Calculator', tier: 'basic' },
-  { type: 'investment', name: 'Investment Calculator', tier: 'pro' },
-  { type: 'retirement', name: 'Retirement Calculator', tier: 'enterprise' },
+const generators = [
+  { type: 'mortgage', name: 'Mortgage Generator', tier: 'basic' },
+  { type: 'loan', name: 'Loan Generator', tier: 'basic' },
+  { type: 'investment', name: 'Investment Generator', tier: 'pro' },
+  { type: 'retirement', name: 'Retirement Generator', tier: 'enterprise' },
 ];
 
 <div className="grid gap-6 md:grid-cols-2">
-  {calculators.map(calc => (
+  {generators.map(calc => (
     <FeatureGate
       key={calc.type}
       requiredTier={calc.tier}
@@ -335,16 +335,16 @@ const calculators = [
         </Card>
       }
     >
-      <CalculatorCard type={calc.type} name={calc.name} />
+      <GeneratorCard type={calc.type} name={calc.name} />
     </FeatureGate>
   ))}
 </div>
 ```
 
-### Calculator Component
+### Generator Component
 
 ```typescript
-function CalculatorCard({ type, name }: { type: string; name: string }) {
+function GeneratorCard({ type, name }: { type: string; name: string }) {
   const [inputs, setInputs] = useState({});
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -352,7 +352,7 @@ function CalculatorCard({ type, name }: { type: string; name: string }) {
   const handleCalculate = async () => {
     setLoading(true);
     
-    const response = await authenticatedFetchJson('/api/calculator/calculate', {
+    const response = await authenticatedFetchJson('/api/generator/calculate', {
       method: 'POST',
       body: JSON.stringify({ type, inputs }),
     });
@@ -367,7 +367,7 @@ function CalculatorCard({ type, name }: { type: string; name: string }) {
         <CardTitle>{name}</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Input fields based on calculator type */}
+        {/* Input fields based on generator type */}
         <Button onClick={handleCalculate} disabled={loading}>
           {loading ? 'Calculating...' : 'Calculate'}
         </Button>
@@ -460,7 +460,7 @@ setTimeout(() => setSuccess(false), 3000);
 await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
 ```
 
-### 5. Use Feature Gating for Calculators
+### 5. Use Feature Gating for Generators
 
 ```typescript
 // ✅ CORRECT: Feature gate with upgrade path
@@ -469,7 +469,7 @@ await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
   fallback={
     <Card className="opacity-50">
       <CardHeader>
-        <CardTitle>Investment Calculator</CardTitle>
+        <CardTitle>Investment Generator</CardTitle>
         <CardDescription>Requires Pro plan or higher</CardDescription>
       </CardHeader>
       <CardContent>
@@ -480,11 +480,11 @@ await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
     </Card>
   }
 >
-  <InvestmentCalculator />
+  <InvestmentGenerator />
 </FeatureGate>
 
 // ❌ WRONG: Hide feature without explanation
-{hasProAccess && <InvestmentCalculator />}
+{hasProAccess && <InvestmentGenerator />}
 ```
 
 ---
@@ -493,7 +493,7 @@ await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
 
 - [Profile Management](../core/authentication-system.md)
 - [Subscription Management](./subscription-architecture.md)
-- [Calculator Interface](./calculator-system.md)
+- [Generator Interface](./generator-system.md)
 - [Usage Tracking](./usage-tracking.md)
 
 ---

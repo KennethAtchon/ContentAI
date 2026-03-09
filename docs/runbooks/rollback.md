@@ -10,7 +10,7 @@
 Roll back when:
 - Production is returning 5xx errors at a rate > 1% of requests
 - A critical security vulnerability was introduced by the deploy
-- Core user flows (sign-in, calculator, checkout) are broken
+- Core user flows (sign-in, generator, checkout) are broken
 - The health endpoints (`/api/health`, `/api/ready`) return non-200
 
 **Do not roll back for:**

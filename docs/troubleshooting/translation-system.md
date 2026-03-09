@@ -42,7 +42,7 @@ Translation keys use **underscores** (not dots) and follow a hierarchical namesp
 Examples:
 - `common_cancel` - Common cancel button
 - `navigation_home` - Navigation home link
-- `calculator_mortgage_title` - Mortgage calculator title
+- `generator_mortgage_title` - Mortgage generator title
 - `account_profile_email_address` - Account profile email field
 - `auth_sign_in_description` - Sign-in page description
 
@@ -51,7 +51,7 @@ Examples:
 1. **`common_*`** - Shared UI elements (buttons, labels, messages)
 2. **`navigation_*`** - Navigation menu items
 3. **`auth_*`** - Authentication pages (sign-in, sign-up)
-4. **`calculator_*`** - Calculator components and features
+4. **`generator_*`** - Generator components and features
 5. **`account_*`** - Account management pages
 6. **`subscription_*`** - Subscription-related content
 7. **`checkout_*`** - Checkout flow
@@ -265,7 +265,7 @@ window.location.reload();
   "common_cancel": "Cancel",
   "common_save": "Save",
   "navigation_home": "Home",
-  "calculator_mortgage_title": "Mortgage Calculator",
+  "generator_mortgage_title": "Mortgage Generator",
   "account_profile_email_address": "Email Address"
 }
 ```
@@ -479,7 +479,7 @@ If translations don't update after changing locale:
 
 See `TRANSLATION_STATUS_REPORT.md` for current translation coverage:
 
-- ✅ **Fully Translated**: Public pages, auth, calculators, account, checkout
+- ✅ **Fully Translated**: Public pages, auth, generators, account, checkout
 - ⚠️ **Partially Translated**: Admin sub-components, FAQ data
 - ❌ **Not Translated**: Some error states, PDF content
 

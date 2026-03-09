@@ -10,7 +10,7 @@
 | Level | Description | Response Time | Example |
 |-------|-------------|--------------|---------|
 | **P1 — Critical** | Production down, data breach, payment failure | Immediate (< 15 min) | All users get 500, DB unreachable, Stripe keys compromised |
-| **P2 — High** | Core feature broken, significant degradation | < 1 hour | Sign-in broken, calculator errors for all users, Redis down |
+| **P2 — High** | Core feature broken, significant degradation | < 1 hour | Sign-in broken, generator errors for all users, Redis down |
 | **P3 — Medium** | Non-critical feature broken, elevated error rate | < 4 hours | Admin dashboard broken, export feature failing |
 | **P4 — Low** | Minor bug, cosmetic issue | Next business day | UI misalignment, incorrect copy on a single page |
 

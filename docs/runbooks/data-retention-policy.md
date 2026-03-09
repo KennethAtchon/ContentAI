@@ -51,7 +51,7 @@
 |-----------|---------|-----------|-------------------|
 | User accounts | `User` | Until right-to-erasure request | `DELETE /api/users/delete-account` anonymizes all PII |
 | Orders | `Order` | Financial records: 7 years (legal minimum) | Do not auto-delete; anonymize user reference on account deletion |
-| Calculator usage | `FeatureUsage` | 2 years | Anonymize on account deletion |
+| Generator usage | `FeatureUsage` | 2 years | Anonymize on account deletion |
 | Contact messages | `ContactMessage` | 1 year | Manual admin deletion or scheduled job |
 | Sessions / auth tokens | Firebase (external) | Firebase manages | Firebase token TTL: 1 hour; refresh tokens: until revoked |
 

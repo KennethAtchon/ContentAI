@@ -1,6 +1,8 @@
-# WebsiteTemplate2
+# ReelStudio
 
-A **modern SaaS template** with split frontend/backend architecture. Built with Vite + React (frontend) and Hono on Bun (backend). Includes auth, subscriptions, payments, and admin panel.
+**ReelStudio** is an AI-powered Content Intelligence Platform enabling creators to discover viral short-form content and generate custom hooks, captions, and scripts.
+
+Built on a robust split architecture using React 19 + Vite (frontend) and Hono on Bun (backend), it includes authentication, Stripe subscriptions, and a modern Dark Theme UI.
 
 ## Architecture
 
@@ -78,14 +80,7 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-### 6. Customize Your App
 
-- **Branding**: Update `frontend/src/translations/en.json` with your app name and copy
-- **Features**: Add/modify features in `frontend/src/features/`
-- **API Routes**: Add backend routes in `backend/src/routes/`
-- **Styling**: Customize Tailwind theme in `frontend/tailwind.config.ts`
-
----
 
 ## What's Included
 
@@ -110,13 +105,12 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 - ✅ **Security**: CORS, CSRF, rate limiting, security headers
 - ✅ **Monitoring**: Prometheus metrics, structured logging
 
-### Features (Ready to Use)
-- ✅ **Authentication**: Sign up, sign in, OAuth, password reset
-- ✅ **Subscriptions**: Stripe subscription tiers and management
-- ✅ **Admin Panel**: User management, orders, analytics
-- ✅ **Usage Tracking**: Per-user usage limits and tracking
-- ✅ **Contact Forms**: With email notifications
-- ✅ **Legal Pages**: Terms, privacy, cookie policy templates
+### Features Integrated
+- ✅ **Authentication**: Firebase Auth (Sign up, sign in, OAuth)
+- ✅ **Subscriptions**: Stripe tiered billing (Basic, Pro, Enterprise)
+- ✅ **Admin Panel**: User, order, and subscription management
+- ✅ **Content AI**: Reel discovery, hook/caption generation, and publishing queues
+- ✅ **UI System**: Custom Dark Theme with Radix UI + Tailwind CSS 4
 
 ---
 
@@ -150,11 +144,12 @@ WebsiteTemplate2/
 
 ## Documentation
 
-- **[Migration Guide](MIGRATION_GUIDE.md)** — Complete guide for migrating from Next.js
+- **[Architecture Overview](docs/architecture/overview.md)** — High-level system design
+- **[Business Model](docs/architecture/domain/business-model.md)** — Subscription tiers and AI generation limits
+- **[Migration Guide](MIGRATION_GUIDE.md)** — Complete guide for the previous migration from Next.js
 - **[Frontend README](frontend/README.md)** — Frontend setup and development
 - **[Backend README](backend/README.md)** — Backend API documentation
-- [Template Guide](docs/TEMPLATE_GUIDE.md) — Full project reference
-- [AI_Orchestrator](docs/AI_Orchestrator/index.md) — Architecture docs
+- **[Original AI Logs](docs/AI_Orchestrator/index.md)** — Historical architecture documentation
 
 ---
 

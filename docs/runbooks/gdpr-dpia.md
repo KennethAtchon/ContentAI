@@ -23,7 +23,7 @@
 | Activity | Data | Legal Basis | Retention |
 |----------|------|-------------|-----------|
 | User registration | Name, email, password (Firebase) | Contract performance (Art 6(1)(b)) | Until account deletion + 30 days |
-| Calculator usage | Input values, calculation results | Contract performance (Art 6(1)(b)) | 12 months rolling |
+| Generator usage | Input values, calculation results | Contract performance (Art 6(1)(b)) | 12 months rolling |
 | Subscription billing | Email, payment method (tokenised by Stripe) | Contract performance (Art 6(1)(b)) | 7 years (financial record-keeping) |
 | Support messages | Name, email, message content | Legitimate interest (Art 6(1)(f)) | 2 years |
 | Analytics | Anonymised usage metrics | Legitimate interest (Art 6(1)(f)) | 13 months |

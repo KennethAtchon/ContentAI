@@ -319,7 +319,7 @@ This way, any use of `bg-card`, `text-foreground`, `border`, `bg-primary`, etc. 
 6. **`FeatureCard` → `StudioFeatureCard`** — update cards
 7. **Individual page files** — detailed in `03-page-by-page-plan.md`
 8. **`FooterCustom` → `StudioFooter`** — minimal dark footer
-9. **Cleanup** — remove dead components, unused light-theme utilities
+9. **Cleanup** — remove dead components, unused dark-theme utilities
 
 ---
 
