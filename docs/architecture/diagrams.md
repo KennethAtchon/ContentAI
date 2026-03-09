@@ -7,8 +7,8 @@
 ```mermaid
 graph TB
     subgraph Client["Client (Browser)"]
-        Browser["Next.js App\n(React + RSC)"]
-        FirebaseSDK["Firebase SDK\n(Auth + IndexedDB)"]
+        Browser["React SPA\n(Vite + TanStack Router)"]
+        FirebaseSDK["Firebase SDK\n(Auth + Token Management)"]
     end
 
     subgraph Cloudflare["Cloudflare Edge"]
@@ -17,15 +17,19 @@ graph TB
         CF_CDN["CDN / Cache"]
     end
 
-    subgraph Railway["Railway (EU-West)"]
-        subgraph App["App Service (Docker)"]
-            NextJS["Next.js 15\n(App Router)"]
-            Middleware["middleware.ts\n(Auth + CSP + Rate Limit)"]
-            API["API Routes\n(/api/*)"]
-            Prisma["Prisma ORM"]
+    subgraph Backend["Backend (Bun + Hono)"]
+        subgraph API["API Service"]
+            Hono["Hono Framework\n(/api/* routes)"]
+            AuthMW["Auth Middleware\n(Firebase Token Verify)"]
+            RateLimit["Rate Limiting\n(Redis)"]
+            CSRF["CSRF Protection\n(Encrypted Tokens)"]
         end
-        PG["PostgreSQL\n(Users, Orders,\nFeatureUsage)"]
-        Redis["Redis\n(Rate Limiting,\nCSRF Cache)"]
+        Prisma["Prisma ORM"]
+    end
+
+    subgraph Databases["Data Stores"]
+        PG["PostgreSQL\n(Users, Reels,\nGeneratedContent, Queue)"]
+        Redis["Redis\n(Rate Limiting,\nSession Cache)"]
     end
 
     subgraph Google["Google Cloud"]
@@ -34,24 +38,27 @@ graph TB
         FirebaseExt["Firebase Stripe\nExtension"]
     end
 
-    subgraph Stripe["Stripe"]
+    subgraph External["External Services"]
         StripeAPI["Stripe API\n(Payments)"]
+        Claude["Anthropic Claude\n(AI Analysis & Generation)"]
         Portal["Customer Portal"]
         Webhooks["Webhooks"]
     end
 
-    Browser -->|HTTPS| CF_WAF
+    Browser -->|HTTPS + Auth Token| CF_WAF
     CF_WAF --> CF_CDN
-    CF_CDN -->|Proxy| NextJS
+    CF_CDN -->|Proxy| Hono
     Browser <-->|Firebase SDK| Firebase
-    NextJS --> Middleware
-    Middleware --> API
-    API --> Prisma
+    Hono --> AuthMW
+    AuthMW --> RateLimit
+    RateLimit --> CSRF
+    CSRF --> Prisma
     Prisma --> PG
-    API --> Redis
-    API -->|firebase-admin\nverifyIdToken| Firebase
-    API -->|Firestore Admin| Firestore
-    API -->|Stripe API| StripeAPI
+    RateLimit --> Redis
+    AuthMW -->|firebase-admin\nverifyIdToken| Firebase
+    Hono -->|Firestore Admin| Firestore
+    Hono -->|Stripe API| StripeAPI
+    Hono -->|Claude API| Claude
     StripeAPI -->|Webhooks| FirebaseExt
     FirebaseExt --> Firestore
     FirebaseExt -->|Set stripeRole\ncustom claim| Firebase
@@ -66,23 +73,30 @@ graph TB
 sequenceDiagram
     participant U as User (Browser)
     participant CF as Cloudflare
-    participant MW as middleware.ts
-    participant API as API Route
+    participant API as Hono API
+    participant Auth as Auth Middleware
+    participant RL as Rate Limiter
     participant FB as Firebase Admin
     participant DB as PostgreSQL
+    participant AI as Claude AI
 
     U->>+CF: HTTPS Request + Bearer token
-    CF->>+MW: Forward request
-    MW->>MW: Check CSP / security headers
-    MW->>MW: CSRF token validation (mutations)
-    MW->>+API: Pass to route handler
-    API->>API: Rate limit check (Redis)
-    API->>+FB: verifyIdToken(token, checkRevoked=true)
-    FB-->>-API: Decoded token (uid, stripeRole)
-    API->>+DB: Prisma query
-    DB-->>-API: Data
-    API-->>-MW: JSON response
-    MW-->>-CF: Response
+    CF->>+API: Forward request
+    API->>+Auth: Verify authentication
+    Auth->>+RL: Check rate limits
+    RL->>+FB: verifyIdToken(token)
+    FB-->>-RL: Decoded token (uid, stripeRole)
+    RL-->>-Auth: Rate limit status
+    Auth->>+DB: Prisma query
+    DB-->>-Auth: Data
+    
+    alt Studio API Request
+        Auth->>+AI: Claude API call
+        AI-->>-Auth: AI response
+    end
+    
+    Auth-->>-API: Response
+    API-->>-CF: JSON response
     CF-->>-U: Response (with security headers)
 ```
 
@@ -95,7 +109,10 @@ flowchart TD
     subgraph UserActions["User Actions"]
         Signup["Sign Up"]
         Login["Log In"]
-        UseCalc["Use Calculator"]
+        DiscoverReels["Discover Reels"]
+        AnalyzeReel["Analyze Reel"]
+        GenerateContent["Generate Content"]
+        ManageQueue["Manage Queue"]
         Subscribe["Subscribe"]
         CancelSub["Cancel Subscription"]
         DeleteAccount["Delete Account"]
@@ -104,16 +121,22 @@ flowchart TD
 
     subgraph DataStores["Data Stores"]
         PG_Users["PostgreSQL\nusers table"]
+        PG_Reels["PostgreSQL\nreels table"]
+        PG_Analysis["PostgreSQL\nreel_analyses table"]
+        PG_Generated["PostgreSQL\ngenerated_content table"]
+        PG_Queue["PostgreSQL\nqueue_items table"]
         PG_Usage["PostgreSQL\nfeature_usage table"]
         PG_Orders["PostgreSQL\norders table"]
         FS_Subs["Firestore\nsubscriptions"]
         FB_Auth["Firebase Auth\n(tokens + claims)"]
         Stripe_DB["Stripe\n(billing data)"]
+        Redis_Rate["Redis\n(rate limits)"]
     end
 
     subgraph Processing["Processing"]
         Auth["Firebase Auth"]
         StripeExt["Firebase Stripe Extension"]
+        ClaudeAI["Claude AI\n(Analysis & Generation)"]
     end
 
     Signup -->|create user| PG_Users
@@ -121,8 +144,20 @@ flowchart TD
     Login -->|verify token| FB_Auth
     Login -->|update lastLogin| PG_Users
 
-    UseCalc -->|store result| PG_Usage
-    UseCalc -->|check tier| FB_Auth
+    DiscoverReels -->|query by niche| PG_Reels
+    DiscoverReels -->|check rate limit| Redis_Rate
+    
+    AnalyzeReel -->|call Claude AI| ClaudeAI
+    AnalyzeReel -->|store analysis| PG_Analysis
+    AnalyzeReel -->|check usage| PG_Usage
+    
+    GenerateContent -->|call Claude AI| ClaudeAI
+    GenerateContent -->|store content| PG_Generated
+    GenerateContent -->|check tier limits| FB_Auth
+    GenerateContent -->|update usage| PG_Usage
+    
+    ManageQueue -->|CRUD operations| PG_Queue
+    ManageQueue -->|link content| PG_Generated
 
     Subscribe -->|checkout session| Stripe_DB
     Subscribe -->|webhook| StripeExt
@@ -133,11 +168,14 @@ flowchart TD
     CancelSub -->|webhook update| FS_Subs
 
     DeleteAccount -->|soft delete| PG_Users
+    DeleteAccount -->|cascade delete| PG_Generated
+    DeleteAccount -->|cascade delete| PG_Queue
     DeleteAccount -->|revoke tokens| FB_Auth
     DeleteAccount -->|hard delete after 30d| PG_Users
 
     ExportData -->|read all| PG_Users
-    ExportData -->|read all| PG_Usage
+    ExportData -->|read all| PG_Generated
+    ExportData -->|read all| PG_Queue
     ExportData -->|read all| PG_Orders
     ExportData -->|return JSON| UserActions
 ```
@@ -150,15 +188,44 @@ flowchart TD
 flowchart LR
     Token["Firebase ID Token\n(stripeRole claim)"]
     Token --> Free["free\nor null"]
+    Token --> Basic["basic"]
     Token --> Pro["pro"]
     Token --> Enterprise["enterprise"]
 
-    Free -->|mortgage, loan| Calc["Calculator Access"]
-    Pro -->|+ investment, retirement| Calc
-    Enterprise -->|all features\n+ higher limits| Calc
+    Free -->|5 scans/day, 2 analysis, 1 gen| Studio["Studio Access"]
+    Basic -->|25 scans, 10 analysis, 10 gen| Studio
+    Pro -->|Unlimited scans/analysis, 50 gen| Studio
+    Enterprise -->|Everything unlimited\n+ team workspace| Studio
 
-    subgraph FEATURE_TIER_REQUIREMENTS["Tier Requirements (permission matrix)"]
-        Calc
+    subgraph FEATURE_TIER_REQUIREMENTS["ReelStudio Tier Limits"]
+        Studio
+        ReelScans["Reel Scans/Day"]
+        Analysis["AI Analysis/Day"]
+        Generation["Content Generation/Day"]
+        Queue["Queue Size"]
+        Instagram["Instagram Publishing"]
+        
+        Free --> ReelScans
+        Free --> Analysis
+        Free --> Generation
+        Free --> Queue
+        
+        Basic --> ReelScans
+        Basic --> Analysis
+        Basic --> Generation
+        Basic --> Queue
+        
+        Pro --> ReelScans
+        Pro --> Analysis
+        Pro --> Generation
+        Pro --> Queue
+        Pro --> Instagram
+        
+        Enterprise --> ReelScans
+        Enterprise --> Analysis
+        Enterprise --> Generation
+        Enterprise --> Queue
+        Enterprise --> Instagram
     end
 ```
 
@@ -168,11 +235,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    Dev["git push\nmaster"]
+    Dev["git push\nmain"]
     Dev --> CI["GitHub Actions CI\n(lint → unit → integration → build → audit)"]
-    CI -->|all checks pass| Deploy["Railway Deploy\n(Docker build)"]
+    CI -->|all checks pass| Deploy["Deploy to Production\n(Docker build)"]
     Deploy --> Migrate["prisma migrate deploy\n(on startup)"]
-    Migrate --> Health["Health check\n/api/health"]
+    Migrate --> Seed["Seed mock reels\n(if needed)"]
+    Seed --> Health["Health check\n/api/health"]
     Health -->|200 OK| Live["Production Live"]
-    Health -->|fail| Rollback["Auto-rollback\n(Railway)"]
+    Health -->|fail| Rollback["Auto-rollback"]
 ```

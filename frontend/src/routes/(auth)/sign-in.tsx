@@ -173,7 +173,7 @@ function SignInPage() {
               </CardTitle>
               <CardDescription className="text-base">
                 {t(
-                  "common_sign_in_to_your_calcpro_account_to_access_your_calculators"
+                  "common_sign_in_to_your_reelstudio_account"
                 )}
               </CardDescription>
             </CardHeader>

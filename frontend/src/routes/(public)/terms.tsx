@@ -108,7 +108,7 @@ function TermsPage() {
               </h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
                 {t(
-                  "common_all_content_and_materials_provided_through_calcpro_services_"
+                  "common_all_content_and_materials_provided_through_reelstudio_services"
                 )}
               </p>
             </section>

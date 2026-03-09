@@ -13,7 +13,8 @@ import {
   Award,
   ArrowRight,
   Sparkles,
-  Calculator,
+  Eye,
+  Brain,
   TrendingUp,
   Shield,
 } from "lucide-react";
@@ -47,8 +48,8 @@ function AboutPage() {
 
   const TEAM_HIGHLIGHTS = [
     {
-      title: t("about_financial_experts"),
-      description: t("about_financial_experts_description"),
+      title: t("about_content_experts"),
+      description: t("about_content_experts_description"),
     },
     {
       title: t("about_technology_leaders"),
@@ -73,7 +74,7 @@ function AboutPage() {
           </>
         }
         description={t(
-          "common_professional_financial_calculation_tools_built_for_accuracy_"
+          "about_reelstudio_description"
         )}
       />
 
@@ -124,7 +125,7 @@ function AboutPage() {
       <Section>
         <div className="mb-12 text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-            {t("about_why_choose_calcpro")}
+            {t("about_why_choose_reelstudio")}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
             {t("common_built_by_experts_trusted_by_professionals")}
@@ -148,21 +149,21 @@ function AboutPage() {
           <CardContent className="p-8 md:p-12">
             <div className="mb-6 flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                <Calculator className="h-8 w-8 text-primary" />
+                <Sparkles className="h-8 w-8 text-primary" />
               </div>
               <div>
                 <h2 className="text-3xl font-bold tracking-tight">
-                  {t("about_calculator_expertise")}
+                  {t("about_content_intelligence")}
                 </h2>
                 <p className="text-muted-foreground">
-                  {t("common_industry_standard_formulas_rigorously_tested")}
+                  AI-powered insights from millions of viral reels
                 </p>
               </div>
             </div>
             <div className="space-y-4 text-lg text-muted-foreground">
-              <p>{t("about_calculator_expertise_description_1")}</p>
-              <p>{t("about_calculator_expertise_description_2")}</p>
-              <p>{t("about_calculator_expertise_description_3")}</p>
+              <p>{t("about_content_intelligence_description_1")}</p>
+              <p>{t("about_content_intelligence_description_2")}</p>
+              <p>{t("about_content_intelligence_description_3")}</p>
             </div>
           </CardContent>
         </Card>

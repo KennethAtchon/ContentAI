@@ -28,7 +28,8 @@ Start with [overview.md](./overview.md) for the full tech stack and system desig
 |-----|---------------|
 | [business-model.md](./domain/business-model.md) | Subscription tiers, pricing, usage limits, payment flows |
 | [subscription-system.md](./domain/subscription-system.md) | Firebase Stripe Extension, subscription lifecycle, custom claims |
-| [calculator-system.md](./domain/calculator-system.md) | Default core feature: calculator types, algorithms, usage tracking |
+| [studio-system.md](./domain/studio-system.md) | ReelStudio workspace: reel discovery, analysis, generation, queue |
+| [generation-system.md](./domain/generation-system.md) | AI content generation pipeline, Claude integration, feature gating |
 | [account-management.md](./domain/account-management.md) | Profile, usage dashboard, subscription management |
 | [admin-dashboard.md](./domain/admin-dashboard.md) | Metrics, customer/order/subscription management |
 

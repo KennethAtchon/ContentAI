@@ -18,8 +18,9 @@ import {
   HelpCircle,
   Rocket,
   CreditCard,
-  Calculator,
-  Wrench,
+  Eye,
+  Brain,
+  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -32,9 +33,9 @@ function SupportPage() {
   const gettingStartedSteps = [
     t("support_step_signup"),
     t("support_step_choose_plan"),
-    t("support_step_pick_calculator"),
-    t("support_step_enter_inputs"),
-    t("support_step_export"),
+    t("support_step_discover_reels"),
+    t("support_step_analyze_content"),
+    t("support_step_generate_remix"),
   ];
 
   const accountFAQs = [
@@ -58,12 +59,12 @@ function SupportPage() {
 
   const _troubleshootingFAQs = [
     {
-      question: t("support_calc_not_loading"),
-      answer: t("support_calc_not_loading_answer"),
+      question: t("support_studio_not_loading"),
+      answer: t("support_studio_not_loading_answer"),
     },
     {
-      question: t("support_payment_failed"),
-      answer: t("support_payment_failed_answer"),
+      question: t("support_generation_failed"),
+      answer: t("support_generation_failed_answer"),
     },
   ];
 
@@ -79,14 +80,14 @@ function SupportPage() {
       icon: CreditCard,
     },
     {
-      title: t("support_calculators_title"),
-      description: t("support_calculators_desc"),
-      icon: Calculator,
+      title: t("support_studio_features_title"),
+      description: t("support_studio_features_desc"),
+      icon: Eye,
     },
     {
-      title: t("support_troubleshooting_title"),
-      description: t("support_troubleshooting_desc"),
-      icon: Wrench,
+      title: t("support_ai_features_title"),
+      description: t("support_ai_features_desc"),
+      icon: Brain,
     },
   ];
 

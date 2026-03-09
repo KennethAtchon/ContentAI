@@ -143,7 +143,7 @@ export default function FooterCustom() {
                   to={CORE_FEATURE_PATH}
                   className="text-gray-700 hover:text-teal-600"
                 >
-                  {t("shared_footer_calculators")}
+                  {t("shared_footer_studio")}
                 </Link>
               </li>
               <li>

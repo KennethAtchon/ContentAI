@@ -1,6 +1,8 @@
 # Project Overview
 
-This is a **SaaS template** with auth, subscriptions, payments, and admin already built. The default implementation ships a financial calculator product, but the core feature is designed to be swapped out. See [TEMPLATE_GUIDE.md](../TEMPLATE_GUIDE.md) and [where-to-start-coding.md](../where-to-start-coding.md) to get oriented.
+This is **ReelStudio** — an AI-powered content intelligence platform for creators and marketers. Users discover viral reels in any niche, get AI analysis explaining exactly why they perform, then generate hooks, captions, and scripts inspired by that data — and schedule them for publishing.
+
+The platform is built on a SaaS template with auth, subscriptions, payments, and admin infrastructure already implemented. The core feature has been migrated from a calculator template to the ReelStudio workspace.
 
 ---
 
@@ -49,13 +51,15 @@ WebsiteTemplate2/
 │       │   ├── (public)/      # Unauthenticated pages
 │       │   ├── (auth)/        # Sign-in, sign-up
 │       │   ├── (customer)/    # Authenticated customer pages
+│       │   ├── studio/        # Studio workspace routes
 │       │   └── admin/         # Admin dashboard
 │       ├── features/          # Feature modules
 │       │   ├── account/
 │       │   ├── admin/
 │       │   ├── auth/
-│       │   ├── calculator/    # Default core feature
-│       │   ├── contact/
+│       │   ├── generation/    # AI content generation
+│       │   ├── reels/         # Reel discovery and analysis
+│       │   ├── studio/        # Main studio workspace
 │       │   ├── payments/
 │       │   └── subscriptions/
 │       └── shared/            # Cross-cutting: components, hooks, services, utils
@@ -132,11 +136,13 @@ The frontend never talks to the database directly. All data access goes through 
 - Subscription tier stored as a Firebase custom claim (`stripeRole`)
 - Usage limits enforced server-side per tier
 
-### Core feature (default: calculators)
-- Four calculator types: mortgage (free), loan (basic+), investment (pro+), retirement (enterprise)
-- Usage tracked in PostgreSQL (`FeatureUsage` table)
-- Tier access controlled via `core-feature-permissions.ts`
-- Swappable: see [TEMPLATE_GUIDE.md](../TEMPLATE_GUIDE.md) for how to replace with your own product
+### Core feature (ReelStudio)
+- **Discovery**: Search niches and surface top-performing reels
+- **Analysis**: AI breakdown of hook patterns, emotional triggers, format
+- **Generation**: AI-powered content remix (hooks, captions, scripts)
+- **Queue**: Schedule and manage content for publishing
+- Usage tracked and limited per subscription tier
+- Feature gates enforced server-side
 
 ### Admin system
 - Dashboard with business metrics (MRR, ARPU, churn)
@@ -160,7 +166,9 @@ Routes live in `backend/src/routes/` and are mounted at `/api/<resource>` in `ba
 |--------|---------|
 | `/api/customer/` | Authenticated customer endpoints (profile, orders) |
 | `/api/admin/` | Admin-only endpoints (customers, orders, subscriptions, analytics) |
-| `/api/calculator/` | Core feature endpoints (calculate, usage, history, export) |
+| `/api/reels/` | Reel discovery, analysis, and niche scanning |
+| `/api/generation/` | AI content generation and history |
+| `/api/queue/` | Content queue management and scheduling |
 | `/api/subscriptions/` | Subscription status and checkout |
 | `/api/stripe-webhook` | Stripe webhook handler |
 | `/api/health` | Health check, liveness, readiness probes |
@@ -175,6 +183,10 @@ Managed by Prisma. Schema at `backend/src/infrastructure/database/prisma/schema.
 | Model | Purpose |
 |-------|---------|
 | `User` | User accounts, roles, profile data |
+| `Reel` | Instagram reel data and metrics |
+| `ReelAnalysis` | AI analysis results for reels |
+| `GeneratedContent` | AI-generated hooks, captions, scripts |
+| `QueueItem` | Content scheduling and publishing queue |
 | `Order` | One-time purchases |
 | `FeatureUsage` | Per-user usage history and tracking |
 | `ContactMessage` | Contact form submissions |

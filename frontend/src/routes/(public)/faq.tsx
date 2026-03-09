@@ -15,7 +15,86 @@ import { PageLayout } from "@/shared/components/layout/page-layout";
 import { HeroSection } from "@/shared/components/layout/hero-section";
 import { Section } from "@/shared/components/custom-ui/section";
 import { HelpCircle, Sparkles, ArrowRight } from "lucide-react";
-function getFAQCategories(_t: (k: string) => string) { return [] as Array<{ title: string; items: Array<{ question: string; answer: string }> }>; }
+function getFAQCategories(t: (k: string) => string) {
+  return [
+    {
+      title: t("faq_category_getting_started"),
+      items: [
+        {
+          question: t("faq_what_is_reelstudio"),
+          answer: t("faq_what_is_reelstudio_answer")
+        },
+        {
+          question: t("faq_how_does_it_work"),
+          answer: t("faq_how_does_it_work_answer")
+        },
+        {
+          question: t("faq_free_trial"),
+          answer: t("faq_free_trial_answer")
+        }
+      ]
+    },
+    {
+      title: t("faq_category_features"),
+      items: [
+        {
+          question: t("faq_reel_discovery"),
+          answer: t("faq_reel_discovery_answer")
+        },
+        {
+          question: t("faq_ai_analysis"),
+          answer: t("faq_ai_analysis_answer")
+        },
+        {
+          question: t("faq_content_generation"),
+          answer: t("faq_content_generation_answer")
+        },
+        {
+          question: t("faq_queue_management"),
+          answer: t("faq_queue_management_answer")
+        }
+      ]
+    },
+    {
+      title: t("faq_category_pricing_plans"),
+      items: [
+        {
+          question: t("faq_pricing_difference"),
+          answer: t("faq_pricing_difference_answer")
+        },
+        {
+          question: t("faq_usage_limits"),
+          answer: t("faq_usage_limits_answer")
+        },
+        {
+          question: t("faq_upgrading_downgrading"),
+          answer: t("faq_upgrading_downgrading_answer")
+        },
+        {
+          question: t("faq_cancellation"),
+          answer: t("faq_cancellation_answer")
+        }
+      ]
+    },
+    {
+      title: t("faq_category_technical"),
+      items: [
+        {
+          question: t("faq_data_privacy"),
+          answer: t("faq_data_privacy_answer")
+        },
+        {
+          question: t("faq_instagram_integration"),
+          answer: t("faq_instagram_integration_answer")
+        },
+        {
+          question: t("faq_ai_accuracy"),
+          answer: t("faq_ai_accuracy_answer")
+        }
+      ]
+    }
+  ] as Array<{ title: string; items: Array<{ question: string; answer: string }> }>;
+}
 import { generateFAQSchema } from "@/shared/services/seo/structured-data";
 import { StructuredDataStatic } from "@/shared/components/marketing/structured-data";
 import { Link } from "@tanstack/react-router";

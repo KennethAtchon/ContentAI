@@ -34,10 +34,12 @@ RESTful API design using Hono (running on Bun) with comprehensive multi-layer pr
 ```
 backend/src/routes/
 ├── admin.ts            # Admin-only endpoints
-├── calculator.ts       # Core feature endpoints
 ├── customer.ts         # Customer endpoints (profile, orders)
+├── generation.ts       # AI content generation endpoints
 ├── health.ts           # Health check, liveness, readiness
 ├── metrics.ts          # Prometheus metrics
+├── queue.ts            # Content queue management
+├── reels.ts            # Reel discovery and analysis
 ├── stripe-webhook.ts   # Stripe webhook handler
 ├── subscriptions.ts    # Subscription status, checkout
 └── users.ts            # User management
@@ -293,6 +295,18 @@ export const RATE_LIMIT_CONFIGS = {
     maxRequests: 5,    // 5 submissions per 5 minutes
     keyPrefix: "contact_rate_limit",
     description: "Contact form submissions",
+  },
+  generation: {
+    window: 86400,     // 24 hours
+    maxRequests: 50,  // Per tier limits enforced server-side
+    keyPrefix: "generation_rate_limit",
+    description: "AI content generation",
+  },
+  analysis: {
+    window: 86400,    // 24 hours
+    maxRequests: 100, // Per tier limits enforced server-side
+    keyPrefix: "analysis_rate_limit",
+    description: "Reel analysis requests",
   },
 };
 ```
@@ -614,6 +628,8 @@ const response = await safeFetch(url, {
 - [Security](./security.md) - CSRF, CORS, PII sanitization
 - [Error Handling](./error-handling.md) - Error patterns and logging
 - [Database](./database.md) - Database patterns and validation
+- [Studio System](../domain/studio-system.md) - ReelStudio-specific API patterns
+- [Generation System](../domain/generation-system.md) - AI content generation APIs
 
 ---
 

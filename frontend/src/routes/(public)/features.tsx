@@ -14,73 +14,74 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import {
-  Calculator,
-  TrendingUp,
-  Shield,
-  BarChart3,
-  FileText,
+  Search,
+  Brain,
+  Sparkles,
+  Calendar,
   Download,
   Lock,
   Globe,
   ArrowRight,
   CheckCircle2,
-  Sparkles,
+  Eye,
+  TrendingUp,
+  FileText,
 } from "lucide-react";
 import { Badge } from "@/shared/components/ui/badge";
 
 function FeaturesPage() {
   const { t } = useTranslation();
 
-  const CALCULATOR_FEATURES = [
+  const STUDIO_FEATURES = [
     {
-      icon: Calculator,
-      title: t("home_features_mortgage_title"),
-      description: t("features_mortgage_description"),
+      icon: Search,
+      title: t("studio_features_discover_title"),
+      description: t("studio_features_discover_description"),
       features: [
-        t("features_mortgage_feature_1"),
-        t("features_mortgage_feature_2"),
-        t("features_mortgage_feature_3"),
-        t("features_mortgage_feature_4"),
-        t("features_mortgage_feature_5"),
+        t("studio_features_discover_feature_1"),
+        t("studio_features_discover_feature_2"),
+        t("studio_features_discover_feature_3"),
+        t("studio_features_discover_feature_4"),
+        t("studio_features_discover_feature_5"),
+      ],
+      availableIn: ["free", "basic", "pro", "enterprise"],
+    },
+    {
+      icon: Brain,
+      title: t("studio_features_analysis_title"),
+      description: t("studio_features_analysis_description"),
+      features: [
+        t("studio_features_analysis_feature_1"),
+        t("studio_features_analysis_feature_2"),
+        t("studio_features_analysis_feature_3"),
+        t("studio_features_analysis_feature_4"),
+        t("studio_features_analysis_feature_5"),
       ],
       availableIn: ["basic", "pro", "enterprise"],
     },
     {
-      icon: TrendingUp,
-      title: t("home_features_loan_title"),
-      description: t("features_loan_description"),
+      icon: Sparkles,
+      title: t("studio_features_generation_title"),
+      description: t("studio_features_generation_description"),
       features: [
-        t("features_loan_feature_1"),
-        t("features_loan_feature_2"),
-        t("features_loan_feature_3"),
-        t("features_loan_feature_4"),
-        t("features_loan_feature_5"),
+        t("studio_features_generation_feature_1"),
+        t("studio_features_generation_feature_2"),
+        t("studio_features_generation_feature_3"),
+        t("studio_features_generation_feature_4"),
+        t("studio_features_generation_feature_5"),
       ],
       availableIn: ["basic", "pro", "enterprise"],
     },
     {
-      icon: BarChart3,
-      title: t("home_features_investment_title"),
-      description: t("features_investment_description"),
+      icon: Calendar,
+      title: t("studio_features_queue_title"),
+      description: t("studio_features_queue_description"),
       features: [
-        t("features_investment_feature_1"),
-        t("features_investment_feature_2"),
-        t("features_investment_feature_3"),
-        t("features_investment_feature_4"),
-        t("features_investment_feature_5"),
-      ],
-      availableIn: ["pro", "enterprise"],
-    },
-    {
-      icon: Shield,
-      title: t("home_features_retirement_title"),
-      description: t("features_retirement_description"),
-      features: [
-        t("features_retirement_feature_1"),
-        t("features_retirement_feature_2"),
-        t("features_retirement_feature_3"),
-        t("features_retirement_feature_4"),
-        t("features_retirement_feature_5"),
+        t("studio_features_queue_feature_1"),
+        t("studio_features_queue_feature_2"),
+        t("studio_features_queue_feature_3"),
+        t("studio_features_queue_feature_4"),
+        t("studio_features_queue_feature_5"),
       ],
       availableIn: ["pro", "enterprise"],
     },
@@ -131,24 +132,24 @@ function FeaturesPage() {
 
   const USE_CASES = [
     {
-      title: t("features_real_estate"),
-      description: t("features_real_estate_description"),
-      icon: Calculator,
+      title: t("studio_usecase_content_creators"),
+      description: t("studio_usecase_content_creators_description"),
+      icon: Eye,
     },
     {
-      title: t("features_financial_advisors"),
-      description: t("features_financial_advisors_description"),
+      title: t("studio_usecase_marketers"),
+      description: t("studio_usecase_marketers_description"),
       icon: TrendingUp,
     },
     {
-      title: t("features_small_business"),
-      description: t("features_small_business_description"),
-      icon: BarChart3,
+      title: t("studio_usecase_brands"),
+      description: t("studio_usecase_brands_description"),
+      icon: Sparkles,
     },
     {
-      title: t("features_personal_finance"),
-      description: t("features_personal_finance_description"),
-      icon: Shield,
+      title: t("studio_usecase_agencies"),
+      description: t("studio_usecase_agencies_description"),
+      icon: Calendar,
     },
   ];
 
@@ -174,14 +175,14 @@ function FeaturesPage() {
       <Section>
         <div className="mb-12 text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-            {t("features_calculator_types")}
+            {t("studio_features_pillars")}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            {t("features_calculator_types_description")}
+            {t("studio_features_pillars_description")}
           </p>
         </div>
         <div className="grid gap-8 md:grid-cols-2">
-          {CALCULATOR_FEATURES.map((feature, index) => {
+          {STUDIO_FEATURES.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <Card
@@ -288,10 +289,10 @@ function FeaturesPage() {
       <Section>
         <div className="mb-12 text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-            {t("features_perfect_for")}
+            {t("studio_usecase_perfect_for")}
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            {t("features_perfect_for_description")}
+            {t("studio_usecase_perfect_for_description")}
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

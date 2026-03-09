@@ -190,29 +190,25 @@ export function SubscriptionManagement() {
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-sm">
-                {tierConfig.features.maxCalculationsPerMonth === -1
+                {tierConfig.features.maxReelsPerMonth === -1
                   ? t("account_subscription_unlimited_calculations_feature")
-                  : t("account_subscription_calculations_per_month", {
-                      count: tierConfig.features.maxCalculationsPerMonth,
+                  : t("account_subscription_reels_per_month", {
+                      count: tierConfig.features.maxReelsPerMonth,
                     })}
               </span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-sm">
-                {t("account_subscription_calculator_types", {
-                  count: tierConfig.features.calculationTypes.length,
-                })}
+                {t("account_subscription_content_types")}
               </span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-sm">
-                {t("account_subscription_export_to", {
-                  formats: tierConfig.features.exportFormats
-                    .join(", ")
-                    .toUpperCase(),
-                })}
+                {tierConfig.features.instagramPublishing
+                  ? "Instagram publishing"
+                  : "Export & save content"}
               </span>
             </li>
             <li className="flex items-center gap-2">

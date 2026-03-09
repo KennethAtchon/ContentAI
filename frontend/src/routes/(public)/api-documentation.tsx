@@ -28,47 +28,52 @@ function ApiDocumentationPage() {
 
   const endpointGroups: EndpointGroup[] = [
     {
-      title: t("api_calculators_title"),
+      title: t("api_reels_title"),
       endpoints: [
         {
           method: "GET",
-          path: t("api_endpoint_types"),
-          description: t("api_endpoint_types_desc"),
+          path: "/api/reels/discover",
+          description: t("api_endpoint_discover_desc"),
         },
         {
           method: "POST",
-          path: t("api_endpoint_calculate"),
-          description: t("api_endpoint_calculate_desc"),
+          path: "/api/reels/analyze",
+          description: t("api_endpoint_analyze_desc"),
         },
         {
           method: "GET",
-          path: t("api_endpoint_history"),
+          path: "/api/reels/history",
           description: t("api_endpoint_history_desc"),
         },
         {
           method: "POST",
-          path: t("api_endpoint_export"),
+          path: "/api/reels/export",
           description: t("api_endpoint_export_desc"),
         },
         {
           method: "GET",
-          path: t("api_endpoint_usage"),
+          path: "/api/reels/usage",
           description: t("api_endpoint_usage_desc"),
         },
       ],
     },
     {
-      title: t("api_subscriptions_title"),
+      title: t("api_generation_title"),
       endpoints: [
         {
-          method: "GET",
-          path: t("api_endpoint_subscription_current"),
-          description: t("api_endpoint_subscription_current_desc"),
+          method: "POST",
+          path: "/api/generation/create",
+          description: t("api_endpoint_generation_create_desc"),
         },
         {
           method: "GET",
-          path: t("api_endpoint_subscription_portal"),
-          description: t("api_endpoint_subscription_portal_desc"),
+          path: "/api/generation/history",
+          description: t("api_endpoint_generation_history_desc"),
+        },
+        {
+          method: "POST",
+          path: "/api/generation/queue",
+          description: t("api_endpoint_queue_add_desc"),
         },
       ],
     },
@@ -161,7 +166,7 @@ function ApiDocumentationPage() {
             </CardHeader>
             <CardContent>
               <code className="block rounded-lg bg-muted px-4 py-3 text-sm font-mono text-foreground">
-                https://calcpro.com
+                https://reelstudio.ai
               </code>
             </CardContent>
           </Card>

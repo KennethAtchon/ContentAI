@@ -342,7 +342,7 @@ export function CheckoutInteractive() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {t(
-                  "common_try_calcpro_risk_free_for_14_days_no_credit_card_required_to"
+                  "common_try_reelstudio_risk_free"
                 )}
               </p>
             </div>

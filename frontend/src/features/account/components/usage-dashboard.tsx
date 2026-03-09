@@ -1,7 +1,7 @@
 /**
  * Usage Dashboard Component
  *
- * Component for displaying usage statistics, calculation history,
+ * Component for displaying ReelStudio usage statistics, content generation history,
  * and usage trends over time.
  */
 
@@ -26,6 +26,10 @@ import {
   Package,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Brain,
+  Sparkles,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useTranslation } from "react-i18next";
@@ -41,25 +45,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-type CalculationType = string;
-const getCalculatorShortName = (t: CalculationType) => t;
+type ContentType = string;
+const getContentShortName = (t: ContentType) => t;
 import { CORE_FEATURE_API_PREFIX } from "@/shared/constants/app.constants";
 
 interface UsageStats {
-  currentUsage: number;
-  usageLimit: number | null;
-  percentageUsed: number;
+  reelsAnalyzed: number;
+  reelsAnalyzedLimit: number | null;
+  contentGenerated: number;
+  contentGeneratedLimit: number | null;
+  queueSize: number;
+  queueLimit: number | null;
   resetDate?: string;
 }
 
-interface CalculationHistory {
+interface GenerationHistory {
   id: string;
-  type: CalculationType;
+  type: ContentType;
+  sourceReel: {
+    username: string;
+    hook: string;
+  };
+  prompt: string;
   createdAt: Date;
-  calculationTime: number;
+  generationTime: number;
 }
 
-interface CalculatorHistoryPagination {
+interface GenerationHistoryPagination {
   page: number;
   limit: number;
   total: number;
@@ -67,9 +79,9 @@ interface CalculatorHistoryPagination {
   hasMore: boolean;
 }
 
-interface CalculatorHistoryResponse {
-  data: CalculationHistory[];
-  pagination: CalculatorHistoryPagination;
+interface GenerationHistoryResponse {
+  data: GenerationHistory[];
+  pagination: GenerationHistoryPagination;
 }
 
 const HISTORY_PAGE_LIMIT = 10;
@@ -86,18 +98,18 @@ export function UsageDashboard() {
       page: historyPage.toString(),
       limit: HISTORY_PAGE_LIMIT.toString(),
     });
-    return `${CORE_FEATURE_API_PREFIX}/history?${params.toString()}`;
+    return `${CORE_FEATURE_API_PREFIX}/generation/history?${params.toString()}`;
   }, [historyPage]);
 
-  const historyFetcher = useQueryFetcher<CalculatorHistoryResponse>();
+  const historyFetcher = useQueryFetcher<GenerationHistoryResponse>();
 
   const {
     data: usageStats,
     error: statsError,
     isLoading: statsLoading,
   } = useQuery({
-    queryKey: queryKeys.api.calculatorUsage(),
-    queryFn: () => fetcher(`${CORE_FEATURE_API_PREFIX}/usage`),
+    queryKey: queryKeys.api.customerUsage(),
+    queryFn: () => fetcher("/api/customer/usage"),
     enabled: !!user,
   });
 
@@ -106,7 +118,7 @@ export function UsageDashboard() {
     error: historyError,
     isLoading: historyLoading,
   } = useQuery({
-    queryKey: queryKeys.api.calculatorHistory({
+    queryKey: queryKeys.generation.history({
       page: historyPage,
       limit: HISTORY_PAGE_LIMIT,
     }),
@@ -130,7 +142,7 @@ export function UsageDashboard() {
 
     try {
       const response = await authenticatedFetchJson<{ url: string }>(
-        `${CORE_FEATURE_API_PREFIX}/export`,
+        "/api/customer/export",
         {
           method: "POST",
           body: JSON.stringify({ format: "csv" }),
@@ -143,14 +155,13 @@ export function UsageDashboard() {
 
       // Invalidate usage stats and history cache after export
       queryClient.invalidateQueries({
-        queryKey: queryKeys.api.calculatorUsage(),
+        queryKey: queryKeys.api.customerUsage(),
       });
       queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
-          q.queryKey[0] === "api" &&
-          q.queryKey[1] === "calculator" &&
-          q.queryKey[2] === "history",
+          q.queryKey[0] === "generation" &&
+          q.queryKey[1] === "history",
       });
     } catch (err) {
       setExportError(
@@ -159,9 +170,9 @@ export function UsageDashboard() {
     }
   };
 
-  // Get calculator labels from centralized config
-  const getCalculationTypeLabel = (type: CalculationType): string => {
-    return getCalculatorShortName(type);
+  // Get content type labels from centralized config
+  const getContentTypeLabel = (type: ContentType): string => {
+    return getContentShortName(type);
   };
 
   if (loading) {
@@ -216,40 +227,36 @@ export function UsageDashboard() {
     );
   }
 
+  const reelsPercentage = usageStats.reelsAnalyzedLimit 
+    ? Math.round((usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100)
+    : 0;
+    
+  const generationPercentage = usageStats.contentGeneratedLimit
+    ? Math.round((usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100)
+    : 0;
+
   return (
     <div className="space-y-6">
       <ErrorAlert error={error} />
 
       {/* Usage Overview */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("account_usage_calculations_used")}
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              {t("studio_usage_reels_analyzed")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageStats.currentUsage}</div>
-            {usageStats?.usageLimit !== null && (
+            <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
+            {usageStats?.reelsAnalyzedLimit !== null && (
               <p className="text-xs text-muted-foreground">
-                {t("account_usage_of_limit", { limit: usageStats.usageLimit })}
+                {t("account_usage_of_limit", { limit: usageStats.reelsAnalyzedLimit })}
               </p>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("account_usage_percentage")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {usageStats?.percentageUsed || 0}%
-            </div>
             <Progress
-              value={usageStats?.percentageUsed || 0}
+              value={reelsPercentage}
               className="mt-2 h-2"
             />
           </CardContent>
@@ -257,54 +264,86 @@ export function UsageDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("account_usage_reset_date")}
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              {t("studio_usage_analyses")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {usageStats?.resetDate
-                ? new Date(usageStats.resetDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "N/A"}
-            </div>
-            {usageStats?.resetDate && (
+            <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
+            {usageStats?.reelsAnalyzedLimit !== null && (
               <p className="text-xs text-muted-foreground">
-                {t("account_usage_next_billing_cycle")}
+                {t("studio_usage_daily_limit", { limit: usageStats.reelsAnalyzedLimit })}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              {t("studio_usage_content_generated")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{usageStats.contentGenerated}</div>
+            {usageStats?.contentGeneratedLimit !== null && (
+              <p className="text-xs text-muted-foreground">
+                {t("account_usage_of_limit", { limit: usageStats.contentGeneratedLimit })}
+              </p>
+            )}
+            <Progress
+              value={generationPercentage}
+              className="mt-2 h-2"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              {t("studio_usage_queue_size")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{usageStats.queueSize}</div>
+            {usageStats?.queueLimit !== null && (
+              <p className="text-xs text-muted-foreground">
+                {t("account_usage_of_limit", { limit: usageStats.queueLimit })}
               </p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Usage Limit Warning - Only show if user has subscription AND limit reached */}
+      {/* Usage Limit Warning */}
       {usageStats &&
-        usageStats.usageLimit !== null &&
-        usageStats.percentageUsed >= 100 && (
+        usageStats.contentGeneratedLimit !== null &&
+        generationPercentage >= 100 && (
           <Alert variant="destructive">
             <AlertDescription>
-              {t("account_subscription_reached_limit_upgrade")}
+              {t("studio_usage_generation_limit_reached")}
             </AlertDescription>
           </Alert>
         )}
 
-      {/* Recent Calculations */}
+      {/* Recent Generation History */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>{t("account_usage_recent_calculations")}</CardTitle>
+              <CardTitle>{t("studio_usage_recent_generations")}</CardTitle>
               <CardDescription>
                 {historyPagination
                   ? t("common_pagination_showing", {
                       page: historyPagination.page,
                       totalPages: historyPagination.totalPages,
                       total: historyPagination.total,
-                      item: t("common_pagination_calculations"),
+                      item: t("common_pagination_generations"),
                     })
-                  : t("common_your_last_10_calculations")}
+                  : t("studio_usage_your_last_10_generations")}
               </CardDescription>
             </div>
             <Button
@@ -322,9 +361,9 @@ export function UsageDashboard() {
           <ErrorAlert error={exportError} />
           {(history?.length ?? 0) === 0 ? (
             <EmptyState
-              icon={Package}
-              title={t("account_usage_no_calculations")}
-              description={t("account_usage_start_using")}
+              icon={Sparkles}
+              title={t("studio_usage_no_generations")}
+              description={t("studio_usage_start_generating")}
               variant="minimal"
             />
           ) : (
@@ -332,7 +371,8 @@ export function UsageDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("account_usage_type")}</TableHead>
+                    <TableHead>{t("studio_usage_type")}</TableHead>
+                    <TableHead>{t("studio_usage_source_reel")}</TableHead>
                     <TableHead>{t("admin_contact_messages_date")}</TableHead>
                     <TableHead className="text-right">
                       {t("account_usage_time")}
@@ -340,13 +380,23 @@ export function UsageDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(history || []).map((calc) => (
-                    <TableRow key={calc.id}>
+                  {(history || []).map((generation) => (
+                    <TableRow key={generation.id}>
                       <TableCell className="font-medium">
-                        {getCalculationTypeLabel(calc.type)}
+                        {getContentTypeLabel(generation.type)}
                       </TableCell>
                       <TableCell>
-                        {new Date(calc.createdAt).toLocaleDateString("en-US", {
+                        <div className="max-w-xs">
+                          <div className="font-medium text-sm">
+                            @{generation.sourceReel.username}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {generation.sourceReel.hook}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(generation.createdAt).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -355,7 +405,7 @@ export function UsageDashboard() {
                         })}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {calc.calculationTime}ms
+                        {generation.generationTime}ms
                       </TableCell>
                     </TableRow>
                   ))}
@@ -368,7 +418,7 @@ export function UsageDashboard() {
                       page: historyPagination.page,
                       totalPages: historyPagination.totalPages,
                       total: historyPagination.total,
-                      item: t("common_pagination_calculations"),
+                      item: t("common_pagination_generations"),
                     })}
                   </div>
                   <div className="flex items-center space-x-2">
@@ -440,10 +490,10 @@ export function UsageDashboard() {
           <CardTitle>{t("account_usage_tips")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>• {t("account_usage_tip_reset")}</p>
-          <p>• {t("account_usage_tip_upgrade")}</p>
-          <p>• {t("account_usage_tip_export")}</p>
-          <p>• {t("account_usage_tip_contact")}</p>
+          <p>• {t("studio_usage_tip_analysis")}</p>
+          <p>• {t("studio_usage_tip_generation")}</p>
+          <p>• {t("studio_usage_tip_queue")}</p>
+          <p>• {t("studio_usage_tip_upgrade")}</p>
         </CardContent>
       </Card>
     </div>

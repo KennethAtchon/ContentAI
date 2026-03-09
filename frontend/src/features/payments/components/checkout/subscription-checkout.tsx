@@ -277,16 +277,11 @@ export function SubscriptionCheckout({
                     </div>
                     <span className="text-sm">
                       <span className="font-semibold">
-                        {tierConfig.features.maxCalculationsPerMonth === -1
+                        {tierConfig.features.maxReelsPerMonth === -1
                           ? t("calculator_unlimited")
-                          : tierConfig.features.maxCalculationsPerMonth.toLocaleString()}
+                          : tierConfig.features.maxReelsPerMonth.toLocaleString()}
                       </span>{" "}
-                      {t("checkout_calculations_per_month", {
-                        count:
-                          tierConfig.features.maxCalculationsPerMonth === -1
-                            ? 0
-                            : tierConfig.features.maxCalculationsPerMonth,
-                      })}
+                      reels per month
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -294,12 +289,7 @@ export function SubscriptionCheckout({
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
                     <span className="text-sm">
-                      <span className="font-semibold">
-                        {tierConfig.features.calculationTypes.length}
-                      </span>{" "}
-                      {t("account_subscription_calculator_types", {
-                        count: tierConfig.features.calculationTypes.length,
-                      })}
+                      AI-powered content generation
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -307,11 +297,9 @@ export function SubscriptionCheckout({
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
                     <span className="text-sm">
-                      {t("account_subscription_export_to", {
-                        formats: tierConfig.features.exportFormats
-                          .join(", ")
-                          .toUpperCase(),
-                      })}
+                      {tierConfig.features.instagramPublishing
+                        ? "Instagram publishing"
+                        : "Export & save content"}
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
