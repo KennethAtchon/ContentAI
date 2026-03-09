@@ -46,7 +46,7 @@ import { EditCustomerModal } from "./edit-customer-modal";
 
 // Constants
 const COMPONENT_NAME = "CustomersList";
-const DEFAULT_AVATAR_IMAGE = "/green.png";
+const DEFAULT_AVATAR_IMAGE = "/assets/reelstudio-logo.png";
 const STATUS_ACTIVE = "active";
 const STATUS_INACTIVE = "inactive";
 const MAX_INITIALS_LENGTH = 2;

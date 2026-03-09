@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Eye, CheckCircle2, AlertTriangle, Mail } from "lucide-react";
-import { PageLayout } from "@/shared/components/layout/page-layout";
-import { HeroSection } from "@/shared/components/layout/hero-section";
-import { Section } from "@/shared/components/custom-ui/section";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { StudioHero } from "@/shared/components/layout/studio-hero";
+import { StudioSection } from "@/shared/components/custom-ui/studio-section";
 import { useTranslation } from "react-i18next";
 import { SUPPORT_EMAIL } from "@/shared/constants/app.constants";
 
@@ -22,13 +22,13 @@ function AccessibilityPage() {
   const knownIssues = [t("accessibility_known_1"), t("accessibility_known_2")];
 
   return (
-    <PageLayout variant="public">
-      <HeroSection
+    <StudioShell variant="public" showFooter>
+      <StudioHero
         badge={{ icon: Eye, text: t("accessibility_badge") }}
         title={
           <>
             Accessibility
-            <span className="block bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent mt-2">
+            <span className="block bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent mt-2">
               Statement
             </span>
           </>
@@ -36,30 +36,30 @@ function AccessibilityPage() {
         description={t("metadata_accessibility_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-primary" />
+            <CheckCircle2 className="w-5 h-5 text-studio-accent" />
             <span>WCAG 2.1 AA Target</span>
           </div>
           <div className="flex items-center gap-2">
-            <Eye className="w-5 h-5 text-primary" />
+            <Eye className="w-5 h-5 text-studio-accent" />
             <span>Keyboard Navigation</span>
           </div>
           <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-primary" />
+            <Mail className="w-5 h-5 text-studio-accent" />
             <span>Feedback Welcome</span>
           </div>
         </div>
-      </HeroSection>
+      </StudioHero>
 
-      <Section maxWidth="4xl">
-        <Card className="border-2 shadow-lg">
+      <StudioSection maxWidth="4xl">
+        <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
               <h2 className="text-3xl font-bold mb-4">
                 {t("accessibility_commitment_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("accessibility_commitment_text")}
               </p>
             </section>
@@ -68,7 +68,7 @@ function AccessibilityPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("accessibility_standard_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("accessibility_standard_text")}
               </p>
             </section>
@@ -77,13 +77,13 @@ function AccessibilityPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("accessibility_measures_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed mb-4">
+              <p className="text-lg text-slate-200/45 leading-relaxed mb-4">
                 {t("accessibility_measures_text")}
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-slate-200/45">
                 {measures.map((measure) => (
                   <li key={measure} className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />
                     <span>{measure}</span>
                   </li>
                 ))}
@@ -94,10 +94,10 @@ function AccessibilityPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("accessibility_known_issues_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed mb-4">
+              <p className="text-lg text-slate-200/45 leading-relaxed mb-4">
                 {t("accessibility_known_issues_text")}
               </p>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-slate-200/45">
                 {knownIssues.map((issue) => (
                   <li key={issue} className="flex items-start gap-2">
                     <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
@@ -111,34 +111,34 @@ function AccessibilityPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("accessibility_feedback_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed mb-2">
+              <p className="text-lg text-slate-200/45 leading-relaxed mb-2">
                 {t("accessibility_feedback_text")}
               </p>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
-                  className="text-primary hover:underline"
+                  className="text-studio-accent hover:underline"
                 >
                   {SUPPORT_EMAIL}
                 </a>
               </p>
-              <p className="mt-2 text-muted-foreground">
+              <p className="mt-2 text-slate-200/45">
                 {t("accessibility_response_time")}
               </p>
             </section>
 
             <section className="rounded-xl border bg-muted/40 p-5">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                <p className="text-sm text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />
+                <p className="text-sm text-slate-200/45">
                   {t("accessibility_last_reviewed")}
                 </p>
               </div>
             </section>
           </CardContent>
         </Card>
-      </Section>
-    </PageLayout>
+      </StudioSection>
+    </StudioShell>
   );
 }
 

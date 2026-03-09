@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageLayout } from "@/shared/components/layout/page-layout";
-import { Section } from "@/shared/components/custom-ui/section";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { StudioSection } from "@/shared/components/custom-ui/studio-section";
 import { AccountInteractive } from "@/routes/(customer)/account/-account-interactive";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { useTranslation } from "react-i18next";
@@ -10,13 +10,13 @@ function AccountPage() {
 
   return (
     <AuthGuard authType="user">
-      <PageLayout variant="customer">
-        <Section maxWidth="7xl" padding="sm">
+      <StudioShell variant="customer">
+        <StudioSection maxWidth="7xl" padding="sm">
           <div className="mb-8 space-y-2">
             <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
               {t("common_account_dashboard")}
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-slate-200/45">
               {t(
                 "common_manage_your_subscription_view_usage_and_access_calculators"
               )}
@@ -24,8 +24,8 @@ function AccountPage() {
           </div>
 
           <AccountInteractive />
-        </Section>
-      </PageLayout>
+        </StudioSection>
+      </StudioShell>
     </AuthGuard>
   );
 }

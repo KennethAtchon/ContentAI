@@ -12,7 +12,7 @@ import { APP_NAME } from "@/shared/constants/app.constants";
 import { CORE_FEATURE_PATH } from "@/shared/constants/app.constants";
 
 // Constants
-const LOGO_PATH = "/logo.png";
+const LOGO_PATH = "/assets/reelstudio-logo.png";
 const LOGO_ALT = `${APP_NAME} Logo`;
 
 /**

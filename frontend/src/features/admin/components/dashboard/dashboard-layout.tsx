@@ -150,15 +150,15 @@ interface SidebarProps {
 function BrandHeader({ onClose }: { onClose?: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="flex h-16 items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-purple-500/5 px-6">
+    <div className="flex h-16 items-center justify-between border-b border-white/[0.06] bg-studio-surface px-6">
       <Link
         to="/admin/dashboard"
         className="flex items-center gap-3 font-bold text-lg"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-          <BRAND_ICON className="h-5 w-5 text-primary" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-studio-accent/15">
+          <BRAND_ICON className="h-5 w-5 text-studio-accent" />
         </div>
-        <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent">
           {t("admin_brand_name")}
         </span>
       </Link>
@@ -186,8 +186,8 @@ function NavigationLink({
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
         isActive
-          ? "bg-primary text-primary-foreground shadow-sm"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-studio-accent/[0.12] text-studio-accent"
+          : "text-slate-200/45 hover:bg-white/[0.05] hover:text-studio-fg"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -200,7 +200,7 @@ function DesktopSidebar({ pathname }: SidebarProps) {
   const adminNavItems = useAdminNavItems();
 
   return (
-    <div className="hidden w-64 flex-col border-r border-border bg-background md:flex">
+    <div className="hidden w-64 flex-col border-r border-white/[0.06] bg-studio-surface md:flex">
       <BrandHeader />
       <div className="flex-1 overflow-auto py-4">
         <nav className="grid gap-1 px-3">
@@ -239,7 +239,7 @@ function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
       )}
       <div
         className={cn(
-          "fixed top-0 left-0 bottom-0 w-3/4 max-w-[270px] z-30 transform transition-transform duration-300 ease-in-out flex flex-col border-r border-border bg-background shadow-xl md:hidden",
+          "fixed top-0 left-0 bottom-0 w-3/4 max-w-[270px] z-30 transform transition-transform duration-300 ease-in-out flex flex-col border-r border-white/[0.06] bg-studio-surface shadow-xl md:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -253,8 +253,8 @@ function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                   pathname === item.href
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-studio-accent/[0.12] text-studio-accent"
+                    : "text-slate-200/45 hover:bg-white/[0.05] hover:text-studio-fg"
                 )}
                 onClick={onClose}
               >
@@ -303,7 +303,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [layoutState.mobileNavOpen]);
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex h-screen bg-studio-bg">
       <DesktopSidebar pathname={pathname} />
       <MobileSidebar
         isOpen={layoutState.mobileNavOpen}
@@ -312,7 +312,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       />
 
       <div className="flex flex-col overflow-hidden w-full">
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-4 md:px-6 shadow-sm">
+        <header className="flex h-16 shrink-0 items-center gap-4 border-b border-white/[0.06] bg-studio-topbar/95 backdrop-blur-sm px-4 md:px-6">
           <Button
             variant="outline"
             size="icon"

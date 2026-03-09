@@ -52,7 +52,7 @@ import { OrderProductsModal } from "./helper/order-products-modal";
 // Constants
 const COMPONENT_NAME = "OrdersList";
 const API_ENDPOINT = "/api/admin/orders";
-const DEFAULT_AVATAR_IMAGE = "/green.png";
+const DEFAULT_AVATAR_IMAGE = "/assets/reelstudio-logo.png";
 const MAX_INITIALS_LENGTH = 2;
 const TABLE_COLUMN_COUNT = 6;
 

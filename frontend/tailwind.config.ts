@@ -14,9 +14,9 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        serif: ["var(--font-lora)", "Georgia", "serif"],
-        display: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-studio)", "system-ui", "sans-serif"],
+        serif: ["var(--font-studio)", "Georgia", "serif"],
+        display: ["var(--font-studio)", "system-ui", "sans-serif"],
         studio: ["var(--font-studio)", "system-ui", "sans-serif"],
         "studio-mono": ["var(--font-studio-mono)", "monospace"],
       },

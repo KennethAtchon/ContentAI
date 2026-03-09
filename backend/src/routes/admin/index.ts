@@ -27,7 +27,6 @@ import {
   convertFirestoreTimestamp,
 } from "../../services/firebase/subscription-helpers";
 import { getTierConfig } from "../../constants/subscription.constants";
-import { getMonthlyUsageCount } from "../../features/calculator/services/usage-service";
 import { FirebaseUserSync } from "../../services/firebase/sync";
 
 const admin = new Hono<HonoEnv>();
@@ -610,7 +609,21 @@ admin.get(
                 tierConfig.features.maxCalculationsPerMonth === -1
                   ? null
                   : tierConfig.features.maxCalculationsPerMonth;
-              usageCount = await getMonthlyUsageCount(dbUser.id);
+              const now = new Date();
+              const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+              const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+              
+              const [usageResult] = await db
+                .select({ count: sql<number>`count(*)::int` })
+                .from(featureUsages)
+                .where(
+                  and(
+                    eq(featureUsages.userId, dbUser.id),
+                    gte(featureUsages.createdAt, startOfMonth),
+                    lte(featureUsages.createdAt, endOfMonth)
+                  )
+                );
+              usageCount = usageResult.count;
             } catch {
               /* skip usage on error */
             }

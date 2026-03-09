@@ -1,5 +1,5 @@
 /**
- * Sign In Page - Modern SaaS Design
+ * Sign In Page - Studio Dark Theme
  *
  * Modern sign-in page with email/password and Google OAuth support.
  */
@@ -7,19 +7,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useApp } from "@/shared/contexts/app-context";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Link, useSearch } from "@tanstack/react-router";
-import { Eye, EyeOff, ArrowLeft, LogIn, Sparkles, Loader2 } from "lucide-react";
+import { Eye, EyeOff, LogIn, Sparkles, Loader2 } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug";
 import { useTranslation } from "react-i18next";
 import { getAuthErrorMessage } from "@/shared/utils/error-handling/auth-error-handler";
@@ -29,6 +18,8 @@ import {
 } from "@/shared/utils/redirect/redirect-util";
 import { toast } from "sonner";
 import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { cn } from "@/shared/utils/helpers/utils";
 
 const SIGN_UP_PATH = "/sign-up";
 
@@ -45,17 +36,14 @@ function SignInPage() {
   const { signIn, signInWithGoogle, user, authLoading } = useApp();
   const { smartRedirect } = useSmartRedirect();
 
-  // Redirect authenticated users away from sign-in page
   useEffect(() => {
     if (!authLoading && user) {
-      // User is already authenticated, use smart redirect
       const destination = redirectUrl
         ? decodeURIComponent(redirectUrl)
         : undefined;
-
       smartRedirect({
         intendedDestination: destination,
-        isNewUser: false, // This is a returning user
+        isNewUser: false,
       });
     }
   }, [user, authLoading, redirectUrl, smartRedirect]);
@@ -64,28 +52,15 @@ function SignInPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
       await signIn(email, password);
-      // Use smart redirect after successful sign-in
       const destination = redirectUrl
         ? decodeURIComponent(redirectUrl)
         : undefined;
-
-      smartRedirect({
-        intendedDestination: destination,
-        isNewUser: false,
-      });
+      smartRedirect({ intendedDestination: destination, isNewUser: false });
     } catch (error: unknown) {
       const errorMessage = getAuthErrorMessage(error, t);
-      debugLog.error(
-        t("common_signin_failed"),
-        {
-          service: "auth",
-          operation: "signIn",
-        },
-        error
-      );
+      debugLog.error(t("common_signin_failed"), { service: "auth", operation: "signIn" }, error);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -95,99 +70,60 @@ function SignInPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
-
     try {
       await signInWithGoogle();
-      // Use smart redirect after successful Google sign-in
       const destination = redirectUrl
         ? decodeURIComponent(redirectUrl)
         : undefined;
-
-      smartRedirect({
-        intendedDestination: destination,
-        isNewUser: false,
-      });
+      smartRedirect({ intendedDestination: destination, isNewUser: false });
     } catch (error: unknown) {
-      // Fast error handling - immediately show toast and stop loading
       setLoading(false);
-      
-      // Development: show actual error message, Production: show generic message
       const errorMessage = IS_DEVELOPMENT
-        ? error instanceof Error
-          ? error.message
-          : t("auth_sign_in_google_failed")
+        ? error instanceof Error ? error.message : t("auth_sign_in_google_failed")
         : t("auth_sign_in_google_failed");
-      
-      // Show toast error immediately for better UX
       toast.error(errorMessage);
-      
-      // Also set error state for the alert component (as backup)
       setError(errorMessage);
-      
-      debugLog.error(
-        t("common_google_signin_failed"),
-        {
-          service: "auth",
-          operation: "signInWithGoogle",
-        },
-        error
-      );
-      return; // Early return to avoid finally block setting loading to false again
+      debugLog.error(t("common_google_signin_failed"), { service: "auth", operation: "signInWithGoogle" }, error);
+      return;
     }
-    
-    // Only set loading to false if we didn't error
     setLoading(false);
   };
 
-  // Show loading state while checking authentication or if user is authenticated (will redirect)
   if (authLoading || user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="h-screen bg-studio-bg flex items-center justify-center">
+        <div className="studio-skeleton w-32 h-3" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+    <StudioShell variant="auth">
+      <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-[calc(100vh-48px)]">
         <div className="w-full max-w-md space-y-6">
-          {/* Back Link */}
-          <div className="flex items-center justify-center">
-            <Button variant="ghost" asChild>
-              <Link to="/" className="text-sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {t("common_back_to_home")}
-              </Link>
-            </Button>
-          </div>
-
           {/* Sign In Card */}
-          <Card className="border-2 shadow-lg">
-            <CardHeader className="space-y-3 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <LogIn className="h-6 w-6 text-primary" />
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 pb-2 space-y-3 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-studio-accent/15">
+                <LogIn className="h-6 w-6 text-studio-accent" />
               </div>
-              <CardTitle className="text-3xl font-bold">
+              <h1 className="text-[22px] font-bold text-slate-100">
                 {t("common_welcome_back")}
-              </CardTitle>
-              <CardDescription className="text-base">
-                {t(
-                  "common_sign_in_to_your_reelstudio_account"
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-4"
-                data-testid="sign-in-form"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
+              </h1>
+              <p className="text-[13px] text-slate-200/40">
+                {t("common_sign_in_to_your_reelstudio_account")}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4" data-testid="sign-in-form">
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="text-[11px] font-semibold text-slate-200/50">
                     {t("admin_settings_placeholder_email")}
-                  </Label>
-                  <Input
+                  </label>
+                  <input
                     id="email"
                     type="email"
                     placeholder={t("account_profile_enter_email")}
@@ -195,17 +131,22 @@ function SignInPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-11"
                     data-testid="email-input"
+                    className={cn(
+                      "w-full h-11 bg-white/[0.05] border border-white/[0.08] rounded-lg",
+                      "text-studio-fg text-[13px] px-3 outline-none font-studio",
+                      "placeholder:text-slate-200/20 transition-colors",
+                      "focus:border-studio-ring/50 disabled:opacity-50",
+                    )}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">
+                <div className="space-y-1.5">
+                  <label htmlFor="password" className="text-[11px] font-semibold text-slate-200/50">
                     {t("common_password")}
-                  </Label>
+                  </label>
                   <div className="relative">
-                    <Input
+                    <input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder={t("auth_enter_password")}
@@ -213,111 +154,105 @@ function SignInPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       disabled={loading}
-                      className="h-11 pr-10"
                       data-testid="password-input"
+                      className={cn(
+                        "w-full h-11 bg-white/[0.05] border border-white/[0.08] rounded-lg",
+                        "text-studio-fg text-[13px] px-3 pr-10 outline-none font-studio",
+                        "placeholder:text-slate-200/20 transition-colors",
+                        "focus:border-studio-ring/50 disabled:opacity-50",
+                      )}
                     />
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full px-3 bg-transparent border-0 text-slate-200/40 hover:text-studio-fg cursor-pointer transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={loading}
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
                 {error && (
-                  <Alert variant="destructive" className="border-2">
-                    <AlertDescription className="font-medium">
-                      {error}
-                    </AlertDescription>
-                  </Alert>
+                  <div className="bg-red-400/[0.08] border border-red-400/20 rounded-lg px-3 py-2.5">
+                    <p className="text-[12px] font-medium text-red-400">{error}</p>
+                  </div>
                 )}
 
-                <Button
+                <button
                   type="submit"
-                  className="w-full h-11 font-semibold shadow-sm"
                   disabled={loading}
                   data-testid="sign-in-button"
+                  className={cn(
+                    "w-full h-11 bg-gradient-to-br from-studio-accent to-studio-purple",
+                    "text-white text-[13px] font-bold rounded-lg border-0 cursor-pointer",
+                    "transition-opacity hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed font-studio",
+                  )}
                 >
                   {loading ? t("common_signing_in") : t("navigation_signIn")}
-                </Button>
+                </button>
               </form>
 
+              {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-white/[0.06]" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
+                <div className="relative flex justify-center text-[10px] uppercase tracking-[1px]">
+                  <span className="bg-studio-surface px-3 text-slate-200/25">
                     {t("common_or_continue_with")}
                   </span>
                 </div>
               </div>
 
-              <Button
+              {/* Google */}
+              <button
                 type="button"
-                variant="outline"
-                className="w-full h-11 border-2"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
+                className={cn(
+                  "w-full h-11 bg-white/[0.05] border border-white/[0.08]",
+                  "text-slate-200/60 text-[13px] font-medium rounded-lg",
+                  "cursor-pointer transition-all hover:bg-white/[0.08] hover:text-studio-fg",
+                  "disabled:opacity-50 disabled:cursor-not-allowed font-studio",
+                  "flex items-center justify-center gap-2",
+                )}
               >
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
                 {t("common_continue_with_google")}
-              </Button>
+              </button>
 
-              <div className="text-center text-sm pt-2">
-                <span className="text-muted-foreground">
+              {/* Sign up link */}
+              <div className="text-center text-[12px] pt-1">
+                <span className="text-slate-200/35">
                   {t("auth_no_account")}{" "}
                 </span>
-                <Link
-                  to={SIGN_UP_PATH}
-                  className="text-primary hover:underline font-medium"
-                >
+                <Link to={SIGN_UP_PATH} className="text-studio-accent hover:underline font-semibold no-underline">
                   {t("navigation_signUp")}
                 </Link>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-6 text-[10px] text-slate-200/30">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Sparkles className="h-3 w-3 text-studio-accent" />
               <span>{t("common_14_day_free_trial")}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Sparkles className="h-3 w-3 text-studio-accent" />
               <span>{t("common_no_credit_card_required")}</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </StudioShell>
   );
 }
 

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Cookie, Shield, Settings, CheckCircle2 } from "lucide-react";
-import { PageLayout } from "@/shared/components/layout/page-layout";
-import { HeroSection } from "@/shared/components/layout/hero-section";
-import { Section } from "@/shared/components/custom-ui/section";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { StudioHero } from "@/shared/components/layout/studio-hero";
+import { StudioSection } from "@/shared/components/custom-ui/studio-section";
 import { useTranslation } from "react-i18next";
 import { SUPPORT_EMAIL } from "@/shared/constants/app.constants";
 
@@ -34,13 +34,13 @@ function CookiesPage() {
   ];
 
   return (
-    <PageLayout variant="public">
-      <HeroSection
+    <StudioShell variant="public" showFooter>
+      <StudioHero
         badge={{ icon: Cookie, text: t("cookies_badge") }}
         title={
           <>
             Cookie
-            <span className="block bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent mt-2">
+            <span className="block bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent mt-2">
               Policy
             </span>
           </>
@@ -48,26 +48,26 @@ function CookiesPage() {
         description={t("metadata_cookies_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
+            <Shield className="w-5 h-5 text-studio-accent" />
             <span>{t("privacy_protected_information")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
+            <Settings className="w-5 h-5 text-studio-accent" />
             <span>{t("cookies_control_title")}</span>
           </div>
         </div>
-      </HeroSection>
+      </StudioHero>
 
-      <Section maxWidth="4xl">
-        <Card className="border-2 shadow-lg">
+      <StudioSection maxWidth="4xl">
+        <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_what_are_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("cookies_what_are_text")}
               </p>
             </section>
@@ -82,11 +82,11 @@ function CookiesPage() {
                     key={title}
                     className="rounded-xl border bg-card p-5 shadow-sm"
                   >
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-5 w-5 text-primary" />
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
+                      <Icon className="h-5 w-5 text-studio-accent" />
                     </div>
                     <h3 className="mb-2 font-semibold">{title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-slate-200/45 leading-relaxed">
                       {text}
                     </p>
                   </div>
@@ -98,7 +98,7 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_control_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("cookies_control_text")}
               </p>
             </section>
@@ -107,7 +107,7 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_changes_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("cookies_changes_text")}
               </p>
             </section>
@@ -116,11 +116,11 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("contact_metadata_title")}
               </h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-lg text-slate-200/45 leading-relaxed">
                 {t("cookies_contact_text")}{" "}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
-                  className="text-primary hover:underline"
+                  className="text-studio-accent hover:underline"
                 >
                   {SUPPORT_EMAIL}
                 </a>
@@ -130,16 +130,16 @@ function CookiesPage() {
 
             <section className="rounded-xl border bg-muted/40 p-5">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                <p className="text-sm text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />
+                <p className="text-sm text-slate-200/45">
                   <strong>Last reviewed:</strong> February 21, 2026
                 </p>
               </div>
             </section>
           </CardContent>
         </Card>
-      </Section>
-    </PageLayout>
+      </StudioSection>
+    </StudioShell>
   );
 }
 

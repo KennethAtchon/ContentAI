@@ -37,7 +37,7 @@ function DiscoverPage() {
     <AuthGuard authType="user">
       {/* Full-screen dark studio shell */}
       <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
-        <StudioTopBar niche={inputNiche} onNicheChange={setInputNiche} onScan={handleScan} activeTab="discover" />
+        <StudioTopBar variant="studio" niche={inputNiche} onNicheChange={setInputNiche} onScan={handleScan} activeTab="discover" />
 
         {/* Three-column layout */}
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: "220px 1fr 300px" }}>

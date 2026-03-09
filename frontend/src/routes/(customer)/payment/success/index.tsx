@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PaymentSuccessInteractive } from "@/routes/(customer)/payment/success/-payment-success-interactive";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { PageLayout } from "@/shared/components/layout/page-layout";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
 
 function PaymentSuccessPage() {
   return (
     <AuthGuard authType="user">
-      <PageLayout variant="customer">
+      <StudioShell variant="customer">
         <div className="container mx-auto px-4 py-16 md:py-24">
           <PaymentSuccessInteractive />
         </div>
-      </PageLayout>
+      </StudioShell>
     </AuthGuard>
   );
 }

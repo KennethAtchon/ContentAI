@@ -1,21 +1,21 @@
 {
-  "name": "CalcPro - Professional financial calculators for modern businesses",
-  "short_name": "CalcPro",
-  "description": "Professional financial calculators for modern businesses",
+  "name": "ReelStudio - AI-Powered Content Intelligence",
+  "short_name": "ReelStudio",
+  "description": "AI-powered content intelligence for viral short-form video",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0d9488",
+  "background_color": "#08080F",
+  "theme_color": "#818CF8",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en-US",
-  "categories": ["finance", "business", "productivity"],
+  "categories": ["social", "productivity", "entertainment"],
   "icons": [
     {
-      "src": "/apple-icon.png",
-      "sizes": "180x180",
+      "src": "/assets/reelstudio-logo.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/favicon.ico",
@@ -26,10 +26,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Start Calculating",
-      "short_name": "Calculate",
-      "description": "Use financial calculators",
-      "url": "/calculator"
+      "name": "Discover Reels",
+      "short_name": "Discover",
+      "description": "Browse and analyze viral reels",
+      "url": "/studio/discover"
     },
     {
       "name": "View Pricing",
@@ -42,12 +42,6 @@
       "short_name": "Contact",
       "description": "Get in touch with our support team",
       "url": "/contact"
-    }
-  ],
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://example.com/manifest.json"
     }
   ],
   "prefer_related_applications": false

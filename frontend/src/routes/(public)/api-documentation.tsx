@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageLayout } from "@/shared/components/layout/page-layout";
-import { HeroSection } from "@/shared/components/layout/hero-section";
-import { Section } from "@/shared/components/custom-ui/section";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { StudioHero } from "@/shared/components/layout/studio-hero";
+import { StudioSection } from "@/shared/components/custom-ui/studio-section";
 import {
   Card,
   CardContent,
@@ -123,13 +123,13 @@ function ApiDocumentationPage() {
   ];
 
   return (
-    <PageLayout variant="public">
-      <HeroSection
+    <StudioShell variant="public" showFooter>
+      <StudioHero
         badge={{ icon: Code, text: t("api_documentation_badge") }}
         title={
           <>
             API
-            <span className="block bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent mt-2">
+            <span className="block bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent mt-2">
               Documentation
             </span>
           </>
@@ -137,29 +137,29 @@ function ApiDocumentationPage() {
         description={t("api_documentation_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
           <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-primary" />
+            <Lock className="w-5 h-5 text-studio-accent" />
             <span>{t("api_authentication_title")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-primary" />
+            <Zap className="w-5 h-5 text-studio-accent" />
             <span>{t("api_rate_limiting_title")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Code className="w-5 h-5 text-primary" />
+            <Code className="w-5 h-5 text-studio-accent" />
             <span>REST / JSON</span>
           </div>
         </div>
-      </HeroSection>
+      </StudioHero>
 
-      <Section maxWidth="4xl">
+      <StudioSection maxWidth="4xl">
         <div className="space-y-8">
-          <Card className="border-2 shadow-lg">
+          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Code className="h-5 w-5 text-primary" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
+                  <Code className="h-5 w-5 text-studio-accent" />
                 </div>
                 {t("api_base_url_title")}
               </CardTitle>
@@ -172,7 +172,7 @@ function ApiDocumentationPage() {
           </Card>
 
           {endpointGroups.map((group) => (
-            <Card key={group.title} className="border-2 shadow-lg">
+            <Card key={group.title} className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
               <CardHeader>
                 <CardTitle className="text-2xl">{group.title}</CardTitle>
               </CardHeader>
@@ -184,7 +184,7 @@ function ApiDocumentationPage() {
                       className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-start gap-3"
                     >
                       <Badge
-                        className={`shrink-0 font-mono text-xs ${methodColors[ep.method] ?? "bg-muted text-muted-foreground"}`}
+                        className={`shrink-0 font-mono text-xs ${methodColors[ep.method] ?? "bg-muted text-slate-200/45"}`}
                         variant="secondary"
                       >
                         {ep.method}
@@ -193,7 +193,7 @@ function ApiDocumentationPage() {
                         <code className="text-sm font-mono text-foreground break-all">
                           {ep.path.replace(`${ep.method} `, "")}
                         </code>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm text-slate-200/45">
                           {ep.description}
                         </p>
                       </div>
@@ -204,17 +204,17 @@ function ApiDocumentationPage() {
             </Card>
           ))}
 
-          <Card className="border-2 shadow-lg">
+          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl">
                 {t("api_error_codes_title")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-slate-200/45">
                 {errorCodes.map((code) => (
                   <li key={code} className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />
                     <span>{code}</span>
                   </li>
                 ))}
@@ -222,8 +222,8 @@ function ApiDocumentationPage() {
             </CardContent>
           </Card>
         </div>
-      </Section>
-    </PageLayout>
+      </StudioSection>
+    </StudioShell>
   );
 }
 

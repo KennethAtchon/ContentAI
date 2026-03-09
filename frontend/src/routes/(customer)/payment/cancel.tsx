@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { XCircle, ArrowLeft, HelpCircle, ArrowRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { PageLayout } from "@/shared/components/layout/page-layout";
+import { StudioShell } from "@/shared/components/layout/studio-shell";
 import { useTranslation } from "react-i18next";
 
 function PaymentCancelPage() {
@@ -12,7 +12,7 @@ function PaymentCancelPage() {
 
   return (
     <AuthGuard authType="user">
-      <PageLayout variant="customer">
+      <StudioShell variant="customer">
         <div className="container mx-auto px-4 py-16 md:py-24">
           <div className="mx-auto max-w-2xl">
             <Card className="border-2 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
@@ -23,7 +23,7 @@ function PaymentCancelPage() {
                 <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
                   {t("metadata_payment_cancel_title")}
                 </h1>
-                <p className="mb-8 text-lg text-muted-foreground">
+                <p className="mb-8 text-lg text-slate-200/45">
                   {t(
                     "common_no_charges_were_made_your_subscription_was_not_activated"
                   )}
@@ -61,7 +61,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_free_trial_title")}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-200/45">
                       {t("payment_cancel_free_trial_description")}
                     </p>
                   </div>
@@ -69,7 +69,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_cancel_anytime_title")}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-200/45">
                       {t("payment_cancel_cancel_anytime_description")}
                     </p>
                   </div>
@@ -77,7 +77,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_guarantee_title")}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-200/45">
                       {t("payment_cancel_guarantee_description")}
                     </p>
                   </div>
@@ -92,7 +92,7 @@ function PaymentCancelPage() {
             </Card>
           </div>
         </div>
-      </PageLayout>
+      </StudioShell>
     </AuthGuard>
   );
 }
