@@ -1,82 +1,44 @@
 /**
- * Calculator Interface Component
- *
- * Main calculator interface integrated into the account page.
- * Uses the same dynamic pattern as calculator-interactive.tsx for consistency.
+ * Stub — the calculator has been replaced by ReelStudio.
+ * This component exists only to prevent import errors in account-interactive.tsx.
  */
-
-"use client";
-
-import { useState } from "react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/shared/components/ui/tabs";
-import { FeatureGate } from "@/features/subscriptions/components/feature-gate";
-import {
-  getAllCalculatorConfigs,
-  getCalculatorIcon,
-} from "@/features/calculator/constants/calculator.constants";
-import { getCalculatorComponent } from "@/features/calculator/components/calculator-component-map";
-import { UpgradePrompt } from "@/features/subscriptions/components/upgrade-prompt";
-import type { CalculationType } from "@/features/calculator/types/calculator.types";
+import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 export function CalculatorInterface() {
-  const [selectedCalculator, setSelectedCalculator] =
-    useState<CalculationType>("mortgage");
-
+  const { t } = useTranslation();
   return (
-    <div className="space-y-6">
-      <Tabs
-        value={selectedCalculator}
-        onValueChange={(value) =>
-          setSelectedCalculator(value as CalculationType)
-        }
-        className="space-y-6"
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 16,
+        padding: "48px 24px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 40 }}>✦</div>
+      <p style={{ fontSize: 16, fontWeight: 600 }}>
+        {t("studio_tabs_discover")}
+      </p>
+      <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+        {t("studio_canvas_noReelSub")}
+      </p>
+      <Link
+        to="/studio/discover"
+        style={{
+          background: "linear-gradient(135deg, #818CF8, #C084FC)",
+          color: "white",
+          padding: "8px 20px",
+          borderRadius: 8,
+          fontWeight: 600,
+          fontSize: 13,
+          textDecoration: "none",
+        }}
       >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 bg-muted/50">
-          {getAllCalculatorConfigs().map((config) => {
-            const Icon = getCalculatorIcon(config.id);
-            return (
-              <TabsTrigger
-                key={config.id}
-                value={config.id}
-                className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-              >
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{config.shortName}</span>
-                <span className="sm:hidden">{config.mobileLabel}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {getAllCalculatorConfigs().map((config) => {
-          const CalculatorComponent = getCalculatorComponent(config.id);
-          const requiredTier = config.tierRequirement;
-          const Icon = getCalculatorIcon(config.id);
-
-          return (
-            <TabsContent key={config.id} value={config.id} className="mt-6">
-              <FeatureGate
-                requiredTier={requiredTier}
-                fallback={
-                  <UpgradePrompt
-                    requiredTier={requiredTier}
-                    featureName={config.name}
-                    featureDescription={config.longDescription}
-                    icon={Icon}
-                  />
-                }
-              >
-                <CalculatorComponent />
-              </FeatureGate>
-            </TabsContent>
-          );
-        })}
-      </Tabs>
+        Open ReelStudio →
+      </Link>
     </div>
   );
 }

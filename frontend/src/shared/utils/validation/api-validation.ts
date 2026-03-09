@@ -371,8 +371,7 @@ export function validateInput<T>(
   }
 }
 
-import { calculationRequestSchema } from "@/features/calculator/types/calculator-validation";
-export { calculationRequestSchema };
+// calculationRequestSchema removed — calculator feature no longer used
 
 export const calculatorExportSchema = z.object({
   calculationId: uuidSchema.optional(),

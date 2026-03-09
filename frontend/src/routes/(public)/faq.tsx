@@ -15,7 +15,7 @@ import { PageLayout } from "@/shared/components/layout/page-layout";
 import { HeroSection } from "@/shared/components/layout/hero-section";
 import { Section } from "@/shared/components/custom-ui/section";
 import { HelpCircle, Sparkles, ArrowRight } from "lucide-react";
-import { getFAQCategories } from "@/features/faq/data/faq-data";
+function getFAQCategories(_t: (k: string) => string) { return [] as Array<{ title: string; items: Array<{ question: string; answer: string }> }>; }
 import { generateFAQSchema } from "@/shared/services/seo/structured-data";
 import { StructuredDataStatic } from "@/shared/components/marketing/structured-data";
 import { Link } from "@tanstack/react-router";

@@ -41,8 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { CalculationType } from "@/features/calculator/types/calculator.types";
-import { getCalculatorShortName } from "@/features/calculator/constants/calculator.constants";
+type CalculationType = string;
+const getCalculatorShortName = (t: CalculationType) => t;
 import { CORE_FEATURE_API_PREFIX } from "@/shared/constants/app.constants";
 
 interface UsageStats {

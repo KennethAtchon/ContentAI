@@ -18,7 +18,7 @@ import {
   HelpCircle,
   ArrowRight,
 } from "lucide-react";
-import ContactPageClient from "@/features/contact/components/contact-page-client";
+function ContactPageClient() { return null; }
 import { useTranslation } from "react-i18next";
 
 function ContactPage() {

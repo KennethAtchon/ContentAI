@@ -24,6 +24,9 @@ import analyticsRoutes from "./routes/analytics/index";
 import userRoutes from "./routes/users/index";
 import csrfRoutes from "./routes/csrf";
 import authRoutes from "./routes/auth/index";
+import reelsRoutes from "./routes/reels/index";
+import generationRoutes from "./routes/generation/index";
+import queueRoutes from "./routes/queue/index";
 
 const app = new Hono();
 
@@ -75,6 +78,9 @@ app.route("/api/analytics", analyticsRoutes);
 app.route("/api/users", userRoutes);
 app.route("/api/csrf", csrfRoutes);
 app.route("/api/auth", authRoutes);
+app.route("/api/reels", reelsRoutes);
+app.route("/api/generation", generationRoutes);
+app.route("/api/queue", queueRoutes);
 
 // Standalone routes
 app.get("/api/live", (c) => c.json({ status: "ok" }));

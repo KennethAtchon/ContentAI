@@ -32,6 +32,16 @@ export const queryKeys = {
       contactMessages: (params?: { page?: number; limit?: number }) =>
         ["api", "shared", "contact-messages", params] as const,
     },
+    // ── Studio / Reels ──────────────────────────────────────────────
+    reels: (niche: string, params?: Record<string, unknown>) =>
+      ["api", "reels", niche, params] as const,
+    reel: (id: number) => ["api", "reel", id] as const,
+    reelAnalysis: (id: number) => ["api", "reel-analysis", id] as const,
+    generationHistory: (params?: { limit?: number; offset?: number }) =>
+      ["api", "generation-history", params] as const,
+    queue: (params?: { status?: string; limit?: number; offset?: number }) =>
+      ["api", "queue", params] as const,
+
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>
       ["api", "paginated", resource, params] as const,

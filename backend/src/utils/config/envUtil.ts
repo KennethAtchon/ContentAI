@@ -190,6 +190,32 @@ export const PACKAGE_VERSION = getEnvVar(
 export const IS_RAILWAY = !!getEnvVar("RAILWAY_PUBLIC_DOMAIN", false);
 
 // ============================================================================
+// AI (Anthropic Claude)
+// ============================================================================
+export const ANTHROPIC_API_KEY = getEnvVar("ANTHROPIC_API_KEY", false);
+export const ANALYSIS_MODEL = getEnvVar(
+  "ANALYSIS_MODEL",
+  false,
+  "claude-haiku-4-5-20251001",
+);
+export const GENERATION_MODEL = getEnvVar(
+  "GENERATION_MODEL",
+  false,
+  "claude-sonnet-4-6",
+);
+
+// ============================================================================
+// Reels / Content Platform
+// ============================================================================
+export const REEL_SOURCE = getEnvVar("REEL_SOURCE", false, "manual");
+export const SOCIAL_API_KEY = getEnvVar("SOCIAL_API_KEY", false);
+export const INSTAGRAM_API_TOKEN = getEnvVar("INSTAGRAM_API_TOKEN", false);
+export const VIRAL_VIEWS_THRESHOLD = parseInt(
+  getEnvVar("VIRAL_VIEWS_THRESHOLD", false, "100000"),
+  10,
+);
+
+// ============================================================================
 // Testing & CI
 // ============================================================================
 export const IS_CI = getEnvVarAsBoolean("CI", false);

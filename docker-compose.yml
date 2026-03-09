@@ -48,6 +48,10 @@ services:
     env_file:
       - .env
       - ./backend/.env
+    environment:
+      # Override localhost URLs from backend/.env with Docker service names
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-acme}
+      REDIS_URL: redis://redis:6379
     ports:
       - "3001:3001"
     volumes:
