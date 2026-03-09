@@ -18,7 +18,7 @@ export const REDIRECT_PATHS = {
   PRICING: "/pricing",
   ACCOUNT: "/account",
   CHECKOUT: "/checkout",
-  DASHBOARD: "/account?tab=calculator",
+  DASHBOARD: "/studio/discover",
   SIGN_IN: "/sign-in",
   SIGN_UP: "/sign-up",
 } as const;

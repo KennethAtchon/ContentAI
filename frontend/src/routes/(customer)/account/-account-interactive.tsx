@@ -5,15 +5,15 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
 import {
-  Calculator,
   CreditCard,
   TrendingUp,
   Package,
   User,
+  LayoutDashboard,
+  ArrowRight,
 } from "lucide-react";
 import { SubscriptionManagement } from "@/features/account/components/subscription-management";
 import { UsageDashboard } from "@/features/account/components/usage-dashboard";
-import { CalculatorInterface } from "@/features/account/components/calculator-interface";
 import { ProfileEditor } from "@/features/account/components/profile-editor";
 import {
   Card,
@@ -22,23 +22,63 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+
+function StudioOverview() {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-6">
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle className="text-2xl">{t("account_overview_title")}</CardTitle>
+          <CardDescription>{t("account_overview_subtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div className="rounded-xl border bg-muted/30 p-4 text-center">
+              <p className="text-3xl font-bold text-foreground">—</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_reels_analyzed")}</p>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4 text-center">
+              <p className="text-3xl font-bold text-foreground">—</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_content_generated")}</p>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-4 text-center">
+              <p className="text-3xl font-bold text-foreground">—</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_queue_items")}</p>
+            </div>
+          </div>
+          <div className="text-center">
+            <Button asChild size="lg" className="px-8">
+              <Link to="/studio/discover">
+                {t("account_overview_open_studio")}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export function AccountInteractive() {
   const { t } = useTranslation();
   return (
-    <Tabs defaultValue="calculator" className="space-y-6">
+    <Tabs defaultValue="overview" className="space-y-6">
       <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50">
         <TabsTrigger
-          value="calculator"
+          value="overview"
           className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
         >
-          <Calculator className="h-4 w-4" />
+          <LayoutDashboard className="h-4 w-4" />
           <span className="hidden sm:inline">
-            {t("account_tabs_calculator")}
+            {t("account_tabs_overview")}
           </span>
           <span className="sm:hidden">
-            {t("account_tabs_calculator_short")}
+            {t("account_tabs_overview_short")}
           </span>
         </TabsTrigger>
         <TabsTrigger
@@ -76,8 +116,8 @@ export function AccountInteractive() {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="calculator" className="space-y-6 mt-6">
-        <CalculatorInterface />
+      <TabsContent value="overview" className="space-y-6 mt-6">
+        <StudioOverview />
       </TabsContent>
 
       <TabsContent value="subscription" className="space-y-6 mt-6">

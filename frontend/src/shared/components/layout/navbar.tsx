@@ -43,7 +43,7 @@ export default function NavBar() {
   ];
 
   const USER_ONLY_LINKS: NavigationLink[] = [
-    { href: CORE_FEATURE_PATH, label: t("account_tabs_calculator") },
+    { href: CORE_FEATURE_PATH, label: t("studio_tabs_discover") },
     { href: "/account", label: t("navigation_account") },
   ];
 
@@ -59,8 +59,11 @@ export default function NavBar() {
     if (href === "/") {
       return pathname === "/";
     }
-    if (href === "/account" || href === CORE_FEATURE_PATH) {
-      return pathname.startsWith(href);
+    if (href === "/account") {
+      return pathname.startsWith("/account");
+    }
+    if (href.startsWith("/studio")) {
+      return pathname.startsWith("/studio");
     }
     return pathname === href;
   };

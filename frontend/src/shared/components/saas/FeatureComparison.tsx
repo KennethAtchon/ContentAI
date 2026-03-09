@@ -25,63 +25,57 @@ interface FeatureComparisonProps {
 export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
   const features = [
     {
-      name: "Monthly Calculations",
+      name: "Reels / month",
       basic: "50",
       pro: "500",
       enterprise: "Unlimited",
     },
     {
-      name: "Mortgage Calculator",
+      name: "AI Generations / month",
+      basic: "20",
+      pro: "200",
+      enterprise: "Unlimited",
+    },
+    {
+      name: "Content Queue Items",
+      basic: "5",
+      pro: "50",
+      enterprise: "Unlimited",
+    },
+    {
+      name: "Reel Discovery",
       basic: true,
       pro: true,
       enterprise: true,
     },
     {
-      name: "Loan Calculator",
+      name: "AI Analysis",
       basic: true,
       pro: true,
       enterprise: true,
     },
     {
-      name: "Investment Calculator",
-      basic: false,
-      pro: true,
-      enterprise: true,
-    },
-    {
-      name: "Retirement Calculator",
-      basic: false,
-      pro: true,
-      enterprise: true,
-    },
-    {
-      name: "Custom Calculator",
-      basic: false,
-      pro: false,
-      enterprise: true,
-    },
-    {
-      name: "PDF Export",
+      name: "Hook Generation",
       basic: true,
       pro: true,
       enterprise: true,
     },
     {
-      name: "Excel Export",
+      name: "Caption Generation",
+      basic: true,
+      pro: true,
+      enterprise: true,
+    },
+    {
+      name: "Script Generation",
       basic: false,
       pro: true,
       enterprise: true,
     },
     {
-      name: "CSV Export",
+      name: "Instagram Publishing",
       basic: false,
       pro: true,
-      enterprise: true,
-    },
-    {
-      name: "API Export",
-      basic: false,
-      pro: false,
       enterprise: true,
     },
     {

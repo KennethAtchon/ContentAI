@@ -1,7 +1,71 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fira+Code:wght@400;500&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 @config "../../tailwind.config.ts";
+
+/* ── Studio dark-app design tokens ───────────────────────────────────────── */
+/* These feed into tailwind.config.ts studio.* color palette                  */
+
+:root {
+  --studio-bg:       #08080F;
+  --studio-surface:  #0C0C18;
+  --studio-topbar:   #0E0E1A;
+  --studio-accent:   #818CF8;
+  --studio-purple:   #C084FC;
+  --studio-fg:       #E2E8F0;
+  --studio-fg-dim:   rgba(226,232,240,0.4);
+  --studio-border:   rgba(255,255,255,0.06);
+  --studio-ring:     rgba(129,140,248,0.5);
+  --font-studio:     "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-studio-mono:"Fira Code", "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ── Studio keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes gen-bar {
+  0%   { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Studio compound utilities (layout-critical, can't do in inline Tailwind) */
+
+@layer components {
+  /* Phone glow — complex multi-layer shadow */
+  .studio-phone-shadow {
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 40px 80px rgba(0,0,0,0.8),
+      0 0 60px rgba(129,140,248,0.10);
+  }
+
+  /* Shimmer skeleton */
+  .studio-skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.04) 25%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.04) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+
+  /* Gen-bar loading animation */
+  .studio-gen-bar {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    background: rgba(255,255,255,0.2);
+    animation: gen-bar 2.2s ease forwards;
+  }
+}
 
 @layer utilities {
   .text-balance {

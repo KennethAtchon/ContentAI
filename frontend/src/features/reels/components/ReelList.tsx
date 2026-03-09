@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { fmtNum } from "../hooks/use-reels";
+import { cn } from "@/shared/utils/helpers/utils";
 import type { Reel } from "../types/reel.types";
 
 interface Props {
@@ -13,33 +14,57 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
 
   return (
     <>
-      <div className="ais-sidebar-header">
-        {t("studio_sidebar_sourceReels")}
-        <span className="ais-sidebar-count">{reels.length}</span>
+      {/* Header */}
+      <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
+        <span className="text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25">
+          {t("studio_sidebar_sourceReels")}
+        </span>
+        <span className="bg-studio-accent/15 text-studio-accent text-[9px] font-bold px-1.5 py-px rounded-full">
+          {reels.length}
+        </span>
       </div>
-      <div className="ais-asset-list">
-        {reels.map((reel) => (
-          <button
-            key={reel.id}
-            className={`ais-asset ${activeId === reel.id ? "active" : ""}`}
-            onClick={() => onSelect(reel.id)}
-          >
-            <div className="ais-asset-thumb">
-              {reel.thumbnailEmoji ?? "🎬"}
-            </div>
-            <div className="ais-asset-info">
-              <div className="ais-asset-user">{reel.username}</div>
-              <div className="ais-asset-stat">
-                {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
+
+      {/* List */}
+      <div className="overflow-y-auto flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {reels.map((reel) => {
+          const isActive = activeId === reel.id;
+          return (
+            <button
+              key={reel.id}
+              onClick={() => onSelect(reel.id)}
+              className={cn(
+                "w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left",
+                "border-0 border-l-2 transition-colors duration-100 font-studio cursor-pointer",
+                isActive
+                  ? "bg-studio-accent/[0.08] border-l-studio-accent"
+                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]",
+              )}
+            >
+              <div
+                className={cn(
+                  "w-[34px] h-[34px] rounded-[6px] flex items-center justify-center text-base shrink-0",
+                  isActive ? "bg-studio-accent/15" : "bg-white/[0.06]",
+                )}
+              >
+                {reel.thumbnailEmoji ?? "🎬"}
               </div>
-            </div>
-          </button>
-        ))}
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-studio-fg truncate">
+                  {reel.username}
+                </p>
+                <p className="text-[10px] text-slate-200/35 mt-px">
+                  {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
+                </p>
+              </div>
+            </button>
+          );
+        })}
+
         {reels.length === 0 && (
-          <div className="ais-empty" style={{ padding: "24px 14px" }}>
-            <div className="ais-empty-title" style={{ fontSize: 11 }}>
+          <div className="flex flex-col items-center justify-center gap-3 px-3.5 py-8 text-center">
+            <p className="text-[11px] font-semibold text-slate-200/40">
               {t("studio_sidebar_noReels")}
-            </div>
+            </p>
           </div>
         )}
       </div>

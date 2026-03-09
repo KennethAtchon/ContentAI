@@ -17,6 +17,8 @@ const config: Config = {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         serif: ["var(--font-lora)", "Georgia", "serif"],
         display: ["var(--font-inter)", "system-ui", "sans-serif"],
+        studio: ["var(--font-studio)", "system-ui", "sans-serif"],
+        "studio-mono": ["var(--font-studio-mono)", "monospace"],
       },
       colors: {
         // Base colors
@@ -67,6 +69,17 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Studio dark-app palette
+        studio: {
+          bg:      "var(--studio-bg)",
+          surface: "var(--studio-surface)",
+          topbar:  "var(--studio-topbar)",
+          accent:  "var(--studio-accent)",
+          purple:  "var(--studio-purple)",
+          fg:      "var(--studio-fg)",
+          border:  "var(--studio-border)",
+          ring:    "var(--studio-ring)",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background, var(--background)))",
           foreground: "hsl(var(--sidebar-foreground, var(--foreground)))",
@@ -91,10 +104,20 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "gen-bar": {
+          "0%": { width: "0" },
+          "100%": { width: "100%" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "gen-bar": "gen-bar 2.2s ease forwards",
+        shimmer: "shimmer 1.5s infinite",
       },
     },
   },

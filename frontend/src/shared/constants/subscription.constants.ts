@@ -33,9 +33,11 @@ export type SubscriptionStatus =
   | "incomplete_expired";
 
 export interface SubscriptionTierFeatures {
-  maxCalculationsPerMonth: number; // -1 means unlimited
-  calculationTypes: string[];
-  exportFormats: string[];
+  maxReelsPerMonth: number; // -1 means unlimited
+  maxGenerationsPerMonth: number; // -1 means unlimited
+  maxQueueItems: number; // -1 means unlimited
+  aiAnalysis: boolean;
+  instagramPublishing: boolean;
   supportLevel: "email" | "priority" | "dedicated";
   apiAccess: boolean;
   customBranding: boolean;
@@ -49,30 +51,33 @@ export interface SubscriptionTierConfig {
   stripePriceId: string;
 }
 
-// Base tier configurations with features (pricing comes from stripe.constants.ts)
-// Only includes gated calculators (free calculators are not listed here)
-// See FEATURE_TIER_REQUIREMENTS in core-feature-permissions.ts for complete mapping
 const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   [SUBSCRIPTION_TIERS.BASIC]: {
-    maxCalculationsPerMonth: 50,
-    calculationTypes: ["loan"],
-    exportFormats: ["pdf"],
+    maxReelsPerMonth: 50,
+    maxGenerationsPerMonth: 20,
+    maxQueueItems: 5,
+    aiAnalysis: true,
+    instagramPublishing: false,
     supportLevel: "email",
     apiAccess: false,
     customBranding: false,
   },
   [SUBSCRIPTION_TIERS.PRO]: {
-    maxCalculationsPerMonth: 500,
-    calculationTypes: ["loan", "investment"],
-    exportFormats: ["pdf", "excel", "csv"],
+    maxReelsPerMonth: 500,
+    maxGenerationsPerMonth: 200,
+    maxQueueItems: 50,
+    aiAnalysis: true,
+    instagramPublishing: true,
     supportLevel: "priority",
     apiAccess: true,
     customBranding: false,
   },
   [SUBSCRIPTION_TIERS.ENTERPRISE]: {
-    maxCalculationsPerMonth: -1, // unlimited
-    calculationTypes: ["loan", "investment", "retirement", "custom"],
-    exportFormats: ["pdf", "excel", "csv", "api"],
+    maxReelsPerMonth: -1,
+    maxGenerationsPerMonth: -1,
+    maxQueueItems: -1,
+    aiAnalysis: true,
+    instagramPublishing: true,
     supportLevel: "dedicated",
     apiAccess: true,
     customBranding: true,
@@ -100,17 +105,6 @@ export function getTierConfig(
     features: BASE_TIER_FEATURES[tier],
     stripePriceId: getStripePriceId(tier, billingCycle),
   };
-}
-
-/**
- * Check if a tier has access to a specific export format
- */
-export function tierHasExportFormat(
-  tier: SubscriptionTier,
-  format: string
-): boolean {
-  const config = getTierConfig(tier);
-  return config.features.exportFormats.includes(format);
 }
 
 /**

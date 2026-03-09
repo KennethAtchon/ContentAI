@@ -2,24 +2,23 @@
  * Template config: product identity and core feature routing.
  * Change these first when using this project as a template.
  */
-export const APP_NAME = "CalcPro";
+export const APP_NAME = "ReelStudio";
 export const APP_DESCRIPTION =
-  "Professional financial calculators for modern businesses";
+  "Discover viral reels, decode what works, and generate content that performs";
 export const APP_TAGLINE =
-  "Professional financial calculators for modern businesses";
-export const SUPPORT_EMAIL = "support@calcpro.com";
+  "Turn viral reels into your content strategy";
+export const SUPPORT_EMAIL = "support@reelstudio.ai";
 
 /** Support phone for contact/structured data. Change for your product. */
 export const SUPPORT_PHONE = "+1-555-0100";
 
 /**
  * Slug for the main app feature (used in URLs and API paths).
- * Default: "calculator". Change to "tools", "documents", etc. when building a different product.
  */
-export const CORE_FEATURE_SLUG = "calculator";
+export const CORE_FEATURE_SLUG = "studio";
 
-/** Main app path for the core feature (e.g. /calculator). Use for links and redirects. */
-export const CORE_FEATURE_PATH = `/${CORE_FEATURE_SLUG}` as const;
+/** Main app path for the core feature. Use for links and redirects. */
+export const CORE_FEATURE_PATH = `/studio/discover` as const;
 
-/** API prefix for the core feature (e.g. /api/calculator). Use for API calls. */
-export const CORE_FEATURE_API_PREFIX = `/api/${CORE_FEATURE_SLUG}` as const;
+/** API prefix for the core feature. Use for API calls. */
+export const CORE_FEATURE_API_PREFIX = `/api/reels` as const;

@@ -257,21 +257,11 @@ export function PricingCard({
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-sm leading-relaxed">
-              {tier.features.maxCalculationsPerMonth === -1 ? (
-                <span className="font-semibold">
-                  {t("calculator_unlimited")}
-                </span>
+              {tier.features.maxReelsPerMonth === -1 ? (
+                <><span className="font-semibold">{t("calculator_unlimited")}</span> reels/month</>
               ) : (
-                <span className="font-semibold">
-                  {tier.features.maxCalculationsPerMonth.toLocaleString()}
-                </span>
-              )}{" "}
-              {t("account_subscription_calculations_per_month", {
-                count:
-                  tier.features.maxCalculationsPerMonth === -1
-                    ? 0
-                    : tier.features.maxCalculationsPerMonth,
-              })}
+                <><span className="font-semibold">{tier.features.maxReelsPerMonth.toLocaleString()}</span> reels/month</>
+              )}
             </span>
           </li>
           <li className="flex items-start gap-3">
@@ -279,9 +269,11 @@ export function PricingCard({
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-sm leading-relaxed">
-              {t("account_subscription_calculator_types", {
-                count: tier.features.calculationTypes.length,
-              })}
+              {tier.features.maxGenerationsPerMonth === -1 ? (
+                <><span className="font-semibold">{t("calculator_unlimited")}</span> AI generations/month</>
+              ) : (
+                <><span className="font-semibold">{tier.features.maxGenerationsPerMonth.toLocaleString()}</span> AI generations/month</>
+              )}
             </span>
           </li>
           <li className="flex items-start gap-3">
@@ -289,9 +281,7 @@ export function PricingCard({
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-sm leading-relaxed">
-              {t("account_subscription_export_to", {
-                formats: tier.features.exportFormats.join(", ").toUpperCase(),
-              })}
+              {tier.features.instagramPublishing ? "Instagram publishing" : "Content queue (no publishing)"}
             </span>
           </li>
           <li className="flex items-start gap-3">

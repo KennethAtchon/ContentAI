@@ -1,11 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 /**
- * /studio redirects to /studio/discover
+ * Layout route for /studio/*
+ * Just renders children — no redirect here.
+ * Use studio/index.tsx to redirect /studio → /studio/discover
  */
 export const Route = createFileRoute("/studio")({
-  beforeLoad: () => {
-    throw redirect({ to: "/studio/discover" });
-  },
-  component: () => null,
+  component: () => <Outlet />,
 });

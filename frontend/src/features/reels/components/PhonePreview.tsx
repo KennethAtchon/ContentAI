@@ -10,61 +10,91 @@ export function PhonePreview({ reel }: Props) {
   const { t } = useTranslation();
 
   return (
-    <div className="ais-canvas-body">
+    <div className="flex-1 flex items-center justify-center relative overflow-hidden">
       {/* Floating stat cards */}
-      <div className="ais-float-card" style={{ top: 32, left: 40 }}>
-        <div className="ais-float-card-label">{t("studio_panel_engagementRate")}</div>
-        <div className="ais-float-card-val">{reel.engagementRate ?? "0"}%</div>
-      </div>
-      <div className="ais-float-card" style={{ top: 32, right: 40 }}>
-        <div className="ais-float-card-label">{t("studio_panel_totalViews")}</div>
-        <div className="ais-float-card-val">{fmtNum(reel.views)}</div>
-      </div>
-      <div className="ais-float-card" style={{ bottom: 80, left: 40 }}>
-        <div className="ais-float-card-label">{t("studio_panel_posted")}</div>
-        <div className="ais-float-card-val" style={{ fontSize: 14 }}>
-          {reel.daysAgo != null ? `${reel.daysAgo}d ago` : "—"}
-        </div>
-      </div>
-      <div className="ais-float-card" style={{ bottom: 80, right: 40 }}>
-        <div className="ais-float-card-label">{t("studio_panel_likes")}</div>
-        <div className="ais-float-card-val" style={{ color: "#C084FC" }}>
-          {fmtNum(reel.likes)}
-        </div>
-      </div>
+      <StatCard label={t("studio_panel_engagementRate")} value={`${reel.engagementRate ?? "0"}%`} className="absolute top-8 left-10" />
+      <StatCard label={t("studio_panel_totalViews")} value={fmtNum(reel.views)} className="absolute top-8 right-10" />
+      <StatCard
+        label={t("studio_panel_posted")}
+        value={reel.daysAgo != null ? `${reel.daysAgo}d ago` : "—"}
+        valueClassName="text-[14px]"
+        className="absolute bottom-20 left-10"
+      />
+      <StatCard
+        label={t("studio_panel_likes")}
+        value={fmtNum(reel.likes)}
+        valueClassName="text-studio-purple"
+        className="absolute bottom-20 right-10"
+      />
 
       {/* Phone mockup */}
-      <div className="ais-phone">
-        <div className="ais-phone-notch" />
-        <div className="ais-phone-bg" />
-        <div className="ais-phone-emoji">{reel.thumbnailEmoji ?? "🎬"}</div>
-        <div className="ais-phone-actions">
-          <div className="ais-phone-action">
-            <div className="ais-phone-action-icon">❤️</div>
-            <div className="ais-phone-action-label">{fmtNum(reel.likes)}</div>
-          </div>
-          <div className="ais-phone-action">
-            <div className="ais-phone-action-icon">💬</div>
-            <div className="ais-phone-action-label">{fmtNum(reel.comments)}</div>
-          </div>
-          <div className="ais-phone-action">
-            <div className="ais-phone-action-icon">↗</div>
-          </div>
+      <div className="w-[220px] h-[390px] rounded-[32px] border-2 border-white/[0.12] bg-[#111] relative overflow-hidden studio-phone-shadow shrink-0">
+        {/* Notch */}
+        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[60px] h-1.5 bg-[#222] rounded-full z-[2]" />
+
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A2E] to-[#16213E]" />
+
+        {/* Center emoji */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-[64px] z-[1]">
+          {reel.thumbnailEmoji ?? "🎬"}
         </div>
-        <div className="ais-phone-content">
-          <div className="ais-phone-overlay-user">{reel.username}</div>
-          <div className="ais-phone-overlay-hook">
-            {reel.hook ? `${reel.hook.slice(0, 60)}...` : ""}
-          </div>
+
+        {/* Side actions */}
+        <div className="absolute right-2.5 bottom-[60px] flex flex-col gap-3 items-center z-[2]">
+          <PhoneAction icon="❤️" label={fmtNum(reel.likes)} />
+          <PhoneAction icon="💬" label={fmtNum(reel.comments)} />
+          <PhoneAction icon="↗" />
+        </div>
+
+        {/* Bottom overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-end p-5 bg-gradient-to-b from-transparent via-transparent to-black/[0.85] z-[1]">
+          <p className="self-start text-[11px] font-bold text-white mb-1">{reel.username}</p>
+          {reel.hook && (
+            <p className="self-start text-[12px] text-white/85 leading-[1.4] mb-2.5">
+              {reel.hook.slice(0, 60)}…
+            </p>
+          )}
           {reel.audioName && (
-            <div className="ais-phone-metrics">
-              <div className="ais-phone-metric">
-                <span>♪</span> {reel.audioName.slice(0, 20)}
-              </div>
+            <div className="self-start flex items-center gap-1 text-[11px] text-white/60">
+              <span className="text-white font-bold">♪</span>
+              {reel.audioName.slice(0, 20)}
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  className,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div
+      className={`bg-[#0E0E1A]/90 border border-white/[0.08] rounded-xl px-3.5 py-2.5 backdrop-blur-xl text-[11px] ${className ?? ""}`}
+    >
+      <p className="text-slate-200/35 text-[10px] mb-0.5">{label}</p>
+      <p className={`text-[16px] font-bold text-studio-accent ${valueClassName ?? ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function PhoneAction({ icon, label }: { icon: string; label?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <div className="w-[34px] h-[34px] rounded-full bg-white/15 flex items-center justify-center text-base backdrop-blur-sm">
+        {icon}
+      </div>
+      {label && <span className="text-[9px] text-white">{label}</span>}
     </div>
   );
 }
