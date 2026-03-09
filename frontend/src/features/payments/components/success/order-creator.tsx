@@ -99,7 +99,7 @@ export function OrderCreator({ sessionId }: OrderCreatorProps) {
         // Redirect to the same page but with order_id parameter
         navigate({
           to: `/payment/success`,
-          search: { session_id: sessionId, order_id: orderId },
+          search: { session_id: sessionId, order_id: orderId } as any,
         });
       } catch (err) {
         debugLog.error(

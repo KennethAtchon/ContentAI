@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 
 import { cn } from "@/shared/utils/helpers/utils";
 import { ButtonProps, buttonVariants } from "@/shared/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
@@ -62,33 +63,37 @@ PaginationLink.displayName = "PaginationLink";
 const PaginationPrevious = ({
   className,
   ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
-  <PaginationLink
-    aria-label="Go to previous page"
-    size="default"
-    className={cn("gap-1 pl-2.5", className)}
-    {...props}
-  >
+}: React.ComponentProps<typeof PaginationLink>) => {
+  const { t } = useTranslation();
+  return (
+    <PaginationLink
+      aria-label={t("pagination_previous")}
+      className={cn("gap-1 pl-2.5", className)}
+      {...props}
+    >
     <ChevronLeft className="h-4 w-4" />
     <span>Previous</span>
   </PaginationLink>
 );
+};
 PaginationPrevious.displayName = "PaginationPrevious";
 
 const PaginationNext = ({
   className,
   ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
-  <PaginationLink
-    aria-label="Go to next page"
-    size="default"
-    className={cn("gap-1 pr-2.5", className)}
-    {...props}
-  >
+}: React.ComponentProps<typeof PaginationLink>) => {
+  const { t } = useTranslation();
+  return (
+    <PaginationLink
+      aria-label={t("pagination_next")}
+      className={cn("gap-1 pr-2.5", className)}
+      {...props}
+    >
     <span>Next</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 );
+};
 PaginationNext.displayName = "PaginationNext";
 
 const PaginationEllipsis = ({

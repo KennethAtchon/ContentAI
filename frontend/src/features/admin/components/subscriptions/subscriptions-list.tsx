@@ -304,7 +304,7 @@ export function SubscriptionsList() {
                       <Button variant="ghost" size="sm" asChild>
                         <Link
                           to="/admin/customers"
-                          search={{ userId: sub.userId }}
+                          search={{ userId: sub.userId } as any}
                         >
                           View Customer
                         </Link>

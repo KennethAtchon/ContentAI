@@ -32,6 +32,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { useTranslation } from "react-i18next";
 
 interface AnalyticsData {
   mrr: number;
@@ -54,6 +55,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export function SubscriptionAnalytics() {
   const { user } = useApp();
+  const { t } = useTranslation();
   const fetcher = useQueryFetcher<AnalyticsData>();
 
   const {
@@ -171,7 +173,7 @@ export function SubscriptionAnalytics() {
                 <XAxis dataKey="tier" />
                 <YAxis />
                 <Tooltip
-                  formatter={(value: number | undefined) =>
+                  formatter={(value: any) =>
                     value !== undefined
                       ? `$${value.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                       : ""
@@ -186,7 +188,7 @@ export function SubscriptionAnalytics() {
         <Card>
           <CardHeader>
             <CardTitle>Tier Distribution</CardTitle>
-            <CardDescription>Number of subscriptions by tier</CardDescription>
+            <CardDescription>{t("admin_subscriptions_by_tier")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

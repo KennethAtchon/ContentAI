@@ -126,7 +126,7 @@ export function generateUserInitials(name: string): string {
   }
 
   // For each word, handle hyphens and apostrophes differently
-  const allInitials = [];
+  const allInitials: string[] = [];
 
   for (const word of words) {
     if (word.includes("-")) {

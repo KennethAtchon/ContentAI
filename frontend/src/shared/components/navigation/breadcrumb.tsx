@@ -6,6 +6,7 @@ import { ChevronRight, Home } from "lucide-react";
 import { StructuredDataStatic } from "@/shared/components/marketing/structured-data";
 import { generateBreadcrumbSchema } from "@/shared/services/seo/structured-data";
 import { BASE_URL } from "@/shared/utils/config/envUtil";
+import { useTranslation } from "react-i18next";
 
 interface BreadcrumbItem {
   name: string;
@@ -57,6 +58,7 @@ function generateBreadcrumbsFromPath(pathname: string): BreadcrumbItem[] {
 }
 
 export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
+  const { t } = useTranslation();
   const location = useLocation();
   const pathname = location.pathname;
   const breadcrumbs = items || generateBreadcrumbsFromPath(pathname);
@@ -79,7 +81,7 @@ export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
       <StructuredDataStatic data={[breadcrumbSchema]} id="breadcrumb" />
       <nav
         className={`bg-gray-50 border-b ${className}`}
-        aria-label="Breadcrumb"
+        aria-label={t("navigation_breadcrumb")}
       >
         <div className="container py-4">
           <ol className="flex items-center space-x-2 text-sm">

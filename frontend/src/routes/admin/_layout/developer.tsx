@@ -272,7 +272,7 @@ function DeveloperPage() {
   const paginationButtons = useMemo(() => {
     if (totalPages <= 1) return null;
 
-    const buttons = [];
+    const buttons: React.ReactNode[] = [];
     const maxButtons = Math.min(5, totalPages);
 
     for (let i = 0; i < maxButtons; i++) {

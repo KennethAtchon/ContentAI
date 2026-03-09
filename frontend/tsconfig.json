@@ -20,7 +20,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "strictFunctionTypes": false,
     "noImplicitReturns": false,
     "noImplicitThis": false,

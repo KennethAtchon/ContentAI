@@ -67,7 +67,7 @@ function PricingPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to={REDIRECT_PATHS.CHECKOUT}
-              search={{ tier: SUBSCRIPTION_TIERS.PRO, billing: "monthly" }}
+              search={{ tier: SUBSCRIPTION_TIERS.PRO, billing: "monthly" } as any}
               className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[13px] font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
             >
               {t("home_hero_cta_start_trial")} <ArrowRight className="h-4 w-4" />

@@ -11,6 +11,7 @@ export interface StudioHeroProps {
   description?: string | ReactNode;
   children?: ReactNode;
   className?: string;
+  showGradient?: boolean;
 }
 
 export function StudioHero({

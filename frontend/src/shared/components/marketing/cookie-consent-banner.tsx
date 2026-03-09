@@ -43,7 +43,7 @@ export function CookieConsentBanner() {
   return (
     <div
       role="dialog"
-      aria-label="Cookie consent"
+      aria-label={t("cookie_consent")}
       aria-live="polite"
       className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 animate-in slide-in-from-bottom-4 duration-300"
     >
@@ -85,7 +85,7 @@ export function CookieConsentBanner() {
           </div>
 
           <button
-            aria-label="Dismiss cookie banner"
+            aria-label={t("dismiss_cookie_banner")}
             onClick={() => saveConsent("essential")}
             className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:text-foreground sm:static sm:right-auto sm:top-auto"
           >

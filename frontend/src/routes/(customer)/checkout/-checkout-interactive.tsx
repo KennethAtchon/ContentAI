@@ -254,7 +254,7 @@ export function CheckoutInteractive() {
           );
           navigate({
             to: REDIRECT_PATHS.ACCOUNT,
-            search: { message: "use-portal" },
+            search: { message: "use-portal" } as any,
           });
           return;
         } else {

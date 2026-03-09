@@ -108,7 +108,7 @@ export function UsageDashboard() {
     error: statsError,
     isLoading: statsLoading,
   } = useQuery({
-    queryKey: queryKeys.api.customerUsage(),
+    queryKey: queryKeys.api.usageStats(),
     queryFn: () => fetcher("/api/customer/usage"),
     enabled: !!user,
   });
@@ -118,10 +118,10 @@ export function UsageDashboard() {
     error: historyError,
     isLoading: historyLoading,
   } = useQuery({
-    queryKey: queryKeys.generation.history({
+    queryKey: queryKeys.api.generationHistory({
       page: historyPage,
       limit: HISTORY_PAGE_LIMIT,
-    }),
+    } as any),
     queryFn: () => historyFetcher(historyUrl),
     enabled: !!user,
   });
@@ -155,13 +155,13 @@ export function UsageDashboard() {
 
       // Invalidate usage stats and history cache after export
       queryClient.invalidateQueries({
-        queryKey: queryKeys.api.customerUsage(),
+        queryKey: queryKeys.api.usageStats(),
       });
       queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
-          q.queryKey[0] === "generation" &&
-          q.queryKey[1] === "history",
+          q.queryKey[0] === "api" &&
+          q.queryKey[1] === "generation-history",
       });
     } catch (err) {
       setExportError(
