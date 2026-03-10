@@ -55,17 +55,11 @@ const TAB_LABELS: Record<string, string> = {
 
 interface Props {
   variant?: ShellVariant;
-  niche?: string;
-  onNicheChange?: (niche: string) => void;
-  onScan?: () => void;
   activeTab: string;
 }
 
 export function StudioTopBar({
   variant = "studio",
-  niche,
-  onNicheChange,
-  onScan,
   activeTab,
 }: Props) {
   const { t } = useTranslation();
@@ -149,35 +143,6 @@ export function StudioTopBar({
 
         {/* Right section */}
         <div className="flex items-center gap-2">
-          {/* Studio: Search + Scan */}
-          {variant === "studio" && niche !== undefined && (
-            <>
-              <input
-                ref={inputRef}
-                value={niche}
-                onChange={(e) => onNicheChange?.(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onScan?.()}
-                placeholder={t("studio_search_placeholder")}
-                className={cn(
-                  "w-44 bg-white/[0.05] border border-white/[0.08] rounded-lg",
-                  "text-studio-fg text-[12px] px-3 py-1.5 outline-none font-studio",
-                  "placeholder:text-slate-200/25 transition-colors duration-200",
-                  "focus:border-studio-ring/50",
-                )}
-              />
-              <button
-                onClick={onScan}
-                className={cn(
-                  "bg-gradient-to-br from-studio-accent to-studio-purple",
-                  "text-white text-[12px] font-semibold px-3.5 py-1.5 rounded-lg border-0",
-                  "cursor-pointer transition-opacity duration-150 hover:opacity-85 font-studio",
-                )}
-              >
-                {t("studio_search_scan")}
-              </button>
-            </>
-          )}
-
           {/* Auth buttons for public */}
           {variant === "public" && !user && (
             <div className="hidden md:flex items-center gap-2">

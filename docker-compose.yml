@@ -82,8 +82,6 @@ services:
     env_file:
       - .env
       - ./frontend/.env
-    environment:
-      - VITE_API_URL=http://localhost:3001
     ports:
       - "3000:3000"
     volumes:

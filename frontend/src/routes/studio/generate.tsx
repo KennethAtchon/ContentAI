@@ -17,8 +17,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 function GeneratePage() {
   const { t } = useTranslation();
-  const [niche, setNiche]               = useState("personal finance");
-  const [inputNiche, setInputNiche]     = useState("personal finance");
+  const [niche]               = useState("personal finance");
   const [selectedReelId, setSelectedReelId] = useState<number | null>(null);
   const [prompt, setPrompt]             = useState("");
   const [outputType, setOutputType]     = useState<"full" | "hook" | "caption">("full");
@@ -44,7 +43,7 @@ function GeneratePage() {
   return (
     <AuthGuard authType="user">
       <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
-        <StudioTopBar variant="studio" niche={inputNiche} onNicheChange={setInputNiche} onScan={() => setNiche(inputNiche)} activeTab="generate" />
+        <StudioTopBar variant="studio" activeTab="generate" />
 
         <div className="grid overflow-hidden" style={{ gridTemplateColumns: "280px 1fr 320px" }}>
 

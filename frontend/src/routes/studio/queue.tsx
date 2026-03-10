@@ -23,7 +23,6 @@ const STATUS_STYLES: Record<string, string> = {
 
 function QueuePage() {
   const { t } = useTranslation();
-  const [inputNiche, setInputNiche] = useState("personal finance");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const { user } = useApp();
@@ -53,7 +52,7 @@ function QueuePage() {
   return (
     <AuthGuard authType="user">
       <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
-        <StudioTopBar variant="studio" niche={inputNiche} onNicheChange={setInputNiche} onScan={() => {}} activeTab="queue" />
+        <StudioTopBar variant="studio" activeTab="queue" />
 
         <div className="overflow-y-auto px-6 py-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="max-w-[800px] mx-auto">
