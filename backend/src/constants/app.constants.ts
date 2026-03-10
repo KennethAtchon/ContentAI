@@ -5,8 +5,7 @@
 export const APP_NAME = "ReelStudio";
 export const APP_DESCRIPTION =
   "Discover viral reels, decode what works, and generate content that performs";
-export const APP_TAGLINE =
-  "Turn viral reels into your content strategy";
+export const APP_TAGLINE = "Turn viral reels into your content strategy";
 export const SUPPORT_EMAIL = "support@reelstudio.ai";
 
 /** Support phone for contact/structured data. Change for your product. */

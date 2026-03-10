@@ -610,9 +610,21 @@ admin.get(
                   ? null
                   : tierConfig.features.maxCalculationsPerMonth;
               const now = new Date();
-              const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-              const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-              
+              const startOfMonth = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                1,
+              );
+              const endOfMonth = new Date(
+                now.getFullYear(),
+                now.getMonth() + 1,
+                0,
+                23,
+                59,
+                59,
+                999,
+              );
+
               const [usageResult] = await db
                 .select({ count: sql<number>`count(*)::int` })
                 .from(featureUsages)
@@ -620,8 +632,8 @@ admin.get(
                   and(
                     eq(featureUsages.userId, dbUser.id),
                     gte(featureUsages.createdAt, startOfMonth),
-                    lte(featureUsages.createdAt, endOfMonth)
-                  )
+                    lte(featureUsages.createdAt, endOfMonth),
+                  ),
                 );
               usageCount = usageResult.count;
             } catch {

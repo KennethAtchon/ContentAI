@@ -406,9 +406,7 @@
         "order_stripe_session_id_unique": {
           "name": "order_stripe_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "stripe_session_id"
-          ]
+          "columns": ["stripe_session_id"]
         }
       },
       "policies": {},
@@ -792,9 +790,7 @@
         "reel_external_id_unique": {
           "name": "reel_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id"
-          ]
+          "columns": ["external_id"]
         }
       },
       "policies": {},
@@ -916,16 +912,12 @@
         "user_firebase_uid_unique": {
           "name": "user_firebase_uid_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "firebase_uid"
-          ]
+          "columns": ["firebase_uid"]
         },
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

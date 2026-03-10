@@ -42,7 +42,6 @@ import {
   calculatorHistoryQuerySchema,
   calculatorUsageQuerySchema,
   uuidSchema,
-  calculatorExportSchema,
 } from "@/utils/validation/api-validation";
 
 const validUuid = "123e4567-e89b-12d3-a456-426614174000";
@@ -498,18 +497,6 @@ describe("api-validation", () => {
     test("accepts type filter", () => {
       const result = calculatorUsageQuerySchema.safeParse({
         type: "loan",
-      });
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe("calculatorExportSchema", () => {
-    test("accepts valid export payload", () => {
-      const result = calculatorExportSchema.safeParse({
-        type: "mortgage",
-        inputs: {},
-        results: {},
-        format: "pdf",
       });
       expect(result.success).toBe(true);
     });

@@ -7,7 +7,7 @@
  * Addresses Ticket #20: PII Data Exposure in Logs and API Responses
  */
 
-import { IS_PRODUCTION, IS_DEVELOPMENT } from "@/utils/config/envUtil";
+import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
 import { debugLog } from "../debug/debug";
 
 export interface SanitizationConfig {
