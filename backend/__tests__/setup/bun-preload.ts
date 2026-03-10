@@ -121,14 +121,12 @@ class HeadersMap extends Map {
 process.env.APP_ENV = "test";
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "test-api-key";
-process.env.FIREBASE_API_KEY =
-  process.env.FIREBASE_API_KEY || "test-api-key";
+process.env.FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "test-api-key";
 process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN =
   process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
   "test-project.firebaseapp.com";
 process.env.FIREBASE_AUTH_DOMAIN =
-  process.env.FIREBASE_AUTH_DOMAIN ||
-  "test-project.firebaseapp.com";
+  process.env.FIREBASE_AUTH_DOMAIN || "test-project.firebaseapp.com";
 process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "test-project";
 process.env.FIREBASE_PROJECT_ID =
@@ -145,8 +143,7 @@ process.env.NEXT_PUBLIC_FIREBASE_APP_ID =
   process.env.NEXT_PUBLIC_FIREBASE_APP_ID ||
   "1:000000000000:web:000000000000000000000000";
 process.env.FIREBASE_APP_ID =
-  process.env.FIREBASE_APP_ID ||
-  "1:000000000000:web:000000000000000000000000";
+  process.env.FIREBASE_APP_ID || "1:000000000000:web:000000000000000000000000";
 process.env.FIREBASE_CLIENT_EMAIL =
   process.env.FIREBASE_CLIENT_EMAIL ||
   "test-service-account@test-project.iam.gserviceaccount.com";

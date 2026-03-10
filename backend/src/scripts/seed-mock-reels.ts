@@ -106,20 +106,27 @@ const mockReels = [
 ];
 
 async function seed() {
-  debugLog.info("Seeding mock reels...", { service: "seed", operation: "seed" });
+  debugLog.info("Seeding mock reels...", {
+    service: "seed",
+    operation: "seed",
+  });
 
   for (const reel of mockReels) {
-    await db
-      .insert(reels)
-      .values(reel)
-      .onConflictDoNothing();
+    await db.insert(reels).values(reel).onConflictDoNothing();
   }
 
-  debugLog.info(`Seeded ${mockReels.length} reels.`, { service: "seed", operation: "seed" });
+  debugLog.info(`Seeded ${mockReels.length} reels.`, {
+    service: "seed",
+    operation: "seed",
+  });
   process.exit(0);
 }
 
 seed().catch((err) => {
-  debugLog.error("Seed failed", { service: "seed", operation: "seed", error: err instanceof Error ? err.message : String(err) });
+  debugLog.error("Seed failed", {
+    service: "seed",
+    operation: "seed",
+    error: err instanceof Error ? err.message : String(err),
+  });
   process.exit(1);
 });

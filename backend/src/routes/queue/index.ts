@@ -19,40 +19,45 @@ const queueRouter = new Hono<HonoEnv>();
  * GET /api/queue
  * List user's queue items, optionally filtered by status.
  */
-queueRouter.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
-    const auth = c.get("auth");
-    const status = c.req.query("status");
-    const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
-    const offset = parseInt(c.req.query("offset") ?? "0", 10);
+queueRouter.get(
+  "/",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const status = c.req.query("status");
+      const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
+      const offset = parseInt(c.req.query("offset") ?? "0", 10);
 
-    const conditions = [eq(queueItems.userId, auth.user.id)];
-    if (status) conditions.push(eq(queueItems.status, status));
+      const conditions = [eq(queueItems.userId, auth.user.id)];
+      if (status) conditions.push(eq(queueItems.status, status));
 
-    const [rows, [{ total }]] = await Promise.all([
-      db
-        .select()
-        .from(queueItems)
-        .where(and(...conditions))
-        .orderBy(desc(queueItems.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(queueItems)
-        .where(and(...conditions)),
-    ]);
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select()
+          .from(queueItems)
+          .where(and(...conditions))
+          .orderBy(desc(queueItems.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ total: sql<number>`count(*)::int` })
+          .from(queueItems)
+          .where(and(...conditions)),
+      ]);
 
-    return c.json({ items: rows, total });
-  } catch (error) {
-    debugLog.error("Failed to fetch queue", {
-      service: "queue-route",
-      operation: "listQueue",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch queue" }, 500);
-  }
-});
+      return c.json({ items: rows, total });
+    } catch (error) {
+      debugLog.error("Failed to fetch queue", {
+        service: "queue-route",
+        operation: "listQueue",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch queue" }, 500);
+    }
+  },
+);
 
 /**
  * PATCH /api/queue/:id
@@ -78,9 +83,7 @@ queueRouter.patch(
       const [item] = await db
         .select()
         .from(queueItems)
-        .where(
-          and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)),
-        );
+        .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)));
 
       if (!item) return c.json({ error: "Queue item not found" }, 404);
       if (item.status === "posted") {
@@ -133,9 +136,7 @@ queueRouter.delete(
       const [item] = await db
         .select()
         .from(queueItems)
-        .where(
-          and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)),
-        );
+        .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)));
 
       if (!item) return c.json({ error: "Queue item not found" }, 404);
 
