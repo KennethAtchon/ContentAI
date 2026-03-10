@@ -68,7 +68,12 @@ export interface AiResponse {
  * throws, automatically retries with Claude Anthropic (also via Vercel AI SDK).
  */
 export async function callAi(params: AiMessage): Promise<AiResponse> {
-  const { system, userContent, maxTokens = 1024, modelTier = "analysis" } = params;
+  const {
+    system,
+    userContent,
+    maxTokens = 1024,
+    modelTier = "analysis",
+  } = params;
 
   // ── Try OpenAI first (via Vercel AI SDK) ──
   if (openaiProvider) {
@@ -97,7 +102,8 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   }
 
   // ── Fallback: Claude (via Vercel AI SDK) ──
-  const claudeModel = modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
+  const claudeModel =
+    modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
 
   const { text } = await generateText({
     model: anthropicProvider(claudeModel),

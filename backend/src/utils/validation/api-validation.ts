@@ -392,17 +392,6 @@ export function validateInput<T>(
   }
 }
 
-import { calculationRequestSchema } from "@/features/calculator/types/calculator-validation";
-export { calculationRequestSchema };
-
-export const calculatorExportSchema = z.object({
-  calculationId: uuidSchema.optional(),
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]),
-  inputs: z.record(z.string(), z.unknown()), // Flexible inputs object
-  results: z.record(z.string(), z.unknown()), // Flexible results object
-  format: z.enum(["pdf", "csv", "json"]).optional().default("pdf"),
-});
-
 export const createUserSchema = z.object({
   name: nameSchema,
   email: emailSchema,

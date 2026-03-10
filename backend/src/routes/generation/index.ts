@@ -31,17 +31,18 @@ generationRouter.post(
       const auth = c.get("auth");
       const body = await c.req.json();
 
-      const { sourceReelId, prompt, outputType = "full" } = body as {
+      const {
+        sourceReelId,
+        prompt,
+        outputType = "full",
+      } = body as {
         sourceReelId: number;
         prompt: string;
         outputType?: OutputType;
       };
 
       if (!sourceReelId || !prompt?.trim()) {
-        return c.json(
-          { error: "sourceReelId and prompt are required" },
-          400,
-        );
+        return c.json({ error: "sourceReelId and prompt are required" }, 400);
       }
 
       const content = await generateContent({

@@ -1,9 +1,11 @@
 import { db } from "../db/db";
-import { reels, reelAnalyses } from "../../infrastructure/database/drizzle/schema";
+import {
+  reels,
+  reelAnalyses,
+} from "../../infrastructure/database/drizzle/schema";
 import type { ReelAnalysis } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { callAi, loadPrompt } from "../../lib/claude";
-import { ANALYSIS_MODEL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 
 interface AnalysisResult {
@@ -30,7 +32,11 @@ Views: ${reel.views} | Engagement: ${reel.engagementRate ?? "unknown"}%
 
 Analyze this viral reel and return structured JSON.`;
 
-  const { text: rawText, provider, model } = await callAi({
+  const {
+    text: rawText,
+    provider,
+    model,
+  } = await callAi({
     system,
     userContent,
     maxTokens: 1024,
