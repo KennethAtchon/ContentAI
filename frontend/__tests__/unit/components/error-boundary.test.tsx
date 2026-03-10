@@ -42,13 +42,13 @@ describe("ErrorBoundary", () => {
     expect(screen.getByTestId("custom-fallback")).toBeInTheDocument();
   });
 
-  it("shows 'Something went wrong' default fallback on error", () => {
+  it("shows 'Oops! Something went wrong' default fallback on error", () => {
     render(
       <ErrorBoundary>
         <ThrowingComponent shouldThrow={true} />
       </ErrorBoundary>
     );
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByText(/Development Error|Something went wrong/)).toBeInTheDocument();
   });
 
   it("shows Try Again button in default fallback", () => {

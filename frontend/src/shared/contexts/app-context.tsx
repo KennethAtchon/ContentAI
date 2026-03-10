@@ -319,10 +319,10 @@ export function AppProvider({ children }: AppProviderProps) {
   // Helper function to fetch JSON with timezone header
   // Uses base service directly to avoid circular dependency with useAuthenticatedFetch hook
   const authenticatedFetchJson = useCallback(
-    async <T = unknown,>(
+    async function <T>(
       url: string,
       options: RequestInit = {}
-    ): Promise<T> => {
+    ): Promise<T> {
       if (!user) {
         throw new Error("User not authenticated");
       }
