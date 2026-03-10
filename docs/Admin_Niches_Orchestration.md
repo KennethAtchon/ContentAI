@@ -48,27 +48,154 @@ File: `backend/src/routes/admin/index.ts` (or a dedicated `backend/src/routes/ad
 
 ---
 
-## 4. Frontend Admin Dashboard Updates
+## 4. Frontend Admin Dashboard Design Specifications
 
-### A. Navigation
+### A. Layout Architecture
+
+**Note**: All visual styling (colors, typography, etc.) will match the existing admin UI theme.
+
+#### Navigation Integration
 File: `frontend/src/features/admin/components/dashboard/dashboard-layout.tsx`
-- Add a **"Niches & Scraping"** navigation item using an icon like `Database` or `Tags`.
+- Add **"Niches & Scraping"** navigation item using `Database` icon
+- Position as primary navigation item (second after Dashboard)
 
-### B. Niches Orchestration View
-Files: 
-- `frontend/src/routes/admin/_layout/niches.tsx` (Table View)
-- `frontend/src/routes/admin/_layout/niches/$nicheId.tsx` (Detail View)
+#### Main Niches Hub View
+File: `frontend/src/routes/admin/_layout/niches.tsx`
 
-**High-Level Hub**:
-A data table showing all Niches, their active status, and aggregate metrics (e.g., "150 Reels").
+**Layout Structure**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header: Niches Orchestration                                    │
+│ [Search] [Filter: Active] [+ Create Niche] [Bulk Actions]       │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Data Table: Niches Overview                              │   │
+│ │ ┌─────┬─────────────┬─────────┬─────────┬─────────────┐ │   │
+│ │ │ ID  │ Name        │ Status  │ Reels   │ Actions     │ │   │
+│ │ ├─────┼─────────────┼─────────┼─────────┼─────────────┤ │   │
+│ │ │ 1   │ Finance     │ ● Active│ 1,247   │ [View][Edit]│ │   │
+│ │ │ 2   │ Fitness     │ ● Active│ 892     │ [View][Edit]│ │   │
+│ │ │ 3   │ Tech        │ ○ Inactive│ 0     │ [View][Edit]│ │   │
+│ │ └─────┴─────────────┴─────────┴─────────┴─────────────┘ │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│ Pagination: [◀] 1-50 of 127 [▶]                                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**Orchestration / Detail View**:
-When clicking into a specific Niche, the Admin is taken to a powerful dashboard specific to that niche:
-1. **Header Actions**: Prominent buttons to "Trigger Scrape", "Run Dedupe Routine", or "Edit Settings".
-2. **Reels Management Tab**: A robust data table of all reels in this niche. Admins can view view count, engagement rate, etc., and can select multiple rows to delete them if they don't fit the platform's quality bar.
-3. **Scrape History/Logs Tab**: (Optional future feature) Showing a history of when scrapes were triggered and their status.
+**Visual Design Details**:
+- **Header**: Matches existing admin header styling
+- **Table**: Standard data table styling with hover states
+- **Status Indicators**: Simple active/inactive status indicators
+- **Action Buttons**: Standard admin button styling with hover effects
+- **Search Bar**: Full-width search with standard focus states
 
-### C. Data Access (Hooks)
+#### Niche Detail View
+File: `frontend/src/routes/admin/_layout/niches/$nicheId.tsx`
+
+**Layout Structure**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header: "Finance" Niche Management                              │
+│ [← Back] [Trigger Scrape] [Run Dedupe] [Edit Niche] [Delete] │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Tab Navigation: [Reels] [History] [Analytics]            │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Reels Management Table                                   │   │
+│ │ ┌─────┬─────────────┬─────────┬─────────┬─────────────┐ │   │
+│ │ │ Sel │ Title       │ Views   │ Engagem. │ Actions     │ │   │
+│ │ ├─────┼─────────────┼─────────┼─────────┼─────────────┤ │   │
+│ │ │ ☐   │ "5 Tips..." │ 12.4K   │ 4.2%    │ [View][Del] │ │   │
+│ │ │ ☐   │ "Budget..." │ 8.1K    │ 3.8%    │ [View][Del] │ │   │
+│ │ └─────┴─────────────┴─────────┴─────────┴─────────────┘ │   │
+│ │ [☐ Select All] [Delete Selected] [Export]                 │   │
+│ └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Interactive Elements**:
+- **Action Buttons**: Standard admin buttons with hover effects
+- **Tab Navigation**: Standard tab navigation with active state indicators
+- **Selection Checkboxes**: Standard checkbox styling
+- **Data Rows**: Expandable on click to show preview thumbnail and metadata
+
+### B. Layout Components
+
+#### Navigation Integration
+File: `frontend/src/features/admin/components/dashboard/dashboard-layout.tsx`
+- Add **"Niches & Scraping"** navigation item using `Database` icon
+- Position as primary navigation item (second after Dashboard)
+
+#### Main Niches Hub View
+File: `frontend/src/routes/admin/_layout/niches.tsx`
+
+**Layout Structure**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header: Niches Orchestration                                    │
+│ [Search] [Filter: Active] [+ Create Niche] [Bulk Actions]       │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Data Table: Niches Overview                              │   │
+│ │ ┌─────┬─────────────┬─────────┬─────────┬─────────────┐ │   │
+│ │ │ ID  │ Name        │ Status  │ Reels   │ Actions     │ │   │
+│ │ ├─────┼─────────────┼─────────┼─────────┼─────────────┤ │   │
+│ │ │ 1   │ Finance     │ ● Active│ 1,247   │ [View][Edit]│ │   │
+│ │ │ 2   │ Fitness     │ ● Active│ 892     │ [View][Edit]│ │   │
+│ │ │ 3   │ Tech        │ ○ Inactive│ 0     │ [View][Edit]│ │   │
+│ │ └─────┴─────────────┴─────────┴─────────┴─────────────┘ │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│ Pagination: [◀] 1-50 of 127 [▶]                                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Visual Design Details**:
+- **Header**: Matches existing admin header styling
+- **Table**: Standard data table styling with hover states
+- **Status Indicators**: Simple active/inactive status indicators
+- **Action Buttons**: Standard admin button styling with hover effects
+- **Search Bar**: Full-width search with standard focus states
+
+#### Niche Detail View
+File: `frontend/src/routes/admin/_layout/niches/$nicheId.tsx`
+
+**Layout Structure**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header: "Finance" Niche Management                              │
+│ [← Back] [Trigger Scrape] [Run Dedupe] [Edit Niche] [Delete] │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Tab Navigation: [Reels] [History] [Analytics]            │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐   │
+│ │ Reels Management Table                                   │   │
+│ │ ┌─────┬─────────────┬─────────┬─────────┬─────────────┐ │   │
+│ │ │ Sel │ Title       │ Views   │ Engagem. │ Actions     │ │   │
+│ │ ├─────┼─────────────┼─────────┼─────────┼─────────────┤ │   │
+│ │ │ ☐   │ "5 Tips..." │ 12.4K   │ 4.2%    │ [View][Del] │ │   │
+│ │ │ ☐   │ "Budget..." │ 8.1K    │ 3.8%    │ [View][Del] │ │   │
+│ │ └─────┴─────────────┴─────────┴─────────┴─────────────┘ │   │
+│ │ [☐ Select All] [Delete Selected] [Export]                 │   │
+│ └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Interactive Elements**:
+- **Action Buttons**: Standard admin buttons with hover effects
+- **Tab Navigation**: Standard tab navigation with active state indicators
+- **Selection Checkboxes**: Standard checkbox styling
+- **Data Rows**: Expandable on click to show preview thumbnail and metadata
+
+### C. Responsive Considerations
+- **Desktop (>1200px)**: Full data table with side panel for detailed reel preview
+- **Tablet (768-1200px)**: Stack layout, collapsible filters
+- **Mobile (<768px)**: Card-based layout with horizontal scroll for data tables
+
+### D. Data Access (Hooks)
 File: `frontend/src/features/admin/hooks/use-niches.ts`
 - Implement robust TanStack Query hooks covering:
   - `useNiches`
@@ -79,7 +206,78 @@ File: `frontend/src/features/admin/hooks/use-niches.ts`
 
 ---
 
-## 5. Frontend Discover Clean-Up
+## 5. Backend Scrape Implementation
+
+### A. Scraping Technology Stack
+**Primary Approach**: Headless Browser Automation
+- **Tool**: Playwright (recommended) or Puppeteer
+- **Browser**: Chromium headless instance
+- **Language**: TypeScript/Node.js backend service
+
+### B. Scraping Service Architecture
+File: `backend/src/services/scraping.service.ts`
+
+**Core Components**:
+```typescript
+class ScrapingService {
+  private browser: Browser;
+  private page: Page;
+  
+  async initializeBrowser(): Promise<void>
+  async scrapeNiche(nicheId: number, query: string): Promise<ScrapedReel[]>
+  async extractReelData(element: Element): Promise<ReelData>
+  async saveReels(reels: ScrapedReel[]): Promise<void>
+  async cleanup(): Promise<void>
+}
+```
+
+**Scraping Pipeline**:
+1. **Browser Initialization**: Launch headless browser with stealth settings
+2. **Target Navigation**: Navigate to content platform (Instagram Reels, TikTok, etc.)
+3. **Search Execution**: Search for niche-specific content
+4. **Data Extraction**: Extract video URLs, metadata, engagement metrics
+5. **Deduplication**: Check against existing reels using external IDs
+6. **Storage**: Save to database with proper niche association
+7. **Cleanup**: Close browser and release resources
+
+### C. Queue Management & Job Processing
+File: `backend/src/services/queue.service.ts`
+
+**Implementation Options**:
+- **Bull Queue**: Redis-based job queue for reliability
+- **Simple In-Memory**: For basic implementation
+- **Database-Backed**: Using PostgreSQL as job store
+
+**Job Structure**:
+```typescript
+interface ScrapeJob {
+  id: string;
+  nicheId: number;
+  query: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  result?: ScrapeResult;
+  error?: string;
+}
+```
+
+### D. Error Handling & Retry Logic
+- **Rate Limiting**: Respect platform rate limits
+- **Retry Strategy**: Exponential backoff for failed requests
+- **Circuit Breaker**: Stop scraping after consecutive failures
+- **Logging**: Comprehensive error tracking and monitoring
+
+### E. Anti-Detection Measures
+- **User Agent Rotation**: Randomize browser fingerprints
+- **Proxy Support**: Optional proxy integration
+- **Request Throttling**: Natural human-like timing
+- **Stealth Mode**: Playwright stealth plugin
+
+---
+
+## 6. Frontend Discover Clean-Up
 
 File: `frontend/src/routes/studio/discover.tsx`
 - **Action**: Remove the `SearchCanvas` component completely. 
