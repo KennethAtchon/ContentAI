@@ -173,4 +173,101 @@ reelsRouter.post(
   },
 );
 
+/**
+ * GET /api/reels/export
+ * Export reels and their AI analysis for a niche (CSV or JSON).
+ */
+reelsRouter.get("/export", rateLimiter("customer"), authMiddleware("user"), async (c) => {
+  try {
+    const niche = c.req.query("niche");
+    const format = c.req.query("format") ?? "json";
+    const minViews = parseInt(
+      c.req.query("minViews") ?? String(VIRAL_VIEWS_THRESHOLD),
+      10,
+    );
+
+    if (!niche) {
+      return c.json({ error: "niche parameter is required for export" }, 400);
+    }
+
+    // Fetch all viral reels for the niche
+    const reelRows = await db
+      .select()
+      .from(reels)
+      .where(and(gte(reels.views, minViews), ilike(reels.niche, `%${niche}%`)))
+      .orderBy(desc(reels.views));
+
+    if (reelRows.length === 0) {
+      return c.json({ error: "No reels found to export for this niche" }, 404);
+    }
+
+    // Fetch all analyses for these reels
+    const reelIds = reelRows.map((r) => r.id);
+    const analysisRows = await db
+      .select()
+      .from(reelAnalyses)
+      .where(sql`${reelAnalyses.reelId} = ANY(${sql.raw(`ARRAY[${reelIds.join(",")}]`)})`);
+
+    const analysisMap = new Map(analysisRows.map((a) => [a.reelId, a]));
+
+    // Combine into report format
+    let totalEngagement = 0;
+    const exportData = reelRows.map((r) => {
+      const rate = Number(r.engagementRate) || 0;
+      totalEngagement += rate;
+      const analysis = analysisMap.get(r.id);
+      
+      return {
+        reelId: r.id,
+        url: `https://instagram.com/${r.username}/reel/${r.id}`, // Mock URL based on username
+        views: r.views,
+        likes: r.likes,
+        comments: r.comments,
+        engagementRate: r.engagementRate,
+        hook: r.hook,
+        caption: r.caption,
+        audioName: r.audioName,
+        // AI fields (flattened for CSV compatibility)
+        hookPattern: analysis?.hookPattern,
+        hookCategory: analysis?.hookCategory,
+        emotionalTrigger: analysis?.emotionalTrigger,
+        formatPattern: analysis?.formatPattern,
+        remixSuggestion: analysis?.remixSuggestion,
+      };
+    });
+
+    const avgEngagementRate = exportData.length > 0 
+      ? Number((totalEngagement / exportData.length).toFixed(2)) 
+      : 0;
+
+    if (format === "csv") {
+      const { parse } = await import("json2csv");
+      const csv = parse(exportData);
+      
+      return new Response(csv, {
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": `attachment; filename="reels_export_${niche.replace(/\\s+/g, "_")}.csv"`,
+        },
+      });
+    }
+
+    // Default to JSON
+    return c.json({
+      niche,
+      generatedAt: new Date().toISOString(),
+      totalReels: exportData.length,
+      avgEngagementRate,
+      topReels: exportData,
+    });
+  } catch (error) {
+    debugLog.error("Failed to export reels", {
+      service: "reels-route",
+      operation: "exportReels",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return c.json({ error: "Failed to export reels" }, 500);
+  }
+});
+
 export default reelsRouter;

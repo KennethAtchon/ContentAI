@@ -6,8 +6,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { GeneratedContent } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { claude, loadPrompt } from "../../lib/claude";
-import { GENERATION_MODEL, ANALYSIS_MODEL } from "../../utils/config/envUtil";
+import { callAi, loadPrompt } from "../../lib/claude";
 import { debugLog } from "../../utils/debug/debug";
 
 export type OutputType = "hook" | "caption" | "full";
@@ -38,13 +37,12 @@ export async function generateContent(
     .from(reelAnalyses)
     .where(eq(reelAnalyses.reelId, reelId));
 
-  let systemPrompt: string;
-  let userMessage: string;
   let parsed: GenerationResult;
+  let usedModel: string;
 
   if (outputType === "hook") {
-    systemPrompt = loadPrompt("hook-writer");
-    userMessage = `Niche: ${reel.niche}
+    const system = loadPrompt("hook-writer");
+    const userContent = `Niche: ${reel.niche}
 Hook Pattern: ${analysis?.hookPattern ?? "Unknown"} (${analysis?.hookCategory ?? "Unknown"})
 Emotional Trigger: ${analysis?.emotionalTrigger ?? "Unknown"}
 
@@ -52,28 +50,24 @@ User instruction: ${prompt}
 
 Generate 5 hook variations.`;
 
-    const message = await claude.messages.create({
-      model: ANALYSIS_MODEL,
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
+    const { text: rawText, model } = await callAi({
+      system,
+      userContent,
+      maxTokens: 512,
+      modelTier: "analysis",
     });
 
-    const rawText =
-      message.content[0].type === "text" ? message.content[0].text : "[]";
+    usedModel = model;
 
     try {
       const hooks = JSON.parse(rawText) as string[];
-      parsed = {
-        hook: hooks[0],
-        scriptNotes: hooks.slice(1),
-      };
+      parsed = { hook: hooks[0], scriptNotes: hooks.slice(1) };
     } catch {
       throw new Error("AI returned invalid JSON for hook generation");
     }
   } else {
-    systemPrompt = loadPrompt("remix-generation");
-    userMessage = `Source Reel Analysis:
+    const system = loadPrompt("remix-generation");
+    const userContent = `Source Reel Analysis:
 - Niche: ${reel.niche}
 - Hook Pattern: ${analysis?.hookPattern ?? "Unknown"} (${analysis?.hookCategory ?? "Unknown"})
 - Emotional Trigger: ${analysis?.emotionalTrigger ?? "Unknown"}
@@ -89,15 +83,14 @@ ${prompt}
 
 Generate an original variation following the same viral structure.`;
 
-    const message = await claude.messages.create({
-      model: GENERATION_MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
+    const { text: rawText, model } = await callAi({
+      system,
+      userContent,
+      maxTokens: 1024,
+      modelTier: "generation",
     });
 
-    const rawText =
-      message.content[0].type === "text" ? message.content[0].text : "{}";
+    usedModel = model;
 
     try {
       parsed = JSON.parse(rawText) as GenerationResult;
@@ -124,7 +117,7 @@ Generate an original variation following the same viral structure.`;
         ? JSON.stringify(parsed.scriptNotes)
         : null,
       outputType,
-      model: outputType === "hook" ? ANALYSIS_MODEL : GENERATION_MODEL,
+      model: usedModel,
       status: "draft",
     })
     .returning();

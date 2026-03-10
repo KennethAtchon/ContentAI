@@ -22,10 +22,13 @@
     "test:ci": "bun test __tests__/unit --coverage && bun test __tests__/integration"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@ai-sdk/openai": "^3.0.41",
     "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-s3": "^3.946.0",
     "@aws-sdk/lib-storage": "^3.946.0",
     "@aws-sdk/s3-request-presigner": "^3.946.0",
+    "ai": "^6.0.116",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
@@ -35,6 +38,7 @@
     "formidable": "^3.5.4",
     "hono": "^4.7.0",
     "ioredis": "^5.8.2",
+    "json2csv": "^6.0.0-alpha.2",
     "lucide-react": "^0.576.0",
     "pdf-lib": "^1.17.1",
     "postgres": "^3.4.8",
@@ -46,6 +50,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/formidable": "^3.4.6",
+    "@types/json2csv": "^5.0.7",
     "@types/node": "^25.3.0",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",

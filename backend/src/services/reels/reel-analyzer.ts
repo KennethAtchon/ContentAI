@@ -2,7 +2,7 @@ import { db } from "../db/db";
 import { reels, reelAnalyses } from "../../infrastructure/database/drizzle/schema";
 import type { ReelAnalysis } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { claude, loadPrompt } from "../../lib/claude";
+import { callAi, loadPrompt } from "../../lib/claude";
 import { ANALYSIS_MODEL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 
@@ -21,9 +21,8 @@ export async function analyzeReel(reelId: number): Promise<ReelAnalysis> {
   const [reel] = await db.select().from(reels).where(eq(reels.id, reelId));
   if (!reel) throw new Error(`Reel ${reelId} not found`);
 
-  const systemPrompt = loadPrompt("reel-analysis");
-
-  const userMessage = `Niche: ${reel.niche}
+  const system = loadPrompt("reel-analysis");
+  const userContent = `Niche: ${reel.niche}
 Hook: ${reel.hook ?? "(none)"}
 Caption: ${reel.caption ?? "(none)"}
 Audio: ${reel.audioName ?? "(none)"}
@@ -31,15 +30,20 @@ Views: ${reel.views} | Engagement: ${reel.engagementRate ?? "unknown"}%
 
 Analyze this viral reel and return structured JSON.`;
 
-  const message = await claude.messages.create({
-    model: ANALYSIS_MODEL,
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
+  const { text: rawText, provider, model } = await callAi({
+    system,
+    userContent,
+    maxTokens: 1024,
+    modelTier: "analysis",
   });
 
-  const rawText =
-    message.content[0].type === "text" ? message.content[0].text : "";
+  debugLog.info("Reel analysis completed", {
+    service: "reel-analyzer",
+    operation: "analyzeReel",
+    reelId,
+    provider,
+    model,
+  });
 
   let parsed: AnalysisResult;
   try {
@@ -66,7 +70,7 @@ Analyze this viral reel and return structured JSON.`;
       captionFramework: parsed.captionFramework,
       curiosityGapStyle: parsed.curiosityGapStyle,
       remixSuggestion: parsed.remixSuggestion,
-      analysisModel: ANALYSIS_MODEL,
+      analysisModel: model,
       rawResponse: rawText as unknown as Record<string, unknown>,
     })
     .onConflictDoUpdate({
@@ -80,7 +84,7 @@ Analyze this viral reel and return structured JSON.`;
         captionFramework: parsed.captionFramework,
         curiosityGapStyle: parsed.curiosityGapStyle,
         remixSuggestion: parsed.remixSuggestion,
-        analysisModel: ANALYSIS_MODEL,
+        analysisModel: model,
         rawResponse: rawText as unknown as Record<string, unknown>,
       },
     })

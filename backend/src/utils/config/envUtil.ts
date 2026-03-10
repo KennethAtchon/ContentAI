@@ -205,6 +205,12 @@ export const GENERATION_MODEL = getEnvVar(
 );
 
 // ============================================================================
+// AI (OpenAI)
+// ============================================================================
+export const OPENAI_API_KEY = getEnvVar("OPENAI_API_KEY", false);
+export const OPENAI_MODEL = getEnvVar("OPENAI_MODEL", false, "gpt-4o-mini");
+
+// ============================================================================
 // Reels / Content Platform
 // ============================================================================
 export const REEL_SOURCE = getEnvVar("REEL_SOURCE", false, "manual");

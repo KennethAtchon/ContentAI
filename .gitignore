@@ -1,1 +1,11 @@
 .env
+.env.local
+
+# Firebase CLI debug log (created automatically by Firebase MCP server)
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# OS
+.DS_Store
+Thumbs.db
