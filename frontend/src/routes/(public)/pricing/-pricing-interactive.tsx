@@ -195,9 +195,7 @@ export function PricingInteractive({
                   {t("common_all_plans_include_a_14_day_free_trial")}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {t(
-                    "common_try_reelstudio_risk_free"
-                  )}
+                  {t("common_try_reelstudio_risk_free")}
                 </p>
               </div>
               <Badge className="bg-green-600 text-white px-4 py-1.5 text-sm font-semibold">

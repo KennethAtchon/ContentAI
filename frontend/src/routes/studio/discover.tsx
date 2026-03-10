@@ -32,7 +32,10 @@ function DiscoverPage() {
   const selectedReel = reelData?.reel ?? null;
   const analysis = reelData?.analysis ?? null;
 
-  const handleScan = () => { setNiche(inputNiche); setActiveReelId(null); };
+  const handleScan = () => {
+    setNiche(inputNiche);
+    setActiveReelId(null);
+  };
 
   return (
     <AuthGuard authType="user">
@@ -41,8 +44,10 @@ function DiscoverPage() {
         <StudioTopBar variant="studio" activeTab="discover" />
 
         {/* Three-column layout */}
-        <div className="grid overflow-hidden" style={{ gridTemplateColumns: "220px 1fr 300px" }}>
-
+        <div
+          className="grid overflow-hidden"
+          style={{ gridTemplateColumns: "220px 1fr 300px" }}
+        >
           {/* Left sidebar */}
           <aside className="bg-studio-surface border-r border-white/[0.05] flex flex-col overflow-hidden">
             {reelsLoading ? (
@@ -52,7 +57,11 @@ function DiscoverPage() {
                 ))}
               </div>
             ) : (
-              <ReelList reels={reels} activeId={resolvedId} onSelect={setActiveReelId} />
+              <ReelList
+                reels={reels}
+                activeId={resolvedId}
+                onSelect={setActiveReelId}
+              />
             )}
 
             {/* AI Tools section */}
@@ -78,20 +87,31 @@ function DiscoverPage() {
 
                 {/* Toolbar */}
                 <div className="px-4 py-2.5 border-t border-white/[0.05] flex items-center gap-2 bg-studio-surface shrink-0">
-                  <ToolbarBtn onClick={() => {
-                    const idx = reels.findIndex((r) => r.id === resolvedId);
-                    if (idx > 0) setActiveReelId(reels[idx - 1].id);
-                  }}>⟵ {t("studio_toolbar_prev")}</ToolbarBtn>
-                  <ToolbarBtn onClick={() => {
-                    const idx = reels.findIndex((r) => r.id === resolvedId);
-                    if (idx < reels.length - 1) setActiveReelId(reels[idx + 1].id);
-                  }}>{t("studio_toolbar_next")} ⟶</ToolbarBtn>
+                  <ToolbarBtn
+                    onClick={() => {
+                      const idx = reels.findIndex((r) => r.id === resolvedId);
+                      if (idx > 0) setActiveReelId(reels[idx - 1].id);
+                    }}
+                  >
+                    ⟵ {t("studio_toolbar_prev")}
+                  </ToolbarBtn>
+                  <ToolbarBtn
+                    onClick={() => {
+                      const idx = reels.findIndex((r) => r.id === resolvedId);
+                      if (idx < reels.length - 1)
+                        setActiveReelId(reels[idx + 1].id);
+                    }}
+                  >
+                    {t("studio_toolbar_next")} ⟶
+                  </ToolbarBtn>
                   <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
                   <ToolbarBtn>✂ {t("studio_toolbar_trim")}</ToolbarBtn>
                   <ToolbarBtn>♪ {t("studio_toolbar_audio")}</ToolbarBtn>
                   <ToolbarBtn>T {t("studio_toolbar_caption")}</ToolbarBtn>
                   <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
-                  <ToolbarBtn primary>✦ {t("studio_toolbar_generateRemix")}</ToolbarBtn>
+                  <ToolbarBtn primary>
+                    ✦ {t("studio_toolbar_generateRemix")}
+                  </ToolbarBtn>
                 </div>
               </>
             ) : (
@@ -118,7 +138,15 @@ function DiscoverPage() {
   );
 }
 
-function ToolbarBtn({ children, onClick, primary }: { children: React.ReactNode; onClick?: () => void; primary?: boolean }) {
+function ToolbarBtn({
+  children,
+  onClick,
+  primary,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  primary?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
@@ -126,7 +154,7 @@ function ToolbarBtn({ children, onClick, primary }: { children: React.ReactNode;
         "flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-all duration-150 font-studio cursor-pointer",
         primary
           ? "bg-gradient-to-br from-studio-accent to-studio-purple border-transparent text-white font-semibold hover:opacity-85"
-          : "bg-white/[0.05] border-white/[0.07] text-slate-200/50 hover:bg-white/[0.08] hover:text-studio-fg",
+          : "bg-white/[0.05] border-white/[0.07] text-slate-200/50 hover:bg-white/[0.08] hover:text-studio-fg"
       )}
     >
       {children}
@@ -134,7 +162,15 @@ function ToolbarBtn({ children, onClick, primary }: { children: React.ReactNode;
   );
 }
 
-function EmptyCanvas({ label, sub, icon }: { label: string; sub?: string; icon: string }) {
+function EmptyCanvas({
+  label,
+  sub,
+  icon,
+}: {
+  label: string;
+  sub?: string;
+  icon: string;
+}) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12 text-center">
       <span className="text-[40px] opacity-50">{icon}</span>
@@ -161,10 +197,14 @@ function SearchCanvas({
     <div className="flex-1 flex flex-col items-center justify-center gap-6 p-12 text-center max-w-[400px] mx-auto w-full">
       <span className="text-[56px] opacity-40 mb-2">🎬</span>
       <div className="space-y-2">
-        <p className="text-[18px] font-bold text-slate-100">{t("studio_canvas_noReel")}</p>
-        <p className="text-[13px] text-slate-200/40">{t("studio_canvas_noReelSub")}</p>
+        <p className="text-[18px] font-bold text-slate-100">
+          {t("studio_canvas_noReel")}
+        </p>
+        <p className="text-[13px] text-slate-200/40">
+          {t("studio_canvas_noReelSub")}
+        </p>
       </div>
-      
+
       <div className="w-full flex items-center gap-2 mt-4">
         <input
           ref={inputRef}
@@ -176,7 +216,7 @@ function SearchCanvas({
             "flex-1 w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-[44px]",
             "text-studio-fg text-[13px] px-4 outline-none font-studio shadow-lg",
             "placeholder:text-slate-200/25 transition-colors duration-200",
-            "focus:border-studio-ring/50",
+            "focus:border-studio-ring/50"
           )}
         />
         <button
@@ -184,7 +224,7 @@ function SearchCanvas({
           className={cn(
             "bg-gradient-to-br from-studio-accent to-studio-purple h-[44px]",
             "text-white text-[13px] font-semibold px-6 rounded-xl border-0 shrink-0 shadow-lg",
-            "cursor-pointer transition-all duration-150 hover:opacity-85 hover:scale-[1.02] active:scale-[0.98] font-studio",
+            "cursor-pointer transition-all duration-150 hover:opacity-85 hover:scale-[1.02] active:scale-[0.98] font-studio"
           )}
         >
           {t("studio_search_scan")}

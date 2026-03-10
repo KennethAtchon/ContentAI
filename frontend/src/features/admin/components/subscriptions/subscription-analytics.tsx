@@ -188,7 +188,9 @@ export function SubscriptionAnalytics() {
         <Card>
           <CardHeader>
             <CardTitle>Tier Distribution</CardTitle>
-            <CardDescription>{t("admin_subscriptions_by_tier")}</CardDescription>
+            <CardDescription>
+              {t("admin_subscriptions_by_tier")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

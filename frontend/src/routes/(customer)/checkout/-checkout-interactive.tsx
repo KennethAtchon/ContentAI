@@ -341,9 +341,7 @@ export function CheckoutInteractive() {
                 {t("checkout_day_trial", { days: SUBSCRIPTION_TRIAL_DAYS })}
               </p>
               <p className="text-sm text-muted-foreground">
-                {t(
-                  "common_try_reelstudio_risk_free"
-                )}
+                {t("common_try_reelstudio_risk_free")}
               </p>
             </div>
             <Badge className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 text-base font-bold shadow-md">

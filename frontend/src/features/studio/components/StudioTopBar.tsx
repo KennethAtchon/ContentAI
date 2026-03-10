@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useApp } from "@/shared/contexts/app-context";
 import UserButton from "@/features/auth/components/user-button";
-import { APP_NAME, CORE_FEATURE_PATH } from "@/shared/constants/app.constants";
+import { APP_NAME } from "@/shared/constants/app.constants";
 import type { ShellVariant } from "@/shared/components/layout/studio-shell";
 
 /* ── Tab definitions per variant ──────────────────────────────────────────── */
@@ -56,16 +56,24 @@ const TAB_LABELS: Record<string, string> = {
 interface Props {
   variant?: ShellVariant;
   activeTab: string;
+  /** Studio-specific: niche search value */
+  niche?: string;
+  /** Studio-specific: niche change handler */
+  onNicheChange?: (n: string) => void;
+  /** Studio-specific: scan action handler */
+  onScan?: () => void;
 }
 
 export function StudioTopBar({
   variant = "studio",
   activeTab,
+  niche: _niche,
+  onNicheChange: _onNicheChange,
+  onScan: _onScan,
 }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -127,7 +135,7 @@ export function StudioTopBar({
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-studio-ring",
                   isActive(tab.key, tab.path)
                     ? "text-studio-accent border-b-studio-accent"
-                    : "text-slate-200/40 border-b-transparent hover:text-slate-200/70",
+                    : "text-slate-200/40 border-b-transparent hover:text-slate-200/70"
                 )}
               >
                 {tab.key === "generate" && (
@@ -193,7 +201,7 @@ export function StudioTopBar({
                   "bg-transparent border-0 cursor-pointer font-studio transition-all",
                   isActive(tab.key, tab.path)
                     ? "bg-studio-accent/[0.08] text-studio-accent"
-                    : "text-slate-200/40 hover:text-slate-200/70 hover:bg-white/[0.03]",
+                    : "text-slate-200/40 hover:text-slate-200/70 hover:bg-white/[0.03]"
                 )}
               >
                 {t(TAB_LABELS[tab.key] ?? tab.key)}

@@ -2,18 +2,26 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { fmtNum, useAnalyzeReel } from "../hooks/use-reels";
-import { useGenerateContent, useQueueContent, useGenerationHistory } from "@/features/generation/hooks/use-generation";
-import type { ReelDetail, ReelAnalysis, GeneratedContent } from "../types/reel.types";
+import {
+  useGenerateContent,
+  useQueueContent,
+  useGenerationHistory,
+} from "@/features/generation/hooks/use-generation";
+import type {
+  ReelDetail,
+  ReelAnalysis,
+  GeneratedContent,
+} from "../types/reel.types";
 
 const HOOK_COLORS: Record<string, { bg: string; text: string }> = {
-  Warning:     { bg: "rgba(239,68,68,0.12)",   text: "#EF4444" },
-  Authority:   { bg: "rgba(129,140,248,0.12)",  text: "#818CF8" },
-  Question:    { bg: "rgba(245,158,11,0.12)",   text: "#F59E0B" },
-  Curiosity:   { bg: "rgba(192,132,252,0.12)",  text: "#C084FC" },
-  List:        { bg: "rgba(20,184,166,0.12)",   text: "#14B8A6" },
-  POV:         { bg: "rgba(56,189,248,0.12)",   text: "#38BDF8" },
-  MythBust:    { bg: "rgba(249,115,22,0.12)",   text: "#F97316" },
-  SocialProof: { bg: "rgba(34,197,94,0.12)",    text: "#22C55E" },
+  Warning: { bg: "rgba(239,68,68,0.12)", text: "#EF4444" },
+  Authority: { bg: "rgba(129,140,248,0.12)", text: "#818CF8" },
+  Question: { bg: "rgba(245,158,11,0.12)", text: "#F59E0B" },
+  Curiosity: { bg: "rgba(192,132,252,0.12)", text: "#C084FC" },
+  List: { bg: "rgba(20,184,166,0.12)", text: "#14B8A6" },
+  POV: { bg: "rgba(56,189,248,0.12)", text: "#38BDF8" },
+  MythBust: { bg: "rgba(249,115,22,0.12)", text: "#F97316" },
+  SocialProof: { bg: "rgba(34,197,94,0.12)", text: "#22C55E" },
 };
 
 interface Props {
@@ -31,23 +39,34 @@ export function AnalysisPanel({ reel, analysis }: Props) {
   const [copiedHook, setCopiedHook] = useState(false);
   const [copiedCaption, setCopiedCaption] = useState(false);
 
-  const analyzeReel     = useAnalyzeReel();
+  const analyzeReel = useAnalyzeReel();
   const generateContent = useGenerateContent();
-  const queueContent    = useQueueContent();
+  const queueContent = useQueueContent();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     try {
-      const res = await generateContent.mutateAsync({ sourceReelId: reel.id, prompt, outputType: "full" });
+      const res = await generateContent.mutateAsync({
+        sourceReelId: reel.id,
+        prompt,
+        outputType: "full",
+      });
       setResult(res.content);
       setPrompt("");
-    } catch { /* mutation error state handles UI */ }
+    } catch {
+      /* mutation error state handles UI */
+    }
   };
 
   const copy = async (text: string, type: "hook" | "caption") => {
     await navigator.clipboard.writeText(text);
-    if (type === "hook") { setCopiedHook(true); setTimeout(() => setCopiedHook(false), 1500); }
-    else { setCopiedCaption(true); setTimeout(() => setCopiedCaption(false), 1500); }
+    if (type === "hook") {
+      setCopiedHook(true);
+      setTimeout(() => setCopiedHook(false), 1500);
+    } else {
+      setCopiedCaption(true);
+      setTimeout(() => setCopiedCaption(false), 1500);
+    }
   };
 
   const TABS: PanelTab[] = ["Analysis", "Generate", "History"];
@@ -66,7 +85,7 @@ export function AnalysisPanel({ reel, analysis }: Props) {
               "focus-visible:outline-none",
               activeTab === tab
                 ? "text-studio-accent border-b-studio-accent"
-                : "text-slate-200/35 border-b-transparent hover:text-slate-200/60",
+                : "text-slate-200/35 border-b-transparent hover:text-slate-200/60"
             )}
           >
             {t(`studio_panel_${tab.toLowerCase()}`)}
@@ -76,7 +95,12 @@ export function AnalysisPanel({ reel, analysis }: Props) {
 
       {/* Content */}
       {activeTab === "Analysis" && (
-        <AnalysisTab reel={reel} analysis={analysis} isAnalyzing={analyzeReel.isPending} onAnalyze={() => analyzeReel.mutate(reel.id)} />
+        <AnalysisTab
+          reel={reel}
+          analysis={analysis}
+          isAnalyzing={analyzeReel.isPending}
+          onAnalyze={() => analyzeReel.mutate(reel.id)}
+        />
       )}
 
       {activeTab === "Generate" && (
@@ -97,7 +121,7 @@ export function AnalysisPanel({ reel, analysis }: Props) {
                 "w-full bg-white/[0.04] border border-white/[0.08] rounded-[10px]",
                 "text-studio-fg text-[12px] px-3 py-2.5 outline-none resize-none min-h-[60px]",
                 "placeholder:text-slate-200/20 transition-colors duration-200 font-studio box-border",
-                "focus:border-studio-ring/40",
+                "focus:border-studio-ring/40"
               )}
             />
             <div className="mt-2">
@@ -108,16 +132,22 @@ export function AnalysisPanel({ reel, analysis }: Props) {
                   "w-full relative overflow-hidden",
                   "bg-gradient-to-br from-studio-accent to-studio-purple border-0 rounded-lg",
                   "text-white text-[12px] font-bold py-2.5 cursor-pointer transition-opacity duration-150 font-studio",
-                  "hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed",
+                  "hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
               >
-                {generateContent.isPending && <div className="studio-gen-bar" />}
+                {generateContent.isPending && (
+                  <div className="studio-gen-bar" />
+                )}
                 <span className="relative z-10">
-                  {generateContent.isPending ? t("studio_generate_generating") : `✦ ${t("studio_generate_button")}`}
+                  {generateContent.isPending
+                    ? t("studio_generate_generating")
+                    : `✦ ${t("studio_generate_button")}`}
                 </span>
               </button>
               {generateContent.isError && (
-                <p className="text-[11px] text-red-400 mt-1.5">{t("studio_generate_error")}</p>
+                <p className="text-[11px] text-red-400 mt-1.5">
+                  {t("studio_generate_error")}
+                </p>
               )}
             </div>
             {result && (
@@ -137,17 +167,24 @@ export function AnalysisPanel({ reel, analysis }: Props) {
                 )}
                 <div className="flex gap-1.5 flex-wrap">
                   {result.generatedHook && (
-                    <GhostBtn onClick={() => copy(result.generatedHook!, "hook")}>
+                    <GhostBtn
+                      onClick={() => copy(result.generatedHook!, "hook")}
+                    >
                       {copiedHook ? "✓ Copied" : "Copy Hook"}
                     </GhostBtn>
                   )}
                   {result.generatedCaption && (
-                    <GhostBtn onClick={() => copy(result.generatedCaption!, "caption")}>
+                    <GhostBtn
+                      onClick={() => copy(result.generatedCaption!, "caption")}
+                    >
                       {copiedCaption ? "✓ Copied" : "Copy Caption"}
                     </GhostBtn>
                   )}
                   <button
-                    onClick={() => { queueContent.mutate({ contentId: result.id }); setResult(null); }}
+                    onClick={() => {
+                      queueContent.mutate({ contentId: result.id });
+                      setResult(null);
+                    }}
                     className="text-[10px] font-bold px-2.5 py-1.5 rounded-md border-0 bg-gradient-to-br from-studio-accent to-studio-purple text-white cursor-pointer font-studio transition-opacity hover:opacity-85"
                   >
                     + {t("studio_queue_add")}
@@ -166,7 +203,12 @@ export function AnalysisPanel({ reel, analysis }: Props) {
 
 /* ── Analysis tab ─────────────────────────────────────────────────────────── */
 
-function AnalysisTab({ reel, analysis, isAnalyzing, onAnalyze }: {
+function AnalysisTab({
+  reel,
+  analysis,
+  isAnalyzing,
+  onAnalyze,
+}: {
   reel: ReelDetail;
   analysis: ReelAnalysis | null;
   isAnalyzing: boolean;
@@ -181,17 +223,40 @@ function AnalysisTab({ reel, analysis, isAnalyzing, onAnalyze }: {
         <SectionLabel>{t("studio_panel_metrics")}</SectionLabel>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { l: t("studio_panel_views"),      v: fmtNum(reel.views),            accent: false },
-            { l: t("studio_panel_likes"),       v: fmtNum(reel.likes),            accent: false },
-            { l: t("studio_panel_comments"),    v: fmtNum(reel.comments),         accent: false },
-            { l: t("studio_panel_engagement"),  v: `${reel.engagementRate ?? 0}%`, accent: true  },
+            {
+              l: t("studio_panel_views"),
+              v: fmtNum(reel.views),
+              accent: false,
+            },
+            {
+              l: t("studio_panel_likes"),
+              v: fmtNum(reel.likes),
+              accent: false,
+            },
+            {
+              l: t("studio_panel_comments"),
+              v: fmtNum(reel.comments),
+              accent: false,
+            },
+            {
+              l: t("studio_panel_engagement"),
+              v: `${reel.engagementRate ?? 0}%`,
+              accent: true,
+            },
           ].map((m) => (
-            <div key={m.l} className="bg-white/[0.04] border border-white/[0.06] rounded-[10px] p-3">
-              <p className="text-[9px] text-slate-200/30 tracking-[1px] uppercase mb-1">{m.l}</p>
-              <p className={cn(
-                "text-[18px] font-bold font-studio-mono",
-                m.accent ? "text-studio-accent" : "text-studio-fg",
-              )}>
+            <div
+              key={m.l}
+              className="bg-white/[0.04] border border-white/[0.06] rounded-[10px] p-3"
+            >
+              <p className="text-[9px] text-slate-200/30 tracking-[1px] uppercase mb-1">
+                {m.l}
+              </p>
+              <p
+                className={cn(
+                  "text-[18px] font-bold font-studio-mono",
+                  m.accent ? "text-studio-accent" : "text-studio-fg"
+                )}
+              >
                 {m.v}
               </p>
             </div>
@@ -225,8 +290,14 @@ function AnalysisTab({ reel, analysis, isAnalyzing, onAnalyze }: {
               ♪
             </div>
             <div>
-              <p className="text-[12px] font-semibold text-studio-fg">{reel.audioName}</p>
-              {reel.audioId && <p className="text-[10px] text-slate-200/30 font-studio-mono mt-px">{reel.audioId}</p>}
+              <p className="text-[12px] font-semibold text-studio-fg">
+                {reel.audioName}
+              </p>
+              {reel.audioId && (
+                <p className="text-[10px] text-slate-200/30 font-studio-mono mt-px">
+                  {reel.audioId}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -242,7 +313,9 @@ function AnalysisTab({ reel, analysis, isAnalyzing, onAnalyze }: {
                 <p className="text-[9px] font-bold tracking-[1.5px] uppercase text-studio-purple mb-1.5">
                   {t("studio_panel_remixSuggestion")}
                 </p>
-                <p className="text-[12px] text-slate-200/65 leading-[1.6]">{analysis.remixSuggestion}</p>
+                <p className="text-[12px] text-slate-200/65 leading-[1.6]">
+                  {analysis.remixSuggestion}
+                </p>
               </div>
             )}
           </>
@@ -255,10 +328,12 @@ function AnalysisTab({ reel, analysis, isAnalyzing, onAnalyze }: {
               "text-studio-accent text-[12px] font-semibold py-3.5",
               "flex items-center justify-center gap-1.5 cursor-pointer font-studio",
               "transition-all duration-150 hover:bg-studio-accent/[0.14] hover:border-studio-accent/50",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            {isAnalyzing ? `⟳ ${t("studio_panel_analyzing")}` : `✦ ${t("studio_panel_runAnalysis")}`}
+            {isAnalyzing
+              ? `⟳ ${t("studio_panel_analyzing")}`
+              : `✦ ${t("studio_panel_runAnalysis")}`}
           </button>
         )}
       </div>
@@ -275,7 +350,9 @@ function HistoryTab() {
   if (isLoading) {
     return (
       <div className="flex-1 p-4 space-y-2">
-        {[1, 2, 3].map((i) => <div key={i} className="studio-skeleton h-[60px]" />)}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="studio-skeleton h-[60px]" />
+        ))}
       </div>
     );
   }
@@ -286,8 +363,12 @@ function HistoryTab() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
         <span className="text-[40px] opacity-50">✦</span>
-        <p className="text-[14px] font-semibold text-slate-200/50">{t("studio_history_empty")}</p>
-        <p className="text-[12px] text-slate-200/25">{t("studio_history_emptySub")}</p>
+        <p className="text-[14px] font-semibold text-slate-200/50">
+          {t("studio_history_empty")}
+        </p>
+        <p className="text-[12px] text-slate-200/25">
+          {t("studio_history_emptySub")}
+        </p>
       </div>
     );
   }
@@ -325,10 +406,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function AnalysisTags({ analysis }: { analysis: ReelAnalysis | null }) {
   if (!analysis) return null;
   const tags = [
-    { label: analysis.hookCategory,    type: "category" },
-    ...(analysis.emotionalTrigger?.split(",").map((e) => ({ label: e.trim(), type: "emotion" })) ?? []),
-    { label: analysis.formatPattern,   type: "format" },
-    { label: analysis.ctaType,         type: "cta" },
+    { label: analysis.hookCategory, type: "category" },
+    ...(analysis.emotionalTrigger
+      ?.split(",")
+      .map((e) => ({ label: e.trim(), type: "emotion" })) ?? []),
+    { label: analysis.formatPattern, type: "format" },
+    { label: analysis.ctaType, type: "cta" },
   ].filter((t) => t.label);
   if (!tags.length) return null;
   return (
@@ -342,7 +425,7 @@ function AnalysisTags({ analysis }: { analysis: ReelAnalysis | null }) {
             style={{
               background: colors?.bg ?? "rgba(255,255,255,0.06)",
               color: colors?.text ?? "rgba(226,232,240,0.5)",
-              border: `1px solid ${(colors?.text ?? "rgba(226,232,240,0.3)")}30`,
+              border: `1px solid ${colors?.text ?? "rgba(226,232,240,0.3)"}30`,
             }}
           >
             {tag.label}
@@ -355,19 +438,30 @@ function AnalysisTags({ analysis }: { analysis: ReelAnalysis | null }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    draft:  "bg-white/[0.06] text-slate-200/40",
+    draft: "bg-white/[0.06] text-slate-200/40",
     queued: "bg-amber-400/15 text-amber-400",
     posted: "bg-green-400/15 text-green-400",
     failed: "bg-red-400/15 text-red-400",
   };
   return (
-    <span className={cn("text-[9px] font-bold px-1.5 py-px rounded-full uppercase tracking-[0.5px]", styles[status] ?? styles.draft)}>
+    <span
+      className={cn(
+        "text-[9px] font-bold px-1.5 py-px rounded-full uppercase tracking-[0.5px]",
+        styles[status] ?? styles.draft
+      )}
+    >
       {status}
     </span>
   );
 }
 
-function GhostBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function GhostBtn({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}

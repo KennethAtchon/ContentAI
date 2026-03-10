@@ -2,7 +2,7 @@
 
 /**
  * Translation Sync & Audit Script
- * 
+ *
  * Usage:
  *   bun run scripts/sync-translations.ts              # Audit mode (dry-run)
  *   bun run scripts/sync-translations.ts --fix        # Fix mode (writes changes)
@@ -38,7 +38,14 @@ const STALE_PATTERNS = [
 
 // File extensions to scan for t() calls and hardcoded strings
 const SOURCE_EXTENSIONS = [".tsx", ".ts"];
-const IGNORE_DIRS = ["node_modules", "dist", ".git", "translations", "__tests__", "test"];
+const IGNORE_DIRS = [
+  "node_modules",
+  "dist",
+  ".git",
+  "translations",
+  "__tests__",
+  "test",
+];
 
 // Patterns to extract translation key usage from source code
 // Matches: t("key"), t('key'), t("key", ...), t(`key`)
@@ -52,9 +59,15 @@ const T_CALL_PATTERNS = [
 // Only checks JSX text content and common string props
 const HARDCODED_PATTERNS = [
   // JSX text between tags: >Some text<
-  { regex: />\s*([A-Z][a-z]+(?:\s+[a-z]+){2,})\s*</g, desc: "JSX text content" },
+  {
+    regex: />\s*([A-Z][a-z]+(?:\s+[a-z]+){2,})\s*</g,
+    desc: "JSX text content",
+  },
   // title="..." or placeholder="..." with literal text
-  { regex: /(?:title|placeholder|aria-label|alt)="([A-Z][a-zA-Z\s]{8,})"/g, desc: "HTML attribute" },
+  {
+    regex: /(?:title|placeholder|aria-label|alt)="([A-Z][a-zA-Z\s]{8,})"/g,
+    desc: "HTML attribute",
+  },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -74,7 +87,10 @@ function getAllSourceFiles(dir: string): string[] {
   return results;
 }
 
-function extractUsedKeys(files: string[], allKeys: Set<string>): Map<string, string[]> {
+function extractUsedKeys(
+  files: string[],
+  allKeys: Set<string>
+): Map<string, string[]> {
   const keyToFiles = new Map<string, string[]>();
   for (const file of files) {
     const content = fs.readFileSync(file, "utf-8");
@@ -111,26 +127,48 @@ function extractUsedKeys(files: string[], allKeys: Set<string>): Map<string, str
   return keyToFiles;
 }
 
-function findHardcodedStrings(files: string[]): Array<{ file: string; line: number; text: string; type: string }> {
-  const results: Array<{ file: string; line: number; text: string; type: string }> = [];
-  
+function findHardcodedStrings(
+  files: string[]
+): Array<{ file: string; line: number; text: string; type: string }> {
+  const results: Array<{
+    file: string;
+    line: number;
+    text: string;
+    type: string;
+  }> = [];
+
   for (const file of files) {
     const content = fs.readFileSync(file, "utf-8");
     const lines = content.split("\n");
     const relPath = path.relative(ROOT, file);
-    
+
     // Skip test files, config files, type files
-    if (relPath.includes("__test") || relPath.includes(".test.") || relPath.includes(".d.ts") || 
-        relPath.includes("constants") || relPath.includes("config") || relPath.includes("types") ||
-        relPath.includes("utils") || relPath.includes("hooks") || relPath.includes("services") ||
-        relPath.includes("lib/") || relPath.includes("contexts")) continue;
-    
+    if (
+      relPath.includes("__test") ||
+      relPath.includes(".test.") ||
+      relPath.includes(".d.ts") ||
+      relPath.includes("constants") ||
+      relPath.includes("config") ||
+      relPath.includes("types") ||
+      relPath.includes("utils") ||
+      relPath.includes("hooks") ||
+      relPath.includes("services") ||
+      relPath.includes("lib/") ||
+      relPath.includes("contexts")
+    )
+      continue;
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // Skip imports, comments, console logs, debug, className, key=, etc.
-      if (/^\s*(import|\/\/|\/\*|\*|console|debug|className|key=|type |interface |export type)/.test(line)) continue;
+      if (
+        /^\s*(import|\/\/|\/\*|\*|console|debug|className|key=|type |interface |export type)/.test(
+          line
+        )
+      )
+        continue;
       if (/\bt\(/.test(line)) continue; // Already using t()
-      
+
       for (const { regex, desc } of HARDCODED_PATTERNS) {
         const re = new RegExp(regex.source, regex.flags);
         let match;
@@ -139,7 +177,12 @@ function findHardcodedStrings(files: string[]): Array<{ file: string; line: numb
           // Skip things that look like code, CSS classes, or are very short
           if (text.length < 10) continue;
           if (/[{}()=><\/]/.test(text)) continue;
-          if (/^(className|onClick|onChange|onSubmit|variant|size|type|href|to|id|key|ref|style)/.test(text)) continue;
+          if (
+            /^(className|onClick|onChange|onSubmit|variant|size|type|href|to|id|key|ref|style)/.test(
+              text
+            )
+          )
+            continue;
           results.push({ file: relPath, line: i + 1, text, type: desc });
         }
       }
@@ -151,7 +194,9 @@ function findHardcodedStrings(files: string[]): Array<{ file: string; line: numb
 // ── Main ───────────────────────────────────────────────────────────
 function main() {
   console.log("\n🔍 Translation Sync & Audit Script\n");
-  console.log(`   Mode: ${FIX_MODE ? "🔧 FIX (will write changes)" : "👀 AUDIT (dry-run)"}`);
+  console.log(
+    `   Mode: ${FIX_MODE ? "🔧 FIX (will write changes)" : "👀 AUDIT (dry-run)"}`
+  );
   console.log(`   Source: ${path.relative(ROOT, SRC_DIR)}`);
   console.log(`   Translations: ${path.relative(ROOT, TRANSLATIONS_FILE)}\n`);
 
@@ -181,13 +226,16 @@ function main() {
   if (VERBOSE || deadKeys.length <= 30) {
     for (const key of deadKeys) {
       console.log(`   ❌ ${key}`);
-      if (VERBOSE) console.log(`      Value: "${translations[key]?.substring(0, 60)}..."`);
+      if (VERBOSE)
+        console.log(`      Value: "${translations[key]?.substring(0, 60)}..."`);
     }
   } else {
     for (const key of deadKeys.slice(0, 20)) {
       console.log(`   ❌ ${key}`);
     }
-    console.log(`   ... and ${deadKeys.length - 20} more (use --verbose to see all)`);
+    console.log(
+      `   ... and ${deadKeys.length - 20} more (use --verbose to see all)`
+    );
   }
 
   // ── 2. Missing keys (used in code but not in JSON) ───────────
@@ -198,7 +246,9 @@ function main() {
   missingKeys.sort();
 
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`❓ MISSING KEYS (used in code but not in en.json): ${missingKeys.length}`);
+  console.log(
+    `❓ MISSING KEYS (used in code but not in en.json): ${missingKeys.length}`
+  );
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   for (const key of missingKeys) {
     const files = usedKeysMap.get(key) || [];
@@ -209,7 +259,8 @@ function main() {
   }
 
   // ── 3. Stale CalcPro/calculator terminology ──────────────────
-  const staleEntries: Array<{ key: string; value: string; pattern: string }> = [];
+  const staleEntries: Array<{ key: string; value: string; pattern: string }> =
+    [];
   for (const [key, value] of Object.entries(translations)) {
     for (const pattern of STALE_PATTERNS) {
       if (pattern.test(value)) {
@@ -220,7 +271,9 @@ function main() {
   }
 
   console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`🏚️  STALE TERMINOLOGY (CalcPro/calculator references): ${staleEntries.length}`);
+  console.log(
+    `🏚️  STALE TERMINOLOGY (CalcPro/calculator references): ${staleEntries.length}`
+  );
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   for (const { key, value } of staleEntries) {
     const shortVal = value.length > 80 ? value.substring(0, 80) + "..." : value;
@@ -241,7 +294,9 @@ function main() {
       console.log(`      "${text}"`);
     }
     if (!VERBOSE && hardcoded.length > 25) {
-      console.log(`   ... and ${hardcoded.length - 25} more (use --verbose to see all)`);
+      console.log(
+        `   ... and ${hardcoded.length - 25} more (use --verbose to see all)`
+      );
     }
   }
 
@@ -283,9 +338,18 @@ function main() {
       // Fix stale terminology in values
       value = value.replace(/CalcPro/g, "ReelStudio");
       value = value.replace(/calcpro/g, "reelstudio");
-      value = value.replace(/Professional Financial Calculators/gi, "AI-Powered Content Intelligence");
-      value = value.replace(/financial calculator/gi, "content intelligence tool");
-      value = value.replace(/financial calculators/gi, "content intelligence tools");
+      value = value.replace(
+        /Professional Financial Calculators/gi,
+        "AI-Powered Content Intelligence"
+      );
+      value = value.replace(
+        /financial calculator/gi,
+        "content intelligence tool"
+      );
+      value = value.replace(
+        /financial calculators/gi,
+        "content intelligence tools"
+      );
       value = value.replace(/\bcalculator\b/gi, (match) => {
         // Preserve case
         if (match === "Calculator") return "Studio";
@@ -318,16 +382,23 @@ function main() {
       sortedCleaned[key] = cleaned[key];
     }
 
-    fs.writeFileSync(TRANSLATIONS_FILE, JSON.stringify(sortedCleaned, null, 2) + "\n");
+    fs.writeFileSync(
+      TRANSLATIONS_FILE,
+      JSON.stringify(sortedCleaned, null, 2) + "\n"
+    );
 
     console.log(`   ✅ Removed ${removedCount} dead keys`);
     console.log(`   ✅ Fixed ${staleFixedCount} stale values`);
-    console.log(`   ✅ Added ${addedCount} placeholder entries for missing keys`);
+    console.log(
+      `   ✅ Added ${addedCount} placeholder entries for missing keys`
+    );
     console.log(`   ✅ Sorted all keys alphabetically`);
     console.log(`\n   Final key count: ${Object.keys(sortedCleaned).length}`);
     console.log(`   File: ${path.relative(ROOT, TRANSLATIONS_FILE)}`);
   } else {
-    console.log(`\n💡 Run with --fix to auto-fix: remove dead keys, fix stale values, add missing placeholders`);
+    console.log(
+      `\n💡 Run with --fix to auto-fix: remove dead keys, fix stale values, add missing placeholders`
+    );
     console.log(`   bun run scripts/sync-translations.ts --fix\n`);
   }
 }

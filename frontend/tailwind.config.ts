@@ -71,14 +71,14 @@ const config: Config = {
         },
         // Studio dark-app palette
         studio: {
-          bg:      "var(--studio-bg)",
+          bg: "var(--studio-bg)",
           surface: "var(--studio-surface)",
-          topbar:  "var(--studio-topbar)",
-          accent:  "var(--studio-accent)",
-          purple:  "var(--studio-purple)",
-          fg:      "var(--studio-fg)",
-          border:  "var(--studio-border)",
-          ring:    "var(--studio-ring)",
+          topbar: "var(--studio-topbar)",
+          accent: "var(--studio-accent)",
+          purple: "var(--studio-purple)",
+          fg: "var(--studio-fg)",
+          border: "var(--studio-border)",
+          ring: "var(--studio-ring)",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background, var(--background)))",

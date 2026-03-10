@@ -258,9 +258,19 @@ export function PricingCard({
             </div>
             <span className="text-sm leading-relaxed">
               {tier.features.maxReelsPerMonth === -1 ? (
-                <><span className="font-semibold">{t("calculator_unlimited")}</span> reels/month</>
+                <>
+                  <span className="font-semibold">
+                    {t("calculator_unlimited")}
+                  </span>{" "}
+                  reels/month
+                </>
               ) : (
-                <><span className="font-semibold">{tier.features.maxReelsPerMonth.toLocaleString()}</span> reels/month</>
+                <>
+                  <span className="font-semibold">
+                    {tier.features.maxReelsPerMonth.toLocaleString()}
+                  </span>{" "}
+                  reels/month
+                </>
               )}
             </span>
           </li>
@@ -270,9 +280,19 @@ export function PricingCard({
             </div>
             <span className="text-sm leading-relaxed">
               {tier.features.maxGenerationsPerMonth === -1 ? (
-                <><span className="font-semibold">{t("calculator_unlimited")}</span> AI generations/month</>
+                <>
+                  <span className="font-semibold">
+                    {t("calculator_unlimited")}
+                  </span>{" "}
+                  AI generations/month
+                </>
               ) : (
-                <><span className="font-semibold">{tier.features.maxGenerationsPerMonth.toLocaleString()}</span> AI generations/month</>
+                <>
+                  <span className="font-semibold">
+                    {tier.features.maxGenerationsPerMonth.toLocaleString()}
+                  </span>{" "}
+                  AI generations/month
+                </>
               )}
             </span>
           </li>
@@ -281,7 +301,9 @@ export function PricingCard({
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
             <span className="text-sm leading-relaxed">
-              {tier.features.instagramPublishing ? "Instagram publishing" : "Content queue (no publishing)"}
+              {tier.features.instagramPublishing
+                ? "Instagram publishing"
+                : "Content queue (no publishing)"}
             </span>
           </li>
           <li className="flex items-start gap-3">

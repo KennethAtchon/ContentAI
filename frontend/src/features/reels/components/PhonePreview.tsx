@@ -12,8 +12,16 @@ export function PhonePreview({ reel }: Props) {
   return (
     <div className="flex-1 flex items-center justify-center relative overflow-hidden">
       {/* Floating stat cards */}
-      <StatCard label={t("studio_panel_engagementRate")} value={`${reel.engagementRate ?? "0"}%`} className="absolute top-8 left-10" />
-      <StatCard label={t("studio_panel_totalViews")} value={fmtNum(reel.views)} className="absolute top-8 right-10" />
+      <StatCard
+        label={t("studio_panel_engagementRate")}
+        value={`${reel.engagementRate ?? "0"}%`}
+        className="absolute top-8 left-10"
+      />
+      <StatCard
+        label={t("studio_panel_totalViews")}
+        value={fmtNum(reel.views)}
+        className="absolute top-8 right-10"
+      />
       <StatCard
         label={t("studio_panel_posted")}
         value={reel.daysAgo != null ? `${reel.daysAgo}d ago` : "—"}
@@ -49,7 +57,9 @@ export function PhonePreview({ reel }: Props) {
 
         {/* Bottom overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-end p-5 bg-gradient-to-b from-transparent via-transparent to-black/[0.85] z-[1]">
-          <p className="self-start text-[11px] font-bold text-white mb-1">{reel.username}</p>
+          <p className="self-start text-[11px] font-bold text-white mb-1">
+            {reel.username}
+          </p>
           {reel.hook && (
             <p className="self-start text-[12px] text-white/85 leading-[1.4] mb-2.5">
               {reel.hook.slice(0, 60)}…
@@ -83,7 +93,11 @@ function StatCard({
       className={`bg-[#0E0E1A]/90 border border-white/[0.08] rounded-xl px-3.5 py-2.5 backdrop-blur-xl text-[11px] ${className ?? ""}`}
     >
       <p className="text-slate-200/35 text-[10px] mb-0.5">{label}</p>
-      <p className={`text-[16px] font-bold text-studio-accent ${valueClassName ?? ""}`}>{value}</p>
+      <p
+        className={`text-[16px] font-bold text-studio-accent ${valueClassName ?? ""}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

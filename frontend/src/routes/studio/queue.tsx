@@ -14,11 +14,11 @@ import type { QueueItem } from "@/features/reels/types/reel.types";
 type StatusFilter = "all" | "scheduled" | "posted" | "failed";
 
 const STATUS_STYLES: Record<string, string> = {
-  draft:     "bg-white/[0.06] text-slate-200/40",
-  queued:    "bg-amber-400/15 text-amber-400",
+  draft: "bg-white/[0.06] text-slate-200/40",
+  queued: "bg-amber-400/15 text-amber-400",
   scheduled: "bg-blue-400/15 text-blue-400",
-  posted:    "bg-green-400/15 text-green-400",
-  failed:    "bg-red-400/15 text-red-400",
+  posted: "bg-green-400/15 text-green-400",
+  failed: "bg-red-400/15 text-red-400",
 };
 
 function QueuePage() {
@@ -31,7 +31,9 @@ function QueuePage() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.api.queue({ status: statusFilter === "all" ? undefined : statusFilter }),
+    queryKey: queryKeys.api.queue({
+      status: statusFilter === "all" ? undefined : statusFilter,
+    }),
     queryFn: () => {
       const params = statusFilter !== "all" ? `&status=${statusFilter}` : "";
       return fetcher(`/api/queue?limit=20${params}`);
@@ -43,7 +45,8 @@ function QueuePage() {
     mutationFn: async (id: number) => {
       await authenticatedFetch(`/api/queue/${id}`, { method: "DELETE" });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.api.queue() }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.api.queue() }),
   });
 
   const items = data?.items ?? [];
@@ -78,7 +81,7 @@ function QueuePage() {
                     "text-[11px] font-medium px-3 py-1.5 rounded-full border cursor-pointer font-studio transition-all duration-150",
                     statusFilter === f
                       ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30"
-                      : "bg-white/[0.03] text-slate-200/40 border-white/[0.08] hover:text-slate-200/70",
+                      : "bg-white/[0.03] text-slate-200/40 border-white/[0.08] hover:text-slate-200/70"
                   )}
                 >
                   {t(`studio_queue_filter_${f}`)}
@@ -89,18 +92,31 @@ function QueuePage() {
             {/* Content */}
             {isLoading ? (
               <div className="space-y-2.5">
-                {[1, 2, 3].map((i) => <div key={i} className="studio-skeleton h-[88px] rounded-[14px]" />)}
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="studio-skeleton h-[88px] rounded-[14px]"
+                  />
+                ))}
               </div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-20 text-center">
                 <span className="text-[48px] opacity-40">📅</span>
-                <p className="text-[15px] font-semibold text-slate-200/50">{t("studio_queue_empty")}</p>
-                <p className="text-[12px] text-slate-200/25">{t("studio_queue_emptySub")}</p>
+                <p className="text-[15px] font-semibold text-slate-200/50">
+                  {t("studio_queue_empty")}
+                </p>
+                <p className="text-[12px] text-slate-200/25">
+                  {t("studio_queue_emptySub")}
+                </p>
               </div>
             ) : (
               <div className="space-y-2.5">
                 {items.map((item) => (
-                  <QueueCard key={item.id} item={item} onDelete={() => deleteItem.mutate(item.id)} />
+                  <QueueCard
+                    key={item.id}
+                    item={item}
+                    onDelete={() => deleteItem.mutate(item.id)}
+                  />
                 ))}
               </div>
             )}
@@ -111,7 +127,13 @@ function QueuePage() {
   );
 }
 
-function QueueCard({ item, onDelete }: { item: QueueItem; onDelete: () => void }) {
+function QueueCard({
+  item,
+  onDelete,
+}: {
+  item: QueueItem;
+  onDelete: () => void;
+}) {
   const { t } = useTranslation();
   const formattedDate = item.scheduledFor
     ? new Date(item.scheduledFor).toLocaleString()
@@ -123,7 +145,12 @@ function QueueCard({ item, onDelete }: { item: QueueItem; onDelete: () => void }
         <p className="text-[13px] font-semibold text-studio-fg leading-[1.4] flex-1">
           {t("studio_queue_itemLabel")} #{item.id}
         </p>
-        <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.5px] shrink-0", STATUS_STYLES[item.status] ?? STATUS_STYLES.draft)}>
+        <span
+          className={cn(
+            "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.5px] shrink-0",
+            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
+          )}
+        >
           {item.status}
         </span>
       </div>
@@ -131,7 +158,9 @@ function QueueCard({ item, onDelete }: { item: QueueItem; onDelete: () => void }
       <div className="flex items-center gap-3 text-[11px] text-slate-200/30 flex-wrap">
         <span>📅 {formattedDate}</span>
         {item.instagramPageId && <span>📱 {item.instagramPageId}</span>}
-        {item.errorMessage && <span className="text-red-400">⚠ {item.errorMessage}</span>}
+        {item.errorMessage && (
+          <span className="text-red-400">⚠ {item.errorMessage}</span>
+        )}
       </div>
 
       {item.status !== "posted" && (

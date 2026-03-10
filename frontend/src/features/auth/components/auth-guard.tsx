@@ -181,7 +181,11 @@ export function AuthGuard({
               userId: user.uid,
               pathname,
             });
-            navigate({ to: "/" });
+            // Redirect to admin verification page with the intended destination
+            navigate({
+              to: "/admin/verify",
+              search: { redirect: pathname },
+            });
           }
         } catch (error) {
           debugLog.error(
@@ -193,7 +197,11 @@ export function AuthGuard({
             },
             error
           );
-          navigate({ to: "/" });
+          // Redirect to admin verification page with the intended destination
+          navigate({
+            to: "/admin/verify",
+            search: { redirect: pathname },
+          });
         }
         return;
       }

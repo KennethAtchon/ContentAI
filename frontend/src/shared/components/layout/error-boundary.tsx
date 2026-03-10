@@ -46,9 +46,9 @@ export class ErrorBoundary extends React.Component<
       userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(),
     };
-    
+
     debugLog.error("ErrorBoundary caught an error:", errorDetails);
-    
+
     // In development, log additional details using debugLog
     if (IS_DEVELOPMENT) {
       debugLog.error("🚨 ErrorBoundary Error Details", {
@@ -102,7 +102,8 @@ function ErrorBoundaryContent({
     "🦮 Lead developer is investigating! (Probably napping, but still...)",
   ];
 
-  const randomDogMessage = dogMessages[Math.floor(Math.random() * dogMessages.length)];
+  const randomDogMessage =
+    dogMessages[Math.floor(Math.random() * dogMessages.length)];
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -111,26 +112,29 @@ function ErrorBoundaryContent({
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
             <CardTitle>
-              {IS_DEVELOPMENT ? "Development Error" : "Oops! Something went wrong"}
+              {IS_DEVELOPMENT
+                ? "Development Error"
+                : "Oops! Something went wrong"}
             </CardTitle>
           </div>
           <CardDescription>
-            {IS_DEVELOPMENT 
+            {IS_DEVELOPMENT
               ? "An error occurred in development. Check the details below."
-              : randomDogMessage
-            }
+              : randomDogMessage}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {IS_DEVELOPMENT && error && (
             <div className="space-y-3">
               <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
-                <p className="text-sm font-semibold text-destructive mb-2">Error Message:</p>
+                <p className="text-sm font-semibold text-destructive mb-2">
+                  Error Message:
+                </p>
                 <p className="text-sm font-mono text-destructive">
                   {error.message}
                 </p>
               </div>
-              
+
               {error.stack && (
                 <div className="rounded-md bg-muted p-3 max-h-32 overflow-y-auto">
                   <p className="text-sm font-semibold mb-2">Stack Trace:</p>
@@ -141,11 +145,20 @@ function ErrorBoundaryContent({
               )}
 
               <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-                <p className="text-sm font-semibold text-blue-800 mb-1">Debug Info:</p>
+                <p className="text-sm font-semibold text-blue-800 mb-1">
+                  Debug Info:
+                </p>
                 <div className="text-xs text-blue-700 space-y-1">
-                  <p><strong>Location:</strong> {window.location.href}</p>
-                  <p><strong>Time:</strong> {new Date().toLocaleString()}</p>
-                  <p><strong>User Agent:</strong> {navigator.userAgent.split(' ')[0]}</p>
+                  <p>
+                    <strong>Location:</strong> {window.location.href}
+                  </p>
+                  <p>
+                    <strong>Time:</strong> {new Date().toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>User Agent:</strong>{" "}
+                    {navigator.userAgent.split(" ")[0]}
+                  </p>
                 </div>
               </div>
             </div>
@@ -154,9 +167,7 @@ function ErrorBoundaryContent({
           {!IS_DEVELOPMENT && (
             <div className="text-center space-y-3">
               <div className="text-4xl">🐕‍🦺</div>
-              <p className="text-sm text-muted-italic">
-                {randomDogMessage}
-              </p>
+              <p className="text-sm text-muted-italic">{randomDogMessage}</p>
             </div>
           )}
 

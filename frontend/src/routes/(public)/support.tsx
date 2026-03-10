@@ -20,7 +20,6 @@ import {
   CreditCard,
   Eye,
   Brain,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";

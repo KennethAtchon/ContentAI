@@ -21,6 +21,9 @@ export const REDIRECT_PATHS = {
   DASHBOARD: "/studio/discover",
   SIGN_IN: "/sign-in",
   SIGN_UP: "/sign-up",
+  // Admin routes
+  ADMIN_DASHBOARD: "/admin/dashboard",
+  ADMIN_VERIFY: "/admin/verify",
 } as const;
 
 /**
@@ -30,7 +33,8 @@ export type UserContext =
   | "new_user"
   | "returning_user_no_subscription"
   | "returning_user_with_subscription"
-  | "authenticated_user";
+  | "authenticated_user"
+  | "admin_user";
 
 /**
  * Get user context based on authentication and subscription status
@@ -38,10 +42,15 @@ export type UserContext =
 function getUserContext(
   isAuthenticated: boolean,
   hasSubscription: boolean,
+  isAdmin: boolean = false,
   isNewUser?: boolean
 ): UserContext {
   if (!isAuthenticated) {
     return isNewUser ? "new_user" : "authenticated_user";
+  }
+
+  if (isAdmin) {
+    return "admin_user";
   }
 
   if (hasSubscription) {
@@ -84,6 +93,10 @@ function getOptimalRedirect(
       // Users with subscription should go to their dashboard
       return REDIRECT_PATHS.DASHBOARD;
 
+    case "admin_user":
+      // Admin users should go to admin dashboard
+      return REDIRECT_PATHS.ADMIN_DASHBOARD;
+
     case "authenticated_user":
       // Authenticated users go to homepage by default
       return REDIRECT_PATHS.HOME;
@@ -116,6 +129,12 @@ function isDestinationAppropriate(
     return userContext !== "new_user" && userContext !== "authenticated_user";
   }
 
+  // Admin routes require admin privileges
+  const adminRoutes = [REDIRECT_PATHS.ADMIN_DASHBOARD];
+  if (adminRoutes.includes(destination as any)) {
+    return userContext === "admin_user";
+  }
+
   return true; // Allow other routes by default
 }
 
@@ -138,7 +157,7 @@ function wouldCreateRedirectLoop(
  */
 export function useSmartRedirect() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, isAdmin } = useApp();
   const { role, hasBasicAccess } = useSubscription();
 
   /**
@@ -162,6 +181,7 @@ export function useSmartRedirect() {
     const userContext = getUserContext(
       isAuthenticated,
       hasSubscription,
+      isAdmin,
       isNewUser
     );
 
@@ -247,13 +267,44 @@ export function useSmartRedirect() {
     });
   };
 
+  /**
+   * Redirect to admin verification with proper return URL
+   */
+  const redirectToAdminVerification = (
+    options: {
+      intendedDestination?: string;
+    } = {}
+  ) => {
+    const { intendedDestination } = options;
+    const searchParams: Record<string, string> = {};
+
+    if (
+      intendedDestination &&
+      intendedDestination !== REDIRECT_PATHS.ADMIN_VERIFY
+    ) {
+      searchParams.redirect = intendedDestination;
+    }
+
+    debugLog.info("Redirecting to admin verification", {
+      service: "smart-redirect",
+      intendedDestination,
+    });
+
+    navigate({
+      to: REDIRECT_PATHS.ADMIN_VERIFY,
+      search: searchParams,
+    });
+  };
+
   return {
     smartRedirect,
     redirectToAuth,
     redirectToCheckout,
+    redirectToAdminVerification,
     userContext: getUserContext(
       isAuthenticated,
       hasBasicAccess && !!role,
+      isAdmin,
       false
     ),
   };
@@ -290,6 +341,13 @@ export function isAuthRoute(pathname: string): boolean {
   return authRoutes.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
+}
+
+/**
+ * Utility function to determine if a route is an admin route
+ */
+export function isAdminRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin/");
 }
 
 /**

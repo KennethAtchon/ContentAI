@@ -19,12 +19,30 @@ function PricingPage() {
   const { t } = useTranslation();
 
   const pricingFAQs = [
-    { question: t("faq_subscriptions_change"), answer: t("pricing_faq_change_plan_answer") },
-    { question: t("faq_subscriptions_exceed"), answer: t("pricing_faq_exceed_limit_answer") },
-    { question: t("faq_subscriptions_refunds"), answer: t("pricing_faq_refunds_answer") },
-    { question: t("faq_subscriptions_cancel"), answer: t("pricing_faq_cancel_answer") },
-    { question: t("pricing_faq_payment_methods"), answer: t("pricing_faq_payment_methods_answer") },
-    { question: t("faq_subscriptions_trial"), answer: t("pricing_faq_free_trial_answer") },
+    {
+      question: t("faq_subscriptions_change"),
+      answer: t("pricing_faq_change_plan_answer"),
+    },
+    {
+      question: t("faq_subscriptions_exceed"),
+      answer: t("pricing_faq_exceed_limit_answer"),
+    },
+    {
+      question: t("faq_subscriptions_refunds"),
+      answer: t("pricing_faq_refunds_answer"),
+    },
+    {
+      question: t("faq_subscriptions_cancel"),
+      answer: t("pricing_faq_cancel_answer"),
+    },
+    {
+      question: t("pricing_faq_payment_methods"),
+      answer: t("pricing_faq_payment_methods_answer"),
+    },
+    {
+      question: t("faq_subscriptions_trial"),
+      answer: t("pricing_faq_free_trial_answer"),
+    },
   ];
 
   const titleParts = t("pricing_title").split(" ");
@@ -35,7 +53,14 @@ function PricingPage() {
     <StudioShell variant="public" showFooter>
       <StudioHero
         badge={{ icon: CheckCircle2, text: t("home_hero_badge") }}
-        title={<><span>{titleFirst}</span><span className="block bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent mt-2 pb-2">{titleSecond}</span></>}
+        title={
+          <>
+            <span>{titleFirst}</span>
+            <span className="block bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent mt-2 pb-2">
+              {titleSecond}
+            </span>
+          </>
+        }
         description={t("pricing_description")}
       />
 
@@ -44,15 +69,27 @@ function PricingPage() {
       {/* FAQ */}
       <StudioSection maxWidth="3xl">
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">{t("common_frequently_asked_questions")}</h2>
-          <p className="text-[13px] text-slate-200/40">{t("common_everything_you_need_to_know_about_our_pricing")}</p>
+          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+            {t("common_frequently_asked_questions")}
+          </h2>
+          <p className="text-[13px] text-slate-200/40">
+            {t("common_everything_you_need_to_know_about_our_pricing")}
+          </p>
         </div>
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-6">
           <Accordion type="single" collapsible className="w-full">
             {pricingFAQs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`} className="border-b border-white/[0.05]">
-                <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline">{faq.question}</AccordionTrigger>
-                <AccordionContent className="text-[12px] text-slate-200/45 leading-[1.7]">{faq.answer}</AccordionContent>
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="border-b border-white/[0.05]"
+              >
+                <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-[12px] text-slate-200/45 leading-[1.7]">
+                  {faq.answer}
+                </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
@@ -62,17 +99,29 @@ function PricingPage() {
       {/* CTA */}
       <StudioSection variant="gradient" maxWidth="3xl">
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">{t("pricing_ready_title")}</h2>
-          <p className="mb-7 text-[13px] text-slate-200/40">{t("common_start_your_14_day_free_trial_today_no_credit_card_required")}</p>
+          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+            {t("pricing_ready_title")}
+          </h2>
+          <p className="mb-7 text-[13px] text-slate-200/40">
+            {t(
+              "common_start_your_14_day_free_trial_today_no_credit_card_required"
+            )}
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to={REDIRECT_PATHS.CHECKOUT}
-              search={{ tier: SUBSCRIPTION_TIERS.PRO, billing: "monthly" } as any}
+              search={
+                { tier: SUBSCRIPTION_TIERS.PRO, billing: "monthly" } as any
+              }
               className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[13px] font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
             >
-              {t("home_hero_cta_start_trial")} <ArrowRight className="h-4 w-4" />
+              {t("home_hero_cta_start_trial")}{" "}
+              <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link to="/contact" className="bg-white/[0.05] border border-white/[0.08] text-slate-200/60 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-white/[0.08] hover:text-studio-fg transition-all">
+            <Link
+              to="/contact"
+              className="bg-white/[0.05] border border-white/[0.08] text-slate-200/60 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-white/[0.08] hover:text-studio-fg transition-all"
+            >
               {t("home_cta_contact_sales")}
             </Link>
           </div>
@@ -82,4 +131,6 @@ function PricingPage() {
   );
 }
 
-export const Route = createFileRoute("/(public)/pricing")({ component: PricingPage });
+export const Route = createFileRoute("/(public)/pricing")({
+  component: PricingPage,
+});

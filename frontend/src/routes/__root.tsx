@@ -5,7 +5,6 @@ import { Toaster } from "@/shared/components/ui/sonner";
 import { useTranslation } from "react-i18next";
 
 function RootLayout() {
-  const { t } = useTranslation();
   return (
     <ErrorBoundary>
       <Suspense
@@ -29,7 +28,9 @@ function NotFoundBoundary() {
       <div className="text-center space-y-3">
         <span className="text-[48px] opacity-40">🔍</span>
         <p className="text-[32px] font-bold text-slate-100">404</p>
-        <p className="text-[14px] text-slate-200/40">{t("common_page_not_found")}</p>
+        <p className="text-[14px] text-slate-200/40">
+          {t("common_page_not_found")}
+        </p>
       </div>
     </div>
   );

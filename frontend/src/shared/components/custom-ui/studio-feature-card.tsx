@@ -28,7 +28,7 @@ export function StudioFeatureCard({
         "bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-5",
         hoverable &&
           "transition-all hover:border-studio-accent/30 group cursor-pointer",
-        className,
+        className
       )}
     >
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-studio-accent/15 transition-transform group-hover:scale-110">

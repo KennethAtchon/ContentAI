@@ -37,13 +37,13 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 "border-0 border-l-2 transition-colors duration-100 font-studio cursor-pointer",
                 isActive
                   ? "bg-studio-accent/[0.08] border-l-studio-accent"
-                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]",
+                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]"
               )}
             >
               <div
                 className={cn(
                   "w-[34px] h-[34px] rounded-[6px] flex items-center justify-center text-base shrink-0",
-                  isActive ? "bg-studio-accent/15" : "bg-white/[0.06]",
+                  isActive ? "bg-studio-accent/15" : "bg-white/[0.06]"
                 )}
               >
                 {reel.thumbnailEmoji ?? "🎬"}

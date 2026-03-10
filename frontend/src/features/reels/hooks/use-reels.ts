@@ -13,7 +13,11 @@ export function fmtNum(n: number): string {
 
 export function useReels(niche: string) {
   const { user } = useApp();
-  const fetcher = useQueryFetcher<{ reels: Reel[]; total: number; niche: string }>();
+  const fetcher = useQueryFetcher<{
+    reels: Reel[];
+    total: number;
+    niche: string;
+  }>();
 
   return useQuery({
     queryKey: queryKeys.api.reels(niche),
@@ -25,7 +29,10 @@ export function useReels(niche: string) {
 
 export function useReel(id: number | null) {
   const { user } = useApp();
-  const fetcher = useQueryFetcher<{ reel: ReelDetail; analysis: ReelAnalysis | null }>();
+  const fetcher = useQueryFetcher<{
+    reel: ReelDetail;
+    analysis: ReelAnalysis | null;
+  }>();
 
   return useQuery({
     queryKey: queryKeys.api.reel(id ?? 0),
@@ -48,7 +55,9 @@ export function useAnalyzeReel() {
     },
     onSuccess: (_data, reelId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.api.reel(reelId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.reelAnalysis(reelId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.reelAnalysis(reelId),
+      });
     },
   });
 }

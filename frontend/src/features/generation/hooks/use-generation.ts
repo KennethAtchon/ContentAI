@@ -7,7 +7,10 @@ import type { GeneratedContent } from "@/features/reels/types/reel.types";
 
 export function useGenerationHistory() {
   const { user } = useApp();
-  const fetcher = useQueryFetcher<{ items: GeneratedContent[]; total: number }>();
+  const fetcher = useQueryFetcher<{
+    items: GeneratedContent[];
+    total: number;
+  }>();
 
   return useQuery({
     queryKey: queryKeys.api.generationHistory(),
@@ -33,7 +36,9 @@ export function useGenerateContent() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Generation failed");
+        throw new Error(
+          (err as { error?: string }).error ?? "Generation failed"
+        );
       }
       return res.json() as Promise<{ content: GeneratedContent }>;
     },
@@ -64,7 +69,7 @@ export function useQueueContent() {
             scheduledFor: params.scheduledFor,
             instagramPageId: params.instagramPageId,
           }),
-        },
+        }
       );
       if (!res.ok) throw new Error("Failed to queue content");
       return res.json();

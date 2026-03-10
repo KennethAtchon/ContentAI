@@ -7,7 +7,17 @@ import { cn } from "@/shared/utils/helpers/utils";
 
 export interface StudioSectionProps {
   children: ReactNode;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "6xl" | "7xl" | "full";
+  maxWidth?:
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "6xl"
+    | "7xl"
+    | "full";
   padding?: "none" | "sm" | "default" | "lg";
   variant?: "default" | "muted" | "gradient";
   className?: string;
@@ -52,12 +62,10 @@ export function StudioSection({
         "px-6",
         paddingClasses[padding],
         variantClasses[variant],
-        className,
+        className
       )}
     >
-      <div className={cn("mx-auto", maxWidthClasses[maxWidth])}>
-        {children}
-      </div>
+      <div className={cn("mx-auto", maxWidthClasses[maxWidth])}>{children}</div>
     </section>
   );
 }

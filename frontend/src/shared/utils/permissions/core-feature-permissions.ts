@@ -7,15 +7,16 @@ import { SubscriptionTier } from "@/shared/constants/subscription.constants";
 
 export type FeatureType = "studio" | "generation" | "queue" | "publishing";
 
-const FEATURE_TIER_REQUIREMENTS: Record<FeatureType, SubscriptionTier | null> = {
-  studio: null,        // free
-  generation: null,    // free (rate-limited)
-  queue: null,         // free (5-item cap enforced server-side)
-  publishing: "pro",   // automated publishing = Pro
-};
+const FEATURE_TIER_REQUIREMENTS: Record<FeatureType, SubscriptionTier | null> =
+  {
+    studio: null, // free
+    generation: null, // free (rate-limited)
+    queue: null, // free (5-item cap enforced server-side)
+    publishing: "pro", // automated publishing = Pro
+  };
 
 export function getRequiredTierForFeature(
-  featureType: FeatureType,
+  featureType: FeatureType
 ): SubscriptionTier | null {
   return FEATURE_TIER_REQUIREMENTS[featureType];
 }
@@ -26,7 +27,7 @@ export function isFeatureFree(featureType: FeatureType): boolean {
 
 export function hasFeatureAccess(
   userTier: SubscriptionTier | null | undefined,
-  featureType: FeatureType,
+  featureType: FeatureType
 ): boolean {
   const requiredTier = FEATURE_TIER_REQUIREMENTS[featureType];
   if (requiredTier === null) return true;
@@ -36,7 +37,7 @@ export function hasFeatureAccess(
 
 export function hasTierAccess(
   userTier: SubscriptionTier | null | undefined,
-  requiredTier: SubscriptionTier,
+  requiredTier: SubscriptionTier
 ): boolean {
   if (!userTier) return false;
   const tierHierarchy: Record<SubscriptionTier, number> = {
@@ -48,9 +49,9 @@ export function hasTierAccess(
 }
 
 export function getAccessibleFeatures(
-  userTier: SubscriptionTier | null | undefined,
+  userTier: SubscriptionTier | null | undefined
 ): FeatureType[] {
-  return (Object.keys(FEATURE_TIER_REQUIREMENTS) as FeatureType[]).filter(
-    (f) => hasFeatureAccess(userTier, f),
+  return (Object.keys(FEATURE_TIER_REQUIREMENTS) as FeatureType[]).filter((f) =>
+    hasFeatureAccess(userTier, f)
   );
 }

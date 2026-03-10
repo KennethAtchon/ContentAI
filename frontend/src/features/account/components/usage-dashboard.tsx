@@ -227,12 +227,16 @@ export function UsageDashboard() {
     );
   }
 
-  const reelsPercentage = usageStats.reelsAnalyzedLimit 
-    ? Math.round((usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100)
+  const reelsPercentage = usageStats.reelsAnalyzedLimit
+    ? Math.round(
+        (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100
+      )
     : 0;
-    
+
   const generationPercentage = usageStats.contentGeneratedLimit
-    ? Math.round((usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100)
+    ? Math.round(
+        (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100
+      )
     : 0;
 
   return (
@@ -252,13 +256,12 @@ export function UsageDashboard() {
             <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
             {usageStats?.reelsAnalyzedLimit !== null && (
               <p className="text-xs text-muted-foreground">
-                {t("account_usage_of_limit", { limit: usageStats.reelsAnalyzedLimit })}
+                {t("account_usage_of_limit", {
+                  limit: usageStats.reelsAnalyzedLimit,
+                })}
               </p>
             )}
-            <Progress
-              value={reelsPercentage}
-              className="mt-2 h-2"
-            />
+            <Progress value={reelsPercentage} className="mt-2 h-2" />
           </CardContent>
         </Card>
 
@@ -273,7 +276,9 @@ export function UsageDashboard() {
             <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
             {usageStats?.reelsAnalyzedLimit !== null && (
               <p className="text-xs text-muted-foreground">
-                {t("studio_usage_daily_limit", { limit: usageStats.reelsAnalyzedLimit })}
+                {t("studio_usage_daily_limit", {
+                  limit: usageStats.reelsAnalyzedLimit,
+                })}
               </p>
             )}
           </CardContent>
@@ -287,16 +292,17 @@ export function UsageDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageStats.contentGenerated}</div>
+            <div className="text-2xl font-bold">
+              {usageStats.contentGenerated}
+            </div>
             {usageStats?.contentGeneratedLimit !== null && (
               <p className="text-xs text-muted-foreground">
-                {t("account_usage_of_limit", { limit: usageStats.contentGeneratedLimit })}
+                {t("account_usage_of_limit", {
+                  limit: usageStats.contentGeneratedLimit,
+                })}
               </p>
             )}
-            <Progress
-              value={generationPercentage}
-              className="mt-2 h-2"
-            />
+            <Progress value={generationPercentage} className="mt-2 h-2" />
           </CardContent>
         </Card>
 
@@ -396,13 +402,16 @@ export function UsageDashboard() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {new Date(generation.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(generation.createdAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
                         {generation.generationTime}ms

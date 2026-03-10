@@ -11,22 +11,26 @@ let fixedCount = 0;
 for (const key of Object.keys(translations)) {
   const value = translations[key];
   if (typeof value === "string" && value.includes("[TODO]")) {
-    
     // Split key by underscores (e.g. "studio_tabs_generate")
     let words = key.split(/[_]+/);
-    
+
     // Capitalize each word
     const finalValue = words
-      .filter(w => w.length > 0)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .filter((w) => w.length > 0)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ");
-      
+
     translations[key] = finalValue;
     fixedCount++;
   }
 }
 
 fs.copyFileSync(TRANSLATIONS_FILE, TRANSLATIONS_FILE + ".pre-fill");
-fs.writeFileSync(TRANSLATIONS_FILE, JSON.stringify(translations, null, 2) + "\n");
+fs.writeFileSync(
+  TRANSLATIONS_FILE,
+  JSON.stringify(translations, null, 2) + "\n"
+);
 
-console.log(`✅ Filled ${fixedCount} [TODO] placeholders with readable default text.`);
+console.log(
+  `✅ Filled ${fixedCount} [TODO] placeholders with readable default text.`
+);

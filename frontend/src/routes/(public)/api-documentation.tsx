@@ -172,7 +172,10 @@ function ApiDocumentationPage() {
           </Card>
 
           {endpointGroups.map((group) => (
-            <Card key={group.title} className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+            <Card
+              key={group.title}
+              className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]"
+            >
               <CardHeader>
                 <CardTitle className="text-2xl">{group.title}</CardTitle>
               </CardHeader>

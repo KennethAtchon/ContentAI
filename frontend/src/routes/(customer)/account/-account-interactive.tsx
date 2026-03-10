@@ -32,22 +32,30 @@ function StudioOverview() {
     <div className="space-y-6">
       <Card className="border-2">
         <CardHeader>
-          <CardTitle className="text-2xl">{t("account_overview_title")}</CardTitle>
+          <CardTitle className="text-2xl">
+            {t("account_overview_title")}
+          </CardTitle>
           <CardDescription>{t("account_overview_subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3 mb-6">
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
               <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_reels_analyzed")}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("account_overview_reels_analyzed")}
+              </p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
               <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_content_generated")}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("account_overview_content_generated")}
+              </p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
               <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">{t("account_overview_queue_items")}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t("account_overview_queue_items")}
+              </p>
             </div>
           </div>
           <div className="text-center">
@@ -74,12 +82,8 @@ export function AccountInteractive() {
           className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
         >
           <LayoutDashboard className="h-4 w-4" />
-          <span className="hidden sm:inline">
-            {t("account_tabs_overview")}
-          </span>
-          <span className="sm:hidden">
-            {t("account_tabs_overview_short")}
-          </span>
+          <span className="hidden sm:inline">{t("account_tabs_overview")}</span>
+          <span className="sm:hidden">{t("account_tabs_overview_short")}</span>
         </TabsTrigger>
         <TabsTrigger
           value="subscription"
