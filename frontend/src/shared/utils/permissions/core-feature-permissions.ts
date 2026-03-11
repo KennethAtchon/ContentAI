@@ -1,6 +1,6 @@
 /**
  * Core feature permissions — subscription tier gating.
- * Calculator-specific logic removed; studio features use tier checks directly.
+ * Studio Tool-specific logic removed; studio features use tier checks directly.
  */
 
 import { SubscriptionTier } from "@/shared/constants/subscription.constants";

@@ -34,9 +34,9 @@ The template ships with one **default implementation**: AI content generators.
 | **Config** | `features/generator/constants/generator.constants.ts` | Defines generator types, tier requirements, names, icons. Add or remove types here. |
 | **Types** | `features/generator/types/generator.types.ts` | Input/output types per generator type. |
 | **Validation** | `features/generator/types/generator-validation.ts` | Zod schemas for API validation. |
-| **Service** | `features/generator/services/generator-service.ts` | Pure calculation logic. |
+| **Service** | `features/generator/services/generator-service.ts` | Pure generation logic. |
 | **Hook** | `features/generator/hooks/use-generator.ts` | Client-side: calls API, checks access, usage. |
-| **Components** | `features/generator/components/` | UI for each generator (mortgage, loan, investment, retirement). |
+| **Components** | `features/generator/components/` | UI for each generator (hook generator, caption generator, script generator, hashtag generator). |
 | **Component map** | `features/generator/components/generator-component-map.tsx` | Maps generator type → component. |
 
 **Routes (default slug `generator`):**
@@ -52,10 +52,10 @@ Permissions and usage limits are wired to this feature (see `project/shared/util
 
 Example: adding a new generator (e.g. “savings”) while keeping the same product concept.
 
-1. **Config** – Add an entry in `generator.constants.ts` (`CALCULATOR_CONFIG`).
+1. **Config** – Add an entry in `generator.constants.ts` (`FEATURE_CONFIG`).
 2. **Types** – Add input/output types in `generator.types.ts`.
 3. **Validation** – Add a Zod schema in `generator-validation.ts`.
-4. **Service** – Add a method in `generator-service.ts` and a branch in `performCalculation`.
+4. **Service** – Add a method in `generator-service.ts` and a branch in `performGeneration`.
 5. **Component** – Add a component (e.g. `savings-generator.tsx`) and register it in `generator-component-map.tsx`.
 6. **API** – The calculate route uses the config and validation; add a `case` for the new type in the route’s switch if needed.
 
@@ -84,7 +84,7 @@ If your product is not “generators” (e.g. document generator, image tools):
    - Add routes (e.g. `/tools`, `/api/tools`) and point nav and links to the new path.  
    - Reuse the same **usage and permissions** patterns: the template already has a usage model and tier-based limits; your feature just “consumes” them (see `project/shared/utils/permissions/` and subscription constants).
 
-4. **Copy and UI** – Update `project/translations/en.json` and any hardcoded strings so the app speaks your product’s language (e.g. “documents” instead of “calculations”).
+4. **Copy and UI** – Update `project/translations/en.json` and any hardcoded strings so the app speaks your product’s language (e.g. “documents” instead of “generations”).
 
 ---
 
@@ -94,7 +94,7 @@ If your product is not “generators” (e.g. document generator, image tools):
   - Access to feature types is driven by subscription tier.  
   - The default implementation uses “generator” types; the same pattern applies if you add another feature (tier requirement per type, check in API and UI).
 
-- **Usage limits:** Subscription tiers define “usage per month” (e.g. calculations, documents).  
+- **Usage limits:** Subscription tiers define “usage per month” (e.g. generations, documents).  
   - Config: `frontend/src/shared/constants/subscription.constants.ts` (tier features and limits).  
   - Usage is recorded in the database (usage model) and checked in the API before performing a gated action.
 

@@ -58,7 +58,7 @@ Raise thresholds gradually (e.g. 80 → 90 → 100) as each phase is completed s
 - **Phase 6 (done):** Error handling and observability: `api-error-wrapper`, `auth-error-handler`, `global-error-handler`, `system-logger`, `metrics`.
 - **Phase 7 (partial):** Business logic: generator-service, generator.constants (100%), generator-validation (100%), payment-service. Hooks and stripe-checkout deferred.
 - **Phase 8 (done):** Shared lib: query-keys (100%), query-client (100%), use-query-fetcher (100%).
-- **Phase 9 (partial):** API routes: api-security, api-health-and-generator (live, generator/calculate: mortgage, loan, investment, retirement), api-csrf (GET 401/200).
+- **Phase 9 (partial):** API routes: api-security, api-health-and-generator (live, generator/calculate: hook generator, caption generator, script generator, hashtag generator), api-csrf (GET 401/200).
 - **Phase 10 (partial):** SEO: metadata, page-metadata, structured-data. PII sanitization (API). Storage R2 and TimeService deferred.
 - **Phase 11 (partial):** DOM via happy-dom in preload; QueryProvider and useQueryFetcher tests (RTL + renderHook). Layout/feature components can be added incrementally.
 - **Phase 12 (done):** Root middleware: `__tests__/integration/middleware.test.ts` (config matcher, CORS preflight OPTIONS /api/*, security headers on all requests).
@@ -194,7 +194,7 @@ Target: **100%** for services and pure business logic.
 
 | Priority | Path / area | Notes |
 |----------|-------------|--------|
-| 1 | `features/generator/services/generator-service.ts` | ✅ `__tests__/unit/features/generator/generator-service.test.ts` – mortgage, loan, investment, retirement, performCalculation |
+| 1 | `features/generator/services/generator-service.ts` | ✅ `__tests__/unit/features/generator/generator-service.test.ts` – hook generator, caption generator, script generator, hashtag generator, performGeneration |
 | 2 | `features/generator/constants/generator.constants.ts` | ✅ `__tests__/unit/features/generator/generator-constants.test.ts` – 100% lines |
 | 3 | `features/generator/types/generator-validation.ts` | ✅ `__tests__/unit/features/generator/generator-validation.test.ts` – 100% lines |
 | 4 | `shared/utils/permissions/generator-permissions.ts` | Done in Phase 2 |
@@ -236,7 +236,7 @@ Target: **100%** for every API route handler (app route handlers).
 
 **Added:** `__tests__/integration/api-health-and-generator.test.ts`:
 - GET /api/live (200, alive, process details)
-- POST /api/generator/calculate: 401 unauthenticated, 200 valid mortgage, 400 invalid type, 400 invalid inputs
+- POST /api/generator/calculate: 401 unauthenticated, 200 valid hook generator, 400 invalid type, 400 invalid inputs
 
 **Preload:** Prisma mock extended with `featureUsage` (count, create, findMany, findFirst) and `$queryRaw` for routes that need them.
 

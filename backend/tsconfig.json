@@ -22,6 +22,6 @@
     },
     "outDir": "./dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/seed-mock-reels.ts"],
   "exclude": ["node_modules", "dist", "__tests__"]
 }

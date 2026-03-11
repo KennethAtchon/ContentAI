@@ -167,7 +167,7 @@ Uses saved `storageState` from Phase 3 to skip login.
 | Select generator type | Type selector works |
 | Fill inputs and calculate | Result displayed |
 | Invalid input | Validation error shown |
-| View calculation history | History list renders |
+| View generation history | History list renders |
 | Export results (if tier allows) | Download triggered or paywall shown |
 
 ---

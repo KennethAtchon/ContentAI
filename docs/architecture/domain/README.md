@@ -2,11 +2,11 @@
 
 ## Overview
 
-**Template default** business logic and feature implementations. This documentation describes the **example implementation** (financial calculator product, YourApp-style). You can keep it or replace it with your own core feature—see [Template roadmap](../../template-roadmap.md) and [Where to start coding](../../where-to-start-coding.md).
+**Template default** business logic and feature implementations. This documentation describes the **example implementation** (financial studio tool product, YourApp-style). You can keep it or replace it with your own core feature—see [Template roadmap](../../template-roadmap.md) and [Where to start coding](../../where-to-start-coding.md).
 
 **What's in Domain:**
 - Subscription tiers (Basic/Pro/Enterprise) and tier configuration
-- Core feature types and tier requirements (default: calculator types)
+- Core feature types and tier requirements (default: studio tool types)
 - Usage limits and pricing rules
 - Admin and customer-facing features
 
@@ -24,8 +24,8 @@
 **[Business Model](./business-model.md)** - *YourApp's subscription & payment model*
 - Three subscription tiers (Free, Basic, Pro, Enterprise)
 - Pricing and feature matrix
-- Monthly usage limits (50/500/unlimited calculations)
-- Calculator access rules (mortgage=free, loan=basic, investment=pro, retirement=enterprise)
+- Monthly usage limits (50/500/unlimited generations)
+- Studio Tool access rules (hook generator=free, caption generator=basic, script generator=pro, hashtag generator=enterprise)
 - Payment flows (subscriptions vs one-time orders)
 - Order system (one-time purchases)
 
@@ -39,9 +39,9 @@
 
 ### 🧮 Core Features
 
-**[Calculator System](./calculator-system.md)** - *Financial calculator implementation*
-- Calculator types (mortgage, loan, investment, retirement)
-- Calculation algorithms and formulas
+**[Studio Tool System](./studio tool-system.md)** - *Financial studio tool implementation*
+- Studio Tool types (hook generator, caption generator, script generator, hashtag generator)
+- Generation algorithms and formulas
 - Input validation and result formatting
 - Tier-based access control
 - Usage tracking integration
@@ -50,7 +50,7 @@
 - Profile editor (name, email, phone, address)
 - Subscription management (upgrade, downgrade, cancel)
 - Usage dashboard (current usage vs limits)
-- Calculator interface access
+- Studio Tool interface access
 - Order history
 
 **[Admin Dashboard](./admin-dashboard.md)** - *Admin management features*
@@ -69,7 +69,7 @@
 **Domain documentation:** 5 files, focused on YourApp-specific features
 - Business Model
 - Subscription System
-- Calculator System
+- Studio Tool System
 - Account Management
 - Admin Dashboard
 
@@ -92,29 +92,29 @@ Generic infrastructure (moved to core):
 ### Subscription Tiers
 
 ```
-Free        → Mortgage calculator (unlimited)
-Basic $9    → + Loan calculator (50 calculations/month)
-Pro $29     → + Investment calculator (500 calculations/month)  
-Enterprise $99 → + Retirement calculator (unlimited)
+Free        → Hook Generator studio tool (unlimited)
+Basic $9    → + Caption Generator studio tool (50 generations/month)
+Pro $29     → + Script Generator studio tool (500 generations/month)  
+Enterprise $99 → + Hashtag Generator studio tool (unlimited)
 ```
 
-### Calculator Access Rules
+### Studio Tool Access Rules
 
 ```typescript
 // Single source of truth
-CALCULATOR_TIER_REQUIREMENTS = {
-  mortgage: null,        // FREE
-  loan: 'basic',         // Requires Basic+
-  investment: 'pro',     // Requires Pro+
-  retirement: 'enterprise', // Requires Enterprise
+FEATURE_TIER_REQUIREMENTS = {
+  hook generator: null,        // FREE
+  caption generator: 'basic',         // Requires Basic+
+  script generator: 'pro',     // Requires Pro+
+  hashtag generator: 'enterprise', // Requires Enterprise
 }
 ```
 
 ### Usage Limits
 
-- **Free:** Unlimited for free calculators (mortgage)
-- **Basic:** 50 calculations/month for paid calculators
-- **Pro:** 500 calculations/month
+- **Free:** Unlimited for free studio tools (hook generator)
+- **Basic:** 50 generations/month for paid studio tools
+- **Pro:** 500 generations/month
 - **Enterprise:** Unlimited
 
 Limits reset on the 1st of each month. Hard limit enforced - users blocked at 100%.
@@ -142,13 +142,13 @@ Limits reset on the 1st of each month. Hard limit enforced - users blocked at 10
 Start with:
 1. [Business Model](./business-model.md) - Understand subscription tiers, pricing, usage limits
 2. [Subscription System](./subscription-system.md) - Understand how subscriptions work technically
-3. [Calculator System](./calculator-system.md) - Understand calculator types and access rules
+3. [Studio Tool System](./studio tool-system.md) - Understand studio tool types and access rules
 4. [Account Management](./account-management.md) - Understand customer features
 5. [Admin Dashboard](./admin-dashboard.md) - Understand admin capabilities
 
 ### For Specific Features
 
-- **Adding calculator type:** [Calculator System](./calculator-system.md)
+- **Adding studio tool type:** [Studio Tool System](./studio tool-system.md)
 - **Changing subscription tiers:** [Business Model](./business-model.md)
 - **Modifying usage limits:** [Business Model](./business-model.md)
 - **Understanding subscription flow:** [Subscription System](./subscription-system.md)
@@ -158,13 +158,13 @@ Start with:
 
 ### For Business Logic Questions
 
-- **What calculators does Pro tier get?** → [Business Model](./business-model.md)
+- **What studio tools does Pro tier get?** → [Business Model](./business-model.md)
 - **How are usage limits enforced?** → [Business Model](./business-model.md)
 - **How do subscriptions work?** → [Subscription System](./subscription-system.md)
 - **How does Firebase Stripe Extension work?** → [Subscription System](./subscription-system.md)
 - **How are custom claims managed?** → [Subscription System](./subscription-system.md)
 - **What can admins do?** → [Admin Dashboard](./admin-dashboard.md)
-- **How does mortgage calculation work?** → [Calculator System](./calculator-system.md)
+- **How does hook generator generation work?** → [Studio Tool System](./studio tool-system.md)
 
 ---
 

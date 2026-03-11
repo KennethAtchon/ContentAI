@@ -46,7 +46,7 @@ frontend/src/
 │   ├── auth/                  # Auth guard, user button, useAuthenticatedFetch
 │   ├── generator/            # Default core feature (swappable)
 │   │   ├── components/
-│   │   ├── constants/         # CALCULATOR_CONFIG — types, tier requirements
+│   │   ├── constants/         # FEATURE_CONFIG — types, tier requirements
 │   │   ├── hooks/             # use-generator.ts
 │   │   ├── services/          # generator-service.ts (pure logic)
 │   │   └── types/             # Input/output types, Zod schemas

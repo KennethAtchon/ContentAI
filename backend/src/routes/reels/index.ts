@@ -73,7 +73,8 @@ reelsRouter.get(
 
       if (nicheIdParam) {
         const nicheId = parseInt(nicheIdParam, 10);
-        if (!isNaN(nicheId)) conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
+        if (!isNaN(nicheId))
+          conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
       } else if (nicheNameParam) {
         // Resolve name → id via sub-select
         const [matched] = await db
@@ -81,7 +82,10 @@ reelsRouter.get(
           .from(niches)
           .where(ilike(niches.name, `%${nicheNameParam}%`))
           .limit(1);
-        if (matched) conditions.push(eq(reels.nicheId, matched.id) as ReturnType<typeof gte>);
+        if (matched)
+          conditions.push(
+            eq(reels.nicheId, matched.id) as ReturnType<typeof gte>,
+          );
       }
 
       const [reelRows, [{ total }]] = await Promise.all([
@@ -223,7 +227,10 @@ reelsRouter.get(
       );
 
       if (!nicheIdParam && !nicheNameParam) {
-        return c.json({ error: "nicheId or niche parameter is required for export" }, 400);
+        return c.json(
+          { error: "nicheId or niche parameter is required for export" },
+          400,
+        );
       }
 
       let resolvedNicheId: number | null = null;
@@ -247,7 +254,9 @@ reelsRouter.get(
       const reelRows = await db
         .select()
         .from(reels)
-        .where(and(gte(reels.views, minViews), eq(reels.nicheId, resolvedNicheId)))
+        .where(
+          and(gte(reels.views, minViews), eq(reels.nicheId, resolvedNicheId)),
+        )
         .orderBy(desc(reels.views));
 
       if (reelRows.length === 0) {

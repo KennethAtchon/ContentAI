@@ -148,7 +148,7 @@ A comprehensive checklist of items that MUST be completed before launching **thi
   - Configure rate limiting on all endpoints ✅
   - Set up DDoS protection (Railway/Cloudflare/AWS Shield) - Railway provides basic DDoS protection
   - Monitor for unusual traffic patterns ✅
-  - **Rate limit config created:** `project/shared/constants/rate-limit.config.ts` with TPS calculations
+  - **Rate limit config created:** `project/shared/constants/rate-limit.config.ts` with TPS generations
   - **All endpoints have rate limiting configured with TPS metrics**
 
 ---
@@ -242,7 +242,7 @@ A comprehensive checklist of items that MUST be completed before launching **thi
   - Test subscription creation flow end-to-end
   - Test subscription cancellation
   - Test subscription upgrades/downgrades
-  - Verify proration calculations are correct
+  - Verify proration generations are correct
   - Test subscription renewal process
 
 - [ ] **Payment security**

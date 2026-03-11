@@ -6,7 +6,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { GeneratedContent } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { callAi, loadPrompt } from "../../lib/claude";
+import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
 
 export type OutputType = "hook" | "caption" | "full";

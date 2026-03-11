@@ -5,7 +5,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { ReelAnalysis } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { callAi, loadPrompt } from "../../lib/claude";
+import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
 
 interface AnalysisResult {

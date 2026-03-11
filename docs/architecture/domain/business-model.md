@@ -84,19 +84,19 @@ export type SubscriptionTier = typeof SUBSCRIPTION_TIERS[keyof typeof SUBSCRIPTI
 
 ```typescript
 // Single source of truth for generator access
-export const CALCULATOR_TIER_REQUIREMENTS = {
-  mortgage: null,        // FREE - no subscription required
-  loan: 'basic',         // Requires Basic or higher
-  investment: 'pro',     // Requires Pro or higher
-  retirement: 'enterprise', // Requires Enterprise
+export const FEATURE_TIER_REQUIREMENTS = {
+  hook generator: null,        // FREE - no subscription required
+  caption generator: 'basic',         // Requires Basic or higher
+  script generator: 'pro',     // Requires Pro or higher
+  hashtag generator: 'enterprise', // Requires Enterprise
 } as const;
 
 // Check if user has access
 export function hasGeneratorAccess(
   userTier: SubscriptionTier | null,
-  generatorType: CalculationType
+  generatorType: FeatureType
 ): boolean {
-  const required = CALCULATOR_TIER_REQUIREMENTS[generatorType];
+  const required = FEATURE_TIER_REQUIREMENTS[generatorType];
   
   // Free generator
   if (required === null) return true;
@@ -290,14 +290,14 @@ pending → processing → completed → delivered
 ### Subscription Rules
 
 1. **Hierarchy:** Higher tiers include all lower tier features
-2. **Limits:** Only paid tiers have calculation limits (free generators are unlimited)
+2. **Limits:** Only paid tiers have generation limits (free generators are unlimited)
 3. **Custom Claims:** `stripeRole` in Firebase is source of truth for tier
 4. **Downgrade:** User keeps access until current billing period ends
 5. **Cancellation:** Subscription continues until period end, then reverts to free
 
 ### Usage Rules
 
-1. **Free Generators:** No usage tracking or limits (mortgage generator)
+1. **Free Generators:** No usage tracking or limits (hook generator generator)
 2. **Paid Generators:** Count toward monthly limit
 3. **Monthly Reset:** Usage resets on 1st of each month
 4. **Overage:** Hard limit - users can't calculate once limit reached

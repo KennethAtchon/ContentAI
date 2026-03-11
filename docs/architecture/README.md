@@ -3,7 +3,7 @@
 Architecture docs are split into two categories:
 
 - **`core/`** — Reusable patterns: auth, API design, database, security, performance, error handling, logging. These apply to any project.
-- **`domain/`** — Template-specific business logic: subscription tiers, calculator system, admin dashboard, account management.
+- **`domain/`** — Template-specific business logic: subscription tiers, studio tool system, admin dashboard, account management.
 
 Start with [overview.md](./overview.md) for the full tech stack and system design.
 

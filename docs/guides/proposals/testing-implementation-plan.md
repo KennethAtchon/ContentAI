@@ -62,7 +62,7 @@ This document outlines a comprehensive plan for adding unit and integration test
 ### Gaps Identified
 
 **Critical Missing Tests:**
-1. **Generator Service** - Core business logic with complex financial calculations
+1. **Generator Service** - Core business logic with complex financial generations
 2. **Payment Services** - Stripe integration, payment processing
 3. **Subscription Services** - Subscription management, tier validation
 4. **Rate Limiting** - Security-critical service
@@ -126,16 +126,16 @@ These services contain critical business logic that must work correctly:
 
 #### 5. **Generator Service** (`features/generator/business/generator-service.ts`)
 - **Why Critical:** Core product functionality
-- **Risk:** Incorrect financial calculations, user trust
+- **Risk:** Incorrect financial generations, user trust
 - **Note:** This service should be moved to `/business` folder if not already there
 - **Test Focus:**
-  - Mortgage calculations (principal, interest, PMI, taxes)
-  - Loan calculations
-  - Investment calculations (compound interest, growth projections)
-  - Retirement calculations
+  - Hook Generator generations (principal, interest, PMI, taxes)
+  - Caption Generator generations
+  - Script Generator generations (compound interest, growth projections)
+  - Hashtag Generator generations
   - Amortization schedule generation
   - Edge cases (zero values, negative values, very large numbers)
-  - Calculation accuracy (compare against known results)
+  - Generation accuracy (compare against known results)
 
 #### 6. **Subscription Service** (`features/subscriptions/hooks/use-subscription.ts` + related services)
 - **Why Critical:** Subscription management, access control
@@ -215,9 +215,9 @@ These services support the application but are less critical:
 - `GET /api/subscriptions/portal-link` - Customer portal access
 
 #### 2. **Generator API**
-- `POST /api/generator/calculate` - Core calculation endpoint
+- `POST /api/generator/calculate` - Core generation endpoint
 - `GET /api/generator/usage` - Usage tracking
-- `GET /api/generator/history` - Calculation history
+- `GET /api/generator/history` - Generation history
 
 #### 3. **Order APIs**
 - `POST /api/customer/orders/create` - Order creation
@@ -286,10 +286,10 @@ These services support the application but are less critical:
 #### Week 3: Generator Service
 5. **Generator Service Tests** (`features/generator/business/generator-service.ts`)
    - **Ensure service is in `/business` folder before testing**
-   - Mortgage calculation tests (multiple scenarios)
-   - Loan calculation tests
-   - Investment calculation tests
-   - Retirement calculation tests
+   - Hook Generator generation tests (multiple scenarios)
+   - Caption Generator generation tests
+   - Script Generator generation tests
+   - Hashtag Generator generation tests
    - Amortization schedule tests
    - Edge case tests (zero, negative, very large numbers)
    - Accuracy tests (compare against known results)
@@ -358,7 +358,7 @@ These services support the application but are less critical:
     - Portal link generation
 
 13. **Generator API Tests**
-    - Calculation endpoint
+    - Generation endpoint
     - Usage tracking
     - History retrieval
 
@@ -498,13 +498,13 @@ shared/
 ```
 
 **Key Distinctions:**
-- **`/business` folders** = Domain-specific business logic (calculations, payment processing, subscription rules)
+- **`/business` folders** = Domain-specific business logic (generations, payment processing, subscription rules)
 - **`/services` folders** = Infrastructure services (database, email, storage, external APIs)
 - **`/utils` folders** = Pure utility functions (validation, formatting, helpers)
 
 **Why This Matters:**
 - Clear separation makes it easier to identify what needs business logic tests vs infrastructure tests
-- Business logic tests focus on domain rules and calculations
+- Business logic tests focus on domain rules and generations
 - Infrastructure tests focus on integration and error handling
 - Makes refactoring and maintenance easier
 
@@ -589,7 +589,7 @@ describe('GeneratorService', () => {
   describe('calculateMortgage', () => {
     it('should calculate monthly payment correctly', () => {});
     it('should handle zero down payment', () => {});
-    it('should throw error for negative loan amount', () => {});
+    it('should throw error for negative caption generator amount', () => {});
   });
 });
 ```
@@ -638,7 +638,7 @@ Update `jest.config.js` to include:
 - ✅ Generator service: 75%+ coverage
 - ✅ Subscription services: 75%+ coverage
 - ✅ All business logic tests passing
-- ✅ Calculation accuracy verified
+- ✅ Generation accuracy verified
 
 ### Phase 3 Success Criteria
 - ✅ Infrastructure services: 70%+ coverage

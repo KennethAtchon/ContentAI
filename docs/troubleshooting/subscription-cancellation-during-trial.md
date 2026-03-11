@@ -68,7 +68,7 @@ const getStatusBadgeVariant = (status: string) => {
 ```
 
 **Analytics API:** `/api/admin/subscriptions/analytics`
-- Only counts `"active"` and `"trialing"` subscriptions for MRR/ARR calculations
+- Only counts `"active"` and `"trialing"` subscriptions for MRR/ARR generations
 - Separately tracks `"canceled"` subscriptions in status distribution
 - Calculates churn rate based on canceled subscriptions in last 30 days
 
@@ -82,7 +82,7 @@ const getStatusBadgeVariant = (status: string) => {
 1. Canceled subscriptions are included in the subscription list
 2. Status badge displays "canceled" with outline variant
 3. Analytics tracks canceled subscriptions separately
-4. Churn rate calculation includes canceled subscriptions
+4. Churn rate generation includes canceled subscriptions
 
 **Code Reference:**
 ```typescript

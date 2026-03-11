@@ -207,7 +207,7 @@ The Stripe Customer Portal shows:
 - Current subscription details
 - Available plans to switch to
 - Price differences
-- Proration calculations
+- Proration generations
 - Confirmation screens
 
 This **looks similar** to checkout, but it's actually:

@@ -6,7 +6,11 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { niches, reels, reelAnalyses } from "../../infrastructure/database/drizzle/schema";
+import {
+  niches,
+  reels,
+  reelAnalyses,
+} from "../../infrastructure/database/drizzle/schema";
 import { eq, sql, desc, ilike, and } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { queueService } from "../../services/queue.service";
@@ -42,7 +46,10 @@ nichesRouter.get(
         .leftJoin(reels, eq(reels.nicheId, niches.id))
         .where(
           conditions.length > 0
-            ? and(...conditions, search ? ilike(niches.name, `%${search}%`) : undefined)
+            ? and(
+                ...conditions,
+                search ? ilike(niches.name, `%${search}%`) : undefined,
+              )
             : search
               ? ilike(niches.name, `%${search}%`)
               : undefined,
@@ -108,10 +115,16 @@ nichesRouter.put(
       if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
 
       const body = await c.req.json();
-      const updates: Partial<{ name: string; description: string; isActive: boolean }> = {};
+      const updates: Partial<{
+        name: string;
+        description: string;
+        isActive: boolean;
+      }> = {};
       if (body.name !== undefined) updates.name = (body.name as string).trim();
-      if (body.description !== undefined) updates.description = body.description as string;
-      if (body.isActive !== undefined) updates.isActive = body.isActive as boolean;
+      if (body.description !== undefined)
+        updates.description = body.description as string;
+      if (body.isActive !== undefined)
+        updates.isActive = body.isActive as boolean;
 
       if (Object.keys(updates).length === 0)
         return c.json({ error: "No fields to update" }, 400);
@@ -205,7 +218,12 @@ nichesRouter.post(
       const job = await queueService.enqueue(id, niche.name);
 
       return c.json(
-        { jobId: job.id, nicheId: id, nicheName: niche.name, status: job.status },
+        {
+          jobId: job.id,
+          nicheId: id,
+          nicheName: niche.name,
+          status: job.status,
+        },
         202,
       );
     } catch (error) {
@@ -262,13 +280,18 @@ nichesRouter.get(
           ? await db
               .select({ reelId: reelAnalyses.reelId })
               .from(reelAnalyses)
-              .where(sql`${reelAnalyses.reelId} = ANY(${sql.raw(`ARRAY[${reelIds.join(",")}]`)})`)
+              .where(
+                sql`${reelAnalyses.reelId} = ANY(${sql.raw(`ARRAY[${reelIds.join(",")}]`)})`,
+              )
           : [];
       const analyzedIds = new Set(analysisRows.map((a) => a.reelId));
 
       return c.json({
         niche,
-        reels: reelRows.map((r) => ({ ...r, hasAnalysis: analyzedIds.has(r.id) })),
+        reels: reelRows.map((r) => ({
+          ...r,
+          hasAnalysis: analyzedIds.has(r.id),
+        })),
         total,
         page,
         limit,
@@ -312,7 +335,8 @@ nichesRouter.post(
         RETURNING id
       `);
 
-      const deletedCount = (duplicates as unknown as { rows: unknown[] }).rows?.length ?? 0;
+      const deletedCount =
+        (duplicates as unknown as { rows: unknown[] }).rows?.length ?? 0;
 
       return c.json({
         nicheId: id,

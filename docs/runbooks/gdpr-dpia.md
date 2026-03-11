@@ -10,7 +10,7 @@
 
 | Question | Answer |
 |----------|--------|
-| Is this processing likely to result in high risk to individuals? | Low — financial calculations; no special category data |
+| Is this processing likely to result in high risk to individuals? | Low — financial generations; no special category data |
 | Does the processing involve systematic profiling? | No |
 | Does the processing involve vulnerable groups (children)? | No — service is for adults (18+) |
 | Is the processing on a large scale? | Low scale at launch; re-evaluate at 10,000+ users |
@@ -23,7 +23,7 @@
 | Activity | Data | Legal Basis | Retention |
 |----------|------|-------------|-----------|
 | User registration | Name, email, password (Firebase) | Contract performance (Art 6(1)(b)) | Until account deletion + 30 days |
-| Generator usage | Input values, calculation results | Contract performance (Art 6(1)(b)) | 12 months rolling |
+| Generator usage | Input values, generation results | Contract performance (Art 6(1)(b)) | 12 months rolling |
 | Subscription billing | Email, payment method (tokenised by Stripe) | Contract performance (Art 6(1)(b)) | 7 years (financial record-keeping) |
 | Support messages | Name, email, message content | Legitimate interest (Art 6(1)(f)) | 2 years |
 | Analytics | Anonymised usage metrics | Legitimate interest (Art 6(1)(f)) | 13 months |

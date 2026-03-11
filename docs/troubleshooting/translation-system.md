@@ -42,7 +42,7 @@ Translation keys use **underscores** (not dots) and follow a hierarchical namesp
 Examples:
 - `common_cancel` - Common cancel button
 - `navigation_home` - Navigation home link
-- `generator_mortgage_title` - Mortgage generator title
+- `generator_mortgage_title` - Hook Generator generator title
 - `account_profile_email_address` - Account profile email field
 - `auth_sign_in_description` - Sign-in page description
 
@@ -265,7 +265,7 @@ window.location.reload();
   "common_cancel": "Cancel",
   "common_save": "Save",
   "navigation_home": "Home",
-  "generator_mortgage_title": "Mortgage Generator",
+  "generator_mortgage_title": "Hook Generator Generator",
   "account_profile_email_address": "Email Address"
 }
 ```

@@ -70,7 +70,7 @@
 - [x] HIPAA compliance — N/A; no health data processed (see `docs/runbooks/compliance-financial-legal.md`)
 - [x] FERPA compliance — N/A; no education records
 - [x] SOX compliance — N/A; not a publicly traded company
-- [x] Other industry-specific requirements — FCA note added; calculations are informational tools, not regulated advice
+- [x] Other industry-specific requirements — FCA note added; generations are informational tools, not regulated advice
 
 ## Third-Party Compliance
 

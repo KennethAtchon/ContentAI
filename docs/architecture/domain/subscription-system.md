@@ -55,7 +55,7 @@ YourApp's subscription system is a fully automated, Firebase Stripe Extension-po
 │                                                              │
 │  PRISMA/PostgreSQL (Usage Tracking)                         │
 │  ┌────────────────────────────────────────────────────┐     │
-│  │ GeneratorUsage (monthly calculation counts)      │     │
+│  │ GeneratorUsage (monthly generation counts)      │     │
 │  └────────────────────────────────────────────────────┘     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -79,13 +79,13 @@ User Action → Client Component → API/Firestore → Firebase Extension → St
 ### Tier Hierarchy
 
 ```
-Enterprise ($99/mo) - Unlimited calculations, all features
+Enterprise ($99/mo) - Unlimited generations, all features
     ↑
-  Pro ($29/mo) - 500 calculations/month, premium generators
+  Pro ($29/mo) - 500 generations/month, premium generators
     ↑
- Basic ($9/mo) - 50 calculations/month, loan generator
+ Basic ($9/mo) - 50 generations/month, caption generator generator
     ↑
- Free - Mortgage generator only (unlimited)
+ Free - Hook Generator generator only (unlimited)
 ```
 
 ### Tier Configuration
@@ -110,24 +110,24 @@ export type SubscriptionTier =
 ```typescript
 const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   basic: {
-    maxCalculationsPerMonth: 50,
-    calculationTypes: ["loan"],
+    maxGenerationsPerMonth: 50,
+    featureTypes: ["caption generator"],
     exportFormats: ["pdf"],
     supportLevel: "email",
     apiAccess: false,
     customBranding: false,
   },
   pro: {
-    maxCalculationsPerMonth: 500,
-    calculationTypes: ["loan", "investment"],
+    maxGenerationsPerMonth: 500,
+    featureTypes: ["caption generator", "script generator"],
     exportFormats: ["pdf", "excel", "csv"],
     supportLevel: "priority",
     apiAccess: true,
     customBranding: false,
   },
   enterprise: {
-    maxCalculationsPerMonth: -1, // unlimited
-    calculationTypes: ["loan", "investment", "retirement", "custom"],
+    maxGenerationsPerMonth: -1, // unlimited
+    featureTypes: ["caption generator", "script generator", "hashtag generator", "custom"],
     exportFormats: ["pdf", "excel", "csv", "api"],
     supportLevel: "dedicated",
     apiAccess: true,
@@ -960,9 +960,9 @@ function hasTierAccess(
 // Check generator access
 export function hasGeneratorAccess(
   userTier: SubscriptionTier | null,
-  generatorType: CalculationType
+  generatorType: FeatureType
 ): boolean {
-  const required = CALCULATOR_TIER_REQUIREMENTS[generatorType];
+  const required = FEATURE_TIER_REQUIREMENTS[generatorType];
   
   // Free generator
   if (required === null) return true;
@@ -982,10 +982,10 @@ export function hasGeneratorAccess(
 
 ### Usage Limits
 
-**Monthly Calculation Limits:**
+**Monthly Generation Limits:**
 - **Free:** Unlimited (for free generators only)
-- **Basic:** 50 calculations/month
-- **Pro:** 500 calculations/month
+- **Basic:** 50 generations/month
+- **Pro:** 500 generations/month
 - **Enterprise:** Unlimited
 
 ### Usage Storage
@@ -996,10 +996,10 @@ export function hasGeneratorAccess(
 model GeneratorUsage {
   id              String   @id @default(uuid())
   userId          String
-  calculationType String   // "mortgage", "loan", "investment", "retirement"
+  featureType String   // "hook generator", "caption generator", "script generator", "hashtag generator"
   inputData       Json
   resultData      Json
-  calculationTime Int      // milliseconds
+  generationTime Int      // milliseconds
   createdAt       DateTime @default(now())
   
   @@index([userId, createdAt])
@@ -1009,10 +1009,10 @@ model GeneratorUsage {
 ### Usage Tracking Flow
 
 ```
-1. User submits calculation
+1. User submits generation
 2. Check: Does user have access to generator type?
 3. Check: Has user reached monthly limit? (for paid generators)
-4. Perform calculation
+4. Perform generation
 5. Save to GeneratorUsage table (only for gated generators)
 6. Return result + updated usage stats
 ```
@@ -1034,9 +1034,9 @@ model GeneratorUsage {
 }
 ```
 
-**Calculation:**
+**Generation:**
 - Count `GeneratorUsage` records for current month
-- Exclude free generators (mortgage)
+- Exclude free generators (hook generator)
 - Compare against tier limit
 - Reset on 1st of each month
 

@@ -3,6 +3,7 @@ import { reels } from "../infrastructure/database/drizzle/schema";
 import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
+import { SOCIAL_API_KEY, VIRAL_VIEWS_THRESHOLD } from "../utils/config/envUtil";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40; // 40 * 3s = 2 minutes
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [2000, 4000, 8000];
-const VIRAL_THRESHOLD = parseInt(process.env.VIRAL_VIEWS_THRESHOLD ?? "100000");
+const VIRAL_THRESHOLD = VIRAL_VIEWS_THRESHOLD || 100000;
 
 // ─── ScrapingService ──────────────────────────────────────────────────────────
 
@@ -51,14 +52,17 @@ class ScrapingService {
    * Falls back gracefully to a stub if SOCIAL_API_KEY is not configured.
    */
   async scrapeNiche(nicheId: number, nicheName: string): Promise<ScrapeResult> {
-    const apiKey = process.env.SOCIAL_API_KEY;
+    const apiKey = SOCIAL_API_KEY;
 
     if (!apiKey) {
-      debugLog.warn("SOCIAL_API_KEY not set — skipping real scrape (stub mode)", {
-        service: "scraping-service",
-        nicheId,
-        nicheName,
-      });
+      debugLog.warn(
+        "SOCIAL_API_KEY not set — skipping real scrape (stub mode)",
+        {
+          service: "scraping-service",
+          nicheId,
+          nicheName,
+        },
+      );
       return { saved: 0, skipped: 0 };
     }
 
@@ -81,11 +85,14 @@ class ScrapingService {
         lastError = err instanceof Error ? err : new Error(String(err));
         const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
 
-        debugLog.warn(`Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`, {
-          service: "scraping-service",
-          nicheId,
-          error: lastError.message,
-        });
+        debugLog.warn(
+          `Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`,
+          {
+            service: "scraping-service",
+            nicheId,
+            error: lastError.message,
+          },
+        );
 
         if (attempt < MAX_RETRIES - 1) {
           await sleep(delay);
@@ -129,7 +136,10 @@ class ScrapingService {
     return this.saveReels(items, nicheId);
   }
 
-  private async startApifyRun(nicheName: string, apiKey: string): Promise<string> {
+  private async startApifyRun(
+    nicheName: string,
+    apiKey: string,
+  ): Promise<string> {
     const res = await fetch(
       `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${apiKey}`,
       {
@@ -155,7 +165,10 @@ class ScrapingService {
     return data.data.id;
   }
 
-  private async pollUntilComplete(runId: string, apiKey: string): Promise<string> {
+  private async pollUntilComplete(
+    runId: string,
+    apiKey: string,
+  ): Promise<string> {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
       await sleep(POLL_INTERVAL_MS);
 
@@ -174,7 +187,11 @@ class ScrapingService {
       const { status, defaultDatasetId } = data.data;
 
       if (status === "SUCCEEDED") return defaultDatasetId;
-      if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
+      if (
+        status === "FAILED" ||
+        status === "ABORTED" ||
+        status === "TIMED-OUT"
+      ) {
         throw new Error(`Apify run ${runId} ended with status: ${status}`);
       }
 
@@ -185,7 +202,9 @@ class ScrapingService {
       });
     }
 
-    throw new Error(`Apify run ${runId} timed out after ${MAX_POLL_ATTEMPTS} polls`);
+    throw new Error(
+      `Apify run ${runId} timed out after ${MAX_POLL_ATTEMPTS} polls`,
+    );
   }
 
   private async fetchDatasetItems(

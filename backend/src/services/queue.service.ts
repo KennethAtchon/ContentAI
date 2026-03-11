@@ -56,7 +56,7 @@ class QueueService {
     });
 
     // Kick off processing without blocking the HTTP response
-    setImmediate(() => void this.drain());
+    setTimeout(() => void this.drain(), 0);
 
     return job;
   }
@@ -83,7 +83,9 @@ class QueueService {
     try {
       const redis = getRedisConnection();
       const jobIds = await redis.lrange(NICHE_JOBS_KEY(nicheId), 0, 49);
-      const jobs = await Promise.all(jobIds.map((id: string) => this.getJob(id)));
+      const jobs = await Promise.all(
+        jobIds.map((id: string) => this.getJob(id)),
+      );
       return jobs.filter((j: ScrapeJob | null): j is ScrapeJob => j !== null);
     } catch (err) {
       debugLog.error("Failed to list jobs from Redis", {

@@ -4,17 +4,17 @@
 
 ## Overview
 
-The Generator System is the default core feature of the template, providing financial calculation capabilities including mortgage, loan, investment, and retirement planning. The system integrates subscription-based access control, usage tracking, and comprehensive result visualization.
+The Generator System is the default core feature of the template, providing financial generation capabilities including hook generator, caption generator, script generator, and hashtag generator planning. The system integrates subscription-based access control, usage tracking, and comprehensive result visualization.
 
 **Key Components:**
 - **Generator Constants:** Centralized configuration for all generators (`generator.constants.ts`)
-- **GeneratorService:** Pure calculation logic (mortgage, loan, investment, retirement) with type-safe function overloads
+- **GeneratorService:** Pure generation logic (hook generator, caption generator, script generator, hashtag generator) with type-safe function overloads
 - **Input Validation:** Zod schemas for runtime validation of all generator inputs
 - **Type Guards:** Type-safe utilities for SubscriptionTier validation
-- **useGenerator Hook:** React hook for client-side calculations with subscription validation
-- **API Route:** Server-side calculation endpoint with authentication, validation, and usage tracking
+- **useGenerator Hook:** React hook for client-side generations with subscription validation
+- **API Route:** Server-side generation endpoint with authentication, validation, and usage tracking
 - **Generator Components:** UI components for each generator type (dynamically mapped)
-- **Usage Tracking:** Monthly calculation limits based on subscription tier
+- **Usage Tracking:** Monthly generation limits based on subscription tier
 
 ---
 
@@ -24,7 +24,7 @@ The Generator System is the default core feature of the template, providing fina
 2. [Generator Types](#generator-types)
 3. [Input Validation](#input-validation)
 4. [Type Safety & Type Guards](#type-safety--type-guards)
-5. [Calculation Service](#calculation-service)
+5. [Generation Service](#generation-service)
 6. [Client-Side Hook](#client-side-hook)
 7. [API Endpoint](#api-endpoint)
 8. [Access Control & Usage Limits](#access-control--usage-limits)
@@ -45,33 +45,33 @@ All generator metadata, tier requirements, and UI configuration is centralized i
 **Design Pattern:** Configuration-Driven Architecture
 - Single source of truth for all generator metadata
 - Type-safe with TypeScript inference
-- Easy to extend - just add to `CALCULATOR_CONFIG`
+- Easy to extend - just add to `FEATURE_CONFIG`
 - Used by both frontend and backend
 
 ### Generator Configuration Structure
 
 ```typescript
-export const CALCULATOR_CONFIG = {
-  mortgage: {
-    id: 'mortgage' as const,
-    name: 'Mortgage Generator',
-    shortName: 'Mortgage',
-    description: 'Calculate monthly mortgage payments and amortization schedules',
-    longDescription: 'Calculate monthly mortgage payments, total interest, and complete amortization schedules...',
+export const FEATURE_CONFIG = {
+  hook generator: {
+    id: 'hook generator' as const,
+    name: 'Hook Generator Generator',
+    shortName: 'Hook Generator',
+    description: 'Calculate monthly hook generator payments and amortization schedules',
+    longDescription: 'Calculate monthly hook generator payments, total interest, and complete amortization schedules...',
     tierRequirement: null, // FREE - no subscription required
     icon: Home,
     displayOrder: 1,
     features: [
-      'Principal and interest calculations',
+      'Principal and interest generations',
       'Property tax and insurance estimates',
       // ...
     ],
     availableIn: ['basic', 'pro', 'enterprise'] as const,
     mobileLabel: 'Home',
   },
-  loan: {
-    id: 'loan' as const,
-    name: 'Loan Generator',
+  caption generator: {
+    id: 'caption generator' as const,
+    name: 'Caption Generator Generator',
     // ... similar structure
     tierRequirement: 'basic' as SubscriptionTier,
     // ...
@@ -90,41 +90,41 @@ export const CALCULATOR_CONFIG = {
 
 ```typescript
 // Type derived from config keys
-export type CalculationType = keyof typeof CALCULATOR_CONFIG;
+export type FeatureType = keyof typeof FEATURE_CONFIG;
 
 // Valid types array (derived from config)
-export const VALID_CALCULATION_TYPES: readonly CalculationType[] = 
-  Object.keys(CALCULATOR_CONFIG) as CalculationType[];
+export const VALID_CALCULATION_TYPES: readonly FeatureType[] = 
+  Object.keys(FEATURE_CONFIG) as FeatureType[];
 
 // Tier requirements (derived from config)
-export const CALCULATOR_TIER_REQUIREMENTS = Object.fromEntries(
-  Object.entries(CALCULATOR_CONFIG).map(([key, config]) => [
+export const FEATURE_TIER_REQUIREMENTS = Object.fromEntries(
+  Object.entries(FEATURE_CONFIG).map(([key, config]) => [
     key,
     config.tierRequirement,
   ])
-) as Record<CalculationType, SubscriptionTier | null>;
+) as Record<FeatureType, SubscriptionTier | null>;
 ```
 
 ### Helper Functions
 
 ```typescript
 // Get generator configuration
-getGeneratorConfig(type: CalculationType): GeneratorMetadata
+getGeneratorConfig(type: FeatureType): GeneratorMetadata
 
 // Get all generators (sorted by displayOrder)
 getAllGeneratorConfigs(): GeneratorMetadata[]
 
 // Get generator name/description/icon
-getGeneratorName(type: CalculationType): string
-getGeneratorShortName(type: CalculationType): string
-getGeneratorDescription(type: CalculationType): string
-getGeneratorIcon(type: CalculationType): LucideIcon
+getGeneratorName(type: FeatureType): string
+getGeneratorShortName(type: FeatureType): string
+getGeneratorDescription(type: FeatureType): string
+getGeneratorIcon(type: FeatureType): LucideIcon
 
 // Get generators for a tier
-getGeneratorsForTier(tier: SubscriptionTier): CalculationType[]
+getGeneratorsForTier(tier: SubscriptionTier): FeatureType[]
 
 // Check if generator is free
-isGeneratorFree(type: CalculationType): boolean
+isGeneratorFree(type: FeatureType): boolean
 ```
 
 ---
@@ -136,28 +136,28 @@ isGeneratorFree(type: CalculationType): boolean
 Generator types are now derived from the centralized configuration:
 
 ```typescript
-// Type is automatically inferred from CALCULATOR_CONFIG keys
-export type CalculationType = keyof typeof CALCULATOR_CONFIG;
-// Result: 'mortgage' | 'loan' | 'investment' | 'retirement'
+// Type is automatically inferred from FEATURE_CONFIG keys
+export type FeatureType = keyof typeof FEATURE_CONFIG;
+// Result: 'hook generator' | 'caption generator' | 'script generator' | 'hashtag generator'
 
 // Valid types array is automatically generated
-export const VALID_CALCULATION_TYPES: readonly CalculationType[] = 
-  Object.keys(CALCULATOR_CONFIG) as CalculationType[];
+export const VALID_CALCULATION_TYPES: readonly FeatureType[] = 
+  Object.keys(FEATURE_CONFIG) as FeatureType[];
 ```
 
-### Mortgage Generator
+### Hook Generator Generator
 
 **Inputs:**
 
 ```typescript
 interface MortgageInputs {
-  loanAmount: number;           // Total loan amount
+  loanAmount: number;           // Total caption generator amount
   interestRate: number;         // Annual percentage rate
   loanTerm: number;             // Years
   downPayment?: number;         // Optional down payment
   propertyTax?: number;         // Annual property tax
   homeInsurance?: number;       // Annual home insurance
-  pmi?: number;                 // Private Mortgage Insurance (annual)
+  pmi?: number;                 // Private Hook Generator Insurance (annual)
 }
 ```
 
@@ -166,7 +166,7 @@ interface MortgageInputs {
 ```typescript
 interface MortgageResult {
   monthlyPayment: number;                      // Total monthly payment
-  totalPayment: number;                        // Total paid over life of loan
+  totalPayment: number;                        // Total paid over life of caption generator
   totalInterest: number;                       // Total interest paid
   monthlyPrincipalAndInterest: number;         // P&I portion
   monthlyTaxesAndInsurance?: number;           // Taxes + Insurance portion
@@ -174,10 +174,10 @@ interface MortgageResult {
 }
 ```
 
-**Calculation Formula:**
+**Generation Formula:**
 
 ```typescript
-// Monthly payment calculation
+// Monthly payment generation
 const principal = loanAmount - downPayment;
 const monthlyRate = interestRate / 100 / 12;
 const numPayments = loanTerm * 12;
@@ -190,13 +190,13 @@ const monthlyTaxesAndInsurance = (propertyTax + homeInsurance + pmi) / 12;
 const monthlyPayment = monthlyPrincipalAndInterest + monthlyTaxesAndInsurance;
 ```
 
-### Loan Generator
+### Caption Generator Generator
 
 **Inputs:**
 
 ```typescript
 interface LoanInputs {
-  principal: number;      // Loan amount
+  principal: number;      // Caption Generator amount
   interestRate: number;   // Annual percentage rate
   term: number;           // Months
 }
@@ -213,7 +213,7 @@ interface LoanResult {
 }
 ```
 
-### Investment Generator
+### Script Generator Generator
 
 **Inputs:**
 
@@ -238,10 +238,10 @@ interface InvestmentResult {
 }
 ```
 
-**Calculation Formula:**
+**Generation Formula:**
 
 ```typescript
-// Future value of initial investment
+// Future value of initial script generator
 const futureValueOfInitial = initialInvestment *
   Math.pow(1 + monthlyRate, totalPeriods);
 
@@ -252,7 +252,7 @@ const futureValueOfContributions = monthlyContribution *
 const futureValue = futureValueOfInitial + futureValueOfContributions;
 ```
 
-### Retirement Generator
+### Hashtag Generator Generator
 
 **Inputs:**
 
@@ -272,20 +272,20 @@ interface RetirementInputs {
 
 ```typescript
 interface RetirementResult {
-  retirementSavings: number;          // Total savings at retirement
-  yearsInRetirement: number;          // Years of retirement
+  retirementSavings: number;          // Total savings at hashtag generator
+  yearsInRetirement: number;          // Years of hashtag generator
   monthlyRetirementIncome: number;    // Safe monthly withdrawal
-  isOnTrack: boolean;                 // Meeting retirement goals?
+  isOnTrack: boolean;                 // Meeting hashtag generator goals?
   shortfall?: number;                 // Amount short (if not on track)
   surplus?: number;                   // Amount over (if on track)
   recommendations?: string[];         // Personalized recommendations
 }
 ```
 
-**Calculation Logic:**
+**Generation Logic:**
 
 ```typescript
-// Calculate savings at retirement
+// Calculate savings at hashtag generator
 const yearsToRetirement = retirementAge - currentAge;
 const monthlyRate = annualReturnRate / 100 / 12;
 const totalMonths = yearsToRetirement * 12;
@@ -316,7 +316,7 @@ const isOnTrack = retirementSavings >= requiredSavings;
 All generator inputs are validated at the API boundary using Zod schemas. This provides:
 - **Runtime type safety** - Validates data structure and types
 - **Business rule validation** - Enforces constraints (e.g., interest rates 0-100%, ages 18-100)
-- **Cross-field validation** - Validates relationships between fields (e.g., retirement age > current age)
+- **Cross-field validation** - Validates relationships between fields (e.g., hashtag generator age > current age)
 - **Type inference** - TypeScript types automatically inferred from schemas
 
 ### Validation Schemas
@@ -325,7 +325,7 @@ All generator inputs are validated at the API boundary using Zod schemas. This p
 import { z } from 'zod';
 
 /**
- * Mortgage Generator Input Schema
+ * Hook Generator Generator Input Schema
  * Includes business rules: downPayment < loanAmount
  */
 export const mortgageInputSchema = z.object({
@@ -338,11 +338,11 @@ export const mortgageInputSchema = z.object({
   pmi: z.number().nonnegative().optional(),
 }).refine(
   (data) => !data.downPayment || data.downPayment < data.loanAmount,
-  { message: 'Down payment must be less than loan amount', path: ['downPayment'] }
+  { message: 'Down payment must be less than caption generator amount', path: ['downPayment'] }
 );
 
 /**
- * Loan Generator Input Schema
+ * Caption Generator Generator Input Schema
  */
 export const loanInputSchema = z.object({
   principal: z.number().positive().min(1),
@@ -351,7 +351,7 @@ export const loanInputSchema = z.object({
 });
 
 /**
- * Investment Generator Input Schema
+ * Script Generator Generator Input Schema
  */
 export const investmentInputSchema = z.object({
   initialInvestment: z.number().nonnegative(),
@@ -362,7 +362,7 @@ export const investmentInputSchema = z.object({
 });
 
 /**
- * Retirement Generator Input Schema
+ * Hashtag Generator Generator Input Schema
  * Includes cross-field validation: retirementAge > currentAge
  */
 export const retirementInputSchema = z.object({
@@ -375,7 +375,7 @@ export const retirementInputSchema = z.object({
   lifeExpectancy: z.number().int().positive().min(50).max(120).optional(),
 }).refine(
   (data) => data.retirementAge > data.currentAge,
-  { message: 'Retirement age must be greater than current age', path: ['retirementAge'] }
+  { message: 'Hashtag Generator age must be greater than current age', path: ['retirementAge'] }
 );
 ```
 
@@ -406,13 +406,13 @@ export function validateGeneratorInput<T extends z.ZodTypeAny>(
 ### Usage in API Route
 
 ```typescript
-// Validate inputs based on calculation type
-switch (calculationType) {
-  case 'mortgage': {
+// Validate inputs based on generation type
+switch (featureType) {
+  case 'hook generator': {
     const validation = validateGeneratorInput(mortgageInputSchema, inputs);
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid mortgage inputs', details: validation.details },
+        { error: 'Invalid hook generator inputs', details: validation.details },
         { status: 422 }
       );
     }
@@ -503,7 +503,7 @@ if (stripeRole) {
 
 ---
 
-## Calculation Service
+## Generation Service
 
 ### GeneratorService Class
 
@@ -512,7 +512,7 @@ if (stripeRole) {
 ```typescript
 export class GeneratorService {
   /**
-   * Calculate mortgage payment
+   * Calculate hook generator payment
    */
   static calculateMortgage(inputs: MortgageInputs): MortgageResult {
     const startTime = Date.now();
@@ -543,13 +543,13 @@ export class GeneratorService {
         monthlyPrincipalAndInterest
       );
 
-      const calculationTime = Date.now() - startTime;
+      const generationTime = Date.now() - startTime;
 
-      debugLog.info('Mortgage calculation completed', {
+      debugLog.info('Hook Generator generation completed', {
         service: 'generator-service',
         operation: 'calculateMortgage',
       }, {
-        calculationTime: `${calculationTime}ms`,
+        generationTime: `${generationTime}ms`,
       });
 
       return {
@@ -561,48 +561,48 @@ export class GeneratorService {
         amortizationSchedule,
       };
     } catch (error) {
-      debugLog.error('Error calculating mortgage', {
+      debugLog.error('Error calculating hook generator', {
         service: 'generator-service',
         operation: 'calculateMortgage',
       }, error);
-      throw new Error('Failed to calculate mortgage payment');
+      throw new Error('Failed to calculate hook generator payment');
     }
   }
 
   /**
-   * Perform calculation based on type
+   * Perform generation based on type
    * Uses function overloads for type safety
    */
-  static performCalculation(type: 'mortgage', inputs: MortgageInputs): CalculationResponse;
-  static performCalculation(type: 'loan', inputs: LoanInputs): CalculationResponse;
-  static performCalculation(type: 'investment', inputs: InvestmentInputs): CalculationResponse;
-  static performCalculation(type: 'retirement', inputs: RetirementInputs): CalculationResponse;
-  static performCalculation(
-    type: CalculationType,
+  static performGeneration(type: 'hook generator', inputs: MortgageInputs): GenerationResponse;
+  static performGeneration(type: 'caption generator', inputs: LoanInputs): GenerationResponse;
+  static performGeneration(type: 'script generator', inputs: InvestmentInputs): GenerationResponse;
+  static performGeneration(type: 'hashtag generator', inputs: RetirementInputs): GenerationResponse;
+  static performGeneration(
+    type: FeatureType,
     inputs: MortgageInputs | LoanInputs | InvestmentInputs | RetirementInputs
-  ): CalculationResponse {
+  ): GenerationResponse {
     const startTime = Date.now();
     let results: MortgageResult | LoanResult | InvestmentResult | RetirementResult;
 
     switch (type) {
-      case 'mortgage':
-        // Type narrowing: TypeScript knows inputs is MortgageInputs when type is 'mortgage'
+      case 'hook generator':
+        // Type narrowing: TypeScript knows inputs is MortgageInputs when type is 'hook generator'
         // This is safe because the API layer validates inputs before calling this method
         results = this.calculateMortgage(inputs as MortgageInputs);
         break;
-      case 'loan':
+      case 'caption generator':
         results = this.calculateLoan(inputs as LoanInputs);
         break;
-      case 'investment':
+      case 'script generator':
         results = this.calculateInvestment(inputs as InvestmentInputs);
         break;
-      case 'retirement':
+      case 'hashtag generator':
         results = this.calculateRetirement(inputs as RetirementInputs);
         break;
       default: {
         // Exhaustiveness check - TypeScript will error if we miss a case
         const _exhaustive: never = type;
-        throw new Error(`Unsupported calculation type: ${_exhaustive}`);
+        throw new Error(`Unsupported generation type: ${_exhaustive}`);
       }
     }
 
@@ -610,13 +610,13 @@ export class GeneratorService {
       type,
       inputs: inputs as unknown as Record<string, unknown>,
       results,
-      calculationTime: Date.now() - startTime,
+      generationTime: Date.now() - startTime,
     };
   }
 ```
 
 **Type Safety Improvements:**
-- ✅ **Function overloads** - TypeScript narrows input types based on calculation type
+- ✅ **Function overloads** - TypeScript narrows input types based on generation type
 - ✅ **Exhaustiveness checking** - TypeScript errors if a case is missed
 - ✅ **Better IDE support** - Autocomplete and type checking work correctly
 }
@@ -639,7 +639,7 @@ export function useGenerator(): UseGeneratorResult {
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
 
   const calculate = useCallback(
-    async (type: CalculationType, inputs: GeneratorInputs): Promise<CalculationResponse | null> => {
+    async (type: FeatureType, inputs: GeneratorInputs): Promise<GenerationResponse | null> => {
       if (!user) {
         setError('You must be logged in to use the generator');
         return null;
@@ -658,7 +658,7 @@ export function useGenerator(): UseGeneratorResult {
 
         // Check generator access using centralized permission system
         if (!hasGeneratorAccess(role, type)) {
-          setError(`This calculation type is not available in your ${role} plan. Please upgrade.`);
+          setError(`This generation type is not available in your ${role} plan. Please upgrade.`);
           setIsLoading(false);
           return null;
         }
@@ -666,20 +666,20 @@ export function useGenerator(): UseGeneratorResult {
         // Check usage limit via API
         const limitCheck = await authenticatedFetchJson<{ limitReached: boolean }>('/api/generator/usage');
         if (limitCheck?.limitReached) {
-          setError('You have reached your monthly calculation limit. Please upgrade your plan.');
+          setError('You have reached your monthly generation limit. Please upgrade your plan.');
           setIsLoading(false);
           return null;
         }
 
-        // Perform calculation via API (single source of truth)
+        // Perform generation via API (single source of truth)
         // API handles validation, permission checks, and usage tracking
-        const result = await authenticatedFetchJson<CalculationResponse>('/api/generator/calculate', {
+        const result = await authenticatedFetchJson<GenerationResponse>('/api/generator/calculate', {
           method: 'POST',
           body: JSON.stringify({ type, inputs }),
         });
 
         if (!result) {
-          setError('Failed to perform calculation');
+          setError('Failed to perform generation');
           setIsLoading(false);
           return null;
         }
@@ -724,47 +724,47 @@ async function postHandler(request: NextRequest) {
     const body = await request.json();
     const { type, inputs } = body;
 
-    // 1. Validate calculation type
-    if (!type || !VALID_CALCULATION_TYPES.includes(type as CalculationType)) {
-      return NextResponse.json({ error: 'Invalid calculation type' }, { status: 400 });
+    // 1. Validate generation type
+    if (!type || !VALID_CALCULATION_TYPES.includes(type as FeatureType)) {
+      return NextResponse.json({ error: 'Invalid generation type' }, { status: 400 });
     }
-    const calculationType = type as CalculationType;
+    const featureType = type as FeatureType;
 
-    // 2. Validate inputs based on calculation type (with Zod schemas)
+    // 2. Validate inputs based on generation type (with Zod schemas)
     let validatedInputs: MortgageInputs | LoanInputs | InvestmentInputs | RetirementInputs;
     
-    switch (calculationType) {
-      case 'mortgage': {
+    switch (featureType) {
+      case 'hook generator': {
         const validation = validateGeneratorInput(mortgageInputSchema, inputs);
         if (!validation.success) {
           return NextResponse.json(
-            { error: 'Invalid mortgage inputs', details: validation.details },
+            { error: 'Invalid hook generator inputs', details: validation.details },
             { status: 422 }
           );
         }
         validatedInputs = validation.data; // Type-safe: MortgageInputs
         break;
       }
-      case 'loan': {
+      case 'caption generator': {
         const validation = validateGeneratorInput(loanInputSchema, inputs);
         if (!validation.success) {
           return NextResponse.json(
-            { error: 'Invalid loan inputs', details: validation.details },
+            { error: 'Invalid caption generator inputs', details: validation.details },
             { status: 422 }
           );
         }
         validatedInputs = validation.data;
         break;
       }
-      // ... investment and retirement cases
+      // ... script generator and hashtag generator cases
     }
 
     // 3. Check subscription tier using type guard (no "as any")
     const stripeRole = toSubscriptionTier(authResult.firebaseUser.stripeRole);
     
     // 4. Check generator access using centralized permission system
-    if (!hasGeneratorAccess(stripeRole, calculationType)) {
-      const requiredTier = CALCULATOR_TIER_REQUIREMENTS[calculationType];
+    if (!hasGeneratorAccess(stripeRole, featureType)) {
+      const requiredTier = FEATURE_TIER_REQUIREMENTS[featureType];
       if (!stripeRole) {
         return NextResponse.json(
           { error: 'Active subscription required to use this generator' },
@@ -772,69 +772,69 @@ async function postHandler(request: NextRequest) {
         );
       }
       return NextResponse.json({
-        error: `This calculation type requires ${requiredTier} tier or higher. Your current plan: ${stripeRole}.`
+        error: `This generation type requires ${requiredTier} tier or higher. Your current plan: ${stripeRole}.`
       }, { status: 403 });
     }
 
     // 5. Check usage limit - only count gated generators (free generators don't count)
-    if (!isGeneratorFree(calculationType)) {
+    if (!isGeneratorFree(featureType)) {
       if (stripeRole) {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const tierConfig = getTierConfig(stripeRole); // Type-safe, no "as any"
-        const usageLimit = tierConfig.features.maxCalculationsPerMonth === -1 ? null : tierConfig.features.maxCalculationsPerMonth;
+        const usageLimit = tierConfig.features.maxGenerationsPerMonth === -1 ? null : tierConfig.features.maxGenerationsPerMonth;
         
         if (usageLimit !== null) {
-          const freeGenerators = (Object.keys(CALCULATOR_TIER_REQUIREMENTS) as Array<keyof typeof CALCULATOR_TIER_REQUIREMENTS>)
+          const freeGenerators = (Object.keys(FEATURE_TIER_REQUIREMENTS) as Array<keyof typeof FEATURE_TIER_REQUIREMENTS>)
             .filter(calc => isGeneratorFree(calc));
           
           const usageCount = await prisma.generatorUsage.count({
             where: {
               userId: authResult.user.id,
-              calculationType: { notIn: freeGenerators },
+              featureType: { notIn: freeGenerators },
               createdAt: { gte: startOfMonth },
             },
           });
 
           if (usageCount >= usageLimit) {
             return NextResponse.json({
-              error: 'Monthly calculation limit reached. Please upgrade or wait for next billing cycle.'
+              error: 'Monthly generation limit reached. Please upgrade or wait for next billing cycle.'
             }, { status: 403 });
           }
         }
       }
     }
 
-    // 6. Perform calculation (inputs are validated and type-safe)
-    const calculationResponse = GeneratorService.performCalculation(
-      calculationType,
+    // 6. Perform generation (inputs are validated and type-safe)
+    const generationResponse = GeneratorService.performGeneration(
+      featureType,
       validatedInputs
     );
 
-    // 7. Save calculation history
+    // 7. Save generation history
     try {
       const serializedResults = JSON.parse(
-        JSON.stringify(calculationResponse.results)
+        JSON.stringify(generationResponse.results)
       ) as Record<string, unknown>;
 
       await prisma.generatorUsage.create({
         data: {
           userId: authResult.user.id,
-          calculationType: calculationType,
-          inputData: calculationResponse.inputs,
+          featureType: featureType,
+          inputData: generationResponse.inputs,
           resultData: serializedResults,
-          calculationTime: calculationResponse.calculationTime,
+          generationTime: generationResponse.generationTime,
         },
       });
     } catch (error) {
       // Don't fail the request if history save fails
-      debugLog.warn('Failed to save calculation history', { service: 'generator-api' }, error);
+      debugLog.warn('Failed to save generation history', { service: 'generator-api' }, error);
     }
 
-    return NextResponse.json(calculationResponse);
+    return NextResponse.json(generationResponse);
   } catch (error) {
-    debugLog.error('Error performing calculation', { service: 'generator-api' }, error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to perform calculation';
+    debugLog.error('Error performing generation', { service: 'generator-api' }, error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to perform generation';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
@@ -858,30 +858,30 @@ export const POST = withUserProtection(postHandler, { rateLimitType: 'customer' 
 
 **Location:** `project/shared/utils/permissions/generator-permissions.ts`
 
-Generator access rules are now derived from the centralized generator configuration (`generator.constants.ts`). The `CALCULATOR_TIER_REQUIREMENTS` constant is automatically generated from the config:
+Generator access rules are now derived from the centralized generator configuration (`generator.constants.ts`). The `FEATURE_TIER_REQUIREMENTS` constant is automatically generated from the config:
 
 ```typescript
-// CALCULATOR_TIER_REQUIREMENTS is derived from CALCULATOR_CONFIG
-export const CALCULATOR_TIER_REQUIREMENTS = Object.fromEntries(
-  Object.entries(CALCULATOR_CONFIG).map(([key, config]) => [
+// FEATURE_TIER_REQUIREMENTS is derived from FEATURE_CONFIG
+export const FEATURE_TIER_REQUIREMENTS = Object.fromEntries(
+  Object.entries(FEATURE_CONFIG).map(([key, config]) => [
     key,
     config.tierRequirement,
   ])
-) as Record<CalculationType, SubscriptionTier | null>;
+) as Record<FeatureType, SubscriptionTier | null>;
 
 // Result:
 // {
-//   mortgage: null,        // FREE - no subscription required
-//   loan: 'basic',         // Basic tier and above
-//   investment: 'pro',     // Pro tier and above
-//   retirement: 'enterprise', // Enterprise tier only
+//   hook generator: null,        // FREE - no subscription required
+//   caption generator: 'basic',         // Basic tier and above
+//   script generator: 'pro',     // Pro tier and above
+//   hashtag generator: 'enterprise', // Enterprise tier only
 // }
 
 /**
  * Check if a generator is free (not gated)
  */
 export function isGeneratorFree(generatorType: GeneratorType): boolean {
-  return CALCULATOR_TIER_REQUIREMENTS[generatorType] === null;
+  return FEATURE_TIER_REQUIREMENTS[generatorType] === null;
 }
 
 /**
@@ -892,7 +892,7 @@ export function hasGeneratorAccess(
   userTier: SubscriptionTier | null | undefined,
   generatorType: GeneratorType
 ): boolean {
-  const requiredTier = CALCULATOR_TIER_REQUIREMENTS[generatorType];
+  const requiredTier = FEATURE_TIER_REQUIREMENTS[generatorType];
   
   // If no tier requirement (null), generator is free
   if (requiredTier === null) {
@@ -923,14 +923,14 @@ export function hasGeneratorAccess(
 model GeneratorUsage {
   id              String   @id @default(cuid())
   userId          String
-  calculationType String
+  featureType String
   inputData       Json
   resultData      Json
-  calculationTime Int      // milliseconds
+  generationTime Int      // milliseconds
   createdAt       DateTime @default(now())
   
   @@index([userId, createdAt])
-  @@index([userId, calculationType, createdAt])
+  @@index([userId, featureType, createdAt])
   @@map("generator_usage")
 }
 ```
@@ -939,7 +939,7 @@ model GeneratorUsage {
 
 ## Data Flow
 
-### Calculation Request Flow
+### Generation Request Flow
 
 ```mermaid
 sequenceDiagram
@@ -950,7 +950,7 @@ sequenceDiagram
     participant Firebase
     participant Prisma
     
-    User->>UI: Input calculation data
+    User->>UI: Input generation data
     UI->>UI: Check if user logged in
     UI->>UI: Check subscription tier (stripeRole)
     UI->>UI: Verify tier has access to calc type
@@ -959,14 +959,14 @@ sequenceDiagram
     Prisma-->>API: Usage count
     API-->>UI: { limitReached: false }
     
-    UI->>GeneratorService: performCalculation(type, inputs)
-    GeneratorService-->>UI: Calculation results (instant)
+    UI->>GeneratorService: performGeneration(type, inputs)
+    GeneratorService-->>UI: Generation results (instant)
     UI->>User: Display results
     
     UI->>API: POST /api/generator/calculate (track usage)
     API->>Firebase: Verify token, check stripeRole
     Firebase-->>API: Verified, stripeRole: 'pro'
-    API->>GeneratorService: performCalculation() (server-side verification)
+    API->>GeneratorService: performGeneration() (server-side verification)
     GeneratorService-->>API: Results
     API->>Prisma: Create GeneratorUsage record
     Prisma-->>API: Created
@@ -1027,10 +1027,10 @@ To add a new generator to the system:
 
 #### 1. Add Generator Configuration
 
-Add entry to `CALCULATOR_CONFIG` in `generator.constants.ts`:
+Add entry to `FEATURE_CONFIG` in `generator.constants.ts`:
 
 ```typescript
-export const CALCULATOR_CONFIG = {
+export const FEATURE_CONFIG = {
   // ... existing generators
   savings: {
     id: 'savings' as const,
@@ -1087,13 +1087,13 @@ export const savingsInputSchema = z.object({
 });
 ```
 
-#### 4. Add Calculation Method
+#### 4. Add Generation Method
 
 Add to `GeneratorService`:
 
 ```typescript
 static calculateSavings(inputs: SavingsInputs): SavingsResult {
-  // Calculation logic
+  // Generation logic
 }
 ```
 
@@ -1112,7 +1112,7 @@ export function SavingsGenerator() {
 Add to `generator-component-map.tsx`:
 
 ```typescript
-export const CALCULATOR_COMPONENT_MAP: Record<CalculationType, ComponentType> = {
+export const FEATURE_COMPONENT_MAP: Record<FeatureType, ComponentType> = {
   // ... existing
   savings: SavingsGenerator,
 } as const;

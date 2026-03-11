@@ -46,7 +46,7 @@ async function verifyFeatures(): Promise<VerificationResult> {
     "account",
     "admin",
     "auth",
-    "calculator",
+    "studio tool",
     "contact",
     "customers",
     "faq",

@@ -360,7 +360,7 @@ if (!ANTHROPIC_API_KEY) {
 **Removed Components**:
 - `features/generator/` - Entire generator system
 - Generator-specific routing and UI
-- Financial calculation logic
+- Financial generation logic
 
 **Added Components**:
 - `features/reels/` - Reel discovery and analysis

@@ -46,7 +46,7 @@
 | **App context** | `shared/contexts/app-context.tsx` | Profile + logout cache clear via `mutate(key => …)` |
 | **Pagination** | `shared/hooks/use-paginated-data.ts` | `useSWR(swrKey, paginatedFetcher)` + local page state |
 | **Portal link** | `shared/hooks/use-portal-link.ts` | `useSWR` with long dedupe, no revalidate on focus |
-| **Generator** | `features/generator/hooks/use-generator.ts` | Usage stats + post-calculation invalidation |
+| **Generator** | `features/generator/hooks/use-generator.ts` | Usage stats + post-generation invalidation |
 | **Subscription** | `features/subscriptions/hooks/use-subscription.ts` | `mutate(predicate)` when role changes |
 | **Account** | `usage-dashboard.tsx`, `subscription-management.tsx` | Usage stats, export invalidation |
 | **Admin** | dashboard, orders, customers, subscriptions, contact messages | Lists, analytics, forms |
@@ -309,7 +309,7 @@ Use this as a checklist; implement in an order that avoids breaking the app (e.g
 
 | File | Current | Migration |
 |------|--------|-----------|
-| `features/generator/hooks/use-generator.ts` | useSWR usage; mutate + mutateUsageStats after calculate | `useQuery` for usage; after calculation `queryClient.invalidateQueries(usage)` and history; optionally `refetch()` from the usage query |
+| `features/generator/hooks/use-generator.ts` | useSWR usage; mutate + mutateUsageStats after calculate | `useQuery` for usage; after generation `queryClient.invalidateQueries(usage)` and history; optionally `refetch()` from the usage query |
 
 ### 5.6 Features – Subscriptions
 
@@ -354,7 +354,7 @@ Use this as a checklist; implement in an order that avoids breaking the app (e.g
   `queryClient.removeQueries({ predicate: (q) => keyMatches(q.queryKey, ["api"]) })` for logout.  
   For “all generator and subscription related”: predicate that checks `queryKey` array for substrings or key segments.
 
-### 6.2 After Mutations (e.g. create order, run calculation, export)
+### 6.2 After Mutations (e.g. create order, run generation, export)
 
 - Use `queryClient.invalidateQueries(...)` so the next read refetches.
 - Optionally use `queryClient.refetchQueries(...)` if you want an immediate refetch in the same tick.

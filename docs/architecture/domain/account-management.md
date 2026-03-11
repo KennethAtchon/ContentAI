@@ -259,8 +259,8 @@ The Usage Dashboard shows detailed generator usage history and statistics.
 
 ### Key Features
 
-- **Usage Summary:** Total calculations this month
-- **History Table:** Past calculations with timestamps
+- **Usage Summary:** Total generations this month
+- **History Table:** Past generations with timestamps
 - **Export Options:** Download usage data (tier-dependent)
 - **Visual Analytics:** Charts and graphs for usage trends
 
@@ -269,9 +269,9 @@ The Usage Dashboard shows detailed generator usage history and statistics.
 ```typescript
 interface GeneratorUsageRecord {
   id: string;
-  calculationType: 'mortgage' | 'loan' | 'investment' | 'retirement';
+  featureType: 'hook generator' | 'caption generator' | 'script generator' | 'hashtag generator';
   createdAt: Date;
-  calculationTime: number; // milliseconds
+  generationTime: number; // milliseconds
 }
 
 <Table>
@@ -285,9 +285,9 @@ interface GeneratorUsageRecord {
   <TableBody>
     {history.map(record => (
       <TableRow key={record.id}>
-        <TableCell className="capitalize">{record.calculationType}</TableCell>
+        <TableCell className="capitalize">{record.featureType}</TableCell>
         <TableCell>{new Date(record.createdAt).toLocaleDateString()}</TableCell>
-        <TableCell>{record.calculationTime}ms</TableCell>
+        <TableCell>{record.generationTime}ms</TableCell>
       </TableRow>
     ))}
   </TableBody>
@@ -308,10 +308,10 @@ The Generator Interface provides direct access to AI content generators from the
 
 ```typescript
 const generators = [
-  { type: 'mortgage', name: 'Mortgage Generator', tier: 'basic' },
-  { type: 'loan', name: 'Loan Generator', tier: 'basic' },
-  { type: 'investment', name: 'Investment Generator', tier: 'pro' },
-  { type: 'retirement', name: 'Retirement Generator', tier: 'enterprise' },
+  { type: 'hook generator', name: 'Hook Generator Generator', tier: 'basic' },
+  { type: 'caption generator', name: 'Caption Generator Generator', tier: 'basic' },
+  { type: 'script generator', name: 'Script Generator Generator', tier: 'pro' },
+  { type: 'hashtag generator', name: 'Hashtag Generator Generator', tier: 'enterprise' },
 ];
 
 <div className="grid gap-6 md:grid-cols-2">
@@ -469,7 +469,7 @@ await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
   fallback={
     <Card className="opacity-50">
       <CardHeader>
-        <CardTitle>Investment Generator</CardTitle>
+        <CardTitle>Script Generator Generator</CardTitle>
         <CardDescription>Requires Pro plan or higher</CardDescription>
       </CardHeader>
       <CardContent>

@@ -4,17 +4,26 @@
  *
  * NOTE: This script upserts niches first, then inserts reels with the correct nicheId FK.
  */
-import { db } from "../services/db/db";
-import { reels, niches } from "../infrastructure/database/drizzle/schema";
+import { db } from "../src/services/db/db";
+import { reels, niches } from "../src/infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
-import { debugLog } from "../utils/debug/debug";
+import { debugLog } from "../src/utils/debug/debug";
 
 const MOCK_NICHES = [
-  { name: "personal finance", description: "Personal finance tips, investing, and saving" },
-  { name: "health & fitness", description: "Fitness, nutrition, and wellness content" },
+  {
+    name: "personal finance",
+    description: "Personal finance tips, investing, and saving",
+  },
+  {
+    name: "health & fitness",
+    description: "Fitness, nutrition, and wellness content",
+  },
 ];
 
-const mockReelsByNiche: Record<string, Omit<typeof reels.$inferInsert, "nicheId">[]> = {
+const mockReelsByNiche: Record<
+  string,
+  Omit<typeof reels.$inferInsert, "nicheId">[]
+> = {
   "personal finance": [
     {
       username: "@financeflips",
@@ -155,16 +164,22 @@ async function seed() {
       totalReels++;
     }
 
-    debugLog.info(`Seeded ${reelData.length} reels for niche "${nicheData.name}"`, {
-      service: "seed",
-      operation: "seed",
-    });
+    debugLog.info(
+      `Seeded ${reelData.length} reels for niche "${nicheData.name}"`,
+      {
+        service: "seed",
+        operation: "seed",
+      },
+    );
   }
 
-  debugLog.info(`Done. Seeded ${MOCK_NICHES.length} niches, ${totalReels} reels.`, {
-    service: "seed",
-    operation: "seed",
-  });
+  debugLog.info(
+    `Done. Seeded ${MOCK_NICHES.length} niches, ${totalReels} reels.`,
+    {
+      service: "seed",
+      operation: "seed",
+    },
+  );
   process.exit(0);
 }
 

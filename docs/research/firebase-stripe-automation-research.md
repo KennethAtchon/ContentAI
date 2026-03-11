@@ -484,7 +484,7 @@ Key success factors:
 4. **Documentation** for team knowledge sharing
 5. **Testing** to ensure reliability across environments
 
-The investment in automation will pay dividends through:
+The script generator in automation will pay dividends through:
 - Reduced manual configuration time
 - Fewer human errors
 - Consistent environments

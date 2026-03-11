@@ -29,7 +29,7 @@ Any replacement for the default “generator” feature must provide the followi
 
 - **Location (default):** `features/generator/constants/generator.constants.ts`
 - **Contract:**
-  - An object keyed by **feature type** (e.g. `mortgage` | `loan` | `investment` | `retirement` or `resume_basic` | `resume_pro`).
+  - An object keyed by **feature type** (e.g. `hook generator` | `caption generator` | `script generator` | `hashtag generator` or `resume_basic` | `resume_pro`).
   - Each entry has: `id`, `name`, `shortName`, `description`, `tierRequirement` (SubscriptionTier | null for free), `icon`, `displayOrder`, and any UI metadata.
   - Exports: **tier requirements map** (featureType → SubscriptionTier | null), **list of types**, **“get config by type”**, **“get types for tier”**, **“is free”**.
 - **Wired into:** `core-feature-permissions.ts` (see below).
@@ -66,7 +66,7 @@ Any replacement for the default “generator” feature must provide the followi
 
 ### 6. Usage model (already generic)
 
-- **DB:** `FeatureUsage` with `featureType`, `usageTimeMs`, etc. No schema change needed when swapping topic; only the **values** of `featureType` change (e.g. `"mortgage"` → `"resume_basic"`).
+- **DB:** `FeatureUsage` with `featureType`, `usageTimeMs`, etc. No schema change needed when swapping topic; only the **values** of `featureType` change (e.g. `"hook generator"` → `"resume_basic"`).
 - **Recording:** Your “calculate/run” API route records one row per use; existing usage/limit logic stays the same.
 
 ### 7. UI: main app page + component map
@@ -97,15 +97,15 @@ Use this as a checklist. “Optional” means only if you introduce a new slug o
 | **App route (page)** | `app/(customer)/(main)/generator/` | Either **rename** folder to match slug (e.g. `resumes/`) or add `app/(customer)/(main)/[slug]/` and route by slug. Update any redirects that use `CORE_FEATURE_PATH`. |
 | **API routes** | `app/api/generator/` | Either **rename** to match slug (e.g. `app/api/resumes/`) or add dynamic segment `app/api/[slug]/` and delegate by slug. Ensure all handlers use `CORE_FEATURE_API_PREFIX` or the same constant. |
 | **Feature module** | `features/generator/` | **Option A:** Replace contents in place (new config, types, service, components). **Option B:** Create e.g. `features/resumes/` and keep generator as-is or remove it. |
-| **Feature config** | `features/generator/constants/generator.constants.ts` (or new feature’s constants) | Define your feature types, tier requirements, metadata. Same shape as `CALCULATOR_CONFIG` (id, name, tierRequirement, icon, displayOrder, etc.). |
+| **Feature config** | `features/generator/constants/generator.constants.ts` (or new feature’s constants) | Define your feature types, tier requirements, metadata. Same shape as `FEATURE_CONFIG` (id, name, tierRequirement, icon, displayOrder, etc.). |
 | **Permissions** | `shared/utils/permissions/core-feature-permissions.ts` | Point imports to your new feature’s config (e.g. from `features/resumes/constants/resume.constants.ts`) and export the same functions. `FeatureType` becomes your type union. |
-| **Subscription tier features** | `shared/constants/subscription.constants.ts` | Update `calculationTypes` (or rename to e.g. `featureTypes`) to your type keys; adjust `maxCalculationsPerMonth` / naming if desired (semantics stay: “usage per month”). |
+| **Subscription tier features** | `shared/constants/subscription.constants.ts` | Update `featureTypes` (or rename to e.g. `featureTypes`) to your type keys; adjust `maxGenerationsPerMonth` / naming if desired (semantics stay: “usage per month”). |
 | **Query keys** | `shared/lib/query-keys.ts` | If you keep slug `generator`, no change. If new slug (e.g. `resumes`), add keys for `resumes/usage`, `resumes/history`, `resumes/export` or derive from a single constant. |
 | **Nav / footer / manifest** | `shared/components/layout/navbar.tsx`, `footer-custom.tsx`, `app/manifest.ts` | They use `CORE_FEATURE_PATH` and translation keys. Only change: ensure translation key for the nav label (e.g. “Resumes”) in `en.json`. |
 | **Account / usage UI** | `features/account/components/usage-dashboard.tsx`, `generator-interface.tsx`, `account-interactive.tsx` | They use `CORE_FEATURE_API_PREFIX`, `CORE_FEATURE_PATH`, and feature config. If you replace the feature module and permissions, update imports to your new feature’s component map and types. |
 | **Payments / success** | `features/payments/components/success/subscription-success.tsx` | Uses `CORE_FEATURE_PATH`; no change if slug comes from app.constants. |
 | **Rate limit (optional)** | `shared/constants/rate-limit.config.ts` | Default key `generator`; you can rename to `core_feature` or add a key for your new slug (e.g. `resumes`) and use it in the API middleware. |
-| **Translations** | `translations/en.json` | Replace all product- and topic-specific strings (app name, “generator”, “calculations”, FAQ, account tabs, etc.). Search for “YourApp”, “generator”, “calculation” to find keys. |
+| **Translations** | `translations/en.json` | Replace all product- and topic-specific strings (app name, “generator”, “generations”, FAQ, account tabs, etc.). Search for “YourApp”, “generator”, “generation” to find keys. |
 | **FAQ** | `features/faq/data/faq-data.ts` | Uses translation keys only; update `en.json` for FAQ content. No code change unless you add new categories. |
 | **API validation** | `shared/utils/validation/api-validation.ts` | If your new feature has a new request schema, add or swap the schema used by the “calculate” route (e.g. resume request schema). |
 
@@ -124,7 +124,7 @@ Best when you want **one** core feature and are fine with the folder name matchi
    - Update any direct imports that reference `@/app/api/generator` (prefer using `CORE_FEATURE_API_PREFIX` in code so only route folders need renaming).
 3. **Feature module:** Replace contents of `features/generator/` with your new topic (config, types, validation, service, components, component map). Keep the same **export names** expected by `core-feature-permissions.ts` (tier requirements, getGeneratorsForTier → getFeaturesForTier if you rename, etc.) or update `core-feature-permissions.ts` to import from your new config.
 4. **Permissions:** In `core-feature-permissions.ts`, point imports to your new config; ensure `FeatureType`, `FEATURE_TIER_REQUIREMENTS`, `getAccessibleFeatures` (and any “get generators for tier” helper) match.
-5. **Subscription constants:** In `subscription.constants.ts`, set `calculationTypes` (or equivalent) to your new feature type keys.
+5. **Subscription constants:** In `subscription.constants.ts`, set `featureTypes` (or equivalent) to your new feature type keys.
 6. **Query keys:** If slug changed, add or adjust keys in `query-keys.ts` for your new API paths.
 7. **Account UI:** Update `generator-interface.tsx` (or rename to e.g. `core-feature-interface.tsx`) to use your new component map and types; update `usage-dashboard.tsx` and `account-interactive.tsx` to use your new feature’s API and labels.
 8. **Translations:** Replace `en.json` with your product name and topic copy; update nav tab key (e.g. `account_tabs_generator` → “Resumes” or add `account_tabs_core_feature`).
@@ -139,7 +139,7 @@ Best when you want **two** products (e.g. generators and resumes) or want to kee
    - Add a second permission module (e.g. `resume-permissions.ts`) and use it only in resume routes, or
    - Generalize `core-feature-permissions.ts` to accept a “feature set” (generator vs resumes) and wire resume routes to the resume config.
 4. **Nav / links:** Add a second nav item for “Resumes” pointing to `/resumes` (or use a single “Tools” that switches by slug). Manifest can keep one “start URL” or add both.
-5. **Subscription:** Decide if resume types share the same tier limits as “calculations” or have separate limits (may require schema or config extension).
+5. **Subscription:** Decide if resume types share the same tier limits as “generations” or have separate limits (may require schema or config extension).
 6. **Query keys:** Add keys for `resumes/usage`, `resumes/history`, etc.
 7. **Translations:** Add keys for resume-specific copy and nav labels.
 
@@ -154,11 +154,11 @@ Use this for “turn this template into ResumeHelper (or similar) with one core 
 - [ ] **3. API routes** – Rename `project/app/api/generator/` to match slug (e.g. `resumes/`). Ensure each route uses your new feature’s service, validation, and config; keep usage recording to `FeatureUsage` with your new `featureType` values.
 - [ ] **4. Feature module** – Replace `project/features/generator/` with your topic (or create `features/<topic>/` and delete/archive generator). Implement: constants (config + tier map), types, validation, service, components, component map.
 - [ ] **5. Permissions** – In `project/shared/utils/permissions/core-feature-permissions.ts`, import tier config and helpers from your new feature’s constants. Export same function names; `FeatureType` = your type union.
-- [ ] **6. Subscription constants** – In `project/shared/constants/subscription.constants.ts`, set tier feature lists to your feature type keys (e.g. `resume_basic`, `resume_pro`). Optionally rename `calculationTypes` → `featureTypes` and `maxCalculationsPerMonth` → `maxUsagePerMonth` for clarity.
+- [ ] **6. Subscription constants** – In `project/shared/constants/subscription.constants.ts`, set tier feature lists to your feature type keys (e.g. `resume_basic`, `resume_pro`). Optionally rename `featureTypes` → `featureTypes` and `maxGenerationsPerMonth` → `maxUsagePerMonth` for clarity.
 - [ ] **7. Query keys** – In `project/shared/lib/query-keys.ts`, add or update keys for your API prefix (e.g. `resumes` usage, history, export) if slug changed.
 - [ ] **8. Account / usage UI** – Point `usage-dashboard.tsx`, account tabs, and the main feature interface to your new feature’s API paths, component map, and types. Use translation keys for “Resumes” (or your label).
 - [ ] **9. Rate limit (optional)** – In `project/shared/constants/rate-limit.config.ts`, add a key for your slug (e.g. `resumes`) or rename `generator` → `core_feature` and use in API middleware.
-- [ ] **10. Translations** – Replace `project/translations/en.json`: product name, taglines, nav labels, account tabs, FAQ, and all topic-specific strings. Search for “YourApp”, “generator”, “calculation” to find keys.
+- [ ] **10. Translations** – Replace `project/translations/en.json`: product name, taglines, nav labels, account tabs, FAQ, and all topic-specific strings. Search for “YourApp”, “generator”, “generation” to find keys.
 
 ---
 

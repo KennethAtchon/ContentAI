@@ -359,9 +359,7 @@
         "niche_name_unique": {
           "name": "niche_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -466,9 +464,7 @@
         "order_stripe_session_id_unique": {
           "name": "order_stripe_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "stripe_session_id"
-          ]
+          "columns": ["stripe_session_id"]
         }
       },
       "policies": {},
@@ -851,12 +847,8 @@
           "name": "reel_niche_id_niche_id_fk",
           "tableFrom": "reel",
           "tableTo": "niche",
-          "columnsFrom": [
-            "niche_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["niche_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -866,9 +858,7 @@
         "reel_external_id_unique": {
           "name": "reel_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "external_id"
-          ]
+          "columns": ["external_id"]
         }
       },
       "policies": {},
@@ -990,16 +980,12 @@
         "user_firebase_uid_unique": {
           "name": "user_firebase_uid_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "firebase_uid"
-          ]
+          "columns": ["firebase_uid"]
         },
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

@@ -2,7 +2,7 @@
 
 This is **ReelStudio** — an AI-powered content intelligence platform for creators and marketers. Users discover viral reels in any niche, get AI analysis explaining exactly why they perform, then generate hooks, captions, and scripts inspired by that data — and schedule them for publishing.
 
-The platform is built on a SaaS template with auth, subscriptions, payments, and admin infrastructure already implemented. The core feature has been migrated from a calculator template to the ReelStudio workspace.
+The platform is built on a SaaS template with auth, subscriptions, payments, and admin infrastructure already implemented. The core feature has been migrated from a studio tool template to the ReelStudio workspace.
 
 ---
 
