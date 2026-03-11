@@ -120,6 +120,12 @@ export const reels = pgTable(
     thumbnailEmoji: text("thumbnail_emoji"),
     thumbnailUrl: text("thumbnail_url"),
     videoUrl: text("video_url"),
+    // R2 storage keys for downloaded media
+    videoR2Key: text("video_r2_key"),
+    audioR2Key: text("audio_r2_key"),
+    // Video metadata
+    videoLengthSeconds: integer("video_length_seconds"),
+    cutFrequencySeconds: numeric("cut_frequency_seconds", { precision: 4, scale: 2 }),
     postedAt: timestamp("posted_at"),
     daysAgo: integer("days_ago"),
     isViral: boolean("is_viral").notNull().default(false),
@@ -145,6 +151,22 @@ export const reelAnalyses = pgTable(
     captionFramework: text("caption_framework"),
     curiosityGapStyle: text("curiosity_gap_style"),
     remixSuggestion: text("remix_suggestion"),
+    // Audio analysis
+    // e.g. "motivational", "voiceover", "inspirational", "modern_songs", "no_audio"
+    audioType: text("audio_type"),
+    // Caption analysis
+    // e.g. "hook_based", "pov", "cta", "question_driven", "warning", "one_liner",
+    //      "teaser", "listicle", "emoji_heavy", "aesthetic_motivational"
+    captionStyle: text("caption_style"),
+    // e.g. "montserrat", "helvetica", "the_bold_font", "poppins", "arial",
+    //      "roboto", "open_sans", "futura", "bebas_neue"
+    captionFont: text("caption_font"),
+    // Comment bait strategy description
+    commentBaitStyle: text("comment_bait_style"),
+    // Description of how on-screen text is structured (lists, instructions, etc.)
+    onScreenTextStructure: text("on_screen_text_structure"),
+    // e.g. "middle", "top", "bottom", "top_and_bottom"
+    textPosition: text("text_position"),
     analysisModel: text("analysis_model"),
     rawResponse: jsonb("raw_response"),
     analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),

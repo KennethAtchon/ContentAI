@@ -1,0 +1,10 @@
+ALTER TABLE "reel_analysis" ADD COLUMN "audio_type" text;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD COLUMN "caption_style" text;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD COLUMN "caption_font" text;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD COLUMN "comment_bait_style" text;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD COLUMN "on_screen_text_structure" text;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD COLUMN "text_position" text;--> statement-breakpoint
+ALTER TABLE "reel" ADD COLUMN "video_r2_key" text;--> statement-breakpoint
+ALTER TABLE "reel" ADD COLUMN "audio_r2_key" text;--> statement-breakpoint
+ALTER TABLE "reel" ADD COLUMN "video_length_seconds" integer;--> statement-breakpoint
+ALTER TABLE "reel" ADD COLUMN "cut_frequency_seconds" numeric(4, 2);

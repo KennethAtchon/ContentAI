@@ -299,41 +299,190 @@ The Studio shell does **not** use the global `PageLayout` component. It has its 
 
 ## Admin: Niche Management
 
-Niches (the content categories driving discovery) are managed by admins.
+Niches (the content categories driving discovery) are managed by admins via `GET/POST/PUT/DELETE /api/admin/niches`. Creating a niche and triggering a scrape scan populates the `reel` table with real Instagram content for that niche.
 
-**Routes:** `GET/POST/PUT/DELETE /api/admin/niches`
+See [Scrape System](#scrape-system) below for the full technical breakdown of how scraping works, including Apify integration, job queue lifecycle, data mapping, and R2 storage fields.
 
-**Admin Niche Flow:**
+---
+
+## Scrape System
+
+The scrape system populates the `reel` table with real Instagram reels for a given niche. It is admin-triggered, Apify-powered, and runs asynchronously via an in-memory/Redis job queue.
+
+---
+
+### Components
+
+```
+Admin UI
+  └── POST /api/admin/niches/:id/scan
+        └── QueueService.enqueue(nicheId, nicheName)
+              └── QueueService.drain() [async, single worker]
+                    └── ScrapingService.scrapeNiche(nicheId, nicheName)
+                          ├── Apify Actor (Instagram Reel scraper)
+                          └── ScrapingService.saveReels()  →  PostgreSQL (reel table)
+```
+
+**Files:**
+```
+backend/src/services/
+  ├── scraping.service.ts   → Apify integration + DB persistence
+  └── queue.service.ts      → Job lifecycle, Redis persistence
+backend/src/routes/admin/
+  └── niches.ts             → Admin endpoints for niche + scan management
+```
+
+---
+
+### 1. Job Queue
+
+**Architecture:** Single-worker, non-blocking, Redis-backed.
+
+| Detail | Value |
+|---|---|
+| Storage | In-memory array + Redis (TTL 24h) |
+| Concurrency | 1 job at a time (`running` flag) |
+| Dispatch | `setTimeout(() => drain(), 0)` — never blocks HTTP response |
+| Redis key (job) | `scrape_job:{jobId}` |
+| Redis key (index) | `scrape_jobs_by_niche:{nicheId}` (max 100 entries) |
+
+**Job lifecycle:**
+
+```
+enqueue()  →  status: "queued"
+drain()    →  status: "running", startedAt set
+               ↓ success
+           →  status: "completed", completedAt set, result: { saved, skipped, durationMs }
+               ↓ failure
+           →  status: "failed", error message stored
+```
+
+**Job ID format:** `scan_${timestamp}_${random4hex}`
+
+**Polling endpoint:**
+```
+GET /api/admin/niches/jobs/:jobId       → single job status
+GET /api/admin/niches/:id/jobs          → last 50 jobs for a niche
+```
+
+---
+
+### 2. Apify Integration
+
+The scraper calls the **Apify Instagram Reel scraper actor** (`APIFY_ACTOR_ID` env var).
+
+**Run flow:**
 
 ```mermaid
 sequenceDiagram
-    participant Admin
-    participant Admin UI
-    participant Backend
-    participant Scraping Service
+    participant QueueWorker
+    participant Apify API
     participant PostgreSQL
 
-    Admin->>Admin UI: Create niche (name: "Personal Finance")
-    Admin UI->>Backend: POST /api/admin/niches { name, description }
-    Backend->>PostgreSQL: INSERT INTO niche
-    Backend-->>Admin UI: New niche created
+    QueueWorker->>Apify API: POST /v2/acts/{ACTOR_ID}/runs { hashtags: [nicheName], resultsLimit: 50 }
+    Apify API-->>QueueWorker: { runId, datasetId }
 
-    Admin->>Admin UI: Click "Scan Niche" (trigger scraping)
-    Admin UI->>Backend: POST /api/admin/niches/3/scan
-    Backend->>Scraping Service: enqueue(nicheId, nicheName)
-    Scraping Service-->>Backend: { jobId }
-    Backend-->>Admin UI: { jobId }
+    loop Poll every 3s (max 40 attempts ≈ 2 min)
+        QueueWorker->>Apify API: GET /v2/actor-runs/{runId}
+        Apify API-->>QueueWorker: { status: "RUNNING" | "SUCCEEDED" | "FAILED" | ... }
+    end
 
-    Admin UI->>Backend: GET /api/admin/niches/jobs/jobId (poll status)
-    Backend-->>Admin UI: { status: "running" | "completed" | "failed" }
+    QueueWorker->>Apify API: GET /v2/datasets/{datasetId}/items?format=json&clean=true
+    Apify API-->>QueueWorker: [ReelItem, ...]
 
-    Scraping Service->>PostgreSQL: INSERT INTO reel (scraped data)
-    Admin UI->>Backend: GET /api/admin/niches/3/reels
-    Backend->>PostgreSQL: SELECT reels WHERE nicheId=3
-    Backend-->>Admin UI: Reel list with counts
+    QueueWorker->>PostgreSQL: INSERT INTO reel ON CONFLICT (external_id) DO NOTHING
+    PostgreSQL-->>QueueWorker: { saved, skipped }
 ```
 
-**Deduplication:** `POST /api/admin/niches/:id/dedupe` removes duplicate reels by `externalId`.
+**Apify actor input:**
+```json
+{ "hashtags": ["personalfinance"], "resultsLimit": 50 }
+```
+
+**Poll settings:**
+
+| Setting | Value |
+|---|---|
+| Interval | 3 seconds |
+| Max attempts | 40 (~2 min timeout) |
+| Retry attempts | 3 (backoff: 2s → 4s → 8s) |
+| Success statuses | `SUCCEEDED` |
+| Failure statuses | `FAILED`, `ABORTED`, `TIMED-OUT` |
+
+**Fallback:** If `SOCIAL_API_KEY` is not set, `scrapeNiche()` returns `{ saved: 0, skipped: 0 }` immediately — safe for local dev.
+
+---
+
+### 3. Data Mapping
+
+Raw fields from Apify are mapped to the `reel` table as follows:
+
+| Apify Field | DB Column | Notes |
+|---|---|---|
+| `id` | `external_id` | Unique — used for dedup |
+| `ownerUsername` | `username` | |
+| `videoViewCount` | `views` | Falls back to `videoPlayCount` |
+| `likesCount` | `likes` | |
+| `commentsCount` | `comments` | |
+| `caption` (first line, 280 chars) | `hook` | Extracted as opening hook |
+| `caption` (full) | `caption` | |
+| `musicInfo.song_name` | `audio_name` | |
+| `musicInfo.audio_id` | `audio_id` | |
+| `thumbnailUrl` / `displayUrl` | `thumbnail_url` | |
+| `videoUrl` | `video_url` | Source URL (not stored in R2 yet) |
+| `takenAt` / `timestamp` | `posted_at` | |
+| computed | `engagement_rate` | `((likes + comments) / views) * 100` |
+| computed | `is_viral` | `views >= VIRAL_VIEWS_THRESHOLD` (default 100k) |
+
+**R2 storage fields** (populated when media is downloaded):
+
+| DB Column | Purpose |
+|---|---|
+| `video_r2_key` | R2 object key for the downloaded video file |
+| `audio_r2_key` | R2 object key for the extracted audio file |
+
+**Video metadata fields** (populated post-processing):
+
+| DB Column | Purpose |
+|---|---|
+| `video_length_seconds` | Duration in seconds |
+| `cut_frequency_seconds` | Average seconds per cut |
+
+---
+
+### 4. Deduplication
+
+- **Insert-time:** `ON CONFLICT (external_id) DO NOTHING` — new scrapes skip reels already in the DB
+- **Manual sweep:** `POST /api/admin/niches/:id/dedupe` runs a SQL window function that keeps the lowest `id` per `external_id` and deletes all duplicates
+
+---
+
+### 5. Environment Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `SOCIAL_API_KEY` | No (degrades gracefully) | Apify API key |
+| `APIFY_ACTOR_ID` | No (degrades gracefully) | Instagram scraper actor ID |
+| `VIRAL_VIEWS_THRESHOLD` | No (default: 100000) | Min views to flag a reel as viral |
+
+---
+
+### 6. Admin Niche Endpoints (full reference)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/admin/niches` | List all niches with reel counts |
+| `POST` | `/api/admin/niches` | Create niche |
+| `PUT` | `/api/admin/niches/:id` | Update niche name/description |
+| `DELETE` | `/api/admin/niches/:id` | Delete (blocked if reels exist) |
+| `POST` | `/api/admin/niches/:id/scan` | Enqueue scrape job |
+| `GET` | `/api/admin/niches/jobs/:jobId` | Poll job status |
+| `GET` | `/api/admin/niches/:id/jobs` | List last 50 jobs for niche |
+| `GET` | `/api/admin/niches/:id/reels` | Paginated reels for niche |
+| `POST` | `/api/admin/niches/:id/dedupe` | Remove duplicate reels |
+| `DELETE` | `/api/admin/reels/:reelId` | Hard-delete a reel |
+
+All admin endpoints require Firebase Admin JWT + CSRF token and are rate-limited at 30 req/min.
 
 ---
 
