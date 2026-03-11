@@ -61,7 +61,7 @@ export const ORDER_PRODUCTS: OrderProduct[] = [
     id: "training-session",
     name: "Team Training Session",
     description:
-      "On-site or virtual training session for your team. Learn how to maximize the use of our calculators.",
+      "On-site or virtual training session for your team. Learn how to maximize the use of our studio.",
     price: 499.99,
     category: "consultation",
   },

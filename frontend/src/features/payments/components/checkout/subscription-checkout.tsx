@@ -278,7 +278,7 @@ export function SubscriptionCheckout({
                     <span className="text-sm">
                       <span className="font-semibold">
                         {tierConfig.features.maxReelsPerMonth === -1
-                          ? t("calculator_unlimited")
+                          ? t("studio_unlimited")
                           : tierConfig.features.maxReelsPerMonth.toLocaleString()}
                       </span>{" "}
                       reels per month

@@ -6,9 +6,9 @@
 export const queryKeys = {
   api: {
     profile: () => ["api", "customer", "profile"] as const,
-    calculatorUsage: () => ["api", "calculator", "usage"] as const,
-    calculatorHistory: (params?: { page?: number; limit?: number }) =>
-      ["api", "calculator", "history", params] as const,
+    reelsUsage: () => ["api", "reels", "usage"] as const,
+    reelsHistory: (params?: { page?: number; limit?: number }) =>
+      ["api", "reels", "history", params] as const,
     trialEligibility: () =>
       ["api", "subscriptions", "trial-eligibility"] as const,
     currentSubscription: () => ["api", "subscriptions", "current"] as const,

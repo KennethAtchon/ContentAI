@@ -18,7 +18,7 @@ function AccountPage() {
             </h1>
             <p className="text-lg text-slate-200/45">
               {t(
-                "common_manage_your_subscription_view_usage_and_access_calculators"
+                "common_manage_your_subscription_view_usage_and_access_studio"
               )}
             </p>
           </div>

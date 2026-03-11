@@ -39,10 +39,10 @@ import {
   orderBySessionQuerySchema,
   totalRevenueQuerySchema,
   contactMessagesQuerySchema,
-  calculatorHistoryQuerySchema,
-  calculatorUsageQuerySchema,
+  reelsHistoryQuerySchema,
+  reelsUsageQuerySchema,
   uuidSchema,
-  calculatorExportSchema,
+  reelsExportSchema,
 } from "@/shared/utils/validation/api-validation";
 
 const validUuid = "123e4567-e89b-12d3-a456-426614174000";
@@ -485,28 +485,28 @@ describe("api-validation", () => {
     });
   });
 
-  describe("calculatorHistoryQuerySchema", () => {
+  describe("reelsHistoryQuerySchema", () => {
     test("accepts type filter", () => {
-      const result = calculatorHistoryQuerySchema.safeParse({
-        type: "mortgage",
+      const result = reelsHistoryQuerySchema.safeParse({
+        type: "reels",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe("calculatorUsageQuerySchema", () => {
+  describe("reelsUsageQuerySchema", () => {
     test("accepts type filter", () => {
-      const result = calculatorUsageQuerySchema.safeParse({
-        type: "loan",
+      const result = reelsUsageQuerySchema.safeParse({
+        type: "reels",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe("calculatorExportSchema", () => {
+  describe("reelsExportSchema", () => {
     test("accepts valid export payload", () => {
-      const result = calculatorExportSchema.safeParse({
-        type: "mortgage",
+      const result = reelsExportSchema.safeParse({
+        type: "reels",
         inputs: {},
         results: {},
         format: "pdf",

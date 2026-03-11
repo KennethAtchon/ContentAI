@@ -90,7 +90,7 @@ export function useSubscription(): SubscriptionAccess {
               const path = key.join("/");
               return (
                 path.includes("admin/subscriptions") ||
-                path.includes("calculator/usage") ||
+                path.includes("reels/usage") ||
                 path.includes("subscriptions")
               );
             },

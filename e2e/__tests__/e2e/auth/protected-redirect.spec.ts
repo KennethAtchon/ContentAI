@@ -8,7 +8,7 @@ import { test, expect } from "@playwright/test";
  */
 
 const PROTECTED_CUSTOMER_ROUTES = [
-  "/calculator",
+  "/studio/discover",
   "/account",
   "/checkout",
   "/payment",
@@ -50,7 +50,7 @@ test.describe("Sign-out clears session", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto("/calculator");
+    await page.goto("/studio/discover");
     await expect(page).toHaveURL(/sign-in|login|auth/, { timeout: 10000 });
 
     await context.close();

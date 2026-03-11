@@ -51,7 +51,7 @@ export function SubscriptionManagement() {
     error,
     isLoading: loading,
   } = useQuery({
-    queryKey: queryKeys.api.calculatorUsage(),
+    queryKey: queryKeys.api.reelsUsage(),
     queryFn: () => fetcher(`${CORE_FEATURE_API_PREFIX}/usage`),
     enabled: !!user,
   });
@@ -70,7 +70,7 @@ export function SubscriptionManagement() {
         <CardHeader>
           <CardTitle>{t("account_subscription_no_active")}</CardTitle>
           <CardDescription>
-            {t("common_subscribe_to_a_plan_to_access_the_calculator_features")}
+            {t("common_subscribe_to_a_plan_to_access_the_studio_features")}
           </CardDescription>
         </CardHeader>
         <CardContent>

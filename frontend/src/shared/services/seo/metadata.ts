@@ -75,15 +75,15 @@ const DEFAULT_CONFIG = {
   defaultImage: "/images/og-default.jpg",
   twitterHandle: `@${APP_NAME.toLowerCase().replace(/\s+/g, "")}`,
   defaultKeywords: [
-    "financial calculator",
-    "mortgage calculator",
-    "loan calculator",
-    "investment calculator",
-    "retirement planner",
-    "financial planning",
-    "SaaS calculator",
-    "professional calculator",
-    "calculator suite",
+    "AI content",
+    "instagram reels",
+    "content creation",
+    "viral hooks",
+    "reel maker",
+    "social media content",
+    "SaaS studio",
+    "professional reel maker",
+    "content suite",
   ],
 };
 
@@ -177,8 +177,8 @@ export function generateBusinessMetadata(
       ...DEFAULT_CONFIG.defaultKeywords,
       "SaaS",
       "subscription",
-      "financial tools",
-      "business calculator",
+      "content tools",
+      "business content",
     ],
     ...config,
   });
@@ -194,11 +194,11 @@ export function generateProductMetadata(
 
   return generateMetadata({
     title: `${productName} - ${businessName}`,
-    description: `${description} Professional calculator from ${businessName}. ${price !== undefined ? `Starting at $${price}` : "Learn more today"}.`,
+    description: `${description} Professional studio from ${businessName}. ${price !== undefined ? `Starting at $${price}` : "Learn more today"}.`,
     keywords: [
       productName.toLowerCase(),
-      "calculator",
-      "financial calculator",
+      "studio",
+      "content generator",
       ...DEFAULT_CONFIG.defaultKeywords,
     ],
     ...config,

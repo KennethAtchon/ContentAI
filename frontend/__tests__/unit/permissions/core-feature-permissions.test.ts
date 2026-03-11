@@ -99,7 +99,7 @@ describe("core-feature-permissions", () => {
   });
 
   describe("FEATURE_TIER_REQUIREMENTS", () => {
-    test("has entries for all calculator types", () => {
+    test("has entries for all features", () => {
       expect(FEATURE_TIER_REQUIREMENTS.mortgage).toBeNull();
       expect(FEATURE_TIER_REQUIREMENTS.loan).toBe("basic");
       expect(FEATURE_TIER_REQUIREMENTS.investment).toBe("pro");

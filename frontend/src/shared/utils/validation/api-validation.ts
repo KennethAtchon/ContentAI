@@ -371,11 +371,9 @@ export function validateInput<T>(
   }
 }
 
-// calculationRequestSchema removed — calculator feature no longer used
-
-export const calculatorExportSchema = z.object({
-  calculationId: uuidSchema.optional(),
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]),
+export const reelsExportSchema = z.object({
+  generationId: uuidSchema.optional(),
+  type: z.enum(["reels", "custom"]).optional(),
   inputs: z.record(z.string(), z.unknown()), // Flexible inputs object
   results: z.record(z.string(), z.unknown()), // Flexible results object
   format: z.enum(["pdf", "csv", "json"]).optional().default("pdf"),
@@ -633,12 +631,12 @@ export const contactMessagesQuerySchema = z.object({
   dateTo: z.iso.datetime().optional(),
 });
 
-export const calculatorHistoryQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]).optional(),
+export const reelsHistoryQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(["reels", "custom"]).optional(),
 });
 
-export const calculatorUsageQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]).optional(),
+export const reelsUsageQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(["reels", "custom"]).optional(),
 });
 
 // Type exports for use in API endpoints
