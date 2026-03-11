@@ -2,7 +2,7 @@
  * Load Test — k6 script
  *
  * Runs a realistic multi-scenario load test against the Hono backend.
- * Exercises: health checks, public contact form, authenticated calculator,
+ * Exercises: health checks, public contact form, authenticated studio,
  * and admin endpoints.
  *
  * Requirements:
@@ -37,7 +37,7 @@ const USER_TOKEN = __ENV.USER_TOKEN || "";
 const ADMIN_TOKEN = __ENV.ADMIN_TOKEN || "";
 
 const errorRate = new Rate("error_rate");
-const calculatorDuration = new Trend("calculator_duration");
+const generationDuration = new Trend("generation_duration");
 
 // ─── Options ──────────────────────────────────────────────────────────────────
 
@@ -130,29 +130,11 @@ export function authenticatedScenario() {
     return;
   }
 
-  group("Calculator — usage", () => {
-    const res = http.get(`${BASE_URL}/api/calculator/usage`, {
+  group("Studio — profile", () => {
+    const res = http.get(`${BASE_URL}/api/customer/profile`, {
       headers: authHeaders(USER_TOKEN),
     });
-    const ok = check(res, { "usage 200": (r) => r.status === 200 });
-    errorRate.add(!ok);
-  });
-
-  group("Calculator — calculate (loan)", () => {
-    const start = Date.now();
-    const res = http.post(
-      `${BASE_URL}/api/calculator/calculate`,
-      jsonBody({
-        type: "loan",
-        inputs: { principal: 10000, interestRate: 5, term: 36 },
-      }),
-      { headers: authHeaders(USER_TOKEN) },
-    );
-    calculatorDuration.add(Date.now() - start);
-
-    const ok = check(res, {
-      "calculate 200 or 403": (r) => r.status === 200 || r.status === 403,
-    });
+    const ok = check(res, { "profile 200": (r) => r.status === 200 });
     errorRate.add(!ok);
   });
 

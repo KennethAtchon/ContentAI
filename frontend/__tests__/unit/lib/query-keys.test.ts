@@ -11,27 +11,27 @@ describe("query-keys", () => {
       expect(queryKeys.api.profile()).toEqual(["api", "customer", "profile"]);
     });
 
-    it("calculatorUsage returns stable key", () => {
-      expect(queryKeys.api.calculatorUsage()).toEqual([
+    it("reelsUsage returns stable key", () => {
+      expect(queryKeys.api.reelsUsage()).toEqual([
         "api",
-        "calculator",
+        "reels",
         "usage",
       ]);
     });
 
-    it("calculatorHistory with no params", () => {
-      expect(queryKeys.api.calculatorHistory()).toEqual([
+    it("reelsHistory with no params", () => {
+      expect(queryKeys.api.reelsHistory()).toEqual([
         "api",
-        "calculator",
+        "reels",
         "history",
         undefined,
       ]);
     });
 
-    it("calculatorHistory with params", () => {
-      expect(queryKeys.api.calculatorHistory({ page: 1, limit: 10 })).toEqual([
+    it("reelsHistory with params", () => {
+      expect(queryKeys.api.reelsHistory({ page: 1, limit: 10 })).toEqual([
         "api",
-        "calculator",
+        "reels",
         "history",
         { page: 1, limit: 10 },
       ]);

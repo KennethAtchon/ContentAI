@@ -39,8 +39,8 @@ import {
   orderBySessionQuerySchema,
   totalRevenueQuerySchema,
   contactMessagesQuerySchema,
-  calculatorHistoryQuerySchema,
-  calculatorUsageQuerySchema,
+  reelsHistoryQuerySchema,
+  reelsUsageQuerySchema,
   uuidSchema,
 } from "@/utils/validation/api-validation";
 
@@ -484,19 +484,19 @@ describe("api-validation", () => {
     });
   });
 
-  describe("calculatorHistoryQuerySchema", () => {
+  describe("reelsHistoryQuerySchema", () => {
     test("accepts type filter", () => {
-      const result = calculatorHistoryQuerySchema.safeParse({
-        type: "mortgage",
+      const result = reelsHistoryQuerySchema.safeParse({
+        type: "reels",
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe("calculatorUsageQuerySchema", () => {
+  describe("reelsUsageQuerySchema", () => {
     test("accepts type filter", () => {
-      const result = calculatorUsageQuerySchema.safeParse({
-        type: "loan",
+      const result = reelsUsageQuerySchema.safeParse({
+        type: "reels",
       });
       expect(result.success).toBe(true);
     });

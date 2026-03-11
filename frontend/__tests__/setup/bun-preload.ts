@@ -439,7 +439,7 @@ const prismaMock = {
   contactMessage: prismaContactMessageMocks,
   $queryRaw: mock().mockResolvedValue([{ health_check: 1 }]),
 };
-// Default featureUsage for calculator/usage/calculate routes
+// Default featureUsage for reels/usage/calculate routes
 prismaFeatureUsageMocks.count.mockResolvedValue(0);
 prismaFeatureUsageMocks.create.mockResolvedValue({});
 prismaFeatureUsageMocks.findMany.mockResolvedValue([]);

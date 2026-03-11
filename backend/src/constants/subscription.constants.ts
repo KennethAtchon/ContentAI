@@ -50,7 +50,7 @@ export interface SubscriptionTierConfig {
 }
 
 // Base tier configurations with features (pricing comes from stripe.constants.ts)
-// Only includes gated calculators (free calculators are not listed here)
+// Only includes gated studio features
 // See FEATURE_TIER_REQUIREMENTS in core-feature-permissions.ts for complete mapping
 const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   [SUBSCRIPTION_TIERS.BASIC]: {

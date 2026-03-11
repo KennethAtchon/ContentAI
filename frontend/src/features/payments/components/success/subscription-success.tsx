@@ -14,8 +14,8 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Calculator,
   Zap,
+  PlaySquare,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -94,8 +94,8 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <Button asChild size="lg" className="h-12 shadow-lg">
               <Link to={CORE_FEATURE_PATH}>
-                <Calculator className="mr-2 h-5 w-5" />
-                Start Calculating
+                <PlaySquare className="mr-2 h-5 w-5" />
+                Start Creating
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -124,9 +124,9 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
                 <span className="text-sm font-semibold text-primary">1</span>
               </div>
               <div>
-                <p className="font-medium">Explore Calculators</p>
+                <p className="font-medium">Explore Studio</p>
                 <p className="text-sm text-muted-foreground">
-                  Access mortgage, loan, investment, and retirement calculators
+                  Discover trending hooks, captions, and content inspiration
                 </p>
               </div>
             </div>
@@ -135,9 +135,9 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
                 <span className="text-sm font-semibold text-primary">2</span>
               </div>
               <div>
-                <p className="font-medium">Export Your Results</p>
+                <p className="font-medium">Export Your Content</p>
                 <p className="text-sm text-muted-foreground">
-                  Download calculations as PDF, Excel, or CSV files
+                  Save your generated reels and export them for publishing
                 </p>
               </div>
             </div>

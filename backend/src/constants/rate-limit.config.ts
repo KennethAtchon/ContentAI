@@ -107,13 +107,13 @@ export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
     alertOnExceed: false, // Monitoring tools may hit these frequently
   },
 
-  // Calculator endpoints - moderate limits for calculator operations
-  calculator: {
+  // Reels endpoints - moderate limits for computation operations
+  reels: {
     window: 60, // 1 minute
     maxRequests: 100,
-    keyPrefix: "calculator_rate_limit",
+    keyPrefix: "reels_rate_limit",
     tps: calculateTPS(60, 100),
-    description: "Calculator computation endpoints",
+    description: "Reels computation endpoints",
     alertOnExceed: false, // Normal usage pattern
   },
 

@@ -64,7 +64,7 @@ const mockReels = [
     engagementRate: "9.44",
     hook: "Stop putting money in your 401k until you do this first.",
     caption:
-      "Controversial take: If you have high-interest debt, your 401k is hurting you. Here's why. Credit card at 24% APR vs. 401k returning ~10%/yr. The math is simple. Pay the debt first. Exception: Get the employer match first (it's free money). Then attack debt. Then max the 401k. Order matters. Sequence of returns matters. Comment 'DEBT' and I'll send you my debt payoff calculator. #401k #debtfree #personalfinance #investing #financialliteracy",
+      "Controversial take: If you have high-interest debt, your 401k is hurting you. Here's why. Credit card at 24% APR vs. 401k returning ~10%/yr. The math is simple. Pay the debt first. Exception: Get the employer match first (it's free money). Then attack debt. Then max the 401k. Order matters. Sequence of returns matters. Comment 'DEBT' and I'll send you my debt payoff resource. #401k #debtfree #personalfinance #investing #financialliteracy",
     audioName: "Ambition - Wale ft. Meek Mill",
     audioId: "SND_3312974856",
     thumbnailEmoji: "📈",

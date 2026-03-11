@@ -260,7 +260,7 @@ export function PricingCard({
               {tier.features.maxReelsPerMonth === -1 ? (
                 <>
                   <span className="font-semibold">
-                    {t("calculator_unlimited")}
+                    {t("studio_unlimited")}
                   </span>{" "}
                   reels/month
                 </>
@@ -282,7 +282,7 @@ export function PricingCard({
               {tier.features.maxGenerationsPerMonth === -1 ? (
                 <>
                   <span className="font-semibold">
-                    {t("calculator_unlimited")}
+                    {t("studio_unlimited")}
                   </span>{" "}
                   AI generations/month
                 </>

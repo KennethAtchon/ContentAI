@@ -644,12 +644,12 @@ export const contactMessagesQuerySchema = z.object({
   dateTo: z.iso.datetime().optional(),
 });
 
-export const calculatorHistoryQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]).optional(),
+export const reelsHistoryQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(["reels", "custom"]).optional(),
 });
 
-export const calculatorUsageQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(["mortgage", "loan", "investment", "retirement"]).optional(),
+export const reelsUsageQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(["reels", "custom"]).optional(),
 });
 
 // Type exports for use in API endpoints
