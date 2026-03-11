@@ -1,123 +1,179 @@
-# Where to start coding
+# Where to Start Coding
 
-This doc points you to the places that matter when using the template: **product identity**, the **core feature** (your main product area), and how to **add or replace** feature types.
+This doc guides you through the key entry points for ReelStudio. The product is already implemented — this is a map of the codebase, not a template setup guide.
 
 ---
 
-## 1. Product identity (one place)
+## 1. Product Identity
 
 **File:** `frontend/src/shared/constants/app.constants.ts`
 
-Set these first so your app name and tagline appear everywhere (UI, SEO, manifest, emails):
-
-- **APP_NAME** – Product name (e.g. "YourApp", "ResumeHelper", "DocFlow").
-- **APP_DESCRIPTION** – Short description for metadata and listings.
-- **APP_TAGLINE** – Tagline used in manifest and marketing.
-- **SUPPORT_EMAIL** – Support/contact email.
-- **SUPPORT_PHONE** – Support phone (SEO structured data and email template).
-- **CORE_FEATURE_SLUG** – URL slug for the main app feature (default `"generator"`). Used to build `/generator` and `/api/generator/*`. Change to `"tools"`, `"documents"`, etc. if you build a different product.
-- **CORE_FEATURE_PATH** – Derived: `/${CORE_FEATURE_SLUG}` (use for links).
-- **CORE_FEATURE_API_PREFIX** – Derived: `/api/${CORE_FEATURE_SLUG}` (use for API calls).
-
-No need to search the codebase for your product name; change this file and (where we use constants) it updates everywhere.
+Defines `APP_NAME`, `APP_DESCRIPTION`, `APP_TAGLINE`, `SUPPORT_EMAIL`, and related constants used across UI, SEO metadata, and email templates.
 
 ---
 
-## 2. Core feature (where your main product lives)
+## 2. Core Feature: ReelStudio Workspace
 
-The template ships with one **default implementation**: AI content generators.
+**Location:** `frontend/src/features/` (reels, generation, studio)
 
-**Location:** `frontend/src/features/generator/`
+The studio workspace has four pillars:
 
-| Part | Path | Purpose |
-|------|------|--------|
-| **Config** | `features/generator/constants/generator.constants.ts` | Defines generator types, tier requirements, names, icons. Add or remove types here. |
-| **Types** | `features/generator/types/generator.types.ts` | Input/output types per generator type. |
-| **Validation** | `features/generator/types/generator-validation.ts` | Zod schemas for API validation. |
-| **Service** | `features/generator/services/generator-service.ts` | Pure generation logic. |
-| **Hook** | `features/generator/hooks/use-generator.ts` | Client-side: calls API, checks access, usage. |
-| **Components** | `features/generator/components/` | UI for each generator (hook generator, caption generator, script generator, hashtag generator). |
-| **Component map** | `features/generator/components/generator-component-map.tsx` | Maps generator type → component. |
+| Pillar | Frontend Feature | Backend Route |
+|--------|-----------------|--------------|
+| Discover | `features/reels/` | `/api/reels` |
+| Analyze | `features/reels/` | `/api/reels/:id/analyze` |
+| Generate | `features/generation/` | `/api/generation` |
+| Queue | (queue route) | `/api/queue` |
 
-**Routes (default slug `generator`):**
+**Key frontend files:**
 
-- App: `/generator` → `frontend/src/routes/(customer)/generator/`
-- API: `/api/generator/*` → `backend/src/routes/generator.ts`
+| File | Purpose |
+|------|---------|
+| `features/reels/components/ReelList.tsx` | Reel discovery sidebar |
+| `features/reels/components/PhonePreview.tsx` | Reel preview panel |
+| `features/reels/components/AnalysisPanel.tsx` | Analysis/Generate/History tabs |
+| `features/generation/hooks/use-generate-content.ts` | Mutation hook for POST /api/generation |
+| `features/studio/components/StudioTopBar.tsx` | Studio navigation |
 
-Permissions and usage limits are wired to this feature (see `project/shared/utils/permissions/` and subscription tier config).
+**Key backend files:**
 
----
-
-## 3. Adding new “feature types” (same product)
-
-Example: adding a new generator (e.g. “savings”) while keeping the same product concept.
-
-1. **Config** – Add an entry in `generator.constants.ts` (`FEATURE_CONFIG`).
-2. **Types** – Add input/output types in `generator.types.ts`.
-3. **Validation** – Add a Zod schema in `generator-validation.ts`.
-4. **Service** – Add a method in `generator-service.ts` and a branch in `performGeneration`.
-5. **Component** – Add a component (e.g. `savings-generator.tsx`) and register it in `generator-component-map.tsx`.
-6. **API** – The calculate route uses the config and validation; add a `case` for the new type in the route’s switch if needed.
-
-Details: [Generator system – Adding new generators](AI_Orchestrator/architecture/domain/generator-system.md#adding-new-generators).
+| File | Purpose |
+|------|---------|
+| `backend/src/routes/reels/index.ts` | Reel discovery + analysis endpoints |
+| `backend/src/routes/generation/index.ts` | Content generation endpoints |
+| `backend/src/routes/queue/index.ts` | Queue management endpoints |
+| `backend/src/services/reels/reel-analyzer.ts` | Claude Haiku analysis logic |
+| `backend/src/services/reels/content-generator.ts` | Claude Sonnet generation logic |
 
 ---
 
-## 4. Replacing the core feature (different product)
+## 3. Adding New Content Niches
 
-**For a full step-by-step swap (e.g. to ResumeHelper), use the [Core Feature Swap Expert](AI_Orchestrator/roles/core-feature-swap-expert.md) role:** it lists every file to touch and the exact contract your new feature must fulfill.
+Niches are managed by admins through the admin dashboard:
 
-If your product is not “generators” (e.g. document generator, image tools):
+1. **Admin UI:** `/admin/niches` → Create/edit niches
+2. **Backend:** `POST /api/admin/niches` → Writes to `niche` table
+3. **Scraping:** `POST /api/admin/niches/:id/scan` → Queues a scrape job to populate reels for that niche
 
-1. **Keep the same structure** – One feature module that provides:
-   - A config of “feature types” (with tier requirements),
-   - Types and validation,
-   - A service or API layer,
-   - Components and a component map (or equivalent).
-
-2. **Option A – Replace in place**  
-   - Reuse `features/generator/` (or rename the folder) and swap the config, types, service, and components for your product.  
-   - Keep using the same routes (`/generator` and `/api/generator`) or change `CORE_FEATURE_SLUG` in `app.constants.ts` and add corresponding routes (e.g. `app/(customer)/(main)/tools/` and `app/api/tools/`).
-
-3. **Option B – New feature module**  
-   - Add e.g. `features/documents/` with its own config, types, service, and components.  
-   - Add routes (e.g. `/tools`, `/api/tools`) and point nav and links to the new path.  
-   - Reuse the same **usage and permissions** patterns: the template already has a usage model and tier-based limits; your feature just “consumes” them (see `project/shared/utils/permissions/` and subscription constants).
-
-4. **Copy and UI** – Update `project/translations/en.json` and any hardcoded strings so the app speaks your product’s language (e.g. “documents” instead of “generations”).
+No code changes needed to add a new niche — it's purely data-driven.
 
 ---
 
-## 5. Permissions and usage limits
+## 4. Adding a New Generation Output Type
 
-- **Permissions:** `frontend/src/shared/utils/permissions/`  
-  - Access to feature types is driven by subscription tier.  
-  - The default implementation uses “generator” types; the same pattern applies if you add another feature (tier requirement per type, check in API and UI).
+The current output types are `"hook"`, `"caption"`, and `"full"`.
 
-- **Usage limits:** Subscription tiers define “usage per month” (e.g. generations, documents).  
-  - Config: `frontend/src/shared/constants/subscription.constants.ts` (tier features and limits).  
-  - Usage is recorded in the database (usage model) and checked in the API before performing a gated action.
+To add a new type (e.g., `"hashtags"`):
+
+1. **Backend validation:** Add `"hashtags"` to the `outputType` Zod enum in `routes/generation/index.ts`
+2. **Generator service:** Add a new prompt branch in `services/reels/content-generator.ts` for the new output type
+3. **Database:** The `generated_content` table already stores `output_type` as a text field — no migration needed
+4. **Frontend:** Add the new type to the UI dropdown in the generation panel
 
 ---
 
-## 6. Quick reference
+## 5. Subscription Tiers & Feature Gating
+
+**Server-side tier check:**
+```typescript
+const { firebaseUser } = c.get("auth");
+const stripeRole = firebaseUser.stripeRole; // "basic" | "pro" | "enterprise" | undefined
+
+const LIMITS = { free: 1, basic: 10, pro: 50, enterprise: Infinity };
+const dailyLimit = LIMITS[stripeRole ?? "free"];
+```
+
+**Client-side gating:**
+```typescript
+import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
+const { hasProAccess } = useSubscription();
+```
+
+**Feature gate component:**
+```tsx
+<FeatureGate requiredTier="pro">
+  <ScriptGenerationPanel />
+</FeatureGate>
+```
+
+Tier configuration: `backend/src/constants/stripe.constants.ts`
+
+---
+
+## 6. API Patterns
+
+**Never use `fetch` directly.** Use the established utilities:
+
+```typescript
+// GET requests with caching (React Query)
+const fetcher = useQueryFetcher();
+const { data } = useQuery({
+  queryKey: queryKeys.api.reels(nicheId),
+  queryFn: () => fetcher(`/api/reels?nicheId=${nicheId}`),
+});
+
+// Authenticated mutations
+const { authenticatedFetchJson } = useAuthenticatedFetch();
+const result = await authenticatedFetchJson("/api/generation", {
+  method: "POST",
+  body: JSON.stringify({ sourceReelId, prompt, outputType }),
+});
+```
+
+**Environment variables:**
+```typescript
+// Never do this:
+const key = import.meta.env.VITE_API_KEY;
+
+// Always do this:
+import { API_KEY } from "@/shared/utils/config/envUtil";
+```
+
+---
+
+## 7. Translations (i18n)
+
+All user-facing strings must use `react-i18next`:
+
+```typescript
+import { useTranslation } from "react-i18next";
+const { t } = useTranslation();
+// Usage: {t("studio.generate.button")}
+```
+
+Translation keys live in `frontend/src/translations/en.json`. Check existing keys before adding new ones.
+
+---
+
+## 8. Quick Reference
 
 | I want to… | Go to… |
 |------------|--------|
-| Change app name / tagline / support email | `project/shared/constants/app.constants.ts` |
-| Change the main app URL slug | `CORE_FEATURE_SLUG` in `app.constants.ts` |
-| Add or edit a generator (or default feature) type | `features/generator/constants/generator.constants.ts` and the related types/service/components |
-| Change subscription tiers or limits | `project/shared/constants/subscription.constants.ts` |
-| Change marketing and UI copy | `project/translations/en.json` and public pages (see [i18n](#6-i18n-copy) below) |
-| Understand the full template plan | [Template roadmap](template-roadmap.md) |
+| Add a new niche | Admin dashboard `/admin/niches` (no code change) |
+| Change AI models | `ANALYSIS_MODEL` / `GENERATION_MODEL` env vars |
+| Add a new generation output type | `services/reels/content-generator.ts` + `routes/generation/index.ts` |
+| Change subscription limits | `backend/src/constants/stripe.constants.ts` |
+| Change UI copy | `frontend/src/translations/en.json` |
+| Add a new backend route | `backend/src/routes/<name>/index.ts` + mount in `index.ts` |
+| Add a new frontend page | `frontend/src/routes/<path>.tsx` (TanStack Router auto-discovers) |
+| Understand auth middleware | `backend/src/middleware/protection.ts` |
+| Understand database schema | `backend/src/infrastructure/database/drizzle/schema.ts` |
 
 ---
 
-## 6. i18n (copy)
+## 9. Architecture Docs
 
-All user-facing strings should go through **translations** so you can switch copy per product or locale.
+| Topic | Doc |
+|-------|-----|
+| Full system overview | [architecture/overview.md](./architecture/overview.md) |
+| Authentication | [architecture/core/authentication.md](./architecture/core/authentication.md) |
+| API patterns | [architecture/core/api.md](./architecture/core/api.md) |
+| Database (Drizzle) | [architecture/core/database.md](./architecture/core/database.md) |
+| ReelStudio workspace | [architecture/domain/studio-system.md](./architecture/domain/studio-system.md) |
+| AI generation | [architecture/domain/generation-system.md](./architecture/domain/generation-system.md) |
+| Subscriptions | [architecture/domain/subscription-system.md](./architecture/domain/subscription-system.md) |
+| Niche management | [Admin_Niches_Orchestration.md](./Admin_Niches_Orchestration.md) |
 
-- **Translation file:** `frontend/src/translations/en.json`  
-  Replace or add keys for your product name, tagline, feature names, and marketing copy. The template uses `react-i18next`; use `useTranslation()` in all components.
-- **Product name in code:** Use `APP_NAME` and `APP_DESCRIPTION` from `app.constants.ts` instead of hardcoding; the rest can live in translations.
-- **Topic-agnostic keys:** For a different product (e.g. “documents” instead of “generators”), add or replace keys such as `core_feature_title`, `core_feature_usage_label`, etc., and use them in components. The default keys are generator-oriented; you can keep them as the default set or duplicate and adapt for another topic.
+---
+
+*Last updated: March 2026*

@@ -2,493 +2,327 @@
 
 ## Overview
 
-RESTful API design using Hono (running on Bun) with comprehensive multi-layer protection (CORS, rate limiting, CSRF, authentication).
-
-**Key Features:**
-- REST conventions (GET, POST, PUT, DELETE)
-- Multi-layer protection middleware
-- Rate limiting (Redis-backed)
-- Authentication/authorization checks
-- Standardized responses
-- Pagination & filtering
+RESTful API built with **Hono** running on the **Bun** runtime. All routes mount at `/api/<resource>` and share a layered middleware system for rate limiting, CSRF protection, authentication, and input validation.
 
 ---
 
 ## Table of Contents
 
-1. [API Route Structure](#api-route-structure)
-2. [Route Protection](#route-protection)
+1. [Route Structure](#route-structure)
+2. [Middleware Stack](#middleware-stack)
 3. [Rate Limiting](#rate-limiting)
-4. [HTTP Methods & Conventions](#http-methods--conventions)
-5. [Request/Response Patterns](#requestresponse-patterns)
+4. [Request & Response Patterns](#request--response-patterns)
+5. [Client-Side Fetch Utilities](#client-side-fetch-utilities)
 6. [Best Practices](#best-practices)
 
 ---
 
-## API Route Structure
+## Route Structure
 
 **Location:** `backend/src/routes/`
 
-### Directory Organization
-
 ```
 backend/src/routes/
-├── admin.ts            # Admin-only endpoints
-├── customer.ts         # Customer endpoints (profile, orders)
-├── generation.ts       # AI content generation endpoints
-├── health.ts           # Health check, liveness, readiness
-├── metrics.ts          # Prometheus metrics
-├── queue.ts            # Content queue management
-├── reels.ts            # Reel discovery and analysis
-├── stripe-webhook.ts   # Stripe webhook handler
-├── subscriptions.ts    # Subscription status, checkout
-└── users.ts            # User management
+├── auth/index.ts          → /api/auth        (user registration/sync)
+├── customer/index.ts      → /api/customer    (profile, orders)
+├── subscriptions/index.ts → /api/subscriptions (checkout, portal, status)
+├── reels/index.ts         → /api/reels       (discovery, analysis, export)
+├── generation/index.ts    → /api/generation  (AI content generation)
+├── queue/index.ts         → /api/queue       (scheduling)
+├── admin/index.ts         → /api/admin       (admin dashboard, niches, analytics)
+├── users/index.ts         → /api/users       (user management, admin-only)
+├── analytics/index.ts     → /api/analytics   (business metrics)
+├── public/index.ts        → /api/shared      (contact form, public endpoints)
+├── csrf.ts                → /api/csrf        (CSRF token generation)
+└── health.ts              → /api/health      (health, liveness, readiness)
 ```
 
-Routes are mounted at `/api/<resource>` in `backend/src/index.ts`.
+Routes are registered in `backend/src/index.ts`:
+```typescript
+app.route("/api/auth", authRoutes);
+app.route("/api/customer", customerRoutes);
+app.route("/api/subscriptions", subscriptionRoutes);
+app.route("/api/reels", reelsRoutes);
+app.route("/api/generation", generationRoutes);
+app.route("/api/queue", queueRoutes);
+app.route("/api/admin", adminRoutes);
+app.route("/api/users", userRoutes);
+app.route("/api/analytics", analyticsRoutes);
+app.route("/api/shared", publicRoutes);
+app.route("/api/csrf", csrfRoutes);
+app.route("/api/health", healthRoutes);
+// Standalone:
+app.get("/api/live", (c) => c.json({ status: "ok" }));
+app.get("/api/ready", (c) => c.json({ status: "ready" }));
+app.get("/api/metrics", ...); // Prometheus, bearer-token protected
+```
 
-### Route File Template (Hono)
+### Route File Template
 
 ```typescript
-// backend/src/routes/resource.ts
-import { Hono } from 'hono'
-import { requireAuth, requireAdmin } from '../middleware/protection'
-import { prisma } from '../infrastructure/database/lib/generated/prisma'
+import { Hono } from "hono";
+import type { HonoEnv } from "../../middleware/protection";
+import {
+  authMiddleware,
+  csrfMiddleware,
+  rateLimiter,
+  validateBody,
+  validateQuery,
+} from "../../middleware/protection";
+import { db } from "../../services/db/db";
+import { generatedContent } from "../../infrastructure/database/drizzle/schema";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
 
-const app = new Hono()
+const app = new Hono<HonoEnv>();
 
-// Authenticated user endpoint
-app.get('/', requireAuth, async (c) => {
-  const user = c.get('user')
-  const data = await prisma.resource.findMany({ where: { userId: user.id } })
-  return c.json({ data })
-})
+// GET — no CSRF needed
+app.get(
+  "/",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  validateQuery(querySchema),
+  async (c) => {
+    const { user } = c.get("auth");
+    const query = c.get("validatedQuery") as QueryType;
+    const data = await db.select().from(generatedContent).where(eq(generatedContent.userId, user.id));
+    return c.json({ data });
+  }
+);
 
-// Authenticated mutation
-app.post('/', requireAuth, async (c) => {
-  const user = c.get('user')
-  const body = await c.req.json()
-  const created = await prisma.resource.create({ data: { ...body, userId: user.id } })
-  return c.json({ data: created }, 201)
-})
+// POST — requires CSRF
+app.post(
+  "/",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  validateBody(bodySchema),
+  async (c) => {
+    const { user } = c.get("auth");
+    const body = c.get("validatedBody") as BodyType;
+    const [created] = await db.insert(generatedContent).values({ ...body, userId: user.id }).returning();
+    return c.json({ data: created }, 201);
+  }
+);
 
-// Admin-only endpoint
-app.get('/admin-stats', requireAdmin, async (c) => {
-  const stats = await getStats()
-  return c.json({ stats })
-})
+// Admin-only
+app.delete(
+  "/:id",
+  rateLimiter("admin"),
+  csrfMiddleware(),
+  authMiddleware("admin"),
+  async (c) => {
+    const id = Number(c.req.param("id"));
+    await db.delete(generatedContent).where(eq(generatedContent.id, id));
+    return c.json({ success: true });
+  }
+);
 
-export default app
+export default app;
 ```
 
 ---
 
-## Route Protection
+## Middleware Stack
 
-**Location:** `backend/src/middleware/protection.ts`
+### Global (applied to all routes via `app.use("*", ...)`)
 
-### Protection Middleware
+| Middleware | Purpose |
+|-----------|---------|
+| `logger()` | Request/response logging |
+| `cors()` | Dynamic origin validation against `CORS_ALLOWED_ORIGINS` |
+| `secureHeaders()` | Security response headers (CSP, HSTS, X-Frame-Options, etc.) |
 
-Hono middleware that verifies Firebase tokens and attaches user context:
+### Per-Route (composed explicitly on each handler)
+
+| Middleware | When to use |
+|-----------|------------|
+| `rateLimiter("public"\|"customer"\|"admin"\|"payment"\|"auth"\|"health")` | Always — first in chain |
+| `csrfMiddleware()` | On all authenticated mutation routes (POST/PUT/PATCH/DELETE) |
+| `authMiddleware("user"\|"admin")` | On any route requiring authentication |
+| `validateBody(schema)` | On routes that accept a JSON body |
+| `validateQuery(schema)` | On routes that accept query parameters |
 
 ### API Request Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API Route
-    participant Protection Middleware
-    participant CORS Validator
-    participant Rate Limiter
-    participant CSRF Validator
-    participant Auth Validator
+    participant Global Middleware
+    participant rateLimiter
+    participant csrfMiddleware
+    participant authMiddleware
+    participant validateBody
     participant Route Handler
-    participant Database
+    participant PostgreSQL
 
-    Client->>API Route: HTTP Request
-    API Route->>Protection Middleware: withApiProtection()
-    
-    Protection Middleware->>CORS Validator: validateCORS()
-    alt CORS Invalid
-        CORS Validator-->>Client: 403 Forbidden
-    else CORS Valid
-        CORS Validator->>Rate Limiter: applyRateLimit()
-        alt Rate Limit Exceeded
-            Rate Limiter-->>Client: 429 Too Many Requests
-        else Rate Limit OK
-            Rate Limiter->>CSRF Validator: validateCSRF()
-            alt Mutation Request & Auth Required
-                alt CSRF Invalid
-                    CSRF Validator-->>Client: 403 Forbidden
-                else CSRF Valid
-                    CSRF Validator->>Auth Validator: validateAuth()
-                end
-            else GET Request or Public
-                CSRF Validator->>Auth Validator: validateAuth()
-            end
-            
-            alt Auth Required
-                alt Auth Invalid
-                    Auth Validator-->>Client: 401 Unauthorized
-                else Auth Valid
-                    Auth Validator->>Route Handler: Execute Handler
-                end
-            else Public Route
-                Auth Validator->>Route Handler: Execute Handler
-            end
-            
-            Route Handler->>Database: Query/Update
-            Database-->>Route Handler: Data
-            Route Handler->>Protection Middleware: Response
-            Protection Middleware->>Protection Middleware: addSecurityHeaders()
-            Protection Middleware-->>Client: 200 OK + Headers
-        end
+    Client->>Global Middleware: HTTP Request
+    Global Middleware->>Global Middleware: logger() — log request
+    Global Middleware->>Global Middleware: cors() — validate origin
+    alt Origin not allowed
+        Global Middleware-->>Client: 403 Forbidden (CORS)
     end
-```
+    Global Middleware->>Global Middleware: secureHeaders() — set response headers
 
-```typescript
-export function withApiProtection(
-  handler: RouteHandler,
-  options: ProtectionOptions = {}
-) {
-  return async function protectedHandler(request, context) {
-    // 1. CORS Validation
-    const corsResponse = validateCORS(request);
-    if (corsResponse) return corsResponse;
+    Global Middleware->>rateLimiter: Check rate limit (by IP)
+    alt Limit exceeded
+        rateLimiter-->>Client: 429 Too Many Requests
+    end
 
-    // 2. Rate Limiting
-    if (!options.skipRateLimit) {
-      const rateLimitResponse = await applyRateLimiting(request, options.rateLimitType);
-      if (rateLimitResponse) return rateLimitResponse;
-    }
+    rateLimiter->>csrfMiddleware: (mutations only)
+    alt CSRF invalid
+        csrfMiddleware-->>Client: 403 CSRF_TOKEN_INVALID
+    end
 
-    // 3. CSRF Protection (authenticated endpoints only)
-    if (!options.skipCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-      const csrfResponse = await validateCSRF(request, pathname);
-      if (csrfResponse) return csrfResponse;
-    }
+    csrfMiddleware->>authMiddleware: Verify Bearer token
+    alt Token missing/invalid
+        authMiddleware-->>Client: 401 INVALID_TOKEN
+    end
+    alt Role insufficient
+        authMiddleware-->>Client: 403 ADMIN_REQUIRED
+    end
 
-    // 4. Authentication
-    if (options.requireAuth) {
-      const authResponse = await validateAuth(request, options.requireAuth);
-      if (authResponse) return authResponse;
-    }
+    authMiddleware->>validateBody: Parse + validate JSON body
+    alt Validation failed
+        validateBody-->>Client: 422 VALIDATION_ERROR
+    end
 
-    // 5. Execute handler
-    const response = await handler(request, context);
-
-    // 6. Add security headers
-    return addSecurityHeaders(response);
-  };
-}
-```
-
-### Protection Options
-
-```typescript
-interface ProtectionOptions {
-  skipRateLimit?: boolean;         // Skip rate limiting
-  skipCSRF?: boolean;              // Skip CSRF (use for public endpoints)
-  rateLimitType?: RateLimitType;   // Override rate limit type
-  requireAuth?: 'user' | 'admin' | false;  // Auth requirement
-}
-```
-
-### Convenience Wrappers
-
-```typescript
-// User endpoints (authenticated users)
-export const withUserProtection = (handler, options = {}) => 
-  withApiProtection(handler, {
-    ...options,
-    requireAuth: 'user',
-    rateLimitType: options.rateLimitType || 'customer',
-  });
-
-// Admin endpoints (admin only)
-export const withAdminProtection = (handler, options = {}) =>
-  withApiProtection(handler, {
-    ...options,
-    requireAuth: 'admin',
-    rateLimitType: 'admin',
-  });
-
-// Public endpoints (no auth, skip CSRF)
-export const withPublicProtection = (handler, options = {}) =>
-  withApiProtection(handler, {
-    ...options,
-    skipCSRF: true,
-    rateLimitType: options.rateLimitType || 'public',
-  });
-```
-
-### Usage Example
-
-```typescript
-// Admin endpoint
-export const GET = withAdminProtection(async (request) => {
-  // Only admins can access
-  const data = await getAdminData();
-  return NextResponse.json({ data });
-});
-
-// Customer endpoint
-export const GET = withUserProtection(async (request) => {
-  // Any authenticated user can access
-  const data = await getUserData();
-  return NextResponse.json({ data });
-});
-
-// Public endpoint
-export const POST = withPublicProtection(async (request) => {
-  // No auth required, CSRF skipped
-  const body = await request.json();
-  await handlePublicSubmission(body);
-  return NextResponse.json({ success: true });
-}, {
-  rateLimitType: 'contact', // Strict rate limit for contact forms
-});
+    validateBody->>Route Handler: Execute (auth + validatedBody available)
+    Route Handler->>PostgreSQL: Query / mutation
+    PostgreSQL-->>Route Handler: Data
+    Route Handler-->>Client: JSON response
 ```
 
 ---
 
 ## Rate Limiting
 
-**Location:** `backend/src/` rate limiting utilities. IP and identity for rate-limit keys come from the request identity service.
+**Location:** `backend/src/constants/rate-limit.config.ts`
 
-### Rate Limit Configurations
+All rate limiting is IP-based via Redis. Keys are scoped by type prefix.
 
-```typescript
-export const RATE_LIMIT_CONFIGS = {
-  auth: {
-    window: 60,        // 1 minute
-    maxRequests: 5,    // 5 requests per minute
-    keyPrefix: "auth_rate_limit",
-    description: "Authentication endpoints",
-  },
-  payment: {
-    window: 3600,      // 1 hour
-    maxRequests: 30,   // 30 requests per hour
-    keyPrefix: "payment_rate_limit",
-    description: "Payment/checkout endpoints",
-  },
-  admin: {
-    window: 60,
-    maxRequests: 30,
-    keyPrefix: "admin_rate_limit",
-    description: "Admin operations",
-  },
-  customer: {
-    window: 60,
-    maxRequests: 60,
-    keyPrefix: "customer_rate_limit",
-    description: "Customer endpoints",
-  },
-  public: {
-    window: 60,
-    maxRequests: 500,
-    keyPrefix: "public_rate_limit",
-    description: "Public API endpoints",
-  },
-  contact: {
-    window: 300,       // 5 minutes
-    maxRequests: 5,    // 5 submissions per 5 minutes
-    keyPrefix: "contact_rate_limit",
-    description: "Contact form submissions",
-  },
-  generation: {
-    window: 86400,     // 24 hours
-    maxRequests: 50,  // Per tier limits enforced server-side
-    keyPrefix: "generation_rate_limit",
-    description: "AI content generation",
-  },
-  analysis: {
-    window: 86400,    // 24 hours
-    maxRequests: 100, // Per tier limits enforced server-side
-    keyPrefix: "analysis_rate_limit",
-    description: "Reel analysis requests",
-  },
-};
+| Type | Max Requests | Window | Used For |
+|------|-------------|--------|---------|
+| `public` | 30 | 60s | Unauthenticated endpoints |
+| `customer` | 60 | 60s | Authenticated user endpoints |
+| `admin` | 100 | 60s | Admin endpoints |
+| `auth` | 10 | 60s | Auth/registration endpoints |
+| `payment` | 5 | 60s | Stripe checkout endpoints |
+| `health` | 1000 | 60s | Health check endpoints |
+
+**Response headers on all requests:**
+```
+X-Rate-Limit-Limit: 60
+X-Rate-Limit-Remaining: 41
+X-Rate-Limit-Reset: 1741700000
+Retry-After: 45       ← Only on 429
 ```
 
-### How Rate Limiting Works
+### Rate Limiter Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API Route
-    participant Rate Limiter
+    participant rateLimiter
     participant Redis
-    participant Route Handler
 
-    Client->>API Route: HTTP Request
-    API Route->>Rate Limiter: applyRateLimit()
-    
-    alt Has Authorization Header
-        Rate Limiter->>Rate Limiter: Extract Firebase UID from JWT
-        Rate Limiter->>Rate Limiter: Generate Key: "customer_rate_limit:user:{uid}"
-    else No Authorization
-        Rate Limiter->>Rate Limiter: Extract IP Address
-        Rate Limiter->>Rate Limiter: Generate Key: "public_rate_limit:ip:{ip}"
-    end
-    
-    Rate Limiter->>Redis: GET {key}
-    Redis-->>Rate Limiter: Current Count
-    
+    Client->>rateLimiter: Request (X-Forwarded-For or X-Real-IP)
+    rateLimiter->>rateLimiter: Extract IP address
+    rateLimiter->>Redis: GET {keyPrefix}:{ip}
+    Redis-->>rateLimiter: Current count (or nil)
+
     alt Count >= maxRequests
-        Rate Limiter->>Rate Limiter: Calculate Retry-After
-        Rate Limiter-->>Client: 429 Too Many Requests<br/>+ Rate Limit Headers
-    else Count < maxRequests
-        Rate Limiter->>Redis: INCR {key}
-        Rate Limiter->>Redis: EXPIRE {key} {window}
-        Redis-->>Rate Limiter: OK
-        Rate Limiter->>Route Handler: Allow Request
-        Route Handler-->>Client: 200 OK + Rate Limit Headers
+        rateLimiter->>rateLimiter: Compute Retry-After
+        rateLimiter-->>Client: 429 Too Many Requests
+    else Under limit
+        rateLimiter->>Redis: INCR {keyPrefix}:{ip}, EXPIRE {window}
+        rateLimiter->>rateLimiter: Set rate limit headers
+        rateLimiter-->>Route Handler: Continue
+        Route Handler-->>Client: 200 + rate limit headers
     end
-```
-
-**Steps:**
-1. Extract identifier:
-   - If Authorization header → Extract Firebase UID from JWT token
-   - If no auth → Use IP address
-   
-2. Generate Redis key: {keyPrefix}:{identifier}
-   - Authenticated: "customer_rate_limit:user:{firebaseUID}"
-   - Unauthenticated: "public_rate_limit:ip:{ipAddress}"
-   
-3. Check current count in Redis
-4. If count >= maxRequests: Return 429 Too Many Requests
-5. Increment count (with TTL = window)
-6. Allow request
-
-**Key Points:**
-- **No session IDs:** Removed entirely
-- **Authenticated users:** Rate limiting uses Firebase UID (stable across token refreshes)
-- **Unauthenticated users:** Rate limiting uses IP address
-- **Token caching:** Firebase token verification cached for 55 minutes
-
-### Response Headers
-
-```typescript
-// Rate limit headers (automatically added)
-X-RateLimit-Limit: 60        // Max requests allowed
-X-RateLimit-Remaining: 42     // Requests remaining
-X-RateLimit-Reset: 1641234567 // Unix timestamp when limit resets
-Retry-After: 45               // Seconds to wait before retrying
-```
-
-### IP Blocking
-
-IP resolution and blocking live in `shared/services/request-identity` (not rate-limit logic). For checking a request against a blocked-IP list:
-
-```typescript
-import { checkIpBlocking } from '@/shared/services/request-identity';
-
-const { shouldBlock, reason, securityInfo } = checkIpBlocking(request, blockedIps);
-
-if (shouldBlock) {
-  return NextResponse.json(
-    { error: 'Access denied' },
-    { status: 403 }
-  );
-}
 ```
 
 ---
 
-## HTTP Methods & Conventions
+## Request & Response Patterns
 
-### Method Usage
+### HTTP Methods
 
-| Method | Purpose | Request Body | Response Status | Idempotent |
-|--------|---------|--------------|-----------------|------------|
-| GET | Retrieve resources | No | 200 | Yes |
-| POST | Create resource | Yes | 201 | No |
-| PUT | Update/Replace | Yes | 200 | Yes |
-| PATCH | Partial update | Yes | 200 | No |
-| DELETE | Remove resource | No | 204 or 200 | Yes |
+| Method | Purpose | Body | Success Status |
+|--------|---------|------|----------------|
+| `GET` | Read resource(s) | No | 200 |
+| `POST` | Create resource | Yes | 200 or 201 |
+| `PUT` | Replace resource | Yes | 200 |
+| `PATCH` | Partial update | Yes | 200 |
+| `DELETE` | Remove resource | No | 200 |
 
 ### Status Codes
 
-```typescript
-200 OK                  // Successful GET, PUT, PATCH, DELETE
-201 Created             // Successful POST (resource created)
-204 No Content          // Successful DELETE (no body)
-400 Bad Request         // Invalid input
-401 Unauthorized        // Missing/invalid token
-403 Forbidden           // Insufficient permissions
-404 Not Found           // Resource doesn't exist
-422 Unprocessable Entity // Validation failed
-429 Too Many Requests   // Rate limit exceeded
-500 Internal Server Error // Server error
+```
+200 OK                    — Successful GET/PUT/PATCH/DELETE
+201 Created               — Successful POST (new resource)
+400 Bad Request           — Invalid input, missing fields
+401 Unauthorized          — Missing/invalid/expired token
+403 Forbidden             — Insufficient permissions, CSRF failure
+404 Not Found             — Resource doesn't exist
+422 Unprocessable Entity  — Zod validation failed
+429 Too Many Requests     — Rate limit exceeded
+500 Internal Server Error — Unhandled server error
+503 Service Unavailable   — Dependency down (AI, DB, Redis)
 ```
 
----
+### Error Response Format
 
-## Request/Response Patterns
-
-### Standard Success Response
-
-```typescript
-import { createSuccessResponse } from '@/shared/utils/api/response-helpers';
-
-// Single resource
-return createSuccessResponse({
-  user: { id: '123', name: 'John' }
-});
-
-// List with pagination
-return createSuccessResponse({
-  users: [...],
-  pagination: {
-    currentPage: 1,
-    totalPages: 10,
-    totalCount: 95,
-    hasMore: true,
-  }
-});
-```
-
-### Standard Error Response
-
-```typescript
-import { createBadRequestResponse, createInternalErrorResponse } from '@/shared/utils/api/response-helpers';
-
-// Bad request (400)
-return createBadRequestResponse('Email is required');
-
-// Validation error (422)
-return createBadRequestResponse('Validation failed', zodError.issues);
-
-// Internal error (500)
-return createInternalErrorResponse('Failed to process request', error);
-```
-
-### Pagination Query Parameters
-
-```
-GET /api/resource?page=1&limit=20&search=query&sortBy=createdAt&sortOrder=desc
-
-page: Page number (1-based, default: 1)
-limit: Records per page (max: 100, default: 20)
-search: Search term
-sortBy: Sort field
-sortOrder: 'asc' or 'desc'
-```
-
-### Response Format
-
+All errors follow this shape:
 ```json
 {
-  "data": [...],
-  "pagination": {
-    "currentPage": 1,
-    "totalPages": 5,
-    "totalCount": 95,
-    "limit": 20,
-    "hasMore": true,
-    "hasPrevious": false
-  }
+  "error": "Human-readable description",
+  "code": "MACHINE_READABLE_CODE",
+  "details": { }   ← optional, Zod errors for 422
+}
+```
+
+**Error codes:**
+| Code | HTTP | Meaning |
+|------|------|---------|
+| `AUTH_REQUIRED` | 401 | No Authorization header |
+| `INVALID_TOKEN` | 401 | Token verification failed |
+| `ADMIN_REQUIRED` | 403 | User authenticated but not admin |
+| `CSRF_TOKEN_INVALID` | 403 | CSRF header missing or invalid |
+| `RATE_LIMIT_EXCEEDED` | 429 | IP rate limit hit |
+| `VALIDATION_ERROR` | 422 | Zod schema rejected input |
+| `INVALID_JSON` | 400 | Body is not valid JSON |
+| `NOT_FOUND` | 404 | Resource not found |
+| `INTERNAL_ERROR` | 500 | Unhandled error |
+| `SERVICE_UNAVAILABLE` | 503 | Redis/AI/DB unavailable |
+
+### Response Helpers
+
+**Location:** `backend/src/middleware/protection.ts`
+
+```typescript
+// Standard helpers used in route handlers
+return jsonSuccess(c, { data });         // 200 with data
+return jsonError(c, "message", 400);     // Error response
+return jsonNotFound(c, "Reel not found");
+return jsonBadRequest(c, "Invalid ID");
+return jsonForbidden(c, "Access denied");
+return jsonInternalError(c, "Failed to process");
+```
+
+### Pagination Pattern
+
+```
+GET /api/reels?limit=20&offset=0&nicheId=3&sort=views
+```
+
+Response:
+```json
+{
+  "items": [...],
+  "total": 142,
+  "limit": 20,
+  "offset": 0
 }
 ```
 
@@ -496,141 +330,102 @@ sortOrder: 'asc' or 'desc'
 
 ## Client-Side Fetch Utilities
 
-**Location:** `frontend/src/shared/services/api/authenticated-fetch.ts`, `frontend/src/shared/hooks/use-query-fetcher.ts`, `frontend/src/shared/lib/query-keys.ts`
+### Rule: Never use `fetch` directly
 
-### React Query (TanStack Query)
+Always use the established fetch utilities which automatically attach Firebase tokens and CSRF headers.
 
-For GET requests with caching, use React Query:
+**Location:** `frontend/src/shared/`
 
-- **useQuery + useQueryFetcher:** Cached GET requests with auth, CSRF, and timezone headers. Use `queryKeys` from `@/shared/lib/query-keys` for consistent keys and invalidation.
-- **Invalidation:** After mutations, call `queryClient.invalidateQueries({ queryKey })` or with a predicate. On logout, all API caches are cleared via `queryClient.removeQueries({ predicate })` in app-context.
-- **Provider:** `QueryProvider` in layout wraps the app; DevTools in development.
-
-Use `queryKeys` from `@/shared/lib/query-keys` for all cache keys to ensure consistent invalidation.
-
-### Authenticated Fetch
-
-For authenticated requests with automatic CSRF token handling:
+### For GET Requests with Caching
 
 ```typescript
-import { authenticatedFetch, authenticatedFetchJson } from '@/shared/services/api/authenticated-fetch';
+import { useQuery } from "@tanstack/react-query";
+import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import { queryKeys } from "@/shared/lib/query-keys";
 
-// With automatic CSRF token for state-changing requests
-const response = await authenticatedFetch('/api/customer/profile', {
-  method: 'PUT',
-  body: JSON.stringify({ name: 'John' }),
-});
+const fetcher = useQueryFetcher();
 
-// JSON parsing with auto-unwrapping
-const profile = await authenticatedFetchJson<UserProfile>('/api/customer/profile');
-```
-
-**Features:**
-- ✅ Automatically includes Firebase JWT token in `Authorization` header
-- ✅ Automatically adds CSRF token for POST/PUT/PATCH/DELETE requests
-- ✅ Uses `safeFetch` internally (timeout, retry logic)
-- ✅ Handles CSRF token invalidation and refresh
-- ✅ Auto-unwraps standardized API responses (`{ data: ... }`)
-
-### Public Fetch
-
-For unauthenticated requests (no CSRF needed):
-
-```typescript
-import { publicFetch, publicFetchJson } from '@/shared/services/api/safe-fetch';
-
-// Public endpoint (contact form, etc.)
-const response = await publicFetch('/api/shared/contact-messages', {
-  method: 'POST',
-  body: JSON.stringify(formData),
-});
-
-// JSON parsing
-const result = await publicFetchJson<ContactResponse>('/api/shared/contact-messages', {
-  method: 'POST',
-  body: JSON.stringify(formData),
+const { data, isLoading } = useQuery({
+  queryKey: queryKeys.api.reels(nicheId),
+  queryFn: () => fetcher(`/api/reels?nicheId=${nicheId}`),
+  enabled: !!nicheId,
 });
 ```
 
-**Features:**
-- ✅ No authentication required
-- ✅ No CSRF protection (not needed for public endpoints)
-- ✅ Uses `safeFetch` internally (timeout, retry logic)
-- ✅ Rate limiting uses IP address
+`useQueryFetcher` automatically attaches `Authorization: Bearer {token}` and `X-Timezone` headers.
 
-### Safe Fetch
-
-Base fetch utility with timeout and retry:
+### For Authenticated Mutations (POST/PUT/DELETE)
 
 ```typescript
-import { safeFetch } from '@/shared/services/api/safe-fetch';
+import { useAuthenticatedFetch } from "@/shared/hooks/use-authenticated-fetch";
 
-const response = await safeFetch(url, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data),
-  timeout: 10000,        // 10 seconds
-  retryAttempts: 2,     // Retry twice on failure
-  retryOn: (error) => { // Custom retry logic
-    return error.message.includes('network');
-  },
+const { authenticatedFetchJson } = useAuthenticatedFetch();
+
+// Automatically attaches Authorization + X-CSRF-Token headers
+const result = await authenticatedFetchJson<GeneratedContent>("/api/generation", {
+  method: "POST",
+  body: JSON.stringify({ sourceReelId, prompt, outputType }),
 });
 ```
 
-**When to Use:**
-- ✅ Use `authenticatedFetch` for authenticated API calls
-- ✅ Use `publicFetch` for unauthenticated API calls
-- ✅ Use `safeFetch` directly only for external APIs or special cases
+### For Public (Unauthenticated) Requests
+
+```typescript
+import { publicFetchJson } from "@/shared/services/api/safe-fetch";
+
+const result = await publicFetchJson("/api/shared/contact-messages", {
+  method: "POST",
+  body: JSON.stringify({ name, email, message }),
+});
+```
+
+### React Query Cache Invalidation
+
+```typescript
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/query-keys";
+
+const queryClient = useQueryClient();
+
+// After a mutation, invalidate the affected query
+await queryClient.invalidateQueries({ queryKey: queryKeys.api.generation() });
+
+// On logout, clear all user data
+queryClient.removeQueries({ predicate: (q) => q.queryKey[0] === "api" });
+```
 
 ---
 
 ## Best Practices
 
 ### Security
-
-- ✅ Always use protection wrappers (withUserProtection, withAdminProtection)
-- ✅ Verify authentication server-side (never trust client)
-- ✅ Validate all inputs with Zod schemas
-- ✅ Sanitize error messages (no sensitive data)
-- ✅ Use rate limiting on all endpoints
-- ✅ Apply CSRF protection to mutations (POST/PUT/DELETE) for authenticated endpoints only
-- ✅ CSRF tokens bound to Firebase UID (encrypted with AES-256-GCM)
-- ✅ Rate limiting uses Firebase UID for authenticated users, IP for unauthenticated
-- ✅ Use `authenticatedFetch` for authenticated requests (automatic CSRF)
-- ✅ Use `publicFetch` for unauthenticated requests
+- ✅ Apply `rateLimiter()` to every route
+- ✅ Apply `csrfMiddleware()` to every authenticated mutation
+- ✅ Apply `authMiddleware("user")` or `("admin")` to every protected route
+- ✅ Validate all inputs with `validateBody()` or `validateQuery()` before using them
+- ✅ Scope DB queries by `user.id` — never query across users
+- ✅ Use `jsonInternalError(c, message, error)` — never expose stack traces
 
 ### Performance
-
-- ✅ Use pagination for list endpoints
-- ✅ Implement caching where appropriate
-- ✅ Optimize database queries (use indexes, select only needed fields)
-- ✅ Return only necessary data
-
-### Error Handling
-
-- ✅ Return appropriate status codes
-- ✅ Use standardized error response format
-- ✅ Log errors server-side with context
-- ✅ Don't expose stack traces in production
+- ✅ Paginate all list endpoints (`limit`, `offset`)
+- ✅ Return only needed fields — avoid `select *`
+- ✅ Use database indexes on filtered columns
 
 ### API Design
-
-- ✅ Use RESTful conventions
-- ✅ Version APIs if breaking changes expected
-- ✅ Document endpoints clearly
-- ✅ Keep responses consistent across endpoints
+- ✅ Use `HonoEnv` type on every route file for typed context variables
+- ✅ Use Zod schemas defined at the top of the file, not inline
+- ✅ Use `c.get("validatedBody")` — never `await c.req.json()` directly in handlers
+- ✅ Keep route handlers thin — delegate business logic to service files
 
 ---
 
 ## Related Documentation
 
-- [Authentication](./authentication.md) - Auth, roles, sessions
-- [Security](./security.md) - CSRF, CORS, PII sanitization
-- [Error Handling](./error-handling.md) - Error patterns and logging
-- [Database](./database.md) - Database patterns and validation
-- [Studio System](../domain/studio-system.md) - ReelStudio-specific API patterns
-- [Generation System](../domain/generation-system.md) - AI content generation APIs
+- [Authentication](./authentication.md) — Auth middleware details
+- [Database](./database.md) — Drizzle query patterns
+- [Generation System](../domain/generation-system.md) — AI generation API specifics
+- [Studio System](../domain/studio-system.md) — Studio workspace API flows
 
 ---
 
-*Last Updated: January 2026*
+*Last updated: March 2026*

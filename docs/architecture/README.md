@@ -17,7 +17,7 @@ Start with [overview.md](./overview.md) for the full tech stack and system desig
 | [api.md](./core/api.md) | REST API design, route protection, rate limiting, request/response patterns |
 | [authentication.md](./core/authentication.md) | Firebase Auth, token verification, RBAC, route guards |
 | [security.md](./core/security.md) | CSRF, CORS, rate limiting, PII sanitization, input validation |
-| [database.md](./core/database.md) | Prisma patterns, schema design, query patterns, Zod validation |
+| [database.md](./core/database.md) | Drizzle ORM patterns, schema design, query patterns, Zod validation |
 | [performance.md](./core/performance.md) | Caching strategy (Redis, React Query), optimization techniques |
 | [error-handling.md](./core/error-handling.md) | API error patterns, error boundaries, logging |
 | [logging-monitoring.md](./core/logging-monitoring.md) | Debug logger, system logger, Prometheus metrics |

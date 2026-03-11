@@ -24,7 +24,7 @@ graph TB
             RateLimit["Rate Limiting\n(Redis)"]
             CSRF["CSRF Protection\n(Encrypted Tokens)"]
         end
-        Prisma["Prisma ORM"]
+        Drizzle["Drizzle ORM"]
     end
 
     subgraph Databases["Data Stores"]
@@ -52,8 +52,8 @@ graph TB
     Hono --> AuthMW
     AuthMW --> RateLimit
     RateLimit --> CSRF
-    CSRF --> Prisma
-    Prisma --> PG
+    CSRF --> Drizzle
+    Drizzle --> PG
     RateLimit --> Redis
     AuthMW -->|firebase-admin\nverifyIdToken| Firebase
     Hono -->|Firestore Admin| Firestore
@@ -87,7 +87,7 @@ sequenceDiagram
     RL->>+FB: verifyIdToken(token)
     FB-->>-RL: Decoded token (uid, stripeRole)
     RL-->>-Auth: Rate limit status
-    Auth->>+DB: Prisma query
+    Auth->>+DB: Drizzle query
     DB-->>-Auth: Data
     
     alt Studio API Request
@@ -237,9 +237,9 @@ flowchart LR
 flowchart LR
     Dev["git push\nmain"]
     Dev --> CI["GitHub Actions CI\n(lint → unit → integration → build → audit)"]
-    CI -->|all checks pass| Deploy["Deploy to Production\n(Docker build)"]
-    Deploy --> Migrate["prisma migrate deploy\n(on startup)"]
-    Migrate --> Seed["Seed mock reels\n(if needed)"]
+    CI -->|all checks pass| Deploy["Deploy to Production\n(Railway / Docker)"]
+    Deploy --> Migrate["bun db:migrate\n(Drizzle, on startup)"]
+    Migrate --> Seed["Seed niches/reels\n(if needed)"]
     Seed --> Health["Health check\n/api/health"]
     Health -->|200 OK| Live["Production Live"]
     Health -->|fail| Rollback["Auto-rollback"]

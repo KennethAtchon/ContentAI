@@ -1,12 +1,12 @@
 # Project Overview
 
-This is **ReelStudio** — an AI-powered content intelligence platform for creators and marketers. Users discover viral reels in any niche, get AI analysis explaining exactly why they perform, then generate hooks, captions, and scripts inspired by that data — and schedule them for publishing.
+**ReelStudio** is an AI-powered content intelligence platform. Users discover viral Instagram reels in any niche, receive an AI-generated breakdown of why each reel performs, then generate original hooks, captions, and scripts inspired by that analysis — and optionally schedule them to an Instagram page.
 
-The platform is built on a SaaS template with auth, subscriptions, payments, and admin infrastructure already implemented. The core feature has been migrated from a studio tool template to the ReelStudio workspace.
+The platform is a SaaS monorepo built on a React + Hono stack with Firebase auth, Stripe subscriptions, PostgreSQL (Drizzle ORM), and Anthropic Claude for AI features.
 
 ---
 
-## Tech stack
+## Tech Stack
 
 ### Frontend (`frontend/`)
 
@@ -30,189 +30,232 @@ The platform is built on a SaaS template with auth, subscriptions, payments, and
 |---------|---------|
 | Runtime | Bun |
 | HTTP framework | Hono |
-| Database ORM | Prisma (PostgreSQL) |
+| Database ORM | Drizzle ORM (PostgreSQL) |
 | Cache / rate limiting | Redis (ioredis) |
 | Auth | Firebase Admin SDK |
 | Payments | Stripe |
 | Email | Resend |
 | Storage | Cloudflare R2 (S3-compatible) |
+| AI | Anthropic Claude (Haiku + Sonnet) |
 | Observability | Prometheus (`prom-client`) |
 | Testing | Bun test runner |
 
 ---
 
-## Folder structure
+## Folder Structure
 
 ```
-WebsiteTemplate2/
+ContentAI/
 ├── frontend/                  # React SPA
 │   └── src/
 │       ├── routes/            # File-based routes (TanStack Router)
-│       │   ├── (public)/      # Unauthenticated pages
+│       │   ├── (public)/      # Unauthenticated pages (about, pricing, contact, faq…)
 │       │   ├── (auth)/        # Sign-in, sign-up
-│       │   ├── (customer)/    # Authenticated customer pages
-│       │   ├── studio/        # Studio workspace routes
+│       │   ├── (customer)/    # Authenticated customer pages (account, checkout, payment/)
+│       │   ├── studio/        # Studio workspace (discover, generate, queue)
 │       │   └── admin/         # Admin dashboard
 │       ├── features/          # Feature modules
-│       │   ├── account/
-│       │   ├── admin/
-│       │   ├── auth/
-│       │   ├── generation/    # AI content generation
-│       │   ├── reels/         # Reel discovery and analysis
-│       │   ├── studio/        # Main studio workspace
-│       │   ├── payments/
-│       │   └── subscriptions/
-│       └── shared/            # Cross-cutting: components, hooks, services, utils
-│           ├── components/
+│       │   ├── account/       # Profile, usage dashboard, subscription mgmt
+│       │   ├── admin/         # Admin views (customers, orders, subscriptions, niches)
+│       │   ├── auth/          # AuthGuard, UserButton, auth hooks
+│       │   ├── generation/    # AI content generation hooks & history
+│       │   ├── reels/         # Reel discovery UI (ReelList, PhonePreview, AnalysisPanel)
+│       │   ├── studio/        # Studio workspace shell (TopBar, layout)
+│       │   ├── payments/      # Stripe checkout, success handlers
+│       │   └── subscriptions/ # Subscription hooks, upgrade prompts, FeatureGate
+│       └── shared/            # Cross-cutting code
+│           ├── components/    # Radix UI primitives, shadcn/ui
 │           ├── constants/     # app.constants.ts — product identity
-│           ├── hooks/
-│           ├── lib/           # React Query client, query keys
-│           ├── services/      # API, Firebase, SEO, storage, etc.
-│           └── utils/         # envUtil, error handling, permissions, validation
+│           ├── contexts/      # AppContext (auth + profile state)
+│           ├── hooks/         # useQueryFetcher, useAuthenticatedFetch
+│           ├── lib/           # Query client, query keys
+│           ├── services/      # Firebase, API fetch utilities
+│           └── utils/         # envUtil, error handling, type guards
 │
-├── backend/                   # Hono API server
+├── backend/                   # Hono API server (Bun runtime)
 │   └── src/
 │       ├── index.ts           # Entry point — mounts all routes
 │       ├── routes/            # API route handlers (mounted at /api/<resource>)
-│       ├── middleware/        # Auth middleware (requireAuth, requireAdmin)
-│       ├── services/          # Business logic services
-│       └── infrastructure/
-│           └── database/      # Prisma schema and migrations
+│       │   ├── auth/          # User registration & Firebase token verification
+│       │   ├── customer/      # Authenticated customer profile & orders
+│       │   ├── admin/         # Admin CRUD (customers, orders, niches, analytics)
+│       │   ├── subscriptions/ # Stripe checkout, subscription status, portal link
+│       │   ├── reels/         # Reel discovery, analysis, export
+│       │   ├── generation/    # AI content generation & history
+│       │   ├── queue/         # Content queue & scheduling
+│       │   ├── users/         # User management (admin-only)
+│       │   ├── analytics/     # Business analytics
+│       │   ├── public/        # Public endpoints (contact form)
+│       │   ├── csrf.ts        # CSRF token endpoint
+│       │   └── health.ts      # Health, liveness, readiness probes
+│       ├── middleware/        # Auth, CSRF, rate limiting, security headers
+│       ├── services/          # Business logic (AI, Stripe, email, scraping…)
+│       ├── infrastructure/
+│       │   └── database/drizzle/  # schema.ts — Drizzle ORM schema + migrations
+│       ├── constants/         # Stripe config, rate limits, subscription tiers
+│       └── utils/             # envUtil, debug logging
 │
-├── e2e/                       # Playwright end-to-end tests
+├── automation/                # Firebase & Stripe setup scripts
 └── docs/                      # This folder
 ```
 
 ---
 
-## System architecture
+## System Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│            Browser (React SPA)              │
-│   Vite · TanStack Router · TanStack Query   │
-│   Firebase SDK (auth, tokens)               │
-└──────────────────┬──────────────────────────┘
-                   │ HTTPS  Authorization: Bearer {token}
-                   │
-┌──────────────────▼──────────────────────────┐
-│           Backend (Hono / Bun)              │
-│   /api/* routes                             │
-│   requireAuth / requireAdmin middleware     │
-│   Prisma ORM                                │
-└────────┬──────────────┬──────────────┬──────┘
-         │              │              │
-    ┌────▼────┐   ┌──────▼─────┐  ┌───▼────┐
-    │PostgreSQL│   │  Firebase  │  │ Stripe │
-    │ Prisma  │   │ Auth Admin │  │  API   │
-    └─────────┘   └────────────┘  └────────┘
-         │
-    ┌────▼────┐
-    │  Redis  │
-    │rate lmt │
-    └─────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                   Browser (React SPA)                        │
+│   Vite · TanStack Router · TanStack Query · Firebase SDK     │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ HTTPS  Authorization: Bearer {token}
+                            │ X-CSRF-Token · X-Timezone
+┌───────────────────────────▼──────────────────────────────────┐
+│                Backend (Hono / Bun, port 3001)               │
+│                                                              │
+│  Global middleware:                                          │
+│    logger() → cors() → secureHeaders()                       │
+│                                                              │
+│  Per-route middleware:                                       │
+│    rateLimiter() → csrfMiddleware() → authMiddleware()       │
+│    → validateBody() / validateQuery()                        │
+│                                                              │
+│  Routes: /api/{auth,customer,admin,subscriptions,           │
+│           reels,generation,queue,users,analytics,           │
+│           shared,csrf,health,metrics}                        │
+└───────┬────────────────┬─────────────┬──────────────────────┘
+        │                │             │
+   ┌────▼─────┐   ┌──────▼──────┐ ┌───▼────┐
+   │PostgreSQL│   │  Firebase   │ │ Stripe │
+   │  Drizzle │   │ Auth Admin  │ │  API   │
+   └──────────┘   └─────────────┘ └────────┘
+        │                              │
+   ┌────▼─────┐   ┌─────────────┐ ┌───▼────────────┐
+   │  Redis   │   │  Anthropic  │ │ Firebase Stripe │
+   │ rate lmt │   │ Claude API  │ │   Extension    │
+   └──────────┘   └─────────────┘ └────────────────┘
 ```
 
-The frontend never talks to the database directly. All data access goes through the Hono API. The Firebase client SDK is used only for authentication (sign-in, token management); all token verification happens server-side with the Firebase Admin SDK.
+The frontend never talks to the database directly. All data access goes through the Hono API. The Firebase client SDK is used only for authentication; all token verification happens server-side with the Firebase Admin SDK.
 
 ---
 
-## Authentication flow
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Firebase Auth
+    participant Frontend
+    participant Backend (Hono)
+    participant PostgreSQL
+
+    User->>Firebase Auth: signIn (email/password or Google OAuth)
+    Firebase Auth-->>Frontend: ID Token (JWT)
+    Frontend->>Backend (Hono): API request (Authorization: Bearer {token})
+    Backend (Hono)->>Firebase Auth: verifyIdToken(token)
+    Firebase Auth-->>Backend (Hono): Decoded token (uid, email, stripeRole)
+    Backend (Hono)->>PostgreSQL: INSERT … ON CONFLICT DO UPDATE (upsert user)
+    PostgreSQL-->>Backend (Hono): User row (id, role)
+    Backend (Hono)-->>Frontend: Response + auth context
+```
 
 1. User signs in via Firebase Auth (email/password or Google OAuth)
 2. Firebase returns a JWT ID token
 3. Frontend attaches the token as `Authorization: Bearer {token}` on every API request
-4. Backend `requireAuth` middleware verifies the token with Firebase Admin SDK
-5. On first request, the user is auto-provisioned in PostgreSQL
-6. Role-based access: `role: "user"` (default) or `role: "admin"` — stored in PostgreSQL and synced to Firebase custom claims
+4. Backend `authMiddleware` verifies the token and **upserts** the user in PostgreSQL via Drizzle's `onConflictDoUpdate`
+5. Role-based access: `role: "user"` (default) or `role: "admin"` — stored in PostgreSQL (source of truth), synced to Firebase custom claims
 
 ---
 
-## Key systems
+## Key Systems
 
-### Subscription system
-- Three tiers: Basic, Pro, Enterprise
-- Stripe Checkout for payment, Firebase Stripe Extension to sync subscription state to Firestore
-- Subscription tier stored as a Firebase custom claim (`stripeRole`)
-- Usage limits enforced server-side per tier
+### ReelStudio (Core Feature)
+- **Discover**: Browse top-performing reels filtered by niche
+- **Analysis**: AI (Claude Haiku) breaks down hook patterns, emotional triggers, and format
+- **Generation**: AI (Claude Sonnet) remixes content into hooks, captions, and scripts
+- **Queue**: Schedule generated content to an Instagram page
+- Usage tracked and capped per subscription tier; feature gates enforced server-side
 
-### Core feature (ReelStudio)
-- **Discovery**: Search niches and surface top-performing reels
-- **Analysis**: AI breakdown of hook patterns, emotional triggers, format
-- **Generation**: AI-powered content remix (hooks, captions, scripts)
-- **Queue**: Schedule and manage content for publishing
-- Usage tracked and limited per subscription tier
-- Feature gates enforced server-side
+### Subscription System
+- Three paid tiers: Basic, Pro, Enterprise (monthly or annual billing)
+- Stripe Checkout for new subscriptions; Firebase Stripe Extension syncs subscription state to Firestore
+- Subscription tier stored as Firebase custom claim (`stripeRole`)
+- Plan changes go through the Stripe Customer Portal only
+- Trial eligibility tracked in PostgreSQL (`hasUsedFreeTrial` flag)
 
-### Admin system
+### Admin System
 - Dashboard with business metrics (MRR, ARPU, churn)
-- Customer, order, subscription management
-- Protected by `requireAdmin` middleware — checks `role: "admin"` in database (source of truth) and syncs to Firebase custom claims
+- Manage customers, orders, subscriptions, niches, and reels
+- Niche scan jobs (scraping) triggered via admin panel
+- Protected by `authMiddleware("admin")`
 
 ### Security
-- Rate limiting: Redis-backed, keyed by Firebase UID (authenticated) or IP (unauthenticated)
-- CSRF: Encrypted tokens (AES-256-GCM) bound to Firebase UID, required on all authenticated mutations
-- CORS: Allowlist-based, configured via environment variable
-- Input validation: Zod schemas on all API inputs
-- PII sanitization: Automatic redaction in logs
+- **Rate limiting**: Redis-backed, keyed by client IP
+- **CSRF**: AES-256-GCM encrypted tokens bound to Firebase UID, required on all mutations
+- **CORS**: Allowlist-based, configured via `CORS_ALLOWED_ORIGINS` env var
+- **Input validation**: Zod schemas enforced via `validateBody()` / `validateQuery()` middleware
+- **Secure headers**: Applied globally via `secureHeaders()` middleware
 
 ---
 
-## API routes
+## API Routes
 
 Routes live in `backend/src/routes/` and are mounted at `/api/<resource>` in `backend/src/index.ts`.
 
-| Prefix | Purpose |
-|--------|---------|
-| `/api/customer/` | Authenticated customer endpoints (profile, orders) |
-| `/api/admin/` | Admin-only endpoints (customers, orders, subscriptions, analytics) |
-| `/api/reels/` | Reel discovery, analysis, and niche scanning |
-| `/api/generation/` | AI content generation and history |
-| `/api/queue/` | Content queue management and scheduling |
-| `/api/subscriptions/` | Subscription status and checkout |
-| `/api/stripe-webhook` | Stripe webhook handler |
-| `/api/health` | Health check, liveness, readiness probes |
-| `/api/metrics` | Prometheus metrics endpoint |
+| Prefix | Auth | Purpose |
+|--------|------|---------|
+| `/api/auth/` | None | Register / sync user from Firebase token |
+| `/api/customer/` | User | Profile, orders |
+| `/api/subscriptions/` | User | Subscription status, checkout, portal link |
+| `/api/reels/` | User | Reel discovery, AI analysis, export |
+| `/api/generation/` | User | AI content generation, history |
+| `/api/queue/` | User | Content queue management & scheduling |
+| `/api/admin/` | Admin | Customer, order, niche, analytics management |
+| `/api/users/` | Admin | User management |
+| `/api/analytics/` | Admin | Business analytics |
+| `/api/shared/` | None | Public endpoints (contact form) |
+| `/api/csrf` | None | CSRF token generation |
+| `/api/health` | None | Health check, liveness, readiness |
+| `/api/metrics` | Bearer | Prometheus metrics |
 
 ---
 
-## Database schema (PostgreSQL)
+## Database Schema (PostgreSQL + Drizzle ORM)
 
-Managed by Prisma. Schema at `backend/src/infrastructure/database/prisma/schema.prisma`.
+Schema at `backend/src/infrastructure/database/drizzle/schema.ts`.
 
-| Model | Purpose |
+| Table | Purpose |
 |-------|---------|
-| `User` | User accounts, roles, profile data |
-| `Reel` | Instagram reel data and metrics |
-| `ReelAnalysis` | AI analysis results for reels |
-| `GeneratedContent` | AI-generated hooks, captions, scripts |
-| `QueueItem` | Content scheduling and publishing queue |
-| `Order` | One-time purchases |
-| `FeatureUsage` | Per-user usage history and tracking |
-| `ContactMessage` | Contact form submissions |
+| `user` | User accounts, roles, profile data, free trial flag |
+| `order` | One-time purchases (Stripe session, amount, status) |
+| `contact_message` | Contact form submissions |
+| `feature_usage` | Per-user feature usage history |
+| `niche` | Content niches (name, description, isActive) |
+| `reel` | Instagram reel data and engagement metrics |
+| `reel_analysis` | AI-generated analysis results per reel |
+| `generated_content` | AI-generated hooks, captions, scripts |
+| `instagram_page` | Connected Instagram pages (access tokens) |
+| `queue_item` | Content scheduling queue |
 
-Subscriptions live in **Firestore** (managed by the Firebase Stripe Extension), not PostgreSQL. This is intentional — see [architecture/domain/business-model.md](./domain/business-model.md) for the rationale.
+**Subscriptions** live in **Firestore** (managed by the Firebase Stripe Extension), not PostgreSQL. See [subscription-system.md](./domain/subscription-system.md).
 
 ---
 
-## Development setup
+## Development Setup
 
 ```bash
 # Frontend
-cd frontend
-bun install
-bun dev          # http://localhost:3000
+cd frontend && bun install && bun dev      # http://localhost:3000
 
 # Backend
-cd backend
-bun install
-bun db:generate  # After schema changes
-bun db:migrate   # Apply migrations
-bun dev          # http://localhost:3001
+cd backend && bun install
+bun db:generate   # After schema changes (generates Drizzle migrations)
+bun db:migrate    # Apply migrations
+bun dev           # http://localhost:3001
 ```
 
 Run tests:
-
 ```bash
 cd frontend && bun test
 cd backend && bun test
@@ -220,12 +263,61 @@ cd backend && bun test
 
 ---
 
-## Environment variables
+## Environment Variables
 
-Both servers have separate `.env` files. Never use `process.env` or `import.meta.env` directly — always go through `envUtil.ts`:
+Both servers have separate `.env` files. **Never use `process.env` or `import.meta.env` directly** — always go through `envUtil.ts`:
 
-- **Frontend:** `frontend/src/shared/utils/config/envUtil.ts` — accesses `import.meta.env`, variables prefixed with `VITE_`
-- **Backend:** `backend/src/utils/config/envUtil.ts` — accesses `process.env`, no prefix needed
+- **Frontend:** `frontend/src/shared/utils/config/envUtil.ts` — `import.meta.env`, vars prefixed with `VITE_`
+- **Backend:** `backend/src/utils/config/envUtil.ts` — `process.env`, no prefix needed
+
+### Backend Required Variables
+
+```env
+# Firebase Admin
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+
+# Firebase Client (for Firestore access)
+FIREBASE_API_KEY=
+FIREBASE_AUTH_DOMAIN=
+FIREBASE_STORAGE_BUCKET=
+FIREBASE_MESSAGING_SENDER_ID=
+FIREBASE_APP_ID=
+
+# Database & Cache
+DATABASE_URL=
+REDIS_URL=
+
+# Security
+CSRF_SECRET=
+CORS_ALLOWED_ORIGINS=
+
+# Payments
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# Email
+RESEND_API_KEY=
+
+# Storage (Cloudflare R2)
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
+
+# AI
+ANTHROPIC_API_KEY=
+ANALYSIS_MODEL=claude-haiku-4-5-20251001
+GENERATION_MODEL=claude-sonnet-4-6
+
+# Optional
+METRICS_SECRET=
+LOG_LEVEL=debug
+BASE_URL=
+PORT=3001
+```
 
 ---
 

@@ -30,30 +30,35 @@ frontend/src/
 │   │   └── ...
 │   ├── (auth)/                # Sign-in, sign-up
 │   ├── (customer)/            # Authenticated pages
-│   │   ├── generator/        # Core feature UI
 │   │   ├── account/           # Profile, usage dashboard
 │   │   ├── checkout/
 │   │   └── payment/
+│   ├── studio/               # ReelStudio workspace
+│   │   ├── discover.tsx      # 3-panel reel discovery
+│   │   ├── generate.tsx      # Full-screen generation
+│   │   └── queue.tsx         # Queue management
 │   └── admin/                 # Admin dashboard (admin role required)
 │       ├── customers/
 │       ├── orders/
 │       ├── subscriptions/
+│       ├── niches/
 │       └── ...
 │
 ├── features/                  # Feature modules — domain business logic
 │   ├── account/               # Usage dashboard, profile editor, subscription management
 │   ├── admin/                 # Admin components: tables, modals, stats
 │   ├── auth/                  # Auth guard, user button, useAuthenticatedFetch
-│   ├── generator/            # Default core feature (swappable)
+│   ├── reels/                 # Reel discovery (ReelList, PhonePreview, AnalysisPanel)
 │   │   ├── components/
-│   │   ├── constants/         # FEATURE_CONFIG — types, tier requirements
-│   │   ├── hooks/             # use-generator.ts
-│   │   ├── services/          # generator-service.ts (pure logic)
-│   │   └── types/             # Input/output types, Zod schemas
-│   ├── contact/
-│   ├── faq/
-│   ├── payments/              # Checkout flow, payment success/cancel
-│   └── subscriptions/         # Feature gating, upgrade prompts, tier hooks
+│   │   ├── hooks/             # use-reels.ts, use-reel-analysis.ts
+│   │   └── services/
+│   ├── generation/            # AI content generation
+│   │   ├── hooks/             # use-generate-content.ts, use-generation-history.ts
+│   │   └── services/
+│   ├── studio/                # Studio workspace shell (StudioTopBar, layout)
+│   │   └── components/
+│   ├── payments/              # Stripe checkout, payment success/cancel
+│   └── subscriptions/         # Feature gating, FeatureGate, upgrade prompts, tier hooks
 │
 └── shared/                    # Cross-cutting — used across multiple features
     ├── components/
@@ -91,27 +96,47 @@ backend/src/
 │
 ├── index.ts                   # Entry point — creates Hono app, mounts all routes
 │
-├── routes/                    # Route handlers, one file per resource
-│   ├── admin.ts
-│   ├── generator.ts
-│   ├── customer.ts
-│   ├── health.ts
-│   ├── metrics.ts
-│   ├── stripe-webhook.ts
-│   ├── subscriptions.ts
-│   └── users.ts
+├── routes/                    # Route handlers, organized by resource
+│   ├── auth/index.ts          → /api/auth
+│   ├── customer/index.ts      → /api/customer
+│   ├── subscriptions/index.ts → /api/subscriptions
+│   ├── reels/index.ts         → /api/reels
+│   ├── generation/index.ts    → /api/generation
+│   ├── queue/index.ts         → /api/queue
+│   ├── admin/index.ts         → /api/admin
+│   ├── users/index.ts         → /api/users
+│   ├── analytics/index.ts     → /api/analytics
+│   ├── public/index.ts        → /api/shared
+│   ├── csrf.ts                → /api/csrf
+│   └── health.ts              → /api/health
 │
 ├── middleware/                # Hono middleware
-│   └── protection.ts          # requireAuth, requireAdmin
+│   ├── protection.ts          # authMiddleware, csrfMiddleware, rateLimiter, validateBody, validateQuery
+│   └── security-headers.ts    # secureHeaders() — applied globally
 │
 ├── services/                  # Business logic (called from routes)
+│   ├── reels/
+│   │   ├── reel-analyzer.ts   # Claude Haiku analysis
+│   │   └── content-generator.ts  # Claude Sonnet generation
+│   ├── firebase/admin.ts      # Firebase Admin SDK
+│   ├── db/db.ts               # Drizzle client
+│   ├── stripe/                # Stripe API wrappers
+│   ├── email/                 # Resend email service
+│   ├── scraping.service.ts    # Niche scraping/job queue
+│   ├── rate-limit/            # Redis rate limiting
+│   ├── csrf/                  # CSRF token generation/validation
+│   └── observability/         # Prometheus metrics
+│
+├── constants/                 # Configuration constants
+│   ├── stripe.constants.ts    # Stripe product/price IDs
+│   ├── rate-limit.config.ts   # Rate limit configurations
+│   └── subscription.constants.ts  # Tier definitions and limits
 │
 └── infrastructure/
     └── database/
-        ├── prisma/
-        │   ├── schema.prisma  # Data model
-        │   └── migrations/    # Auto-generated migrations
-        └── lib/generated/     # Generated Prisma client (do not edit)
+        └── drizzle/
+            ├── schema.ts      # Drizzle table definitions + relations
+            └── migrations/    # SQL migrations (auto-generated by bun db:generate)
 ```
 
 ---
@@ -125,7 +150,7 @@ backend/src/
 | Functions/hooks | camelCase | `calculateTotal`, `useSubscription` |
 | Constants | UPPER_SNAKE_CASE | `APP_NAME`, `MAX_RETRIES` |
 | Types/interfaces | PascalCase | `UserProfile`, `GeneratorInput` |
-| Route files (Hono) | noun.ts | `generator.ts`, `admin.ts` |
+| Route files (Hono) | noun/index.ts | `reels/index.ts`, `admin/index.ts` |
 
 ---
 
@@ -167,23 +192,19 @@ import type { GeneratorInput } from '@/features/generator/types/generator.types'
 
 ## Feature module contract
 
-Every feature module should have a consistent internal structure. Using the generator as the reference:
+Every feature module follows a consistent internal structure. Using `reels` as the reference:
 
 ```
-features/generator/
-├── components/               # UI components
-├── constants/
-│   └── generator.constants.ts  # Config: types, tier requirements, metadata
+features/reels/
+├── components/              # UI components (ReelList, PhonePreview, AnalysisPanel)
 ├── hooks/
-│   └── use-generator.ts    # Client-side: calls API, checks access
+│   ├── use-reels.ts         # React Query: fetch reel list
+│   └── use-reel-analysis.ts # React Query: fetch/trigger analysis
 ├── services/
-│   └── generator-service.ts  # Pure logic (no side effects)
+│   └── reels.service.ts     # API call wrappers (calls authenticated fetch utilities)
 └── types/
-    ├── generator.types.ts  # Input/output TypeScript types
-    └── generator-validation.ts  # Zod schemas for API validation
+    └── reels.types.ts       # TypeScript types for Reel, ReelAnalysis
 ```
-
-When replacing the core feature with your own product, your new feature module should follow this same structure. See [TEMPLATE_GUIDE.md](../../TEMPLATE_GUIDE.md) for the full swap guide.
 
 ---
 

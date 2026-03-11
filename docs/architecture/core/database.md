@@ -2,462 +2,431 @@
 
 ## Overview
 
-PostgreSQL database with Prisma ORM, Zod validation, and security best practices.
+PostgreSQL database managed with **Drizzle ORM** (not Prisma). Zod schemas validate all API inputs server-side via dedicated middleware.
 
 **Stack:**
-- **Database:** PostgreSQL
-- **ORM:** Prisma (type-safe queries)
-- **Validation:** Zod schemas
-- **Connection Pooling:** Prisma connection pool
-- **Migrations:** Prisma migrate (`bun db:migrate` from `backend/`)
+- **Database**: PostgreSQL
+- **ORM**: Drizzle ORM (`drizzle-orm/pg-core`)
+- **Schema location**: `backend/src/infrastructure/database/drizzle/schema.ts`
+- **Migrations**: `bun db:generate` → `bun db:migrate` (from `backend/`)
+- **Validation**: Zod — enforced by `validateBody()` / `validateQuery()` middleware
 
 ---
 
 ## Table of Contents
 
-1. [Schema Design](#schema-design)
-2. [Prisma Client](#prisma-client)
-3. [Query Patterns](#query-patterns)
-4. [Data Validation](#data-validation)
-5. [Best Practices](#best-practices)
+1. [Schema Overview](#schema-overview)
+2. [Table Definitions](#table-definitions)
+3. [Drizzle Client](#drizzle-client)
+4. [Query Patterns](#query-patterns)
+5. [Data Validation](#data-validation)
+6. [Best Practices](#best-practices)
 
 ---
 
-## Schema Design
+## Schema Overview
 
-**Location:** `backend/src/infrastructure/database/prisma/schema.prisma`
-
-### Example Schema
-
-```prisma
-model User {
-  id       String   @id // Firebase UID
-  email    String   @unique
-  name     String?
-  role     String   @default("user")
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
-  deletedAt DateTime?
-  
-  // Relations
-  orders            Order[]
-  generatedContent  GeneratedContent[]
-  queueItems        QueueItem[]
-  
-  @@index([email])
-  @@index([role])
-  @@map("users")
-}
-
-model Reel {
-  id              String   @id @default(uuid())
-  username        String
-  niche           String
-  contentUrl      String?
-  thumbnailEmoji String?
-  hook            String
-  caption         String?
-  audioTrack      String?
-  views           BigInt
-  likes           BigInt
-  comments        BigInt
-  engagementRate  Decimal  @db.Decimal(8, 5)
-  postedAt        DateTime
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
-  
-  // Relations
-  analysis         ReelAnalysis?
-  generatedContent GeneratedContent[]
-  
-  @@index([niche])
-  @@index([engagementRate])
-  @@index([postedAt])
-  @@index([username])
-  @@map("reels")
-}
-
-model ReelAnalysis {
-  id                String   @id @default(uuid())
-  reelId            String   @unique
-  hookPattern       String
-  hookCategory      String
-  emotionalTrigger  String
-  formatPattern     String
-  ctaType           String
-  captionFramework  String
-  curiosityGapStyle String
-  remixSuggestion   String
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  reel Reel @relation(fields: [reelId], references: [id])
-  
-  @@map("reel_analyses")
-}
-
-model GeneratedContent {
-  id               String   @id @default(uuid())
-  userId           String
-  sourceReelId      String
-  prompt           String
-  outputType       String   // 'full' | 'hook' | 'caption'
-  generatedHook    String
-  generatedCaption String
-  generatedScript  String?
-  status           String   @default("draft") // 'draft' | 'queued' | 'posted'
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
-  
-  // Relations
-  user        User     @relation(fields: [userId], references: [id])
-  sourceReel  Reel     @relation(fields: [sourceReelId], references: [id])
-  queueItems  QueueItem[]
-  
-  @@index([userId])
-  @@index([sourceReelId])
-  @@index([status])
-  @@map("generated_content")
-}
-
-model QueueItem {
-  id            String    @id @default(uuid())
-  userId        String
-  contentId     String
-  status        String    @default("queued") // 'queued' | 'scheduled' | 'posted' | 'failed'
-  scheduledFor  DateTime?
-  postedAt      DateTime?
-  instagramPostId String?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDeleted Boolean  @default(false)
-  
-  // Relations
-  user    User            @relation(fields: [userId], references: [id])
-  content GeneratedContent @relation(fields: [contentId], references: [id])
-  
-  @@index([userId])
-  @@index([contentId])
-  @@index([status])
-  @@index([scheduledFor])
-  @@map("queue_items")
-}
-
-model Order {
-  id          String   @id @default(uuid())
-  userId      String
-  totalAmount Decimal  @db.Decimal(10, 2)
-  status      String   @default("pending")
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isDeleted   Boolean  @default(false)
-  
-  // Relations
-  user        User     @relation(fields: [userId], references: [id])
-  
-  @@index([userId])
-  @@index([status])
-  @@map("orders")
-}
 ```
+backend/src/infrastructure/database/drizzle/schema.ts
+
+Tables:
+  user              ← Accounts, roles, profile
+  order             ← One-time purchases
+  contact_message   ← Contact form submissions
+  feature_usage     ← Usage history for feature tracking
+  niche             ← Content niches
+  reel              ← Instagram reel data
+  reel_analysis     ← AI-generated analysis per reel
+  generated_content ← AI-generated hooks, captions, scripts
+  instagram_page    ← Connected Instagram pages
+  queue_item        ← Content scheduling queue
 ```
 
-### Design Patterns
-
-- **Soft Deletes:** `isDeleted` + `deletedAt` fields
-- **Timestamps:** `createdAt` + `updatedAt` (automatic)
-- **Indexes:** On frequently queried fields
-- **Relations:** Clear foreign key relationships
+**Note:** Subscriptions live in **Firestore**, not PostgreSQL. See [subscription-system.md](../domain/subscription-system.md).
 
 ---
 
-## Prisma Client
+## Table Definitions
 
-**Location:** `backend/src/infrastructure/database/lib/generated/prisma/`
-
-### Client Configuration
-
+### `user`
 ```typescript
-import { PrismaClient } from '@prisma/client'
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient }
-
-const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
-
-export default prisma
+export const users = pgTable("user", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  firebaseUid: text("firebase_uid").unique(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  address: text("address"),
+  notes: text("notes"),
+  timezone: text("timezone").default("UTC"),
+  role: text("role").notNull().default("user"),         // "user" | "admin"
+  isActive: boolean("is_active").notNull().default(true),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+  deletedAt: timestamp("deleted_at"),
+  lastLogin: timestamp("last_login"),
+  hasUsedFreeTrial: boolean("has_used_free_trial").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdateFn(() => new Date()),
+});
 ```
 
-### Connection Pooling
+### `order`
+```typescript
+export const orders = pgTable("order", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull(),
+  totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status"),
+  stripeSessionId: text("stripe_session_id").unique(),
+  skipPayment: boolean("skip_payment").notNull().default(false),
+  orderType: text("order_type").notNull().default("one_time"),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+  deletedAt: timestamp("deleted_at"),
+  deletedBy: text("deleted_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("orders_user_id_idx").on(t.userId)]);
+```
 
-Prisma handles connection pooling automatically. For serverless:
+### `niche`
+```typescript
+export const niches = pgTable("niche", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdateFn(() => new Date()),
+});
+```
+
+### `reel`
+```typescript
+export const reels = pgTable("reel", {
+  id: serial("id").primaryKey(),
+  externalId: text("external_id").unique(),
+  username: text("username").notNull(),
+  nicheId: integer("niche_id").notNull().references(() => niches.id, { onDelete: "restrict" }),
+  views: integer("views").notNull().default(0),
+  likes: integer("likes").notNull().default(0),
+  comments: integer("comments").notNull().default(0),
+  engagementRate: numeric("engagement_rate", { precision: 5, scale: 2 }),
+  hook: text("hook"),
+  caption: text("caption"),
+  audioName: text("audio_name"),
+  audioId: text("audio_id"),
+  thumbnailEmoji: text("thumbnail_emoji"),
+  thumbnailUrl: text("thumbnail_url"),
+  videoUrl: text("video_url"),
+  postedAt: timestamp("posted_at"),
+  daysAgo: integer("days_ago"),
+  isViral: boolean("is_viral").notNull().default(false),
+  scrapedAt: timestamp("scraped_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("reels_niche_id_idx").on(t.nicheId),
+  index("reels_views_idx").on(t.views),
+]);
+```
+
+### `reel_analysis`
+```typescript
+export const reelAnalyses = pgTable("reel_analysis", {
+  id: serial("id").primaryKey(),
+  reelId: integer("reel_id").notNull(),
+  hookPattern: text("hook_pattern"),
+  hookCategory: text("hook_category"),
+  emotionalTrigger: text("emotional_trigger"),
+  formatPattern: text("format_pattern"),
+  ctaType: text("cta_type"),
+  captionFramework: text("caption_framework"),
+  curiosityGapStyle: text("curiosity_gap_style"),
+  remixSuggestion: text("remix_suggestion"),
+  analysisModel: text("analysis_model"),
+  rawResponse: jsonb("raw_response"),
+  analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
+}, (t) => [index("reel_analyses_reel_id_idx").on(t.reelId)]);
+```
+
+### `generated_content`
+```typescript
+export const generatedContent = pgTable("generated_content", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  sourceReelId: integer("source_reel_id"),
+  prompt: text("prompt").notNull(),
+  generatedHook: text("generated_hook"),
+  generatedCaption: text("generated_caption"),
+  generatedScript: text("generated_script"),
+  outputType: text("output_type").notNull().default("full"),  // "hook" | "caption" | "full"
+  model: text("model"),
+  status: text("status").notNull().default("draft"),          // "draft" | "queued" | "posted" | "failed"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("generated_content_user_id_idx").on(t.userId),
+  index("generated_content_source_reel_idx").on(t.sourceReelId),
+]);
+```
+
+### `instagram_page`
+```typescript
+export const instagramPages = pgTable("instagram_page", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  pageId: text("page_id").notNull(),
+  username: text("username").notNull(),
+  accessToken: text("access_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+```
+
+### `queue_item`
+```typescript
+export const queueItems = pgTable("queue_item", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  generatedContentId: integer("generated_content_id"),
+  scheduledFor: timestamp("scheduled_for"),
+  postedAt: timestamp("posted_at"),
+  instagramPageId: text("instagram_page_id"),
+  status: text("status").notNull().default("scheduled"),  // "scheduled" | "posted" | "failed"
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("queue_items_user_id_idx").on(t.userId),
+  index("queue_items_status_idx").on(t.status),
+]);
+```
+
+### Relations
+```typescript
+export const usersRelations = relations(users, ({ many }) => ({
+  orders: many(orders),
+  featureUsages: many(featureUsages),
+}));
+
+export const nichesRelations = relations(niches, ({ many }) => ({
+  reels: many(reels),
+}));
+
+export const reelsRelations = relations(reels, ({ one }) => ({
+  niche: one(niches, { fields: [reels.nicheId], references: [niches.id] }),
+}));
+```
+
+---
+
+## Drizzle Client
+
+**Location:** `backend/src/services/db/db.ts`
 
 ```typescript
-// Recommended for serverless (Vercel, etc.)
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")  // For migrations
-}
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "../../infrastructure/database/drizzle/schema";
+import { DATABASE_URL } from "../../utils/config/envUtil";
+
+const pool = new Pool({ connectionString: DATABASE_URL });
+export const db = drizzle(pool, { schema });
+```
+
+Import and use in route/service files:
+```typescript
+import { db } from "../services/db/db";
+import { users, reels, ... } from "../infrastructure/database/drizzle/schema";
+import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 ```
 
 ---
 
 ## Query Patterns
 
-### Basic CRUD
-
+### Select (Read)
 ```typescript
-import prisma from '@/shared/services/db/prisma'
+// Single user by id
+const [user] = await db.select().from(users).where(eq(users.id, userId));
 
-// Create
-const user = await prisma.user.create({
-  data: {
-    id: firebaseUid,
-    email: 'user@example.com',
-    name: 'John Doe',
-  }
-})
+// Multiple with filter
+const activeReels = await db
+  .select()
+  .from(reels)
+  .where(and(eq(reels.nicheId, nicheId), eq(reels.isViral, true)))
+  .orderBy(desc(reels.views))
+  .limit(20);
 
-// Read
-const user = await prisma.user.findUnique({
-  where: { id: userId }
-})
-
-// Update
-const updated = await prisma.user.update({
-  where: { id: userId },
-  data: { name: 'Jane Doe' }
-})
-
-// Delete (soft delete)
-const deleted = await prisma.user.update({
-  where: { id: userId },
-  data: { 
-    isDeleted: true,
-    deletedAt: new Date()
-  }
-})
+// With join
+const reelsWithNiche = await db
+  .select({
+    id: reels.id,
+    username: reels.username,
+    views: reels.views,
+    nicheName: niches.name,
+  })
+  .from(reels)
+  .innerJoin(niches, eq(reels.nicheId, niches.id))
+  .where(eq(niches.isActive, true));
 ```
 
-### Query with Relations
-
+### Insert (Create)
 ```typescript
-// Include related data
-const user = await prisma.user.findUnique({
-  where: { id: userId },
-  include: {
-    orders: true,  // Include all orders
-  }
-})
+const [newReel] = await db
+  .insert(reels)
+  .values({
+    username: "@fitnessguru",
+    nicheId: 3,
+    views: 1_200_000,
+    hook: "3 exercises you're doing WRONG...",
+    isViral: true,
+  })
+  .returning();
+```
 
-// Select specific fields
-const user = await prisma.user.findUnique({
-  where: { id: userId },
-  select: {
-    id: true,
-    email: true,
-    name: true,
-  }
-})
+### Upsert (Insert or Update)
+```typescript
+// Used in authMiddleware to create or refresh user on login
+const [user] = await db
+  .insert(users)
+  .values({ firebaseUid, email, name, role: "user", isActive: true })
+  .onConflictDoUpdate({
+    target: users.firebaseUid,
+    set: { email, name, lastLogin: new Date() },
+  })
+  .returning({ id: users.id, email: users.email, role: users.role });
+```
+
+### Update
+```typescript
+await db
+  .update(reels)
+  .set({ isViral: true, views: 5_000_000 })
+  .where(eq(reels.id, reelId));
+```
+
+### Delete (Hard)
+```typescript
+await db.delete(reels).where(eq(reels.id, reelId));
+```
+
+### Soft Delete
+```typescript
+// Users and orders use soft delete pattern
+await db
+  .update(users)
+  .set({ isDeleted: true, deletedAt: new Date() })
+  .where(eq(users.id, userId));
 ```
 
 ### Pagination
-
 ```typescript
-const page = 1
-const limit = 20
-const skip = (page - 1) * limit
+const limit = 20;
+const offset = (page - 1) * limit;
 
-const [users, totalCount] = await Promise.all([
-  prisma.user.findMany({
-    where: { isDeleted: false },
-    skip,
-    take: limit,
-    orderBy: { createdAt: 'desc' },
-  }),
-  prisma.user.count({
-    where: { isDeleted: false },
-  }),
-])
+const [{ total }] = await db
+  .select({ total: sql<number>`count(*)::int` })
+  .from(reels)
+  .where(eq(reels.nicheId, nicheId));
 
-const totalPages = Math.ceil(totalCount / limit)
+const items = await db
+  .select()
+  .from(reels)
+  .where(eq(reels.nicheId, nicheId))
+  .orderBy(desc(reels.views))
+  .limit(limit)
+  .offset(offset);
 ```
 
-### Studio-specific Queries
+### Studio-Specific Queries
 
 ```typescript
-// Get reels with analysis for a niche
-const reels = await prisma.reel.findMany({
-  where: {
-    niche: 'fitness',
-    isDeleted: false
-  },
-  include: {
-    analysis: true
-  },
-  orderBy: {
-    engagementRate: 'desc'
-  },
-  take: 20
-});
-
-// Get user's generation history
-const generations = await prisma.generatedContent.findMany({
-  where: {
-    userId: user.id,
-    isDeleted: false
-  },
-  include: {
-    sourceReel: {
-      select: {
-        id: true,
-        username: true,
-        hook: true,
-        thumbnailEmoji: true
-      }
-    }
-  },
-  orderBy: { createdAt: 'desc' },
-  take: 20
-});
-
-// Get user's queue with content
-const queue = await prisma.queueItem.findMany({
-  where: {
-    userId: user.id,
-    isDeleted: false
-  },
-  include: {
-    content: {
-      include: {
-        sourceReel: {
-          select: {
-            username: true,
-            hook: true
-          }
-        }
-      }
-    }
-  },
-  orderBy: { scheduledFor: 'asc' }
-});
-```
-
-### Transactions
-
-```typescript
-await prisma.$transaction(async (tx) => {
-  // Update user
-  await tx.user.update({
-    where: { id: userId },
-    data: { /* ... */ },
+// Reels with analysis status for a niche
+const reelsWithAnalysis = await db
+  .select({
+    reel: reels,
+    hasAnalysis: sql<boolean>`CASE WHEN ${reelAnalyses.id} IS NOT NULL THEN true ELSE false END`,
   })
-  
-  // Create order
-  await tx.order.create({
-    data: { /* ... */ },
-  })
-})
+  .from(reels)
+  .leftJoin(reelAnalyses, eq(reelAnalyses.reelId, reels.id))
+  .where(eq(reels.nicheId, nicheId))
+  .orderBy(desc(reels.views));
+
+// User's generated content history
+const history = await db
+  .select()
+  .from(generatedContent)
+  .where(and(
+    eq(generatedContent.userId, userId),
+    eq(generatedContent.status, "draft"),
+  ))
+  .orderBy(desc(generatedContent.createdAt))
+  .limit(50);
+
+// Queue items for a user (with scheduled date filter)
+const queue = await db
+  .select()
+  .from(queueItems)
+  .where(and(
+    eq(queueItems.userId, userId),
+    eq(queueItems.status, "scheduled"),
+    gte(queueItems.scheduledFor, new Date()),
+  ))
+  .orderBy(asc(queueItems.scheduledFor));
 ```
 
 ---
 
 ## Data Validation
 
-**Location:** `frontend/src/shared/utils/validation/` (frontend) and `backend/src/` (backend)
+All API inputs are validated by Zod middleware before the route handler executes. The validated data is available via `c.get("validatedBody")` and `c.get("validatedQuery")`.
 
-### Zod Schema Definition
-
+### Middleware Usage
 ```typescript
-import { z } from 'zod'
+import { validateBody, validateQuery } from "../middleware/protection";
+import { z } from "zod";
 
-// Define schema
-export const createUserSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  name: z.string().min(1, 'Name is required').max(100),
-  age: z.number().int().min(0).max(150).optional(),
-})
-
-export type CreateUserInput = z.infer<typeof createUserSchema>
-```
-
-### API Validation
-
-```typescript
-import { createUserSchema } from '@/shared/utils/validation/api-validation'
-
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  
-  // Validate input
-  const result = createUserSchema.safeParse(body)
-  
-  if (!result.success) {
-    return NextResponse.json(
-      { 
-        error: 'Validation failed',
-        details: result.error.issues
-      },
-      { status: 422 }
-    )
-  }
-  
-  const validData = result.data  // Type-safe
-  
-  // Use validData...
-}
-```
-
-### Studio-specific Validation
-
-```typescript
-// Reel discovery validation
-export const reelDiscoverySchema = z.object({
-  niche: z.string().min(1).max(50),
-  limit: z.number().int().min(1).max(100).optional(),
-  offset: z.number().int().min(0).optional()
-});
-
-// Generation request validation
-export const generationRequestSchema = z.object({
-  sourceReelId: z.string().uuid(),
+const createGenerationSchema = z.object({
+  sourceReelId: z.number().int().positive(),
   prompt: z.string().min(1).max(1000),
-  outputType: z.enum(['full', 'hook', 'caption'])
+  outputType: z.enum(["full", "hook", "caption"]),
 });
 
-// Queue item validation
-export const queueItemSchema = z.object({
-  contentId: z.string().uuid(),
+app.post(
+  "/",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  validateBody(createGenerationSchema),
+  async (c) => {
+    const body = c.get("validatedBody") as z.infer<typeof createGenerationSchema>;
+    // body.sourceReelId, body.prompt, body.outputType are type-safe
+  }
+);
+```
+
+### Common Validation Schemas
+
+```typescript
+// Reel discovery query
+const reelQuerySchema = z.object({
+  nicheId: z.string().optional(),
+  limit: z.string().optional().transform(Number),
+  offset: z.string().optional().transform(Number),
+  minViews: z.string().optional().transform(Number),
+  sort: z.enum(["views", "engagementRate", "createdAt"]).optional(),
+});
+
+// Queue item update
+const queueUpdateSchema = z.object({
   scheduledFor: z.string().datetime().optional(),
-  status: z.enum(['queued', 'scheduled', 'posted', 'failed']).optional()
+  instagramPageId: z.string().optional(),
+  status: z.enum(["scheduled", "posted", "failed"]).optional(),
 });
 
-// Analysis response validation
-export const reelAnalysisSchema = z.object({
-  hookPattern: z.string(),
-  hookCategory: z.string(),
-  emotionalTrigger: z.string(),
-  formatPattern: z.string(),
-  ctaType: z.string(),
-  captionFramework: z.string(),
-  curiosityGapStyle: z.string(),
-  remixSuggestion: z.string()
+// Admin niche upsert
+const nicheSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 ```
 
@@ -466,43 +435,30 @@ export const reelAnalysisSchema = z.object({
 ## Best Practices
 
 ### Security
-
-- ✅ Use Prisma (prevents SQL injection)
-- ✅ Never concatenate user input into queries
-- ✅ Validate all inputs with Zod
-- ✅ Sanitize error messages (no sensitive data)
+- ✅ Always use Drizzle parameterized queries — SQL injection is not possible
+- ✅ Validate all inputs at the API boundary with `validateBody()` / `validateQuery()`
+- ✅ Scope queries to `userId` for user-owned data — never let a user access another user's data
 
 ### Performance
-
-- ✅ Use indexes on frequently queried fields
-- ✅ Select only needed fields
-- ✅ Use pagination for large datasets
-- ✅ Batch queries when possible
+- ✅ Use `index()` on frequently filtered columns (`nicheId`, `userId`, `status`, `views`)
+- ✅ Select only needed columns (avoid `select *` in production queries where possible)
+- ✅ Paginate all list endpoints
+- ✅ Use `sql<number>` count aggregations instead of fetching all rows
 
 ### Data Integrity
-
-- ✅ Use transactions for related operations
-- ✅ Implement soft deletes
-- ✅ Use database constraints (unique, foreign keys)
-- ✅ Add timestamps to track changes
-
-### Error Handling
-
-- ✅ Handle Prisma errors gracefully
-- ✅ Log database errors server-side
-- ✅ Return user-friendly error messages
-- ✅ Use try-catch blocks
+- ✅ Use foreign key references (e.g., `reels.nicheId → niches.id`)
+- ✅ Use soft delete (`isDeleted`, `deletedAt`) for user-visible data
+- ✅ Use `$defaultFn(() => crypto.randomUUID())` for text primary keys
+- ✅ Use `$onUpdateFn(() => new Date())` for `updatedAt` fields
 
 ---
 
 ## Related Documentation
 
-- [API Architecture](./api.md) - API routes
-- [Security](./security.md) - Input validation, PII sanitization
-- [Error Handling](./error-handling.md) - Error patterns
-- [Studio System](../domain/studio-system.md) - Studio-specific database patterns
-- [Generation System](../domain/generation-system.md) - Content generation data flow
+- [API Architecture](./api.md) — Middleware composition
+- [Studio System](../domain/studio-system.md) — Reel/generation data flows
+- [Subscription System](../domain/subscription-system.md) — Firestore vs PostgreSQL split
 
 ---
 
-*Last Updated: January 2026*
+*Last updated: March 2026*

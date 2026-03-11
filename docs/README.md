@@ -50,6 +50,6 @@ This is the central documentation hub for **ReelStudio**, an AI-powered Content 
 
 ## Architecture overview (one paragraph)
 
-The template is a monorepo with two independent servers. The **frontend** (`frontend/`) is a React 19 SPA built with Vite and TanStack Router. The **backend** (`backend/`) is a Hono API server running on Bun. They share no runtime code. Firebase handles authentication; PostgreSQL (via Prisma) stores users, orders, and feature usage; Stripe handles payments and subscriptions; Redis handles rate limiting and caching.
+ReelStudio is a monorepo with two independent servers. The **frontend** (`frontend/`) is a React 19 SPA built with Vite and TanStack Router. The **backend** (`backend/`) is a Hono API server running on Bun. They share no runtime code. Firebase handles authentication; PostgreSQL (via **Drizzle ORM**) stores users, orders, reels, analyses, generated content, and queue items; Firestore (via Firebase Stripe Extension) manages subscriptions; Stripe handles payments; Redis handles rate limiting; Anthropic Claude (Haiku + Sonnet) powers AI analysis and content generation.
 
 For the full picture: [architecture/overview.md](./architecture/overview.md).
