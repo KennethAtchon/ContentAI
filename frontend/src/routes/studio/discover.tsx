@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
@@ -8,6 +7,7 @@ import { ReelList } from "@/features/reels/components/ReelList";
 import { PhonePreview } from "@/features/reels/components/PhonePreview";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
 import { useReels, useReel } from "@/features/reels/hooks/use-reels";
+import { useTranslation } from "react-i18next";
 
 const AI_TOOLS = [
   "studio_tools_hookWriter",
@@ -19,9 +19,7 @@ const AI_TOOLS = [
 
 function DiscoverPage() {
   const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [niche, setNiche] = useState("personal finance");
-  const [inputNiche, setInputNiche] = useState("personal finance");
+  const [niche] = useState("personal finance");
   const [activeReelId, setActiveReelId] = useState<number | null>(null);
 
   const { data: reelsData, isLoading: reelsLoading } = useReels(niche);
@@ -31,11 +29,6 @@ function DiscoverPage() {
   const { data: reelData } = useReel(resolvedId);
   const selectedReel = reelData?.reel ?? null;
   const analysis = reelData?.analysis ?? null;
-
-  const handleScan = () => {
-    setNiche(inputNiche);
-    setActiveReelId(null);
-  };
 
   return (
     <AuthGuard authType="user">
@@ -115,11 +108,10 @@ function DiscoverPage() {
                 </div>
               </>
             ) : (
-              <SearchCanvas
-                inputRef={inputRef}
-                inputNiche={inputNiche}
-                setInputNiche={setInputNiche}
-                handleScan={handleScan}
+              <EmptyCanvas
+                label="No reels found for this category"
+                sub="An admin needs to add content for this niche first."
+                icon="🎬"
               />
             )}
           </main>
@@ -154,7 +146,7 @@ function ToolbarBtn({
         "flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-all duration-150 font-studio cursor-pointer",
         primary
           ? "bg-gradient-to-br from-studio-accent to-studio-purple border-transparent text-white font-semibold hover:opacity-85"
-          : "bg-white/[0.05] border-white/[0.07] text-slate-200/50 hover:bg-white/[0.08] hover:text-studio-fg"
+          : "bg-white/[0.05] border-white/[0.07] text-slate-200/50 hover:bg-white/[0.08] hover:text-studio-fg",
       )}
     >
       {children}
@@ -176,60 +168,6 @@ function EmptyCanvas({
       <span className="text-[40px] opacity-50">{icon}</span>
       <p className="text-[14px] font-semibold text-slate-200/50">{label}</p>
       {sub && <p className="text-[12px] text-slate-200/25">{sub}</p>}
-    </div>
-  );
-}
-
-function SearchCanvas({
-  inputRef,
-  inputNiche,
-  setInputNiche,
-  handleScan,
-}: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
-  inputNiche: string;
-  setInputNiche: (val: string) => void;
-  handleScan: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 p-12 text-center max-w-[400px] mx-auto w-full">
-      <span className="text-[56px] opacity-40 mb-2">🎬</span>
-      <div className="space-y-2">
-        <p className="text-[18px] font-bold text-slate-100">
-          {t("studio_canvas_noReel")}
-        </p>
-        <p className="text-[13px] text-slate-200/40">
-          {t("studio_canvas_noReelSub")}
-        </p>
-      </div>
-
-      <div className="w-full flex items-center gap-2 mt-4">
-        <input
-          ref={inputRef}
-          value={inputNiche}
-          onChange={(e) => setInputNiche(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleScan()}
-          placeholder={t("studio_search_placeholder")}
-          className={cn(
-            "flex-1 w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-[44px]",
-            "text-studio-fg text-[13px] px-4 outline-none font-studio shadow-lg",
-            "placeholder:text-slate-200/25 transition-colors duration-200",
-            "focus:border-studio-ring/50"
-          )}
-        />
-        <button
-          onClick={handleScan}
-          className={cn(
-            "bg-gradient-to-br from-studio-accent to-studio-purple h-[44px]",
-            "text-white text-[13px] font-semibold px-6 rounded-xl border-0 shrink-0 shadow-lg",
-            "cursor-pointer transition-all duration-150 hover:opacity-85 hover:scale-[1.02] active:scale-[0.98] font-studio"
-          )}
-        >
-          {t("studio_search_scan")}
-        </button>
-      </div>
     </div>
   );
 }

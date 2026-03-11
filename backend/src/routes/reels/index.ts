@@ -4,6 +4,7 @@ import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import {
   reels,
+  niches,
   reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, gte, ilike, sql, and } from "drizzle-orm";
@@ -14,8 +15,36 @@ import { debugLog } from "../../utils/debug/debug";
 const reelsRouter = new Hono<HonoEnv>();
 
 /**
+ * GET /api/reels/niches
+ * Returns the list of active niches for frontend dropdowns.
+ */
+reelsRouter.get(
+  "/niches",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const rows = await db
+        .select({ id: niches.id, name: niches.name })
+        .from(niches)
+        .where(eq(niches.isActive, true))
+        .orderBy(niches.name);
+
+      return c.json({ niches: rows });
+    } catch (error) {
+      debugLog.error("Failed to fetch niches", {
+        service: "reels-route",
+        operation: "listNiches",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch niches" }, 500);
+    }
+  },
+);
+
+/**
  * GET /api/reels
- * List reels filtered by niche, paginated.
+ * List reels filtered by nicheId (preferred) or niche name, paginated.
  */
 reelsRouter.get(
   "/",
@@ -23,7 +52,8 @@ reelsRouter.get(
   authMiddleware("user"),
   async (c) => {
     try {
-      const niche = c.req.query("niche") ?? "";
+      const nicheIdParam = c.req.query("nicheId");
+      const nicheNameParam = c.req.query("niche") ?? "";
       const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
       const offset = parseInt(c.req.query("offset") ?? "0", 10);
       const minViews = parseInt(
@@ -39,15 +69,27 @@ reelsRouter.get(
             ? desc(reels.createdAt)
             : desc(reels.views);
 
-      const conditions = [gte(reels.views, minViews)];
-      if (niche) conditions.push(ilike(reels.niche, `%${niche}%`));
+      const conditions: ReturnType<typeof gte>[] = [gte(reels.views, minViews)];
+
+      if (nicheIdParam) {
+        const nicheId = parseInt(nicheIdParam, 10);
+        if (!isNaN(nicheId)) conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
+      } else if (nicheNameParam) {
+        // Resolve name → id via sub-select
+        const [matched] = await db
+          .select({ id: niches.id })
+          .from(niches)
+          .where(ilike(niches.name, `%${nicheNameParam}%`))
+          .limit(1);
+        if (matched) conditions.push(eq(reels.nicheId, matched.id) as ReturnType<typeof gte>);
+      }
 
       const [reelRows, [{ total }]] = await Promise.all([
         db
           .select({
             id: reels.id,
             username: reels.username,
-            niche: reels.niche,
+            nicheId: reels.nicheId,
             views: reels.views,
             likes: reels.likes,
             comments: reels.comments,
@@ -89,7 +131,8 @@ reelsRouter.get(
           hasAnalysis: analyzedIds.has(r.id),
         })),
         total,
-        niche,
+        nicheId: nicheIdParam ?? null,
+        niche: nicheNameParam,
       });
     } catch (error) {
       debugLog.error("Failed to fetch reels", {
@@ -136,35 +179,6 @@ reelsRouter.get(
 );
 
 /**
- * POST /api/reels/scan
- * Trigger a niche scan (stub — queues future job).
- */
-reelsRouter.post(
-  "/scan",
-  rateLimiter("customer"),
-  authMiddleware("user"),
-  async (c) => {
-    try {
-      const body = await c.req.json();
-      const niche = (body.niche as string | undefined)?.trim();
-      if (!niche) return c.json({ error: "niche is required" }, 400);
-
-      // For now, return a stub response. Real scraper integration goes here.
-      const jobId = `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-      return c.json({ jobId, niche, status: "queued" }, 202);
-    } catch (error) {
-      debugLog.error("Failed to queue scan", {
-        service: "reels-route",
-        operation: "scanNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to queue scan" }, 500);
-    }
-  },
-);
-
-/**
  * POST /api/reels/:id/analyze
  * Trigger AI analysis for a specific reel.
  */
@@ -200,24 +214,40 @@ reelsRouter.get(
   authMiddleware("user"),
   async (c) => {
     try {
-      const niche = c.req.query("niche");
+      const nicheIdParam = c.req.query("nicheId");
+      const nicheNameParam = c.req.query("niche");
       const format = c.req.query("format") ?? "json";
       const minViews = parseInt(
         c.req.query("minViews") ?? String(VIRAL_VIEWS_THRESHOLD),
         10,
       );
 
-      if (!niche) {
-        return c.json({ error: "niche parameter is required for export" }, 400);
+      if (!nicheIdParam && !nicheNameParam) {
+        return c.json({ error: "nicheId or niche parameter is required for export" }, 400);
+      }
+
+      let resolvedNicheId: number | null = null;
+
+      if (nicheIdParam) {
+        resolvedNicheId = parseInt(nicheIdParam, 10);
+      } else if (nicheNameParam) {
+        const [matched] = await db
+          .select({ id: niches.id })
+          .from(niches)
+          .where(ilike(niches.name, `%${nicheNameParam}%`))
+          .limit(1);
+        if (matched) resolvedNicheId = matched.id;
+      }
+
+      if (!resolvedNicheId) {
+        return c.json({ error: "No matching niche found" }, 404);
       }
 
       // Fetch all viral reels for the niche
       const reelRows = await db
         .select()
         .from(reels)
-        .where(
-          and(gte(reels.views, minViews), ilike(reels.niche, `%${niche}%`)),
-        )
+        .where(and(gte(reels.views, minViews), eq(reels.nicheId, resolvedNicheId)))
         .orderBy(desc(reels.views));
 
       if (reelRows.length === 0) {
@@ -238,7 +268,6 @@ reelsRouter.get(
 
       const analysisMap = new Map(analysisRows.map((a) => [a.reelId, a]));
 
-      // Combine into report format
       let totalEngagement = 0;
       const exportData = reelRows.map((r) => {
         const rate = Number(r.engagementRate) || 0;
@@ -247,7 +276,7 @@ reelsRouter.get(
 
         return {
           reelId: r.id,
-          url: `https://instagram.com/${r.username}/reel/${r.id}`, // Mock URL based on username
+          url: `https://instagram.com/${r.username}/reel/${r.id}`,
           views: r.views,
           likes: r.likes,
           comments: r.comments,
@@ -255,7 +284,6 @@ reelsRouter.get(
           hook: r.hook,
           caption: r.caption,
           audioName: r.audioName,
-          // AI fields (flattened for CSV compatibility)
           hookPattern: analysis?.hookPattern,
           hookCategory: analysis?.hookCategory,
           emotionalTrigger: analysis?.emotionalTrigger,
@@ -276,14 +304,13 @@ reelsRouter.get(
         return new Response(csv, {
           headers: {
             "Content-Type": "text/csv",
-            "Content-Disposition": `attachment; filename="reels_export_${niche.replace(/\\s+/g, "_")}.csv"`,
+            "Content-Disposition": `attachment; filename="reels_export_${resolvedNicheId}.csv"`,
           },
         });
       }
 
-      // Default to JSON
       return c.json({
-        niche,
+        nicheId: resolvedNicheId,
         generatedAt: new Date().toISOString(),
         totalReels: exportData.length,
         avgEngagementRate,

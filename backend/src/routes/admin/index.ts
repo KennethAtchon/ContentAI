@@ -28,8 +28,12 @@ import {
 } from "../../services/firebase/subscription-helpers";
 import { getTierConfig } from "../../constants/subscription.constants";
 import { FirebaseUserSync } from "../../services/firebase/sync";
+import nichesRouter from "./niches";
 
 const admin = new Hono<HonoEnv>();
+
+// Mount niches & admin-reel sub-router
+admin.route("/", nichesRouter);
 
 // ─── GET /api/admin/verify ────────────────────────────────────────────────────
 

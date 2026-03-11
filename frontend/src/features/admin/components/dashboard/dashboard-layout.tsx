@@ -21,6 +21,7 @@ import {
   X,
   CreditCard,
   HelpCircle,
+  Database,
 } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
@@ -43,6 +44,11 @@ function useAdminNavItems(): AdminNavItem[] {
       href: "/admin/dashboard",
       icon: LayoutDashboard,
       label: t("admin_help_dashboard_section"),
+    },
+    {
+      href: "/admin/niches",
+      icon: Database,
+      label: "Niches & Scraping",
     },
     {
       href: "/admin/subscriptions",

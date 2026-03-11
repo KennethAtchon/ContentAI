@@ -84,6 +84,20 @@ export const featureUsages = pgTable(
   (t) => [index("feature_usages_user_id_idx").on(t.userId)],
 );
 
+// ─── Niches ───────────────────────────────────────────────────────────────────
+
+export const niches = pgTable("niche", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // e.g., "Personal Finance"
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
+    .notNull()
+    .defaultNow()
+    .$onUpdateFn(() => new Date()),
+});
+
 // ─── Reels ────────────────────────────────────────────────────────────────────
 
 export const reels = pgTable(
@@ -92,7 +106,9 @@ export const reels = pgTable(
     id: serial("id").primaryKey(),
     externalId: text("external_id").unique(),
     username: text("username").notNull(),
-    niche: text("niche").notNull(),
+    nicheId: integer("niche_id")
+      .notNull()
+      .references(() => niches.id, { onDelete: "restrict" }),
     views: integer("views").notNull().default(0),
     likes: integer("likes").notNull().default(0),
     comments: integer("comments").notNull().default(0),
@@ -111,7 +127,7 @@ export const reels = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
-    index("reels_niche_idx").on(t.niche),
+    index("reels_niche_id_idx").on(t.nicheId),
     index("reels_views_idx").on(t.views),
   ],
 );
@@ -202,6 +218,14 @@ export const featureUsagesRelations = relations(featureUsages, ({ one }) => ({
   user: one(users, { fields: [featureUsages.userId], references: [users.id] }),
 }));
 
+export const nichesRelations = relations(niches, ({ many }) => ({
+  reels: many(reels),
+}));
+
+export const reelsRelations = relations(reels, ({ one }) => ({
+  niche: one(niches, { fields: [reels.nicheId], references: [niches.id] }),
+}));
+
 // ─── Inferred types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -212,6 +236,8 @@ export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewContactMessage = typeof contactMessages.$inferInsert;
 export type FeatureUsage = typeof featureUsages.$inferSelect;
 export type NewFeatureUsage = typeof featureUsages.$inferInsert;
+export type Niche = typeof niches.$inferSelect;
+export type NewNiche = typeof niches.$inferInsert;
 export type Reel = typeof reels.$inferSelect;
 export type NewReel = typeof reels.$inferInsert;
 export type ReelAnalysis = typeof reelAnalyses.$inferSelect;

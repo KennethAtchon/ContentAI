@@ -42,7 +42,7 @@ export async function generateContent(
 
   if (outputType === "hook") {
     const system = loadPrompt("hook-writer");
-    const userContent = `Niche: ${reel.niche}
+    const userContent = `Niche ID: ${reel.nicheId}
 Hook Pattern: ${analysis?.hookPattern ?? "Unknown"} (${analysis?.hookCategory ?? "Unknown"})
 Emotional Trigger: ${analysis?.emotionalTrigger ?? "Unknown"}
 
@@ -68,7 +68,7 @@ Generate 5 hook variations.`;
   } else {
     const system = loadPrompt("remix-generation");
     const userContent = `Source Reel Analysis:
-- Niche: ${reel.niche}
+- Niche ID: ${reel.nicheId}
 - Hook Pattern: ${analysis?.hookPattern ?? "Unknown"} (${analysis?.hookCategory ?? "Unknown"})
 - Emotional Trigger: ${analysis?.emotionalTrigger ?? "Unknown"}
 - Format: ${analysis?.formatPattern ?? "Unknown"}

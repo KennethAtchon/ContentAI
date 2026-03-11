@@ -31,6 +31,10 @@ export const queryKeys = {
         ["api", "admin", "subscriptions", "stats"] as const,
       contactMessages: (params?: { page?: number; limit?: number }) =>
         ["api", "shared", "contact-messages", params] as const,
+      niches: (params?: { search?: string; active?: boolean }) =>
+        ["api", "admin", "niches", params] as const,
+      nicheReels: (nicheId: number, params?: { page?: number; limit?: number }) =>
+        ["api", "admin", "niche-reels", nicheId, params] as const,
     },
     // ── Studio / Reels ──────────────────────────────────────────────
     reels: (niche: string, params?: Record<string, unknown>) =>

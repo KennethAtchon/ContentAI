@@ -1,0 +1,294 @@
+import { db } from "./db/db";
+import { reels } from "../infrastructure/database/drizzle/schema";
+import type { NewReel } from "../infrastructure/database/drizzle/schema";
+import { eq, sql } from "drizzle-orm";
+import { debugLog } from "../utils/debug/debug";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface ScrapeResult {
+  saved: number;
+  skipped: number;
+}
+
+interface ApifyReelItem {
+  id?: string;
+  shortCode?: string;
+  url?: string;
+  videoUrl?: string;
+  displayUrl?: string;
+  thumbnailUrl?: string;
+  caption?: string;
+  likesCount?: number;
+  commentsCount?: number;
+  videoPlayCount?: number;
+  videoViewCount?: number;
+  ownerUsername?: string;
+  musicInfo?: {
+    song_name?: string;
+    artist_name?: string;
+    audio_id?: string;
+  };
+  timestamp?: string;
+  takenAt?: number;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const APIFY_BASE_URL = "https://api.apify.com/v2";
+const ACTOR_ID = "apify~instagram-reel-scraper";
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 40; // 40 * 3s = 2 minutes
+const MAX_RETRIES = 3;
+const RETRY_DELAYS_MS = [2000, 4000, 8000];
+const VIRAL_THRESHOLD = parseInt(process.env.VIRAL_VIEWS_THRESHOLD ?? "100000");
+
+// ─── ScrapingService ──────────────────────────────────────────────────────────
+
+class ScrapingService {
+  /**
+   * Scrape reels for the given niche and persist them.
+   * Falls back gracefully to a stub if SOCIAL_API_KEY is not configured.
+   */
+  async scrapeNiche(nicheId: number, nicheName: string): Promise<ScrapeResult> {
+    const apiKey = process.env.SOCIAL_API_KEY;
+
+    if (!apiKey) {
+      debugLog.warn("SOCIAL_API_KEY not set — skipping real scrape (stub mode)", {
+        service: "scraping-service",
+        nicheId,
+        nicheName,
+      });
+      return { saved: 0, skipped: 0 };
+    }
+
+    return this.scrapeWithRetry(nicheId, nicheName, apiKey);
+  }
+
+  // ─── Retry wrapper ─────────────────────────────────────────────────────────
+
+  private async scrapeWithRetry(
+    nicheId: number,
+    nicheName: string,
+    apiKey: string,
+  ): Promise<ScrapeResult> {
+    let lastError: Error = new Error("Unknown error");
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await this.scrapeViaApify(nicheId, nicheName, apiKey);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
+
+        debugLog.warn(`Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`, {
+          service: "scraping-service",
+          nicheId,
+          error: lastError.message,
+        });
+
+        if (attempt < MAX_RETRIES - 1) {
+          await sleep(delay);
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  // ─── Apify integration ─────────────────────────────────────────────────────
+
+  private async scrapeViaApify(
+    nicheId: number,
+    nicheName: string,
+    apiKey: string,
+  ): Promise<ScrapeResult> {
+    // 1. Start the actor run
+    const runId = await this.startApifyRun(nicheName, apiKey);
+
+    debugLog.info("Apify run started", {
+      service: "scraping-service",
+      runId,
+      nicheId,
+      nicheName,
+    });
+
+    // 2. Poll until completed
+    const datasetId = await this.pollUntilComplete(runId, apiKey);
+
+    // 3. Fetch dataset items
+    const items = await this.fetchDatasetItems(datasetId, apiKey);
+
+    debugLog.info("Apify dataset fetched", {
+      service: "scraping-service",
+      runId,
+      itemCount: items.length,
+    });
+
+    // 4. Persist to database
+    return this.saveReels(items, nicheId);
+  }
+
+  private async startApifyRun(nicheName: string, apiKey: string): Promise<string> {
+    const res = await fetch(
+      `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "ContentAI-Scraper/1.0",
+        },
+        body: JSON.stringify({
+          hashtags: [nicheName.toLowerCase().replace(/\s+/g, "")],
+          resultsLimit: 50,
+          addParentData: false,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Apify actor start failed (${res.status}): ${body}`);
+    }
+
+    const data = (await res.json()) as { data: { id: string } };
+    return data.data.id;
+  }
+
+  private async pollUntilComplete(runId: string, apiKey: string): Promise<string> {
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+      await sleep(POLL_INTERVAL_MS);
+
+      const res = await fetch(
+        `${APIFY_BASE_URL}/actor-runs/${runId}?token=${apiKey}`,
+        { headers: { "User-Agent": "ContentAI-Scraper/1.0" } },
+      );
+
+      if (!res.ok) {
+        throw new Error(`Apify status poll failed (${res.status})`);
+      }
+
+      const data = (await res.json()) as {
+        data: { status: string; defaultDatasetId: string };
+      };
+      const { status, defaultDatasetId } = data.data;
+
+      if (status === "SUCCEEDED") return defaultDatasetId;
+      if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
+        throw new Error(`Apify run ${runId} ended with status: ${status}`);
+      }
+
+      debugLog.info(`Apify run polling (${status})`, {
+        service: "scraping-service",
+        runId,
+        attempt: attempt + 1,
+      });
+    }
+
+    throw new Error(`Apify run ${runId} timed out after ${MAX_POLL_ATTEMPTS} polls`);
+  }
+
+  private async fetchDatasetItems(
+    datasetId: string,
+    apiKey: string,
+  ): Promise<ApifyReelItem[]> {
+    const res = await fetch(
+      `${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${apiKey}&format=json&clean=true`,
+      { headers: { "User-Agent": "ContentAI-Scraper/1.0" } },
+    );
+
+    if (!res.ok) {
+      throw new Error(`Apify dataset fetch failed (${res.status})`);
+    }
+
+    return (await res.json()) as ApifyReelItem[];
+  }
+
+  // ─── Data persistence ──────────────────────────────────────────────────────
+
+  private async saveReels(
+    items: ApifyReelItem[],
+    nicheId: number,
+  ): Promise<ScrapeResult> {
+    if (items.length === 0) return { saved: 0, skipped: 0 };
+
+    let saved = 0;
+    let skipped = 0;
+
+    for (const item of items) {
+      const externalId = item.id ?? item.shortCode ?? null;
+      const views = item.videoViewCount ?? item.videoPlayCount ?? 0;
+      const likes = item.likesCount ?? 0;
+      const comments = item.commentsCount ?? 0;
+      const engagement =
+        views > 0 ? (((likes + comments) / views) * 100).toFixed(2) : null;
+
+      const newReel: NewReel = {
+        externalId,
+        username: item.ownerUsername ?? "unknown",
+        nicheId,
+        views,
+        likes,
+        comments,
+        engagementRate: engagement,
+        hook: extractHook(item.caption),
+        caption: item.caption ?? null,
+        audioName: item.musicInfo?.song_name ?? null,
+        audioId: item.musicInfo?.audio_id ?? null,
+        thumbnailUrl: item.thumbnailUrl ?? item.displayUrl ?? null,
+        videoUrl: item.videoUrl ?? item.url ?? null,
+        postedAt: item.timestamp ? new Date(item.timestamp) : null,
+        isViral: views >= VIRAL_THRESHOLD,
+        scrapedAt: new Date(),
+      };
+
+      try {
+        // Use INSERT ... ON CONFLICT DO NOTHING to skip existing externalIds
+        await db
+          .insert(reels)
+          .values(newReel)
+          .onConflictDoNothing({ target: reels.externalId });
+        saved++;
+      } catch (err) {
+        // externalId conflict or other DB error — count as skipped
+        skipped++;
+        debugLog.error("Failed to insert reel", {
+          service: "scraping-service",
+          externalId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // Recount in case of partial skips due to race conditions
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(reels)
+      .where(eq(reels.nicheId, nicheId));
+
+    debugLog.info("Reels saved", {
+      service: "scraping-service",
+      nicheId,
+      saved,
+      skipped,
+      totalInNiche: total,
+    });
+
+    return { saved, skipped };
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Extract a best-guess "hook" from the first line of a caption. */
+function extractHook(caption?: string | null): string | null {
+  if (!caption) return null;
+  const firstLine = caption.split("\n")[0]?.trim();
+  return firstLine ? firstLine.slice(0, 280) : null;
+}
+
+export const scrapingService = new ScrapingService();

@@ -24,7 +24,7 @@ export async function analyzeReel(reelId: number): Promise<ReelAnalysis> {
   if (!reel) throw new Error(`Reel ${reelId} not found`);
 
   const system = loadPrompt("reel-analysis");
-  const userContent = `Niche: ${reel.niche}
+  const userContent = `Niche ID: ${reel.nicheId}
 Hook: ${reel.hook ?? "(none)"}
 Caption: ${reel.caption ?? "(none)"}
 Audio: ${reel.audioName ?? "(none)"}
