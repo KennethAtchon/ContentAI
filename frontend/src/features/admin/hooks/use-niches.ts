@@ -5,6 +5,20 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type JobStatus = "queued" | "running" | "completed" | "failed";
+
+export interface ScrapeJob {
+  id: string;
+  nicheId: number;
+  nicheName: string;
+  status: JobStatus;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  result?: { saved: number; skipped: number; durationMs: number };
+  error?: string;
+}
+
 export interface AdminNiche {
   id: number;
   name: string;
@@ -144,8 +158,26 @@ export function useNicheReels(nicheId: number, page = 1, limit = 50) {
   });
 }
 
+export function useNicheJobs(nicheId: number) {
+  const fetcher = useQueryFetcher<{ jobs: ScrapeJob[] }>();
+
+  return useQuery({
+    queryKey: queryKeys.api.admin.nicheJobs(nicheId),
+    queryFn: () => fetcher(`/api/admin/niches/${nicheId}/jobs`),
+    enabled: nicheId > 0,
+    refetchInterval: (query) => {
+      const jobs = query.state.data?.jobs ?? [];
+      const hasActive = jobs.some(
+        (j) => j.status === "queued" || j.status === "running",
+      );
+      return hasActive ? 3000 : false;
+    },
+  });
+}
+
 export function useScanNiche() {
   const { authenticatedFetch } = useAuthenticatedFetch();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (nicheId: number) => {
@@ -153,7 +185,10 @@ export function useScanNiche() {
         method: "POST",
       });
       if (!res.ok) throw new Error("Failed to queue scan");
-      return res.json() as Promise<{ jobId: string; nicheName: string; status: string }>;
+      return res.json() as Promise<{ jobId: string; nicheName: string; status: string; nicheId: number }>;
+    },
+    onSuccess: (_data, nicheId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.api.admin.nicheJobs(nicheId) });
     },
   });
 }
@@ -172,7 +207,7 @@ export function useDedupeNiche() {
     },
     onSuccess: (_data, nicheId) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.api.admin.nicheReels(nicheId),
+        queryKey: ["api", "admin", "niche-reels", nicheId],
       });
     },
   });
@@ -192,7 +227,7 @@ export function useDeleteAdminReel() {
     },
     onSuccess: ({ nicheId }) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.api.admin.nicheReels(nicheId),
+        queryKey: ["api", "admin", "niche-reels", nicheId],
       });
       queryClient.invalidateQueries({ queryKey: ["api", "admin", "niches"] });
     },

@@ -4,6 +4,7 @@ import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import { SOCIAL_API_KEY, VIRAL_VIEWS_THRESHOLD } from "../utils/config/envUtil";
+import { storage } from "./storage/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,23 +14,38 @@ export interface ScrapeResult {
 }
 
 interface ApifyReelItem {
+  // Common identity fields
   id?: string;
   shortCode?: string;
+  // URLs
   url?: string;
   videoUrl?: string;
+  videoPlaybackUrl?: string; // hashtag scraper variant
+  audioUrl?: string;
   displayUrl?: string;
   thumbnailUrl?: string;
+  // Content
   caption?: string;
+  // Engagement
   likesCount?: number;
   commentsCount?: number;
   videoPlayCount?: number;
   videoViewCount?: number;
+  // Owner — field name varies by actor
   ownerUsername?: string;
+  ownerFullName?: string;
+  // Music
   musicInfo?: {
     song_name?: string;
     artist_name?: string;
     audio_id?: string;
   };
+  // Post type — "Video" | "GraphVideo" | "Image" | "Sidecar" etc.
+  type?: string;
+  isVideo?: boolean;
+  // Video metadata
+  videoDuration?: number;
+  // Timestamps
   timestamp?: string;
   takenAt?: number;
 }
@@ -37,7 +53,7 @@ interface ApifyReelItem {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-const ACTOR_ID = "apify~instagram-reel-scraper";
+const ACTOR_ID = "apify~instagram-hashtag-scraper";
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40; // 40 * 3s = 2 minutes
 const MAX_RETRIES = 3;
@@ -150,8 +166,7 @@ class ScrapingService {
         },
         body: JSON.stringify({
           hashtags: [nicheName.toLowerCase().replace(/\s+/g, "")],
-          resultsLimit: 50,
-          addParentData: false,
+          resultsLimit: 100,
         }),
       },
     );
@@ -235,16 +250,34 @@ class ScrapingService {
     let skipped = 0;
 
     for (const item of items) {
+      // Skip image posts and carousels — only keep video/reel content
+      const isVideo =
+        item.isVideo === true ||
+        item.type === "Video" ||
+        item.type === "GraphVideo" ||
+        item.videoUrl != null ||
+        item.videoPlaybackUrl != null ||
+        (item.videoViewCount != null && item.videoViewCount > 0) ||
+        (item.videoPlayCount != null && item.videoPlayCount > 0);
+
+      if (!isVideo) {
+        skipped++;
+        continue;
+      }
+
       const externalId = item.id ?? item.shortCode ?? null;
       const views = item.videoViewCount ?? item.videoPlayCount ?? 0;
       const likes = item.likesCount ?? 0;
       const comments = item.commentsCount ?? 0;
       const engagement =
         views > 0 ? (((likes + comments) / views) * 100).toFixed(2) : null;
+      const videoUrl = item.videoUrl ?? item.videoPlaybackUrl ?? item.url ?? null;
+      const audioUrl = item.audioUrl ?? null;
+      const username = item.ownerUsername ?? item.ownerFullName ?? "unknown";
 
       const newReel: NewReel = {
         externalId,
-        username: item.ownerUsername ?? "unknown",
+        username,
         nicheId,
         views,
         likes,
@@ -255,19 +288,43 @@ class ScrapingService {
         audioName: item.musicInfo?.song_name ?? null,
         audioId: item.musicInfo?.audio_id ?? null,
         thumbnailUrl: item.thumbnailUrl ?? item.displayUrl ?? null,
-        videoUrl: item.videoUrl ?? item.url ?? null,
+        videoUrl,
+        videoLengthSeconds: item.videoDuration ?? null,
         postedAt: item.timestamp ? new Date(item.timestamp) : null,
+        daysAgo: item.timestamp
+          ? Math.floor(
+              (Date.now() - new Date(item.timestamp).getTime()) /
+                (1000 * 60 * 60 * 24),
+            )
+          : null,
         isViral: views >= VIRAL_THRESHOLD,
         scrapedAt: new Date(),
       };
 
       try {
-        // Use INSERT ... ON CONFLICT DO NOTHING to skip existing externalIds
-        await db
+        // Use INSERT ... ON CONFLICT DO NOTHING to skip existing externalIds.
+        // .returning() returns an empty array when the row was skipped.
+        const result = await db
           .insert(reels)
           .values(newReel)
-          .onConflictDoNothing({ target: reels.externalId });
-        saved++;
+          .onConflictDoNothing({ target: reels.externalId })
+          .returning({ id: reels.id });
+
+        if (result.length === 0) {
+          skipped++;
+        } else {
+          saved++;
+          // Fire-and-forget: upload media to R2 and persist keys back to the row
+          const reelId = result[0]!.id;
+          this.uploadAndStoreMedia(reelId, externalId, videoUrl, audioUrl).catch(
+            (err) =>
+              debugLog.error("Media upload failed", {
+                service: "scraping-service",
+                externalId,
+                error: err instanceof Error ? err.message : String(err),
+              }),
+          );
+        }
       } catch (err) {
         // externalId conflict or other DB error — count as skipped
         skipped++;
@@ -295,6 +352,53 @@ class ScrapingService {
 
     return { saved, skipped };
   }
+
+  // ─── Media upload ──────────────────────────────────────────────────────────
+
+  private async uploadAndStoreMedia(
+    reelId: number,
+    externalId: string | null,
+    videoUrl: string | null,
+    audioUrl: string | null,
+  ): Promise<void> {
+    const keyBase = externalId ?? `reel-${reelId}`;
+
+    const [videoResult, audioResult] = await Promise.allSettled([
+      videoUrl
+        ? storage.uploadFromUrl(videoUrl, `video/${keyBase}.mp4`, "video/mp4")
+        : Promise.resolve(null),
+      audioUrl
+        ? storage.uploadFromUrl(audioUrl, `audio/${keyBase}.m4a`, "audio/mp4")
+        : Promise.resolve(null),
+    ]);
+
+    const updates: { videoR2Key?: string; audioR2Key?: string } = {};
+
+    if (videoResult.status === "fulfilled" && videoResult.value) {
+      updates.videoR2Key = videoResult.value;
+    } else if (videoResult.status === "rejected") {
+      debugLog.warn("Video R2 upload failed", {
+        service: "scraping-service",
+        externalId,
+        error: (videoResult.reason as Error)?.message,
+      });
+    }
+
+    if (audioResult.status === "fulfilled" && audioResult.value) {
+      updates.audioR2Key = audioResult.value;
+    } else if (audioResult.status === "rejected") {
+      debugLog.warn("Audio R2 upload failed", {
+        service: "scraping-service",
+        externalId,
+        error: (audioResult.reason as Error)?.message,
+      });
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(reels).set(updates).where(eq(reels.id, reelId));
+    }
+  }
+
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

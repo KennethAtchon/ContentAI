@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { cn } from "@/shared/utils/helpers/utils";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
@@ -6,7 +6,8 @@ import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
 import { PhonePreview } from "@/features/reels/components/PhonePreview";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
-import { useReels, useReel } from "@/features/reels/hooks/use-reels";
+import { useReels, useReel, useReelNiches } from "@/features/reels/hooks/use-reels";
+import type { Reel } from "@/features/reels/types/reel.types";
 import { useTranslation } from "react-i18next";
 
 const AI_TOOLS = [
@@ -17,14 +18,44 @@ const AI_TOOLS = [
   "studio_tools_scheduler",
 ];
 
+const PAGE_SIZE = 20;
+
 function DiscoverPage() {
   const { t } = useTranslation();
-  const [niche] = useState("personal finance");
+  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
   const [activeReelId, setActiveReelId] = useState<number | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [allReels, setAllReels] = useState<Reel[]>([]);
 
-  const { data: reelsData, isLoading: reelsLoading } = useReels(niche);
-  const reels = reelsData?.reels ?? [];
-  const resolvedId = activeReelId ?? reels[0]?.id ?? null;
+  const { data: nichesData } = useReelNiches();
+  const niches = nichesData?.niches ?? [];
+  const activeNicheId = selectedNicheId ?? niches[0]?.id ?? null;
+  const activeNicheName = niches.find((n) => n.id === activeNicheId)?.name ?? "";
+
+  const { data: reelsData, isLoading: reelsLoading, isFetching } = useReels(activeNicheName, offset);
+  const total = reelsData?.total ?? 0;
+  const hasMore = allReels.length < total;
+  const resolvedId = activeReelId ?? allReels[0]?.id ?? null;
+
+  // Append newly fetched page to accumulated list
+  useEffect(() => {
+    if (reelsData?.reels && reelsData.reels.length > 0) {
+      setAllReels((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newReels = reelsData.reels.filter((r) => !existingIds.has(r.id));
+        return newReels.length > 0 ? [...prev, ...newReels] : prev;
+      });
+    }
+  }, [reelsData]);
+
+  const handleNicheChange = (nicheId: number) => {
+    setSelectedNicheId(nicheId);
+    setActiveReelId(null);
+    setOffset(0);
+    setAllReels([]);
+  };
+
+  const loadMore = () => setOffset((prev) => prev + PAGE_SIZE);
 
   const { data: reelData } = useReel(resolvedId);
   const selectedReel = reelData?.reel ?? null;
@@ -43,6 +74,22 @@ function DiscoverPage() {
         >
           {/* Left sidebar */}
           <aside className="bg-studio-surface border-r border-white/[0.05] flex flex-col overflow-hidden">
+            {/* Niche selector */}
+            {niches.length > 0 && (
+              <div className="px-3 pt-3 pb-2 border-b border-white/[0.05]">
+                <select
+                  value={activeNicheId ?? ""}
+                  onChange={(e) => handleNicheChange(Number(e.target.value))}
+                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-[12px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors cursor-pointer"
+                >
+                  {niches.map((n) => (
+                    <option key={n.id} value={n.id} className="bg-studio-surface">
+                      {n.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {reelsLoading ? (
               <div className="p-3 space-y-1">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -50,11 +97,22 @@ function DiscoverPage() {
                 ))}
               </div>
             ) : (
-              <ReelList
-                reels={reels}
-                activeId={resolvedId}
-                onSelect={setActiveReelId}
-              />
+              <>
+                <ReelList
+                  reels={allReels}
+                  activeId={resolvedId}
+                  onSelect={setActiveReelId}
+                />
+                {hasMore && (
+                  <button
+                    onClick={loadMore}
+                    disabled={isFetching}
+                    className="mx-3 mb-2 py-1.5 text-[11px] text-slate-200/40 hover:text-studio-accent border border-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    {isFetching ? "Loading…" : `Load more (${total - allReels.length} left)`}
+                  </button>
+                )}
+              </>
             )}
 
             {/* AI Tools section */}
@@ -82,17 +140,20 @@ function DiscoverPage() {
                 <div className="px-4 py-2.5 border-t border-white/[0.05] flex items-center gap-2 bg-studio-surface shrink-0">
                   <ToolbarBtn
                     onClick={() => {
-                      const idx = reels.findIndex((r) => r.id === resolvedId);
-                      if (idx > 0) setActiveReelId(reels[idx - 1].id);
+                      const idx = allReels.findIndex((r) => r.id === resolvedId);
+                      if (idx > 0) setActiveReelId(allReels[idx - 1].id);
                     }}
                   >
                     ⟵ {t("studio_toolbar_prev")}
                   </ToolbarBtn>
                   <ToolbarBtn
                     onClick={() => {
-                      const idx = reels.findIndex((r) => r.id === resolvedId);
-                      if (idx < reels.length - 1)
-                        setActiveReelId(reels[idx + 1].id);
+                      const idx = allReels.findIndex((r) => r.id === resolvedId);
+                      if (idx < allReels.length - 1) {
+                        setActiveReelId(allReels[idx + 1].id);
+                      } else if (hasMore) {
+                        loadMore();
+                      }
                     }}
                   >
                     {t("studio_toolbar_next")} ⟶

@@ -35,8 +35,11 @@ export const queryKeys = {
         ["api", "admin", "niches", params] as const,
       nicheReels: (nicheId: number, params?: { page?: number; limit?: number }) =>
         ["api", "admin", "niche-reels", nicheId, params] as const,
+      nicheJobs: (nicheId: number) =>
+        ["api", "admin", "niche-jobs", nicheId] as const,
     },
     // ── Studio / Reels ──────────────────────────────────────────────
+    reelNiches: () => ["api", "reels", "niches"] as const,
     reels: (niche: string, params?: Record<string, unknown>) =>
       ["api", "reels", niche, params] as const,
     reel: (id: number) => ["api", "reel", id] as const,

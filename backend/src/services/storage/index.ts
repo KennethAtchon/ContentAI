@@ -9,6 +9,7 @@ export interface StorageService {
     path: string,
     contentType: string,
   ): Promise<string>;
+  uploadFromUrl(url: string, key: string, fallbackContentType: string): Promise<string>;
   deleteFile(url: string): Promise<void>;
   getPublicUrl(path: string): string;
 }
@@ -20,6 +21,26 @@ class R2Storage implements StorageService {
     contentType: string,
   ): Promise<string> {
     return r2.uploadFile(file, path, contentType);
+  }
+
+  async uploadFromUrl(
+    url: string,
+    key: string,
+    fallbackContentType: string,
+  ): Promise<string> {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "ContentAI-Scraper/1.0" },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Remote fetch failed (${res.status}): ${url}`);
+    }
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType =
+      res.headers.get("content-type")?.split(";")[0] ?? fallbackContentType;
+
+    return r2.uploadFile(buffer, key, contentType);
   }
 
   async deleteFile(url: string): Promise<void> {

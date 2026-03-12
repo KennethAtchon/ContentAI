@@ -11,7 +11,18 @@ export function fmtNum(n: number): string {
   return String(n);
 }
 
-export function useReels(niche: string) {
+export function useReelNiches() {
+  const { user } = useApp();
+  const fetcher = useQueryFetcher<{ niches: { id: number; name: string }[] }>();
+
+  return useQuery({
+    queryKey: queryKeys.api.reelNiches(),
+    queryFn: () => fetcher("/api/reels/niches"),
+    enabled: !!user,
+  });
+}
+
+export function useReels(niche: string, offset = 0) {
   const { user } = useApp();
   const fetcher = useQueryFetcher<{
     reels: Reel[];
@@ -20,9 +31,11 @@ export function useReels(niche: string) {
   }>();
 
   return useQuery({
-    queryKey: queryKeys.api.reels(niche),
+    queryKey: queryKeys.api.reels(niche, { offset }),
     queryFn: () =>
-      fetcher(`/api/reels?niche=${encodeURIComponent(niche)}&limit=20`),
+      fetcher(
+        `/api/reels?niche=${encodeURIComponent(niche)}&limit=20&offset=${offset}`,
+      ),
     enabled: !!user && !!niche,
   });
 }

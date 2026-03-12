@@ -67,14 +67,14 @@ export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
     alertOnExceed: true, // Resource-intensive operations
   },
 
-  // Admin endpoints - moderate limits for administrative operations
+  // Admin endpoints - generous limits for dashboard with polling
   admin: {
     window: 60, // 1 minute
-    maxRequests: 30,
+    maxRequests: 300,
     keyPrefix: "admin_rate_limit",
-    tps: calculateTPS(60, 30),
+    tps: calculateTPS(60, 300),
     description: "Admin dashboard and management endpoints",
-    alertOnExceed: true, // Security-sensitive operations
+    alertOnExceed: false, // Trusted admin users with polling UI
   },
 
   // Customer endpoints - standard limits for authenticated users

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRoute, Outlet, HeadContent } from "@tanstack/react-router";
 import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 function RootLayout() {
   return (
     <ErrorBoundary>
+      <HeadContent />
       <Suspense
         fallback={
           <div className="h-screen bg-studio-bg flex items-center justify-center">

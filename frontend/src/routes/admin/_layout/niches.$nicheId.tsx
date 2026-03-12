@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import {
   useNicheReels,
+  useNicheJobs,
   useScanNiche,
   useDedupeNiche,
   useDeleteAdminReel,
@@ -24,10 +25,14 @@ import {
   useUpdateNiche,
   type AdminNicheReel,
   type AdminNiche,
+  type ScrapeJob,
 } from "@/features/admin/hooks/use-niches";
 import { cn } from "@/shared/utils/helpers/utils";
 
 export const Route = createFileRoute("/admin/_layout/niches/$nicheId")({
+  head: ({ params }) => ({
+    meta: [{ title: `Niche #${params.nicheId} — Admin` }],
+  }),
   component: NicheDetailPage,
 });
 
@@ -147,6 +152,89 @@ function ReelRow({
   );
 }
 
+// ── Job Row ───────────────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<ScrapeJob["status"], string> = {
+  queued: "bg-slate-200/10 text-slate-200/50",
+  running: "bg-blue-500/20 text-blue-400",
+  completed: "bg-emerald-500/20 text-emerald-400",
+  failed: "bg-red-500/20 text-red-400",
+};
+
+function JobRow({ job }: { job: ScrapeJob }) {
+  const started = job.startedAt ? new Date(job.startedAt) : null;
+  const created = new Date(job.createdAt);
+  const durationMs = job.result?.durationMs;
+
+  return (
+    <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-white/[0.04] last:border-0">
+      <span className="text-[11px] text-slate-200/40 font-mono truncate">{job.id}</span>
+      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full w-fit", STATUS_STYLES[job.status])}>
+        {job.status}
+      </span>
+      <span className="text-[11px] text-slate-200/40">
+        {created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {" · "}
+        {created.toLocaleDateString([], { month: "short", day: "numeric" })}
+      </span>
+      <span className="text-[11px] text-slate-200/60 tabular-nums">
+        {job.result ? `+${job.result.saved}` : started ? "…" : "—"}
+      </span>
+      <span className="text-[11px] text-slate-200/40 tabular-nums">
+        {durationMs != null ? `${(durationMs / 1000).toFixed(1)}s` : "—"}
+      </span>
+      {job.error ? (
+        <span className="text-[11px] text-red-400 truncate" title={job.error}>{job.error}</span>
+      ) : job.result ? (
+        <span className="text-[11px] text-slate-200/30">{job.result.skipped} skipped</span>
+      ) : (
+        <span />
+      )}
+    </div>
+  );
+}
+
+// ── Scan Status Banner ────────────────────────────────────────────────────────
+
+function ScanStatusBanner({ job }: { job: ScrapeJob }) {
+  if (job.status === "completed") {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+        <span className="text-[13px] font-medium">
+          Scan complete —{" "}
+          <span className="font-semibold">{job.result?.saved ?? 0} saved</span>
+          {job.result?.skipped ? `, ${job.result.skipped} skipped` : ""}
+          {job.result?.durationMs ? ` in ${(job.result.durationMs / 1000).toFixed(1)}s` : ""}
+        </span>
+      </div>
+    );
+  }
+
+  if (job.status === "failed") {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+        <span className="h-2 w-2 rounded-full bg-red-400 shrink-0" />
+        <span className="text-[13px] font-medium">
+          Scan failed{job.error ? `: ${job.error}` : ""}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400" />
+      </span>
+      <span className="text-[13px] font-medium">
+        {job.status === "queued" ? "Scan queued — waiting to start…" : "Scraping reels from Instagram…"}
+      </span>
+    </div>
+  );
+}
+
 // ── Edit Modal (inline) ───────────────────────────────────────────────────────
 
 function NicheEditModal({
@@ -246,6 +334,20 @@ function NicheDetailPage() {
   const reels = data?.reels ?? [];
   const totalPages = data?.totalPages ?? 1;
 
+  const { data: jobsData, isLoading: jobsLoading } = useNicheJobs(nicheId);
+  const jobs = jobsData?.jobs ?? [];
+  const activeJob = jobs.find(
+    (j) => j.status === "queued" || j.status === "running" || j.status === "completed" || j.status === "failed",
+  ) ?? null;
+  const isScanBusy = activeJob?.status === "queued" || activeJob?.status === "running";
+
+  // Refetch reels automatically when the most recent job completes
+  useEffect(() => {
+    if (activeJob?.status === "completed") {
+      refetch();
+    }
+  }, [activeJob?.status]);
+
   const scan = useScanNiche();
   const dedupe = useDedupeNiche();
   const deleteReel = useDeleteAdminReel();
@@ -257,8 +359,7 @@ function NicheDetailPage() {
 
   const handleScan = async () => {
     try {
-      const result = await scan.mutateAsync(nicheId);
-      showToast(`Scan queued! Job ID: ${result.jobId}`, "success");
+      await scan.mutateAsync(nicheId);
     } catch {
       showToast("Failed to queue scan", "error");
     }
@@ -336,10 +437,10 @@ function NicheDetailPage() {
                 size="sm"
                 className="gap-2"
                 onClick={handleScan}
-                disabled={scan.isPending}
+                disabled={scan.isPending || isScanBusy}
               >
                 <Zap className="h-3.5 w-3.5" />
-                {scan.isPending ? "Queuing…" : "Trigger Scrape"}
+                {scan.isPending ? "Queuing…" : isScanBusy ? "Scanning…" : "Trigger Scrape"}
               </Button>
               <Button
                 variant="outline"
@@ -371,6 +472,9 @@ function NicheDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Scan status banner */}
+        {activeJob && <ScanStatusBanner job={activeJob} />}
 
         {/* Tabs */}
         <div className="flex border-b border-white/[0.06]">
@@ -516,11 +620,33 @@ function NicheDetailPage() {
         )}
 
         {tab === "history" && (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-[14px] font-medium text-slate-200/25">Scrape history coming soon</p>
-            <p className="text-[12px] text-slate-200/15">
-              Job logs and run history will appear here once the scraping service is integrated.
-            </p>
+          <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
+            <div className="grid grid-cols-[140px_90px_100px_80px_80px_1fr] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06] gap-2">
+              <span>Job ID</span>
+              <span>Status</span>
+              <span>Started</span>
+              <span>Saved</span>
+              <span>Duration</span>
+              <span>Info</span>
+            </div>
+            {jobsLoading ? (
+              <div className="divide-y divide-white/[0.04]">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="px-4 py-4 flex gap-4 animate-pulse">
+                    <div className="h-4 w-32 bg-white/[0.05] rounded" />
+                    <div className="h-4 w-16 bg-white/[0.05] rounded" />
+                    <div className="h-4 w-24 bg-white/[0.05] rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="py-16 flex flex-col items-center gap-3">
+                <p className="text-[14px] text-slate-200/25 font-medium">No scrape jobs yet</p>
+                <p className="text-[12px] text-slate-200/15">Jobs appear here after you trigger a scrape.</p>
+              </div>
+            ) : (
+              jobs.map((job) => <JobRow key={job.id} job={job} />)
+            )}
           </div>
         )}
 

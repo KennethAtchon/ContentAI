@@ -46,7 +46,7 @@ function QueuePage() {
       await authenticatedFetch(`/api/queue/${id}`, { method: "DELETE" });
     },
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.queue() }),
+      queryClient.invalidateQueries({ queryKey: ["api", "queue"] }),
   });
 
   const items = data?.items ?? [];
