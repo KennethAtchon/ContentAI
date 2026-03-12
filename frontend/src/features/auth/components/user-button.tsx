@@ -17,14 +17,13 @@ import {
   AvatarImage,
 } from "@/shared/components/ui/avatar";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { User, LogOut, Home } from "lucide-react";
+import { User, LogOut, Home, Shield } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 
 // Constants
 const AVATAR_SIZE = 8;
 const DROPDOWN_WIDTH = 56;
-const DEFAULT_USER_FALLBACK = "U";
 const HOME_ROUTE = REDIRECT_PATHS.HOME;
 const SIGN_IN_ROUTE = REDIRECT_PATHS.SIGN_IN;
 const SIGN_UP_ROUTE = REDIRECT_PATHS.SIGN_UP;
@@ -36,7 +35,7 @@ const ACCOUNT_ROUTE = REDIRECT_PATHS.ACCOUNT;
  */
 export default function UserButton() {
   const { t } = useTranslation();
-  const { user, authLoading: loading, logout } = useApp();
+  const { user, authLoading: loading, logout, isAdmin } = useApp();
   const navigate = useNavigate();
 
   /**
@@ -87,25 +86,6 @@ export default function UserButton() {
     );
   }
 
-  /**
-   * Generate user initials for avatar fallback.
-   */
-  const getUserInitials = (
-    displayName: string | null,
-    email: string | null
-  ): string => {
-    if (displayName) {
-      return displayName
-        .split(" ")
-        .map((name) => name[0])
-        .join("")
-        .toUpperCase();
-    }
-    return email?.[0]?.toUpperCase() || DEFAULT_USER_FALLBACK;
-  };
-
-  const userInitials = getUserInitials(user.displayName, user.email);
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -118,7 +98,9 @@ export default function UserButton() {
               src={user.photoURL || ""}
               alt={user.displayName || "User"}
             />
-            <AvatarFallback>{userInitials}</AvatarFallback>
+            <AvatarFallback>
+              <img src="/assets/avatar.png" alt="Default avatar" className="w-full h-full object-cover rounded-full" />
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -156,6 +138,17 @@ export default function UserButton() {
             <span>{t("navigation_account") || "Account"}</span>
           </button>
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <button
+              onClick={() => navigate({ to: REDIRECT_PATHS.ADMIN_DASHBOARD })}
+              className="w-full flex items-center cursor-pointer"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              <span>{t("navigation_admin") || "Admin"}</span>
+            </button>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />

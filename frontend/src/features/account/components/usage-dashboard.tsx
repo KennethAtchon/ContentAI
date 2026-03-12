@@ -47,7 +47,6 @@ import {
 } from "@/shared/components/ui/table";
 type ContentType = string;
 const getContentShortName = (t: ContentType) => t;
-import { CORE_FEATURE_API_PREFIX } from "@/shared/constants/app.constants";
 
 interface UsageStats {
   reelsAnalyzed: number;
@@ -98,7 +97,7 @@ export function UsageDashboard() {
       page: historyPage.toString(),
       limit: HISTORY_PAGE_LIMIT.toString(),
     });
-    return `${CORE_FEATURE_API_PREFIX}/generation/history?${params.toString()}`;
+    return `/api/generation/history?${params.toString()}`;
   }, [historyPage]);
 
   const historyFetcher = useQueryFetcher<GenerationHistoryResponse>();

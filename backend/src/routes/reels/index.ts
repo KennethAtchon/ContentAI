@@ -11,8 +11,75 @@ import { eq, desc, gte, ilike, sql, and } from "drizzle-orm";
 import { analyzeReel } from "../../services/reels/reel-analyzer";
 import { VIRAL_VIEWS_THRESHOLD } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
+import {
+  generatedContent,
+  queueItems,
+  featureUsages,
+} from "../../infrastructure/database/drizzle/schema";
 
 const reelsRouter = new Hono<HonoEnv>();
+
+/**
+ * GET /api/reels/usage
+ * Returns usage stats for the current user.
+ */
+reelsRouter.get(
+  "/usage",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const userId = auth.user.id;
+
+      const [reelsAnalyzedCount, contentGeneratedCount, queueSizeCount] =
+        await Promise.all([
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(featureUsages)
+            .where(
+              and(
+                eq(featureUsages.userId, userId),
+                eq(featureUsages.featureType, "reel_analysis"),
+              ),
+            ),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(generatedContent)
+            .where(eq(generatedContent.userId, userId)),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(queueItems)
+            .where(
+              and(
+                eq(queueItems.userId, userId),
+                eq(queueItems.status, "scheduled"),
+              ),
+            ),
+        ]);
+
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      return c.json({
+        reelsAnalyzed: reelsAnalyzedCount[0]?.count ?? 0,
+        reelsAnalyzedLimit: null,
+        contentGenerated: contentGeneratedCount[0]?.count ?? 0,
+        contentGeneratedLimit: null,
+        queueSize: queueSizeCount[0]?.count ?? 0,
+        queueLimit: null,
+        resetDate: nextMonth.toISOString(),
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch usage stats", {
+        service: "reels-route",
+        operation: "getUsage",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch usage stats" }, 500);
+    }
+  },
+);
 
 /**
  * GET /api/reels/niches

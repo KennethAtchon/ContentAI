@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminAuth } from "../services/firebase/admin";
 import { db } from "../services/db/db";
 import { users } from "../infrastructure/database/drizzle/schema";
+import { eq } from "drizzle-orm";
 import { validateCSRFToken } from "../services/csrf/csrf-protection";
 import { checkRateLimit } from "../services/rate-limit/rate-limit-redis";
 import { getRateLimitConfig } from "../constants/rate-limit.config";
@@ -88,6 +89,8 @@ export function authMiddleware(
 
       const name = decodedToken.name || email.split("@")[0] || "User";
 
+      const hasAdminClaim = decodedToken["role"] === "admin";
+
       const [user] = await db
         .insert(users)
         .values({
@@ -104,11 +107,22 @@ export function authMiddleware(
         })
         .returning({ id: users.id, email: users.email, role: users.role });
 
-      if (level === "admin" && user.role !== "admin") {
-        return c.json(
-          { error: "Admin access required", code: "ADMIN_REQUIRED" },
-          403,
-        );
+      if (level === "admin") {
+        const isAdmin = user.role === "admin" || hasAdminClaim;
+        if (!isAdmin) {
+          return c.json(
+            { error: "Admin access required", code: "ADMIN_REQUIRED" },
+            403,
+          );
+        }
+        // Sync DB role if Firebase claim says admin but DB doesn't reflect it yet
+        if (hasAdminClaim && user.role !== "admin") {
+          await db
+            .update(users)
+            .set({ role: "admin" })
+            .where(eq(users.firebaseUid, decodedToken.uid));
+          user.role = "admin";
+        }
       }
 
       const authResult: AuthResult = {

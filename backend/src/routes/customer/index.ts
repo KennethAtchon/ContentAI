@@ -6,12 +6,82 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { users, orders } from "../../infrastructure/database/drizzle/schema";
+import {
+  users,
+  orders,
+  generatedContent,
+  queueItems,
+  featureUsages,
+} from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { adminAuth } from "../../services/firebase/admin";
 import { debugLog } from "../../utils/debug/debug";
 
 const customer = new Hono<HonoEnv>();
+
+// ─── Usage ─────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/customer/usage
+ * Returns usage stats for the current user.
+ */
+customer.get(
+  "/usage",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const userId = auth.user.id;
+
+      const [reelsAnalyzedCount, contentGeneratedCount, queueSizeCount] =
+        await Promise.all([
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(featureUsages)
+            .where(
+              and(
+                eq(featureUsages.userId, userId),
+                eq(featureUsages.featureType, "reel_analysis"),
+              ),
+            ),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(generatedContent)
+            .where(eq(generatedContent.userId, userId)),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(queueItems)
+            .where(
+              and(
+                eq(queueItems.userId, userId),
+                eq(queueItems.status, "scheduled"),
+              ),
+            ),
+        ]);
+
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      return c.json({
+        reelsAnalyzed: reelsAnalyzedCount[0]?.count ?? 0,
+        reelsAnalyzedLimit: null,
+        contentGenerated: contentGeneratedCount[0]?.count ?? 0,
+        contentGeneratedLimit: null,
+        queueSize: queueSizeCount[0]?.count ?? 0,
+        queueLimit: null,
+        resetDate: nextMonth.toISOString(),
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch usage stats", {
+        service: "customer-route",
+        operation: "getUsage",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch usage stats" }, 500);
+    }
+  },
+);
 
 // ─── Profile ───────────────────────────────────────────────────────────────────
 

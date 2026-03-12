@@ -9,6 +9,7 @@ import { db } from "../../services/db/db";
 import {
   generatedContent,
   queueItems,
+  reels,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { generateContent } from "../../services/reels/content-generator";
@@ -60,6 +61,79 @@ generationRouter.post(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to generate content" }, 500);
+    }
+  },
+);
+
+/**
+ * GET /api/generation/history
+ * List user's generated content history with page-based pagination and reel info.
+ */
+generationRouter.get(
+  "/history",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
+      const limit = Math.min(
+        parseInt(c.req.query("limit") ?? "10", 10),
+        50,
+      );
+      const offset = (page - 1) * limit;
+
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select({
+            id: generatedContent.id,
+            type: generatedContent.outputType,
+            prompt: generatedContent.prompt,
+            createdAt: generatedContent.createdAt,
+            sourceReelUsername: reels.username,
+            sourceReelHook: reels.hook,
+          })
+          .from(generatedContent)
+          .leftJoin(reels, eq(generatedContent.sourceReelId, reels.id))
+          .where(eq(generatedContent.userId, auth.user.id))
+          .orderBy(desc(generatedContent.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ total: sql<number>`count(*)::int` })
+          .from(generatedContent)
+          .where(eq(generatedContent.userId, auth.user.id)),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return c.json({
+        data: rows.map((r) => ({
+          id: String(r.id),
+          type: r.type,
+          sourceReel: {
+            username: r.sourceReelUsername ?? "",
+            hook: r.sourceReelHook ?? "",
+          },
+          prompt: r.prompt,
+          createdAt: r.createdAt,
+          generationTime: 0,
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore: page < totalPages,
+        },
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch generation history", {
+        service: "generation-route",
+        operation: "getHistory",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch history" }, 500);
     }
   },
 );
