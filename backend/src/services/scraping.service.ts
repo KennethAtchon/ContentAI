@@ -42,6 +42,8 @@ interface ApifyReelItem {
   };
   // Post type — "Video" | "GraphVideo" | "Image" | "Sidecar" etc.
   type?: string;
+  // Product type from hashtag scraper — "clips" = reel, "carousel_container" = album, "feed" = photo
+  productType?: string;
   isVideo?: boolean;
   // Video metadata
   videoDuration?: number;
@@ -146,6 +148,7 @@ class ScrapingService {
       service: "scraping-service",
       runId,
       itemCount: items.length,
+      rawItems: items,
     });
 
     // 4. Persist to database
@@ -166,6 +169,7 @@ class ScrapingService {
         },
         body: JSON.stringify({
           hashtags: [nicheName.toLowerCase().replace(/\s+/g, "")],
+          resultsType: "reels",
           resultsLimit: 100,
         }),
       },
@@ -248,19 +252,24 @@ class ScrapingService {
 
     let saved = 0;
     let skipped = 0;
+    let notVideo = 0;
+    let duplicate = 0;
 
     for (const item of items) {
-      // Skip image posts and carousels — only keep video/reel content
+      // Skip non-video posts (images, carousels) — only store reels/videos
+      // productType "clips" = Instagram Reel; type "Video"/"GraphVideo" = older field names
       const isVideo =
         item.isVideo === true ||
         item.type === "Video" ||
         item.type === "GraphVideo" ||
+        item.productType === "clips" ||
         item.videoUrl != null ||
         item.videoPlaybackUrl != null ||
         (item.videoViewCount != null && item.videoViewCount > 0) ||
         (item.videoPlayCount != null && item.videoPlayCount > 0);
 
       if (!isVideo) {
+        notVideo++;
         skipped++;
         continue;
       }
@@ -289,7 +298,7 @@ class ScrapingService {
         audioId: item.musicInfo?.audio_id ?? null,
         thumbnailUrl: item.thumbnailUrl ?? item.displayUrl ?? null,
         videoUrl,
-        videoLengthSeconds: item.videoDuration ?? null,
+        videoLengthSeconds: item.videoDuration != null ? Math.round(item.videoDuration) : null,
         postedAt: item.timestamp ? new Date(item.timestamp) : null,
         daysAgo: item.timestamp
           ? Math.floor(
@@ -311,6 +320,7 @@ class ScrapingService {
           .returning({ id: reels.id });
 
         if (result.length === 0) {
+          duplicate++;
           skipped++;
         } else {
           saved++;
@@ -345,8 +355,10 @@ class ScrapingService {
     debugLog.info("Reels saved", {
       service: "scraping-service",
       nicheId,
+      fetched: items.length,
       saved,
       skipped,
+      skippedBreakdown: { notVideo, duplicate },
       totalInNiche: total,
     });
 

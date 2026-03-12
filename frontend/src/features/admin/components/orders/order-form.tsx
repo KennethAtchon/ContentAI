@@ -362,8 +362,10 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
             <Button type="button" variant="outline" onClick={onClose}>
               {t("common_cancel")}
             </Button>
-            <Button type="submit">
-              {order ? t("common_save") : t("common_submit")}
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting
+                ? `${order ? t("common_save") : t("common_submit")}…`
+                : order ? t("common_save") : t("common_submit")}
             </Button>
           </div>
         </form>

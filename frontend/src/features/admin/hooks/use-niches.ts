@@ -147,13 +147,28 @@ export function useDeleteNiche() {
   });
 }
 
-export function useNicheReels(nicheId: number, page = 1, limit = 50) {
+export interface NicheReelsParams {
+  page?: number;
+  limit?: number;
+  sortBy?: "views" | "likes" | "engagement" | "postedAt" | "scrapedAt";
+  sortOrder?: "asc" | "desc";
+  viral?: "true" | "false";
+  hasVideo?: "true";
+}
+
+export function useNicheReels(nicheId: number, params: NicheReelsParams = {}) {
   const fetcher = useQueryFetcher<NicheReelsResponse>();
+  const { page = 1, limit = 50, sortBy, sortOrder, viral, hasVideo } = params;
+
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (sortBy) qs.set("sortBy", sortBy);
+  if (sortOrder) qs.set("sortOrder", sortOrder);
+  if (viral) qs.set("viral", viral);
+  if (hasVideo) qs.set("hasVideo", hasVideo);
 
   return useQuery({
-    queryKey: queryKeys.api.admin.nicheReels(nicheId, { page, limit }),
-    queryFn: () =>
-      fetcher(`/api/admin/niches/${nicheId}/reels?page=${page}&limit=${limit}`),
+    queryKey: queryKeys.api.admin.nicheReels(nicheId, { page, limit, sortBy, sortOrder, viral, hasVideo }),
+    queryFn: () => fetcher(`/api/admin/niches/${nicheId}/reels?${qs}`),
     enabled: nicheId > 0,
   });
 }

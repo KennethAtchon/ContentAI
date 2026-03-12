@@ -8,6 +8,9 @@ export interface Reel {
   engagementRate: string | null;
   hook: string | null;
   thumbnailEmoji: string | null;
+  thumbnailUrl: string | null;
+  videoUrl: string | null;
+  videoR2Key: string | null;
   daysAgo: number | null;
   isViral: boolean;
   audioName: string | null;

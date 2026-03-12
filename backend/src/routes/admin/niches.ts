@@ -11,7 +11,7 @@ import {
   reels,
   reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, sql, desc, ilike, and } from "drizzle-orm";
+import { eq, sql, desc, asc, ilike, and, isNotNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { queueService } from "../../services/queue.service";
 
@@ -253,6 +253,20 @@ nichesRouter.get(
       const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 100);
       const offset = (page - 1) * limit;
 
+      const sortBy = c.req.query("sortBy") ?? "views";
+      const sortOrder = c.req.query("sortOrder") ?? "desc";
+      const viralFilter = c.req.query("viral"); // "true" | "false" | undefined
+      const hasVideoFilter = c.req.query("hasVideo"); // "true" | undefined
+
+      const sortCol = {
+        views: reels.views,
+        likes: reels.likes,
+        engagement: reels.engagementRate,
+        postedAt: reels.postedAt,
+        scrapedAt: reels.scrapedAt,
+      }[sortBy] ?? reels.views;
+      const order = sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
+
       const [niche] = await db
         .select()
         .from(niches)
@@ -260,18 +274,24 @@ nichesRouter.get(
         .limit(1);
       if (!niche) return c.json({ error: "Niche not found" }, 404);
 
+      const whereConditions = [eq(reels.nicheId, id)];
+      if (viralFilter === "true") whereConditions.push(eq(reels.isViral, true));
+      if (viralFilter === "false") whereConditions.push(eq(reels.isViral, false));
+      if (hasVideoFilter === "true") whereConditions.push(isNotNull(reels.videoUrl));
+      const where = and(...whereConditions);
+
       const [reelRows, [{ total }]] = await Promise.all([
         db
           .select()
           .from(reels)
-          .where(eq(reels.nicheId, id))
-          .orderBy(desc(reels.views))
+          .where(where)
+          .orderBy(order)
           .limit(limit)
           .offset(offset),
         db
           .select({ total: sql<number>`count(*)::int` })
           .from(reels)
-          .where(eq(reels.nicheId, id)),
+          .where(where),
       ]);
 
       const reelIds = reelRows.map((r) => r.id);

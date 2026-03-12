@@ -158,6 +158,7 @@ export function CustomersList({
   // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState<CustomerFormData>({
     name: "",
     email: "",
@@ -298,6 +299,7 @@ export function CustomersList({
       return;
     }
 
+    setIsSaving(true);
     try {
       debugLog.info(
         "Saving customer changes",
@@ -317,9 +319,7 @@ export function CustomersList({
         }),
       });
 
-      // Refetch to get updated data
       await refetch();
-
       setEditOpen(false);
 
       debugLog.info(
@@ -340,6 +340,8 @@ export function CustomersList({
       );
 
       alert(errorMessage);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -551,6 +553,7 @@ export function CustomersList({
         form={editForm}
         onFormChange={handleFormChange}
         onSave={handleSaveCustomer}
+        isSaving={isSaving}
       />
     </>
   );

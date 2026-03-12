@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Zap,
@@ -7,14 +8,37 @@ import {
   Pencil,
   Trash2,
   Download,
-  CheckSquare,
-  Square,
   RefreshCw,
   Eye,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Switch } from "@/shared/components/ui/switch";
+import { Badge } from "@/shared/components/ui/badge";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/shared/components/ui/tabs";
 import {
   useNicheReels,
   useNicheJobs,
@@ -26,6 +50,7 @@ import {
   type AdminNicheReel,
   type AdminNiche,
   type ScrapeJob,
+  type NicheReelsParams,
 } from "@/features/admin/hooks/use-niches";
 import { cn } from "@/shared/utils/helpers/utils";
 
@@ -44,7 +69,7 @@ function fmtNum(n: number): string {
   return String(n);
 }
 
-// ── Toast-style feedback ──────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
 
 function Toast({ message, type = "info" }: { message: string; type?: "info" | "success" | "error" }) {
   return (
@@ -74,6 +99,7 @@ function ReelRow({
   selected: boolean;
   onSelect: (id: number, checked: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const deleteReel = useDeleteAdminReel();
 
@@ -84,14 +110,13 @@ function ReelRow({
         onClick={() => setExpanded(!expanded)}
       >
         <div
-          onClick={(e) => { e.stopPropagation(); onSelect(reel.id, !selected); }}
+          onClick={(e) => e.stopPropagation()}
           className="flex items-center"
         >
-          {selected ? (
-            <CheckSquare className="h-4 w-4 text-studio-accent" />
-          ) : (
-            <Square className="h-4 w-4 text-slate-200/20" />
-          )}
+          <Checkbox
+            checked={selected}
+            onCheckedChange={(checked) => onSelect(reel.id, !!checked)}
+          />
         </div>
         <div className="min-w-0">
           <p className="text-[13px] text-studio-fg truncate font-medium">
@@ -130,16 +155,15 @@ function ReelRow({
         </div>
       </div>
 
-      {/* Expanded metadata */}
       {expanded && (
         <div className="px-[52px] pb-4 bg-white/[0.01] border-t border-white/[0.04] grid grid-cols-2 gap-x-6 gap-y-2">
           {[
-            ["Likes", fmtNum(reel.likes)],
-            ["Comments", fmtNum(reel.comments)],
-            ["Audio", reel.audioName ?? "—"],
-            ["Viral", reel.isViral ? "Yes" : "No"],
-            ["Has Analysis", reel.hasAnalysis ? "Yes" : "No"],
-            ["Caption", reel.caption ?? "—"],
+            [t("admin_niche_row_likes"), fmtNum(reel.likes)],
+            [t("admin_niche_row_comments"), fmtNum(reel.comments)],
+            [t("admin_niche_row_audio"), reel.audioName ?? "—"],
+            [t("admin_niche_row_viral"), reel.isViral ? "Yes" : "No"],
+            [t("admin_niche_row_has_analysis"), reel.hasAnalysis ? "Yes" : "No"],
+            [t("admin_niche_row_caption"), reel.caption ?? "—"],
           ].map(([label, value]) => (
             <div key={label} className="flex gap-2 py-1">
               <span className="text-[11px] text-slate-200/30 w-28 shrink-0">{label}</span>
@@ -154,31 +178,30 @@ function ReelRow({
 
 // ── Job Row ───────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<ScrapeJob["status"], string> = {
-  queued: "bg-slate-200/10 text-slate-200/50",
-  running: "bg-blue-500/20 text-blue-400",
-  completed: "bg-emerald-500/20 text-emerald-400",
-  failed: "bg-red-500/20 text-red-400",
+const STATUS_CLASS: Record<ScrapeJob["status"], string> = {
+  queued: "bg-slate-200/10 text-slate-200/50 border-transparent",
+  running: "bg-blue-500/20 text-blue-400 border-transparent",
+  completed: "bg-emerald-500/20 text-emerald-400 border-transparent",
+  failed: "bg-red-500/20 text-red-400 border-transparent",
 };
 
 function JobRow({ job }: { job: ScrapeJob }) {
-  const started = job.startedAt ? new Date(job.startedAt) : null;
   const created = new Date(job.createdAt);
   const durationMs = job.result?.durationMs;
 
   return (
     <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-white/[0.04] last:border-0">
       <span className="text-[11px] text-slate-200/40 font-mono truncate">{job.id}</span>
-      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full w-fit", STATUS_STYLES[job.status])}>
+      <Badge className={cn("text-[11px] w-fit", STATUS_CLASS[job.status])}>
         {job.status}
-      </span>
+      </Badge>
       <span className="text-[11px] text-slate-200/40">
         {created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         {" · "}
         {created.toLocaleDateString([], { month: "short", day: "numeric" })}
       </span>
       <span className="text-[11px] text-slate-200/60 tabular-nums">
-        {job.result ? `+${job.result.saved}` : started ? "…" : "—"}
+        {job.result ? `+${job.result.saved}` : job.startedAt ? "…" : "—"}
       </span>
       <span className="text-[11px] text-slate-200/40 tabular-nums">
         {durationMs != null ? `${(durationMs / 1000).toFixed(1)}s` : "—"}
@@ -197,15 +220,18 @@ function JobRow({ job }: { job: ScrapeJob }) {
 // ── Scan Status Banner ────────────────────────────────────────────────────────
 
 function ScanStatusBanner({ job }: { job: ScrapeJob }) {
+  const { t } = useTranslation();
+
   if (job.status === "completed") {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
         <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
         <span className="text-[13px] font-medium">
-          Scan complete —{" "}
-          <span className="font-semibold">{job.result?.saved ?? 0} saved</span>
-          {job.result?.skipped ? `, ${job.result.skipped} skipped` : ""}
-          {job.result?.durationMs ? ` in ${(job.result.durationMs / 1000).toFixed(1)}s` : ""}
+          {t("admin_niche_scan_complete", {
+            saved: job.result?.saved ?? 0,
+            skipped: job.result?.skipped ? t("admin_niche_skipped", { count: job.result.skipped }) : "",
+            duration: job.result?.durationMs ? t("admin_niche_duration_suffix", { seconds: (job.result.durationMs / 1000).toFixed(1) }) : "",
+          })}
         </span>
       </div>
     );
@@ -216,7 +242,7 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
         <span className="h-2 w-2 rounded-full bg-red-400 shrink-0" />
         <span className="text-[13px] font-medium">
-          Scan failed{job.error ? `: ${job.error}` : ""}
+          {t("admin_niche_scan_failed")}{job.error ? `: ${job.error}` : ""}
         </span>
       </div>
     );
@@ -229,28 +255,31 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
         <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400" />
       </span>
       <span className="text-[13px] font-medium">
-        {job.status === "queued" ? "Scan queued — waiting to start…" : "Scraping reels from Instagram…"}
+        {job.status === "queued" ? t("admin_niche_scan_queued") : t("admin_niche_scraping")}
       </span>
     </div>
   );
 }
 
-// ── Edit Modal (inline) ───────────────────────────────────────────────────────
+// ── Edit Modal ────────────────────────────────────────────────────────────────
 
 function NicheEditModal({
   niche,
+  open,
   onClose,
 }: {
   niche: AdminNiche;
+  open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(niche.name);
   const [description, setDescription] = useState(niche.description ?? "");
   const [isActive, setIsActive] = useState(niche.isActive);
   const [error, setError] = useState("");
   const update = useUpdateNiche();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     try {
@@ -262,75 +291,63 @@ function NicheEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-studio-surface border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="p-6 border-b border-white/[0.06]">
-          <h2 className="text-lg font-semibold">Edit Niche</h2>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <input
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("admin_niche_edit_modal_title")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 px-4 text-[13px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors"
           />
-          <textarea
+          <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-[13px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors resize-none"
+            className="resize-none"
           />
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsActive(!isActive)}
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                isActive ? "bg-studio-accent" : "bg-white/[0.12]",
-              )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform",
-                  isActive ? "translate-x-4" : "translate-x-0",
-                )}
-              />
-            </button>
-            <span className="text-[13px] text-slate-200/60">{isActive ? "Active" : "Inactive"}</span>
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+            <span className="text-[13px] text-slate-200/60">
+              {isActive ? t("common_active") : t("common_unavailable")}
+            </span>
           </div>
-          {error && <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>
-              Cancel
+          {error && (
+            <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              {t("common_cancel")}
             </Button>
-            <Button type="submit" className="flex-1" disabled={update.isPending}>
-              {update.isPending ? "Saving…" : "Save"}
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? `${t("common_save")}…` : t("common_save")}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-type Tab = "reels" | "history" | "analytics";
-
 function NicheDetailPage() {
+  const { t } = useTranslation();
   const { nicheId: nicheIdStr } = Route.useParams();
   const nicheId = parseInt(nicheIdStr, 10);
 
-  const [tab, setTab] = useState<Tab>("reels");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "info" | "success" | "error" } | null>(null);
+  const [reelParams, setReelParams] = useState<NicheReelsParams>({ sortBy: "views", sortOrder: "desc" });
 
   const nichesData = useNiches();
   const niche = nichesData.data?.niches.find((n) => n.id === nicheId);
 
-  const { data, isLoading, refetch } = useNicheReels(nicheId, page);
+  const { data, isLoading, refetch } = useNicheReels(nicheId, { ...reelParams, page });
   const reels = data?.reels ?? [];
   const totalPages = data?.totalPages ?? 1;
 
@@ -341,11 +358,8 @@ function NicheDetailPage() {
   ) ?? null;
   const isScanBusy = activeJob?.status === "queued" || activeJob?.status === "running";
 
-  // Refetch reels automatically when the most recent job completes
   useEffect(() => {
-    if (activeJob?.status === "completed") {
-      refetch();
-    }
+    if (activeJob?.status === "completed") refetch();
   }, [activeJob?.status]);
 
   const scan = useScanNiche();
@@ -400,15 +414,16 @@ function NicheDetailPage() {
   };
 
   const handleExport = () => {
-    const url = `/api/admin/niches/${nicheId}/reels?limit=1000&page=1`;
-    window.open(url, "_blank");
+    window.open(`/api/admin/niches/${nicheId}/reels?limit=1000&page=1`, "_blank");
   };
+
+  const isFilterActive = !!(reelParams.viral || reelParams.hasVideo || reelParams.sortBy !== "views" || reelParams.sortOrder !== "desc");
 
   return (
     <>
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      {editOpen && niche && (
-        <NicheEditModal niche={niche} onClose={() => setEditOpen(false)} />
+      {niche && (
+        <NicheEditModal niche={niche} open={editOpen} onClose={() => setEditOpen(false)} />
       )}
 
       <div className="space-y-6">
@@ -419,7 +434,7 @@ function NicheDetailPage() {
             className="inline-flex items-center gap-2 text-[12px] text-slate-200/40 hover:text-studio-fg transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Niches
+            {t("admin_niche_back_to_niches")}
           </Link>
 
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -440,7 +455,7 @@ function NicheDetailPage() {
                 disabled={scan.isPending || isScanBusy}
               >
                 <Zap className="h-3.5 w-3.5" />
-                {scan.isPending ? "Queuing…" : isScanBusy ? "Scanning…" : "Trigger Scrape"}
+                {scan.isPending ? t("admin_niche_queuing") : isScanBusy ? t("admin_niche_scanning") : t("admin_niche_trigger_scrape")}
               </Button>
               <Button
                 variant="outline"
@@ -450,7 +465,7 @@ function NicheDetailPage() {
                 disabled={dedupe.isPending}
               >
                 <GitMerge className="h-3.5 w-3.5" />
-                {dedupe.isPending ? "Running…" : "Run Dedupe"}
+                {dedupe.isPending ? t("admin_niche_running") : t("admin_niche_run_dedupe")}
               </Button>
               <Button
                 variant="outline"
@@ -459,7 +474,7 @@ function NicheDetailPage() {
                 onClick={() => setEditOpen(true)}
               >
                 <Pencil className="h-3.5 w-3.5" />
-                Edit Niche
+                {t("admin_niche_edit_modal_title")}
               </Button>
               <Button
                 variant="ghost"
@@ -473,62 +488,123 @@ function NicheDetailPage() {
           </div>
         </div>
 
-        {/* Scan status banner */}
         {activeJob && <ScanStatusBanner job={activeJob} />}
 
-        {/* Tabs */}
-        <div className="flex border-b border-white/[0.06]">
-          {(["reels", "history", "analytics"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "px-4 py-2.5 text-[13px] font-medium capitalize border-b-2 transition-colors -mb-px",
-                tab === t
-                  ? "border-studio-accent text-studio-accent"
-                  : "border-transparent text-slate-200/40 hover:text-studio-fg",
-              )}
+        <Tabs defaultValue="reels" className="gap-4">
+          <TabsList className="bg-background rounded-none border-b p-0">
+            <TabsTrigger
+              value="reels"
+              className="bg-background data-[state=active]:border-primary h-full rounded-none border-0 border-b-2 border-transparent data-[state=active]:shadow-none!"
             >
-              {t}
-              {t === "reels" && data && (
-                <span className="ml-2 text-[11px] bg-white/[0.06] rounded-full px-1.5 py-0.5">
+              {t("admin_niche_tab_reels")}
+              {data && (
+                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
                   {data.total}
-                </span>
+                </Badge>
               )}
-            </button>
-          ))}
-        </div>
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="bg-background data-[state=active]:border-primary h-full rounded-none border-0 border-b-2 border-transparent data-[state=active]:shadow-none!"
+            >
+              {t("admin_niche_tab_history")}
+            </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              className="bg-background data-[state=active]:border-primary h-full rounded-none border-0 border-b-2 border-transparent data-[state=active]:shadow-none!"
+            >
+              {t("admin_niche_tab_analytics")}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tab content */}
-        {tab === "reels" && (
-          <div className="space-y-3">
+          <TabsContent value="reels" className="space-y-3 mt-4">
+            {/* Filter / sort toolbar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select
+                value={reelParams.sortBy ?? "views"}
+                onValueChange={(v) => { setPage(1); setReelParams((p) => ({ ...p, sortBy: v as NicheReelsParams["sortBy"] })); }}
+              >
+                <SelectTrigger className="h-8 w-[160px] text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="views">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_views") })}</SelectItem>
+                  <SelectItem value="likes">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_likes") })}</SelectItem>
+                  <SelectItem value="engagement">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_engagement") })}</SelectItem>
+                  <SelectItem value="postedAt">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_posted_date") })}</SelectItem>
+                  <SelectItem value="scrapedAt">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_scraped_date") })}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[12px]"
+                onClick={() => { setPage(1); setReelParams((p) => ({ ...p, sortOrder: p.sortOrder === "asc" ? "desc" : "asc" })); }}
+              >
+                {reelParams.sortOrder === "asc" ? t("admin_niche_sort_order_asc") : t("admin_niche_sort_order_desc")}
+              </Button>
+              <Select
+                value={reelParams.viral ?? "all"}
+                onValueChange={(v) => { setPage(1); setReelParams((p) => ({ ...p, viral: v === "all" ? undefined : v as NicheReelsParams["viral"] })); }}
+              >
+                <SelectTrigger className="h-8 w-[130px] text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("admin_niche_filter_all_posts")}</SelectItem>
+                  <SelectItem value="true">{t("admin_niche_filter_viral_only")}</SelectItem>
+                  <SelectItem value="false">{t("admin_niche_filter_non_viral")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant={reelParams.hasVideo ? "default" : "outline"}
+                size="sm"
+                className="h-8 text-[12px]"
+                onClick={() => { setPage(1); setReelParams((p) => ({ ...p, hasVideo: p.hasVideo ? undefined : "true" })); }}
+              >
+                {t("admin_niche_filter_has_video")}
+              </Button>
+              {isFilterActive && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-[12px] text-slate-200/40"
+                  onClick={() => { setPage(1); setReelParams({ sortBy: "views", sortOrder: "desc" }); }}
+                >
+                  {t("admin_niche_toolbar_reset")}
+                </Button>
+              )}
+            </div>
+
             {/* Bulk actions bar */}
             {reels.length > 0 && (
               <div className="flex items-center gap-3">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-2 text-[12px] text-slate-200/40 hover:text-studio-fg"
                   onClick={handleSelectAll}
-                  className="flex items-center gap-2 text-[12px] text-slate-200/40 hover:text-studio-fg transition-colors"
                 >
-                  {selected.size === reels.length && reels.length > 0 ? (
-                    <CheckSquare className="h-4 w-4 text-studio-accent" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                  Select All
-                </button>
+                  <Checkbox
+                    checked={selected.size === reels.length && reels.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  {t("admin_niche_select_all")}
+                </Button>
                 {selected.size > 0 && (
                   <>
                     <span className="text-[12px] text-slate-200/30">
-                      {selected.size} selected
+                      {t("admin_niche_selected_count", { count: selected.size })}
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-7 gap-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-400/10"
                       onClick={handleDeleteSelected}
+                      disabled={deleteReel.isPending}
                     >
                       <Trash2 className="h-3 w-3" />
-                      Delete Selected
+                      {deleteReel.isPending ? t("admin_niche_deleting") : t("admin_niche_delete_selected")}
                     </Button>
                   </>
                 )}
@@ -540,7 +616,7 @@ function NicheDetailPage() {
                   onClick={handleExport}
                 >
                   <Download className="h-3 w-3" />
-                  Export
+                  {t("admin_niche_export")}
                 </Button>
               </div>
             )}
@@ -549,10 +625,10 @@ function NicheDetailPage() {
             <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
               <div className="grid grid-cols-[44px_1fr_90px_90px_140px] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06]">
                 <span />
-                <span>Title / Hook</span>
-                <span>Views</span>
-                <span>Engagement</span>
-                <span className="text-right">Actions</span>
+                <span>{t("admin_niche_col_hook")}</span>
+                <span>{t("admin_niche_col_views")}</span>
+                <span>{t("admin_niche_col_engagement")}</span>
+                <span className="text-right">{t("admin_niche_col_actions")}</span>
               </div>
 
               {isLoading ? (
@@ -569,13 +645,10 @@ function NicheDetailPage() {
                 </div>
               ) : reels.length === 0 ? (
                 <div className="py-16 flex flex-col items-center gap-3">
-                  <p className="text-[14px] text-slate-200/25 font-medium">No reels yet</p>
-                  <button
-                    onClick={handleScan}
-                    className="text-[12px] text-studio-accent hover:underline"
-                  >
-                    Trigger a scrape to populate reels
-                  </button>
+                  <p className="text-[14px] text-slate-200/25 font-medium">{t("admin_niche_empty_no_reels")}</p>
+                  <Button variant="link" size="sm" className="text-[12px]" onClick={handleScan}>
+                    {t("admin_niche_empty_no_reels_hint")}
+                  </Button>
                 </div>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
@@ -595,69 +668,59 @@ function NicheDetailPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  ← Prev
+                <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  {t("common_pagination_previous")}
                 </Button>
                 <span className="text-[12px] text-slate-200/40">
-                  Page {page} of {totalPages}
+                  {t("common_pagination_showing", { page, totalPages, total: data?.total ?? 0, item: t("admin_niche_tab_reels").toLowerCase() })}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next →
+                <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
+                  {t("common_pagination_next")}
                 </Button>
               </div>
             )}
-          </div>
-        )}
+          </TabsContent>
 
-        {tab === "history" && (
-          <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
-            <div className="grid grid-cols-[140px_90px_100px_80px_80px_1fr] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06] gap-2">
-              <span>Job ID</span>
-              <span>Status</span>
-              <span>Started</span>
-              <span>Saved</span>
-              <span>Duration</span>
-              <span>Info</span>
+          <TabsContent value="history" className="mt-4">
+            <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
+              <div className="grid grid-cols-[140px_90px_100px_80px_80px_1fr] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06] gap-2">
+                <span>{t("admin_niche_col_job_id")}</span>
+                <span>{t("admin_niche_col_status")}</span>
+                <span>{t("admin_niche_col_started")}</span>
+                <span>{t("admin_niche_col_saved")}</span>
+                <span>{t("admin_niche_col_duration")}</span>
+                <span>{t("admin_niche_col_info")}</span>
+              </div>
+              {jobsLoading ? (
+                <div className="divide-y divide-white/[0.04]">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="px-4 py-4 flex gap-4 animate-pulse">
+                      <div className="h-4 w-32 bg-white/[0.05] rounded" />
+                      <div className="h-4 w-16 bg-white/[0.05] rounded" />
+                      <div className="h-4 w-24 bg-white/[0.05] rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : jobs.length === 0 ? (
+                <div className="py-16 flex flex-col items-center gap-3">
+                  <p className="text-[14px] text-slate-200/25 font-medium">{t("admin_niche_empty_no_jobs")}</p>
+                  <p className="text-[12px] text-slate-200/15">{t("admin_niche_empty_no_jobs_hint")}</p>
+                </div>
+              ) : (
+                jobs.map((job) => <JobRow key={job.id} job={job} />)
+              )}
             </div>
-            {jobsLoading ? (
-              <div className="divide-y divide-white/[0.04]">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="px-4 py-4 flex gap-4 animate-pulse">
-                    <div className="h-4 w-32 bg-white/[0.05] rounded" />
-                    <div className="h-4 w-16 bg-white/[0.05] rounded" />
-                    <div className="h-4 w-24 bg-white/[0.05] rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : jobs.length === 0 ? (
-              <div className="py-16 flex flex-col items-center gap-3">
-                <p className="text-[14px] text-slate-200/25 font-medium">No scrape jobs yet</p>
-                <p className="text-[12px] text-slate-200/15">Jobs appear here after you trigger a scrape.</p>
-              </div>
-            ) : (
-              jobs.map((job) => <JobRow key={job.id} job={job} />)
-            )}
-          </div>
-        )}
+          </TabsContent>
 
-        {tab === "analytics" && (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-[14px] font-medium text-slate-200/25">Analytics coming soon</p>
-            <p className="text-[12px] text-slate-200/15">
-              Per-niche engagement trends and growth charts will appear here.
-            </p>
-          </div>
-        )}
+          <TabsContent value="analytics" className="mt-4">
+            <div className="flex flex-col items-center gap-3 py-16 text-center">
+              <p className="text-[14px] font-medium text-slate-200/25">Analytics coming soon</p>
+              <p className="text-[12px] text-slate-200/15">
+                Per-niche engagement trends and growth charts will appear here.
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );

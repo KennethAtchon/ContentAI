@@ -1,14 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { cn } from "@/shared/utils/helpers/utils";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
-import { PhonePreview } from "@/features/reels/components/PhonePreview";
+import { TikTokFeed } from "@/features/reels/components/TikTokFeed";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
 import { useReels, useReel, useReelNiches } from "@/features/reels/hooks/use-reels";
 import type { Reel } from "@/features/reels/types/reel.types";
 import { useTranslation } from "react-i18next";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 
 const AI_TOOLS = [
   "studio_tools_hookWriter",
@@ -55,7 +61,14 @@ function DiscoverPage() {
     setAllReels([]);
   };
 
-  const loadMore = () => setOffset((prev) => prev + PAGE_SIZE);
+  const loadMore = useCallback(() => setOffset((prev) => prev + PAGE_SIZE), []);
+
+  const handleActiveChange = useCallback((id: number) => setActiveReelId(id), []);
+
+  const handleAnalyze = useCallback((id: number) => {
+    setActiveReelId(id);
+    // Analysis panel will load automatically via useReel
+  }, []);
 
   const { data: reelData } = useReel(resolvedId);
   const selectedReel = reelData?.reel ?? null;
@@ -63,11 +76,10 @@ function DiscoverPage() {
 
   return (
     <AuthGuard authType="user">
-      {/* Full-screen dark studio shell */}
       <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
         <StudioTopBar variant="studio" activeTab="discover" />
 
-        {/* Three-column layout */}
+        {/* Three-column layout: sidebar | feed | analysis */}
         <div
           className="grid overflow-hidden"
           style={{ gridTemplateColumns: "220px 1fr 300px" }}
@@ -77,17 +89,25 @@ function DiscoverPage() {
             {/* Niche selector */}
             {niches.length > 0 && (
               <div className="px-3 pt-3 pb-2 border-b border-white/[0.05]">
-                <select
-                  value={activeNicheId ?? ""}
-                  onChange={(e) => handleNicheChange(Number(e.target.value))}
-                  className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-[12px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors cursor-pointer"
+                <Select
+                  value={activeNicheId != null ? String(activeNicheId) : undefined}
+                  onValueChange={(val) => handleNicheChange(Number(val))}
                 >
-                  {niches.map((n) => (
-                    <option key={n.id} value={n.id} className="bg-studio-surface">
-                      {n.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full h-8 bg-white/[0.05] border-white/[0.08] text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
+                    <SelectValue placeholder={t("studio_search_placeholder")} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-studio-surface border-white/[0.1] text-studio-fg">
+                    {niches.map((n) => (
+                      <SelectItem
+                        key={n.id}
+                        value={String(n.id)}
+                        className="text-[12px] text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
+                      >
+                        {n.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             {reelsLoading ? (
@@ -101,7 +121,7 @@ function DiscoverPage() {
                 <ReelList
                   reels={allReels}
                   activeId={resolvedId}
-                  onSelect={setActiveReelId}
+                  onSelect={handleActiveChange}
                 />
                 {hasMore && (
                   <button
@@ -130,48 +150,21 @@ function DiscoverPage() {
             ))}
           </aside>
 
-          {/* Center canvas */}
-          <main className="flex flex-col overflow-hidden bg-studio-bg">
-            {selectedReel ? (
-              <>
-                <PhonePreview reel={selectedReel} />
-
-                {/* Toolbar */}
-                <div className="px-4 py-2.5 border-t border-white/[0.05] flex items-center gap-2 bg-studio-surface shrink-0">
-                  <ToolbarBtn
-                    onClick={() => {
-                      const idx = allReels.findIndex((r) => r.id === resolvedId);
-                      if (idx > 0) setActiveReelId(allReels[idx - 1].id);
-                    }}
-                  >
-                    ⟵ {t("studio_toolbar_prev")}
-                  </ToolbarBtn>
-                  <ToolbarBtn
-                    onClick={() => {
-                      const idx = allReels.findIndex((r) => r.id === resolvedId);
-                      if (idx < allReels.length - 1) {
-                        setActiveReelId(allReels[idx + 1].id);
-                      } else if (hasMore) {
-                        loadMore();
-                      }
-                    }}
-                  >
-                    {t("studio_toolbar_next")} ⟶
-                  </ToolbarBtn>
-                  <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
-                  <ToolbarBtn>✂ {t("studio_toolbar_trim")}</ToolbarBtn>
-                  <ToolbarBtn>♪ {t("studio_toolbar_audio")}</ToolbarBtn>
-                  <ToolbarBtn>T {t("studio_toolbar_caption")}</ToolbarBtn>
-                  <div className="w-px h-5 bg-white/[0.06] mx-0.5" />
-                  <ToolbarBtn primary>
-                    ✦ {t("studio_toolbar_generateRemix")}
-                  </ToolbarBtn>
-                </div>
-              </>
+          {/* Center — TikTok video feed */}
+          <main className="flex flex-col overflow-hidden bg-black relative">
+            {allReels.length > 0 ? (
+              <TikTokFeed
+                reels={allReels}
+                activeId={resolvedId}
+                onActiveChange={handleActiveChange}
+                onLoadMore={loadMore}
+                hasMore={hasMore}
+                onAnalyze={handleAnalyze}
+              />
             ) : (
               <EmptyCanvas
-                label="No reels found for this category"
-                sub="An admin needs to add content for this niche first."
+                label={t("studio_canvas_noReel")}
+                sub={t("studio_canvas_noReelSub")}
                 icon="🎬"
               />
             )}
@@ -188,30 +181,6 @@ function DiscoverPage() {
         </div>
       </div>
     </AuthGuard>
-  );
-}
-
-function ToolbarBtn({
-  children,
-  onClick,
-  primary,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-all duration-150 font-studio cursor-pointer",
-        primary
-          ? "bg-gradient-to-br from-studio-accent to-studio-purple border-transparent text-white font-semibold hover:opacity-85"
-          : "bg-white/[0.05] border-white/[0.07] text-slate-200/50 hover:bg-white/[0.08] hover:text-studio-fg",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 

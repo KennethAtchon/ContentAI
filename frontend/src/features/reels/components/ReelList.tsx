@@ -33,28 +33,46 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
               key={reel.id}
               onClick={() => onSelect(reel.id)}
               className={cn(
-                "w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left",
+                "w-full px-3 py-2 flex items-center gap-2.5 text-left",
                 "border-0 border-l-2 transition-colors duration-100 font-studio cursor-pointer",
                 isActive
                   ? "bg-studio-accent/[0.08] border-l-studio-accent"
-                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]"
+                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]",
               )}
             >
-              <div
-                className={cn(
-                  "w-[34px] h-[34px] rounded-[6px] flex items-center justify-center text-base shrink-0",
-                  isActive ? "bg-studio-accent/15" : "bg-white/[0.06]"
-                )}
-              >
-                {reel.thumbnailEmoji ?? "🎬"}
-              </div>
-              <div className="min-w-0">
+              {/* Thumbnail image or emoji fallback */}
+              {reel.thumbnailUrl ? (
+                <img
+                  src={reel.thumbnailUrl}
+                  alt={reel.username}
+                  className={cn(
+                    "w-[38px] h-[50px] rounded-[6px] object-cover shrink-0",
+                    isActive && "ring-1 ring-studio-accent/50",
+                  )}
+                  loading="lazy"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "w-[38px] h-[50px] rounded-[6px] flex items-center justify-center text-base shrink-0",
+                    isActive ? "bg-studio-accent/15" : "bg-white/[0.06]",
+                  )}
+                >
+                  {reel.thumbnailEmoji ?? "🎬"}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold text-studio-fg truncate">
                   {reel.username}
                 </p>
                 <p className="text-[10px] text-slate-200/35 mt-px">
                   {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
                 </p>
+                {reel.videoUrl || reel.videoR2Key ? (
+                  <span className="inline-block mt-0.5 text-[8px] font-semibold text-green-400/70 bg-green-400/10 px-1 py-px rounded">
+                    ▶ VIDEO
+                  </span>
+                ) : null}
               </div>
             </button>
           );

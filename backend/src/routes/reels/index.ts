@@ -9,6 +9,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, gte, ilike, sql, and } from "drizzle-orm";
 import { analyzeReel } from "../../services/reels/reel-analyzer";
+import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
 import { VIRAL_VIEWS_THRESHOLD } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 import {
@@ -167,6 +168,9 @@ reelsRouter.get(
             engagementRate: reels.engagementRate,
             hook: reels.hook,
             thumbnailEmoji: reels.thumbnailEmoji,
+            thumbnailUrl: reels.thumbnailUrl,
+            videoUrl: reels.videoUrl,
+            videoR2Key: reels.videoR2Key,
             daysAgo: reels.daysAgo,
             isViral: reels.isViral,
             audioName: reels.audioName,
@@ -245,6 +249,60 @@ reelsRouter.get(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch reel" }, 500);
+    }
+  },
+);
+
+/**
+ * GET /api/reels/:id/media-url
+ * Returns a playable video URL — presigned R2 URL if available, else CDN URL.
+ */
+reelsRouter.get(
+  "/:id/media-url",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const id = parseInt(c.req.param("id"), 10);
+      if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
+
+      const [reel] = await db
+        .select({
+          videoR2Key: reels.videoR2Key,
+          videoUrl: reels.videoUrl,
+        })
+        .from(reels)
+        .where(eq(reels.id, id));
+
+      if (!reel) return c.json({ error: "Reel not found" }, 404);
+
+      // Prefer R2 presigned URL, fall back to CDN URL
+      // videoR2Key stores a full URL, so extract the raw key first
+      let url: string | null = null;
+      if (reel.videoR2Key) {
+        try {
+          const rawKey = extractKeyFromUrl(reel.videoR2Key);
+          if (rawKey) {
+            url = await getFileUrl(rawKey, 3600);
+          } else {
+            url = reel.videoUrl;
+          }
+        } catch {
+          url = reel.videoUrl;
+        }
+      } else {
+        url = reel.videoUrl;
+      }
+
+      if (!url) return c.json({ error: "No video available" }, 404);
+      return c.json({ url });
+    } catch (error) {
+      debugLog.error("Failed to get media URL", {
+        service: "reels-route",
+        operation: "getMediaUrl",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to get media URL" }, 500);
     }
   },
 );

@@ -37,6 +37,7 @@ interface EditCustomerModalProps {
   form: CustomerFormData;
   onFormChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => Promise<void> | void;
+  isSaving?: boolean;
 }
 
 /**
@@ -48,6 +49,7 @@ export function EditCustomerModal({
   form,
   onFormChange,
   onSave,
+  isSaving = false,
 }: EditCustomerModalProps) {
   const { t } = useTranslation();
 
@@ -121,8 +123,10 @@ export function EditCustomerModal({
             />
           </div>
           <DialogFooter>
-            <Button type="submit">{t("common_save")}</Button>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? `${t("common_save")}…` : t("common_save")}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSaving}>
               {t("common_cancel")}
             </Button>
           </DialogFooter>

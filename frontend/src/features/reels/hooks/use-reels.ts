@@ -54,6 +54,18 @@ export function useReel(id: number | null) {
   });
 }
 
+export function useReelMediaUrl(reelId: number | null, hasVideo: boolean) {
+  const { user } = useApp();
+  const fetcher = useQueryFetcher<{ url: string }>();
+
+  return useQuery({
+    queryKey: [...queryKeys.api.reel(reelId ?? 0), "media-url"],
+    queryFn: () => fetcher(`/api/reels/${reelId}/media-url`),
+    enabled: !!user && reelId !== null && hasVideo,
+    staleTime: 30 * 60 * 1000, // 30 min — presigned URLs last 1h
+  });
+}
+
 export function useAnalyzeReel() {
   const { authenticatedFetch } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
