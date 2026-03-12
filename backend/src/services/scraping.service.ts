@@ -386,6 +386,9 @@ class ScrapingService {
 
     const updates: { videoR2Key?: string; audioR2Key?: string } = {};
 
+    // TODO: Rename columns to match what they store: videoR2Key → videoR2Url, audioR2Key → audioR2Url
+    // Storing full URLs is correct design - they include environment prefixes and can be used directly
+    
     if (videoResult.status === "fulfilled" && videoResult.value) {
       updates.videoR2Key = videoResult.value;
     } else if (videoResult.status === "rejected") {

@@ -277,7 +277,8 @@ reelsRouter.get(
       if (!reel) return c.json({ error: "Reel not found" }, 404);
 
       // Prefer R2 presigned URL, fall back to CDN URL
-      // videoR2Key stores a full URL, so extract the raw key first
+      // TODO: Once columns are renamed to videoR2Url/audioR2Url, remove extractKeyFromUrl call
+      // For now, extract key from stored URL to generate presigned URL
       let url: string | null = null;
       if (reel.videoR2Key) {
         try {

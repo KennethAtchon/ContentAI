@@ -99,7 +99,7 @@ export default function UserButton() {
               alt={user.displayName || "User"}
             />
             <AvatarFallback>
-              <img src="/assets/avatar.png" alt="Default avatar" className="w-full h-full object-cover rounded-full" />
+              <img src="/assets/avatar-clear.png" alt="Default avatar" className="w-full h-full object-cover rounded-full" />
             </AvatarFallback>
           </Avatar>
         </Button>

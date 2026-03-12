@@ -68,6 +68,35 @@ export default function AdminVerifyPage() {
         // Force token refresh to get new claims
         await user.getIdToken(true);
 
+        // Wait for claims to propagate and verify they're set
+        let attempts = 0;
+        const maxAttempts = 5;
+        let claimsUpdated = false;
+
+        while (attempts < maxAttempts && !claimsUpdated) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+          const idTokenResult = await user.getIdTokenResult(true);
+          claimsUpdated = idTokenResult.claims.role === "admin";
+          attempts++;
+          
+          debugLog.info("Checking admin claims propagation", {
+            service: "admin-verify",
+            userId: user.uid,
+            attempt: attempts,
+            hasAdminClaim: claimsUpdated,
+          });
+        }
+
+        if (!claimsUpdated) {
+          debugLog.warn("Admin claims failed to propagate after multiple attempts", {
+            service: "admin-verify",
+            userId: user.uid,
+            attempts,
+          });
+          setError(t("admin_verify_error_verifying"));
+          return;
+        }
+
         // Navigate to intended destination
         navigate({ to: redirectTo });
       } else {

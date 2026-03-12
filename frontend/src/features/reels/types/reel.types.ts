@@ -10,6 +10,8 @@ export interface Reel {
   thumbnailEmoji: string | null;
   thumbnailUrl: string | null;
   videoUrl: string | null;
+  // TODO: Rename to videoR2Url to match what it stores (full R2 URLs)
+  // Storing URLs is correct design - they include environment prefixes and can be used directly
   videoR2Key: string | null;
   daysAgo: number | null;
   isViral: boolean;

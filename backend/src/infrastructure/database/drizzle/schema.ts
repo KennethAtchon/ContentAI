@@ -120,7 +120,9 @@ export const reels = pgTable(
     thumbnailEmoji: text("thumbnail_emoji"),
     thumbnailUrl: text("thumbnail_url"),
     videoUrl: text("video_url"),
-    // R2 storage keys for downloaded media
+    // R2 storage URLs for downloaded media
+    // TODO: Rename columns to match what they store: videoR2Key → videoR2Url, audioR2Key → audioR2Url
+    // Storing full URLs is correct design - they can be used directly and include environment prefixes
     videoR2Key: text("video_r2_key"),
     audioR2Key: text("audio_r2_key"),
     // Video metadata
