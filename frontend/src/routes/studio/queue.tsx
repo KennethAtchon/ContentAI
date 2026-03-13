@@ -16,7 +16,13 @@ interface Project {
   name: string;
 }
 
-type StatusFilter = "all" | "draft" | "ready" | "scheduled" | "posted" | "failed";
+type StatusFilter =
+  | "all"
+  | "draft"
+  | "ready"
+  | "scheduled"
+  | "posted"
+  | "failed";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-white/[0.06] text-slate-200/40",
@@ -70,7 +76,14 @@ function QueuePage() {
 
   const items = data?.items ?? [];
   const projects = projectsData?.projects ?? [];
-  const filters: StatusFilter[] = ["all", "draft", "ready", "scheduled", "posted", "failed"];
+  const filters: StatusFilter[] = [
+    "all",
+    "draft",
+    "ready",
+    "scheduled",
+    "posted",
+    "failed",
+  ];
 
   return (
     <AuthGuard authType="user">
@@ -103,7 +116,7 @@ function QueuePage() {
                       "text-[11px] font-medium px-3 py-1.5 rounded-full border cursor-pointer font-studio transition-all duration-150",
                       statusFilter === f
                         ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30"
-                        : "bg-white/[0.03] text-slate-200/40 border-white/[0.08] hover:text-slate-200/70",
+                        : "bg-white/[0.03] text-slate-200/40 border-white/[0.08] hover:text-slate-200/70"
                     )}
                   >
                     {t(`studio_queue_filter_${f}`)}
@@ -118,7 +131,9 @@ function QueuePage() {
                   onChange={(e) => setProjectFilter(e.target.value)}
                   className="ml-auto text-[11px] font-medium px-3 py-1.5 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio appearance-none focus:outline-none focus:border-studio-accent/30 transition-colors"
                 >
-                  <option value="all">{t("studio_queue_filter_all_projects")}</option>
+                  <option value="all">
+                    {t("studio_queue_filter_all_projects")}
+                  </option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -184,7 +199,8 @@ function QueueCard({
     : t("studio_queue_unscheduled");
 
   const hookPreview = item.generatedHook
-    ? item.generatedHook.slice(0, 120) + (item.generatedHook.length > 120 ? "…" : "")
+    ? item.generatedHook.slice(0, 120) +
+      (item.generatedHook.length > 120 ? "…" : "")
     : null;
 
   const editHref =
@@ -211,7 +227,7 @@ function QueueCard({
         <span
           className={cn(
             "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.5px] shrink-0",
-            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft,
+            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
           )}
         >
           {item.status}
@@ -224,9 +240,7 @@ function QueueCard({
         {item.projectName && (
           <span className="text-violet-400/60">◆ {item.projectName}</span>
         )}
-        {!item.projectName && (
-          <span>{t("studio_queue_no_project")}</span>
-        )}
+        {!item.projectName && <span>{t("studio_queue_no_project")}</span>}
         {item.instagramPageId && <span>📱 {item.instagramPageId}</span>}
         {item.errorMessage && (
           <span className="text-red-400">⚠ {item.errorMessage}</span>
@@ -236,7 +250,7 @@ function QueueCard({
       {/* Actions */}
       {item.status !== "posted" && (
         <div className="flex items-center gap-2">
-          {editHref && item.status !== "posted" && (
+          {editHref && (
             <a
               href={editHref}
               className="text-[10px] font-semibold px-2.5 py-1.5 rounded-md border border-white/10 bg-white/[0.03] text-slate-200/60 font-studio transition-all hover:text-slate-200/90 hover:border-white/20"

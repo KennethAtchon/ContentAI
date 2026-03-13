@@ -12,6 +12,7 @@ import {
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { debugLog } from "../utils/debug/debug";
+import { recordAiCost } from "./cost-tracker";
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,12 @@ export interface AiMessage {
   maxTokens?: number;
   /** "analysis" = cheaper/fast model, "generation" = smarter model */
   modelTier?: "analysis" | "generation";
+  /** Feature identifier for cost tracking */
+  featureType?: string;
+  /** Optional user ID for cost tracking */
+  userId?: string;
+  /** Extra metadata for cost tracking */
+  metadata?: Record<string, unknown>;
 }
 
 export interface AiResponse {
@@ -61,6 +68,31 @@ export interface AiResponse {
   model: string;
   inputTokens: number;
   outputTokens: number;
+}
+
+function extractUsageTokens(usage: unknown): {
+  inputTokens: number;
+  outputTokens: number;
+} {
+  if (!usage || typeof usage !== "object") {
+    return { inputTokens: 0, outputTokens: 0 };
+  }
+
+  const record = usage as Record<string, unknown>;
+  const inputTokens =
+    typeof record.inputTokens === "number"
+      ? record.inputTokens
+      : typeof record.promptTokens === "number"
+        ? record.promptTokens
+        : 0;
+  const outputTokens =
+    typeof record.outputTokens === "number"
+      ? record.outputTokens
+      : typeof record.completionTokens === "number"
+        ? record.completionTokens
+        : 0;
+
+  return { inputTokens, outputTokens };
 }
 
 // ─── callAi: OpenAI-first, Claude fallback ───────────────────────────────────
@@ -75,17 +107,33 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
     userContent,
     maxTokens = 1024,
     modelTier = "analysis",
+    featureType = "unknown",
+    userId,
+    metadata,
   } = params;
 
   // ── Try OpenAI first (via Vercel AI SDK) ──
   if (openaiProvider) {
     try {
+      const startMs = Date.now();
       const { text, usage } = await generateText({
         model: openaiProvider(OPENAI_MODEL),
         system,
         prompt: userContent,
         maxOutputTokens: maxTokens,
       });
+      const { inputTokens, outputTokens } = extractUsageTokens(usage);
+
+      recordAiCost({
+        userId,
+        provider: "openai",
+        model: OPENAI_MODEL,
+        featureType,
+        inputTokens,
+        outputTokens,
+        durationMs: Date.now() - startMs,
+        metadata,
+      }).catch(() => {});
 
       debugLog.info("AI call succeeded via OpenAI", {
         service: "ai-client",
@@ -97,8 +145,8 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
         text,
         provider: "openai",
         model: OPENAI_MODEL,
-        inputTokens: usage.promptTokens,
-        outputTokens: usage.completionTokens,
+        inputTokens,
+        outputTokens,
       };
     } catch (err) {
       debugLog.warn("OpenAI call failed — falling back to Claude", {
@@ -113,12 +161,25 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   const claudeModel =
     modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
 
+  const startMs = Date.now();
   const { text, usage } = await generateText({
     model: anthropicProvider(claudeModel),
     system,
     prompt: userContent,
     maxOutputTokens: maxTokens,
   });
+  const { inputTokens, outputTokens } = extractUsageTokens(usage);
+
+  recordAiCost({
+    userId,
+    provider: "claude",
+    model: claudeModel,
+    featureType,
+    inputTokens,
+    outputTokens,
+    durationMs: Date.now() - startMs,
+    metadata,
+  }).catch(() => {});
 
   debugLog.info("AI call succeeded via Claude", {
     service: "ai-client",
@@ -130,8 +191,8 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
     text,
     provider: "claude",
     model: claudeModel,
-    inputTokens: usage.promptTokens,
-    outputTokens: usage.completionTokens,
+    inputTokens,
+    outputTokens,
   };
 }
 
@@ -148,8 +209,7 @@ export function getModelInfo(
   modelTier: "analysis" | "generation" = "generation",
 ): { provider: "openai" | "claude"; model: string } {
   if (openaiProvider) return { provider: "openai", model: OPENAI_MODEL };
-  const model =
-    modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
+  const model = modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
   return { provider: "claude", model };
 }
 
@@ -159,9 +219,14 @@ export async function streamAi(params: AiMessage): Promise<any> {
     userContent,
     maxTokens = 1024,
     modelTier = "generation",
+    featureType = "unknown",
+    userId,
+    metadata,
   } = params;
 
   const model = getModel(modelTier);
+  const modelInfo = getModelInfo(modelTier);
+  const startMs = Date.now();
 
   return streamText({
     model,
@@ -173,5 +238,18 @@ export async function streamAi(params: AiMessage): Promise<any> {
       },
     ],
     maxOutputTokens: maxTokens,
+    onFinish: async ({ usage }) => {
+      const { inputTokens, outputTokens } = extractUsageTokens(usage);
+      await recordAiCost({
+        userId,
+        provider: modelInfo.provider,
+        model: modelInfo.model,
+        featureType,
+        inputTokens,
+        outputTokens,
+        durationMs: Date.now() - startMs,
+        metadata,
+      }).catch(() => {});
+    },
   });
 }

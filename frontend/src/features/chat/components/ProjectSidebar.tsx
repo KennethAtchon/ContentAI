@@ -194,7 +194,13 @@ export function ProjectSidebar({
     <div className="w-72 h-full border-r bg-background flex flex-col shrink-0">
       <div className="p-4 border-b flex items-center justify-between">
         <h2 className="text-sm font-semibold">{t("studio_chat_projects")}</h2>
-        <Button size="sm" variant="ghost" onClick={onNewProject} className="h-7 w-7 p-0" aria-label={t("studio_chat_newProject")}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onNewProject}
+          className="h-7 w-7 p-0"
+          aria-label={t("studio_chat_newProject")}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -226,7 +232,12 @@ export function ProjectSidebar({
                 {t("studio_chat_noProjectsDescription")}
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={onNewProject} className="mt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onNewProject}
+              className="mt-1"
+            >
               <Plus className="h-3 w-3 mr-1.5" />
               {t("studio_chat_newProject")}
             </Button>
@@ -244,7 +255,9 @@ export function ProjectSidebar({
                   onClick={() => onProjectSelect(project)}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{project.name}</p>
+                    <p className="text-sm font-medium truncate">
+                      {project.name}
+                    </p>
                     {project.description && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {project.description}
@@ -297,7 +310,9 @@ export function ProjectSidebar({
                           onClick={() => onSessionSelect(session)}
                         >
                           <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 text-xs truncate">{session.title}</span>
+                          <span className="flex-1 text-xs truncate">
+                            {session.title}
+                          </span>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -352,7 +367,9 @@ export function ProjectSidebar({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("studio_chat_deleteProjectTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("studio_chat_deleteProjectTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("studio_chat_deleteProjectDescription")}
             </AlertDialogDescription>
@@ -375,7 +392,9 @@ export function ProjectSidebar({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("studio_chat_deleteSessionTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("studio_chat_deleteSessionTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("studio_chat_deleteSessionDescription")}
             </AlertDialogDescription>

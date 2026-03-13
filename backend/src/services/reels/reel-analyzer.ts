@@ -6,7 +6,6 @@ import {
 import type { ReelAnalysis } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { callAi, loadPrompt } from "../../lib/aiClient";
-import { recordAiCost } from "../../lib/cost-tracker";
 import { debugLog } from "../../utils/debug/debug";
 
 interface AnalysisResult {
@@ -18,13 +17,20 @@ interface AnalysisResult {
   captionFramework: string;
   curiosityGapStyle: string | null;
   remixSuggestion: string;
-  shotBreakdown: Array<{ timestamp: string; description: string; textOverlay: string | null }> | null;
+  shotBreakdown: Array<{
+    timestamp: string;
+    description: string;
+    textOverlay: string | null;
+  }> | null;
   engagementDrivers: string[] | null;
   replicabilityScore: number | null;
   replicabilityNotes: string | null;
 }
 
-export async function analyzeReel(reelId: number, userId?: string): Promise<ReelAnalysis> {
+export async function analyzeReel(
+  reelId: number,
+  userId?: string,
+): Promise<ReelAnalysis> {
   const [reel] = await db.select().from(reels).where(eq(reels.id, reelId));
   if (!reel) throw new Error(`Reel ${reelId} not found`);
 
@@ -37,21 +43,19 @@ Views: ${reel.views} | Engagement: ${reel.engagementRate ?? "unknown"}%
 
 Analyze this viral reel and return structured JSON.`;
 
-  const startMs = Date.now();
   const {
     text: rawText,
     provider,
     model,
-    inputTokens,
-    outputTokens,
   } = await callAi({
     system,
     userContent,
     maxTokens: 1024,
     modelTier: "analysis",
+    featureType: "reel_analysis",
+    userId,
+    metadata: { reelId },
   });
-
-  const durationMs = Date.now() - startMs;
 
   debugLog.info("Reel analysis completed", {
     service: "reel-analyzer",
@@ -60,9 +64,6 @@ Analyze this viral reel and return structured JSON.`;
     provider,
     model,
   });
-
-  // Record AI cost (non-blocking)
-  recordAiCost({ userId, provider, model, featureType: "reel_analysis", inputTokens, outputTokens, durationMs }).catch(() => {});
 
   let parsed: AnalysisResult;
   try {
@@ -90,7 +91,10 @@ Analyze this viral reel and return structured JSON.`;
       curiosityGapStyle: parsed.curiosityGapStyle,
       remixSuggestion: parsed.remixSuggestion,
       shotBreakdown: parsed.shotBreakdown as unknown as Record<string, unknown>,
-      engagementDrivers: parsed.engagementDrivers as unknown as Record<string, unknown>,
+      engagementDrivers: parsed.engagementDrivers as unknown as Record<
+        string,
+        unknown
+      >,
       replicabilityScore: parsed.replicabilityScore,
       replicabilityNotes: parsed.replicabilityNotes,
       analysisModel: model,
@@ -107,8 +111,14 @@ Analyze this viral reel and return structured JSON.`;
         captionFramework: parsed.captionFramework,
         curiosityGapStyle: parsed.curiosityGapStyle,
         remixSuggestion: parsed.remixSuggestion,
-        shotBreakdown: parsed.shotBreakdown as unknown as Record<string, unknown>,
-        engagementDrivers: parsed.engagementDrivers as unknown as Record<string, unknown>,
+        shotBreakdown: parsed.shotBreakdown as unknown as Record<
+          string,
+          unknown
+        >,
+        engagementDrivers: parsed.engagementDrivers as unknown as Record<
+          string,
+          unknown
+        >,
         replicabilityScore: parsed.replicabilityScore,
         replicabilityNotes: parsed.replicabilityNotes,
         analysisModel: model,

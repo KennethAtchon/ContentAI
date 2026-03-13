@@ -44,7 +44,7 @@ export function useChatStream(sessionId: string) {
             body: JSON.stringify({ content }),
             signal: controller.signal,
           },
-          120_000, // 2-min timeout for streaming
+          120_000 // 2-min timeout for streaming
         );
 
         if (response.status === 403) {
@@ -85,7 +85,7 @@ export function useChatStream(sessionId: string) {
         setIsStreaming(false);
       }
     },
-    [sessionId, isStreaming, queryClient],
+    [sessionId, isStreaming, queryClient]
   );
 
   return {

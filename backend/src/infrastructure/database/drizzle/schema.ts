@@ -9,7 +9,6 @@ import {
   jsonb,
   serial,
   index,
-  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -266,7 +265,6 @@ export const projects = pgTable(
   (t) => [index("projects_user_id_idx").on(t.userId)],
 );
 
-
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
 export const chatSessions = pgTable(
@@ -340,7 +338,6 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   chatSessions: many(chatSessions),
 }));
 
-
 export const chatSessionsRelations = relations(
   chatSessions,
   ({ one, many }) => ({
@@ -378,9 +375,15 @@ export const aiCostLedger = pgTable(
     featureType: text("feature_type").notNull(), // "reel_analysis" | "generation" | etc.
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
-    inputCost: numeric("input_cost", { precision: 12, scale: 8 }).notNull().default("0"),
-    outputCost: numeric("output_cost", { precision: 12, scale: 8 }).notNull().default("0"),
-    totalCost: numeric("total_cost", { precision: 12, scale: 8 }).notNull().default("0"),
+    inputCost: numeric("input_cost", { precision: 12, scale: 8 })
+      .notNull()
+      .default("0"),
+    outputCost: numeric("output_cost", { precision: 12, scale: 8 })
+      .notNull()
+      .default("0"),
+    totalCost: numeric("total_cost", { precision: 12, scale: 8 })
+      .notNull()
+      .default("0"),
     durationMs: integer("duration_ms").notNull().default(0),
     metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

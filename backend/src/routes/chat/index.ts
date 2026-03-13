@@ -21,6 +21,31 @@ import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { recordAiCost } from "../../lib/cost-tracker";
 import { getModelInfo } from "../../lib/aiClient";
 
+function extractUsageTokens(usage: unknown): {
+  inputTokens: number;
+  outputTokens: number;
+} {
+  if (!usage || typeof usage !== "object") {
+    return { inputTokens: 0, outputTokens: 0 };
+  }
+
+  const record = usage as Record<string, unknown>;
+  const inputTokens =
+    typeof record.inputTokens === "number"
+      ? record.inputTokens
+      : typeof record.promptTokens === "number"
+        ? record.promptTokens
+        : 0;
+  const outputTokens =
+    typeof record.outputTokens === "number"
+      ? record.outputTokens
+      : typeof record.completionTokens === "number"
+        ? record.completionTokens
+        : 0;
+
+  return { inputTokens, outputTokens };
+}
+
 const app = new Hono<HonoEnv>();
 
 // Zod schemas for validation
@@ -327,13 +352,14 @@ app.post(
               { sessionId, promptLength: content.length },
               { textLength: text.length },
             ).catch(() => {});
+            const { inputTokens, outputTokens } = extractUsageTokens(usage);
             await recordAiCost({
               userId: auth.user.id,
               provider: modelInfo.provider,
               model: modelInfo.model,
               featureType: "generation",
-              inputTokens: usage.promptTokens,
-              outputTokens: usage.completionTokens,
+              inputTokens,
+              outputTokens,
               durationMs: Date.now() - streamStartMs,
             }).catch(() => {});
           } catch (err) {

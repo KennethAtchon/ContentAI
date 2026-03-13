@@ -327,7 +327,12 @@ reelsRouter.post(
       const analysis = await analyzeReel(id, auth.user.id);
 
       // Track usage after successful analysis
-      await recordUsage(auth.user.id, "reel_analysis", { reelId: id }, { analysisId: analysis.id }).catch(() => {});
+      await recordUsage(
+        auth.user.id,
+        "reel_analysis",
+        { reelId: id },
+        { analysisId: analysis.id },
+      ).catch(() => {});
 
       return c.json({ analysis });
     } catch (error) {

@@ -110,7 +110,12 @@ export function ChatLayout({
     }
 
     return [...server, ...extra];
-  }, [sessionData?.messages, optimisticUserMessage, streamingContent, sessionId]);
+  }, [
+    sessionData?.messages,
+    optimisticUserMessage,
+    streamingContent,
+    sessionId,
+  ]);
 
   return (
     <div className="flex h-full overflow-hidden">

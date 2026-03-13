@@ -55,6 +55,9 @@ Generate 5 hook variations.`;
       userContent,
       maxTokens: 512,
       modelTier: "analysis",
+      featureType: "reel_generation",
+      userId,
+      metadata: { reelId, outputType },
     });
 
     usedModel = model;
@@ -88,6 +91,9 @@ Generate an original variation following the same viral structure.`;
       userContent,
       maxTokens: 1024,
       modelTier: "generation",
+      featureType: "reel_generation",
+      userId,
+      metadata: { reelId, outputType },
     });
 
     usedModel = model;

@@ -29,6 +29,8 @@ export const queryKeys = {
       subscriptions: () => ["api", "admin", "subscriptions"] as const,
       subscriptionStats: () =>
         ["api", "admin", "subscriptions", "stats"] as const,
+      aiCosts: (params?: { period?: string }) =>
+        ["api", "admin", "ai-costs", params] as const,
       contactMessages: (params?: { page?: number; limit?: number }) =>
         ["api", "shared", "contact-messages", params] as const,
       niches: (params?: { search?: string; active?: boolean }) =>

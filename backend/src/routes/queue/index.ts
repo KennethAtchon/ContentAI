@@ -57,9 +57,10 @@ queueRouter.get(
       }
 
       const sortColumn =
-        sort === "scheduledFor" ? queueItems.scheduledFor : queueItems.createdAt;
-      const orderBy =
-        sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
+        sort === "scheduledFor"
+          ? queueItems.scheduledFor
+          : queueItems.createdAt;
+      const orderBy = sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
       const [rows, [{ total }]] = await Promise.all([
         db

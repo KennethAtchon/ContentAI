@@ -18,6 +18,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { RecentOrdersList } from "@/features/admin/components/orders/recent-orders-list";
+import { AiCostDashboard } from "@/features/admin/components/dashboard/ai-cost-dashboard";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -343,6 +344,9 @@ export function DashboardView() {
           }
         />
       </div>
+
+      {/* AI Cost Dashboard */}
+      <AiCostDashboard />
 
       {/* Sections */}
       <div className="grid gap-6 lg:grid-cols-2">

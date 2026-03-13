@@ -25,7 +25,8 @@ export function usageGate(feature: GatedFeature): MiddlewareHandler<HonoEnv> {
       const stripeRole = auth.firebaseUser.stripeRole;
 
       const limits = getFeatureLimitsForStripeRole(stripeRole);
-      const limit = feature === "generation" ? limits.generation : limits.analysis;
+      const limit =
+        feature === "generation" ? limits.generation : limits.analysis;
 
       // -1 means unlimited
       if (limit === -1) {
