@@ -48,8 +48,14 @@ export const queryKeys = {
     reelAnalysis: (id: number) => ["api", "reel-analysis", id] as const,
     generationHistory: (params?: { limit?: number; offset?: number }) =>
       ["api", "generation-history", params] as const,
-    queue: (params?: { status?: string; limit?: number; offset?: number }) =>
-      ["api", "queue", params] as const,
+    queue: (params?: {
+      status?: string;
+      projectId?: string;
+      sort?: string;
+      limit?: number;
+      offset?: number;
+    }) => ["api", "queue", params] as const,
+    projects: () => ["api", "projects"] as const,
 
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>

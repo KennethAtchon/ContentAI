@@ -17,6 +17,9 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { loadPrompt, getModel } from "../../lib/aiClient";
+import { usageGate, recordUsage } from "../../middleware/usage-gate";
+import { recordAiCost } from "../../lib/cost-tracker";
+import { getModelInfo } from "../../lib/aiClient";
 
 const app = new Hono<HonoEnv>();
 
@@ -235,6 +238,7 @@ app.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  usageGate("generation"),
   zValidator("json", sendMessageSchema),
   async (c) => {
     try {
@@ -295,13 +299,16 @@ app.post(
       const systemPrompt = getChatSystemPrompt();
       const userPrompt = `Context: ${context}\n\nUser message: ${content}`;
 
+      const modelInfo = getModelInfo("generation");
+      const streamStartMs = Date.now();
+
       // Stream AI response; persist finished text via onFinish
       const result = streamText({
         model: getModel("generation"),
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
         maxOutputTokens: 1024,
-        onFinish: async ({ text }) => {
+        onFinish: async ({ text, usage }) => {
           try {
             await db.insert(chatMessages).values({
               id: crypto.randomUUID(),
@@ -313,6 +320,22 @@ app.post(
               .update(chatSessions)
               .set({ updatedAt: new Date() })
               .where(eq(chatSessions.id, sessionId));
+            // Track generation usage and AI cost
+            await recordUsage(
+              auth.user.id,
+              "generation",
+              { sessionId, promptLength: content.length },
+              { textLength: text.length },
+            ).catch(() => {});
+            await recordAiCost({
+              userId: auth.user.id,
+              provider: modelInfo.provider,
+              model: modelInfo.model,
+              featureType: "generation",
+              inputTokens: usage.promptTokens,
+              outputTokens: usage.completionTokens,
+              durationMs: Date.now() - streamStartMs,
+            }).catch(() => {});
           } catch (err) {
             debugLog.error("Failed to persist assistant message", {
               service: "chat-route",

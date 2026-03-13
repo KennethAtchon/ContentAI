@@ -59,6 +59,8 @@ export interface AiResponse {
   text: string;
   provider: "openai" | "claude";
   model: string;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 // ─── callAi: OpenAI-first, Claude fallback ───────────────────────────────────
@@ -78,7 +80,7 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   // ── Try OpenAI first (via Vercel AI SDK) ──
   if (openaiProvider) {
     try {
-      const { text } = await generateText({
+      const { text, usage } = await generateText({
         model: openaiProvider(OPENAI_MODEL),
         system,
         prompt: userContent,
@@ -91,7 +93,13 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
         model: OPENAI_MODEL,
       });
 
-      return { text, provider: "openai", model: OPENAI_MODEL };
+      return {
+        text,
+        provider: "openai",
+        model: OPENAI_MODEL,
+        inputTokens: usage.promptTokens,
+        outputTokens: usage.completionTokens,
+      };
     } catch (err) {
       debugLog.warn("OpenAI call failed — falling back to Claude", {
         service: "ai-client",
@@ -105,7 +113,7 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   const claudeModel =
     modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
 
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     model: anthropicProvider(claudeModel),
     system,
     prompt: userContent,
@@ -118,20 +126,31 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
     model: claudeModel,
   });
 
-  return { text, provider: "claude", model: claudeModel };
+  return {
+    text,
+    provider: "claude",
+    model: claudeModel,
+    inputTokens: usage.promptTokens,
+    outputTokens: usage.completionTokens,
+  };
 }
 
 // ─── Helper Functions for Streaming ───────────────────────────────────────
 
 export function getModel(modelTier: "analysis" | "generation" = "generation") {
-  // Prefer OpenAI if available, otherwise use Claude
-  if (openaiProvider) {
-    return openaiProvider(OPENAI_MODEL);
-  }
-
+  if (openaiProvider) return openaiProvider(OPENAI_MODEL);
   const claudeModel =
     modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
   return anthropicProvider(claudeModel);
+}
+
+export function getModelInfo(
+  modelTier: "analysis" | "generation" = "generation",
+): { provider: "openai" | "claude"; model: string } {
+  if (openaiProvider) return { provider: "openai", model: OPENAI_MODEL };
+  const model =
+    modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
+  return { provider: "claude", model };
 }
 
 export async function streamAi(params: AiMessage): Promise<any> {

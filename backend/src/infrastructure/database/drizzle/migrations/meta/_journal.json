@@ -15,6 +15,20 @@
       "when": 1773381336499,
       "tag": "0001_lumpy_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773384725328,
+      "tag": "0002_perpetual_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773386231503,
+      "tag": "0003_wandering_hammerhead",
+      "breakpoints": true
     }
   ]
 }

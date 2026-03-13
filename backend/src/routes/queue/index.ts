@@ -10,14 +10,24 @@ import {
   queueItems,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, asc, and, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 
 const queueRouter = new Hono<HonoEnv>();
 
+// Valid status transitions: Draft → Ready → Scheduled → Posted (Failed from any)
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  draft: ["ready", "scheduled"],
+  ready: ["draft", "scheduled"],
+  scheduled: ["ready", "posted"],
+  posted: [],
+  failed: ["draft"],
+};
+
 /**
  * GET /api/queue
- * List user's queue items, optionally filtered by status.
+ * List user's queue items with generatedContent preview and optional filters.
+ * Query params: status, projectId, sort (createdAt|scheduledFor), sortDir (asc|desc), limit, offset
  */
 queueRouter.get(
   "/",
@@ -27,18 +37,73 @@ queueRouter.get(
     try {
       const auth = c.get("auth");
       const status = c.req.query("status");
+      const projectId = c.req.query("projectId");
+      const sort = c.req.query("sort") ?? "createdAt";
+      const sortDir = c.req.query("sortDir") ?? "desc";
       const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
       const offset = parseInt(c.req.query("offset") ?? "0", 10);
 
       const conditions = [eq(queueItems.userId, auth.user.id)];
       if (status) conditions.push(eq(queueItems.status, status));
+      if (projectId) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM chat_message cm
+            JOIN chat_session cs ON cm.session_id = cs.id
+            WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+            AND cs.project_id = ${projectId}
+          )`,
+        );
+      }
+
+      const sortColumn =
+        sort === "scheduledFor" ? queueItems.scheduledFor : queueItems.createdAt;
+      const orderBy =
+        sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
       const [rows, [{ total }]] = await Promise.all([
         db
-          .select()
+          .select({
+            id: queueItems.id,
+            userId: queueItems.userId,
+            generatedContentId: queueItems.generatedContentId,
+            scheduledFor: queueItems.scheduledFor,
+            postedAt: queueItems.postedAt,
+            instagramPageId: queueItems.instagramPageId,
+            status: queueItems.status,
+            errorMessage: queueItems.errorMessage,
+            createdAt: queueItems.createdAt,
+            // Preview from generatedContent
+            generatedHook: generatedContent.generatedHook,
+            generatedCaption: generatedContent.generatedCaption,
+            thumbnailR2Key: generatedContent.thumbnailR2Key,
+            // Project info via chat link (best-effort correlated subquery)
+            projectId: sql<string | null>`(
+              SELECT cs.project_id FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
+              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              LIMIT 1
+            )`,
+            projectName: sql<string | null>`(
+              SELECT p.name FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
+              JOIN project p ON cs.project_id = p.id
+              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              LIMIT 1
+            )`,
+            sessionId: sql<string | null>`(
+              SELECT cm.session_id FROM chat_message cm
+              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              LIMIT 1
+            )`,
+          })
           .from(queueItems)
+          .leftJoin(
+            generatedContent,
+            eq(queueItems.generatedContentId, generatedContent.id),
+          )
           .where(and(...conditions))
-          .orderBy(desc(queueItems.createdAt))
+          .orderBy(orderBy)
           .limit(limit)
           .offset(offset),
         db
@@ -61,7 +126,7 @@ queueRouter.get(
 
 /**
  * PATCH /api/queue/:id
- * Update schedule time or Instagram page for a queue item.
+ * Update status (with transition validation), schedule time, or Instagram page.
  */
 queueRouter.patch(
   "/:id",
@@ -75,9 +140,10 @@ queueRouter.patch(
       if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
 
       const body = await c.req.json();
-      const { scheduledFor, instagramPageId } = body as {
+      const { scheduledFor, instagramPageId, status } = body as {
         scheduledFor?: string;
         instagramPageId?: string;
+        status?: string;
       };
 
       const [item] = await db
@@ -86,19 +152,40 @@ queueRouter.patch(
         .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)));
 
       if (!item) return c.json({ error: "Queue item not found" }, 404);
-      if (item.status === "posted") {
-        return c.json({ error: "Cannot update a posted item" }, 400);
-      }
 
       const updateData: Record<string, unknown> = {};
+
+      if (status !== undefined) {
+        if (item.status === "posted") {
+          return c.json({ error: "Cannot update a posted item" }, 400);
+        }
+        const allowed = VALID_TRANSITIONS[item.status] ?? [];
+        if (!allowed.includes(status)) {
+          return c.json(
+            { error: `Cannot transition from '${item.status}' to '${status}'` },
+            400,
+          );
+        }
+        updateData.status = status;
+      }
+
       if (scheduledFor) {
         const date = new Date(scheduledFor);
         if (date <= new Date())
           return c.json({ error: "scheduledFor must be in the future" }, 400);
         updateData.scheduledFor = date;
+        // Auto-advance draft/ready to scheduled when a date is set
+        if (!status && (item.status === "draft" || item.status === "ready")) {
+          updateData.status = "scheduled";
+        }
       }
+
       if (instagramPageId !== undefined)
         updateData.instagramPageId = instagramPageId;
+
+      if (Object.keys(updateData).length === 0) {
+        return c.json({ error: "No fields to update" }, 400);
+      }
 
       const [updated] = await db
         .update(queueItems)

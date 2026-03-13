@@ -201,6 +201,8 @@ export const generatedContent = pgTable(
     generatedCaption: text("generated_caption"),
     generatedScript: text("generated_script"),
     generatedMetadata: jsonb("generated_metadata"),
+    thumbnailR2Key: text("thumbnail_r2_key"),
+    videoR2Url: text("video_r2_url"),
     outputType: text("output_type").notNull().default("full"),
     model: text("model"),
     status: text("status").notNull().default("draft"),
@@ -361,6 +363,36 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
     references: [generatedContent.id],
   }),
 }));
+
+// ─── AI Cost Ledger ────────────────────────────────────────────────────────────
+
+export const aiCostLedger = pgTable(
+  "ai_cost_ledger",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id"), // nullable for system/background calls
+    provider: text("provider").notNull(), // "openai" | "claude"
+    model: text("model").notNull(),
+    featureType: text("feature_type").notNull(), // "reel_analysis" | "generation" | etc.
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    inputCost: numeric("input_cost", { precision: 12, scale: 8 }).notNull().default("0"),
+    outputCost: numeric("output_cost", { precision: 12, scale: 8 }).notNull().default("0"),
+    totalCost: numeric("total_cost", { precision: 12, scale: 8 }).notNull().default("0"),
+    durationMs: integer("duration_ms").notNull().default(0),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_cost_ledger_created_at_idx").on(t.createdAt),
+    index("ai_cost_ledger_user_id_idx").on(t.userId),
+    index("ai_cost_ledger_feature_type_idx").on(t.featureType),
+  ],
+);
+
+export type AiCostEntry = typeof aiCostLedger.$inferSelect;
 
 // ─── Inferred types ───────────────────────────────────────────────────────────
 

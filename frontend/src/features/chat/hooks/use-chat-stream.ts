@@ -12,6 +12,7 @@ export function useChatStream(sessionId: string) {
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [isLimitReached, setIsLimitReached] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -46,6 +47,13 @@ export function useChatStream(sessionId: string) {
           120_000, // 2-min timeout for streaming
         );
 
+        if (response.status === 403) {
+          const body = await response.json().catch(() => ({}));
+          if ((body as { code?: string }).code === "USAGE_LIMIT_REACHED") {
+            setIsLimitReached(true);
+            return;
+          }
+        }
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         if (!response.body) throw new Error("No response body");
 
@@ -86,5 +94,6 @@ export function useChatStream(sessionId: string) {
     streamingContent,
     isStreaming,
     streamError,
+    isLimitReached,
   };
 }

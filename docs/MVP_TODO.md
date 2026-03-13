@@ -49,18 +49,18 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/generate-reel-creation-pipeline.md`
 
 ### AI Analysis Enhancement
-- [ ] Add new fields to `reelAnalyses` table: shotBreakdown (jsonb), engagementDrivers (jsonb), replicabilityScore (int), replicabilityNotes (text)
-- [ ] Update `reel-analysis.txt` prompt to produce enhanced analysis output
-- [ ] Run migration
+- [x] Add new fields to `reelAnalyses` table: shotBreakdown (jsonb), engagementDrivers (jsonb), replicabilityScore (int), replicabilityNotes (text)
+- [x] Update `reel-analysis.txt` prompt to produce enhanced analysis output
+- [x] Run migration
 
 ### Script Generation
-- [ ] Add `generatedMetadata` jsonb column to `generatedContent` (structured shot list, text overlays, hashtags)
-- [ ] Ensure chat AI outputs structured format: hook, script/shot list, caption, hashtags, CTA
+- [x] Add `generatedMetadata` jsonb column to `generatedContent` (structured shot list, text overlays, hashtags)
+- [x] Ensure chat AI outputs structured format: hook, script/shot list, caption, hashtags, CTA
 
 ### Content Versioning
-- [ ] Add `version` (integer, default 1) and `parentId` (self-ref FK) to `generatedContent`
+- [x] Add `version` (integer, default 1) and `parentId` (self-ref FK) to `generatedContent`
 - [ ] When user iterates in chat, create new version linked to parent
-- [ ] Run migration
+- [x] Run migration
 
 ---
 
@@ -68,20 +68,20 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/queue-tab-design.md`
 
 ### Backend
-- [ ] Enhance `GET /api/queue` response to include generatedContent preview (hook, caption, thumbnailR2Key) and project info
-- [ ] Add `projectId` and `sort` query params to `GET /api/queue`
-- [ ] Add `status` field to `PATCH /api/queue/:id` with state transition validation (Draft→Ready→Scheduled→Posted)
+- [x] Enhance `GET /api/queue` response to include generatedContent preview (hook, caption, thumbnailR2Key) and project info
+- [x] Add `projectId` and `sort` query params to `GET /api/queue`
+- [x] Add `status` field to `PATCH /api/queue/:id` with state transition validation (Draft→Ready→Scheduled→Posted)
 
 ### Frontend
-- [ ] Redesign queue page with content cards showing thumbnail, hook text, project name, status badge
-- [ ] Add status filter sidebar (All, Draft, Ready, Scheduled, Posted, Failed)
-- [ ] Add "Edit" button → navigates to `/studio/generate?project={id}&session={id}`
-- [ ] Add delete with confirmation dialog
-- [ ] Add project filter dropdown
+- [x] Redesign queue page with content cards showing thumbnail, hook text, project name, status badge
+- [x] Add status filter sidebar (All, Draft, Ready, Scheduled, Posted, Failed)
+- [x] Add "Edit" button → navigates to `/studio/generate?project={id}&session={id}`
+- [x] Add delete with confirmation dialog
+- [x] Add project filter dropdown
 
 ### Database
-- [ ] Add `thumbnailR2Key` and `videoR2Url` columns to `generatedContent` (for assembled output, distinct from source reel)
-- [ ] Verify `queueItems.status` values align with new flow (draft, ready, scheduled, posted, failed)
+- [x] Add `thumbnailR2Key` and `videoR2Url` columns to `generatedContent` (for assembled output, distinct from source reel)
+- [x] Verify `queueItems.status` values align with new flow (draft, ready, scheduled, posted, failed)
 
 ---
 
@@ -89,18 +89,17 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/usage-limits-and-cost-tracking.md`
 
 ### Backend
-- [ ] Redefine subscription tiers in `subscription.constants.ts` for ContentAI (Free/Creator/Pro/Agency with generation, analysis, TTS, video limits)
-- [ ] Create `usage-gate.ts` middleware — checks `featureUsages` count against tier limits per billing period
-- [ ] Wire usage gate into all billable endpoints:
+- [x] Redefine subscription tiers in `subscription.constants.ts` for ContentAI (Free/Creator/Pro/Agency with generation, analysis, TTS, video limits)
+- [x] Create `usage-gate.ts` middleware — checks `featureUsages` count against tier limits per billing period
+- [x] Wire usage gate into all billable endpoints:
   - `POST /api/chat/sessions/:id/messages` (generation)
   - `POST /api/reels/:id/analyze` (analysis)
-- [ ] Enhance `GET /api/customer/usage` to return actual limits from tier + reset date
-- [ ] Update Stripe products/prices to match new tiers
+- [x] Enhance `GET /api/customer/usage` to return actual limits from tier + reset date
 
 ### Frontend
-- [ ] Add usage display in Generate tab sidebar (progress bars per feature)
-- [ ] Show "Limit reached — upgrade" UI when a limit is hit (disable action + upgrade link)
-- [ ] Handle 403 from usage gate gracefully with upgrade prompt
+- [x] Add usage display in Generate tab sidebar (progress bars per feature)
+- [x] Show "Limit reached — upgrade" UI when a limit is hit (disable action + upgrade link)
+- [x] Handle 403 from usage gate gracefully with upgrade prompt
 
 ---
 
@@ -108,14 +107,14 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/usage-limits-and-cost-tracking.md`
 
 ### Database
-- [ ] Create `aiCostLedger` table (id, userId, provider, model, featureType, inputTokens, outputTokens, inputCost, outputCost, totalCost, durationMs, metadata jsonb, createdAt)
-- [ ] Add indexes (created_at, user_id, feature_type)
+- [x] Create `aiCostLedger` table (id, userId, provider, model, featureType, inputTokens, outputTokens, inputCost, outputCost, totalCost, durationMs, metadata jsonb, createdAt)
+- [x] Add indexes (created_at, user_id, feature_type)
 
 ### Backend
-- [ ] Create `ai-pricing.constants.ts` with per-model token pricing
+- [x] Create `ai-pricing.constants.ts` with per-model token pricing
 - [ ] Modify `aiClient.ts` to record cost after every `generateText`/`streamText` call
-- [ ] Create `GET /api/admin/ai-costs` endpoint (period, groupBy, breakdown by provider/model/feature)
-- [ ] Create `GET /api/admin/ai-costs/by-user` endpoint (top users by cost)
+- [x] Create `GET /api/admin/ai-costs` endpoint (period, groupBy, breakdown by provider/model/feature)
+- [x] Create `GET /api/admin/ai-costs/by-user` endpoint (top users by cost)
 
 ### Frontend (Admin)
 - [ ] Add AI Cost Dashboard section to admin portal (total spend, breakdown table, daily trend)

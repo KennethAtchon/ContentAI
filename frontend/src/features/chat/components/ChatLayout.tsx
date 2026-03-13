@@ -43,6 +43,7 @@ export function ChatLayout({
     streamingContent,
     isStreaming,
     streamError,
+    isLimitReached,
   } = useChatStream(sessionId);
 
   // Update selected project from URL params
@@ -145,6 +146,7 @@ export function ChatLayout({
               onSendMessage={handleSendMessage}
               isStreaming={isStreaming}
               streamError={streamError}
+              isLimitReached={isLimitReached}
             />
           </>
         ) : (

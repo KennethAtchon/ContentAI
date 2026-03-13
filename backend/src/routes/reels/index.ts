@@ -9,6 +9,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, gte, ilike, sql, and } from "drizzle-orm";
 import { analyzeReel } from "../../services/reels/reel-analyzer";
+import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
 import { VIRAL_VIEWS_THRESHOLD } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
@@ -316,12 +317,18 @@ reelsRouter.post(
   "/:id/analyze",
   rateLimiter("customer"),
   authMiddleware("user"),
+  usageGate("analysis"),
   async (c) => {
     try {
+      const auth = c.get("auth");
       const id = parseInt(c.req.param("id"), 10);
       if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
 
-      const analysis = await analyzeReel(id);
+      const analysis = await analyzeReel(id, auth.user.id);
+
+      // Track usage after successful analysis
+      await recordUsage(auth.user.id, "reel_analysis", { reelId: id }, { analysisId: analysis.id }).catch(() => {});
+
       return c.json({ analysis });
     } catch (error) {
       debugLog.error("Failed to analyze reel", {

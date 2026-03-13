@@ -72,7 +72,15 @@ export interface QueueItem {
   scheduledFor: string | null;
   postedAt: string | null;
   instagramPageId: string | null;
-  status: "scheduled" | "posted" | "failed";
+  status: "draft" | "ready" | "scheduled" | "posted" | "failed";
   errorMessage: string | null;
   createdAt: string;
+  // Preview from generatedContent
+  generatedHook: string | null;
+  generatedCaption: string | null;
+  thumbnailR2Key: string | null;
+  // Project info (populated when content was generated via chat)
+  projectId: string | null;
+  projectName: string | null;
+  sessionId: string | null;
 }

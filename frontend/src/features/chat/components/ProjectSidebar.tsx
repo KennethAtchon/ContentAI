@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/components/ui/button";
+import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import { queryKeys } from "@/shared/lib/query-keys";
+import { useApp } from "@/shared/contexts/app-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +40,60 @@ interface ProjectSidebarProps {
   onHideNewProjectForm: () => void;
 }
 
+function UsageBar({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number;
+}) {
+  const pct = limit <= 0 ? 0 : Math.min(100, Math.round((used / limit) * 100));
+  const isNearLimit = pct >= 80;
+  const isAtLimit = pct >= 100;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-muted-foreground truncate">{label}</span>
+        <span
+          className={
+            isAtLimit
+              ? "text-red-500 font-semibold"
+              : isNearLimit
+                ? "text-amber-500"
+                : "text-muted-foreground"
+          }
+        >
+          {used}/{limit === -1 ? "∞" : limit}
+        </span>
+      </div>
+      {limit > 0 && (
+        <div className="h-1 rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              isAtLimit
+                ? "bg-red-500"
+                : isNearLimit
+                  ? "bg-amber-500"
+                  : "bg-primary"
+            }`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface UsageStats {
+  contentGenerated: number;
+  contentGeneratedLimit: number;
+  reelsAnalyzed: number;
+  reelsAnalyzedLimit: number;
+}
+
 export function ProjectSidebar({
   selectedProjectId,
   selectedSessionId,
@@ -46,6 +104,15 @@ export function ProjectSidebar({
   onHideNewProjectForm,
 }: ProjectSidebarProps) {
   const { t } = useTranslation();
+  const { user } = useApp();
+  const usageFetcher = useQueryFetcher<UsageStats>();
+
+  const { data: usageData } = useQuery({
+    queryKey: queryKeys.api.usageStats(),
+    queryFn: () => usageFetcher("/api/customer/usage"),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
@@ -253,6 +320,31 @@ export function ProjectSidebar({
           </div>
         )}
       </div>
+
+      {/* Usage summary */}
+      {usageData && (
+        <div className="p-3 border-t space-y-2">
+          <UsageBar
+            label={t("studio_generate_usage_generations")}
+            used={usageData.contentGenerated}
+            limit={usageData.contentGeneratedLimit}
+          />
+          <UsageBar
+            label={t("studio_generate_usage_analyses")}
+            used={usageData.reelsAnalyzed}
+            limit={usageData.reelsAnalyzedLimit}
+          />
+          {(usageData.contentGenerated >= usageData.contentGeneratedLimit ||
+            usageData.reelsAnalyzed >= usageData.reelsAnalyzedLimit) && (
+            <a
+              href="/pricing"
+              className="block w-full text-center text-[11px] font-semibold py-1.5 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors"
+            >
+              {t("studio_generate_upgrade")}
+            </a>
+          )}
+        </div>
+      )}
 
       <AlertDialog
         open={!!deleteProjectId}

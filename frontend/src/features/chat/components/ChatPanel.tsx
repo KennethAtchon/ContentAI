@@ -12,6 +12,7 @@ interface ChatPanelProps {
   isStreaming?: boolean;
   streamingMessageId?: string;
   streamError?: string | null;
+  isLimitReached?: boolean;
 }
 
 export function ChatPanel({
@@ -20,6 +21,7 @@ export function ChatPanel({
   isStreaming,
   streamingMessageId,
   streamError,
+  isLimitReached,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,21 @@ export function ChatPanel({
       </div>
 
       <div className="border-t p-4 shrink-0">
-        <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
+        {isLimitReached ? (
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+            <span className="text-amber-400 font-medium">
+              {t("studio_chat_limit_reached")}
+            </span>
+            <a
+              href="/pricing"
+              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+            >
+              {t("studio_chat_limit_upgrade")}
+            </a>
+          </div>
+        ) : (
+          <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
+        )}
       </div>
     </div>
   );

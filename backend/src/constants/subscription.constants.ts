@@ -33,6 +33,7 @@ export type SubscriptionStatus =
 export interface SubscriptionTierFeatures {
   maxReelsPerMonth: number; // -1 = unlimited
   maxGenerationsPerMonth: number; // -1 = unlimited (AI chat messages)
+  maxAnalysesPerMonth: number; // -1 = unlimited (reel AI analyses)
   maxQueueItems: number; // -1 = unlimited
   aiAnalysis: boolean;
   instagramPublishing: boolean;
@@ -49,10 +50,17 @@ export interface SubscriptionTierConfig {
   stripePriceId: string;
 }
 
+// Free tier limits for users without an active subscription
+export const FREE_TIER_LIMITS = {
+  maxGenerationsPerMonth: 10,
+  maxAnalysesPerMonth: 5,
+} as const;
+
 const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   [SUBSCRIPTION_TIERS.BASIC]: {
     maxReelsPerMonth: 100,
-    maxGenerationsPerMonth: 50,
+    maxGenerationsPerMonth: 100,
+    maxAnalysesPerMonth: 50,
     maxQueueItems: 10,
     aiAnalysis: true,
     instagramPublishing: false,
@@ -62,7 +70,8 @@ const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   },
   [SUBSCRIPTION_TIERS.PRO]: {
     maxReelsPerMonth: -1,
-    maxGenerationsPerMonth: 300,
+    maxGenerationsPerMonth: 500,
+    maxAnalysesPerMonth: 200,
     maxQueueItems: 100,
     aiAnalysis: true,
     instagramPublishing: true,
@@ -73,6 +82,7 @@ const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
   [SUBSCRIPTION_TIERS.ENTERPRISE]: {
     maxReelsPerMonth: -1,
     maxGenerationsPerMonth: -1,
+    maxAnalysesPerMonth: -1,
     maxQueueItems: -1,
     aiAnalysis: true,
     instagramPublishing: true,
@@ -115,6 +125,25 @@ export function isUsageLimitReached(
 ): boolean {
   if (usageLimit === null || usageLimit === -1) return false;
   return usageCount >= usageLimit;
+}
+
+/** Returns monthly generation and analysis limits for a given Stripe role (or free tier). */
+export function getFeatureLimitsForStripeRole(stripeRole?: string): {
+  generation: number;
+  analysis: number;
+} {
+  const tier = stripeRole as SubscriptionTier | undefined;
+  if (tier && tier in BASE_TIER_FEATURES) {
+    const f = BASE_TIER_FEATURES[tier];
+    return {
+      generation: f.maxGenerationsPerMonth,
+      analysis: f.maxAnalysesPerMonth,
+    };
+  }
+  return {
+    generation: FREE_TIER_LIMITS.maxGenerationsPerMonth,
+    analysis: FREE_TIER_LIMITS.maxAnalysesPerMonth,
+  };
 }
 
 export function getTierDescription(tier: SubscriptionTier): string {

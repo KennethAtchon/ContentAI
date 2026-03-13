@@ -9,13 +9,13 @@ import { db } from "../../services/db/db";
 import {
   users,
   orders,
-  generatedContent,
   queueItems,
   featureUsages,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { adminAuth } from "../../services/firebase/admin";
 import { debugLog } from "../../utils/debug/debug";
+import { getFeatureLimitsForStripeRole } from "../../constants/subscription.constants";
 
 const customer = new Hono<HonoEnv>();
 
@@ -33,8 +33,15 @@ customer.get(
     try {
       const auth = c.get("auth");
       const userId = auth.user.id;
+      const stripeRole = auth.firebaseUser.stripeRole;
 
-      const [reelsAnalyzedCount, contentGeneratedCount, queueSizeCount] =
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const limits = getFeatureLimitsForStripeRole(stripeRole);
+
+      const [analysesCount, generationsCount, queueSizeCount] =
         await Promise.all([
           db
             .select({ count: sql<number>`count(*)::int` })
@@ -43,12 +50,19 @@ customer.get(
               and(
                 eq(featureUsages.userId, userId),
                 eq(featureUsages.featureType, "reel_analysis"),
+                gte(featureUsages.createdAt, monthStart),
               ),
             ),
           db
             .select({ count: sql<number>`count(*)::int` })
-            .from(generatedContent)
-            .where(eq(generatedContent.userId, userId)),
+            .from(featureUsages)
+            .where(
+              and(
+                eq(featureUsages.userId, userId),
+                eq(featureUsages.featureType, "generation"),
+                gte(featureUsages.createdAt, monthStart),
+              ),
+            ),
           db
             .select({ count: sql<number>`count(*)::int` })
             .from(queueItems)
@@ -60,17 +74,15 @@ customer.get(
             ),
         ]);
 
-      const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
       return c.json({
-        reelsAnalyzed: reelsAnalyzedCount[0]?.count ?? 0,
-        reelsAnalyzedLimit: null,
-        contentGenerated: contentGeneratedCount[0]?.count ?? 0,
-        contentGeneratedLimit: null,
+        reelsAnalyzed: analysesCount[0]?.count ?? 0,
+        reelsAnalyzedLimit: limits.analysis,
+        contentGenerated: generationsCount[0]?.count ?? 0,
+        contentGeneratedLimit: limits.generation,
         queueSize: queueSizeCount[0]?.count ?? 0,
         queueLimit: null,
-        resetDate: nextMonth.toISOString(),
+        tier: stripeRole ?? "free",
+        resetDate: resetDate.toISOString(),
       });
     } catch (error) {
       debugLog.error("Failed to fetch usage stats", {

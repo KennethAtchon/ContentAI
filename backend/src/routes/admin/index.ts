@@ -15,6 +15,7 @@ import {
   orders,
   contactMessages,
   featureUsages,
+  aiCostLedger,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, or, ilike, desc, gte, lte, sql } from "drizzle-orm";
 import {
@@ -1046,6 +1047,158 @@ admin.get(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch schema" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/admin/ai-costs ─────────────────────────────────────────────────
+
+admin.get(
+  "/ai-costs",
+  rateLimiter("admin"),
+  authMiddleware("admin"),
+  async (c) => {
+    try {
+      const period = c.req.query("period") ?? "30d";
+
+      const now = new Date();
+      let periodStart: Date;
+      switch (period) {
+        case "7d":
+          periodStart = new Date(now.getTime() - 7 * 86_400_000);
+          break;
+        case "90d":
+          periodStart = new Date(now.getTime() - 90 * 86_400_000);
+          break;
+        case "all":
+          periodStart = new Date(0);
+          break;
+        default: // 30d
+          periodStart = new Date(now.getTime() - 30 * 86_400_000);
+      }
+
+      const [totals, byProvider, byModel, byFeature, byDay] = await Promise.all([
+        // Overall totals
+        db
+          .select({
+            totalCost: sql<string>`sum(total_cost)::text`,
+            totalInputTokens: sql<number>`sum(input_tokens)::int`,
+            totalOutputTokens: sql<number>`sum(output_tokens)::int`,
+            callCount: sql<number>`count(*)::int`,
+          })
+          .from(aiCostLedger)
+          .where(gte(aiCostLedger.createdAt, periodStart)),
+
+        // Breakdown by provider
+        db
+          .select({
+            provider: aiCostLedger.provider,
+            totalCost: sql<string>`sum(total_cost)::text`,
+            callCount: sql<number>`count(*)::int`,
+          })
+          .from(aiCostLedger)
+          .where(gte(aiCostLedger.createdAt, periodStart))
+          .groupBy(aiCostLedger.provider)
+          .orderBy(sql`sum(total_cost) desc`),
+
+        // Breakdown by model
+        db
+          .select({
+            provider: aiCostLedger.provider,
+            model: aiCostLedger.model,
+            totalCost: sql<string>`sum(total_cost)::text`,
+            inputTokens: sql<number>`sum(input_tokens)::int`,
+            outputTokens: sql<number>`sum(output_tokens)::int`,
+            callCount: sql<number>`count(*)::int`,
+          })
+          .from(aiCostLedger)
+          .where(gte(aiCostLedger.createdAt, periodStart))
+          .groupBy(aiCostLedger.provider, aiCostLedger.model)
+          .orderBy(sql`sum(total_cost) desc`),
+
+        // Breakdown by feature type
+        db
+          .select({
+            featureType: aiCostLedger.featureType,
+            totalCost: sql<string>`sum(total_cost)::text`,
+            callCount: sql<number>`count(*)::int`,
+          })
+          .from(aiCostLedger)
+          .where(gte(aiCostLedger.createdAt, periodStart))
+          .groupBy(aiCostLedger.featureType)
+          .orderBy(sql`sum(total_cost) desc`),
+
+        // Daily cost trend
+        db
+          .select({
+            day: sql<string>`date_trunc('day', created_at)::text`,
+            totalCost: sql<string>`sum(total_cost)::text`,
+            callCount: sql<number>`count(*)::int`,
+          })
+          .from(aiCostLedger)
+          .where(gte(aiCostLedger.createdAt, periodStart))
+          .groupBy(sql`date_trunc('day', created_at)`)
+          .orderBy(sql`date_trunc('day', created_at) asc`),
+      ]);
+
+      return c.json({
+        period,
+        totals: totals[0] ?? { totalCost: "0", totalInputTokens: 0, totalOutputTokens: 0, callCount: 0 },
+        byProvider,
+        byModel,
+        byFeature,
+        byDay,
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch AI costs", {
+        service: "admin-route",
+        operation: "getAiCosts",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch AI costs" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/admin/ai-costs/by-user ─────────────────────────────────────────
+
+admin.get(
+  "/ai-costs/by-user",
+  rateLimiter("admin"),
+  authMiddleware("admin"),
+  async (c) => {
+    try {
+      const period = c.req.query("period") ?? "30d";
+      const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+
+      const now = new Date();
+      const periodStart =
+        period === "all"
+          ? new Date(0)
+          : new Date(now.getTime() - parseInt(period) * 86_400_000);
+
+      const rows = await db
+        .select({
+          userId: aiCostLedger.userId,
+          totalCost: sql<string>`sum(total_cost)::text`,
+          callCount: sql<number>`count(*)::int`,
+          inputTokens: sql<number>`sum(input_tokens)::int`,
+          outputTokens: sql<number>`sum(output_tokens)::int`,
+        })
+        .from(aiCostLedger)
+        .where(and(gte(aiCostLedger.createdAt, periodStart), sql`user_id is not null`))
+        .groupBy(aiCostLedger.userId)
+        .orderBy(sql`sum(total_cost) desc`)
+        .limit(limit);
+
+      return c.json({ period, users: rows });
+    } catch (error) {
+      debugLog.error("Failed to fetch AI costs by user", {
+        service: "admin-route",
+        operation: "getAiCostsByUser",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch AI costs by user" }, 500);
     }
   },
 );
