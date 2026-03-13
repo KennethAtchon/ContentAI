@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,6 +8,7 @@ import {
   DialogFooter,
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 
@@ -60,12 +59,12 @@ export function CreateProjectModal({
             <Label htmlFor="project-description">
               {t("studio_chat_projectDescription")}
             </Label>
-            <textarea
+            <Textarea
               id="project-description"
               placeholder={t("studio_chat_projectDescription")}
               value={projectDescription}
               onChange={(e) => onProjectDescriptionChange(e.target.value)}
-              className="w-full p-2 border rounded text-sm resize-none"
+              className="resize-none"
               rows={3}
             />
           </div>

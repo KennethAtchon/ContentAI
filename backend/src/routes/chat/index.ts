@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { streamText } from "ai";
 import {
   authMiddleware,
   rateLimiter,
@@ -15,7 +16,6 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
-import { streamText } from "ai";
 import { loadPrompt, getModel } from "../../lib/aiClient";
 
 const app = new Hono<HonoEnv>();
@@ -229,7 +229,7 @@ app.delete(
   },
 );
 
-// POST /api/chat/sessions/:id/messages - Send message and get AI response
+// POST /api/chat/sessions/:id/messages - Send message and stream AI response
 app.post(
   "/sessions/:id/messages",
   rateLimiter("customer"),
@@ -267,19 +267,16 @@ app.post(
         return c.json({ error: "Session not found" }, 404);
       }
 
-      // Save user message
-      await db
-        .insert(chatMessages)
-        .values({
-          id: crypto.randomUUID(),
-          sessionId,
-          role: "user",
-          content,
-          reelRefs: reelRefs || null,
-        })
-        .returning();
+      // Save user message immediately (before streaming starts)
+      await db.insert(chatMessages).values({
+        id: crypto.randomUUID(),
+        sessionId,
+        role: "user",
+        content,
+        reelRefs: reelRefs || null,
+      });
 
-      // Update session title if this is the first message and title is generic
+      // Auto-title session from first message
       if (session.title === "New Chat Session") {
         const autoTitle =
           content.substring(0, 50) + (content.length > 50 ? "..." : "");
@@ -289,42 +286,43 @@ app.post(
           .where(eq(chatSessions.id, sessionId));
       }
 
-      // Build context for AI generation
+      // Build prompt
       const context = await buildChatContext(
         auth.user.id,
         session.project,
         reelRefs,
       );
-
-      // Get AI response using existing callAi function
       const systemPrompt = getChatSystemPrompt();
       const userPrompt = `Context: ${context}\n\nUser message: ${content}`;
 
-      // Stream AI response
-      const result = await streamText({
+      // Stream AI response; persist finished text via onFinish
+      const result = streamText({
         model: getModel("generation"),
         system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
+        messages: [{ role: "user", content: userPrompt }],
         maxOutputTokens: 1024,
+        onFinish: async ({ text }) => {
+          try {
+            await db.insert(chatMessages).values({
+              id: crypto.randomUUID(),
+              sessionId,
+              role: "assistant",
+              content: text,
+            });
+            await db
+              .update(chatSessions)
+              .set({ updatedAt: new Date() })
+              .where(eq(chatSessions.id, sessionId));
+          } catch (err) {
+            debugLog.error("Failed to persist assistant message", {
+              service: "chat-route",
+              operation: "onFinish",
+              error: err instanceof Error ? err.message : "Unknown error",
+            });
+          }
+        },
       });
 
-      // Save the initial AI response (we'll update it with the full content later)
-      await db
-        .insert(chatMessages)
-        .values({
-          id: crypto.randomUUID(),
-          sessionId,
-          role: "assistant",
-          content: "", // Will be updated
-        })
-        .returning();
-
-      // Return streaming response
       return result.toTextStreamResponse();
     } catch (error) {
       debugLog.error("Failed to send chat message", {

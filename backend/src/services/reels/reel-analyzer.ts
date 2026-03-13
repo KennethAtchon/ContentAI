@@ -17,6 +17,10 @@ interface AnalysisResult {
   captionFramework: string;
   curiosityGapStyle: string | null;
   remixSuggestion: string;
+  shotBreakdown: Array<{ timestamp: string; description: string; textOverlay: string | null }> | null;
+  engagementDrivers: string[] | null;
+  replicabilityScore: number | null;
+  replicabilityNotes: string | null;
 }
 
 export async function analyzeReel(reelId: number): Promise<ReelAnalysis> {
@@ -76,6 +80,10 @@ Analyze this viral reel and return structured JSON.`;
       captionFramework: parsed.captionFramework,
       curiosityGapStyle: parsed.curiosityGapStyle,
       remixSuggestion: parsed.remixSuggestion,
+      shotBreakdown: parsed.shotBreakdown as unknown as Record<string, unknown>,
+      engagementDrivers: parsed.engagementDrivers as unknown as Record<string, unknown>,
+      replicabilityScore: parsed.replicabilityScore,
+      replicabilityNotes: parsed.replicabilityNotes,
       analysisModel: model,
       rawResponse: rawText as unknown as Record<string, unknown>,
     })
@@ -90,6 +98,10 @@ Analyze this viral reel and return structured JSON.`;
         captionFramework: parsed.captionFramework,
         curiosityGapStyle: parsed.curiosityGapStyle,
         remixSuggestion: parsed.remixSuggestion,
+        shotBreakdown: parsed.shotBreakdown as unknown as Record<string, unknown>,
+        engagementDrivers: parsed.engagementDrivers as unknown as Record<string, unknown>,
+        replicabilityScore: parsed.replicabilityScore,
+        replicabilityNotes: parsed.replicabilityNotes,
         analysisModel: model,
         rawResponse: rawText as unknown as Record<string, unknown>,
       },

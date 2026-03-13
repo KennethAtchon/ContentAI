@@ -178,6 +178,11 @@ export const reelAnalyses = pgTable(
     onScreenTextStructure: text("on_screen_text_structure"),
     // e.g. "middle", "top", "bottom", "top_and_bottom"
     textPosition: text("text_position"),
+    // Enhanced analysis fields
+    shotBreakdown: jsonb("shot_breakdown"),
+    engagementDrivers: jsonb("engagement_drivers"),
+    replicabilityScore: integer("replicability_score"),
+    replicabilityNotes: text("replicability_notes"),
     analysisModel: text("analysis_model"),
     rawResponse: jsonb("raw_response"),
     analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
@@ -195,9 +200,12 @@ export const generatedContent = pgTable(
     generatedHook: text("generated_hook"),
     generatedCaption: text("generated_caption"),
     generatedScript: text("generated_script"),
+    generatedMetadata: jsonb("generated_metadata"),
     outputType: text("output_type").notNull().default("full"),
     model: text("model"),
     status: text("status").notNull().default("draft"),
+    version: integer("version").notNull().default(1),
+    parentId: integer("parent_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [

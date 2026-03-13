@@ -1,28 +1,25 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@/shared/components/ui/button";
-import { Textarea } from "@/shared/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Sparkles, AlertCircle } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
-  onSendMessage?: (content: string) => void;
-  isLoading?: boolean;
-  input?: string;
-  handleInputChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  handleSubmit?: (e: React.FormEvent) => void;
+  onSendMessage: (content: string) => void;
+  isStreaming?: boolean;
+  streamingMessageId?: string;
+  streamError?: string | null;
 }
 
 export function ChatPanel({
   messages,
   onSendMessage,
-  isLoading,
-  input,
-  handleInputChange,
-  handleSubmit,
+  isStreaming,
+  streamingMessageId,
+  streamError,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -35,62 +32,63 @@ export function ChatPanel({
     scrollToBottom();
   }, [messages]);
 
+  // Show thinking dots only while waiting for the first streaming token
+  const streamingMessage = messages.find((m) => m.id === STREAMING_MESSAGE_ID);
+  const isWaitingForFirstToken =
+    isStreaming && streamingMessage?.content === "";
+
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-primary/60" />
+            </div>
+            <div>
+              <h3 className="text-base font-medium mb-1">
                 {t("studio_chat_startConversation")}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground max-w-xs">
                 {t("studio_chat_startConversationDescription")}
               </p>
             </div>
           </div>
         ) : (
           messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage
+              key={message.id}
+              message={message}
+              isStreaming={message.id === streamingMessageId}
+            />
           ))
         )}
 
-        {isLoading && (
-          <div className="flex items-center gap-2 p-3">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-75"></div>
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse delay-150"></div>
-            <span className="text-sm text-muted-foreground">
+        {isWaitingForFirstToken && (
+          <div className="flex items-center gap-2 px-1">
+            <div className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0ms]" />
+              <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:150ms]" />
+              <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:300ms]" />
+            </div>
+            <span className="text-xs text-muted-foreground">
               {t("studio_chat_aiThinking")}
             </span>
+          </div>
+        )}
+
+        {streamError && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{streamError}</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t p-4">
-        {handleSubmit && handleInputChange ? (
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Textarea
-              value={input}
-              onChange={handleInputChange}
-              placeholder={t("studio_chat_typeMessage")}
-              disabled={isLoading}
-              className="flex-1 min-h-[80px] max-h-[200px] resize-none"
-              rows={1}
-            />
-            <Button
-              type="submit"
-              disabled={!input?.trim() || isLoading}
-              className="self-end"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
-        ) : (
-          <ChatInput onSendMessage={onSendMessage!} disabled={isLoading} />
-        )}
+      <div className="border-t p-4 shrink-0">
+        <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
       </div>
     </div>
   );

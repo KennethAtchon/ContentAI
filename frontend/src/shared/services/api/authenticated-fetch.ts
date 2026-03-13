@@ -144,11 +144,15 @@ function needsCSRFToken(method: string): boolean {
 
 /**
  * Authenticated fetch with Firebase token and CSRF protection
- * Uses safeFetch internally for timeout and retry logic
+ * Uses safeFetch internally for timeout and retry logic.
+ *
+ * @param timeout - Override the default 10s timeout. Pass `0` for no timeout
+ *   (required for SSE / streaming responses).
  */
 export async function authenticatedFetch(
   url: string,
-  requestInit: RequestInit = {}
+  requestInit: RequestInit = {},
+  timeout?: number
 ): Promise<Response> {
   // Construct full URL if relative path provided
   const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
@@ -224,7 +228,7 @@ export async function authenticatedFetch(
   /** Full config for safeFetch: caller's request + auth/CSRF headers + behavior options */
   const safeFetchOptions: SafeFetchOptions = {
     ...mergedRequestInit,
-    timeout: DEFAULT_TIMEOUT,
+    timeout: timeout !== undefined ? timeout : DEFAULT_TIMEOUT,
     retryAttempts: 2,
     retryOn: (error: Error) => {
       if (

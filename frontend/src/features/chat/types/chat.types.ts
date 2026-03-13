@@ -51,8 +51,4 @@ export interface SendMessageRequest {
 
 export interface SendMessageResponse {
   message: ChatMessage;
-  usage: {
-    provider: string;
-    model: string;
-  };
 }

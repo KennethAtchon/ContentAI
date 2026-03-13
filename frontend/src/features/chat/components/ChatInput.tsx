@@ -29,20 +29,22 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-2 items-end">
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={t("studio_chat_typeMessage")}
         disabled={disabled}
-        className="flex-1 min-h-[80px] max-h-[200px] resize-none"
-        rows={1}
+        className="flex-1 min-h-[44px] max-h-[200px] resize-none"
+        rows={2}
       />
       <Button
         type="submit"
+        size="icon"
         disabled={!message.trim() || disabled}
-        className="self-end"
+        aria-label={t("studio_chat_sendMessage")}
+        className="shrink-0 mb-0.5"
       >
         <Send className="w-4 h-4" />
       </Button>

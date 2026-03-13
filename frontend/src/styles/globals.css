@@ -81,6 +81,38 @@
   }
 }
 
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(129, 140, 248, 0.15) transparent;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.18);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.38);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── Base design tokens — DARK STUDIO THEME (unified) ────────────────────── */
 
 @layer base {

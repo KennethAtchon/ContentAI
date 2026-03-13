@@ -8,6 +8,13 @@
       "when": 1773377174726,
       "tag": "0000_curvy_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773381336499,
+      "tag": "0001_lumpy_supernaut",
+      "breakpoints": true
     }
   ]
 }

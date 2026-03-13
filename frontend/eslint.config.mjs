@@ -55,6 +55,8 @@ export default [
         Response: "readonly",
         AbortController: "readonly",
         AbortSignal: "readonly",
+        ReadableStream: "readonly",
+        TextDecoder: "readonly",
         fetch: "readonly",
         React: "readonly",
         localStorage: "readonly",
