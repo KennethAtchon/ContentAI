@@ -29,7 +29,7 @@ export function TikTokVideoCard({
   const hasVideo = !!(reel.videoUrl || reel.videoR2Url);
   const { data: mediaData } = useReelMediaUrl(
     isActive ? reel.id : null,
-    hasVideo,
+    hasVideo
   );
   const videoSrc = mediaData?.url ?? null;
 
@@ -143,7 +143,7 @@ export function TikTokVideoCard({
           <p
             className={cn(
               "text-[13px] text-white/90 leading-[1.45] drop-shadow-md cursor-pointer",
-              !captionExpanded && "line-clamp-2",
+              !captionExpanded && "line-clamp-2"
             )}
             onClick={(e) => {
               e.stopPropagation();

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useSearch, useNavigate } from "@tanstack/react-router";
+import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { debugLog } from "@/shared/utils/debug/debug";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "../hooks/use-chat-sessions";
@@ -12,12 +14,17 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
-  const params = useParams({ strict: false });
-  const search = useSearch({ strict: false }) as { projectId?: string; sessionId?: string };
+  const { t } = useTranslation();
+  const search = useSearch({ strict: false }) as {
+    projectId?: string;
+    sessionId?: string;
+  };
   const navigate = useNavigate();
-  
+
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
-  const [selectedSession, setSelectedSession] = useState<ChatSession | undefined>();
+  const [selectedSession, setSelectedSession] = useState<
+    ChatSession | undefined
+  >();
 
   const { data: sessionData, isLoading: sessionLoading } = useChatSession(
     search.sessionId || ""
@@ -42,27 +49,31 @@ export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
     setSelectedSession(undefined);
-    navigate({ 
-      to: "/studio/generate", 
-      search: { projectId: project.id } 
+    navigate({
+      to: "/studio/generate",
+      search: { projectId: project.id },
     });
   };
 
   const handleSessionSelect = (session: ChatSession) => {
     setSelectedSession(session);
-    navigate({ 
-      to: "/studio/generate", 
-      search: { projectId: session.projectId, sessionId: session.id } 
+    navigate({
+      to: "/studio/generate",
+      search: { projectId: session.projectId, sessionId: session.id },
     });
   };
 
   const handleSendMessage = async (content: string) => {
     if (!search.sessionId) return;
-    
+
     try {
       await sendMessageMutation.mutateAsync({ content });
     } catch (error) {
-      console.error("Failed to send message:", error);
+      debugLog.error("Failed to send message", {
+        service: "chat-layout",
+        operation: "handleSendMessage",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -77,7 +88,7 @@ export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
         onSessionSelect={handleSessionSelect}
         onNewProject={onNewProject}
       />
-      
+
       <div className="flex-1 flex flex-col">
         {selectedSession ? (
           <>
@@ -89,7 +100,7 @@ export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
                 </p>
               )}
             </div>
-            
+
             <ChatPanel
               messages={messages}
               onSendMessage={handleSendMessage}
@@ -100,13 +111,14 @@ export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-2">
-                {selectedProject ? selectedProject.name : "Select a project"}
+                {selectedProject
+                  ? selectedProject.name
+                  : t("studio_chat_selectProject")}
               </h2>
               <p className="text-muted-foreground">
-                {selectedProject 
-                  ? "Create a new chat session or select an existing one to start chatting."
-                  : "Select a project from the sidebar to get started."
-                }
+                {selectedProject
+                  ? t("studio_chat_projectSelected")
+                  : t("studio_chat_selectProjectDescription")}
               </p>
             </div>
           </div>

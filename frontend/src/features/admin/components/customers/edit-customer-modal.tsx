@@ -126,7 +126,12 @@ export function EditCustomerModal({
             <Button type="submit" disabled={isSaving}>
               {isSaving ? `${t("common_save")}…` : t("common_save")}
             </Button>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isSaving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSaving}
+            >
               {t("common_cancel")}
             </Button>
           </DialogFooter>

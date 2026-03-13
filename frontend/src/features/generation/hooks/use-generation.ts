@@ -43,7 +43,9 @@ export function useGenerateContent() {
       return res.json() as Promise<{ content: GeneratedContent }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "generation-history"] });
+      queryClient.invalidateQueries({
+        queryKey: ["api", "generation-history"],
+      });
     },
   });
 }
@@ -74,7 +76,9 @@ export function useQueueContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
-      queryClient.invalidateQueries({ queryKey: ["api", "generation-history"] });
+      queryClient.invalidateQueries({
+        queryKey: ["api", "generation-history"],
+      });
     },
   });
 }

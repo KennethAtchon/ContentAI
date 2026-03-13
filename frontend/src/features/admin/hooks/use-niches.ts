@@ -77,7 +77,11 @@ export function useCreateNiche() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (body: { name: string; description?: string; isActive?: boolean }) => {
+    mutationFn: async (body: {
+      name: string;
+      description?: string;
+      isActive?: boolean;
+    }) => {
       const res = await authenticatedFetch("/api/admin/niches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,7 +89,9 @@ export function useCreateNiche() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Failed to create niche");
+        throw new Error(
+          (err as { error?: string }).error ?? "Failed to create niche"
+        );
       }
       return res.json() as Promise<{ niche: AdminNiche }>;
     },
@@ -116,7 +122,9 @@ export function useUpdateNiche() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Failed to update niche");
+        throw new Error(
+          (err as { error?: string }).error ?? "Failed to update niche"
+        );
       }
       return res.json() as Promise<{ niche: AdminNiche }>;
     },
@@ -137,7 +145,9 @@ export function useDeleteNiche() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Failed to delete niche");
+        throw new Error(
+          (err as { error?: string }).error ?? "Failed to delete niche"
+        );
       }
       return res.json() as Promise<{ deleted: boolean }>;
     },
@@ -167,7 +177,10 @@ export function useNicheReels(nicheId: number, params: NicheReelsParams = {}) {
   if (hasVideo) qs.set("hasVideo", hasVideo);
 
   return useQuery({
-    queryKey: queryKeys.api.admin.nicheReels(nicheId, { page, limit, sortBy, sortOrder, viral, hasVideo }),
+    queryKey: queryKeys.api.admin.nicheReels(nicheId, {
+      page,
+      limit,
+    }),
     queryFn: () => fetcher(`/api/admin/niches/${nicheId}/reels?${qs}`),
     enabled: nicheId > 0,
   });
@@ -183,7 +196,7 @@ export function useNicheJobs(nicheId: number) {
     refetchInterval: (query) => {
       const jobs = query.state.data?.jobs ?? [];
       const hasActive = jobs.some(
-        (j) => j.status === "queued" || j.status === "running",
+        (j) => j.status === "queued" || j.status === "running"
       );
       return hasActive ? 3000 : false;
     },
@@ -196,14 +209,24 @@ export function useScanNiche() {
 
   return useMutation({
     mutationFn: async (nicheId: number) => {
-      const res = await authenticatedFetch(`/api/admin/niches/${nicheId}/scan`, {
-        method: "POST",
-      });
+      const res = await authenticatedFetch(
+        `/api/admin/niches/${nicheId}/scan`,
+        {
+          method: "POST",
+        }
+      );
       if (!res.ok) throw new Error("Failed to queue scan");
-      return res.json() as Promise<{ jobId: string; nicheName: string; status: string; nicheId: number }>;
+      return res.json() as Promise<{
+        jobId: string;
+        nicheName: string;
+        status: string;
+        nicheId: number;
+      }>;
     },
     onSuccess: (_data, nicheId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.admin.nicheJobs(nicheId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.admin.nicheJobs(nicheId),
+      });
     },
   });
 }
@@ -214,11 +237,17 @@ export function useDedupeNiche() {
 
   return useMutation({
     mutationFn: async (nicheId: number) => {
-      const res = await authenticatedFetch(`/api/admin/niches/${nicheId}/dedupe`, {
-        method: "POST",
-      });
+      const res = await authenticatedFetch(
+        `/api/admin/niches/${nicheId}/dedupe`,
+        {
+          method: "POST",
+        }
+      );
       if (!res.ok) throw new Error("Failed to run deduplication");
-      return res.json() as Promise<{ duplicatesRemoved: number; message: string }>;
+      return res.json() as Promise<{
+        duplicatesRemoved: number;
+        message: string;
+      }>;
     },
     onSuccess: (_data, nicheId) => {
       queryClient.invalidateQueries({
@@ -233,7 +262,13 @@ export function useDeleteAdminReel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ reelId, nicheId }: { reelId: number; nicheId: number }) => {
+    mutationFn: async ({
+      reelId,
+      nicheId,
+    }: {
+      reelId: number;
+      nicheId: number;
+    }) => {
       const res = await authenticatedFetch(`/api/admin/reels/${reelId}`, {
         method: "DELETE",
       });

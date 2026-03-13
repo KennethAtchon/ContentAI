@@ -31,9 +31,9 @@ export type SubscriptionStatus =
   | "incomplete_expired";
 
 export interface SubscriptionTierFeatures {
-  maxReelsPerMonth: number;        // -1 = unlimited
-  maxGenerationsPerMonth: number;  // -1 = unlimited (AI chat messages)
-  maxQueueItems: number;           // -1 = unlimited
+  maxReelsPerMonth: number; // -1 = unlimited
+  maxGenerationsPerMonth: number; // -1 = unlimited (AI chat messages)
+  maxQueueItems: number; // -1 = unlimited
   aiAnalysis: boolean;
   instagramPublishing: boolean;
   supportLevel: "email" | "priority" | "dedicated";

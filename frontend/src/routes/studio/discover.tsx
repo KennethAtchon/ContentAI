@@ -5,7 +5,11 @@ import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
 import { TikTokFeed } from "@/features/reels/components/TikTokFeed";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
-import { useReels, useReel, useReelNiches } from "@/features/reels/hooks/use-reels";
+import {
+  useReels,
+  useReel,
+  useReelNiches,
+} from "@/features/reels/hooks/use-reels";
 import type { Reel } from "@/features/reels/types/reel.types";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,9 +32,14 @@ function DiscoverPage() {
   const { data: nichesData } = useReelNiches();
   const niches = nichesData?.niches ?? [];
   const activeNicheId = selectedNicheId ?? niches[0]?.id ?? null;
-  const activeNicheName = niches.find((n) => n.id === activeNicheId)?.name ?? "";
+  const activeNicheName =
+    niches.find((n) => n.id === activeNicheId)?.name ?? "";
 
-  const { data: reelsData, isLoading: reelsLoading, isFetching } = useReels(activeNicheName, offset);
+  const {
+    data: reelsData,
+    isLoading: reelsLoading,
+    isFetching,
+  } = useReels(activeNicheName, offset);
   const total = reelsData?.total ?? 0;
   const hasMore = allReels.length < total;
   const resolvedId = activeReelId ?? allReels[0]?.id ?? null;
@@ -55,7 +64,10 @@ function DiscoverPage() {
 
   const loadMore = useCallback(() => setOffset((prev) => prev + PAGE_SIZE), []);
 
-  const handleActiveChange = useCallback((id: number) => setActiveReelId(id), []);
+  const handleActiveChange = useCallback(
+    (id: number) => setActiveReelId(id),
+    []
+  );
 
   const handleAnalyze = useCallback((id: number) => {
     setActiveReelId(id);
@@ -82,7 +94,9 @@ function DiscoverPage() {
             {niches.length > 0 && (
               <div className="px-3 pt-3 pb-2 border-b border-white/[0.05]">
                 <Select
-                  value={activeNicheId != null ? String(activeNicheId) : undefined}
+                  value={
+                    activeNicheId != null ? String(activeNicheId) : undefined
+                  }
                   onValueChange={(val) => handleNicheChange(Number(val))}
                 >
                   <SelectTrigger className="w-full h-8 bg-white/[0.05] border-white/[0.08] text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
@@ -121,7 +135,9 @@ function DiscoverPage() {
                     disabled={isFetching}
                     className="mx-3 mb-2 py-1.5 text-[11px] text-slate-200/40 hover:text-studio-accent border border-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
                   >
-                    {isFetching ? "Loading…" : `Load more (${total - allReels.length} left)`}
+                    {isFetching
+                      ? "Loading…"
+                      : `Load more (${total - allReels.length} left)`}
                   </button>
                 )}
               </>

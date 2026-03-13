@@ -42,7 +42,7 @@ export function TikTokFeed({
         isScrollingRef.current = false;
       }, 600);
     },
-    [onActiveChange],
+    [onActiveChange]
   );
 
   // Intersection Observer — only updates active reel during user-initiated scrolls
@@ -66,7 +66,7 @@ export function TikTokFeed({
       {
         root: container,
         threshold: 0.6,
-      },
+      }
     );
 
     for (const el of cardRefs.current.values()) {
@@ -118,7 +118,7 @@ export function TikTokFeed({
       if (el) cardRefs.current.set(reelId, el);
       else cardRefs.current.delete(reelId);
     },
-    [],
+    []
   );
 
   // Cleanup timeout on unmount

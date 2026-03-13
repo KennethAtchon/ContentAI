@@ -17,11 +17,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div className={`flex gap-3 max-w-[80%] ${isUser ? "flex-row-reverse" : ""}`}>
+      <div
+        className={`flex gap-3 max-w-[80%] ${isUser ? "flex-row-reverse" : ""}`}
+      >
         <div className="flex-shrink-0">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            isUser ? "bg-primary text-primary-foreground" : "bg-muted"
-          }`}>
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+            }`}
+          >
             {isUser ? (
               <User className="w-4 h-4" />
             ) : (
@@ -29,13 +33,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
           </div>
         </div>
-        
-        <Card className={`flex-1 ${
-          isUser ? "bg-primary text-primary-foreground" : "bg-background"
-        }`}>
+
+        <Card
+          className={`flex-1 ${
+            isUser ? "bg-primary text-primary-foreground" : "bg-background"
+          }`}
+        >
           <CardContent className="p-3">
             <div className="text-sm whitespace-pre-wrap">{message.content}</div>
-            
+
             {message.reelRefs && message.reelRefs.length > 0 && (
               <div className="mt-2 pt-2 border-t border-current/20">
                 <div className="text-xs opacity-70">
@@ -43,7 +49,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 </div>
               </div>
             )}
-            
+
             <div className="mt-1 text-xs opacity-50">
               {new Date(message.createdAt).toLocaleTimeString()}
             </div>

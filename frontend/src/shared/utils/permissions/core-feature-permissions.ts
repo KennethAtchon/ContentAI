@@ -7,13 +7,15 @@ import { SubscriptionTier } from "@/shared/constants/subscription.constants";
 
 export type FeatureType = "studio" | "generation" | "queue" | "publishing";
 
-export const FEATURE_TIER_REQUIREMENTS: Record<FeatureType, SubscriptionTier | null> =
-  {
-    studio: null, // free
-    generation: null, // free (rate-limited)
-    queue: null, // free (5-item cap enforced server-side)
-    publishing: "pro", // automated publishing = Pro
-  };
+export const FEATURE_TIER_REQUIREMENTS: Record<
+  FeatureType,
+  SubscriptionTier | null
+> = {
+  studio: null, // free
+  generation: null, // free (rate-limited)
+  queue: null, // free (5-item cap enforced server-side)
+  publishing: "pro", // automated publishing = Pro
+};
 
 export function getRequiredTierForFeature(
   featureType: FeatureType

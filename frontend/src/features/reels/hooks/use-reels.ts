@@ -34,7 +34,7 @@ export function useReels(niche: string, offset = 0) {
     queryKey: queryKeys.api.reels(niche, { offset }),
     queryFn: () =>
       fetcher(
-        `/api/reels?niche=${encodeURIComponent(niche)}&limit=20&offset=${offset}`,
+        `/api/reels?niche=${encodeURIComponent(niche)}&limit=20&offset=${offset}`
       ),
     enabled: !!user && !!niche,
   });

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Send } from "lucide-react";
@@ -9,6 +10,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,13 +34,13 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Type your message..."
+        placeholder={t("studio_chat_typeMessage")}
         disabled={disabled}
         className="flex-1 min-h-[80px] max-h-[200px] resize-none"
         rows={1}
       />
-      <Button 
-        type="submit" 
+      <Button
+        type="submit"
         disabled={!message.trim() || disabled}
         className="self-end"
       >

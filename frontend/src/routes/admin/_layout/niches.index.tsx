@@ -46,7 +46,12 @@ function NicheFormModal({
     setError("");
     try {
       if (initial) {
-        await update.mutateAsync({ id: initial.id, name, description, isActive });
+        await update.mutateAsync({
+          id: initial.id,
+          name,
+          description,
+          isActive,
+        });
       } else {
         await create.mutateAsync({ name, description, isActive });
       }
@@ -97,13 +102,13 @@ function NicheFormModal({
               onClick={() => setIsActive(!isActive)}
               className={cn(
                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                isActive ? "bg-studio-accent" : "bg-white/[0.12]",
+                isActive ? "bg-studio-accent" : "bg-white/[0.12]"
               )}
             >
               <span
                 className={cn(
                   "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform",
-                  isActive ? "translate-x-4" : "translate-x-0",
+                  isActive ? "translate-x-4" : "translate-x-0"
                 )}
               />
             </button>
@@ -145,7 +150,9 @@ function NichesPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const { data, isLoading, refetch } = useNiches(
-    search || activeOnly ? { search: search || undefined, active: activeOnly || undefined } : undefined,
+    search || activeOnly
+      ? { search: search || undefined, active: activeOnly || undefined }
+      : undefined
   );
   const deleteNiche = useDeleteNiche();
 
@@ -171,13 +178,19 @@ function NichesPage() {
       {deletingId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-studio-surface border border-white/[0.08] rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-semibold text-studio-fg">Delete Niche?</h3>
+            <h3 className="text-base font-semibold text-studio-fg">
+              Delete Niche?
+            </h3>
             <p className="text-[13px] text-slate-200/50">
               This will permanently remove the niche. Niches with associated
               reels cannot be deleted until all reels are removed.
             </p>
             <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => setDeletingId(null)}>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => setDeletingId(null)}
+              >
                 Cancel
               </Button>
               <Button
@@ -200,7 +213,9 @@ function NichesPage() {
               <Database className="h-5 w-5 text-studio-accent" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-studio-fg">Niches Orchestration</h2>
+              <h2 className="text-xl font-bold text-studio-fg">
+                Niches Orchestration
+              </h2>
               <p className="text-[12px] text-slate-200/40">
                 Manage curated content categories and scrape jobs
               </p>
@@ -238,7 +253,7 @@ function NichesPage() {
               "h-10 px-4 rounded-xl text-[13px] font-medium border transition-all",
               activeOnly
                 ? "bg-studio-accent/10 border-studio-accent/40 text-studio-accent"
-                : "bg-white/[0.05] border-white/[0.08] text-slate-200/50 hover:border-white/[0.15]",
+                : "bg-white/[0.05] border-white/[0.08] text-slate-200/50 hover:border-white/[0.15]"
             )}
           >
             Active Only
@@ -257,7 +272,10 @@ function NichesPage() {
           {isLoading ? (
             <div className="divide-y divide-white/[0.04]">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="px-4 py-4 flex gap-4 items-center animate-pulse">
+                <div
+                  key={i}
+                  className="px-4 py-4 flex gap-4 items-center animate-pulse"
+                >
                   <div className="h-4 w-8 bg-white/[0.05] rounded" />
                   <div className="h-4 flex-1 bg-white/[0.05] rounded" />
                   <div className="h-5 w-16 bg-white/[0.05] rounded-full" />
@@ -269,7 +287,9 @@ function NichesPage() {
           ) : niches.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <Database className="h-10 w-10 text-slate-200/10" />
-              <p className="text-[14px] font-medium text-slate-200/30">No niches yet</p>
+              <p className="text-[14px] font-medium text-slate-200/30">
+                No niches yet
+              </p>
               <button
                 onClick={() => setCreating(true)}
                 className="text-[12px] text-studio-accent hover:underline"
@@ -307,13 +327,13 @@ function NichesPage() {
                         "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full",
                         niche.isActive
                           ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-slate-200/[0.06] text-slate-200/30",
+                          : "bg-slate-200/[0.06] text-slate-200/30"
                       )}
                     >
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          niche.isActive ? "bg-emerald-400" : "bg-slate-200/30",
+                          niche.isActive ? "bg-emerald-400" : "bg-slate-200/30"
                         )}
                       />
                       {niche.isActive ? "Active" : "Inactive"}

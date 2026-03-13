@@ -42,7 +42,7 @@ export const STRIPE_MAP: StripeMap = {
         "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTXj1UeJcW6vz",
       prices: {
         monthly: { priceId: "price_1TAKwu3qLZiOfTxsYsXxDTz5", amount: 19 },
-        annual:  { priceId: "price_1TAKwu3qLZiOfTxsniuPBlXP", amount: 190 },
+        annual: { priceId: "price_1TAKwu3qLZiOfTxsniuPBlXP", amount: 190 },
       },
     },
     pro: {
@@ -52,7 +52,7 @@ export const STRIPE_MAP: StripeMap = {
         "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTYPXmd7zh3kP",
       prices: {
         monthly: { priceId: "price_1TAKwv3qLZiOfTxshaqnb9bW", amount: 49 },
-        annual:  { priceId: "price_1TAKwv3qLZiOfTxsULOKNeKa", amount: 490 },
+        annual: { priceId: "price_1TAKwv3qLZiOfTxsULOKNeKa", amount: 490 },
       },
     },
     enterprise: {
@@ -62,7 +62,7 @@ export const STRIPE_MAP: StripeMap = {
         "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTYPkmPHd8GF4",
       prices: {
         monthly: { priceId: "price_1TAKww3qLZiOfTxsR8Q6WemR", amount: 149 },
-        annual:  { priceId: "price_1TAKww3qLZiOfTxscEmKstBs", amount: 1490 },
+        annual: { priceId: "price_1TAKww3qLZiOfTxscEmKstBs", amount: 1490 },
       },
     },
   },

@@ -259,9 +259,7 @@ export function PricingCard({
             <span className="text-sm leading-relaxed">
               {tier.features.maxReelsPerMonth === -1 ? (
                 <>
-                  <span className="font-semibold">
-                    {t("studio_unlimited")}
-                  </span>{" "}
+                  <span className="font-semibold">{t("studio_unlimited")}</span>{" "}
                   reels/month
                 </>
               ) : (
@@ -281,9 +279,7 @@ export function PricingCard({
             <span className="text-sm leading-relaxed">
               {tier.features.maxGenerationsPerMonth === -1 ? (
                 <>
-                  <span className="font-semibold">
-                    {t("studio_unlimited")}
-                  </span>{" "}
+                  <span className="font-semibold">{t("studio_unlimited")}</span>{" "}
                   AI generations/month
                 </>
               ) : (

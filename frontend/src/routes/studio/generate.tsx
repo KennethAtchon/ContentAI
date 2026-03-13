@@ -11,7 +11,7 @@ function GeneratePage() {
 
   const handleNewProject = () => {
     // This could open a modal or navigate to a project creation page
-    console.log("Create new project");
+    // TODO: Implement project creation modal or navigation
   };
 
   return (

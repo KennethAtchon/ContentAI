@@ -12,11 +12,7 @@ describe("query-keys", () => {
     });
 
     it("reelsUsage returns stable key", () => {
-      expect(queryKeys.api.reelsUsage()).toEqual([
-        "api",
-        "reels",
-        "usage",
-      ]);
+      expect(queryKeys.api.reelsUsage()).toEqual(["api", "reels", "usage"]);
     });
 
     it("reelsHistory with no params", () => {

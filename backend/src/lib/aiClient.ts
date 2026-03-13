@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
 import {
   ANTHROPIC_API_KEY,
   OPENAI_API_KEY,
@@ -119,4 +119,39 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   });
 
   return { text, provider: "claude", model: claudeModel };
+}
+
+// ─── Helper Functions for Streaming ───────────────────────────────────────
+
+export function getModel(modelTier: "analysis" | "generation" = "generation") {
+  // Prefer OpenAI if available, otherwise use Claude
+  if (openaiProvider) {
+    return openaiProvider(OPENAI_MODEL);
+  }
+  
+  const claudeModel = modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
+  return anthropicProvider(claudeModel);
+}
+
+export async function streamAi(params: AiMessage) {
+  const {
+    system,
+    userContent,
+    maxTokens = 1024,
+    modelTier = "generation",
+  } = params;
+
+  const model = getModel(modelTier);
+
+  return streamText({
+    model,
+    system,
+    messages: [
+      {
+        role: "user",
+        content: userContent,
+      },
+    ],
+    maxOutputTokens: maxTokens,
+  });
 }

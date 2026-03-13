@@ -291,7 +291,7 @@ export function CheckoutInteractive() {
         navigate({ to: REDIRECT_PATHS.PRICING });
       }
     }
-  }, [search, user, navigate, t, currentSubscription]);
+  }, [search, user, navigate, t, currentSubscription, redirectToAuth]);
 
   if (!checkoutType || (checkoutType === "subscription" && !tier)) {
     return (

@@ -37,7 +37,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 "border-0 border-l-2 transition-colors duration-100 font-studio cursor-pointer",
                 isActive
                   ? "bg-studio-accent/[0.08] border-l-studio-accent"
-                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]",
+                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]"
               )}
             >
               {/* Thumbnail image or emoji fallback */}
@@ -47,7 +47,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                   alt={reel.username}
                   className={cn(
                     "w-[38px] h-[50px] rounded-[6px] object-cover shrink-0",
-                    isActive && "ring-1 ring-studio-accent/50",
+                    isActive && "ring-1 ring-studio-accent/50"
                   )}
                   loading="lazy"
                 />
@@ -55,7 +55,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 <div
                   className={cn(
                     "w-[38px] h-[50px] rounded-[6px] flex items-center justify-center text-base shrink-0",
-                    isActive ? "bg-studio-accent/15" : "bg-white/[0.06]",
+                    isActive ? "bg-studio-accent/15" : "bg-white/[0.06]"
                   )}
                 >
                   {reel.thumbnailEmoji ?? "🎬"}
@@ -68,7 +68,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 <p className="text-[10px] text-slate-200/35 mt-px">
                   {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
                 </p>
-                {reel.videoUrl || reel.videoR2Key ? (
+                {reel.videoUrl ? (
                   <span className="inline-block mt-0.5 text-[8px] font-semibold text-green-400/70 bg-green-400/10 px-1 py-px rounded">
                     ▶ VIDEO
                   </span>

@@ -47,7 +47,10 @@ export const chatService = {
     return data.project;
   },
 
-  async updateProject(id: string, updates: UpdateProjectRequest): Promise<Project> {
+  async updateProject(
+    id: string,
+    updates: UpdateProjectRequest
+  ): Promise<Project> {
     const response = await authenticatedFetch(`${API_BASE}/projects/${id}`, {
       method: "PUT",
       headers: {
@@ -73,7 +76,7 @@ export const chatService = {
 
   // Chat Sessions
   async getChatSessions(projectId?: string): Promise<ChatSession[]> {
-    const url = projectId 
+    const url = projectId
       ? `${API_BASE}/chat/sessions?projectId=${projectId}`
       : `${API_BASE}/chat/sessions`;
     const response = await authenticatedFetch(url);
@@ -84,8 +87,12 @@ export const chatService = {
     return data.sessions;
   },
 
-  async getChatSession(id: string): Promise<{ session: ChatSession; messages: ChatMessage[] }> {
-    const response = await authenticatedFetch(`${API_BASE}/chat/sessions/${id}`);
+  async getChatSession(
+    id: string
+  ): Promise<{ session: ChatSession; messages: ChatMessage[] }> {
+    const response = await authenticatedFetch(
+      `${API_BASE}/chat/sessions/${id}`
+    );
     if (!response.ok) {
       throw new Error("Failed to fetch chat session");
     }
@@ -108,23 +115,32 @@ export const chatService = {
   },
 
   async deleteChatSession(id: string): Promise<void> {
-    const response = await authenticatedFetch(`${API_BASE}/chat/sessions/${id}`, {
-      method: "DELETE",
-    });
+    const response = await authenticatedFetch(
+      `${API_BASE}/chat/sessions/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
     if (!response.ok) {
       throw new Error("Failed to delete chat session");
     }
   },
 
   // Chat Messages
-  async sendMessage(sessionId: string, message: SendMessageRequest): Promise<SendMessageResponse> {
-    const response = await authenticatedFetch(`${API_BASE}/chat/sessions/${sessionId}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(message),
-    });
+  async sendMessage(
+    sessionId: string,
+    message: SendMessageRequest
+  ): Promise<SendMessageResponse> {
+    const response = await authenticatedFetch(
+      `${API_BASE}/chat/sessions/${sessionId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      }
+    );
     if (!response.ok) {
       throw new Error("Failed to send message");
     }

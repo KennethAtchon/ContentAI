@@ -33,8 +33,10 @@ export const queryKeys = {
         ["api", "shared", "contact-messages", params] as const,
       niches: (params?: { search?: string; active?: boolean }) =>
         ["api", "admin", "niches", params] as const,
-      nicheReels: (nicheId: number, params?: { page?: number; limit?: number }) =>
-        ["api", "admin", "niche-reels", nicheId, params] as const,
+      nicheReels: (
+        nicheId: number,
+        params?: { page?: number; limit?: number }
+      ) => ["api", "admin", "niche-reels", nicheId, params] as const,
       nicheJobs: (nicheId: number) =>
         ["api", "admin", "niche-jobs", nicheId] as const,
     },

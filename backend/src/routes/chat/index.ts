@@ -8,7 +8,7 @@ import { chatSessions, chatMessages, projects, generatedContent } from "../../in
 import { eq, and, desc, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { streamText } from "ai";
-import { callAi, loadPrompt } from "../../lib/aiClient";
+import { callAi, loadPrompt, getModel } from "../../lib/aiClient";
 
 const app = new Hono<HonoEnv>();
 
@@ -255,29 +255,30 @@ app.post(
       // Get AI response using existing callAi function
       const systemPrompt = getChatSystemPrompt();
       const userPrompt = `Context: ${context}\n\nUser message: ${content}`;
-      
-      const aiResponse = await callAi({
+
+      // Stream AI response
+      const result = await streamText({
+        model: getModel("generation"),
         system: systemPrompt,
-        userContent: userPrompt,
-        modelTier: "generation",
-        maxTokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: userPrompt,
+          },
+        ],
+        maxOutputTokens: 1024,
       });
 
-      // Save AI response to database
+      // Save the initial AI response (we'll update it with the full content later)
       const [assistantMessage] = await db.insert(chatMessages).values({
         id: crypto.randomUUID(),
         sessionId,
         role: "assistant",
-        content: aiResponse.text,
+        content: "", // Will be updated
       }).returning();
 
-      return c.json({ 
-        message: assistantMessage,
-        usage: {
-          provider: aiResponse.provider,
-          model: aiResponse.model,
-        }
-      });
+      // Return streaming response
+      return result.toTextStreamResponse();
     } catch (error) {
       debugLog.error("Failed to send chat message", {
         service: "chat-route",

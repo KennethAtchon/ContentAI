@@ -41,8 +41,8 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 - [x] Create `ChatInput.tsx` — message input with send button
 - [x] Replace `studio/generate.tsx` with new two-panel layout (sidebar + chat)
 - [x] Store `projectId` and `sessionId` in URL search params
-- [ ] Add i18n keys for all new UI strings
-- [ ] Install `ai` package in frontend (for `useChat`)
+- [x] Add i18n keys for all new UI strings
+- [x] Install `ai` package in frontend (for `useChat`)
 
 ---
 

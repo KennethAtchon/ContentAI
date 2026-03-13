@@ -1,10 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { fmtNum, useAnalyzeReel } from "../hooks/use-reels";
-import type {
-  ReelDetail,
-  ReelAnalysis,
-} from "../types/reel.types";
+import type { ReelDetail, ReelAnalysis } from "../types/reel.types";
 
 const HOOK_COLORS: Record<string, { bg: string; text: string }> = {
   Warning: { bg: "rgba(239,68,68,0.12)", text: "#EF4444" },
@@ -22,13 +19,8 @@ interface Props {
   analysis: ReelAnalysis | null;
 }
 
-
 export function AnalysisPanel({ reel, analysis }: Props) {
-  const { t } = useTranslation();
   const analyzeReel = useAnalyzeReel();
-
-
-
 
   return (
     <aside className="bg-studio-surface border-l border-white/[0.05] flex flex-col overflow-hidden font-studio">
@@ -182,7 +174,6 @@ function AnalysisTab({
   );
 }
 
-
 /* ── Shared sub-components ────────────────────────────────────────────────── */
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -226,7 +217,7 @@ function AnalysisTags({ analysis }: { analysis: ReelAnalysis | null }) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function _StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     draft: "bg-white/[0.06] text-slate-200/40",
     queued: "bg-amber-400/15 text-amber-400",
@@ -244,4 +235,3 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-

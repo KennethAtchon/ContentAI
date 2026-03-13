@@ -71,14 +71,22 @@ function fmtNum(n: number): string {
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 
-function Toast({ message, type = "info" }: { message: string; type?: "info" | "success" | "error" }) {
+function Toast({
+  message,
+  type = "info",
+}: {
+  message: string;
+  type?: "info" | "success" | "error";
+}) {
   return (
     <div
       className={cn(
         "fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl text-[13px] font-medium border max-w-xs",
-        type === "success" && "bg-emerald-500/20 border-emerald-500/30 text-emerald-400",
+        type === "success" &&
+          "bg-emerald-500/20 border-emerald-500/30 text-emerald-400",
         type === "error" && "bg-red-500/20 border-red-500/30 text-red-400",
-        type === "info" && "bg-studio-accent/20 border-studio-accent/30 text-studio-accent",
+        type === "info" &&
+          "bg-studio-accent/20 border-studio-accent/30 text-studio-accent"
       )}
     >
       {message}
@@ -109,10 +117,7 @@ function ReelRow({
         className="grid grid-cols-[44px_1fr_90px_90px_140px] items-center px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="flex items-center"
-        >
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
           <Checkbox
             checked={selected}
             onCheckedChange={(checked) => onSelect(reel.id, !!checked)}
@@ -128,12 +133,21 @@ function ReelRow({
           {fmtNum(reel.views)}
         </span>
         <span className="text-[13px] text-slate-200/60 tabular-nums">
-          {reel.engagementRate ? `${Number(reel.engagementRate).toFixed(1)}%` : "—"}
+          {reel.engagementRate
+            ? `${Number(reel.engagementRate).toFixed(1)}%`
+            : "—"}
         </span>
-        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center justify-end gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           {reel.videoUrl && (
             <a href={reel.videoUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="sm" className="h-7 gap-1 text-[11px]">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-[11px]"
+              >
                 <Eye className="h-3 w-3" />
               </Button>
             </a>
@@ -162,12 +176,19 @@ function ReelRow({
             [t("admin_niche_row_comments"), fmtNum(reel.comments)],
             [t("admin_niche_row_audio"), reel.audioName ?? "—"],
             [t("admin_niche_row_viral"), reel.isViral ? "Yes" : "No"],
-            [t("admin_niche_row_has_analysis"), reel.hasAnalysis ? "Yes" : "No"],
+            [
+              t("admin_niche_row_has_analysis"),
+              reel.hasAnalysis ? "Yes" : "No",
+            ],
             [t("admin_niche_row_caption"), reel.caption ?? "—"],
           ].map(([label, value]) => (
             <div key={label} className="flex gap-2 py-1">
-              <span className="text-[11px] text-slate-200/30 w-28 shrink-0">{label}</span>
-              <span className="text-[12px] text-slate-200/70 truncate">{value}</span>
+              <span className="text-[11px] text-slate-200/30 w-28 shrink-0">
+                {label}
+              </span>
+              <span className="text-[12px] text-slate-200/70 truncate">
+                {value}
+              </span>
             </div>
           ))}
         </div>
@@ -191,7 +212,9 @@ function JobRow({ job }: { job: ScrapeJob }) {
 
   return (
     <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-white/[0.04] last:border-0">
-      <span className="text-[11px] text-slate-200/40 font-mono truncate">{job.id}</span>
+      <span className="text-[11px] text-slate-200/40 font-mono truncate">
+        {job.id}
+      </span>
       <Badge className={cn("text-[11px] w-fit", STATUS_CLASS[job.status])}>
         {job.status}
       </Badge>
@@ -207,9 +230,13 @@ function JobRow({ job }: { job: ScrapeJob }) {
         {durationMs != null ? `${(durationMs / 1000).toFixed(1)}s` : "—"}
       </span>
       {job.error ? (
-        <span className="text-[11px] text-red-400 truncate" title={job.error}>{job.error}</span>
+        <span className="text-[11px] text-red-400 truncate" title={job.error}>
+          {job.error}
+        </span>
       ) : job.result ? (
-        <span className="text-[11px] text-slate-200/30">{job.result.skipped} skipped</span>
+        <span className="text-[11px] text-slate-200/30">
+          {job.result.skipped} skipped
+        </span>
       ) : (
         <span />
       )}
@@ -229,8 +256,14 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
         <span className="text-[13px] font-medium">
           {t("admin_niche_scan_complete", {
             saved: job.result?.saved ?? 0,
-            skipped: job.result?.skipped ? t("admin_niche_skipped", { count: job.result.skipped }) : "",
-            duration: job.result?.durationMs ? t("admin_niche_duration_suffix", { seconds: (job.result.durationMs / 1000).toFixed(1) }) : "",
+            skipped: job.result?.skipped
+              ? t("admin_niche_skipped", { count: job.result.skipped })
+              : "",
+            duration: job.result?.durationMs
+              ? t("admin_niche_duration_suffix", {
+                  seconds: (job.result.durationMs / 1000).toFixed(1),
+                })
+              : "",
           })}
         </span>
       </div>
@@ -242,7 +275,8 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
         <span className="h-2 w-2 rounded-full bg-red-400 shrink-0" />
         <span className="text-[13px] font-medium">
-          {t("admin_niche_scan_failed")}{job.error ? `: ${job.error}` : ""}
+          {t("admin_niche_scan_failed")}
+          {job.error ? `: ${job.error}` : ""}
         </span>
       </div>
     );
@@ -255,7 +289,9 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
         <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400" />
       </span>
       <span className="text-[13px] font-medium">
-        {job.status === "queued" ? t("admin_niche_scan_queued") : t("admin_niche_scraping")}
+        {job.status === "queued"
+          ? t("admin_niche_scan_queued")
+          : t("admin_niche_scraping")}
       </span>
     </div>
   );
@@ -315,7 +351,9 @@ function NicheEditModal({
             </span>
           </div>
           {error && (
-            <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
+            <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+              {error}
+            </p>
           )}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
@@ -341,32 +379,50 @@ function NicheDetailPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "info" | "success" | "error" } | null>(null);
-  const [reelParams, setReelParams] = useState<NicheReelsParams>({ sortBy: "views", sortOrder: "desc" });
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "info" | "success" | "error";
+  } | null>(null);
+  const [reelParams, setReelParams] = useState<NicheReelsParams>({
+    sortBy: "views",
+    sortOrder: "desc",
+  });
 
   const nichesData = useNiches();
   const niche = nichesData.data?.niches.find((n) => n.id === nicheId);
 
-  const { data, isLoading, refetch } = useNicheReels(nicheId, { ...reelParams, page });
+  const { data, isLoading, refetch } = useNicheReels(nicheId, {
+    ...reelParams,
+    page,
+  });
   const reels = data?.reels ?? [];
   const totalPages = data?.totalPages ?? 1;
 
   const { data: jobsData, isLoading: jobsLoading } = useNicheJobs(nicheId);
   const jobs = jobsData?.jobs ?? [];
-  const activeJob = jobs.find(
-    (j) => j.status === "queued" || j.status === "running" || j.status === "completed" || j.status === "failed",
-  ) ?? null;
-  const isScanBusy = activeJob?.status === "queued" || activeJob?.status === "running";
+  const activeJob =
+    jobs.find(
+      (j) =>
+        j.status === "queued" ||
+        j.status === "running" ||
+        j.status === "completed" ||
+        j.status === "failed"
+    ) ?? null;
+  const isScanBusy =
+    activeJob?.status === "queued" || activeJob?.status === "running";
 
   useEffect(() => {
     if (activeJob?.status === "completed") refetch();
-  }, [activeJob?.status]);
+  }, [activeJob?.status, refetch]);
 
   const scan = useScanNiche();
   const dedupe = useDedupeNiche();
   const deleteReel = useDeleteAdminReel();
 
-  const showToast = (msg: string, type: "info" | "success" | "error" = "info") => {
+  const showToast = (
+    msg: string,
+    type: "info" | "success" | "error" = "info"
+  ) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
@@ -408,22 +464,36 @@ function NicheDetailPage() {
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    await Promise.allSettled(ids.map((id) => deleteReel.mutateAsync({ reelId: id, nicheId })));
+    await Promise.allSettled(
+      ids.map((id) => deleteReel.mutateAsync({ reelId: id, nicheId }))
+    );
     setSelected(new Set());
     showToast(`Deleted ${ids.length} reel(s)`, "success");
   };
 
   const handleExport = () => {
-    window.open(`/api/admin/niches/${nicheId}/reels?limit=1000&page=1`, "_blank");
+    window.open(
+      `/api/admin/niches/${nicheId}/reels?limit=1000&page=1`,
+      "_blank"
+    );
   };
 
-  const isFilterActive = !!(reelParams.viral || reelParams.hasVideo || reelParams.sortBy !== "views" || reelParams.sortOrder !== "desc");
+  const isFilterActive = !!(
+    reelParams.viral ||
+    reelParams.hasVideo ||
+    reelParams.sortBy !== "views" ||
+    reelParams.sortOrder !== "desc"
+  );
 
   return (
     <>
       {toast && <Toast message={toast.msg} type={toast.type} />}
       {niche && (
-        <NicheEditModal niche={niche} open={editOpen} onClose={() => setEditOpen(false)} />
+        <NicheEditModal
+          niche={niche}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+        />
       )}
 
       <div className="space-y-6">
@@ -443,7 +513,9 @@ function NicheDetailPage() {
                 {niche?.name ?? `Niche #${nicheId}`}
               </h2>
               {niche?.description && (
-                <p className="text-[13px] text-slate-200/40 mt-1">{niche.description}</p>
+                <p className="text-[13px] text-slate-200/40 mt-1">
+                  {niche.description}
+                </p>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -455,7 +527,11 @@ function NicheDetailPage() {
                 disabled={scan.isPending || isScanBusy}
               >
                 <Zap className="h-3.5 w-3.5" />
-                {scan.isPending ? t("admin_niche_queuing") : isScanBusy ? t("admin_niche_scanning") : t("admin_niche_trigger_scrape")}
+                {scan.isPending
+                  ? t("admin_niche_queuing")
+                  : isScanBusy
+                    ? t("admin_niche_scanning")
+                    : t("admin_niche_trigger_scrape")}
               </Button>
               <Button
                 variant="outline"
@@ -465,7 +541,9 @@ function NicheDetailPage() {
                 disabled={dedupe.isPending}
               >
                 <GitMerge className="h-3.5 w-3.5" />
-                {dedupe.isPending ? t("admin_niche_running") : t("admin_niche_run_dedupe")}
+                {dedupe.isPending
+                  ? t("admin_niche_running")
+                  : t("admin_niche_run_dedupe")}
               </Button>
               <Button
                 variant="outline"
@@ -498,7 +576,10 @@ function NicheDetailPage() {
             >
               {t("admin_niche_tab_reels")}
               {data && (
-                <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                <Badge
+                  variant="secondary"
+                  className="ml-2 text-[10px] px-1.5 py-0"
+                >
                   {data.total}
                 </Badge>
               )}
@@ -522,45 +603,100 @@ function NicheDetailPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <Select
                 value={reelParams.sortBy ?? "views"}
-                onValueChange={(v) => { setPage(1); setReelParams((p) => ({ ...p, sortBy: v as NicheReelsParams["sortBy"] })); }}
+                onValueChange={(v) => {
+                  setPage(1);
+                  setReelParams((p) => ({
+                    ...p,
+                    sortBy: v as NicheReelsParams["sortBy"],
+                  }));
+                }}
               >
                 <SelectTrigger className="h-8 w-[160px] text-[12px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="views">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_views") })}</SelectItem>
-                  <SelectItem value="likes">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_likes") })}</SelectItem>
-                  <SelectItem value="engagement">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_engagement") })}</SelectItem>
-                  <SelectItem value="postedAt">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_posted_date") })}</SelectItem>
-                  <SelectItem value="scrapedAt">{t("admin_niche_toolbar_sort_by", { field: t("admin_niche_sort_scraped_date") })}</SelectItem>
+                  <SelectItem value="views">
+                    {t("admin_niche_toolbar_sort_by", {
+                      field: t("admin_niche_sort_views"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="likes">
+                    {t("admin_niche_toolbar_sort_by", {
+                      field: t("admin_niche_sort_likes"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="engagement">
+                    {t("admin_niche_toolbar_sort_by", {
+                      field: t("admin_niche_sort_engagement"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="postedAt">
+                    {t("admin_niche_toolbar_sort_by", {
+                      field: t("admin_niche_sort_posted_date"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="scrapedAt">
+                    {t("admin_niche_toolbar_sort_by", {
+                      field: t("admin_niche_sort_scraped_date"),
+                    })}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-8 px-3 text-[12px]"
-                onClick={() => { setPage(1); setReelParams((p) => ({ ...p, sortOrder: p.sortOrder === "asc" ? "desc" : "asc" })); }}
+                onClick={() => {
+                  setPage(1);
+                  setReelParams((p) => ({
+                    ...p,
+                    sortOrder: p.sortOrder === "asc" ? "desc" : "asc",
+                  }));
+                }}
               >
-                {reelParams.sortOrder === "asc" ? t("admin_niche_sort_order_asc") : t("admin_niche_sort_order_desc")}
+                {reelParams.sortOrder === "asc"
+                  ? t("admin_niche_sort_order_asc")
+                  : t("admin_niche_sort_order_desc")}
               </Button>
               <Select
                 value={reelParams.viral ?? "all"}
-                onValueChange={(v) => { setPage(1); setReelParams((p) => ({ ...p, viral: v === "all" ? undefined : v as NicheReelsParams["viral"] })); }}
+                onValueChange={(v) => {
+                  setPage(1);
+                  setReelParams((p) => ({
+                    ...p,
+                    viral:
+                      v === "all"
+                        ? undefined
+                        : (v as NicheReelsParams["viral"]),
+                  }));
+                }}
               >
                 <SelectTrigger className="h-8 w-[130px] text-[12px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("admin_niche_filter_all_posts")}</SelectItem>
-                  <SelectItem value="true">{t("admin_niche_filter_viral_only")}</SelectItem>
-                  <SelectItem value="false">{t("admin_niche_filter_non_viral")}</SelectItem>
+                  <SelectItem value="all">
+                    {t("admin_niche_filter_all_posts")}
+                  </SelectItem>
+                  <SelectItem value="true">
+                    {t("admin_niche_filter_viral_only")}
+                  </SelectItem>
+                  <SelectItem value="false">
+                    {t("admin_niche_filter_non_viral")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Button
                 variant={reelParams.hasVideo ? "default" : "outline"}
                 size="sm"
                 className="h-8 text-[12px]"
-                onClick={() => { setPage(1); setReelParams((p) => ({ ...p, hasVideo: p.hasVideo ? undefined : "true" })); }}
+                onClick={() => {
+                  setPage(1);
+                  setReelParams((p) => ({
+                    ...p,
+                    hasVideo: p.hasVideo ? undefined : "true",
+                  }));
+                }}
               >
                 {t("admin_niche_filter_has_video")}
               </Button>
@@ -569,7 +705,10 @@ function NicheDetailPage() {
                   variant="ghost"
                   size="sm"
                   className="h-8 text-[12px] text-slate-200/40"
-                  onClick={() => { setPage(1); setReelParams({ sortBy: "views", sortOrder: "desc" }); }}
+                  onClick={() => {
+                    setPage(1);
+                    setReelParams({ sortBy: "views", sortOrder: "desc" });
+                  }}
                 >
                   {t("admin_niche_toolbar_reset")}
                 </Button>
@@ -594,7 +733,9 @@ function NicheDetailPage() {
                 {selected.size > 0 && (
                   <>
                     <span className="text-[12px] text-slate-200/30">
-                      {t("admin_niche_selected_count", { count: selected.size })}
+                      {t("admin_niche_selected_count", {
+                        count: selected.size,
+                      })}
                     </span>
                     <Button
                       variant="ghost"
@@ -604,7 +745,9 @@ function NicheDetailPage() {
                       disabled={deleteReel.isPending}
                     >
                       <Trash2 className="h-3 w-3" />
-                      {deleteReel.isPending ? t("admin_niche_deleting") : t("admin_niche_delete_selected")}
+                      {deleteReel.isPending
+                        ? t("admin_niche_deleting")
+                        : t("admin_niche_delete_selected")}
                     </Button>
                   </>
                 )}
@@ -628,13 +771,18 @@ function NicheDetailPage() {
                 <span>{t("admin_niche_col_hook")}</span>
                 <span>{t("admin_niche_col_views")}</span>
                 <span>{t("admin_niche_col_engagement")}</span>
-                <span className="text-right">{t("admin_niche_col_actions")}</span>
+                <span className="text-right">
+                  {t("admin_niche_col_actions")}
+                </span>
               </div>
 
               {isLoading ? (
                 <div className="divide-y divide-white/[0.04]">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="px-4 py-4 flex gap-4 items-center animate-pulse">
+                    <div
+                      key={i}
+                      className="px-4 py-4 flex gap-4 items-center animate-pulse"
+                    >
                       <div className="h-4 w-4 bg-white/[0.05] rounded" />
                       <div className="h-4 flex-1 bg-white/[0.05] rounded" />
                       <div className="h-4 w-16 bg-white/[0.05] rounded" />
@@ -645,8 +793,15 @@ function NicheDetailPage() {
                 </div>
               ) : reels.length === 0 ? (
                 <div className="py-16 flex flex-col items-center gap-3">
-                  <p className="text-[14px] text-slate-200/25 font-medium">{t("admin_niche_empty_no_reels")}</p>
-                  <Button variant="link" size="sm" className="text-[12px]" onClick={handleScan}>
+                  <p className="text-[14px] text-slate-200/25 font-medium">
+                    {t("admin_niche_empty_no_reels")}
+                  </p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-[12px]"
+                    onClick={handleScan}
+                  >
                     {t("admin_niche_empty_no_reels_hint")}
                   </Button>
                 </div>
@@ -668,13 +823,28 @@ function NicheDetailPage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-3">
-                <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
                   {t("common_pagination_previous")}
                 </Button>
                 <span className="text-[12px] text-slate-200/40">
-                  {t("common_pagination_showing", { page, totalPages, total: data?.total ?? 0, item: t("admin_niche_tab_reels").toLowerCase() })}
+                  {t("common_pagination_showing", {
+                    page,
+                    totalPages,
+                    total: data?.total ?? 0,
+                    item: t("admin_niche_tab_reels").toLowerCase(),
+                  })}
                 </span>
-                <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
                   {t("common_pagination_next")}
                 </Button>
               </div>
@@ -703,8 +873,12 @@ function NicheDetailPage() {
                 </div>
               ) : jobs.length === 0 ? (
                 <div className="py-16 flex flex-col items-center gap-3">
-                  <p className="text-[14px] text-slate-200/25 font-medium">{t("admin_niche_empty_no_jobs")}</p>
-                  <p className="text-[12px] text-slate-200/15">{t("admin_niche_empty_no_jobs_hint")}</p>
+                  <p className="text-[14px] text-slate-200/25 font-medium">
+                    {t("admin_niche_empty_no_jobs")}
+                  </p>
+                  <p className="text-[12px] text-slate-200/15">
+                    {t("admin_niche_empty_no_jobs_hint")}
+                  </p>
                 </div>
               ) : (
                 jobs.map((job) => <JobRow key={job.id} job={job} />)
@@ -714,7 +888,9 @@ function NicheDetailPage() {
 
           <TabsContent value="analytics" className="mt-4">
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <p className="text-[14px] font-medium text-slate-200/25">Analytics coming soon</p>
+              <p className="text-[14px] font-medium text-slate-200/25">
+                Analytics coming soon
+              </p>
               <p className="text-[12px] text-slate-200/15">
                 Per-niche engagement trends and growth charts will appear here.
               </p>

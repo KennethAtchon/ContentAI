@@ -1,9 +1,24 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Plus, MessageSquare, Trash2 } from "lucide-react";
-import { useProjects, useCreateProject, useDeleteProject } from "../hooks/use-projects";
-import { useChatSessions, useCreateChatSession, useDeleteChatSession } from "../hooks/use-chat-sessions";
+import { debugLog } from "@/shared/utils/debug/debug";
+import {
+  useProjects,
+  useCreateProject,
+  useDeleteProject,
+} from "../hooks/use-projects";
+import {
+  useChatSessions,
+  useCreateChatSession,
+  useDeleteChatSession,
+} from "../hooks/use-chat-sessions";
 import type { Project, ChatSession } from "../types/chat.types";
 
 interface ProjectSidebarProps {
@@ -21,13 +36,15 @@ export function ProjectSidebar({
   onSessionSelect,
   onNewProject,
 }: ProjectSidebarProps) {
+  const { t } = useTranslation();
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectNicheId, setNewProjectNicheId] = useState("");
 
   const { data: projects, isLoading: projectsLoading } = useProjects();
-  const { data: sessions, isLoading: sessionsLoading } = useChatSessions(selectedProjectId);
+  const { data: sessions, isLoading: sessionsLoading } =
+    useChatSessions(selectedProjectId);
   const createProjectMutation = useCreateProject();
   const deleteProjectMutation = useDeleteProject();
   const createSessionMutation = useCreateChatSession();
@@ -48,7 +65,11 @@ export function ProjectSidebar({
       setNewProjectNicheId("");
       setShowNewProjectForm(false);
     } catch (error) {
-      console.error("Failed to create project:", error);
+      debugLog.error("Failed to create project", {
+        service: "project-sidebar",
+        operation: "handleCreateProject",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -56,26 +77,40 @@ export function ProjectSidebar({
     try {
       await createSessionMutation.mutateAsync({ projectId });
     } catch (error) {
-      console.error("Failed to create session:", error);
+      debugLog.error("Failed to create session", {
+        service: "project-sidebar",
+        operation: "handleCreateSession",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (confirm("Are you sure you want to delete this project?")) {
+    // TODO: Replace with proper confirmation dialog
+    if (window.confirm(t("studio_chat_deleteProjectConfirm"))) {
       try {
         await deleteProjectMutation.mutateAsync(projectId);
       } catch (error) {
-        console.error("Failed to delete project:", error);
+        debugLog.error("Failed to delete project", {
+          service: "project-sidebar",
+          operation: "handleDeleteProject",
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    if (confirm("Are you sure you want to delete this chat session?")) {
+    // TODO: Replace with proper confirmation dialog
+    if (window.confirm(t("studio_chat_deleteSessionConfirm"))) {
       try {
         await deleteSessionMutation.mutateAsync(sessionId);
       } catch (error) {
-        console.error("Failed to delete session:", error);
+        debugLog.error("Failed to delete session", {
+          service: "project-sidebar",
+          operation: "handleDeleteSession",
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   };
@@ -84,30 +119,32 @@ export function ProjectSidebar({
     <div className="w-80 h-full border-r bg-background flex flex-col">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Projects</h2>
+          <h2 className="text-lg font-semibold">{t("studio_chat_projects")}</h2>
           <Button size="sm" onClick={onNewProject}>
             <Plus className="h-4 w-4 mr-2" />
-            New Project
+            {t("studio_chat_newProject")}
           </Button>
         </div>
 
         {showNewProjectForm && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Create New Project</CardTitle>
+              <CardTitle className="text-sm">
+                {t("studio_chat_createNewProject")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCreateProject} className="space-y-3">
                 <input
                   type="text"
-                  placeholder="Project name"
+                  placeholder={t("studio_chat_projectName")}
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   className="w-full p-2 border rounded text-sm"
                   required
                 />
                 <textarea
-                  placeholder="Description (optional)"
+                  placeholder={t("studio_chat_projectDescription")}
                   value={newProjectDescription}
                   onChange={(e) => setNewProjectDescription(e.target.value)}
                   className="w-full p-2 border rounded text-sm"
@@ -115,15 +152,21 @@ export function ProjectSidebar({
                 />
                 <input
                   type="number"
-                  placeholder="Niche ID"
+                  placeholder={t("studio_chat_nicheId")}
                   value={newProjectNicheId}
                   onChange={(e) => setNewProjectNicheId(e.target.value)}
                   className="w-full p-2 border rounded text-sm"
                   required
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" size="sm" disabled={createProjectMutation.isPending}>
-                    {createProjectMutation.isPending ? "Creating..." : "Create"}
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={createProjectMutation.isPending}
+                  >
+                    {createProjectMutation.isPending
+                      ? t("studio_chat_creating")
+                      : t("studio_chat_create")}
                   </Button>
                   <Button
                     type="button"
@@ -131,7 +174,7 @@ export function ProjectSidebar({
                     size="sm"
                     onClick={() => setShowNewProjectForm(false)}
                   >
-                    Cancel
+                    {t("studio_chat_cancel")}
                   </Button>
                 </div>
               </form>
@@ -142,7 +185,9 @@ export function ProjectSidebar({
 
       <div className="flex-1 overflow-y-auto">
         {projectsLoading ? (
-          <div className="p-4 text-sm text-muted-foreground">Loading projects...</div>
+          <div className="p-4 text-sm text-muted-foreground">
+            {t("studio_chat_loadingProjects")}
+          </div>
         ) : (
           <div className="space-y-4 p-4">
             {projects?.map((project) => (
@@ -197,7 +242,9 @@ export function ProjectSidebar({
                 {selectedProjectId === project.id && (
                   <div className="ml-4 space-y-1">
                     {sessionsLoading ? (
-                      <div className="text-xs text-muted-foreground">Loading sessions...</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("studio_chat_loadingSessions")}
+                      </div>
                     ) : (
                       sessions?.map((session) => (
                         <div
