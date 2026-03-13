@@ -5,7 +5,7 @@ import { debugLog } from "../utils/debug/debug";
 
 export interface AiCostParams {
   userId?: string;
-  provider: "openai" | "claude";
+  provider: "openrouter" | "openai" | "claude";
   model: string;
   featureType: string;
   inputTokens: number;

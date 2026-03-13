@@ -5,6 +5,8 @@ import { generateText, streamText } from "ai";
 import {
   ANTHROPIC_API_KEY,
   OPENAI_API_KEY,
+  OPEN_ROUTER_KEY,
+  OPEN_ROUTER_MODEL,
   ANALYSIS_MODEL,
   GENERATION_MODEL,
   OPENAI_MODEL,
@@ -18,6 +20,13 @@ import { recordAiCost } from "./cost-tracker";
 
 /** Legacy raw Anthropic SDK client — kept for backward compatibility */
 export const claude = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+const openRouterProvider = OPEN_ROUTER_KEY
+  ? createOpenAI({
+      apiKey: OPEN_ROUTER_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
+    })
+  : null;
 
 const openaiProvider = OPENAI_API_KEY
   ? createOpenAI({ apiKey: OPENAI_API_KEY })
@@ -64,7 +73,7 @@ export interface AiMessage {
 
 export interface AiResponse {
   text: string;
-  provider: "openai" | "claude";
+  provider: "openrouter" | "openai" | "claude";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -95,11 +104,11 @@ function extractUsageTokens(usage: unknown): {
   return { inputTokens, outputTokens };
 }
 
-// ─── callAi: OpenAI-first, Claude fallback ───────────────────────────────────
+// ─── callAi: OpenRouter → OpenAI → Claude ────────────────────────────────────
 
 /**
- * Call OpenAI via the Vercel AI SDK. If OPENAI_API_KEY is not set or OpenAI
- * throws, automatically retries with Claude Anthropic (also via Vercel AI SDK).
+ * Calls AI with provider priority: OpenRouter → OpenAI → Claude.
+ * Falls back to the next provider on failure.
  */
 export async function callAi(params: AiMessage): Promise<AiResponse> {
   const {
@@ -112,7 +121,52 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
     metadata,
   } = params;
 
-  // ── Try OpenAI first (via Vercel AI SDK) ──
+  // ── Try OpenRouter first ──
+  if (openRouterProvider) {
+    try {
+      const startMs = Date.now();
+      const { text, usage } = await generateText({
+        model: openRouterProvider(OPEN_ROUTER_MODEL),
+        system,
+        prompt: userContent,
+        maxOutputTokens: maxTokens,
+      });
+      const { inputTokens, outputTokens } = extractUsageTokens(usage);
+
+      recordAiCost({
+        userId,
+        provider: "openrouter",
+        model: OPEN_ROUTER_MODEL,
+        featureType,
+        inputTokens,
+        outputTokens,
+        durationMs: Date.now() - startMs,
+        metadata,
+      }).catch(() => {});
+
+      debugLog.info("AI call succeeded via OpenRouter", {
+        service: "ai-client",
+        operation: "callAi",
+        model: OPEN_ROUTER_MODEL,
+      });
+
+      return {
+        text,
+        provider: "openrouter",
+        model: OPEN_ROUTER_MODEL,
+        inputTokens,
+        outputTokens,
+      };
+    } catch (err) {
+      debugLog.warn("OpenRouter call failed — falling back to OpenAI", {
+        service: "ai-client",
+        operation: "callAi",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // ── Try OpenAI ──
   if (openaiProvider) {
     try {
       const startMs = Date.now();
@@ -157,7 +211,7 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
     }
   }
 
-  // ── Fallback: Claude (via Vercel AI SDK) ──
+  // ── Fallback: Claude ──
   const claudeModel =
     modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
 
@@ -196,9 +250,10 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
   };
 }
 
-// ─── Helper Functions for Streaming ───────────────────────────────────────
+// ─── Helper Functions for Streaming ──────────────────────────────────────────
 
 export function getModel(modelTier: "analysis" | "generation" = "generation") {
+  if (openRouterProvider) return openRouterProvider(OPEN_ROUTER_MODEL);
   if (openaiProvider) return openaiProvider(OPENAI_MODEL);
   const claudeModel =
     modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
@@ -207,7 +262,9 @@ export function getModel(modelTier: "analysis" | "generation" = "generation") {
 
 export function getModelInfo(
   modelTier: "analysis" | "generation" = "generation",
-): { provider: "openai" | "claude"; model: string } {
+): { provider: "openrouter" | "openai" | "claude"; model: string } {
+  if (openRouterProvider)
+    return { provider: "openrouter", model: OPEN_ROUTER_MODEL };
   if (openaiProvider) return { provider: "openai", model: OPENAI_MODEL };
   const model = modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
   return { provider: "claude", model };

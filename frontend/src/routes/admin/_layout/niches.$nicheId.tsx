@@ -51,6 +51,7 @@ import {
   type AdminNiche,
   type ScrapeJob,
   type NicheReelsParams,
+  type ScrapeConfigOverride,
 } from "@/features/admin/hooks/use-niches";
 import { cn } from "@/shared/utils/helpers/utils";
 
@@ -369,6 +370,169 @@ function NicheEditModal({
   );
 }
 
+// ── Scrape Options Modal ──────────────────────────────────────────────────────
+
+function ScrapeOptionsModal({
+  niche,
+  open,
+  onClose,
+  onRun,
+  isPending,
+}: {
+  niche: AdminNiche;
+  open: boolean;
+  onClose: () => void;
+  onRun: (config: ScrapeConfigOverride) => void;
+  isPending: boolean;
+}) {
+  const { t } = useTranslation();
+  const [limit, setLimit] = useState("");
+  const [minViews, setMinViews] = useState("");
+  const [maxDaysOld, setMaxDaysOld] = useState("");
+  const [viralOnly, setViralOnly] = useState<boolean | null>(null);
+
+  // Reset to empty (not defaults) each time modal opens
+  useEffect(() => {
+    if (open) {
+      setLimit("");
+      setMinViews("");
+      setMaxDaysOld("");
+      setViralOnly(null);
+    }
+  }, [open]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const config: ScrapeConfigOverride = {};
+    if (limit !== "") config.limit = parseInt(limit, 10);
+    if (minViews !== "") config.minViews = parseInt(minViews, 10);
+    if (maxDaysOld !== "") config.maxDaysOld = parseInt(maxDaysOld, 10);
+    if (viralOnly !== null) config.viralOnly = viralOnly;
+    onRun(config);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("admin_niche_scrape_options_title")}</DialogTitle>
+          <p className="text-[12px] text-slate-200/40 mt-1">
+            {t("admin_niche_scrape_options_description")}
+          </p>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-200/70">
+                {t("admin_niche_scrape_limit_label")}
+                {niche.scrapeLimit != null && (
+                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                    {t("admin_niche_scrape_defaults_badge", {
+                      value: niche.scrapeLimit,
+                    })}
+                  </span>
+                )}
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={10000}
+                placeholder={String(niche.scrapeLimit ?? 100)}
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+                className="h-8 text-[13px]"
+              />
+              <p className="text-[11px] text-slate-200/25">
+                {t("admin_niche_scrape_limit_hint")}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-200/70">
+                {t("admin_niche_scrape_min_views_label")}
+                {niche.scrapeMinViews != null && (
+                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                    {t("admin_niche_scrape_defaults_badge", {
+                      value: niche.scrapeMinViews.toLocaleString(),
+                    })}
+                  </span>
+                )}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                placeholder={String(niche.scrapeMinViews ?? 0)}
+                value={minViews}
+                onChange={(e) => setMinViews(e.target.value)}
+                className="h-8 text-[13px]"
+              />
+              <p className="text-[11px] text-slate-200/25">
+                {t("admin_niche_scrape_min_views_hint")}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-200/70">
+                {t("admin_niche_scrape_max_days_label")}
+                {niche.scrapeMaxDaysOld != null && (
+                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                    {t("admin_niche_scrape_defaults_badge", {
+                      value: niche.scrapeMaxDaysOld,
+                    })}
+                  </span>
+                )}
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                placeholder={String(niche.scrapeMaxDaysOld ?? 30)}
+                value={maxDaysOld}
+                onChange={(e) => setMaxDaysOld(e.target.value)}
+                className="h-8 text-[13px]"
+              />
+              <p className="text-[11px] text-slate-200/25">
+                {t("admin_niche_scrape_max_days_hint")}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-200/70">
+                {t("admin_niche_scrape_viral_only_label")}
+                {niche.scrapeIncludeViralOnly != null && (
+                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                    {t("admin_niche_scrape_defaults_badge", {
+                      value: niche.scrapeIncludeViralOnly ? "on" : "off",
+                    })}
+                  </span>
+                )}
+              </label>
+              <div className="flex items-center gap-2 h-8">
+                <Switch
+                  checked={viralOnly ?? niche.scrapeIncludeViralOnly ?? false}
+                  onCheckedChange={(v) => setViralOnly(v)}
+                />
+                <span className="text-[12px] text-slate-200/50">
+                  {t("admin_niche_scrape_viral_only_hint")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              {t("common_cancel")}
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? `${t("admin_niche_queuing")}` : t("admin_niche_run_scrape")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 function NicheDetailPage() {
@@ -379,6 +543,7 @@ function NicheDetailPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
+  const [scrapeOptionsOpen, setScrapeOptionsOpen] = useState(false);
   const [toast, setToast] = useState<{
     msg: string;
     type: "info" | "success" | "error";
@@ -427,9 +592,10 @@ function NicheDetailPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleScan = async () => {
+  const handleScan = async (config: ScrapeConfigOverride = {}) => {
     try {
-      await scan.mutateAsync(nicheId);
+      await scan.mutateAsync({ nicheId, config });
+      setScrapeOptionsOpen(false);
     } catch {
       showToast("Failed to queue scan", "error");
     }
@@ -495,6 +661,15 @@ function NicheDetailPage() {
           onClose={() => setEditOpen(false)}
         />
       )}
+      {niche && (
+        <ScrapeOptionsModal
+          niche={niche}
+          open={scrapeOptionsOpen}
+          onClose={() => setScrapeOptionsOpen(false)}
+          onRun={handleScan}
+          isPending={scan.isPending}
+        />
+      )}
 
       <div className="space-y-6">
         {/* Header */}
@@ -523,7 +698,7 @@ function NicheDetailPage() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={handleScan}
+                onClick={() => setScrapeOptionsOpen(true)}
                 disabled={scan.isPending || isScanBusy}
               >
                 <Zap className="h-3.5 w-3.5" />
@@ -800,7 +975,7 @@ function NicheDetailPage() {
                     variant="link"
                     size="sm"
                     className="text-[12px]"
-                    onClick={handleScan}
+                    onClick={() => setScrapeOptionsOpen(true)}
                   >
                     {t("admin_niche_empty_no_reels_hint")}
                   </Button>

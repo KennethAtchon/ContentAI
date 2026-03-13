@@ -205,6 +205,16 @@ export const GENERATION_MODEL = getEnvVar(
 );
 
 // ============================================================================
+// AI (OpenRouter)
+// ============================================================================
+export const OPEN_ROUTER_KEY = getEnvVar("OPEN_ROUTER_KEY", false);
+export const OPEN_ROUTER_MODEL = getEnvVar(
+  "OPEN_ROUTER_MODEL",
+  false,
+  "openai/gpt-4o-mini",
+);
+
+// ============================================================================
 // AI (OpenAI)
 // ============================================================================
 export const OPENAI_API_KEY = getEnvVar("OPENAI_API_KEY", false);
@@ -219,6 +229,15 @@ export const INSTAGRAM_API_TOKEN = getEnvVar("INSTAGRAM_API_TOKEN", false);
 export const VIRAL_VIEWS_THRESHOLD = parseInt(
   getEnvVar("VIRAL_VIEWS_THRESHOLD", false, "100000"),
   10,
+);
+
+// ============================================================================
+// Cron Jobs
+// ============================================================================
+/** Enable scheduled background jobs (daily scan, etc.). Default: true in production, false in development. */
+export const CRON_JOBS_ENABLED = getEnvVarAsBoolean(
+  "CRON_JOBS_ENABLED",
+  !IS_DEVELOPMENT,
 );
 
 // ============================================================================

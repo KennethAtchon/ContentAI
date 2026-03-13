@@ -6,6 +6,7 @@ import {
   getAllowedCorsOrigins,
   METRICS_SECRET,
   getEnvVar,
+  CRON_JOBS_ENABLED,
 } from "./utils/config/envUtil";
 import {
   getMetricsContent,
@@ -118,7 +119,19 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   port,
 });
 
-startDailyScan();
+// Start cron jobs if enabled
+if (CRON_JOBS_ENABLED) {
+  startDailyScan();
+  debugLog.info("Cron jobs enabled", {
+    service: "index",
+    operation: "cron-init",
+  });
+} else {
+  debugLog.info("Cron jobs disabled", {
+    service: "index",
+    operation: "cron-init",
+  });
+}
 
 export default {
   port,

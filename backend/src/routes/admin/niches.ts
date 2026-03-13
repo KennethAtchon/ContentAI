@@ -41,6 +41,10 @@ nichesRouter.get(
           createdAt: niches.createdAt,
           updatedAt: niches.updatedAt,
           reelCount: sql<number>`count(${reels.id})::int`,
+          scrapeLimit: niches.scrapeLimit,
+          scrapeMinViews: niches.scrapeMinViews,
+          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
         })
         .from(niches)
         .leftJoin(reels, eq(reels.nicheId, niches.id))

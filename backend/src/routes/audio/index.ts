@@ -26,8 +26,8 @@ audioRouter.get(
       const nicheIdParam = c.req.query("nicheId");
       const nicheId = nicheIdParam ? parseInt(nicheIdParam, 10) : null;
 
-      const startWindow = sql`NOW() - INTERVAL '${days} days'`;
-      const prevWindow = sql`NOW() - INTERVAL '${days * 2} days'`;
+      const startWindow = sql.raw(`NOW() - INTERVAL '${days} days'`);
+      const prevWindow = sql.raw(`NOW() - INTERVAL '${days * 2} days'`);
 
       const conditions = [
         sql`${reels.audioId} is not null`,

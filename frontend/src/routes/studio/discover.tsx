@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
@@ -31,6 +31,8 @@ function DiscoverPage() {
   const [activeReelId, setActiveReelId] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
   const [allReels, setAllReels] = useState<Reel[]>([]);
+  const [audioHeight, setAudioHeight] = useState(130);
+  const dragState = useRef<{ startY: number; startHeight: number } | null>(null);
 
   const { data: nichesData } = useReelNiches();
   const niches = nichesData?.niches ?? [];
@@ -80,6 +82,23 @@ function DiscoverPage() {
     (id: number) => setActiveReelId(id),
     []
   );
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragState.current = { startY: e.clientY, startHeight: audioHeight };
+    const onMove = (e: globalThis.MouseEvent) => {
+      if (!dragState.current) return;
+      const delta = dragState.current.startY - e.clientY;
+      setAudioHeight(Math.max(60, Math.min(400, dragState.current.startHeight + delta)));
+    };
+    const onUp = () => {
+      dragState.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [audioHeight]);
 
   const handleAnalyze = useCallback((id: number) => {
     setActiveReelId(id);
@@ -132,7 +151,6 @@ function DiscoverPage() {
                 </Select>
               </div>
             )}
-            <TrendingAudio nicheId={isTrending ? null : activeNicheId} />
             {reelsLoading ? (
               <div className="p-3 space-y-1">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -141,22 +159,34 @@ function DiscoverPage() {
               </div>
             ) : (
               <>
-                <ReelList
-                  reels={allReels}
-                  activeId={resolvedId}
-                  onSelect={handleActiveChange}
-                />
-                {hasMore && (
-                  <button
-                    onClick={loadMore}
-                    disabled={isFetching}
-                    className="mx-3 mb-2 py-1.5 text-[11px] text-slate-200/40 hover:text-studio-accent border border-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
-                  >
-                    {isFetching
-                      ? "Loading…"
-                      : `Load more (${total - allReels.length} left)`}
-                  </button>
-                )}
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <ReelList
+                    reels={allReels}
+                    activeId={resolvedId}
+                    onSelect={handleActiveChange}
+                  />
+                  {hasMore && (
+                    <button
+                      onClick={loadMore}
+                      disabled={isFetching}
+                      className="mx-3 mb-2 py-1.5 text-[11px] text-slate-200/40 hover:text-studio-accent border border-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
+                    >
+                      {isFetching
+                        ? "Loading…"
+                        : `Load more (${total - allReels.length} left)`}
+                    </button>
+                  )}
+                </div>
+                {/* Resize handle */}
+                <div
+                  onMouseDown={handleDragStart}
+                  className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-white/[0.05] hover:border-studio-accent/30 transition-colors"
+                >
+                  <div className="w-6 h-[2px] rounded-full bg-white/10 group-hover:bg-studio-accent/50 transition-colors" />
+                </div>
+                <div style={{ height: audioHeight }} className="shrink-0 overflow-hidden">
+                  <TrendingAudio nicheId={isTrending ? null : activeNicheId} />
+                </div>
               </>
             )}
           </aside>

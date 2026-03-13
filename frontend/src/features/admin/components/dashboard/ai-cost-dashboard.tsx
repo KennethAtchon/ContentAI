@@ -177,7 +177,7 @@ export function AiCostDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {parseCost(totals.totalCost).toLocaleString(
+                  {parseCost(totals?.totalCost).toLocaleString(
                     "en-US",
                     CURRENCY_FORMAT
                   )}
@@ -193,7 +193,7 @@ export function AiCostDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {totals.callCount.toLocaleString()}
+                  {totals?.callCount?.toLocaleString() || "0"}
                 </div>
               </CardContent>
             </Card>
@@ -206,7 +206,7 @@ export function AiCostDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {totals.totalInputTokens.toLocaleString()}
+                  {totals?.totalInputTokens?.toLocaleString() || "0"}
                 </div>
               </CardContent>
             </Card>
@@ -219,7 +219,7 @@ export function AiCostDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {totals.totalOutputTokens.toLocaleString()}
+                  {totals?.totalOutputTokens?.toLocaleString() || "0"}
                 </div>
               </CardContent>
             </Card>

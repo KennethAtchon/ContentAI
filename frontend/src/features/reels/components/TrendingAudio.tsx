@@ -48,11 +48,11 @@ export function TrendingAudio({ nicheId }: { nicheId: number | null }) {
   const audio = data?.audio ?? [];
 
   return (
-    <div className="px-3 pb-3">
-      <Collapsible open={open} onOpenChange={setOpen}>
+    <div className="px-3 pb-3 h-full flex flex-col">
+      <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col flex-1 min-h-0">
         <CollapsibleTrigger
           className={cn(
-            "w-full flex items-center justify-between text-[11px] font-semibold text-slate-200/60",
+            "w-full flex items-center justify-between text-[11px] font-semibold text-slate-200/60 shrink-0",
             "py-2"
           )}
         >
@@ -64,10 +64,10 @@ export function TrendingAudio({ nicheId }: { nicheId: number | null }) {
             {open ? "—" : "+"}
           </span>
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isLoading ? (
             <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2].map((i) => (
                 <div key={i} className="studio-skeleton h-[36px]" />
               ))}
             </div>

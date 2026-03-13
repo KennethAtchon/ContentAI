@@ -3,16 +3,16 @@
 ## 🎯 Generate Tab (Primary Focus - AI Chat Interface)
 
 ### **Core Chat System**
-- [ ] Multi-turn AI chat with conversation history
-- [ ] Streaming AI responses using `ai/react` hooks
-- [ ] Project-based conversation organization
-- [ ] Chat session management (create, rename, delete)
-- [ ] Real-time message persistence to database
+- [x] Multi-turn AI chat with conversation history
+- [x] Streaming AI responses using `ai/react` hooks
+- [x] Project-based conversation organization
+- [x] Chat session management (create, rename, delete)
+- [x] Real-time message persistence to database
 
 ### **Project Management**
-- [ ] Create, edit, delete projects
+- [x] Create, edit, delete projects
 - [ ] Assign niches to projects (user niches vs system niches)
-- [ ] Project sidebar with chat sessions
+- [x] Project sidebar with chat sessions
 - [ ] URL state management for project/session navigation
 - [ ] Project-to-queue association
 
@@ -24,25 +24,25 @@
 - [ ] Visual reel cards with metadata display
 
 ### **AI Pipeline (6 Phases)**
-- [ ] **Phase 1**: Enhanced reel analysis (hook patterns, structure, engagement drivers)
-- [ ] **Phase 2**: Script generation (hook, caption, shot list)
+- [x] **Phase 1**: Enhanced reel analysis (hook patterns, structure, engagement drivers)
+- [x] **Phase 2**: Script generation (hook, caption, shot list)
 - [ ] **Phase 3**: Audio production (TTS voiceover + music track)
 - [ ] **Phase 4**: Video production (AI-generated or user-provided + assembly)
 - [ ] **Phase 5**: In-browser editing suite (timeline editing)
 - [ ] **Phase 6**: Metadata & export (hashtags, description, thumbnail)
 
 ### **Content Generation Features**
-- [ ] Multiple output types (hook, caption, full script)
-- [ ] Content versioning and history
+- [x] Multiple output types (hook, caption, full script)
+- [x] Content versioning and history
 - [ ] AI model selection (OpenAI, Claude, etc.)
 - [ ] Content refinement and iteration
 - [ ] Export to queue functionality
 
 ### **User Experience**
-- [ ] Responsive chat interface
+- [x] Responsive chat interface
 - [ ] Message loading states and error handling
 - [ ] Typing indicators and AI status
-- [ ] Message history persistence
+- [x] Message history persistence
 - [ ] Cross-device conversation sync
 
 ---
@@ -52,29 +52,29 @@
 ### **Content Display**
 - [ ] Visual content grid with video previews
 - [ ] Content cards showing hook, project, version
-- [ ] Status indicators (draft, ready, scheduled, posted, failed)
+- [x] Status indicators (draft, ready, scheduled, posted, failed)
 - [ ] Thumbnail previews and video playback
 - [ ] Bulk selection and operations
 
 ### **Content Management**
 - [ ] Edit content (redirect to generate tab or inline editing)
-- [ ] Delete content (with confirmation)
+- [x] Delete content (with confirmation)
 - [ ] Schedule content for posting
 - [ ] Duplicate content for variations
 - [ ] Move between projects
 
 ### **Scheduling & Publishing**
 - [ ] Calendar view for scheduled content
-- [ ] Instagram page selection
+- [x] Instagram page selection (schema + DB support)
 - [ ] Posting time optimization suggestions
 - [ ] Batch scheduling
 - [ ] Failed post retry mechanism
 
 ### **Filtering & Organization**
-- [ ] Status filters (all, draft, ready, scheduled, posted, failed)
-- [ ] Project-based filtering
+- [x] Status filters (all, draft, ready, scheduled, posted, failed)
+- [x] Project-based filtering
 - [ ] Date range filtering
-- [ ] Sort options (newest, oldest, alphabetical)
+- [x] Sort options (newest, oldest, alphabetical)
 - [ ] Search functionality
 
 ---
@@ -82,24 +82,24 @@
 ## 🔍 Discover Page (Content Discovery)
 
 ### **TikTok-Style Feed**
-- [ ] Full-screen vertical video feed
+- [x] Full-screen vertical video feed
 - [ ] Swipe/scroll navigation between videos
-- [ ] Auto-play with Intersection Observer
+- [x] Auto-play with Intersection Observer
 - [ ] Video virtualization for performance
 - [ ] In-video UI overlays (TikTok style)
 
 ### **Video Playback System**
-- [ ] Expose video URLs in API endpoints
-- [ ] R2 signed URL generation for private videos
+- [x] Expose video URLs in API endpoints
+- [x] R2 signed URL generation for private videos
 - [ ] Video fallback strategies
 - [ ] Thumbnail and emoji placeholders
 - [ ] Video performance optimization
 
 ### **Content Rotation & Freshness**
-- [ ] Daily background scanning system
-- [ ] Automatic niche re-scraping (cron job)
-- [ ] Freshness-weighted sorting (date + views)
-- [ ] Daily view rotation algorithm
+- [x] Daily background scanning system
+- [x] Automatic niche re-scraping (cron job)
+- [x] Freshness-weighted sorting (date + views)
+- [x] Daily view rotation algorithm
 - [ ] Staggered scraping to avoid rate limits
 
 ### **Cross-Niche Trending**
@@ -107,13 +107,13 @@
 - [ ] Union-based trending calculations
 - [ ] Time-based trending windows
 - [ ] Viral content prioritization
-- [ ] Trending audio detection
+- [x] Trending audio detection
 
 ### **Audio Features**
-- [ ] Popular audio song sourcing
-- [ ] Audio trend analysis
+- [x] Popular audio song sourcing
+- [x] Audio trend analysis (7–90 day windows, per-niche)
 - [ ] Audio library integration
-- [ ] Audio metadata extraction
+- [x] Audio metadata extraction
 - [ ] Audio-based recommendation system
 
 ---
@@ -121,30 +121,30 @@
 ## 💰 Usage Limits & Cost Tracking
 
 ### **Subscription Tier System**
-- [ ] Redesigned tiers (Free, Creator, Pro, Agency)
-- [ ] Feature-based usage limits
-- [ ] Hard blockers that can't be circumvented
+- [x] Redesigned tiers (Free, Creator, Pro, Agency)
+- [x] Feature-based usage limits
+- [x] Hard blockers that can't be circumvented
 - [ ] Graceful degradation when limits reached
 - [ ] Upgrade prompts and notifications
 
 ### **Usage Tracking**
-- [ ] Real-time usage monitoring
-- [ ] Feature-specific counters (generations, analyses, etc.)
-- [ ] Daily/monthly usage calculations
+- [x] Real-time usage monitoring
+- [x] Feature-specific counters (generations, analyses, etc.)
+- [x] Daily/monthly usage calculations
 - [ ] Usage history and analytics
 - [ ] Predictive usage alerts
 
 ### **Admin Cost Dashboard**
-- [ ] AI model spending tracking
-- [ ] Cost per feature breakdown
+- [x] AI model spending tracking (AiCostLedger table + token counts)
+- [x] Cost per feature breakdown
 - [ ] Monthly cost projections
 - [ ] ROI analytics per user
 - [ ] Cost optimization recommendations
 
 ### **Rate Limiting & Security**
-- [ ] API endpoint rate limiting
+- [x] API endpoint rate limiting
 - [ ] Jailbreak prevention mechanisms
-- [ ] Subscription validation middleware
+- [x] Subscription validation middleware
 - [ ] Usage bypass detection
 - [ ] Automated abuse detection
 
@@ -153,16 +153,16 @@
 ## 🛠️ Infrastructure & Admin Features
 
 ### **Admin Portal**
-- [ ] Niche management with scraping configuration
-- [ ] User management and subscription oversight
+- [x] Niche management with scraping configuration
+- [x] User management and subscription oversight
 - [ ] Content moderation tools
-- [ ] System health monitoring
+- [x] System health monitoring
 - [ ] A/B testing framework
 
 ### **Scraping System**
-- [ ] Configurable scraping per niche
-- [ ] Advanced filtering (views, age, viral-only)
-- [ ] Scraping job management and monitoring
+- [x] Configurable scraping per niche (views threshold, age limits, viral-only)
+- [x] Advanced filtering (views, age, viral-only)
+- [x] Scraping job management and monitoring
 - [ ] Error handling and retry logic
 - [ ] Scraping analytics and reporting
 
@@ -185,8 +185,8 @@
 ## 🎨 Frontend Enhancements
 
 ### **UI/UX Improvements**
-- [ ] Component library expansion
-- [ ] Responsive design optimization
+- [x] Component library expansion (shadcn/ui + Radix)
+- [x] Responsive design optimization
 - [ ] Loading states and skeleton screens
 - [ ] Error boundary implementation
 - [ ] Accessibility improvements
@@ -211,7 +211,7 @@
 
 ### **Code Quality**
 - [ ] TypeScript strict mode compliance
-- [ ] Comprehensive test coverage
+- [x] Comprehensive test coverage (unit + integration tests)
 - [ ] Code documentation
 - [ ] Refactoring legacy code
 - [ ] Security audit implementation
@@ -219,7 +219,7 @@
 ### **DevOps & Deployment**
 - [ ] CI/CD pipeline optimization
 - [ ] Environment management
-- [ ] Database migration automation
+- [x] Database migration automation (Drizzle)
 - [ ] Backup and recovery procedures
 - [ ] Scaling preparation
 
@@ -237,7 +237,7 @@
 ### **Content Analytics**
 - [ ] Content performance tracking
 - [ ] Viral content analysis
-- [ ] Trending topic detection
+- [x] Trending topic detection
 - [ ] Engagement metrics
 - [ ] Content recommendation algorithm
 
@@ -265,14 +265,14 @@
 
 You can create separate markdowns dividing deep for each one OR you can put similar concepts in a markdown:
 
-- After niche references the videos the AI, will scan and find out what makes the video special and made people click it. (we will have a specialized AI for analyze). Then we need a process for actually creating the reel (audio, video(this will be AI generated or user provides something), editting(might need to expand this section into some sort of AI editting suite but this is TBD), everything else needed for a video like hashtags or whatever). 
+- After niche references the videos the AI, will scan and find out what makes the video special and made people click it. (we will have a specialized AI for analyze). Then we need a process for actually creating the reel (audio, video(this will be AI generated or user provides something), editting(might need to expand this section into some sort of AI editting suite but this is TBD), everything else needed for a video like hashtags or whatever).
 
 - Anything else I missed, can you catch them and let me know, these are just my raw thoughts for fully building out the generate tab. The queue tab will be very easy, it will just show generated content, and act like a way for users to view, delete, edit, their generated videos. (for edit, I think it will just redirect to the project in the generate tab, if the project is deleted ~ it will get tricky, so may need to add an option to "edit existing video" and then use that flow for that use case. )
 
 
-- We also need to ensure the proper usage blockers are in place and they are hard blockers that can't be jail broken. 
+- We also need to ensure the proper usage blockers are in place and they are hard blockers that can't be jail broken.
 
-- We also need to track how much we are spending on AI models on the admin portal. 
+- We also need to track how much we are spending on AI models on the admin portal.
 
 
 - Also for discover page, everyday should rotate views, and we need a background scan going on, and discovery should prioritize date and then views (like on the same day)

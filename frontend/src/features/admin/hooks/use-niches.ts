@@ -27,6 +27,10 @@ export interface AdminNiche {
   createdAt: string;
   updatedAt: string;
   reelCount: number;
+  scrapeLimit: number | null;
+  scrapeMinViews: number | null;
+  scrapeMaxDaysOld: number | null;
+  scrapeIncludeViralOnly: boolean | null;
 }
 
 export interface AdminNicheReel {
@@ -203,16 +207,31 @@ export function useNicheJobs(nicheId: number) {
   });
 }
 
+export interface ScrapeConfigOverride {
+  limit?: number;
+  minViews?: number;
+  maxDaysOld?: number;
+  viralOnly?: boolean;
+}
+
 export function useScanNiche() {
   const { authenticatedFetch } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (nicheId: number) => {
+    mutationFn: async ({
+      nicheId,
+      config,
+    }: {
+      nicheId: number;
+      config?: ScrapeConfigOverride;
+    }) => {
       const res = await authenticatedFetch(
         `/api/admin/niches/${nicheId}/scan`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(config ?? {}),
         }
       );
       if (!res.ok) throw new Error("Failed to queue scan");
@@ -223,7 +242,7 @@ export function useScanNiche() {
         nicheId: number;
       }>;
     },
-    onSuccess: (_data, nicheId) => {
+    onSuccess: (_data, { nicheId }) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.api.admin.nicheJobs(nicheId),
       });

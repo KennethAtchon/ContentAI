@@ -125,10 +125,8 @@ reelsRouter.get(
       const nicheNameParam = c.req.query("niche") ?? "";
       const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
       const offset = parseInt(c.req.query("offset") ?? "0", 10);
-      const minViews = parseInt(
-        c.req.query("minViews") ?? String(VIRAL_VIEWS_THRESHOLD),
-        10,
-      );
+      const minViewsParam = c.req.query("minViews");
+      const minViews = minViewsParam ? parseInt(minViewsParam, 10) : null;
       const sort = c.req.query("sort") ?? "views";
       const isTrending =
         nicheNameParam.toLowerCase() === "trending" ||
@@ -143,7 +141,8 @@ reelsRouter.get(
               ? [desc(reels.createdAt)]
               : [desc(reels.views)];
 
-      const conditions: ReturnType<typeof gte>[] = [gte(reels.views, minViews)];
+      const conditions: ReturnType<typeof gte>[] = [];
+      if (minViews !== null) conditions.push(gte(reels.views, minViews));
 
       if (isTrending) {
         conditions.push(
