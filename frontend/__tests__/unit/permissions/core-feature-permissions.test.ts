@@ -1,6 +1,3 @@
-/**
- * Core feature permissions – tier requirements, hasFeatureAccess, hasTierAccess, getAccessibleFeatures.
- */
 import { describe, expect, test } from "bun:test";
 import {
   getRequiredTierForFeature,
@@ -13,26 +10,20 @@ import {
 
 describe("core-feature-permissions", () => {
   describe("getRequiredTierForFeature", () => {
-    test("mortgage is free (null)", () => {
-      expect(getRequiredTierForFeature("mortgage")).toBeNull();
+    test("studio is free (null)", () => {
+      expect(getRequiredTierForFeature("studio")).toBeNull();
     });
-    test("loan requires basic", () => {
-      expect(getRequiredTierForFeature("loan")).toBe("basic");
-    });
-    test("investment requires pro", () => {
-      expect(getRequiredTierForFeature("investment")).toBe("pro");
-    });
-    test("retirement requires enterprise", () => {
-      expect(getRequiredTierForFeature("retirement")).toBe("enterprise");
+    test("publishing requires pro", () => {
+      expect(getRequiredTierForFeature("publishing")).toBe("pro");
     });
   });
 
   describe("isFeatureFree", () => {
-    test("mortgage is free", () => {
-      expect(isFeatureFree("mortgage")).toBe(true);
+    test("studio is free", () => {
+      expect(isFeatureFree("studio")).toBe(true);
     });
-    test("loan is not free", () => {
-      expect(isFeatureFree("loan")).toBe(false);
+    test("publishing is not free", () => {
+      expect(isFeatureFree("publishing")).toBe(false);
     });
   });
 
@@ -60,50 +51,46 @@ describe("core-feature-permissions", () => {
 
   describe("hasFeatureAccess", () => {
     test("free feature: no tier required", () => {
-      expect(hasFeatureAccess(null, "mortgage")).toBe(true);
-      expect(hasFeatureAccess(undefined, "mortgage")).toBe(true);
-      expect(hasFeatureAccess("basic", "mortgage")).toBe(true);
+      expect(hasFeatureAccess(null, "studio")).toBe(true);
+      expect(hasFeatureAccess(undefined, "studio")).toBe(true);
+      expect(hasFeatureAccess("basic", "studio")).toBe(true);
     });
     test("gated feature: null tier no access", () => {
-      expect(hasFeatureAccess(null, "loan")).toBe(false);
+      expect(hasFeatureAccess(null, "publishing")).toBe(false);
     });
     test("gated feature: tier meets requirement", () => {
-      expect(hasFeatureAccess("basic", "loan")).toBe(true);
-      expect(hasFeatureAccess("pro", "investment")).toBe(true);
-      expect(hasFeatureAccess("enterprise", "retirement")).toBe(true);
+      expect(hasFeatureAccess("pro", "publishing")).toBe(true);
+      expect(hasFeatureAccess("enterprise", "publishing")).toBe(true);
     });
     test("gated feature: tier below requirement", () => {
-      expect(hasFeatureAccess("basic", "investment")).toBe(false);
-      expect(hasFeatureAccess("pro", "retirement")).toBe(false);
+      expect(hasFeatureAccess("basic", "publishing")).toBe(false);
     });
   });
 
   describe("getAccessibleFeatures", () => {
     test("null tier returns only free features", () => {
       const features = getAccessibleFeatures(null);
-      expect(features).toContain("mortgage");
-      expect(features).not.toContain("loan");
+      expect(features).toContain("studio");
+      expect(features).not.toContain("publishing");
     });
-    test("basic tier includes mortgage and loan", () => {
+    test("basic tier includes studio and generation but not publishing", () => {
       const features = getAccessibleFeatures("basic");
-      expect(features).toContain("mortgage");
-      expect(features).toContain("loan");
+      expect(features).toContain("studio");
+      expect(features).not.toContain("publishing");
     });
     test("enterprise tier includes all", () => {
       const features = getAccessibleFeatures("enterprise");
-      expect(features).toContain("mortgage");
-      expect(features).toContain("loan");
-      expect(features).toContain("investment");
-      expect(features).toContain("retirement");
+      expect(features).toContain("studio");
+      expect(features).toContain("publishing");
     });
   });
 
   describe("FEATURE_TIER_REQUIREMENTS", () => {
     test("has entries for all features", () => {
-      expect(FEATURE_TIER_REQUIREMENTS.mortgage).toBeNull();
-      expect(FEATURE_TIER_REQUIREMENTS.loan).toBe("basic");
-      expect(FEATURE_TIER_REQUIREMENTS.investment).toBe("pro");
-      expect(FEATURE_TIER_REQUIREMENTS.retirement).toBe("enterprise");
+      expect(FEATURE_TIER_REQUIREMENTS.studio).toBeNull();
+      expect(FEATURE_TIER_REQUIREMENTS.generation).toBeNull();
+      expect(FEATURE_TIER_REQUIREMENTS.queue).toBeNull();
+      expect(FEATURE_TIER_REQUIREMENTS.publishing).toBe("pro");
     });
   });
 });

@@ -242,7 +242,10 @@ describe("AuthGuard", () => {
     );
 
     await waitFor(() => {
-      expect(stableNavigate).toHaveBeenCalledWith({ to: "/" });
+      expect(stableNavigate).toHaveBeenCalledWith({
+        to: "/admin/verify",
+        search: { redirect: "/admin" }
+      });
     });
     expect(screen.queryByTestId("admin-content")).toBeNull();
   });
@@ -266,7 +269,10 @@ describe("AuthGuard", () => {
     );
 
     await waitFor(() => {
-      expect(stableNavigate).toHaveBeenCalledWith({ to: "/" });
+      expect(stableNavigate).toHaveBeenCalledWith({
+        to: "/admin/verify",
+        search: { redirect: "/admin" }
+      });
     });
     expect(screen.queryByTestId("admin-content")).toBeNull();
   });

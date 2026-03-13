@@ -1,12 +1,7 @@
-/**
- * Unit tests for subscription.constants – getTierConfig, tierHasExportFormat,
- * isUsageLimitReached, getTierDescription.
- */
 import { describe, expect, test } from "bun:test";
 import {
   SUBSCRIPTION_TIERS,
   getTierConfig,
-  tierHasExportFormat,
   isUsageLimitReached,
   getTierDescription,
   type SubscriptionTier,
@@ -18,7 +13,7 @@ describe("subscription.constants", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.BASIC, "monthly");
       expect(config.name).toBe("Basic");
       expect(config.billingCycle).toBe("monthly");
-      expect(config.features.calculationTypes).toContain("loan");
+      expect(config.features.aiAnalysis).toBe(true);
       expect(config.stripePriceId).toBeDefined();
       expect(typeof config.price).toBe("number");
     });
@@ -27,27 +22,12 @@ describe("subscription.constants", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.PRO, "annual");
       expect(config.name).toBe("Pro");
       expect(config.billingCycle).toBe("annual");
-      expect(config.features.exportFormats).toContain("pdf");
+      expect(config.features.apiAccess).toBe(true);
     });
 
     test("defaults billing cycle to monthly", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.ENTERPRISE);
       expect(config.billingCycle).toBe("monthly");
-    });
-  });
-
-  describe("tierHasExportFormat", () => {
-    test("returns true when tier has format", () => {
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.PRO, "pdf")).toBe(true);
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.ENTERPRISE, "api")).toBe(
-        true
-      );
-    });
-
-    test("returns false when tier does not have format", () => {
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.BASIC, "excel")).toBe(
-        false
-      );
     });
   });
 
