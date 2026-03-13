@@ -9,6 +9,7 @@ import {
   jsonb,
   serial,
   index,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -121,10 +122,8 @@ export const reels = pgTable(
     thumbnailUrl: text("thumbnail_url"),
     videoUrl: text("video_url"),
     // R2 storage URLs for downloaded media
-    // TODO: Rename columns to match what they store: videoR2Key → videoR2Url, audioR2Key → audioR2Url
-    // Storing full URLs is correct design - they can be used directly and include environment prefixes
-    videoR2Key: text("video_r2_key"),
-    audioR2Key: text("audio_r2_key"),
+    videoR2Url: text("video_r2_url"),
+    audioR2Url: text("audio_r2_url"),
     // Video metadata
     videoLengthSeconds: integer("video_length_seconds"),
     cutFrequencySeconds: numeric("cut_frequency_seconds", { precision: 4, scale: 2 }),
@@ -227,11 +226,93 @@ export const queueItems = pgTable(
   ],
 );
 
+// ─── Projects ───────────────────────────────────────────────────────────────
+
+export const projects = pgTable(
+  "project",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    nicheId: integer("niche_id").references(() => niches.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("projects_user_id_idx").on(t.userId),
+  ],
+);
+
+export const userNiches = pgTable(
+  "user_niche",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    nicheId: integer("niche_id").notNull().references(() => niches.id, { onDelete: "cascade" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("user_niches_user_id_idx").on(t.userId),
+    unique("user_niches_user_niche_unique").on(t.userId, t.nicheId),
+  ],
+);
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
+export const chatSessions = pgTable(
+  "chat_session",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id").notNull(),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("chat_sessions_user_id_idx").on(t.userId),
+    index("chat_sessions_project_id_idx").on(t.projectId),
+  ],
+);
+
+export const chatMessages = pgTable(
+  "chat_message",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    sessionId: text("session_id").notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // "user" | "assistant" | "system"
+    content: text("content").notNull(),
+    reelRefs: jsonb("reel_refs"), // Array of reel IDs referenced in this message
+    generatedContentId: integer("generated_content_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("chat_messages_session_id_idx").on(t.sessionId),
+  ],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
   featureUsages: many(featureUsages),
+  projects: many(projects),
+  userNiches: many(userNiches),
+  chatSessions: many(chatSessions),
 }));
 
 export const ordersRelations = relations(orders, ({ one }) => ({
@@ -244,10 +325,34 @@ export const featureUsagesRelations = relations(featureUsages, ({ one }) => ({
 
 export const nichesRelations = relations(niches, ({ many }) => ({
   reels: many(reels),
+  userNiches: many(userNiches),
+  projects: many(projects),
 }));
 
 export const reelsRelations = relations(reels, ({ one }) => ({
   niche: one(niches, { fields: [reels.nicheId], references: [niches.id] }),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, { fields: [projects.userId], references: [users.id] }),
+  niche: one(niches, { fields: [projects.nicheId], references: [niches.id] }),
+  chatSessions: many(chatSessions),
+}));
+
+export const userNichesRelations = relations(userNiches, ({ one }) => ({
+  user: one(users, { fields: [userNiches.userId], references: [users.id] }),
+  niche: one(niches, { fields: [userNiches.nicheId], references: [niches.id] }),
+}));
+
+export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
+  user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
+  project: one(projects, { fields: [chatSessions.projectId], references: [projects.id] }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  session: one(chatSessions, { fields: [chatMessages.sessionId], references: [chatSessions.id] }),
+  generatedContent: one(generatedContent, { fields: [chatMessages.generatedContentId], references: [generatedContent.id] }),
 }));
 
 // ─── Inferred types ───────────────────────────────────────────────────────────
@@ -270,3 +375,11 @@ export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type NewGeneratedContent = typeof generatedContent.$inferInsert;
 export type InstagramPage = typeof instagramPages.$inferSelect;
 export type QueueItem = typeof queueItems.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+export type UserNiche = typeof userNiches.$inferSelect;
+export type NewUserNiche = typeof userNiches.$inferInsert;
+export type ChatSession = typeof chatSessions.$inferSelect;
+export type NewChatSession = typeof chatSessions.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;

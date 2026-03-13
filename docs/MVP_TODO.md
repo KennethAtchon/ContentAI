@@ -8,39 +8,39 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/generate-tab-ai-chat-interface.md`
 
 ### Database
-- [ ] Create `projects` table (id, userId, name, description, nicheId, createdAt, updatedAt)
-- [ ] Create `userNiches` table (id, userId, nicheId, isPrimary, createdAt) with unique constraint
-- [ ] Create `chatSessions` table (id, userId, projectId, title, createdAt, updatedAt)
-- [ ] Create `chatMessages` table (id, sessionId, role, content, reelRefs jsonb, generatedContentId, createdAt)
-- [ ] Add indexes (projects_user_id, user_niches_user_id, chat_sessions_user_id, chat_sessions_project_id, chat_messages_session_id)
-- [ ] Add Drizzle relations for all 4 tables
-- [ ] Run `bun db:generate && bun db:migrate`
+- [x] Create `projects` table (id, userId, name, description, nicheId, createdAt, updatedAt)
+- [x] Create `userNiches` table (id, userId, nicheId, isPrimary, createdAt) with unique constraint
+- [x] Create `chatSessions` table (id, userId, projectId, title, createdAt, updatedAt)
+- [x] Create `chatMessages` table (id, sessionId, role, content, reelRefs jsonb, generatedContentId, createdAt)
+- [x] Add indexes (projects_user_id, user_niches_user_id, chat_sessions_user_id, chat_sessions_project_id, chat_messages_session_id)
+- [x] Add Drizzle relations for all 4 tables
+- [x] Run `bun db:generate && bun db:migrate`
 
 ### Backend
-- [ ] Create `POST/GET /api/projects` — create + list user projects
-- [ ] Create `GET/PUT/DELETE /api/projects/:id` — single project CRUD
-- [ ] Create `GET/POST /api/chat/sessions` — list + create chat sessions (filter by projectId)
-- [ ] Create `GET/DELETE /api/chat/sessions/:id` — get session with messages + delete
-- [ ] Create `POST /api/chat/sessions/:id/messages` — send message + stream AI response (SSE)
-- [ ] Create `chat-generate.txt` prompt file for conversational content generation
-- [ ] Create `chat-generator.ts` service — builds context from project niche + referenced reels, calls `streamText()`
-- [ ] Auto-title sessions from first message (first 50 chars)
-- [ ] Mount new routes in `index.ts`
-- [ ] Install `ai` package in backend if not present (for `streamText` + `toDataStreamResponse`)
+- [x] Create `POST/GET /api/projects` — create + list user projects
+- [x] Create `GET/PUT/DELETE /api/projects/:id` — single project CRUD
+- [x] Create `GET/POST /api/chat/sessions` — list + create chat sessions (filter by projectId)
+- [x] Create `GET/DELETE /api/chat/sessions/:id` — get session with messages + delete
+- [x] Create `POST /api/chat/sessions/:id/messages` — send message + stream AI response (SSE)
+- [x] Create `chat-generate.txt` prompt file for conversational content generation
+- [x] Create `chat-generator.ts` service — builds context from project niche + referenced reels, calls `streamText()`
+- [x] Auto-title sessions from first message (first 50 chars)
+- [x] Mount new routes in `index.ts`
+- [x] Install `ai` package in backend if not present (for `streamText` + `toDataStreamResponse`)
 
 ### Frontend
-- [ ] Create `src/features/chat/` feature folder (components/, hooks/, services/, types/)
-- [ ] Create `chat.types.ts` — Project, ChatSession, ChatMessage types
-- [ ] Add query keys: projects, project, chatSessions, chatSession, chatMessages
-- [ ] Create `use-projects.ts` hook — project CRUD with React Query
-- [ ] Create `use-chat-sessions.ts` hook — session CRUD + message fetching
-- [ ] Create `use-chat-stream.ts` hook — `useChat` from `ai/react` with `authenticatedFetch`
-- [ ] Create `ProjectSidebar.tsx` — project list, new project button, session list
-- [ ] Create `ChatPanel.tsx` — scrollable message thread
-- [ ] Create `ChatMessage.tsx` — user/assistant message bubbles
-- [ ] Create `ChatInput.tsx` — message input with send button
-- [ ] Replace `studio/generate.tsx` with new two-panel layout (sidebar + chat)
-- [ ] Store `projectId` and `sessionId` in URL search params
+- [x] Create `src/features/chat/` feature folder (components/, hooks/, services/, types/)
+- [x] Create `chat.types.ts` — Project, ChatSession, ChatMessage types
+- [x] Add query keys: projects, project, chatSessions, chatSession, chatMessages
+- [x] Create `use-projects.ts` hook — project CRUD with React Query
+- [x] Create `use-chat-sessions.ts` hook — session CRUD + message fetching
+- [x] Create `use-chat-stream.ts` hook — `useChat` from `ai/react` with `authenticatedFetch`
+- [x] Create `ProjectSidebar.tsx` — project list, new project button, session list
+- [x] Create `ChatPanel.tsx` — scrollable message thread
+- [x] Create `ChatMessage.tsx` — user/assistant message bubbles
+- [x] Create `ChatInput.tsx` — message input with send button
+- [x] Replace `studio/generate.tsx` with new two-panel layout (sidebar + chat)
+- [x] Store `projectId` and `sessionId` in URL search params
 - [ ] Add i18n keys for all new UI strings
 - [ ] Install `ai` package in frontend (for `useChat`)
 
@@ -81,7 +81,7 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 - [ ] Add project filter dropdown
 
 ### Database
-- [ ] Add `thumbnailR2Key` and `videoR2Key` columns to `generatedContent` (for assembled output, distinct from source reel)
+- [ ] Add `thumbnailR2Key` and `videoR2Url` columns to `generatedContent` (for assembled output, distinct from source reel)
 - [ ] Verify `queueItems.status` values align with new flow (draft, ready, scheduled, posted, failed)
 
 ---

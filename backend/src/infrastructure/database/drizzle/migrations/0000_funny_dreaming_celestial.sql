@@ -1,3 +1,22 @@
+CREATE TABLE "chat_message" (
+	"id" text PRIMARY KEY NOT NULL,
+	"session_id" text NOT NULL,
+	"role" text NOT NULL,
+	"content" text NOT NULL,
+	"reel_refs" jsonb,
+	"generated_content_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "chat_session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"project_id" text,
+	"title" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "contact_message" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
@@ -68,6 +87,16 @@ CREATE TABLE "order" (
 	CONSTRAINT "order_stripe_session_id_unique" UNIQUE("stripe_session_id")
 );
 --> statement-breakpoint
+CREATE TABLE "project" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"niche_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "queue_item" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -91,6 +120,12 @@ CREATE TABLE "reel_analysis" (
 	"caption_framework" text,
 	"curiosity_gap_style" text,
 	"remix_suggestion" text,
+	"audio_type" text,
+	"caption_style" text,
+	"caption_font" text,
+	"comment_bait_style" text,
+	"on_screen_text_structure" text,
+	"text_position" text,
 	"analysis_model" text,
 	"raw_response" jsonb,
 	"analyzed_at" timestamp DEFAULT now() NOT NULL
@@ -112,12 +147,25 @@ CREATE TABLE "reel" (
 	"thumbnail_emoji" text,
 	"thumbnail_url" text,
 	"video_url" text,
+	"video_r2_url" text,
+	"audio_r2_url" text,
+	"video_length_seconds" integer,
+	"cut_frequency_seconds" numeric(4, 2),
 	"posted_at" timestamp,
 	"days_ago" integer,
 	"is_viral" boolean DEFAULT false NOT NULL,
 	"scraped_at" timestamp DEFAULT now() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "reel_external_id_unique" UNIQUE("external_id")
+);
+--> statement-breakpoint
+CREATE TABLE "user_niche" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"niche_id" integer NOT NULL,
+	"is_primary" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_niches_user_niche_unique" UNIQUE("user_id","niche_id")
 );
 --> statement-breakpoint
 CREATE TABLE "user" (
@@ -141,13 +189,22 @@ CREATE TABLE "user" (
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_session_id_chat_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."chat_session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project" ADD CONSTRAINT "project_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reel" ADD CONSTRAINT "reel_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_niche" ADD CONSTRAINT "user_niche_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "chat_messages_session_id_idx" ON "chat_message" USING btree ("session_id");--> statement-breakpoint
+CREATE INDEX "chat_sessions_user_id_idx" ON "chat_session" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "chat_sessions_project_id_idx" ON "chat_session" USING btree ("project_id");--> statement-breakpoint
 CREATE INDEX "feature_usages_user_id_idx" ON "feature_usage" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_user_id_idx" ON "generated_content" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_source_reel_idx" ON "generated_content" USING btree ("source_reel_id");--> statement-breakpoint
 CREATE INDEX "orders_user_id_idx" ON "order" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "projects_user_id_idx" ON "project" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "queue_items_user_id_idx" ON "queue_item" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "queue_items_status_idx" ON "queue_item" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "reel_analyses_reel_id_idx" ON "reel_analysis" USING btree ("reel_id");--> statement-breakpoint
 CREATE INDEX "reels_niche_id_idx" ON "reel" USING btree ("niche_id");--> statement-breakpoint
-CREATE INDEX "reels_views_idx" ON "reel" USING btree ("views");
+CREATE INDEX "reels_views_idx" ON "reel" USING btree ("views");--> statement-breakpoint
+CREATE INDEX "user_niches_user_id_idx" ON "user_niche" USING btree ("user_id");

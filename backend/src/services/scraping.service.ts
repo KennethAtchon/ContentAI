@@ -384,13 +384,12 @@ class ScrapingService {
         : Promise.resolve(null),
     ]);
 
-    const updates: { videoR2Key?: string; audioR2Key?: string } = {};
+    const updates: { videoR2Url?: string; audioR2Url?: string } = {};
 
-    // TODO: Rename columns to match what they store: videoR2Key → videoR2Url, audioR2Key → audioR2Url
     // Storing full URLs is correct design - they include environment prefixes and can be used directly
     
     if (videoResult.status === "fulfilled" && videoResult.value) {
-      updates.videoR2Key = videoResult.value;
+      updates.videoR2Url = videoResult.value;
     } else if (videoResult.status === "rejected") {
       debugLog.warn("Video R2 upload failed", {
         service: "scraping-service",
@@ -400,7 +399,7 @@ class ScrapingService {
     }
 
     if (audioResult.status === "fulfilled" && audioResult.value) {
-      updates.audioR2Key = audioResult.value;
+      updates.audioR2Url = audioResult.value;
     } else if (audioResult.status === "rejected") {
       debugLog.warn("Audio R2 upload failed", {
         service: "scraping-service",

@@ -26,7 +26,7 @@ export function TikTokVideoCard({
   const [isBuffering, setIsBuffering] = useState(true);
   const [captionExpanded, setCaptionExpanded] = useState(false);
 
-  const hasVideo = !!(reel.videoUrl || reel.videoR2Key);
+  const hasVideo = !!(reel.videoUrl || reel.videoR2Url);
   const { data: mediaData } = useReelMediaUrl(
     isActive ? reel.id : null,
     hasVideo,

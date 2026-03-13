@@ -170,7 +170,7 @@ reelsRouter.get(
             thumbnailEmoji: reels.thumbnailEmoji,
             thumbnailUrl: reels.thumbnailUrl,
             videoUrl: reels.videoUrl,
-            videoR2Key: reels.videoR2Key,
+            videoR2Url: reels.videoR2Url,
             daysAgo: reels.daysAgo,
             isViral: reels.isViral,
             audioName: reels.audioName,
@@ -268,7 +268,7 @@ reelsRouter.get(
 
       const [reel] = await db
         .select({
-          videoR2Key: reels.videoR2Key,
+          videoR2Url: reels.videoR2Url,
           videoUrl: reels.videoUrl,
         })
         .from(reels)
@@ -277,12 +277,12 @@ reelsRouter.get(
       if (!reel) return c.json({ error: "Reel not found" }, 404);
 
       // Prefer R2 presigned URL, fall back to CDN URL
-      // TODO: Rename columns for clarity: videoR2Key/audioR2Key -> videoR2Url/audioR2Url.
+      // TODO: Rename columns for clarity: videoR2Url/audioR2Url are now full URLs.
       // Keep extractKeyFromUrl while values are full URLs; remove only if storage migrates to raw keys.
       let url: string | null = null;
-      if (reel.videoR2Key) {
+      if (reel.videoR2Url) {
         try {
-          const rawKey = extractKeyFromUrl(reel.videoR2Key);
+          const rawKey = extractKeyFromUrl(reel.videoR2Url);
           if (rawKey) {
             url = await getFileUrl(rawKey, 3600);
           } else {
