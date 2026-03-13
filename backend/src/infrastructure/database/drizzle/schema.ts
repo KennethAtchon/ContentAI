@@ -96,7 +96,9 @@ export const niches = pgTable("niche", {
   scrapeLimit: integer("scrape_limit").notNull().default(100), // Max reels to scrape per run
   scrapeMinViews: integer("scrape_min_views").notNull().default(1000), // Minimum views for reels
   scrapeMaxDaysOld: integer("scrape_max_days_old").notNull().default(30), // Maximum age in days
-  scrapeIncludeViralOnly: boolean("scrape_include_viral_only").notNull().default(false), // Only viral content
+  scrapeIncludeViralOnly: boolean("scrape_include_viral_only")
+    .notNull()
+    .default(false), // Only viral content
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .notNull()
@@ -131,7 +133,10 @@ export const reels = pgTable(
     audioR2Url: text("audio_r2_url"),
     // Video metadata
     videoLengthSeconds: integer("video_length_seconds"),
-    cutFrequencySeconds: numeric("cut_frequency_seconds", { precision: 4, scale: 2 }),
+    cutFrequencySeconds: numeric("cut_frequency_seconds", {
+      precision: 4,
+      scale: 2,
+    }),
     postedAt: timestamp("posted_at"),
     daysAgo: integer("days_ago"),
     isViral: boolean("is_viral").notNull().default(false),
@@ -242,16 +247,16 @@ export const projects = pgTable(
     userId: text("user_id").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    nicheId: integer("niche_id").references(() => niches.id, { onDelete: "restrict" }),
+    nicheId: integer("niche_id").references(() => niches.id, {
+      onDelete: "restrict",
+    }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
       .defaultNow()
       .$onUpdateFn(() => new Date()),
   },
-  (t) => [
-    index("projects_user_id_idx").on(t.userId),
-  ],
+  (t) => [index("projects_user_id_idx").on(t.userId)],
 );
 
 export const userNiches = pgTable(
@@ -259,7 +264,9 @@ export const userNiches = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: text("user_id").notNull(),
-    nicheId: integer("niche_id").notNull().references(() => niches.id, { onDelete: "cascade" }),
+    nicheId: integer("niche_id")
+      .notNull()
+      .references(() => niches.id, { onDelete: "cascade" }),
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -278,7 +285,9 @@ export const chatSessions = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id").notNull(),
-    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
     title: text("title").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
@@ -298,16 +307,16 @@ export const chatMessages = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    sessionId: text("session_id").notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
     role: text("role").notNull(), // "user" | "assistant" | "system"
     content: text("content").notNull(),
     reelRefs: jsonb("reel_refs"), // Array of reel IDs referenced in this message
     generatedContentId: integer("generated_content_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [
-    index("chat_messages_session_id_idx").on(t.sessionId),
-  ],
+  (t) => [index("chat_messages_session_id_idx").on(t.sessionId)],
 );
 
 // ─── Relations ────────────────────────────────────────────────────────────────
@@ -349,15 +358,27 @@ export const userNichesRelations = relations(userNiches, ({ one }) => ({
   niche: one(niches, { fields: [userNiches.nicheId], references: [niches.id] }),
 }));
 
-export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
-  user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
-  project: one(projects, { fields: [chatSessions.projectId], references: [projects.id] }),
-  messages: many(chatMessages),
-}));
+export const chatSessionsRelations = relations(
+  chatSessions,
+  ({ one, many }) => ({
+    user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
+    project: one(projects, {
+      fields: [chatSessions.projectId],
+      references: [projects.id],
+    }),
+    messages: many(chatMessages),
+  }),
+);
 
 export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
-  session: one(chatSessions, { fields: [chatMessages.sessionId], references: [chatSessions.id] }),
-  generatedContent: one(generatedContent, { fields: [chatMessages.generatedContentId], references: [generatedContent.id] }),
+  session: one(chatSessions, {
+    fields: [chatMessages.sessionId],
+    references: [chatSessions.id],
+  }),
+  generatedContent: one(generatedContent, {
+    fields: [chatMessages.generatedContentId],
+    references: [generatedContent.id],
+  }),
 }));
 
 // ─── Inferred types ───────────────────────────────────────────────────────────

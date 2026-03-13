@@ -77,10 +77,7 @@ generationRouter.get(
     try {
       const auth = c.get("auth");
       const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
-      const limit = Math.min(
-        parseInt(c.req.query("limit") ?? "10", 10),
-        50,
-      );
+      const limit = Math.min(parseInt(c.req.query("limit") ?? "10", 10), 50);
       const offset = (page - 1) * limit;
 
       const [rows, [{ total }]] = await Promise.all([

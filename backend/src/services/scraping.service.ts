@@ -79,7 +79,7 @@ class ScrapingService {
   async scrapeNiche(
     nicheId: number,
     nicheName: string,
-    config: Partial<ScrapeConfig> = {}
+    config: Partial<ScrapeConfig> = {},
   ): Promise<ScrapeResult> {
     const apiKey = SOCIAL_API_KEY;
 
@@ -109,7 +109,12 @@ class ScrapingService {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        return await this.scrapeViaApify(nicheId, nicheName, apiKey, finalConfig);
+        return await this.scrapeViaApify(
+          nicheId,
+          nicheName,
+          apiKey,
+          finalConfig,
+        );
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
@@ -220,7 +225,7 @@ class ScrapingService {
           resultsType: "reels",
           resultsLimit: config.limit,
           // Add additional filtering based on config
-          // Note: Apify may not support all these filters directly, 
+          // Note: Apify may not support all these filters directly,
           // so we'll filter them in saveReels method
         }),
       },
@@ -332,16 +337,15 @@ class ScrapingService {
       const comments = item.commentsCount ?? 0;
       const engagement =
         views > 0 ? (((likes + comments) / views) * 100).toFixed(2) : null;
-      const videoUrl = item.videoUrl ?? item.videoPlaybackUrl ?? item.url ?? null;
+      const videoUrl =
+        item.videoUrl ?? item.videoPlaybackUrl ?? item.url ?? null;
       const audioUrl = item.audioUrl ?? null;
       const username = item.ownerUsername ?? item.ownerFullName ?? "unknown";
 
       // Apply configuration-based filtering
       const postedAt = item.timestamp ? new Date(item.timestamp) : null;
       const daysAgo = postedAt
-        ? Math.floor(
-            (Date.now() - postedAt.getTime()) / (1000 * 60 * 60 * 24),
-          )
+        ? Math.floor((Date.now() - postedAt.getTime()) / (1000 * 60 * 60 * 24))
         : null;
 
       // Skip if below minimum views
@@ -376,7 +380,8 @@ class ScrapingService {
         audioId: item.musicInfo?.audio_id ?? null,
         thumbnailUrl: item.thumbnailUrl ?? item.displayUrl ?? null,
         videoUrl,
-        videoLengthSeconds: item.videoDuration != null ? Math.round(item.videoDuration) : null,
+        videoLengthSeconds:
+          item.videoDuration != null ? Math.round(item.videoDuration) : null,
         postedAt,
         daysAgo,
         isViral: views >= VIRAL_THRESHOLD,
@@ -399,13 +404,17 @@ class ScrapingService {
           saved++;
           // Fire-and-forget: upload media to R2 and persist keys back to the row
           const reelId = result[0]!.id;
-          this.uploadAndStoreMedia(reelId, externalId, videoUrl, audioUrl).catch(
-            (err) =>
-              debugLog.error("Media upload failed", {
-                service: "scraping-service",
-                externalId,
-                error: err instanceof Error ? err.message : String(err),
-              }),
+          this.uploadAndStoreMedia(
+            reelId,
+            externalId,
+            videoUrl,
+            audioUrl,
+          ).catch((err) =>
+            debugLog.error("Media upload failed", {
+              service: "scraping-service",
+              externalId,
+              error: err instanceof Error ? err.message : String(err),
+            }),
           );
         }
       } catch (err) {
@@ -460,7 +469,7 @@ class ScrapingService {
     const updates: { videoR2Url?: string; audioR2Url?: string } = {};
 
     // Storing full URLs is correct design - they include environment prefixes and can be used directly
-    
+
     if (videoResult.status === "fulfilled" && videoResult.value) {
       updates.videoR2Url = videoResult.value;
     } else if (videoResult.status === "rejected") {
@@ -485,7 +494,6 @@ class ScrapingService {
       await db.update(reels).set(updates).where(eq(reels.id, reelId));
     }
   }
-
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

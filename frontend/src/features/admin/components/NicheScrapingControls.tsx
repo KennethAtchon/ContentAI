@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Switch } from "@/shared/components/ui/switch";
 import { Loader2, Settings, Play } from "lucide-react";
+import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
+import { debugLog } from "@/shared/utils/debug/debug";
 
 interface ScrapeConfig {
   limit: number;
@@ -14,7 +21,7 @@ interface ScrapeConfig {
   viralOnly: boolean;
 }
 
-interface Niche {
+interface _Niche {
   id: number;
   name: string;
   config: ScrapeConfig;
@@ -29,8 +36,7 @@ interface ScrapeJob {
 }
 
 export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
-  const { t } = useTranslation();
-  const [niche, setNiche] = useState<Niche | null>(null);
+  const { t: _ } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -46,14 +52,19 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const response = await fetch(`/api/admin/niches/${nicheId}/config`);
+        const response = await authenticatedFetch(
+          `/api/admin/niches/${nicheId}/config`
+        );
         if (response.ok) {
           const data = await response.json();
-          setNiche(data);
           setConfig(data.config);
         }
       } catch (error) {
-        console.error("Failed to load niche config:", error);
+        debugLog.error("Failed to load niche config", {
+          service: "niche-scraping-controls",
+          operation: "loadConfig",
+          error: error instanceof Error ? error.message : String(error),
+        });
       } finally {
         setLoading(false);
       }
@@ -66,20 +77,26 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
   const handleSaveConfig = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/admin/niches/${nicheId}/config`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(config),
-      });
+      const response = await authenticatedFetch(
+        `/api/admin/niches/${nicheId}/config`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(config),
+        }
+      );
 
       if (response.ok) {
-        const data = await response.json();
-        setNiche(data);
+        // Config saved successfully
       }
     } catch (error) {
-      console.error("Failed to save niche config:", error);
+      debugLog.error("Failed to save niche config", {
+        service: "niche-scraping-controls",
+        operation: "handleSaveConfig",
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setSaving(false);
     }
@@ -89,20 +106,27 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
   const handleStartScraping = async () => {
     setScanning(true);
     try {
-      const response = await fetch(`/api/admin/niches/${nicheId}/scan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(config), // Use current config as override
-      });
+      const response = await authenticatedFetch(
+        `/api/admin/niches/${nicheId}/scan`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(config), // Use current config as override
+        }
+      );
 
       if (response.ok) {
         const job = await response.json();
         setLastJob(job);
       }
     } catch (error) {
-      console.error("Failed to start scraping:", error);
+      debugLog.error("Failed to start scraping job", {
+        service: "niche-scraping-controls",
+        operation: "handleStartScraping",
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setScanning(false);
     }
@@ -140,7 +164,12 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 min="1"
                 max="10000"
                 value={config.limit}
-                onChange={(e) => setConfig({ ...config, limit: parseInt(e.target.value) || 100 })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    limit: parseInt(e.target.value) || 100,
+                  })
+                }
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -155,7 +184,12 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 type="number"
                 min="0"
                 value={config.minViews}
-                onChange={(e) => setConfig({ ...config, minViews: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    minViews: parseInt(e.target.value) || 0,
+                  })
+                }
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -171,7 +205,12 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 min="1"
                 max="365"
                 value={config.maxDaysOld}
-                onChange={(e) => setConfig({ ...config, maxDaysOld: parseInt(e.target.value) || 30 })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    maxDaysOld: parseInt(e.target.value) || 30,
+                  })
+                }
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -183,7 +222,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
               <Switch
                 id="viralOnly"
                 checked={config.viralOnly}
-                onCheckedChange={(checked) => setConfig({ ...config, viralOnly: checked })}
+                onCheckedChange={(checked) =>
+                  setConfig({ ...config, viralOnly: checked })
+                }
               />
               <Label htmlFor="viralOnly">Viral Content Only</Label>
             </div>

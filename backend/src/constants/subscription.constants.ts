@@ -31,9 +31,9 @@ export type SubscriptionStatus =
   | "incomplete_expired";
 
 export interface SubscriptionTierFeatures {
-  maxReelsPerMonth: number;        // -1 = unlimited
-  maxGenerationsPerMonth: number;  // -1 = unlimited (AI chat messages)
-  maxQueueItems: number;           // -1 = unlimited
+  maxReelsPerMonth: number; // -1 = unlimited
+  maxGenerationsPerMonth: number; // -1 = unlimited (AI chat messages)
+  maxQueueItems: number; // -1 = unlimited
   aiAnalysis: boolean;
   instagramPublishing: boolean;
   supportLevel: "email" | "priority" | "dedicated";
@@ -98,7 +98,7 @@ export interface SubscriptionTierConfigFull {
 
 export function getTierConfig(
   tier: SubscriptionTier,
-  billingCycle: "monthly" | "annual" = "monthly"
+  billingCycle: "monthly" | "annual" = "monthly",
 ): SubscriptionTierConfigFull {
   return {
     name: TIER_NAMES[tier],
@@ -111,7 +111,7 @@ export function getTierConfig(
 
 export function isUsageLimitReached(
   usageCount: number,
-  usageLimit: number | null
+  usageLimit: number | null,
 ): boolean {
   if (usageLimit === null || usageLimit === -1) return false;
   return usageCount >= usageLimit;

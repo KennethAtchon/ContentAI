@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { authMiddleware, rateLimiter, csrfMiddleware } from "../../middleware/protection";
+import {
+  authMiddleware,
+  rateLimiter,
+  csrfMiddleware,
+} from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import { projects, niches } from "../../infrastructure/database/drizzle/schema";
@@ -27,7 +31,7 @@ const updateProjectSchema = z.object({
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   try {
     const auth = c.get("auth");
-    
+
     const userProjects = await db
       .select({
         id: projects.id,
@@ -59,18 +63,22 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
 
 // POST /api/projects - Create new project
 app.post(
-  "/", 
+  "/",
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", createProjectSchema), 
+  zValidator("json", createProjectSchema),
   async (c) => {
     try {
       const auth = c.get("auth");
       const { name, description, nicheId } = c.req.valid("json");
 
       // Verify niche exists
-      const niche = await db.select().from(niches).where(eq(niches.id, nicheId)).limit(1);
+      const niche = await db
+        .select()
+        .from(niches)
+        .where(eq(niches.id, nicheId))
+        .limit(1);
       if (!niche.length) {
         return c.json({ error: "Niche not found" }, 404);
       }
@@ -95,7 +103,7 @@ app.post(
       });
       return c.json({ error: "Failed to create project" }, 500);
     }
-  }
+  },
 );
 
 // GET /api/projects/:id - Get single project
@@ -139,11 +147,11 @@ app.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
 
 // PUT /api/projects/:id - Update project
 app.put(
-  "/:id", 
+  "/:id",
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", updateProjectSchema), 
+  zValidator("json", updateProjectSchema),
   async (c) => {
     try {
       const auth = c.get("auth");
@@ -152,7 +160,11 @@ app.put(
 
       // If updating nicheId, verify niche exists
       if (updates.nicheId) {
-        const niche = await db.select().from(niches).where(eq(niches.id, updates.nicheId)).limit(1);
+        const niche = await db
+          .select()
+          .from(niches)
+          .where(eq(niches.id, updates.nicheId))
+          .limit(1);
         if (!niche.length) {
           return c.json({ error: "Niche not found" }, 404);
         }
@@ -161,7 +173,9 @@ app.put(
       const [updatedProject] = await db
         .update(projects)
         .set(updates)
-        .where(and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)))
+        .where(
+          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+        )
         .returning();
 
       if (!updatedProject) {
@@ -177,15 +191,15 @@ app.put(
       });
       return c.json({ error: "Failed to update project" }, 500);
     }
-  }
+  },
 );
 
 // DELETE /api/projects/:id - Delete project
 app.delete(
-  "/:id", 
+  "/:id",
   rateLimiter("customer"),
   csrfMiddleware(),
-  authMiddleware("user"), 
+  authMiddleware("user"),
   async (c) => {
     try {
       const auth = c.get("auth");
@@ -193,7 +207,9 @@ app.delete(
 
       const [deletedProject] = await db
         .delete(projects)
-        .where(and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)))
+        .where(
+          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+        )
         .returning();
 
       if (!deletedProject) {
@@ -209,7 +225,7 @@ app.delete(
       });
       return c.json({ error: "Failed to delete project" }, 500);
     }
-  }
+  },
 );
 
 export default app;

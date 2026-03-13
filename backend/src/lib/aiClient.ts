@@ -128,12 +128,13 @@ export function getModel(modelTier: "analysis" | "generation" = "generation") {
   if (openaiProvider) {
     return openaiProvider(OPENAI_MODEL);
   }
-  
-  const claudeModel = modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
+
+  const claudeModel =
+    modelTier === "generation" ? GENERATION_MODEL : ANALYSIS_MODEL;
   return anthropicProvider(claudeModel);
 }
 
-export async function streamAi(params: AiMessage) {
+export async function streamAi(params: AiMessage): Promise<any> {
   const {
     system,
     userContent,

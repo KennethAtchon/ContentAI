@@ -27,6 +27,8 @@ interface ProjectSidebarProps {
   onProjectSelect: (project: Project) => void;
   onSessionSelect: (session: ChatSession) => void;
   onNewProject: () => void;
+  showNewProjectForm: boolean;
+  onHideNewProjectForm: () => void;
 }
 
 export function ProjectSidebar({
@@ -35,9 +37,10 @@ export function ProjectSidebar({
   onProjectSelect,
   onSessionSelect,
   onNewProject,
+  showNewProjectForm,
+  onHideNewProjectForm,
 }: ProjectSidebarProps) {
   const { t } = useTranslation();
-  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectNicheId, setNewProjectNicheId] = useState("");
@@ -63,7 +66,7 @@ export function ProjectSidebar({
       setNewProjectName("");
       setNewProjectDescription("");
       setNewProjectNicheId("");
-      setShowNewProjectForm(false);
+      onHideNewProjectForm();
     } catch (error) {
       debugLog.error("Failed to create project", {
         service: "project-sidebar",
@@ -172,7 +175,7 @@ export function ProjectSidebar({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowNewProjectForm(false)}
+                    onClick={() => onHideNewProjectForm()}
                   >
                     {t("studio_chat_cancel")}
                   </Button>

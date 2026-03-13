@@ -11,9 +11,16 @@ import type { Project, ChatSession } from "../types/chat.types";
 interface ChatLayoutProps {
   projects: Project[];
   onNewProject: () => void;
+  showNewProjectForm: boolean;
+  onHideNewProjectForm: () => void;
 }
 
-export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
+export function ChatLayout({
+  projects,
+  onNewProject,
+  showNewProjectForm,
+  onHideNewProjectForm,
+}: ChatLayoutProps) {
   const { t } = useTranslation();
   const search = useSearch({ strict: false }) as {
     projectId?: string;
@@ -87,6 +94,8 @@ export function ChatLayout({ projects, onNewProject }: ChatLayoutProps) {
         onProjectSelect={handleProjectSelect}
         onSessionSelect={handleSessionSelect}
         onNewProject={onNewProject}
+        showNewProjectForm={showNewProjectForm}
+        onHideNewProjectForm={onHideNewProjectForm}
       />
 
       <div className="flex-1 flex flex-col">

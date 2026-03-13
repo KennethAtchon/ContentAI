@@ -39,9 +39,9 @@ class QueueService {
 
   /** Enqueue a new scrape job for the given niche. Returns the job immediately. */
   async enqueue(
-    nicheId: number, 
-    nicheName: string, 
-    config: Partial<ScrapeConfig> = {}
+    nicheId: number,
+    nicheName: string,
+    config: Partial<ScrapeConfig> = {},
   ): Promise<ScrapeJob> {
     const job: ScrapeJob = {
       id: `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

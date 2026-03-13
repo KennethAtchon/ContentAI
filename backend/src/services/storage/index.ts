@@ -9,7 +9,11 @@ export interface StorageService {
     path: string,
     contentType: string,
   ): Promise<string>;
-  uploadFromUrl(url: string, key: string, fallbackContentType: string): Promise<string>;
+  uploadFromUrl(
+    url: string,
+    key: string,
+    fallbackContentType: string,
+  ): Promise<string>;
   deleteFile(url: string): Promise<void>;
   getPublicUrl(path: string): string;
 }

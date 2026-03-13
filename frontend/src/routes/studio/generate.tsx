@@ -4,14 +4,15 @@ import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ChatLayout } from "@/features/chat/components/ChatLayout";
 import { useProjects } from "@/features/chat/hooks/use-projects";
+import { useState } from "react";
 
 function GeneratePage() {
   const { t } = useTranslation();
   const { data: projects, isLoading } = useProjects();
+  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
 
   const handleNewProject = () => {
-    // This could open a modal or navigate to a project creation page
-    // TODO: Implement project creation modal or navigation
+    setShowNewProjectForm(true);
   };
 
   return (
@@ -30,7 +31,12 @@ function GeneratePage() {
               </div>
             </div>
           ) : projects ? (
-            <ChatLayout projects={projects} onNewProject={handleNewProject} />
+            <ChatLayout
+              projects={projects}
+              onNewProject={handleNewProject}
+              showNewProjectForm={showNewProjectForm}
+              onHideNewProjectForm={() => setShowNewProjectForm(false)}
+            />
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

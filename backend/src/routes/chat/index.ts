@@ -1,14 +1,22 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { authMiddleware, rateLimiter, csrfMiddleware } from "../../middleware/protection";
+import {
+  authMiddleware,
+  rateLimiter,
+  csrfMiddleware,
+} from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { chatSessions, chatMessages, projects, generatedContent } from "../../infrastructure/database/drizzle/schema";
+import {
+  chatSessions,
+  chatMessages,
+  projects,
+} from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { streamText } from "ai";
-import { callAi, loadPrompt, getModel } from "../../lib/aiClient";
+import { loadPrompt, getModel } from "../../lib/aiClient";
 
 const app = new Hono<HonoEnv>();
 
@@ -24,44 +32,54 @@ const sendMessageSchema = z.object({
 });
 
 // GET /api/chat/sessions - List user chat sessions (optionally filter by projectId)
-app.get("/sessions", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
-    const auth = c.get("auth");
-    const projectId = c.req.query("projectId");
+app.get(
+  "/sessions",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const projectId = c.req.query("projectId");
 
-    let whereClause = eq(chatSessions.userId, auth.user.id);
-    if (projectId) {
-      whereClause = and(whereClause, eq(chatSessions.projectId, projectId)) as any;
+      const whereClause = projectId
+        ? and(
+            eq(chatSessions.userId, auth.user.id),
+            eq(chatSessions.projectId, projectId),
+          )
+        : eq(chatSessions.userId, auth.user.id);
+
+      const sessions = await db
+        .select({
+          id: chatSessions.id,
+          title: chatSessions.title,
+          projectId: chatSessions.projectId,
+          project: {
+            id: projects.id,
+            name: projects.name,
+          },
+          createdAt: chatSessions.createdAt,
+          updatedAt: chatSessions.updatedAt,
+          messageCount:
+            sql<number>`(SELECT COUNT(*) FROM ${chatMessages} WHERE ${chatMessages.sessionId} = ${chatSessions.id})`.mapWith(
+              Number,
+            ),
+        })
+        .from(chatSessions)
+        .leftJoin(projects, eq(chatSessions.projectId, projects.id))
+        .where(whereClause)
+        .orderBy(desc(chatSessions.updatedAt));
+
+      return c.json({ sessions });
+    } catch (error) {
+      debugLog.error("Failed to fetch chat sessions", {
+        service: "chat-route",
+        operation: "getSessions",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch sessions" }, 500);
     }
-
-    const sessions = await db
-      .select({
-        id: chatSessions.id,
-        title: chatSessions.title,
-        projectId: chatSessions.projectId,
-        project: {
-          id: projects.id,
-          name: projects.name,
-        },
-        createdAt: chatSessions.createdAt,
-        updatedAt: chatSessions.updatedAt,
-        messageCount: sql<number>`(SELECT COUNT(*) FROM ${chatMessages} WHERE ${chatMessages.sessionId} = ${chatSessions.id})`.mapWith(Number),
-      })
-      .from(chatSessions)
-      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-      .where(whereClause)
-      .orderBy(desc(chatSessions.updatedAt));
-
-    return c.json({ sessions });
-  } catch (error) {
-    debugLog.error("Failed to fetch chat sessions", {
-      service: "chat-route",
-      operation: "getSessions",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch sessions" }, 500);
-  }
-});
+  },
+);
 
 // POST /api/chat/sessions - Create new chat session
 app.post(
@@ -79,7 +97,9 @@ app.post(
       const [project] = await db
         .select()
         .from(projects)
-        .where(and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)))
+        .where(
+          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+        )
         .limit(1);
 
       if (!project) {
@@ -106,61 +126,71 @@ app.post(
       });
       return c.json({ error: "Failed to create session" }, 500);
     }
-  }
+  },
 );
 
 // GET /api/chat/sessions/:id - Get chat session with messages
-app.get("/sessions/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
-    const auth = c.get("auth");
-    const sessionId = c.req.param("id");
+app.get(
+  "/sessions/:id",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const sessionId = c.req.param("id");
 
-    // Verify session exists and belongs to user
-    const [session] = await db
-      .select({
-        id: chatSessions.id,
-        title: chatSessions.title,
-        projectId: chatSessions.projectId,
-        project: {
-          id: projects.id,
-          name: projects.name,
-        },
-        createdAt: chatSessions.createdAt,
-        updatedAt: chatSessions.updatedAt,
-      })
-      .from(chatSessions)
-      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, auth.user.id)))
-      .limit(1);
+      // Verify session exists and belongs to user
+      const [session] = await db
+        .select({
+          id: chatSessions.id,
+          title: chatSessions.title,
+          projectId: chatSessions.projectId,
+          project: {
+            id: projects.id,
+            name: projects.name,
+          },
+          createdAt: chatSessions.createdAt,
+          updatedAt: chatSessions.updatedAt,
+        })
+        .from(chatSessions)
+        .leftJoin(projects, eq(chatSessions.projectId, projects.id))
+        .where(
+          and(
+            eq(chatSessions.id, sessionId),
+            eq(chatSessions.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
 
-    if (!session) {
-      return c.json({ error: "Session not found" }, 404);
+      if (!session) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+
+      // Get messages for this session
+      const messages = await db
+        .select({
+          id: chatMessages.id,
+          role: chatMessages.role,
+          content: chatMessages.content,
+          reelRefs: chatMessages.reelRefs,
+          generatedContentId: chatMessages.generatedContentId,
+          createdAt: chatMessages.createdAt,
+        })
+        .from(chatMessages)
+        .where(eq(chatMessages.sessionId, sessionId))
+        .orderBy(chatMessages.createdAt);
+
+      return c.json({ session, messages });
+    } catch (error) {
+      debugLog.error("Failed to fetch chat session", {
+        service: "chat-route",
+        operation: "getSession",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch session" }, 500);
     }
-
-    // Get messages for this session
-    const messages = await db
-      .select({
-        id: chatMessages.id,
-        role: chatMessages.role,
-        content: chatMessages.content,
-        reelRefs: chatMessages.reelRefs,
-        generatedContentId: chatMessages.generatedContentId,
-        createdAt: chatMessages.createdAt,
-      })
-      .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt);
-
-    return c.json({ session, messages });
-  } catch (error) {
-    debugLog.error("Failed to fetch chat session", {
-      service: "chat-route",
-      operation: "getSession",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch session" }, 500);
-  }
-});
+  },
+);
 
 // DELETE /api/chat/sessions/:id - Delete chat session
 app.delete(
@@ -175,7 +205,12 @@ app.delete(
 
       const [deletedSession] = await db
         .delete(chatSessions)
-        .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, auth.user.id)))
+        .where(
+          and(
+            eq(chatSessions.id, sessionId),
+            eq(chatSessions.userId, auth.user.id),
+          ),
+        )
         .returning();
 
       if (!deletedSession) {
@@ -191,7 +226,7 @@ app.delete(
       });
       return c.json({ error: "Failed to delete session" }, 500);
     }
-  }
+  },
 );
 
 // POST /api/chat/sessions/:id/messages - Send message and get AI response
@@ -221,7 +256,12 @@ app.post(
         })
         .from(chatSessions)
         .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-        .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, auth.user.id)))
+        .where(
+          and(
+            eq(chatSessions.id, sessionId),
+            eq(chatSessions.userId, auth.user.id),
+          ),
+        )
         .limit(1);
 
       if (!session) {
@@ -229,7 +269,7 @@ app.post(
       }
 
       // Save user message
-      const [userMessage] = await db
+      await db
         .insert(chatMessages)
         .values({
           id: crypto.randomUUID(),
@@ -242,7 +282,8 @@ app.post(
 
       // Update session title if this is the first message and title is generic
       if (session.title === "New Chat Session") {
-        const autoTitle = content.substring(0, 50) + (content.length > 50 ? "..." : "");
+        const autoTitle =
+          content.substring(0, 50) + (content.length > 50 ? "..." : "");
         await db
           .update(chatSessions)
           .set({ title: autoTitle })
@@ -250,7 +291,11 @@ app.post(
       }
 
       // Build context for AI generation
-      const context = await buildChatContext(auth.user.id, session.project, reelRefs);
+      const context = await buildChatContext(
+        auth.user.id,
+        session.project,
+        reelRefs,
+      );
 
       // Get AI response using existing callAi function
       const systemPrompt = getChatSystemPrompt();
@@ -270,12 +315,15 @@ app.post(
       });
 
       // Save the initial AI response (we'll update it with the full content later)
-      const [assistantMessage] = await db.insert(chatMessages).values({
-        id: crypto.randomUUID(),
-        sessionId,
-        role: "assistant",
-        content: "", // Will be updated
-      }).returning();
+      await db
+        .insert(chatMessages)
+        .values({
+          id: crypto.randomUUID(),
+          sessionId,
+          role: "assistant",
+          content: "", // Will be updated
+        })
+        .returning();
 
       // Return streaming response
       return result.toTextStreamResponse();
@@ -287,15 +335,19 @@ app.post(
       });
       return c.json({ error: "Failed to send message" }, 500);
     }
-  }
+  },
 );
 
 // Helper functions
-async function buildChatContext(userId: string, project: any, reelRefs?: number[]) {
+async function buildChatContext(
+  userId: string,
+  project: any,
+  reelRefs?: number[],
+) {
   try {
     // Build context from project niche and referenced reels
     let context = `Project: ${project.name}`;
-    
+
     if (project.nicheId) {
       context += ` (Niche ID: ${project.nicheId})`;
     }
@@ -319,11 +371,9 @@ async function buildChatContext(userId: string, project: any, reelRefs?: number[
 
 function getChatSystemPrompt() {
   try {
-    // Try to load from prompts file, fallback to default
-    try {
-      return loadPrompt("chat-generate");
-    } catch {
-      return `You are a helpful AI assistant for content creation. You help users create engaging social media content including hooks, scripts, captions, and hashtags.
+    return loadPrompt("chat-generate");
+  } catch {
+    return `You are a helpful AI assistant for content creation. You help users create engaging social media content including hooks, scripts, captions, and hashtags.
 
 When responding:
 1. Be creative and practical
@@ -333,14 +383,6 @@ When responding:
 5. Keep responses concise but comprehensive
 
 Focus on creating content that performs well on social media platforms.`;
-    }
-  } catch (error) {
-    debugLog.error("Failed to get chat system prompt", {
-      service: "chat-route",
-      operation: "getChatSystemPrompt",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return "You are a helpful AI assistant for content creation.";
   }
 }
 

@@ -225,7 +225,7 @@ nichesRouter.post(
       };
 
       // Remove undefined values
-      Object.keys(configOverride).forEach(key => {
+      Object.keys(configOverride).forEach((key) => {
         if (configOverride[key as keyof typeof configOverride] === undefined) {
           delete configOverride[key as keyof typeof configOverride];
         }
@@ -281,13 +281,14 @@ nichesRouter.get(
       const viralFilter = c.req.query("viral"); // "true" | "false" | undefined
       const hasVideoFilter = c.req.query("hasVideo"); // "true" | undefined
 
-      const sortCol = {
-        views: reels.views,
-        likes: reels.likes,
-        engagement: reels.engagementRate,
-        postedAt: reels.postedAt,
-        scrapedAt: reels.scrapedAt,
-      }[sortBy] ?? reels.views;
+      const sortCol =
+        {
+          views: reels.views,
+          likes: reels.likes,
+          engagement: reels.engagementRate,
+          postedAt: reels.postedAt,
+          scrapedAt: reels.scrapedAt,
+        }[sortBy] ?? reels.views;
       const order = sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
 
       const [niche] = await db
@@ -299,8 +300,10 @@ nichesRouter.get(
 
       const whereConditions = [eq(reels.nicheId, id)];
       if (viralFilter === "true") whereConditions.push(eq(reels.isViral, true));
-      if (viralFilter === "false") whereConditions.push(eq(reels.isViral, false));
-      if (hasVideoFilter === "true") whereConditions.push(isNotNull(reels.videoUrl));
+      if (viralFilter === "false")
+        whereConditions.push(eq(reels.isViral, false));
+      if (hasVideoFilter === "true")
+        whereConditions.push(isNotNull(reels.videoUrl));
       const where = and(...whereConditions);
 
       const [reelRows, [{ total }]] = await Promise.all([
@@ -493,14 +496,29 @@ nichesRouter.put(
       const { limit, minViews, maxDaysOld, viralOnly } = body;
 
       // Validate input
-      if (limit !== undefined && (typeof limit !== "number" || limit < 1 || limit > 10000)) {
-        return c.json({ error: "limit must be a number between 1 and 10000" }, 400);
+      if (
+        limit !== undefined &&
+        (typeof limit !== "number" || limit < 1 || limit > 10000)
+      ) {
+        return c.json(
+          { error: "limit must be a number between 1 and 10000" },
+          400,
+        );
       }
-      if (minViews !== undefined && (typeof minViews !== "number" || minViews < 0)) {
+      if (
+        minViews !== undefined &&
+        (typeof minViews !== "number" || minViews < 0)
+      ) {
         return c.json({ error: "minViews must be a non-negative number" }, 400);
       }
-      if (maxDaysOld !== undefined && (typeof maxDaysOld !== "number" || maxDaysOld < 1 || maxDaysOld > 365)) {
-        return c.json({ error: "maxDaysOld must be a number between 1 and 365" }, 400);
+      if (
+        maxDaysOld !== undefined &&
+        (typeof maxDaysOld !== "number" || maxDaysOld < 1 || maxDaysOld > 365)
+      ) {
+        return c.json(
+          { error: "maxDaysOld must be a number between 1 and 365" },
+          400,
+        );
       }
       if (viralOnly !== undefined && typeof viralOnly !== "boolean") {
         return c.json({ error: "viralOnly must be a boolean" }, 400);
