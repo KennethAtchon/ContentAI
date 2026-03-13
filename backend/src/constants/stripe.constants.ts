@@ -3,19 +3,15 @@
  *
  * Type-safe configuration for Stripe products, prices, and tiers.
  * Contains product IDs, price IDs, amounts, and dashboard links.
+ *
+ * Last updated: 2026-03-12 (Creator $19/Pro $49/Agency $149 repricing)
  */
 
-/**
- * Stripe price configuration for a billing cycle
- */
 export interface StripePriceConfig {
   priceId: string;
   amount: number;
 }
 
-/**
- * Stripe tier configuration with product and pricing information
- */
 export interface StripeTierConfig {
   productId: string;
   productName: string;
@@ -26,9 +22,6 @@ export interface StripeTierConfig {
   };
 }
 
-/**
- * Complete Stripe map structure with all tiers
- */
 export interface StripeMap {
   tiers: {
     basic: StripeTierConfig;
@@ -37,49 +30,39 @@ export interface StripeMap {
   };
 }
 
-/**
- * Subscription tier type
- */
 export type StripeTier = "basic" | "pro" | "enterprise";
-
-/**
- * Billing cycle type
- */
 export type BillingCycle = "monthly" | "annual";
 
-/**
- * Stripe product and price mappings
- */
 export const STRIPE_MAP: StripeMap = {
   tiers: {
     basic: {
       productId: "prod_TWTXj1UeJcW6vz",
-      productName: "Tier 1",
+      productName: "Creator",
       gamma_hyperlink:
-        "https://dashboard.stripe.com/test/products/prod_TWTXj1UeJcW6vz",
+        "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTXj1UeJcW6vz",
       prices: {
-        monthly: { priceId: "price_1SZQa63qLZiOfTxsQZkBift7", amount: 10 },
-        annual: { priceId: "price_1SZQak3qLZiOfTxsM7kwhZwQ", amount: 100 },
+        monthly: { priceId: "price_1TAKwu3qLZiOfTxsYsXxDTz5", amount: 19 },
+        annual:  { priceId: "price_1TAKwu3qLZiOfTxsniuPBlXP", amount: 190 },
       },
     },
     pro: {
       productId: "prod_TWTYPXmd7zh3kP",
-      productName: "Tier 2",
+      productName: "Pro",
       gamma_hyperlink:
-        "https://dashboard.stripe.com/test/products/prod_TWTYPXmd7zh3kP",
+        "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTYPXmd7zh3kP",
       prices: {
-        monthly: { priceId: "price_1SZQaz3qLZiOfTxs8Kg7ZsN8", amount: 25 },
-        annual: { priceId: "price_1SZQbE3qLZiOfTxsx4kE2xqk", amount: 200 },
+        monthly: { priceId: "price_1TAKwv3qLZiOfTxshaqnb9bW", amount: 49 },
+        annual:  { priceId: "price_1TAKwv3qLZiOfTxsULOKNeKa", amount: 490 },
       },
     },
     enterprise: {
       productId: "prod_TWTYPkmPHd8GF4",
-      productName: "Tier 3",
+      productName: "Agency",
       gamma_hyperlink:
-        "https://dashboard.stripe.com/test/products/prod_TWTYPkmPHd8GF4",
+        "https://dashboard.stripe.com/acct_1SZFe93qLZiOfTxs/test/products/prod_TWTYPkmPHd8GF4",
       prices: {
-        monthly: { priceId: "price_1SZQbQ3qLZiOfTxsIye7eUZm", amount: 100 },
-        annual: { priceId: "price_1SZQbe3qLZiOfTxs7xApSWQY", amount: 1000 },
+        monthly: { priceId: "price_1TAKww3qLZiOfTxsR8Q6WemR", amount: 149 },
+        annual:  { priceId: "price_1TAKww3qLZiOfTxscEmKstBs", amount: 1490 },
       },
     },
   },

@@ -610,9 +610,9 @@ admin.get(
                 tierFromMetadata as "basic" | "pro" | "enterprise",
               );
               usageLimit =
-                tierConfig.features.maxCalculationsPerMonth === -1
+                tierConfig.features.maxGenerationsPerMonth === -1
                   ? null
-                  : tierConfig.features.maxCalculationsPerMonth;
+                  : tierConfig.features.maxGenerationsPerMonth;
               const now = new Date();
               const startOfMonth = new Date(
                 now.getFullYear(),

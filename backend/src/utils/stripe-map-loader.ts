@@ -1,21 +1,26 @@
-export const loadStripePriceMap = () => {
-  return {
-    basic: "price_basic",
-    pro: "price_pro",
-    enterprise: "price_enterprise",
-  };
-};
+import {
+  STRIPE_MAP,
+  type StripeMap,
+  type StripePriceConfig,
+  type StripeTierConfig,
+  type StripeTier,
+  type BillingCycle,
+} from "@/constants/stripe.constants";
 
-export const getStripePriceId = (tier: string): string => {
-  const priceMap = loadStripePriceMap();
-  return priceMap[tier as keyof typeof priceMap] || "price_basic";
-};
+export type { StripePriceConfig, StripeTierConfig, StripeMap, StripeTier, BillingCycle };
 
-export const getStripePriceAmount = (tier: string): number => {
-  const amounts = {
-    basic: 999, // $9.99
-    pro: 2999, // $29.99
-    enterprise: 9999, // $99.99
-  };
-  return amounts[tier as keyof typeof amounts] || 999;
-};
+export function getStripeMap(): StripeMap {
+  return STRIPE_MAP;
+}
+
+export function getStripeTierConfig(tier: StripeTier): StripeTierConfig {
+  return STRIPE_MAP.tiers[tier];
+}
+
+export function getStripePriceId(tier: StripeTier, billingCycle: BillingCycle): string {
+  return STRIPE_MAP.tiers[tier].prices[billingCycle].priceId;
+}
+
+export function getStripePriceAmount(tier: StripeTier, billingCycle: BillingCycle): number {
+  return STRIPE_MAP.tiers[tier].prices[billingCycle].amount;
+}

@@ -25,21 +25,21 @@ interface FeatureComparisonProps {
 export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
   const features = [
     {
-      name: "Reels / month",
-      basic: "50",
-      pro: "500",
+      name: "Reel Discovery / month",
+      basic: "100",
+      pro: "Unlimited",
       enterprise: "Unlimited",
     },
     {
       name: "AI Generations / month",
-      basic: "20",
-      pro: "200",
+      basic: "50",
+      pro: "300",
       enterprise: "Unlimited",
     },
     {
       name: "Content Queue Items",
-      basic: "5",
-      pro: "50",
+      basic: "10",
+      pro: "100",
       enterprise: "Unlimited",
     },
     {
@@ -68,7 +68,7 @@ export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
     },
     {
       name: "Script Generation",
-      basic: false,
+      basic: true,
       pro: true,
       enterprise: true,
     },
@@ -81,7 +81,7 @@ export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
     {
       name: "API Access",
       basic: false,
-      pro: true,
+      pro: false,
       enterprise: true,
     },
     {
@@ -121,7 +121,7 @@ export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
                 currentTier === "basic" && "bg-muted"
               )}
             >
-              Basic
+              Creator
             </TableHead>
             <TableHead
               className={cn("text-center", currentTier === "pro" && "bg-muted")}
@@ -134,7 +134,7 @@ export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
                 currentTier === "enterprise" && "bg-muted"
               )}
             >
-              Enterprise
+              Agency
             </TableHead>
           </TableRow>
         </TableHeader>
