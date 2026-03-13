@@ -7,7 +7,7 @@ import { SubscriptionTier } from "@/shared/constants/subscription.constants";
 
 export type FeatureType = "studio" | "generation" | "queue" | "publishing";
 
-const FEATURE_TIER_REQUIREMENTS: Record<FeatureType, SubscriptionTier | null> =
+export const FEATURE_TIER_REQUIREMENTS: Record<FeatureType, SubscriptionTier | null> =
   {
     studio: null, // free
     generation: null, // free (rate-limited)
