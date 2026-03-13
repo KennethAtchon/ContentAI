@@ -17,7 +17,7 @@ import {
   AvatarImage,
 } from "@/shared/components/ui/avatar";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { User, LogOut, Home, Shield } from "lucide-react";
+import { User, LogOut, Home, Shield, Compass } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 
@@ -136,6 +136,15 @@ export default function UserButton() {
           >
             <User className="mr-2 h-4 w-4" />
             <span>{t("navigation_account") || "Account"}</span>
+          </button>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <button
+            onClick={() => navigate({ to: REDIRECT_PATHS.DASHBOARD })}
+            className="w-full flex items-center cursor-pointer"
+          >
+            <Compass className="mr-2 h-4 w-4" />
+            <span>{t("navigation_discover")}</span>
           </button>
         </DropdownMenuItem>
         {isAdmin && (

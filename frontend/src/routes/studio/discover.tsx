@@ -16,14 +16,6 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 
-const AI_TOOLS = [
-  "studio_tools_hookWriter",
-  "studio_tools_captionAI",
-  "studio_tools_remix",
-  "studio_tools_voiceOver",
-  "studio_tools_scheduler",
-];
-
 const PAGE_SIZE = 20;
 
 function DiscoverPage() {
@@ -134,20 +126,6 @@ function DiscoverPage() {
                 )}
               </>
             )}
-
-            {/* AI Tools section */}
-            <div className="border-t border-white/[0.05] px-3.5 pt-2.5 pb-2 text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25">
-              {t("studio_sidebar_aiTools")}
-            </div>
-            {AI_TOOLS.map((key) => (
-              <button
-                key={key}
-                className="px-3.5 py-2 text-[12px] text-slate-200/45 flex items-center gap-1.5 w-full text-left bg-transparent border-0 font-studio cursor-pointer transition-colors hover:text-studio-accent"
-              >
-                <span className="text-studio-accent/60">✦</span>
-                {t(key)}
-              </button>
-            ))}
           </aside>
 
           {/* Center — TikTok video feed */}
