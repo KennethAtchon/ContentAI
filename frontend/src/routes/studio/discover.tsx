@@ -40,10 +40,6 @@ function DiscoverPage() {
     activeNicheValue && activeNicheValue !== "trending"
       ? Number(activeNicheValue)
       : null;
-  const activeNicheName =
-    activeNicheId != null
-      ? niches.find((n) => n.id === activeNicheId)?.name ?? ""
-      : "";
   const isTrending = activeNicheValue === "trending";
 
   const {

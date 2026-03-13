@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { reels, trendingAudio } from "../../infrastructure/database/drizzle/schema";
+import {
+  reels,
+  trendingAudio,
+} from "../../infrastructure/database/drizzle/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 
@@ -49,7 +52,11 @@ audioRouter.get(
         .leftJoin(trendingAudio, eq(trendingAudio.audioId, reels.audioId))
         .where(and(...conditions))
         .groupBy(reels.audioId, reels.audioName, trendingAudio.artistName)
-        .orderBy(desc(sql`sum(case when ${reels.scrapedAt} >= ${startWindow} then 1 else 0 end)`))
+        .orderBy(
+          desc(
+            sql`sum(case when ${reels.scrapedAt} >= ${startWindow} then 1 else 0 end)`,
+          ),
+        )
         .limit(limit);
 
       const audio = rows.map((row) => {

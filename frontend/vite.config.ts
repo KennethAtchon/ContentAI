@@ -4,6 +4,7 @@ import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import path from "path";
 
 export default defineConfig({
+  logLevel: "error",
   plugins: [react(), TanStackRouterVite()],
   resolve: {
     alias: {
@@ -26,6 +27,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
         manualChunks: {

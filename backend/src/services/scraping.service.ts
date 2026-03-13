@@ -1,5 +1,8 @@
 import { db } from "./db/db";
-import { reels, trendingAudio } from "../infrastructure/database/drizzle/schema";
+import {
+  reels,
+  trendingAudio,
+} from "../infrastructure/database/drizzle/schema";
 import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";

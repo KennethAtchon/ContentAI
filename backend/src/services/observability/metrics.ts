@@ -51,7 +51,6 @@ function init() {
   if (_initialised) return;
   _initialised = true;
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Registry, Counter, Histogram, Gauge } = require("prom-client");
 
   _registry = new Registry();

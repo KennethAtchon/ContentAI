@@ -1,4 +1,5 @@
 import debugLog from "@/shared/utils/debug/debug";
+import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
 
 export interface TableConfig {
   name: string;
@@ -38,9 +39,6 @@ async function fetchSchema(): Promise<{ tables: any[] } | null> {
 
   schemaPromise = (async () => {
     try {
-      // Use dynamic import to avoid issues in server-side contexts
-      const { authenticatedFetch } =
-        await import("@/shared/services/api/authenticated-fetch");
       const response = await authenticatedFetch("/api/admin/schema");
       if (!response.ok) {
         throw new Error("Failed to fetch schema");

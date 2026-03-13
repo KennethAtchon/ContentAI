@@ -17,10 +17,10 @@ function GeneratePage() {
 
   return (
     <AuthGuard authType="user">
-      <div className="h-screen bg-studio-bg text-studio-fg font-studio flex flex-col overflow-hidden">
+      <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
         <StudioTopBar variant="studio" activeTab="generate" />
 
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="min-h-0 overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">

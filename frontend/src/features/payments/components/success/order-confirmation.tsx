@@ -116,7 +116,6 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
     if (user) {
       fetchOrderDetails();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId, user]);
 
   const handleRetry = () => {

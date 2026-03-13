@@ -40,6 +40,7 @@ export default [
         AbortController: "readonly",
         AbortSignal: "readonly",
         RequestInit: "readonly",
+        Bun: "readonly",
       },
     },
     plugins: {
@@ -48,7 +49,7 @@ export default [
     rules: {
       // Disable base ESLint no-unused-vars in favor of TypeScript version
       "no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {

@@ -58,7 +58,6 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
     if (sessionId) {
       markTrialUsed();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   return (
