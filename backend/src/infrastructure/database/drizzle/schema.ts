@@ -247,9 +247,6 @@ export const projects = pgTable(
     userId: text("user_id").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    nicheId: integer("niche_id").references(() => niches.id, {
-      onDelete: "restrict",
-    }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -259,22 +256,6 @@ export const projects = pgTable(
   (t) => [index("projects_user_id_idx").on(t.userId)],
 );
 
-export const userNiches = pgTable(
-  "user_niche",
-  {
-    id: serial("id").primaryKey(),
-    userId: text("user_id").notNull(),
-    nicheId: integer("niche_id")
-      .notNull()
-      .references(() => niches.id, { onDelete: "cascade" }),
-    isPrimary: boolean("is_primary").notNull().default(false),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (t) => [
-    index("user_niches_user_id_idx").on(t.userId),
-    unique("user_niches_user_niche_unique").on(t.userId, t.nicheId),
-  ],
-);
 
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
@@ -325,7 +306,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
   featureUsages: many(featureUsages),
   projects: many(projects),
-  userNiches: many(userNiches),
   chatSessions: many(chatSessions),
 }));
 
@@ -339,8 +319,6 @@ export const featureUsagesRelations = relations(featureUsages, ({ one }) => ({
 
 export const nichesRelations = relations(niches, ({ many }) => ({
   reels: many(reels),
-  userNiches: many(userNiches),
-  projects: many(projects),
 }));
 
 export const reelsRelations = relations(reels, ({ one }) => ({
@@ -349,14 +327,9 @@ export const reelsRelations = relations(reels, ({ one }) => ({
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   user: one(users, { fields: [projects.userId], references: [users.id] }),
-  niche: one(niches, { fields: [projects.nicheId], references: [niches.id] }),
   chatSessions: many(chatSessions),
 }));
 
-export const userNichesRelations = relations(userNiches, ({ one }) => ({
-  user: one(users, { fields: [userNiches.userId], references: [users.id] }),
-  niche: one(niches, { fields: [userNiches.nicheId], references: [niches.id] }),
-}));
 
 export const chatSessionsRelations = relations(
   chatSessions,
@@ -403,8 +376,6 @@ export type InstagramPage = typeof instagramPages.$inferSelect;
 export type QueueItem = typeof queueItems.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
-export type UserNiche = typeof userNiches.$inferSelect;
-export type NewUserNiche = typeof userNiches.$inferInsert;
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;

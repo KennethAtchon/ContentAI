@@ -1,6 +1,6 @@
 # Generate Tab Reimagination: AI Chat Interface
 
-Research and implementation plan for replacing the current Generate tab with a conversational AI chat interface featuring projects, user niches, and reel referencing.
+Research and implementation plan for replacing the current Generate tab with a conversational AI chat interface featuring projects and reel referencing.
 
 **Date:** 2026-03-12
 **Status:** Planning
@@ -18,33 +18,24 @@ The Generate tab (`/studio/generate`) is a single-turn form:
 
 **What's missing:**
 - No project concept (user-owned workspaces)
-- No user niche preferences (only admin-managed system niches exist)
 - No conversation history / multi-turn context
 - No streaming responses
 - No way to reference multiple reels in a single interaction
-- Niche is hardcoded to `"personal finance"`
+- Reel discovery is limited to hardcoded niches
 
 ---
 
 ## Design Decisions
 
-### User Niches vs System Niches
+### Projects
 
-| Aspect | System Niches (existing) | User Niches (new) |
-|--------|-------------------------|-------------------|
-| Created by | Admins | Users |
-| Purpose | Catalog reels for discovery | Categorize user projects |
-| Stored in | `niches` table | `userNiches` join table |
-| Uniqueness | System-wide | Per-user |
-| Format | Free text (admin-entered) | Free text (user-entered) |
-
-User niches are stored in the existing `niches` table (reusing the same entity) but linked to users via a `userNiches` join table. This avoids duplicating niche names and lets users discover/pick from existing niches or create new ones. A user niche on a project is optional — it serves as a categorization label, not a filter.
+Projects are standalone entities that users create to organize their content generation work. They are not tied to niches.
 
 ### Reel Referencing: Hybrid Approach
 
 Users can reference reels in chat messages via two mechanisms:
 
-1. **Picker modal** — "Attach Reel" button opens a searchable modal with niche filter, showing reel cards. Selected reels appear as chips above the message input. This is the primary path for browsing.
+1. **Picker modal** — "Attach Reel" button opens a searchable modal showing reel cards. Selected reels appear as chips above the message input. This is the primary path for browsing.
 
 2. **`@` mention with scoped search** — typing `@` in the message input triggers a debounced fuzzy search (`GET /api/reels/search?q=...&limit=10`). The search queries `hook ILIKE` + `username ILIKE` with a combined `LIMIT 10`. At 100k reels this is fast — it's a single indexed query with a small result set, not a client-side filter.
 
@@ -73,18 +64,8 @@ projects
   userId        text NOT NULL           -- references users.id
   name          text NOT NULL
   description   text
-  nicheId       integer                 -- optional, references niches.id
   createdAt     timestamp DEFAULT now()
   updatedAt     timestamp DEFAULT now()
-
--- User niche preferences (which niches a user works with)
-userNiches
-  id            serial PK
-  userId        text NOT NULL
-  nicheId       integer NOT NULL        -- references niches.id
-  isPrimary     boolean DEFAULT false
-  createdAt     timestamp DEFAULT now()
-  UNIQUE(userId, nicheId)
 
 -- Chat sessions (conversation threads within a project)
 chatSessions
@@ -110,7 +91,6 @@ chatMessages
 
 ```
 projects_user_id_idx           ON projects(userId)
-user_niches_user_id_idx        ON userNiches(userId)
 chat_sessions_user_id_idx      ON chatSessions(userId)
 chat_sessions_project_id_idx   ON chatSessions(projectId)
 chat_messages_session_id_idx   ON chatMessages(sessionId)
@@ -120,9 +100,6 @@ chat_messages_session_id_idx   ON chatMessages(sessionId)
 
 ```
 users  1──M  projects      (a user owns many projects)
-users  1──M  userNiches    (a user selects many niches)
-niches 1──M  userNiches    (a niche is selected by many users)
-niches 1──M  projects      (a project optionally has one niche)
 projects 1──M chatSessions (a project contains many sessions)
 users  1──M  chatSessions  (a user owns many sessions)
 chatSessions 1──M chatMessages (a session contains many messages)
@@ -138,19 +115,10 @@ chatMessages M──M reels     (a message may reference multiple reels via reel
 
 ```
 GET    /api/projects              — list user's projects
-POST   /api/projects              — create { name, description?, nicheId? }
+POST   /api/projects              — create { name, description? }
 GET    /api/projects/:id          — single project with session count
-PUT    /api/projects/:id          — update name/description/nicheId
+PUT    /api/projects/:id          — update name/description
 DELETE /api/projects/:id          — delete project + cascade sessions
-```
-
-### User Niches
-
-```
-GET    /api/user-niches           — list user's niche selections
-POST   /api/user-niches           — add { nicheId, isPrimary? }
-DELETE /api/user-niches/:nicheId  — remove niche selection
-PATCH  /api/user-niches/:nicheId  — set as primary
 ```
 
 ### Chat
@@ -200,13 +168,13 @@ All endpoints use the standard middleware stack: `rateLimiter("customer")` + `cs
 │  - Remix v2  │  └─────────────────────────────────────┘  │
 │  - Captions  │                                           │
 │              │  ┌─────────────────────────────────────┐  │
-│  Niches:     │  │ [📎 Attach] [Type message...]  [➤] │  │
-│  [Fitness]   │  │ Attached: Reel #1234, Reel #5678   │  │
-│  [+ Add]     │  └─────────────────────────────────────┘  │
+│              │  │ [📎 Attach] [Type message...]  [➤] │  │
+│              │  │ Attached: Reel #1234, Reel #5678   │  │
+│              │  └─────────────────────────────────────┘  │
 └──────────────┴───────────────────────────────────────────┘
 ```
 
-- **Left sidebar (260px):** Project list, session list for active project, user niche chips
+- **Left sidebar (260px):** Project list, session list for active project
 - **Center (flex-1):** Chat message thread + input bar with reel attachment
 - **No right panel** — the chat interface uses full width for the conversation
 
@@ -226,7 +194,6 @@ src/features/chat/
 │   └── GeneratedContentBlock.tsx — styled output block in assistant messages
 ├── hooks/
 │   ├── use-projects.ts          — project CRUD queries/mutations
-│   ├── use-user-niches.ts       — user niche CRUD
 │   ├── use-chat-sessions.ts     — session CRUD + message fetching
 │   └── use-chat-stream.ts       — useChat wrapper with auth
 ├── services/
@@ -241,7 +208,6 @@ src/features/chat/
 // Added to src/shared/lib/query-keys.ts
 projects: () => ["api", "projects"],
 project: (id: number) => ["api", "project", id],
-userNiches: () => ["api", "user-niches"],
 chatSessions: (projectId?: number) => ["api", "chat-sessions", projectId],
 chatSession: (id: number) => ["api", "chat-session", id],
 chatMessages: (sessionId: number) => ["api", "chat-messages", sessionId],
@@ -269,7 +235,7 @@ User types message + attaches reels
     → Backend: save user message to chatMessages
     → Backend: auto-title session if first message
     → Backend: fetch referenced reels + analyses
-    → Backend: build system prompt (niche context + reel data)
+    → Backend: build system prompt (project context + reel data)
     → Backend: streamText() with Vercel AI SDK
     → Backend: pipe stream via toDataStreamResponse()
   → Frontend: useChat accumulates streamed tokens into assistant message
@@ -292,7 +258,7 @@ If a stream is interrupted (client disconnect, server error), the last message i
 You are a creative content strategist and reel scriptwriter.
 
 Project context:
-- Niche: {nicheName || "General"}
+- Project: {projectName || "General"}
 - User's goal: Help create engaging short-form video content (reels, TikToks, shorts)
 
 {#if reelRefs}
@@ -315,7 +281,7 @@ Instructions:
 - Support iterative refinement ("make it shorter", "change the angle", "more emotional")
 - When referencing attached reels, explain what makes them work and how you're adapting their patterns
 - Keep hooks under 10 words when possible
-- Match the energy and style of the user's niche
+- Match the energy and style of the user's project
 - Be conversational and collaborative, not formal
 ```
 
@@ -361,15 +327,14 @@ The existing generation endpoint remains unchanged. The new chat route is additi
 
 ```
 Phase 1: Data Foundation
-  1. DB schema (4 new tables + indexes + relations)
+  1. DB schema (3 new tables + indexes + relations)
   2. Run migrations (bun db:generate && bun db:migrate)
 
 Phase 2: Backend APIs
   3. Projects route (CRUD)
-  4. User Niches route (CRUD)                    [parallel with 3]
-  5. Reel search endpoint (GET /api/reels/search) [parallel with 3]
-  6. Chat prompt file (chat-generate.txt)         [parallel with 3]
-  7. Chat route (sessions CRUD + streaming messages)
+  4. Reel search endpoint (GET /api/reels/search) [parallel with 3]
+  5. Chat prompt file (chat-generate.txt)         [parallel with 3]
+  6. Chat route (sessions CRUD + streaming messages)
 
 Phase 3: Frontend
   8.  Feature folder structure + types
@@ -393,7 +358,7 @@ Phase 4: Polish
 
 If cutting scope, the minimum viable chat interface is:
 
-1. DB schema (all 4 tables — don't defer, the model is needed)
+1. DB schema (all 3 tables — don't defer, the model is needed)
 2. Projects route (create + list only)
 3. Chat route (create session + send message with streaming)
 4. Frontend: ProjectSidebar (simplified) + ChatPanel + ChatInput
@@ -401,7 +366,6 @@ If cutting scope, the minimum viable chat interface is:
 
 **Defer to follow-up:**
 - Reel referencing (picker modal + `@` search)
-- User niche preferences
 - Session rename
 - Mobile layout
 - Image generation

@@ -2,11 +2,6 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
-  nicheId: number;
-  niche?: {
-    id: number;
-    name: string;
-  };
   createdAt: string;
   updatedAt: string;
 }
@@ -37,13 +32,11 @@ export interface ChatMessage {
 export interface CreateProjectRequest {
   name: string;
   description?: string;
-  nicheId: number;
 }
 
 export interface UpdateProjectRequest {
   name?: string;
   description?: string;
-  nicheId?: number;
 }
 
 export interface CreateSessionRequest {

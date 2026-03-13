@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
 import { Plus, MessageSquare, Trash2 } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
 import {
@@ -19,6 +13,7 @@ import {
   useCreateChatSession,
   useDeleteChatSession,
 } from "../hooks/use-chat-sessions";
+import { CreateProjectModal } from "./CreateProjectModal";
 import type { Project, ChatSession } from "../types/chat.types";
 
 interface ProjectSidebarProps {
@@ -43,7 +38,6 @@ export function ProjectSidebar({
   const { t } = useTranslation();
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
-  const [newProjectNicheId, setNewProjectNicheId] = useState("");
 
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { data: sessions, isLoading: sessionsLoading } =
@@ -55,17 +49,15 @@ export function ProjectSidebar({
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProjectName || !newProjectNicheId) return;
+    if (!newProjectName) return;
 
     try {
       await createProjectMutation.mutateAsync({
         name: newProjectName,
         description: newProjectDescription,
-        nicheId: parseInt(newProjectNicheId),
       });
       setNewProjectName("");
       setNewProjectDescription("");
-      setNewProjectNicheId("");
       onHideNewProjectForm();
     } catch (error) {
       debugLog.error("Failed to create project", {
@@ -128,63 +120,18 @@ export function ProjectSidebar({
             {t("studio_chat_newProject")}
           </Button>
         </div>
-
-        {showNewProjectForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">
-                {t("studio_chat_createNewProject")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateProject} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder={t("studio_chat_projectName")}
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
-                  required
-                />
-                <textarea
-                  placeholder={t("studio_chat_projectDescription")}
-                  value={newProjectDescription}
-                  onChange={(e) => setNewProjectDescription(e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
-                  rows={2}
-                />
-                <input
-                  type="number"
-                  placeholder={t("studio_chat_nicheId")}
-                  value={newProjectNicheId}
-                  onChange={(e) => setNewProjectNicheId(e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
-                  required
-                />
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={createProjectMutation.isPending}
-                  >
-                    {createProjectMutation.isPending
-                      ? t("studio_chat_creating")
-                      : t("studio_chat_create")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onHideNewProjectForm()}
-                  >
-                    {t("studio_chat_cancel")}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
       </div>
+
+      <CreateProjectModal
+        open={showNewProjectForm}
+        onOpenChange={onHideNewProjectForm}
+        projectName={newProjectName}
+        projectDescription={newProjectDescription}
+        onProjectNameChange={setNewProjectName}
+        onProjectDescriptionChange={setNewProjectDescription}
+        onCreateProject={handleCreateProject}
+        isCreating={createProjectMutation.isPending}
+      />
 
       <div className="flex-1 overflow-y-auto">
         {projectsLoading ? (
@@ -209,11 +156,6 @@ export function ProjectSidebar({
                       {project.description && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {project.description}
-                        </p>
-                      )}
-                      {project.niche && (
-                        <p className="text-xs text-muted-foreground">
-                          {project.niche.name}
                         </p>
                       )}
                     </div>

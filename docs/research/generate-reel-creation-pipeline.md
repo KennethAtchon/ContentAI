@@ -355,7 +355,7 @@ The AI generates hashtags as part of script generation. Additional enrichment:
 | `mediaUploads` | User-uploaded video/image clips |
 | `videoJobs` | Async video generation/assembly job tracking |
 
-(Plus the 4 tables from `generate-tab-ai-chat-interface.md`: `projects`, `userNiches`, `chatSessions`, `chatMessages`)
+(Plus the 3 tables from `generate-tab-ai-chat-interface.md`: `projects`, `chatSessions`, `chatMessages`)
 
 ### New Services
 

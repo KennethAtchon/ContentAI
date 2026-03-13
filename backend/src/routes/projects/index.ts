@@ -8,7 +8,7 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { projects, niches } from "../../infrastructure/database/drizzle/schema";
+import { projects } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 
@@ -18,13 +18,11 @@ const app = new Hono<HonoEnv>();
 const createProjectSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  nicheId: z.number().int().positive(),
 });
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
-  nicheId: z.number().int().positive().optional(),
 });
 
 // GET /api/projects - List user projects
@@ -37,16 +35,10 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         id: projects.id,
         name: projects.name,
         description: projects.description,
-        nicheId: projects.nicheId,
-        niche: {
-          id: niches.id,
-          name: niches.name,
-        },
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })
       .from(projects)
-      .leftJoin(niches, eq(projects.nicheId, niches.id))
       .where(eq(projects.userId, auth.user.id))
       .orderBy(desc(projects.updatedAt));
 
@@ -71,17 +63,7 @@ app.post(
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { name, description, nicheId } = c.req.valid("json");
-
-      // Verify niche exists
-      const niche = await db
-        .select()
-        .from(niches)
-        .where(eq(niches.id, nicheId))
-        .limit(1);
-      if (!niche.length) {
-        return c.json({ error: "Niche not found" }, 404);
-      }
+      const { name, description } = c.req.valid("json");
 
       const [newProject] = await db
         .insert(projects)
@@ -90,7 +72,6 @@ app.post(
           userId: auth.user.id,
           name,
           description,
-          nicheId,
         })
         .returning();
 
@@ -117,16 +98,10 @@ app.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         id: projects.id,
         name: projects.name,
         description: projects.description,
-        nicheId: projects.nicheId,
-        niche: {
-          id: niches.id,
-          name: niches.name,
-        },
         createdAt: projects.createdAt,
         updatedAt: projects.updatedAt,
       })
       .from(projects)
-      .leftJoin(niches, eq(projects.nicheId, niches.id))
       .where(and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)))
       .limit(1);
 
@@ -157,18 +132,6 @@ app.put(
       const auth = c.get("auth");
       const projectId = c.req.param("id");
       const updates = c.req.valid("json");
-
-      // If updating nicheId, verify niche exists
-      if (updates.nicheId) {
-        const niche = await db
-          .select()
-          .from(niches)
-          .where(eq(niches.id, updates.nicheId))
-          .limit(1);
-        if (!niche.length) {
-          return c.json({ error: "Niche not found" }, 404);
-        }
-      }
 
       const [updatedProject] = await db
         .update(projects)

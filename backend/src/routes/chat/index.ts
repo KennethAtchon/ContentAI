@@ -251,7 +251,6 @@ app.post(
           project: {
             id: projects.id,
             name: projects.name,
-            nicheId: projects.nicheId,
           },
         })
         .from(chatSessions)
@@ -345,12 +344,8 @@ async function buildChatContext(
   reelRefs?: number[],
 ) {
   try {
-    // Build context from project niche and referenced reels
+    // Build context from project and referenced reels
     let context = `Project: ${project.name}`;
-
-    if (project.nicheId) {
-      context += ` (Niche ID: ${project.nicheId})`;
-    }
 
     // If reel references are provided, fetch information about those reels
     if (reelRefs && reelRefs.length > 0) {

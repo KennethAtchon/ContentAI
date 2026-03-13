@@ -8,12 +8,11 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/generate-tab-ai-chat-interface.md`
 
 ### Database
-- [x] Create `projects` table (id, userId, name, description, nicheId, createdAt, updatedAt)
-- [x] Create `userNiches` table (id, userId, nicheId, isPrimary, createdAt) with unique constraint
+- [x] Create `projects` table (id, userId, name, description, createdAt, updatedAt)
 - [x] Create `chatSessions` table (id, userId, projectId, title, createdAt, updatedAt)
 - [x] Create `chatMessages` table (id, sessionId, role, content, reelRefs jsonb, generatedContentId, createdAt)
-- [x] Add indexes (projects_user_id, user_niches_user_id, chat_sessions_user_id, chat_sessions_project_id, chat_messages_session_id)
-- [x] Add Drizzle relations for all 4 tables
+- [x] Add indexes (projects_user_id, chat_sessions_user_id, chat_sessions_project_id, chat_messages_session_id)
+- [x] Add Drizzle relations for all 3 tables
 - [x] Run `bun db:generate && bun db:migrate`
 
 ### Backend
@@ -23,7 +22,7 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 - [x] Create `GET/DELETE /api/chat/sessions/:id` — get session with messages + delete
 - [x] Create `POST /api/chat/sessions/:id/messages` — send message + stream AI response (SSE)
 - [x] Create `chat-generate.txt` prompt file for conversational content generation
-- [x] Create `chat-generator.ts` service — builds context from project niche + referenced reels, calls `streamText()`
+- [x] Create `chat-generator.ts` service — builds context from project + referenced reels, calls `streamText()`
 - [x] Auto-title sessions from first message (first 50 chars)
 - [x] Mount new routes in `index.ts`
 - [x] Install `ai` package in backend if not present (for `streamText` + `toDataStreamResponse`)
@@ -177,7 +176,6 @@ These are explicitly **not** in the MVP:
 - AI video generation (text-to-video, image-to-video)
 - Video upload + FFmpeg assembly
 - In-browser editing suite
-- User niche preferences CRUD
 - Queue bulk operations
 - Mobile responsive layout
 - Session rename

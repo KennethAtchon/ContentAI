@@ -67,6 +67,10 @@ CREATE TABLE "niche" (
 	"name" text NOT NULL,
 	"description" text,
 	"is_active" boolean DEFAULT true NOT NULL,
+	"scrape_limit" integer DEFAULT 100 NOT NULL,
+	"scrape_min_views" integer DEFAULT 1000 NOT NULL,
+	"scrape_max_days_old" integer DEFAULT 30 NOT NULL,
+	"scrape_include_viral_only" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "niche_name_unique" UNIQUE("name")
@@ -92,7 +96,6 @@ CREATE TABLE "project" (
 	"user_id" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
-	"niche_id" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -159,15 +162,6 @@ CREATE TABLE "reel" (
 	CONSTRAINT "reel_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
-CREATE TABLE "user_niche" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
-	"niche_id" integer NOT NULL,
-	"is_primary" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "user_niches_user_niche_unique" UNIQUE("user_id","niche_id")
-);
---> statement-breakpoint
 CREATE TABLE "user" (
 	"id" text PRIMARY KEY NOT NULL,
 	"firebase_uid" text,
@@ -191,9 +185,7 @@ CREATE TABLE "user" (
 --> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_session_id_chat_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."chat_session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "project" ADD CONSTRAINT "project_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reel" ADD CONSTRAINT "reel_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_niche" ADD CONSTRAINT "user_niche_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "chat_messages_session_id_idx" ON "chat_message" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_user_id_idx" ON "chat_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_project_id_idx" ON "chat_session" USING btree ("project_id");--> statement-breakpoint
@@ -206,5 +198,4 @@ CREATE INDEX "queue_items_user_id_idx" ON "queue_item" USING btree ("user_id");-
 CREATE INDEX "queue_items_status_idx" ON "queue_item" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "reel_analyses_reel_id_idx" ON "reel_analysis" USING btree ("reel_id");--> statement-breakpoint
 CREATE INDEX "reels_niche_id_idx" ON "reel" USING btree ("niche_id");--> statement-breakpoint
-CREATE INDEX "reels_views_idx" ON "reel" USING btree ("views");--> statement-breakpoint
-CREATE INDEX "user_niches_user_id_idx" ON "user_niche" USING btree ("user_id");
+CREATE INDEX "reels_views_idx" ON "reel" USING btree ("views");
