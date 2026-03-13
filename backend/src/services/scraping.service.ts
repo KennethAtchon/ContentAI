@@ -13,6 +13,13 @@ export interface ScrapeResult {
   skipped: number;
 }
 
+export interface ScrapeConfig {
+  limit: number;
+  minViews: number;
+  maxDaysOld: number;
+  viralOnly: boolean;
+}
+
 interface ApifyReelItem {
   // Common identity fields
   id?: string;
@@ -69,7 +76,11 @@ class ScrapingService {
    * Scrape reels for the given niche and persist them.
    * Falls back gracefully to a stub if SOCIAL_API_KEY is not configured.
    */
-  async scrapeNiche(nicheId: number, nicheName: string): Promise<ScrapeResult> {
+  async scrapeNiche(
+    nicheId: number,
+    nicheName: string,
+    config: Partial<ScrapeConfig> = {}
+  ): Promise<ScrapeResult> {
     const apiKey = SOCIAL_API_KEY;
 
     if (!apiKey) {
@@ -84,7 +95,41 @@ class ScrapingService {
       return { saved: 0, skipped: 0 };
     }
 
-    return this.scrapeWithRetry(nicheId, nicheName, apiKey);
+    // Default configuration
+    const defaultConfig: ScrapeConfig = {
+      limit: 100,
+      minViews: 1000,
+      maxDaysOld: 30,
+      viralOnly: false,
+    };
+
+    const finalConfig = { ...defaultConfig, ...config };
+
+    let lastError: Error = new Error("Unknown error");
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await this.scrapeViaApify(nicheId, nicheName, apiKey, finalConfig);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
+
+        debugLog.warn(
+          `Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`,
+          {
+            service: "scraping-service",
+            nicheId,
+            error: lastError.message,
+          },
+        );
+
+        if (attempt < MAX_RETRIES - 1) {
+          await sleep(delay);
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   // ─── Retry wrapper ─────────────────────────────────────────────────────────
@@ -93,12 +138,13 @@ class ScrapingService {
     nicheId: number,
     nicheName: string,
     apiKey: string,
+    config: ScrapeConfig,
   ): Promise<ScrapeResult> {
     let lastError: Error = new Error("Unknown error");
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        return await this.scrapeViaApify(nicheId, nicheName, apiKey);
+        return await this.scrapeViaApify(nicheId, nicheName, apiKey, config);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
@@ -127,9 +173,10 @@ class ScrapingService {
     nicheId: number,
     nicheName: string,
     apiKey: string,
+    config: ScrapeConfig,
   ): Promise<ScrapeResult> {
     // 1. Start the actor run
-    const runId = await this.startApifyRun(nicheName, apiKey);
+    const runId = await this.startApifyRun(nicheName, apiKey, config);
 
     debugLog.info("Apify run started", {
       service: "scraping-service",
@@ -152,12 +199,13 @@ class ScrapingService {
     });
 
     // 4. Persist to database
-    return this.saveReels(items, nicheId);
+    return this.saveReels(items, nicheId, config);
   }
 
   private async startApifyRun(
     nicheName: string,
     apiKey: string,
+    config: ScrapeConfig,
   ): Promise<string> {
     const res = await fetch(
       `${APIFY_BASE_URL}/acts/${ACTOR_ID}/runs?token=${apiKey}`,
@@ -170,7 +218,10 @@ class ScrapingService {
         body: JSON.stringify({
           hashtags: [nicheName.toLowerCase().replace(/\s+/g, "")],
           resultsType: "reels",
-          resultsLimit: 100,
+          resultsLimit: config.limit,
+          // Add additional filtering based on config
+          // Note: Apify may not support all these filters directly, 
+          // so we'll filter them in saveReels method
         }),
       },
     );
@@ -247,6 +298,7 @@ class ScrapingService {
   private async saveReels(
     items: ApifyReelItem[],
     nicheId: number,
+    config: ScrapeConfig,
   ): Promise<ScrapeResult> {
     if (items.length === 0) return { saved: 0, skipped: 0 };
 
@@ -284,6 +336,32 @@ class ScrapingService {
       const audioUrl = item.audioUrl ?? null;
       const username = item.ownerUsername ?? item.ownerFullName ?? "unknown";
 
+      // Apply configuration-based filtering
+      const postedAt = item.timestamp ? new Date(item.timestamp) : null;
+      const daysAgo = postedAt
+        ? Math.floor(
+            (Date.now() - postedAt.getTime()) / (1000 * 60 * 60 * 24),
+          )
+        : null;
+
+      // Skip if below minimum views
+      if (views < config.minViews) {
+        skipped++;
+        continue;
+      }
+
+      // Skip if too old
+      if (daysAgo !== null && daysAgo > config.maxDaysOld) {
+        skipped++;
+        continue;
+      }
+
+      // Skip if viral-only and not viral
+      if (config.viralOnly && views < VIRAL_THRESHOLD) {
+        skipped++;
+        continue;
+      }
+
       const newReel: NewReel = {
         externalId,
         username,
@@ -299,13 +377,8 @@ class ScrapingService {
         thumbnailUrl: item.thumbnailUrl ?? item.displayUrl ?? null,
         videoUrl,
         videoLengthSeconds: item.videoDuration != null ? Math.round(item.videoDuration) : null,
-        postedAt: item.timestamp ? new Date(item.timestamp) : null,
-        daysAgo: item.timestamp
-          ? Math.floor(
-              (Date.now() - new Date(item.timestamp).getTime()) /
-                (1000 * 60 * 60 * 24),
-            )
-          : null,
+        postedAt,
+        daysAgo,
         isViral: views >= VIRAL_THRESHOLD,
         scrapedAt: new Date(),
       };

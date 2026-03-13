@@ -196,7 +196,7 @@ nichesRouter.delete(
 );
 
 // ─── POST /api/admin/niches/:id/scan ─────────────────────────────────────────
-// Queue a scrape job for this niche (stub — returns jobId).
+// Queue a scrape job for this niche with optional configuration override.
 
 nichesRouter.post(
   "/niches/:id/scan",
@@ -215,7 +215,23 @@ nichesRouter.post(
         .limit(1);
       if (!niche) return c.json({ error: "Niche not found" }, 404);
 
-      const job = await queueService.enqueue(id, niche.name);
+      // Get optional configuration override from request body
+      const body = await c.req.json().catch(() => ({}));
+      const configOverride = {
+        limit: body.limit,
+        minViews: body.minViews,
+        maxDaysOld: body.maxDaysOld,
+        viralOnly: body.viralOnly,
+      };
+
+      // Remove undefined values
+      Object.keys(configOverride).forEach(key => {
+        if (configOverride[key as keyof typeof configOverride] === undefined) {
+          delete configOverride[key as keyof typeof configOverride];
+        }
+      });
+
+      const job = await queueService.enqueue(id, niche.name, configOverride);
 
       return c.json(
         {
@@ -223,6 +239,13 @@ nichesRouter.post(
           nicheId: id,
           nicheName: niche.name,
           status: job.status,
+          config: {
+            // Show what configuration will be used (niche defaults + any overrides)
+            limit: configOverride.limit ?? niche.scrapeLimit,
+            minViews: configOverride.minViews ?? niche.scrapeMinViews,
+            maxDaysOld: configOverride.maxDaysOld ?? niche.scrapeMaxDaysOld,
+            viralOnly: configOverride.viralOnly ?? niche.scrapeIncludeViralOnly,
+          },
         },
         202,
       );
@@ -402,6 +425,127 @@ nichesRouter.delete(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to delete reel" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/admin/niches/:id/config ─────────────────────────────────────────
+// Get scraping configuration for a niche.
+
+nichesRouter.get(
+  "/niches/:id/config",
+  rateLimiter("admin"),
+  authMiddleware("admin"),
+  async (c) => {
+    try {
+      const id = parseInt(c.req.param("id"), 10);
+      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+
+      const [niche] = await db
+        .select({
+          id: niches.id,
+          name: niches.name,
+          scrapeLimit: niches.scrapeLimit,
+          scrapeMinViews: niches.scrapeMinViews,
+          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+        })
+        .from(niches)
+        .where(eq(niches.id, id))
+        .limit(1);
+      if (!niche) return c.json({ error: "Niche not found" }, 404);
+
+      return c.json({
+        id: niche.id,
+        name: niche.name,
+        config: {
+          limit: niche.scrapeLimit,
+          minViews: niche.scrapeMinViews,
+          maxDaysOld: niche.scrapeMaxDaysOld,
+          viralOnly: niche.scrapeIncludeViralOnly,
+        },
+      });
+    } catch (error) {
+      debugLog.error("Failed to get niche config", {
+        service: "admin-niches",
+        operation: "getNicheConfig",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to get niche config" }, 500);
+    }
+  },
+);
+
+// ─── PUT /api/admin/niches/:id/config ─────────────────────────────────────────
+// Update scraping configuration for a niche.
+
+nichesRouter.put(
+  "/niches/:id/config",
+  rateLimiter("admin"),
+  csrfMiddleware(),
+  authMiddleware("admin"),
+  async (c) => {
+    try {
+      const id = parseInt(c.req.param("id"), 10);
+      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+
+      const body = await c.req.json();
+      const { limit, minViews, maxDaysOld, viralOnly } = body;
+
+      // Validate input
+      if (limit !== undefined && (typeof limit !== "number" || limit < 1 || limit > 10000)) {
+        return c.json({ error: "limit must be a number between 1 and 10000" }, 400);
+      }
+      if (minViews !== undefined && (typeof minViews !== "number" || minViews < 0)) {
+        return c.json({ error: "minViews must be a non-negative number" }, 400);
+      }
+      if (maxDaysOld !== undefined && (typeof maxDaysOld !== "number" || maxDaysOld < 1 || maxDaysOld > 365)) {
+        return c.json({ error: "maxDaysOld must be a number between 1 and 365" }, 400);
+      }
+      if (viralOnly !== undefined && typeof viralOnly !== "boolean") {
+        return c.json({ error: "viralOnly must be a boolean" }, 400);
+      }
+
+      const [niche] = await db
+        .update(niches)
+        .set({
+          ...(limit !== undefined && { scrapeLimit: limit }),
+          ...(minViews !== undefined && { scrapeMinViews: minViews }),
+          ...(maxDaysOld !== undefined && { scrapeMaxDaysOld: maxDaysOld }),
+          ...(viralOnly !== undefined && { scrapeIncludeViralOnly: viralOnly }),
+          updatedAt: new Date(),
+        })
+        .where(eq(niches.id, id))
+        .returning({
+          id: niches.id,
+          name: niches.name,
+          scrapeLimit: niches.scrapeLimit,
+          scrapeMinViews: niches.scrapeMinViews,
+          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+          updatedAt: niches.updatedAt,
+        });
+
+      if (!niche) return c.json({ error: "Niche not found" }, 404);
+
+      return c.json({
+        id: niche.id,
+        name: niche.name,
+        config: {
+          limit: niche.scrapeLimit,
+          minViews: niche.scrapeMinViews,
+          maxDaysOld: niche.scrapeMaxDaysOld,
+          viralOnly: niche.scrapeIncludeViralOnly,
+        },
+        updatedAt: niche.updatedAt,
+      });
+    } catch (error) {
+      debugLog.error("Failed to update niche config", {
+        service: "admin-niches",
+        operation: "updateNicheConfig",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to update niche config" }, 500);
     }
   },
 );

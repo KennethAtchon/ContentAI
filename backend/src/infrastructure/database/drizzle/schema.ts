@@ -92,6 +92,11 @@ export const niches = pgTable("niche", {
   name: text("name").notNull().unique(), // e.g., "Personal Finance"
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
+  // Scraping configuration
+  scrapeLimit: integer("scrape_limit").notNull().default(100), // Max reels to scrape per run
+  scrapeMinViews: integer("scrape_min_views").notNull().default(1000), // Minimum views for reels
+  scrapeMaxDaysOld: integer("scrape_max_days_old").notNull().default(30), // Maximum age in days
+  scrapeIncludeViralOnly: boolean("scrape_include_viral_only").notNull().default(false), // Only viral content
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .notNull()

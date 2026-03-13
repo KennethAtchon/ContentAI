@@ -1,5 +1,6 @@
 import { debugLog } from "../utils/debug/debug";
 import getRedisConnection from "./db/redis";
+import type { ScrapeConfig } from "./scraping.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export interface ScrapeJob {
   completedAt?: string;
   result?: ScrapeResult;
   error?: string;
+  config?: Partial<ScrapeConfig>; // Store configuration used for this job
 }
 
 export interface ScrapeResult {
@@ -36,13 +38,18 @@ class QueueService {
   private queue: ScrapeJob[] = [];
 
   /** Enqueue a new scrape job for the given niche. Returns the job immediately. */
-  async enqueue(nicheId: number, nicheName: string): Promise<ScrapeJob> {
+  async enqueue(
+    nicheId: number, 
+    nicheName: string, 
+    config: Partial<ScrapeConfig> = {}
+  ): Promise<ScrapeJob> {
     const job: ScrapeJob = {
       id: `scan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       nicheId,
       nicheName,
       status: "queued",
       createdAt: new Date().toISOString(),
+      config, // Store the configuration for this job
     };
 
     await this.persistJob(job);
@@ -131,6 +138,7 @@ class QueueService {
       const { saved, skipped } = await scrapingService.scrapeNiche(
         job.nicheId,
         job.nicheName,
+        job.config || {}, // Pass the job configuration
       );
 
       job.status = "completed";

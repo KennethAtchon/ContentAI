@@ -126,7 +126,7 @@ The content's `chatSession.projectId` references a deleted project. Two options:
         "caption": "Full caption...",
         "version": 2,
         "thumbnailR2Key": "thumbnails/...",
-        "videoR2Key": "video/generated/..."
+        "videoR2Url": "video/generated/..."
       },
       "project": {
         "id": 3,
@@ -177,7 +177,7 @@ status         text    -- expand from current values to: draft, ready, scheduled
 version        integer DEFAULT 1
 parentId       integer          -- self-ref FK for version chain
 thumbnailR2Key text             -- generated thumbnail
-videoR2Key     text             -- assembled video (distinct from source reel videoR2Key)
+videoR2Url     text             -- assembled video (distinct from source reel videoR2Url)
 ```
 
 ### Soft Delete for Projects

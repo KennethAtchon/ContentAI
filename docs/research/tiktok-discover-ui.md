@@ -16,9 +16,9 @@
 
 ### 1. Video URLs Not Exposed in API (Backend — ~2h)
 
-The DB schema already has `videoUrl`, `videoR2Key`, `audioR2Key`, and `thumbnailUrl` columns in the `reels` table. However:
+The DB schema already has `videoUrl`, `videoR2Url`, `audioR2Url`, and `thumbnailUrl` columns in the `reels` table. However:
 
-- **`GET /api/reels`** (list) — does NOT return `videoUrl`, `thumbnailUrl`, or R2 keys
+- **`GET /api/reels`** (list) — does NOT return `videoUrl`, `thumbnailUrl`, or R2 urls
 - **`GET /api/reels/:id`** (detail) — returns everything via `db.select()`, so these fields are included but the frontend types don't model them
 
 **Work needed:**
@@ -31,7 +31,7 @@ The DB schema already has `videoUrl`, `videoR2Key`, `audioR2Key`, and `thumbnail
 
 The R2 bucket is private. Two options:
 - **Option A (simpler):** Expose `videoUrl` directly if it's the original Instagram CDN URL — works until CDN URLs expire (typically 24–48h)
-- **Option B (robust):** Generate S3-compatible presigned URLs from R2 using `videoR2Key` — requires adding `getSignedUrl` logic to the reels endpoint
+- **Option B (robust):** Generate S3-compatible presigned URLs from R2 using `videoR2Url` — requires adding `getSignedUrl` logic to the reels endpoint
 - **Recommendation:** Use Option A first since Instagram CDN URLs are already scraped; add R2 presigning later
 
 ### 3. TikTok-Style Feed Component (Frontend — ~8–12h, most of the work)
@@ -103,10 +103,10 @@ Replace the current text-based `ReelList` with thumbnail cards:
 
 ## Data Availability Concern (Critical Unknown)
 
-**How many reels in the database actually have a `videoUrl` or `videoR2Key`?**
+**How many reels in the database actually have a `videoUrl` or `videoR2Url`?**
 
 Check `scraping.service.ts` to see if the scraper:
-1. Downloads actual video files to R2 (`videoR2Key` present) — can serve presigned URLs
+1. Downloads actual video files to R2 (`videoR2Url` present) — can serve presigned URLs
 2. Only stores CDN links (`videoUrl` only) — links may expire
 3. Neither — no video data at all, only metadata scraped
 

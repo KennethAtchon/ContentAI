@@ -9,7 +9,7 @@ At a high level, your app:
 1. Scrapes reel metadata/media URLs from Apify.
 2. Stores reel rows in Postgres (`reel` table).
 3. Asynchronously mirrors video/audio files into Cloudflare R2.
-4. Stores the returned R2 public URL in `videoR2Key` / `audioR2Key` columns (misnamed; they currently store URLs).
+4. Stores the returned R2 public URL in `videoR2Url` / `audioR2Url` columns.
 5. At playback time, generates a short-lived signed R2 GET URL (1 hour) and returns it to the frontend.
 6. Falls back to original `videoUrl` if signing fails or no R2 URL exists.
 
@@ -27,12 +27,12 @@ flowchart TB
     E --> F[r2.uploadFile]
     F --> G[(Cloudflare R2 object)]
     F --> H[Returned public URL: R2_PUBLIC_URL + key]
-    H --> I[(reel.videoR2Key / audioR2Key)]
+    H --> I[(reel.videoR2Url / audioR2Url)]
 
     J[Frontend TikTokVideoCard active] --> K[GET /api/reels/:id/media-url]
     K --> L[authMiddleware + rateLimiter]
-    L --> M[DB fetch videoR2Key + videoUrl]
-    M --> N{videoR2Key exists?}
+    L --> M[DB fetch videoR2Url + videoUrl]
+    M --> N{videoR2Url exists?}
     N -->|yes| O[extractKeyFromUrl]
     O --> P["getFileUrl(key, 3600)"]
     P --> Q[Signed R2 GET URL]
@@ -49,20 +49,17 @@ flowchart TB
 `reel` table fields used in playback pipeline:
 
 - `videoUrl`: original scraped video URL.
-- `videoR2Key`: **currently stores full R2 URL** (despite name).
-- `audioR2Key`: same naming mismatch for audio.
+- `videoR2Url`: R2 storage URL for mirrored video.
+- `audioR2Url`: R2 storage URL for mirrored audio.
 - `thumbnailUrl`: image fallback in UI.
 
 Source: `backend/src/infrastructure/database/drizzle/schema.ts`.
 
 ### Important schema caveat
 
-There is an explicit TODO to rename:
-
-- `videoR2Key` -> `videoR2Url`
-- `audioR2Key` -> `audioR2Url`
-
-because these columns currently store full URLs, not object keys.
+The column naming has been corrected to properly reflect that these fields store URLs:
+- `videoR2Url`: R2 storage URL for mirrored video
+- `audioR2Url`: R2 storage URL for mirrored audio
 
 ---
 
@@ -88,7 +85,7 @@ sequenceDiagram
     R2-->>ST: public URL (R2_PUBLIC_URL/finalKey)
     ST-->>SS: URL string
 
-    SS->>DB: update reel.videoR2Key with URL
+    SS->>DB: update reel.videoR2Url with URL
 ```
 
 ### Key implementation details
@@ -148,10 +145,10 @@ sequenceDiagram
 
     FE->>API: GET media-url (Bearer token)
     API->>API: rateLimiter("customer") + authMiddleware("user")
-    API->>DB: select videoR2Key, videoUrl
+    API->>DB: select videoR2Url, videoUrl
 
-    alt videoR2Key exists
-        API->>API: rawKey = extractKeyFromUrl(videoR2Key)
+    alt videoR2Url exists
+        API->>API: rawKey = extractKeyFromUrl(videoR2Url)
         alt rawKey parsed
             API->>R2: getFileUrl(rawKey, 3600)
             R2-->>API: signed URL
@@ -190,7 +187,7 @@ Frontend files:
 
 `TikTokVideoCard`:
 
-- Determines `hasVideo = !!(reel.videoUrl || reel.videoR2Key)`.
+- Determines `hasVideo = !!(reel.videoUrl || reel.videoR2Url)`.
 - Fetches media URL only for active reel card.
 - Uses native HTML5 `<video>` with:
   - `loop`
@@ -256,7 +253,7 @@ If core R2 vars are missing, R2 module logs warning and upload/sign operations w
 flowchart TD
     A[Request media-url] --> B{Reel exists?}
     B -->|no| C[404 Reel not found]
-    B -->|yes| D{videoR2Key present?}
+    B -->|yes| D{videoR2Url present?}
     D -->|no| E[Return videoUrl]
     D -->|yes| F[extractKeyFromUrl]
     F -->|null/invalid| E
@@ -274,7 +271,7 @@ Current strategy prefers availability (fallback) over hard failure when signing 
 
 ## 12) Known technical debt / TODOs in code
 
-1. Column naming mismatch (`videoR2Key` / `audioR2Key` storing URLs).
+1. ~~Column naming has been corrected (`videoR2Url` / `audioR2Url` storing URLs).~~ ✅ **RESOLVED**
 2. Playback endpoint must parse URL back into key because of naming/storage mismatch.
 3. No dedicated media service abstraction for playback URL logic yet (logic lives in route handler).
 4. Ingestion upload is async fire-and-forget; reel can appear before R2 mirror finishes.
