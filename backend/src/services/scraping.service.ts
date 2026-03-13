@@ -1,5 +1,5 @@
 import { db } from "./db/db";
-import { reels } from "../infrastructure/database/drizzle/schema";
+import { reels, trendingAudio } from "../infrastructure/database/drizzle/schema";
 import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
@@ -402,6 +402,24 @@ class ScrapingService {
           skipped++;
         } else {
           saved++;
+          if (newReel.audioId && newReel.audioName) {
+            await db
+              .insert(trendingAudio)
+              .values({
+                audioId: newReel.audioId,
+                audioName: newReel.audioName,
+                artistName: null,
+                useCount: 1,
+                lastSeen: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: trendingAudio.audioId,
+                set: {
+                  useCount: sql`${trendingAudio.useCount} + 1`,
+                  lastSeen: new Date(),
+                },
+              });
+          }
           // Fire-and-forget: upload media to R2 and persist keys back to the row
           const reelId = result[0]!.id;
           this.uploadAndStoreMedia(

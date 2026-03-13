@@ -215,6 +215,20 @@ export const generatedContent = pgTable(
   ],
 );
 
+export const trendingAudio = pgTable(
+  "trending_audio",
+  {
+    id: serial("id").primaryKey(),
+    audioId: text("audio_id").notNull().unique(),
+    audioName: text("audio_name").notNull(),
+    artistName: text("artist_name"),
+    useCount: integer("use_count").notNull().default(0),
+    firstSeen: timestamp("first_seen").notNull().defaultNow(),
+    lastSeen: timestamp("last_seen").notNull().defaultNow(),
+  },
+  (t) => [index("trending_audio_audio_id_idx").on(t.audioId)],
+);
+
 export const instagramPages = pgTable("instagram_page", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
@@ -417,6 +431,7 @@ export type GeneratedContent = typeof generatedContent.$inferSelect;
 export type NewGeneratedContent = typeof generatedContent.$inferInsert;
 export type InstagramPage = typeof instagramPages.$inferSelect;
 export type QueueItem = typeof queueItems.$inferSelect;
+export type TrendingAudio = typeof trendingAudio.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type ChatSession = typeof chatSessions.$inferSelect;

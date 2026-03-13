@@ -22,7 +22,12 @@ export function useReelNiches() {
   });
 }
 
-export function useReels(niche: string, offset = 0) {
+export function useReels(params: {
+  niche?: string;
+  nicheId?: number | null;
+  sort?: string;
+  offset?: number;
+}) {
   const { user } = useApp();
   const fetcher = useQueryFetcher<{
     reels: Reel[];
@@ -30,13 +35,25 @@ export function useReels(niche: string, offset = 0) {
     niche: string;
   }>();
 
+  const { niche, nicheId, sort = "views", offset = 0 } = params;
+
   return useQuery({
-    queryKey: queryKeys.api.reels(niche, { offset }),
-    queryFn: () =>
-      fetcher(
-        `/api/reels?niche=${encodeURIComponent(niche)}&limit=20&offset=${offset}`
-      ),
-    enabled: !!user && !!niche,
+    queryKey: queryKeys.api.reels(niche ?? String(nicheId ?? ""), {
+      offset,
+      sort,
+      nicheId,
+    }),
+    queryFn: () => {
+      const search = new URLSearchParams({
+        limit: "20",
+        offset: String(offset),
+        sort,
+      });
+      if (nicheId != null) search.set("nicheId", String(nicheId));
+      if (niche) search.set("niche", niche);
+      return fetcher(`/api/reels?${search}`);
+    },
+    enabled: !!user && (!!niche || nicheId != null),
   });
 }
 

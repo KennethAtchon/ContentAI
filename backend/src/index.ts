@@ -28,6 +28,8 @@ import generationRoutes from "./routes/generation/index";
 import queueRoutes from "./routes/queue/index";
 import projectsRoutes from "./routes/projects/index";
 import chatRoutes from "./routes/chat/index";
+import audioRoutes from "./routes/audio/index";
+import { startDailyScan } from "./jobs/daily-scan";
 
 const app = new Hono();
 
@@ -83,6 +85,7 @@ app.route("/api/generation", generationRoutes);
 app.route("/api/queue", queueRoutes);
 app.route("/api/projects", projectsRoutes);
 app.route("/api/chat", chatRoutes);
+app.route("/api/audio", audioRoutes);
 
 // Standalone routes
 app.get("/api/live", (c) => c.json({ status: "ok" }));
@@ -114,6 +117,8 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   operation: "server-start",
   port,
 });
+
+startDailyScan();
 
 export default {
   port,

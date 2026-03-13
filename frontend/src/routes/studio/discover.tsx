@@ -5,6 +5,7 @@ import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
 import { TikTokFeed } from "@/features/reels/components/TikTokFeed";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
+import { TrendingAudio } from "@/features/reels/components/TrendingAudio";
 import {
   useReels,
   useReel,
@@ -24,22 +25,37 @@ const PAGE_SIZE = 20;
 
 function DiscoverPage() {
   const { t } = useTranslation();
-  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
+  const [selectedNicheValue, setSelectedNicheValue] = useState<string | null>(
+    null
+  );
   const [activeReelId, setActiveReelId] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
   const [allReels, setAllReels] = useState<Reel[]>([]);
 
   const { data: nichesData } = useReelNiches();
   const niches = nichesData?.niches ?? [];
-  const activeNicheId = selectedNicheId ?? niches[0]?.id ?? null;
+  const activeNicheValue =
+    selectedNicheValue ?? (niches[0]?.id ? String(niches[0].id) : null);
+  const activeNicheId =
+    activeNicheValue && activeNicheValue !== "trending"
+      ? Number(activeNicheValue)
+      : null;
   const activeNicheName =
-    niches.find((n) => n.id === activeNicheId)?.name ?? "";
+    activeNicheId != null
+      ? niches.find((n) => n.id === activeNicheId)?.name ?? ""
+      : "";
+  const isTrending = activeNicheValue === "trending";
 
   const {
     data: reelsData,
     isLoading: reelsLoading,
     isFetching,
-  } = useReels(activeNicheName, offset);
+  } = useReels({
+    niche: isTrending ? "trending" : undefined,
+    nicheId: isTrending ? null : activeNicheId,
+    sort: "fresh",
+    offset,
+  });
   const total = reelsData?.total ?? 0;
   const hasMore = allReels.length < total;
   const resolvedId = activeReelId ?? allReels[0]?.id ?? null;
@@ -55,8 +71,8 @@ function DiscoverPage() {
     }
   }, [reelsData]);
 
-  const handleNicheChange = (nicheId: number) => {
-    setSelectedNicheId(nicheId);
+  const handleNicheChange = (value: string) => {
+    setSelectedNicheValue(value);
     setActiveReelId(null);
     setOffset(0);
     setAllReels([]);
@@ -94,15 +110,19 @@ function DiscoverPage() {
             {niches.length > 0 && (
               <div className="px-3 pt-3 pb-2 border-b border-white/[0.05]">
                 <Select
-                  value={
-                    activeNicheId != null ? String(activeNicheId) : undefined
-                  }
-                  onValueChange={(val) => handleNicheChange(Number(val))}
+                  value={activeNicheValue ?? undefined}
+                  onValueChange={(val) => handleNicheChange(val)}
                 >
                   <SelectTrigger className="w-full h-8 bg-white/[0.05] border-white/[0.08] text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
                     <SelectValue placeholder={t("studio_search_placeholder")} />
                   </SelectTrigger>
                   <SelectContent className="bg-studio-surface border-white/[0.1] text-studio-fg">
+                    <SelectItem
+                      value="trending"
+                      className="text-[12px] text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
+                    >
+                      🔥 {t("studio_discover_trending")}
+                    </SelectItem>
                     {niches.map((n) => (
                       <SelectItem
                         key={n.id}
@@ -116,6 +136,7 @@ function DiscoverPage() {
                 </Select>
               </div>
             )}
+            <TrendingAudio nicheId={isTrending ? null : activeNicheId} />
             {reelsLoading ? (
               <div className="p-3 space-y-1">
                 {[1, 2, 3, 4, 5].map((i) => (

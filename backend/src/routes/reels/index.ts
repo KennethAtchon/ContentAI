@@ -130,17 +130,28 @@ reelsRouter.get(
         10,
       );
       const sort = c.req.query("sort") ?? "views";
+      const isTrending =
+        nicheNameParam.toLowerCase() === "trending" ||
+        nicheIdParam === "trending";
 
       const orderBy =
-        sort === "engagement"
-          ? desc(reels.engagementRate)
-          : sort === "recent"
-            ? desc(reels.createdAt)
-            : desc(reels.views);
+        sort === "fresh"
+          ? [desc(sql`DATE(${reels.scrapedAt})`), desc(reels.views)]
+          : sort === "engagement"
+            ? [desc(reels.engagementRate)]
+            : sort === "recent"
+              ? [desc(reels.createdAt)]
+              : [desc(reels.views)];
 
       const conditions: ReturnType<typeof gte>[] = [gte(reels.views, minViews)];
 
-      if (nicheIdParam) {
+      if (isTrending) {
+        conditions.push(
+          gte(reels.scrapedAt, sql`NOW() - INTERVAL '7 days'`) as ReturnType<
+            typeof gte
+          >,
+        );
+      } else if (nicheIdParam) {
         const nicheId = parseInt(nicheIdParam, 10);
         if (!isNaN(nicheId))
           conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
@@ -179,7 +190,7 @@ reelsRouter.get(
           })
           .from(reels)
           .where(and(...conditions))
-          .orderBy(orderBy)
+          .orderBy(...orderBy)
           .limit(limit)
           .offset(offset),
         db

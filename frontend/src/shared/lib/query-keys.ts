@@ -50,6 +50,11 @@ export const queryKeys = {
     reelAnalysis: (id: number) => ["api", "reel-analysis", id] as const,
     generationHistory: (params?: { limit?: number; offset?: number }) =>
       ["api", "generation-history", params] as const,
+    audioTrending: (params?: {
+      days?: number;
+      nicheId?: number | null;
+      limit?: number;
+    }) => ["api", "audio", "trending", params] as const,
     queue: (params?: {
       status?: string;
       projectId?: string;

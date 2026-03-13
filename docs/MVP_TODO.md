@@ -112,12 +112,12 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 
 ### Backend
 - [x] Create `ai-pricing.constants.ts` with per-model token pricing
-- [ ] Modify `aiClient.ts` to record cost after every `generateText`/`streamText` call
+- [x] Modify `aiClient.ts` to record cost after every `generateText`/`streamText` call
 - [x] Create `GET /api/admin/ai-costs` endpoint (period, groupBy, breakdown by provider/model/feature)
 - [x] Create `GET /api/admin/ai-costs/by-user` endpoint (top users by cost)
 
 ### Frontend (Admin)
-- [ ] Add AI Cost Dashboard section to admin portal (total spend, breakdown table, daily trend)
+- [x] Add AI Cost Dashboard section to admin portal (total spend, breakdown table, daily trend)
 
 ---
 
@@ -125,24 +125,24 @@ Minimum viable product scope distilled from the research documents in `docs/rese
 > Source: `research/discover-improvements.md`
 
 ### Daily Background Scan
-- [ ] Create `backend/src/jobs/daily-scan.ts` — Bun cron job at 3 AM, re-scrapes all active niches with 30s stagger
-- [ ] Import and call `startDailyScan()` from `backend/src/index.ts`
+- [x] Create `backend/src/jobs/daily-scan.ts` — Bun cron job at 3 AM, re-scrapes all active niches with 30s stagger
+- [x] Import and call `startDailyScan()` from `backend/src/index.ts`
 
 ### Fresh Sorting
-- [ ] Add `sort=fresh` to `GET /api/reels` — sorts by `DATE(scrapedAt) DESC, views DESC`
-- [ ] Make `fresh` the default sort for the discover page
-- [ ] Update frontend discover page to use new default
+- [x] Add `sort=fresh` to `GET /api/reels` — sorts by `DATE(scrapedAt) DESC, views DESC`
+- [x] Make `fresh` the default sort for the discover page
+- [x] Update frontend discover page to use new default
 
 ### Trending Across Niches
-- [ ] Add `niche=trending` handling to `GET /api/reels` — no niche filter, last 7 days, sorted by views
-- [ ] Add "Trending — All Niches" option to niche dropdown in `discover.tsx`
-- [ ] Add `studio_discover_trending` i18n key
+- [x] Add `niche=trending` handling to `GET /api/reels` — no niche filter, last 7 days, sorted by views
+- [x] Add "Trending — All Niches" option to niche dropdown in `discover.tsx`
+- [x] Add `studio_discover_trending` i18n key
 
 ### Trending Audio
-- [ ] Create `trendingAudio` table (id, audioId unique, audioName, artistName, useCount, firstSeen, lastSeen)
-- [ ] Populate during reel scraping in `scraping.service.ts` — upsert after `saveReels()`
-- [ ] Create `GET /api/audio/trending` endpoint (days, nicheId, limit params)
-- [ ] Add collapsible "Trending Audio" section in discover sidebar
+- [x] Create `trendingAudio` table (id, audioId unique, audioName, artistName, useCount, firstSeen, lastSeen)
+- [x] Populate during reel scraping in `scraping.service.ts` — upsert after `saveReels()`
+- [x] Create `GET /api/audio/trending` endpoint (days, nicheId, limit params)
+- [x] Add collapsible "Trending Audio" section in discover sidebar
 
 ---
 
@@ -185,3 +185,12 @@ These are explicitly **not** in the MVP:
 - Content moderation
 - Template library
 - Collaboration / team features
+
+---
+
+## What Can I Do With This MVP?
+
+- Discover viral reels by niche or "Trending — All Niches" with fresh daily sorting and trending audio insights.
+- Analyze reels with AI to extract hooks, emotional triggers, format patterns, and engagement drivers.
+- Generate new hooks/captions/scripts from analyses and manage drafts in the queue.
+- Track usage limits and AI costs, including admin dashboards for spend and breakdowns.
