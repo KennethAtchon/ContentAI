@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { debugLog } from "@/shared/utils/debug";
+import { queryKeys } from "@/shared/lib/query-keys";
 
 export type SubscriptionRole = "basic" | "pro" | "enterprise" | null;
 
@@ -84,16 +85,22 @@ export function useSubscription(): SubscriptionAccess {
             newRole,
           });
           queryClient.invalidateQueries({
-            predicate: (query) => {
-              const key = query.queryKey;
-              if (!Array.isArray(key) || key[0] !== "api") return false;
-              const path = key.join("/");
-              return (
-                path.includes("admin/subscriptions") ||
-                path.includes("reels/usage") ||
-                path.includes("subscriptions")
-              );
-            },
+            queryKey: queryKeys.api.reelsUsage(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.usageStats(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.currentSubscription(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.portalLink(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.admin.subscriptions(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.admin.subscriptionsAnalytics(),
           });
         }
 

@@ -9,7 +9,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { QUERY_STALE } from "@/shared/lib/query-client";
 
 interface PortalLinkResponse {
   url: string;
@@ -52,8 +51,8 @@ export function usePortalLink() {
     queryKey: queryKeys.api.portalLink(),
     queryFn,
     enabled: !!user,
-    staleTime: QUERY_STALE.long,
-    gcTime: QUERY_STALE.long,
+    staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

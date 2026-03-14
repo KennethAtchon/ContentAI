@@ -19,8 +19,11 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { useQueryClient } from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
 import { debugLog } from "@/shared/utils/debug";
 import { APP_NAME, CORE_FEATURE_PATH } from "@/shared/constants/app.constants";
+import { queryKeys } from "@/shared/lib/query-keys";
 
 interface SubscriptionSuccessProps {
   sessionId: string | null;
@@ -28,6 +31,7 @@ interface SubscriptionSuccessProps {
 
 export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
   const { authenticatedFetch } = useAuthenticatedFetch();
+  const queryClient = useQueryClient();
 
   // Mark hasUsedFreeTrial when subscription is successfully created
   useEffect(() => {
@@ -59,6 +63,63 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
       markTrialUsed();
     }
   }, [sessionId]);
+
+  // Eagerly invalidate subscription caches and poll for the Stripe role claim.
+  // The Firebase Stripe Extension sets custom claims via a webhook which can
+  // take up to ~30 seconds after checkout. We poll every 3s until the claim
+  // appears so the UI reflects the new plan without a manual refresh.
+  useEffect(() => {
+    if (!sessionId) return;
+
+    queryClient.invalidateQueries({ queryKey: queryKeys.api.usageStats() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.api.reelsUsage() });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.api.currentSubscription(),
+    });
+
+    const MAX_ATTEMPTS = 20; // 60s max
+    let attempts = 0;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const user = getAuth().currentUser;
+        if (!user) return;
+
+        await user.getIdToken(true); // force-refresh the token
+        const result = await user.getIdTokenResult();
+
+        if (result.claims.stripeRole) {
+          // Role is now set — invalidate everything and stop polling
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.usageStats(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.reelsUsage(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.api.currentSubscription(),
+          });
+          clearInterval(interval);
+          debugLog.info("Stripe role claim detected, caches invalidated", {
+            component: "SubscriptionSuccess",
+            attempts,
+          });
+        } else if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(interval);
+        }
+      } catch (error) {
+        debugLog.error(
+          "Error polling for Stripe role claim",
+          { component: "SubscriptionSuccess" },
+          error
+        );
+        if (attempts >= MAX_ATTEMPTS) clearInterval(interval);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [sessionId, queryClient]);
 
   return (
     <>

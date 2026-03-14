@@ -43,7 +43,11 @@ interface UsageStats {
 export function SubscriptionManagement() {
   const { t } = useTranslation();
   const { user } = useApp();
-  const { role, hasEnterpriseAccess, isLoading: subscriptionLoading } = useSubscription();
+  const {
+    role,
+    hasEnterpriseAccess,
+    isLoading: subscriptionLoading,
+  } = useSubscription();
   const fetcher = useQueryFetcher<UsageStats>();
 
   const {

@@ -55,6 +55,7 @@ export function ChatLayout({
     resetLimitReached,
   } = useChatStream(sessionId);
   const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
+  const [pendingReelIds, setPendingReelIds] = useState<number[]>([]);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -74,12 +75,14 @@ export function ChatLayout({
   }, [sessionData, sessionLoading]);
 
   const lastReelRefs = useMemo(() => {
+    // During streaming, use the refs from the just-sent message so the reel
+    // attachment UI stays correct before sessionData has refreshed.
+    if (isStreaming && pendingReelIds.length > 0) return pendingReelIds;
     if (!sessionData) return [];
-    // Search only for messages from users, and when you find reelRefs, return them
     const userMessages = sessionData.messages.filter((m) => m.role === "user");
     const lastMessage = userMessages[userMessages.length - 1];
     return lastMessage?.reelRefs || [];
-  }, [sessionData]);
+  }, [sessionData, isStreaming, pendingReelIds]);
 
   // Load reels from messages or URL parameter as fallback
   useEffect(() => {
@@ -127,7 +130,7 @@ export function ChatLayout({
     return () => {
       cancelled = true;
     };
-  }, [lastReelRefs, search.reelId, sessionData]);
+  }, [lastReelRefs, search.reelId]);
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
@@ -148,6 +151,7 @@ export function ChatLayout({
 
   const handleSendMessage = async (content: string, reelRefs?: number[]) => {
     if (!sessionId) return;
+    setPendingReelIds(reelRefs ?? []);
     try {
       await sendMessage(content, reelRefs);
     } catch (error) {
@@ -156,6 +160,8 @@ export function ChatLayout({
         operation: "handleSendMessage",
         error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      setPendingReelIds([]);
     }
   };
 

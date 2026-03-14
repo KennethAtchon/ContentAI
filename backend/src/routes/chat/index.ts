@@ -357,7 +357,7 @@ app.post(
         ],
         maxOutputTokens: 2048,
         toolChoice: "auto",
-        stopWhen: stepCountIs(1),
+        stopWhen: stepCountIs(5),
         tools: {
           save_content: tool({
             description:
@@ -466,7 +466,11 @@ app.post(
                   .where(eq(reelAnalyses.reelId, reelId))
                   .limit(1);
                 if (!analysis) {
-                  return { error: "no_analysis_found" };
+                  return {
+                    error: "no_analysis_found",
+                    message:
+                      "No deep analysis available for this reel. Proceed to generate content using only the basic reel info already provided in the context (username, hook, view count).",
+                  };
                 }
                 return analysis;
               } catch (err) {

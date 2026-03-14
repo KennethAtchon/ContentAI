@@ -22,12 +22,15 @@ export type QueryFetcher<T = unknown> = (url: string) => Promise<T>;
 
 export function useQueryFetcher<T = unknown>(): QueryFetcher<T> {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
-  
-  return useCallback(async (_url: string): Promise<T> => {
-    return authenticatedFetchJson<T>(_url, {
-      headers: {
-        "x-timezone": TimeService.getBrowserTimezone(),
-      },
-    });
-  }, [authenticatedFetchJson]);
+
+  return useCallback(
+    async (_url: string): Promise<T> => {
+      return authenticatedFetchJson<T>(_url, {
+        headers: {
+          "x-timezone": TimeService.getBrowserTimezone(),
+        },
+      });
+    },
+    [authenticatedFetchJson]
+  );
 }

@@ -142,7 +142,11 @@ export function ChatPanel({
         </div>
       </div>
 
-      <LimitHitModal open={!!isLimitReached} isMaxPlan={isMaxPlan} onClose={onResetLimitReached || (() => {})} />
+      <LimitHitModal
+        open={!!isLimitReached}
+        isMaxPlan={isMaxPlan}
+        onClose={onResetLimitReached || (() => {})}
+      />
     </div>
   );
 }
