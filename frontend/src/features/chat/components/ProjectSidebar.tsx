@@ -15,17 +15,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { Plus, MessageSquare, Trash2, FolderOpen } from "lucide-react";
+import { Plus, MessageSquare, Trash2, FolderOpen, Edit3, Check, X } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
 import {
   useProjects,
   useCreateProject,
   useDeleteProject,
+  useUpdateProject,
 } from "../hooks/use-projects";
 import {
   useChatSessions,
   useCreateChatSession,
   useDeleteChatSession,
+  useUpdateChatSession,
 } from "../hooks/use-chat-sessions";
 import { CreateProjectModal } from "./CreateProjectModal";
 import type { Project, ChatSession } from "../types/chat.types";
@@ -117,14 +119,20 @@ export function ProjectSidebar({
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionTitle, setEditingSessionTitle] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState("");
 
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { data: sessions, isLoading: sessionsLoading } =
     useChatSessions(selectedProjectId);
   const createProjectMutation = useCreateProject();
   const deleteProjectMutation = useDeleteProject();
+  const updateProjectMutation = useUpdateProject();
   const createSessionMutation = useCreateChatSession();
   const deleteSessionMutation = useDeleteChatSession();
+  const updateSessionMutation = useUpdateChatSession();
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,6 +195,64 @@ export function ProjectSidebar({
       });
     } finally {
       setDeleteSessionId(null);
+    }
+  };
+
+  const handleStartEditingSession = (session: ChatSession) => {
+    setEditingSessionId(session.id);
+    setEditingSessionTitle(session.title);
+  };
+
+  const handleCancelEditingSession = () => {
+    setEditingSessionId(null);
+    setEditingSessionTitle("");
+  };
+
+  const handleSaveSessionTitle = async () => {
+    if (!editingSessionId || !editingSessionTitle.trim()) return;
+    
+    try {
+      await updateSessionMutation.mutateAsync({
+        id: editingSessionId,
+        updates: { title: editingSessionTitle.trim() },
+      });
+      setEditingSessionId(null);
+      setEditingSessionTitle("");
+    } catch (error) {
+      debugLog.error("Failed to update session", {
+        service: "project-sidebar",
+        operation: "handleSaveSessionTitle",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const handleStartEditingProject = (project: Project) => {
+    setEditingProjectId(project.id);
+    setEditingProjectName(project.name);
+  };
+
+  const handleCancelEditingProject = () => {
+    setEditingProjectId(null);
+    setEditingProjectName("");
+  };
+
+  const handleSaveProjectName = async () => {
+    if (!editingProjectId || !editingProjectName.trim()) return;
+    
+    try {
+      await updateProjectMutation.mutateAsync({
+        id: editingProjectId,
+        updates: { name: editingProjectName.trim() },
+      });
+      setEditingProjectId(null);
+      setEditingProjectName("");
+    } catch (error) {
+      debugLog.error("Failed to update project", {
+        service: "project-sidebar",
+        operation: "handleSaveProjectName",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
@@ -255,41 +321,101 @@ export function ProjectSidebar({
                   onClick={() => onProjectSelect(project)}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {project.name}
-                    </p>
-                    {project.description && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {project.description}
-                      </p>
+                    {editingProjectId === project.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={editingProjectName}
+                          onChange={(e) => setEditingProjectName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleSaveProjectName();
+                            } else if (e.key === "Escape") {
+                              e.preventDefault();
+                              handleCancelEditingProject();
+                            }
+                          }}
+                          className="flex-1 text-sm bg-transparent border-b border-primary outline-none"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-4 w-4 p-0 hover:text-primary shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveProjectName();
+                          }}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-4 w-4 p-0 hover:text-muted-foreground shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancelEditingProject();
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium truncate">
+                          {project.name}
+                        </p>
+                        {project.description && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {project.description}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      aria-label={t("studio_chat_addSession")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCreateSession(project.id);
-                      }}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 hover:text-destructive"
-                      aria-label={t("studio_chat_deleteProject")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteProjectId(project.id);
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  {editingProjectId !== project.id && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 shrink-0"
+                        aria-label={t("studio_chat_addSession")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateSession(project.id);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 shrink-0"
+                        aria-label={t("studio_chat_renameProject")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditingProject(project);
+                        }}
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 hover:text-destructive"
+                        aria-label={t("studio_chat_deleteProject")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteProjectId(project.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {selectedProjectId === project.id && (
@@ -310,21 +436,81 @@ export function ProjectSidebar({
                           onClick={() => onSessionSelect(session)}
                         >
                           <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 text-xs truncate">
-                            {session.title}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive shrink-0"
-                            aria-label={t("studio_chat_deleteSession")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteSessionId(session.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {editingSessionId === session.id ? (
+                            <div className="flex-1 flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={editingSessionTitle}
+                                onChange={(e) => setEditingSessionTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleSaveSessionTitle();
+                                  } else if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    handleCancelEditingSession();
+                                  }
+                                }}
+                                className="flex-1 text-xs bg-transparent border-b border-primary outline-none"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0 hover:text-primary shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSaveSessionTitle();
+                                }}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-4 w-4 p-0 hover:text-muted-foreground shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelEditingSession();
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="flex-1 text-xs truncate">
+                                {session.title}
+                              </span>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 shrink-0"
+                                  aria-label={t("studio_chat_renameSession")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditingSession(session);
+                                  }}
+                                >
+                                  <Edit3 className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-4 w-4 p-0 hover:text-destructive shrink-0"
+                                  aria-label={t("studio_chat_deleteSession")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteSessionId(session.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))
                     ) : null}

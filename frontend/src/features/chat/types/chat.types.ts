@@ -44,6 +44,10 @@ export interface CreateSessionRequest {
   title?: string;
 }
 
+export interface UpdateSessionRequest {
+  title?: string;
+}
+
 export interface SendMessageRequest {
   content: string;
   reelRefs?: number[];

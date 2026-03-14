@@ -3,11 +3,13 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MessageSquarePlus } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
+import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "../hooks/use-chat-sessions";
 import { useChatStream, STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
 import type { Project, ChatSession, ChatMessage } from "../types/chat.types";
+import type { Reel } from "@/features/reels/types/reel.types";
 
 interface ChatLayoutProps {
   projects: Project[];
@@ -26,6 +28,7 @@ export function ChatLayout({
   const search = useSearch({ strict: false }) as {
     projectId?: string;
     sessionId?: string;
+    reelId?: string;
   };
   const navigate = useNavigate();
 
@@ -47,6 +50,7 @@ export function ChatLayout({
     isSavingContent,
     streamingContentId,
   } = useChatStream(sessionId);
+  const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -60,8 +64,66 @@ export function ChatLayout({
   useEffect(() => {
     if (sessionData && !sessionLoading) {
       setSelectedSession(sessionData.session);
+      // Reset activeReelRefs when switching sessions
+      setActiveReelRefs([]);
     }
   }, [sessionData, sessionLoading]);
+
+  const lastReelRefs = useMemo(() => {
+    if (!sessionData) return [];
+    // Search only for messages from users, and when you find reelRefs, return them
+    const userMessages = sessionData.messages.filter((m) => m.role === "user");
+    const lastMessage = userMessages[userMessages.length - 1];
+    return lastMessage?.reelRefs || [];
+  }, [sessionData]);
+
+  // Load reels from messages or URL parameter as fallback
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReels = async () => {
+      try {
+        // If we have message-based reel refs, load those
+        if (lastReelRefs.length > 0) {
+          const data = await authenticatedFetchJson<{ reels: Reel[] }>(
+            "/api/reels/bulk",
+            {
+              method: "POST",
+              body: JSON.stringify({ ids: lastReelRefs }),
+            },
+          );
+          if (!cancelled) setActiveReelRefs(data.reels);
+        }
+        // Otherwise, use URL reelId as fallback for initial session setup
+        else if (search.reelId && sessionData) {
+          const data = await authenticatedFetchJson<{ reel: Reel }>(
+            `/api/reels/${search.reelId}`,
+          );
+          if (!cancelled && data.reel) {
+            setActiveReelRefs([data.reel]);
+          }
+        }
+        // If neither exists, clear the reels
+        else {
+          if (!cancelled) setActiveReelRefs([]);
+        }
+      } catch (error) {
+        debugLog.error("Failed to load reels", {
+          service: "chat-layout",
+          operation: "loadReels",
+          error: error instanceof Error ? error.message : String(error),
+          lastReelRefs,
+          reelId: search.reelId,
+        });
+        if (!cancelled) setActiveReelRefs([]);
+      }
+    };
+
+    void loadReels();
+    return () => {
+      cancelled = true;
+    };
+  }, [lastReelRefs, search.reelId, sessionData]);
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
@@ -156,6 +218,7 @@ export function ChatLayout({
               isLimitReached={isLimitReached}
               isSavingContent={isSavingContent}
               streamingContentId={streamingContentId}
+              activeReelRefs={activeReelRefs}
             />
           </>
         ) : (

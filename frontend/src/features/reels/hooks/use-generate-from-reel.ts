@@ -27,7 +27,7 @@ export function useGenerateFromReel() {
 
       await navigate({
         to: "/studio/generate",
-        search: { projectId: project.id, sessionId: session.id },
+        search: { projectId: project.id, sessionId: session.id, reelId: reel.id.toString() },
       });
     } catch (err) {
       setError(

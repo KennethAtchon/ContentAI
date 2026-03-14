@@ -6,6 +6,7 @@ import type {
   CreateProjectRequest,
   UpdateProjectRequest,
   CreateSessionRequest,
+  UpdateSessionRequest,
   SendMessageRequest,
   SendMessageResponse,
 } from "../types/chat.types";
@@ -124,6 +125,27 @@ export const chatService = {
     if (!response.ok) {
       throw new Error("Failed to delete chat session");
     }
+  },
+
+  async updateChatSession(
+    id: string,
+    updates: UpdateSessionRequest
+  ): Promise<ChatSession> {
+    const response = await authenticatedFetch(
+      `${API_BASE}/chat/sessions/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updates),
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Failed to update chat session");
+    }
+    const data = await response.json();
+    return data.session;
   },
 
   // Chat Messages

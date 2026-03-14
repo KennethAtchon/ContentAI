@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, AlertCircle } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
@@ -7,6 +7,7 @@ import { UsageWarningBanner } from "./UsageWarningBanner";
 import { LimitHitModal } from "./LimitHitModal";
 import { STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
+import type { Reel } from "@/features/reels/types/reel.types";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
@@ -17,6 +18,8 @@ interface ChatPanelProps {
   isLimitReached?: boolean;
   isSavingContent?: boolean;
   streamingContentId?: number | null;
+  reels?: any[];
+  activeReelRefs?: Reel[];
 }
 
 export function ChatPanel({
@@ -28,6 +31,7 @@ export function ChatPanel({
   isLimitReached,
   isSavingContent,
   streamingContentId,
+  activeReelRefs,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -119,7 +123,11 @@ export function ChatPanel({
               </a>
             </div>
           ) : (
-            <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
+            <ChatInput 
+              activeReelRefs={activeReelRefs}
+              onSendMessage={onSendMessage} 
+              disabled={isStreaming}  
+            />
           )}
         </div>
       </div>

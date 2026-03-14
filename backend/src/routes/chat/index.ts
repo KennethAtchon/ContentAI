@@ -586,6 +586,7 @@ app.post(
               role: "assistant",
               content: text,
               generatedContentId: savedContentId,
+              reelRefs: reelRefs || null,
             });
 
             await db

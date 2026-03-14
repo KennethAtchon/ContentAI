@@ -7,7 +7,7 @@ import {
   niches,
   reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, gte, ilike, sql, and, or } from "drizzle-orm";
+import { eq, desc, gte, ilike, sql, and, or, inArray } from "drizzle-orm";
 import { analyzeReel } from "../../services/reels/reel-analyzer";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
@@ -234,6 +234,52 @@ reelsRouter.get(
       debugLog.error("Failed to fetch reels", {
         service: "reels-route",
         operation: "listReels",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch reels" }, 500);
+    }
+  },
+);
+
+/**
+ * POST /api/reels/bulk
+ * Fetch multiple reels by ID in a single request.
+ */
+reelsRouter.post(
+  "/bulk",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const body = await c.req.json().catch(() => null);
+      const ids = Array.isArray(body?.ids) ? body.ids : [];
+      const uniqueIds = Array.from(
+        new Set(
+          ids
+            .map((id) => (typeof id === "number" ? id : Number(id)))
+            .filter((id) => Number.isInteger(id) && id > 0),
+        ),
+      ).slice(0, 50);
+
+      if (uniqueIds.length === 0) {
+        return c.json({ reels: [] });
+      }
+
+      const rows = await db
+        .select()
+        .from(reels)
+        .where(inArray(reels.id, uniqueIds));
+
+      const rowById = new Map(rows.map((row) => [row.id, row]));
+      const ordered = uniqueIds
+        .map((id) => rowById.get(id))
+        .filter(Boolean);
+
+      return c.json({ reels: ordered });
+    } catch (error) {
+      debugLog.error("Failed to fetch reels in bulk", {
+        service: "reels-route",
+        operation: "bulkReels",
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch reels" }, 500);

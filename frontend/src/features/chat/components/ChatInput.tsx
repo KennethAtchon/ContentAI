@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -10,23 +10,29 @@ import type { Reel } from "@/features/reels/types/reel.types";
 interface ChatInputProps {
   onSendMessage: (content: string, reelRefs?: number[]) => void;
   disabled?: boolean;
+  activeReelRefs?: Reel[];
 }
 
-export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
+export function ChatInput({ onSendMessage, disabled, activeReelRefs }: ChatInputProps) {
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [attachedReels, setAttachedReels] = useState<Reel[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Initialize with active reel ref if provided
+  useEffect(() => {
+    setAttachedReels(activeReelRefs || []);
+  }, [activeReelRefs]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
+      console.log("Sending message:", message.trim(), attachedReels);
       const reelRefs =
         attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined;
       onSendMessage(message.trim(), reelRefs);
       setMessage("");
-      setAttachedReels([]);
     }
   };
 
