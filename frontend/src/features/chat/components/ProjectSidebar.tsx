@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
+import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import {
   useProjects,
   useCreateProject,
@@ -48,6 +49,7 @@ interface ProjectSidebarProps {
   onNewProject: () => void;
   showNewProjectForm: boolean;
   onHideNewProjectForm: () => void;
+  onSessionDeleted?: () => void; // Callback to handle redirect when current session is deleted
 }
 
 function UsageBar({
@@ -112,9 +114,11 @@ export function ProjectSidebar({
   onNewProject,
   showNewProjectForm,
   onHideNewProjectForm,
+  onSessionDeleted,
 }: ProjectSidebarProps) {
   const { t } = useTranslation();
   const { user } = useApp();
+  const { hasEnterpriseAccess } = useSubscription();
   const usageFetcher = useQueryFetcher<UsageStats>();
 
   const { data: usageData } = useQuery({
@@ -195,6 +199,11 @@ export function ProjectSidebar({
     if (!deleteSessionId) return;
     try {
       await deleteSessionMutation.mutateAsync(deleteSessionId);
+      
+      // If the deleted session was the currently selected one, redirect away
+      if (deleteSessionId === selectedSessionId && onSessionDeleted) {
+        onSessionDeleted();
+      }
     } catch (error) {
       debugLog.error("Failed to delete session", {
         service: "project-sidebar",
@@ -499,7 +508,7 @@ export function ProjectSidebar({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-4 w-4 p-0 shrink-0"
+                                  className="h-4 w-4 p-0"
                                   aria-label={t("studio_chat_renameSession")}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -511,7 +520,7 @@ export function ProjectSidebar({
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-4 w-4 p-0 hover:text-destructive shrink-0"
+                                  className="h-4 w-4 p-0 hover:text-destructive"
                                   aria-label={t("studio_chat_deleteSession")}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -548,7 +557,8 @@ export function ProjectSidebar({
             limit={usageData.reelsAnalyzedLimit}
           />
           {(usageData.contentGenerated >= usageData.contentGeneratedLimit ||
-            usageData.reelsAnalyzed >= usageData.reelsAnalyzedLimit) && (
+            usageData.reelsAnalyzed >= usageData.reelsAnalyzedLimit) &&
+            !hasEnterpriseAccess && (
             <a
               href="/pricing"
               className="block w-full text-center text-[11px] font-semibold py-1.5 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors"

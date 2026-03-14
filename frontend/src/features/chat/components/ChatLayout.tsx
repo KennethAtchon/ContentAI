@@ -165,6 +165,15 @@ export function ChatLayout({
     }
   };
 
+  const handleSessionDeleted = () => {
+    // Clear the selected session and navigate to the project view
+    setSelectedSession(undefined);
+    navigate({
+      to: "/studio/generate",
+      search: selectedProject ? { projectId: selectedProject.id } : {},
+    });
+  };
+
   // Combine server messages with optimistic/streaming overlay
   const displayMessages = useMemo((): ChatMessage[] => {
     const server = sessionData?.messages ?? [];
@@ -201,6 +210,7 @@ export function ChatLayout({
         onNewProject={onNewProject}
         showNewProjectForm={showNewProjectForm}
         onHideNewProjectForm={onHideNewProjectForm}
+        onSessionDeleted={handleSessionDeleted}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

@@ -275,6 +275,16 @@ app.post(
       const sessionId = c.req.param("id");
       const { content, reelRefs } = c.req.valid("json");
 
+      debugLog.info("[chat:sendMessage] Request received", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        userId: auth.user.id,
+        contentLength: content.length,
+        reelRefsCount: reelRefs?.length ?? 0,
+        reelRefs,
+      });
+
       // Verify session exists and belongs to user
       const [session] = await db
         .select({
@@ -297,8 +307,23 @@ app.post(
         .limit(1);
 
       if (!session) {
+        debugLog.warn("[chat:sendMessage] Session not found", {
+          service: "chat-route",
+          operation: "sendMessage",
+          sessionId,
+          userId: auth.user.id,
+        });
         return c.json({ error: "Session not found" }, 404);
       }
+
+      debugLog.info("[chat:sendMessage] Session verified", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        sessionTitle: session.title,
+        projectId: session.projectId,
+        projectName: session.project?.name,
+      });
 
       // Load conversation history BEFORE saving current message (last 20, reelRefs stripped)
       const historyRows = await db
@@ -309,13 +334,28 @@ app.post(
         .limit(20);
       const history = historyRows.reverse();
 
+      debugLog.info("[chat:sendMessage] History loaded", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        historyMessageCount: history.length,
+      });
+
       // Save user message immediately (before streaming starts)
+      const userMessageId = crypto.randomUUID();
       await db.insert(chatMessages).values({
-        id: crypto.randomUUID(),
+        id: userMessageId,
         sessionId,
         role: "user",
         content,
         reelRefs: reelRefs || null,
+      });
+
+      debugLog.info("[chat:sendMessage] User message saved to DB", {
+        service: "chat-route",
+        operation: "sendMessage",
+        messageId: userMessageId,
+        sessionId,
       });
 
       // Auto-title session from first message
@@ -326,6 +366,12 @@ app.post(
           .update(chatSessions)
           .set({ title: autoTitle })
           .where(eq(chatSessions.id, sessionId));
+        debugLog.info("[chat:sendMessage] Session auto-titled", {
+          service: "chat-route",
+          operation: "sendMessage",
+          sessionId,
+          autoTitle,
+        });
       }
 
       // Build prompt context
@@ -339,8 +385,27 @@ app.post(
         ? `Context:\n${context}\n\nUser message: ${content}`
         : content;
 
+      debugLog.info("[chat:sendMessage] Prompt context built", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        hasReelContext: !!reelRefs?.length,
+        userPromptLength: userPrompt.length,
+        systemPromptLength: systemPrompt.length,
+      });
+
       const modelInfo = getModelInfo("generation");
       const streamStartMs = Date.now();
+
+      debugLog.info("[chat:sendMessage] Starting AI stream", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        provider: modelInfo.provider,
+        model: modelInfo.model,
+        historyMessages: history.length,
+        maxOutputTokens: 2048,
+      });
 
       // Closure variable: captured by save_content / iterate_content execute handlers,
       // read by onFinish to link the assistant chatMessage to the saved content row.
@@ -372,6 +437,20 @@ app.post(
 
         onFinish: async ({ text, totalUsage }) => {
           try {
+            const durationMs = Date.now() - streamStartMs;
+            const { inputTokens, outputTokens } = extractUsageTokens(totalUsage);
+
+            debugLog.info("[chat:onFinish] Stream completed", {
+              service: "chat-route",
+              operation: "onFinish",
+              sessionId,
+              responseLength: text.length,
+              durationMs,
+              inputTokens,
+              outputTokens,
+              savedContentId,
+            });
+
             // Record usage FIRST (before any DB work that might fail)
             await recordUsage(
               auth.user.id,
@@ -380,9 +459,16 @@ app.post(
               { textLength: text.length },
             ).catch(() => {});
 
+            debugLog.info("[chat:onFinish] Usage recorded", {
+              service: "chat-route",
+              operation: "onFinish",
+              sessionId,
+            });
+
             // Insert assistant message linked to any content saved by tools
+            const assistantMessageId = crypto.randomUUID();
             await db.insert(chatMessages).values({
-              id: crypto.randomUUID(),
+              id: assistantMessageId,
               sessionId,
               role: "assistant",
               content: text,
@@ -390,13 +476,25 @@ app.post(
               reelRefs: reelRefs || null,
             });
 
+            debugLog.info("[chat:onFinish] Assistant message saved to DB", {
+              service: "chat-route",
+              operation: "onFinish",
+              messageId: assistantMessageId,
+              sessionId,
+              linkedContentId: savedContentId,
+            });
+
             await db
               .update(chatSessions)
               .set({ updatedAt: new Date() })
               .where(eq(chatSessions.id, sessionId));
 
-            const { inputTokens, outputTokens } =
-              extractUsageTokens(totalUsage);
+            debugLog.info("[chat:onFinish] Session timestamp updated", {
+              service: "chat-route",
+              operation: "onFinish",
+              sessionId,
+            });
+
             await recordAiCost({
               userId: auth.user.id,
               provider: modelInfo.provider,
@@ -404,8 +502,19 @@ app.post(
               featureType: "generation",
               inputTokens,
               outputTokens,
-              durationMs: Date.now() - streamStartMs,
+              durationMs,
             }).catch(() => {});
+
+            debugLog.info("[chat:onFinish] AI cost recorded", {
+              service: "chat-route",
+              operation: "onFinish",
+              sessionId,
+              provider: modelInfo.provider,
+              model: modelInfo.model,
+              inputTokens,
+              outputTokens,
+              durationMs,
+            });
           } catch (err) {
             debugLog.error("Failed to persist assistant message", {
               service: "chat-route",
@@ -414,6 +523,12 @@ app.post(
             });
           }
         },
+      });
+
+      debugLog.info("[chat:sendMessage] Returning SSE stream to client", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
       });
 
       return result.toUIMessageStreamResponse();

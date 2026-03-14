@@ -64,6 +64,16 @@ export function createSaveContentTool(context: ToolContext) {
       cta: string;
       contentType: "hook_only" | "caption_only" | "full_script";
     }) => {
+      debugLog.info("[tool:save_content] Tool invoked", {
+        service: "chat-tools",
+        operation: "save_content",
+        contentType,
+        hookLength: hook.length,
+        scriptLength: script.length,
+        captionLength: caption.length,
+        hashtagCount: hashtags.length,
+        userId: context.auth.user.id,
+      });
       try {
         const [row] = await db
           .insert(generatedContent)
@@ -80,9 +90,15 @@ export function createSaveContentTool(context: ToolContext) {
           })
           .returning();
         context.savedContentId = row.id;
+        debugLog.info("[tool:save_content] Content saved to DB", {
+          service: "chat-tools",
+          operation: "save_content",
+          contentId: row.id,
+          userId: context.auth.user.id,
+        });
         return { success: true as const, contentId: row.id };
       } catch (err) {
-        debugLog.error("save_content tool failed", {
+        debugLog.error("[tool:save_content] Tool failed", {
           service: "chat-tools",
           operation: "save_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -104,8 +120,20 @@ export function createGetReelAnalysisTool(context: ToolContext) {
     }),
     // @ts-ignore - AI SDK v6 type issue
     execute: async ({ reelId }: { reelId: number }) => {
+      debugLog.info("[tool:get_reel_analysis] Tool invoked", {
+        service: "chat-tools",
+        operation: "get_reel_analysis",
+        reelId,
+        allowedReelRefs: context.reelRefs,
+      });
       // Security: only allow reels that were attached to this message
       if (!context.reelRefs || !context.reelRefs.includes(reelId)) {
+        debugLog.warn("[tool:get_reel_analysis] Reel not in context — blocked", {
+          service: "chat-tools",
+          operation: "get_reel_analysis",
+          reelId,
+          allowedReelRefs: context.reelRefs,
+        });
         return { error: "reel_not_in_context" };
       }
       try {
@@ -126,15 +154,27 @@ export function createGetReelAnalysisTool(context: ToolContext) {
           .where(eq(reelAnalyses.reelId, reelId))
           .limit(1);
         if (!analysis) {
+          debugLog.info("[tool:get_reel_analysis] No analysis found for reel", {
+            service: "chat-tools",
+            operation: "get_reel_analysis",
+            reelId,
+          });
           return {
             error: "no_analysis_found",
             message:
               "No deep analysis available for this reel. Proceed to generate content using only the basic reel info already provided in the context (username, hook, view count).",
           };
         }
+        debugLog.info("[tool:get_reel_analysis] Analysis returned", {
+          service: "chat-tools",
+          operation: "get_reel_analysis",
+          reelId,
+          hasHookCategory: !!analysis.hookCategory,
+          replicabilityScore: analysis.replicabilityScore,
+        });
         return analysis;
       } catch (err) {
-        debugLog.error("get_reel_analysis tool failed", {
+        debugLog.error("[tool:get_reel_analysis] Tool failed", {
           service: "chat-tools",
           operation: "get_reel_analysis",
           error: err instanceof Error ? err.message : "Unknown",
@@ -182,6 +222,20 @@ export function createIterateContentTool(context: ToolContext) {
       cta?: string;
       changeDescription: string;
     }) => {
+      debugLog.info("[tool:iterate_content] Tool invoked", {
+        service: "chat-tools",
+        operation: "iterate_content",
+        parentContentId,
+        changeDescription,
+        fieldsOverridden: {
+          hook: hook !== undefined,
+          script: script !== undefined,
+          caption: caption !== undefined,
+          hashtags: hashtags !== undefined,
+          cta: cta !== undefined,
+        },
+        userId: context.auth.user.id,
+      });
       try {
         // Ownership check: verify parentContentId belongs to this user
         const [parent] = await db
@@ -197,8 +251,22 @@ export function createIterateContentTool(context: ToolContext) {
 
         // Return not_found regardless of whether ID exists (don't leak existence)
         if (!parent) {
+          debugLog.warn("[tool:iterate_content] Parent content not found or unauthorized", {
+            service: "chat-tools",
+            operation: "iterate_content",
+            parentContentId,
+            userId: context.auth.user.id,
+          });
           return { error: "not_found" };
         }
+
+        debugLog.info("[tool:iterate_content] Parent content found, creating new version", {
+          service: "chat-tools",
+          operation: "iterate_content",
+          parentContentId,
+          parentVersion: parent.version,
+          newVersion: parent.version + 1,
+        });
 
         const [row] = await db
           .insert(generatedContent)
@@ -222,9 +290,16 @@ export function createIterateContentTool(context: ToolContext) {
           .returning();
 
         context.savedContentId = row.id;
+        debugLog.info("[tool:iterate_content] New version saved to DB", {
+          service: "chat-tools",
+          operation: "iterate_content",
+          newContentId: row.id,
+          parentContentId,
+          version: row.version,
+        });
         return { success: true as const, contentId: row.id };
       } catch (err) {
-        debugLog.error("iterate_content tool failed", {
+        debugLog.error("[tool:iterate_content] Tool failed", {
           service: "chat-tools",
           operation: "iterate_content",
           error: err instanceof Error ? err.message : "Unknown",
