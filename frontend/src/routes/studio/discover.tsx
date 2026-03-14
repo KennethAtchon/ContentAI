@@ -113,7 +113,6 @@ function DiscoverPage() {
 
   const { data: reelData } = useReel(resolvedId);
   const selectedReel = reelData?.reel ?? null;
-  const analysis = reelData?.analysis ?? null;
 
   return (
     <AuthGuard authType="user">
@@ -222,7 +221,7 @@ function DiscoverPage() {
 
           {/* Right AI panel */}
           {selectedReel ? (
-            <AnalysisPanel reel={selectedReel} analysis={analysis} />
+            <AnalysisPanel reel={selectedReel} />
           ) : (
             <aside className="bg-studio-surface border-l border-white/[0.05] flex items-center justify-center">
               <EmptyCanvas label={t("studio_panel_selectReel")} icon="✦" />

@@ -10,22 +10,19 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { useGenerateFromReel } from "../hooks/use-generate-from-reel";
-import type { ReelDetail, ReelAnalysis } from "../types/reel.types";
+import type { ReelDetail } from "../types/reel.types";
 
 interface Props {
   reel: ReelDetail;
-  analysis: ReelAnalysis | null;
 }
 
-export function GenerateFromReelButton({ reel, analysis }: Props) {
+export function GenerateFromReelButton({ reel }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { generateFromReel, isLoading, error } = useGenerateFromReel();
 
   async function handleContinue() {
-    await generateFromReel(reel, analysis);
-    // If no error, navigation happens automatically
-    if (!error) setOpen(false);
+    await generateFromReel(reel);
   }
 
   return (

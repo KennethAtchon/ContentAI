@@ -37,20 +37,6 @@ export interface ReelDetail {
   createdAt: string;
 }
 
-export interface ReelAnalysis {
-  id: number;
-  reelId: number;
-  hookPattern: string | null;
-  hookCategory: string | null;
-  emotionalTrigger: string | null;
-  formatPattern: string | null;
-  ctaType: string | null;
-  captionFramework: string | null;
-  curiosityGapStyle: string | null;
-  remixSuggestion: string | null;
-  analyzedAt: string;
-}
-
 export interface GeneratedContent {
   id: number;
   userId: string;
