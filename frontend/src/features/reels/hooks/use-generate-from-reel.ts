@@ -15,7 +15,7 @@ export function useGenerateFromReel() {
 
   async function generateFromReel(
     reel: ReelDetail,
-    analysis: ReelAnalysis | null,
+    analysis: ReelAnalysis | null
   ) {
     setIsLoading(true);
     setError(null);
@@ -44,7 +44,9 @@ export function useGenerateFromReel() {
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Something went wrong. Please try again.",
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
       );
       setIsLoading(false);
     }

@@ -44,6 +44,8 @@ export function ChatLayout({
     isStreaming,
     streamError,
     isLimitReached,
+    isSavingContent,
+    streamingContentId,
   } = useChatStream(sessionId);
 
   // Update selected project from URL params
@@ -152,6 +154,8 @@ export function ChatLayout({
               isStreaming={isStreaming}
               streamError={streamError}
               isLimitReached={isLimitReached}
+              isSavingContent={isSavingContent}
+              streamingContentId={streamingContentId}
             />
           </>
         ) : (

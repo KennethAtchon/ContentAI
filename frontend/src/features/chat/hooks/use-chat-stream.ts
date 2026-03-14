@@ -13,6 +13,10 @@ export function useChatStream(sessionId: string) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isLimitReached, setIsLimitReached] = useState(false);
+  const [isSavingContent, setIsSavingContent] = useState(false);
+  const [streamingContentId, setStreamingContentId] = useState<number | null>(
+    null
+  );
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
@@ -35,6 +39,8 @@ export function useChatStream(sessionId: string) {
       setStreamingContent("");
       setIsStreaming(true);
       setStreamError(null);
+      setIsSavingContent(false);
+      setStreamingContentId(null);
 
       try {
         const response = await authenticatedFetch(
@@ -60,18 +66,73 @@ export function useChatStream(sessionId: string) {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let buffer = "";
         let accumulated = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          accumulated += decoder.decode(value, { stream: true });
-          setStreamingContent(accumulated);
-        }
-        accumulated += decoder.decode(); // flush
-        setStreamingContent(accumulated);
+          buffer += decoder.decode(value, { stream: true });
 
-        // Refresh persisted messages — wait for cache to update before clearing local state
+          // Process complete lines (SSE format: "data: {...}\n\n")
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data: ")) continue;
+            const jsonStr = trimmed.slice(6); // strip "data: "
+            if (jsonStr === "[DONE]") continue;
+
+            try {
+              const chunk = JSON.parse(jsonStr) as {
+                type: string;
+                [key: string]: unknown;
+              };
+
+              if (chunk.type === "text-delta") {
+                accumulated += (chunk.delta as string) ?? "";
+                setStreamingContent(accumulated);
+              } else if (
+                chunk.type === "tool-input-start" &&
+                (chunk.toolName === "save_content" ||
+                  chunk.toolName === "iterate_content")
+              ) {
+                setIsSavingContent(true);
+              } else if (chunk.type === "tool-output-available") {
+                const output = chunk.output as {
+                  contentId?: number;
+                  success?: boolean;
+                } | null;
+                if (output?.contentId) {
+                  setStreamingContentId(output.contentId);
+                }
+                setIsSavingContent(false);
+              }
+            } catch {
+              // skip malformed lines
+            }
+          }
+        }
+
+        // Flush remaining buffer
+        if (buffer.trim().startsWith("data: ")) {
+          try {
+            const jsonStr = buffer.trim().slice(6);
+            const chunk = JSON.parse(jsonStr) as {
+              type: string;
+              delta?: string;
+            };
+            if (chunk.type === "text-delta" && chunk.delta) {
+              accumulated += chunk.delta;
+              setStreamingContent(accumulated);
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        // Refresh persisted messages after stream ends
         await queryClient.invalidateQueries({
           queryKey: ["chat-sessions", sessionId],
         });
@@ -84,6 +145,7 @@ export function useChatStream(sessionId: string) {
         setOptimisticUserMessage(null);
         setStreamingContent(null);
         setIsStreaming(false);
+        setIsSavingContent(false);
       }
     },
     [sessionId, isStreaming, queryClient]
@@ -96,5 +158,7 @@ export function useChatStream(sessionId: string) {
     isStreaming,
     streamError,
     isLimitReached,
+    isSavingContent,
+    streamingContentId,
   };
 }

@@ -109,7 +109,6 @@ function DiscoverPage() {
 
   const handleAnalyze = useCallback((id: number) => {
     setActiveReelId(id);
-    // Analysis panel will load automatically via useReel
   }, []);
 
   const { data: reelData } = useReel(resolvedId);

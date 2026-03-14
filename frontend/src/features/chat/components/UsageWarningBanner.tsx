@@ -21,7 +21,7 @@ export function UsageWarningBanner() {
   const currentMonth = new Date().toISOString().slice(0, 7); // "2026-03"
   const dismissKey = `usage_warning_dismissed_${currentMonth}`;
   const [dismissed, setDismissed] = useState(
-    () => sessionStorage.getItem(dismissKey) === "true",
+    () => sessionStorage.getItem(dismissKey) === "true"
   );
 
   const { data } = useQuery({

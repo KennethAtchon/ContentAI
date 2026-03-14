@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { TikTokVideoCard } from "./TikTokVideoCard";
 import type { Reel } from "../types/reel.types";
 
@@ -21,58 +20,40 @@ export function TikTokFeed({
   onAnalyze,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Measure container height for virtualizer item size
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const ro = new window.ResizeObserver(([entry]) => {
-      setContainerHeight(entry.contentRect.height);
-    });
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, []);
-
-  const rowVirtualizer = useVirtualizer({
-    count: reels.length,
-    getScrollElement: () => containerRef.current,
-    estimateSize: () => containerHeight || 600,
-    overscan: 1,
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-
-  // Programmatic scroll using virtualizer
+  // Lock observer during programmatic scrolls
   const programmaticScroll = useCallback(
     (reelId: number) => {
-      const idx = reels.findIndex((r) => r.id === reelId);
-      if (idx === -1) return;
+      const el = cardRefs.current.get(reelId);
+      if (!el) return;
 
       isScrollingRef.current = true;
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
 
       onActiveChange(reelId);
-      rowVirtualizer.scrollToIndex(idx, { behavior: "smooth" });
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
 
+      // Unlock after scroll settles
       scrollTimeoutRef.current = setTimeout(() => {
         isScrollingRef.current = false;
       }, 600);
     },
-    [reels, onActiveChange, rowVirtualizer],
+    [onActiveChange]
   );
 
-  // IntersectionObserver on virtual items
+  // Intersection Observer — only updates active reel during user-initiated scrolls
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || containerHeight === 0) return;
+    if (!container) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (isScrollingRef.current) return;
+
         for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             const reelId = Number(entry.target.getAttribute("data-reel-id"));
@@ -82,18 +63,18 @@ export function TikTokFeed({
           }
         }
       },
-      { root: container, threshold: 0.6 },
+      {
+        root: container,
+        threshold: 0.6,
+      }
     );
 
-    for (const virtualRow of virtualItems) {
-      const el = container.querySelector(
-        `[data-reel-id="${reels[virtualRow.index]?.id}"]`,
-      );
-      if (el) observer.observe(el);
+    for (const el of cardRefs.current.values()) {
+      observer.observe(el);
     }
 
     return () => observer.disconnect();
-  }, [virtualItems, reels, activeId, onActiveChange, containerHeight]);
+  }, [reels, activeId, onActiveChange]);
 
   // Load more when near the end
   useEffect(() => {
@@ -132,6 +113,14 @@ export function TikTokFeed({
     prevActiveId.current = activeId;
   }, [activeId, programmaticScroll]);
 
+  const setCardRef = useCallback(
+    (reelId: number) => (el: HTMLDivElement | null) => {
+      if (el) cardRefs.current.set(reelId, el);
+      else cardRefs.current.delete(reelId);
+    },
+    []
+  );
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -144,42 +133,25 @@ export function TikTokFeed({
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex-1 overflow-y-auto snap-y snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
-      >
-        {virtualItems.map((virtualRow) => {
-          const reel = reels[virtualRow.index];
-          if (!reel) return null;
-          return (
-            <div
-              key={reel.id}
-              data-reel-id={reel.id}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              <TikTokVideoCard
-                reel={reel}
-                isActive={activeId === reel.id}
-                isMuted={isMuted}
-                onToggleMute={() => setIsMuted((m) => !m)}
-                onAnalyze={onAnalyze}
-              />
-            </div>
-          );
-        })}
-      </div>
+      {reels.map((reel) => (
+        <div
+          key={reel.id}
+          ref={setCardRef(reel.id)}
+          data-reel-id={reel.id}
+          className="h-full w-full snap-start snap-always shrink-0"
+          style={{ minHeight: "100%" }}
+        >
+          <TikTokVideoCard
+            reel={reel}
+            isActive={activeId === reel.id}
+            isMuted={isMuted}
+            onToggleMute={() => setIsMuted((m) => !m)}
+            onAnalyze={onAnalyze}
+          />
+        </div>
+      ))}
     </div>
   );
 }

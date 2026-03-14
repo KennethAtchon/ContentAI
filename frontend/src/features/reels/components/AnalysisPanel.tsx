@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
-import { fmtNum, useAnalyzeReel } from "../hooks/use-reels";
+import { fmtNum } from "../hooks/use-reels";
 import { GenerateFromReelButton } from "./GenerateFromReelButton";
 import type { ReelDetail, ReelAnalysis } from "../types/reel.types";
 
@@ -21,16 +21,9 @@ interface Props {
 }
 
 export function AnalysisPanel({ reel, analysis }: Props) {
-  const analyzeReel = useAnalyzeReel();
-
   return (
     <aside className="bg-studio-surface border-l border-white/[0.05] flex flex-col overflow-hidden font-studio">
-      <AnalysisTab
-        reel={reel}
-        analysis={analysis}
-        isAnalyzing={analyzeReel.isPending}
-        onAnalyze={() => analyzeReel.mutate(reel.id)}
-      />
+      <AnalysisTab reel={reel} analysis={analysis} />
     </aside>
   );
 }
@@ -40,13 +33,9 @@ export function AnalysisPanel({ reel, analysis }: Props) {
 function AnalysisTab({
   reel,
   analysis,
-  isAnalyzing,
-  onAnalyze,
 }: {
   reel: ReelDetail;
   analysis: ReelAnalysis | null;
-  isAnalyzing: boolean;
-  onAnalyze: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -157,24 +146,7 @@ function AnalysisTab({
             </div>
           </>
         ) : (
-          <div className="space-y-2">
-            <button
-              onClick={onAnalyze}
-              disabled={isAnalyzing}
-              className={cn(
-                "w-full bg-studio-accent/[0.08] border border-dashed border-studio-accent/30 rounded-[10px]",
-                "text-studio-accent text-[12px] font-semibold py-3.5",
-                "flex items-center justify-center gap-1.5 cursor-pointer font-studio",
-                "transition-all duration-150 hover:bg-studio-accent/[0.14] hover:border-studio-accent/50",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
-              )}
-            >
-              {isAnalyzing
-                ? `⟳ ${t("studio_panel_analyzing")}`
-                : `✦ ${t("studio_panel_runAnalysis")}`}
-            </button>
-            <GenerateFromReelButton reel={reel} analysis={null} />
-          </div>
+          <GenerateFromReelButton reel={reel} analysis={null} />
         )}
       </div>
     </div>

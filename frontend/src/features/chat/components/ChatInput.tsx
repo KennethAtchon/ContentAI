@@ -23,9 +23,7 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
     e.preventDefault();
     if (message.trim() && !disabled) {
       const reelRefs =
-        attachedReels.length > 0
-          ? attachedReels.map((r) => r.id)
-          : undefined;
+        attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined;
       onSendMessage(message.trim(), reelRefs);
       setMessage("");
       setAttachedReels([]);

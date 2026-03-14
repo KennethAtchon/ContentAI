@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { streamText } from "ai";
+import { streamText, tool, stepCountIs } from "ai";
 import {
   authMiddleware,
   rateLimiter,
@@ -15,8 +15,9 @@ import {
   projects,
   generatedContent,
   reels,
+  reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, sql, max, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { loadPrompt, getModel } from "../../lib/aiClient";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
@@ -298,6 +299,15 @@ app.post(
         return c.json({ error: "Session not found" }, 404);
       }
 
+      // Load conversation history BEFORE saving current message (last 20, reelRefs stripped)
+      const historyRows = await db
+        .select({ role: chatMessages.role, content: chatMessages.content })
+        .from(chatMessages)
+        .where(eq(chatMessages.sessionId, sessionId))
+        .orderBy(desc(chatMessages.createdAt))
+        .limit(20);
+      const history = historyRows.reverse();
+
       // Save user message immediately (before streaming starts)
       await db.insert(chatMessages).values({
         id: crypto.randomUUID(),
@@ -317,85 +327,265 @@ app.post(
           .where(eq(chatSessions.id, sessionId));
       }
 
-      // Build prompt
+      // Build prompt context
       const context = await buildChatContext(
         auth.user.id,
         session.project,
         reelRefs,
       );
       const systemPrompt = getChatSystemPrompt();
-      const userPrompt = `Context: ${context}\n\nUser message: ${content}`;
+      const userPrompt = context
+        ? `Context:\n${context}\n\nUser message: ${content}`
+        : content;
 
       const modelInfo = getModelInfo("generation");
       const streamStartMs = Date.now();
 
-      // Stream AI response; persist finished text via onFinish
+      // Closure variable: captured by save_content / iterate_content execute handlers,
+      // read by onFinish to link the assistant chatMessage to the saved content row.
+      let savedContentId: number | null = null;
+
       const result = streamText({
         model: getModel("generation"),
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-        maxOutputTokens: 1024,
-        onFinish: async ({ text, usage }) => {
+        messages: [
+          ...history.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+          { role: "user", content: userPrompt },
+        ],
+        maxOutputTokens: 2048,
+        toolChoice: "auto",
+        stopWhen: stepCountIs(1),
+        tools: {
+          save_content: tool({
+            description:
+              "Save a complete generated content piece (hook, script, caption, hashtags, CTA) to the database. Call this after writing a full generation. Never print raw content as plain text — always call this tool.",
+            parameters: z.object({
+              hook: z
+                .string()
+                .min(10)
+                .max(200)
+                .describe("Scroll-stopping opening line (1–2 sentences)"),
+              script: z
+                .string()
+                .min(50)
+                .describe(
+                  "Scene-by-scene shot list with timing, e.g. [0-3s] Opening...",
+                ),
+              caption: z
+                .string()
+                .min(20)
+                .describe("Full caption text with emojis"),
+              hashtags: z
+                .array(z.string())
+                .min(3)
+                .max(15)
+                .describe("3–15 relevant hashtags (without #)"),
+              cta: z
+                .string()
+                .describe(
+                  "Call-to-action (comment, save, share, follow, etc.)",
+                ),
+              contentType: z.enum(["hook_only", "caption_only", "full_script"]),
+            }),
+            // @ts-ignore - AI SDK v6 type issue
+            execute: async ({
+              hook,
+              script,
+              caption,
+              hashtags,
+              cta,
+              contentType,
+            }: {
+              hook: string;
+              script: string;
+              caption: string;
+              hashtags: string[];
+              cta: string;
+              contentType: "hook_only" | "caption_only" | "full_script";
+            }) => {
+              try {
+                const [row] = await db
+                  .insert(generatedContent)
+                  .values({
+                    userId: auth.user.id,
+                    prompt: content,
+                    generatedHook: hook,
+                    generatedCaption: caption,
+                    generatedScript: script,
+                    generatedMetadata: { hashtags, cta, contentType },
+                    outputType: contentType,
+                    status: "draft",
+                    version: 1,
+                  })
+                  .returning();
+                savedContentId = row.id;
+                return { success: true as const, contentId: row.id };
+              } catch (err) {
+                debugLog.error("save_content tool failed", {
+                  service: "chat-route",
+                  operation: "save_content",
+                  error: err instanceof Error ? err.message : "Unknown",
+                });
+                return { success: false as const, reason: "db_error" };
+              }
+            },
+          }),
+
+          get_reel_analysis: tool({
+            description:
+              "Fetch detailed analysis data for a reel that was attached to this message. Use this before generating content to understand the reel's hook patterns, emotional triggers, and format. Only call for reels explicitly attached by the user.",
+            parameters: z.object({
+              reelId: z
+                .number()
+                .describe("The numeric ID of the reel to fetch analysis for"),
+            }),
+            // @ts-ignore - AI SDK v6 type issue
+            execute: async ({ reelId }: { reelId: number }) => {
+              // Security: only allow reels that were attached to this message
+              if (!reelRefs || !reelRefs.includes(reelId)) {
+                return { error: "reel_not_in_context" };
+              }
+              try {
+                const [analysis] = await db
+                  .select({
+                    hookCategory: reelAnalyses.hookCategory,
+                    emotionalTrigger: reelAnalyses.emotionalTrigger,
+                    formatPattern: reelAnalyses.formatPattern,
+                    ctaType: reelAnalyses.ctaType,
+                    remixSuggestion: reelAnalyses.remixSuggestion,
+                    captionFramework: reelAnalyses.captionFramework,
+                    curiosityGapStyle: reelAnalyses.curiosityGapStyle,
+                    replicabilityScore: reelAnalyses.replicabilityScore,
+                    commentBaitStyle: reelAnalyses.commentBaitStyle,
+                    engagementDrivers: reelAnalyses.engagementDrivers,
+                  })
+                  .from(reelAnalyses)
+                  .where(eq(reelAnalyses.reelId, reelId))
+                  .limit(1);
+                if (!analysis) {
+                  return { error: "no_analysis_found" };
+                }
+                return analysis;
+              } catch (err) {
+                debugLog.error("get_reel_analysis tool failed", {
+                  service: "chat-route",
+                  operation: "get_reel_analysis",
+                  error: err instanceof Error ? err.message : "Unknown",
+                });
+                return { error: "db_error" };
+              }
+            },
+          }),
+
+          iterate_content: tool({
+            description:
+              "Create a new version of an existing piece of generated content. Call this when the user asks to modify, shorten, rewrite, or change a specific piece. Provide all fields you want to keep or change.",
+            parameters: z.object({
+              parentContentId: z
+                .number()
+                .describe("The ID of the content piece to iterate on"),
+              hook: z.string().max(200).optional(),
+              script: z.string().optional(),
+              caption: z.string().optional(),
+              hashtags: z.array(z.string()).optional(),
+              cta: z.string().optional(),
+              changeDescription: z
+                .string()
+                .describe(
+                  'Brief description of what changed, e.g. "made hook shorter and more aggressive"',
+                ),
+            }),
+            // @ts-ignore - AI SDK v6 type issue
+            execute: async ({
+              parentContentId,
+              hook,
+              script,
+              caption,
+              hashtags,
+              cta,
+              changeDescription,
+            }: {
+              parentContentId: number;
+              hook?: string;
+              script?: string;
+              caption?: string;
+              hashtags?: string[];
+              cta?: string;
+              changeDescription: string;
+            }) => {
+              try {
+                // Ownership check: verify parentContentId belongs to this user
+                const [parent] = await db
+                  .select()
+                  .from(generatedContent)
+                  .where(
+                    and(
+                      eq(generatedContent.id, parentContentId),
+                      eq(generatedContent.userId, auth.user.id),
+                    ),
+                  )
+                  .limit(1);
+
+                // Return not_found regardless of whether ID exists (don't leak existence)
+                if (!parent) {
+                  return { error: "not_found" };
+                }
+
+                const [row] = await db
+                  .insert(generatedContent)
+                  .values({
+                    userId: auth.user.id,
+                    prompt: content,
+                    generatedHook: hook ?? parent.generatedHook,
+                    generatedCaption: caption ?? parent.generatedCaption,
+                    generatedScript: script ?? parent.generatedScript,
+                    generatedMetadata: {
+                      hashtags:
+                        hashtags ?? (parent.generatedMetadata as any)?.hashtags,
+                      cta: cta ?? (parent.generatedMetadata as any)?.cta,
+                      changeDescription,
+                    },
+                    outputType: parent.outputType,
+                    status: "draft",
+                    version: parent.version + 1,
+                    parentId: parent.id,
+                  })
+                  .returning();
+
+                savedContentId = row.id;
+                return { success: true as const, contentId: row.id };
+              } catch (err) {
+                debugLog.error("iterate_content tool failed", {
+                  service: "chat-route",
+                  operation: "iterate_content",
+                  error: err instanceof Error ? err.message : "Unknown",
+                });
+                return { success: false as const, reason: "db_error" };
+              }
+            },
+          }),
+        },
+
+        onFinish: async ({ text, totalUsage }) => {
           try {
-            // Parse AI text to extract hook/caption/script
-            const lines = text.split("\n").filter((l) => l.trim());
-            const firstLine = lines[0]?.replace(/^#+\s*/, "").trim() ?? null;
-            const generatedHook =
-              firstLine && firstLine.length <= 200 ? firstLine : null;
-            const generatedScript = text.length > 0 ? text : null;
+            // Record usage FIRST (before any DB work that might fail)
+            await recordUsage(
+              auth.user.id,
+              "generation",
+              { sessionId, promptLength: content.length },
+              { textLength: text.length },
+            ).catch(() => {});
 
-            // Determine version by finding the max version in this session
-            const [versionRow] = await db
-              .select({ maxVersion: max(generatedContent.version) })
-              .from(generatedContent)
-              .innerJoin(
-                chatMessages,
-                eq(chatMessages.generatedContentId, generatedContent.id),
-              )
-              .where(eq(chatMessages.sessionId, sessionId));
-
-            const nextVersion = (versionRow?.maxVersion ?? 0) + 1;
-
-            // Find parentId: most recent generatedContent in this session
-            let parentId: number | null = null;
-            if (nextVersion > 1) {
-              const [lastMsg] = await db
-                .select({ generatedContentId: chatMessages.generatedContentId })
-                .from(chatMessages)
-                .where(
-                  and(
-                    eq(chatMessages.sessionId, sessionId),
-                    eq(chatMessages.role, "assistant"),
-                    sql`${chatMessages.generatedContentId} IS NOT NULL`,
-                  ),
-                )
-                .orderBy(desc(chatMessages.createdAt))
-                .limit(1);
-              parentId = lastMsg?.generatedContentId ?? null;
-            }
-
-            // Insert generatedContent and assistant message atomically
-            const messageId = crypto.randomUUID();
-            const [newContent] = await db
-              .insert(generatedContent)
-              .values({
-                userId: auth.user.id,
-                prompt: content,
-                generatedHook,
-                generatedScript,
-                outputType: "full",
-                status: "draft",
-                version: nextVersion,
-                parentId,
-              })
-              .returning();
-
+            // Insert assistant message linked to any content saved by tools
             await db.insert(chatMessages).values({
-              id: messageId,
+              id: crypto.randomUUID(),
               sessionId,
               role: "assistant",
               content: text,
-              generatedContentId: newContent.id,
+              generatedContentId: savedContentId,
             });
 
             await db
@@ -403,14 +593,8 @@ app.post(
               .set({ updatedAt: new Date() })
               .where(eq(chatSessions.id, sessionId));
 
-            // Track generation usage and AI cost
-            await recordUsage(
-              auth.user.id,
-              "generation",
-              { sessionId, promptLength: content.length },
-              { textLength: text.length },
-            ).catch(() => {});
-            const { inputTokens, outputTokens } = extractUsageTokens(usage);
+            const { inputTokens, outputTokens } =
+              extractUsageTokens(totalUsage);
             await recordAiCost({
               userId: auth.user.id,
               provider: modelInfo.provider,
@@ -430,7 +614,7 @@ app.post(
         },
       });
 
-      return result.toTextStreamResponse();
+      return result.toUIMessageStreamResponse();
     } catch (error) {
       debugLog.error("Failed to send chat message", {
         service: "chat-route",
@@ -467,10 +651,10 @@ async function buildChatContext(
         const reelContext = reelRows
           .map(
             (r) =>
-              `Reel @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
+              `Reel ID ${r.id} @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
           )
           .join("\n");
-        context += `\nReferenced reels:\n${reelContext}`;
+        context += `\nAttached reels (use get_reel_analysis to fetch deep analysis before generating):\n${reelContext}`;
       }
     }
 
@@ -481,7 +665,7 @@ async function buildChatContext(
       operation: "buildChatContext",
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return "Context unavailable";
+    return "";
   }
 }
 
@@ -489,16 +673,7 @@ function getChatSystemPrompt() {
   try {
     return loadPrompt("chat-generate");
   } catch {
-    return `You are a helpful AI assistant for content creation. You help users create engaging social media content including hooks, scripts, captions, and hashtags.
-
-When responding:
-1. Be creative and practical
-2. Provide actionable advice
-3. Consider the platform and audience
-4. Suggest specific examples when helpful
-5. Keep responses concise but comprehensive
-
-Focus on creating content that performs well on social media platforms.`;
+    return `You are a helpful AI assistant for content creation. Help users create engaging social media content.`;
   }
 }
 

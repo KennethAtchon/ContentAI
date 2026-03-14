@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, Bot, ListPlus, Check } from "lucide-react";
+import { User, Bot, ListPlus, Check, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
@@ -10,9 +10,16 @@ import { useSendToQueue } from "../hooks/use-send-to-queue";
 interface ChatMessageProps {
   message: ChatMessageType;
   isStreaming?: boolean;
+  isSavingContent?: boolean;
+  streamingContentId?: number | null;
 }
 
-export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  isStreaming,
+  isSavingContent,
+  streamingContentId,
+}: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
   const sendToQueue = useSendToQueue();
@@ -22,10 +29,13 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
     return null;
   }
 
+  const resolvedContentId =
+    streamingContentId ?? message.generatedContentId ?? null;
+
   async function handleSendToQueue() {
-    if (!message.generatedContentId) return;
+    if (!resolvedContentId) return;
     try {
-      await sendToQueue.mutateAsync(message.generatedContentId);
+      await sendToQueue.mutateAsync(resolvedContentId);
       setSent(true);
       setTimeout(() => setSent(false), 2000);
     } catch {
@@ -157,8 +167,15 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
               {message.content}
             </ReactMarkdown>
           )}
-          {isStreaming && (
+          {isStreaming && !isSavingContent && (
             <span className="inline-block w-px h-[1em] bg-current opacity-60 ml-0.5 animate-pulse align-middle" />
+          )}
+
+          {isSavingContent && (
+            <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground/60">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span>{t("studio_chat_savingContent")}</span>
+            </div>
           )}
 
           {message.reelRefs && message.reelRefs.length > 0 && (
@@ -178,7 +195,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
             })}
           </span>
 
-          {!isUser && message.generatedContentId && !isStreaming && (
+          {!isUser && resolvedContentId && !isSavingContent && (
             <button
               onClick={handleSendToQueue}
               disabled={sendToQueue.isPending || sent}

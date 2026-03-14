@@ -92,7 +92,7 @@ export function useAnalyzeReel() {
       const res = await authenticatedFetch(
         `/api/reels/${reelId}/analyze`,
         addTimezoneHeader({ method: "POST" }),
-        60_000, // AI analysis can take up to 60s
+        60_000 // AI analysis can take up to 60s
       );
       if (!res.ok) throw new Error("Analysis failed");
       return res.json() as Promise<{ analysis: ReelAnalysis }>;

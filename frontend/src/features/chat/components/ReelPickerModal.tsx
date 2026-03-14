@@ -7,7 +7,11 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { Input } from "@/shared/components/ui/input";
-import { fmtNum, useReels, useReelNiches } from "@/features/reels/hooks/use-reels";
+import {
+  fmtNum,
+  useReels,
+  useReelNiches,
+} from "@/features/reels/hooks/use-reels";
 import type { Reel } from "@/features/reels/types/reel.types";
 
 interface Props {

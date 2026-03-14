@@ -15,6 +15,8 @@ interface ChatPanelProps {
   streamingMessageId?: string;
   streamError?: string | null;
   isLimitReached?: boolean;
+  isSavingContent?: boolean;
+  streamingContentId?: number | null;
 }
 
 export function ChatPanel({
@@ -24,6 +26,8 @@ export function ChatPanel({
   streamingMessageId,
   streamError,
   isLimitReached,
+  isSavingContent,
+  streamingContentId,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -64,6 +68,14 @@ export function ChatPanel({
               key={message.id}
               message={message}
               isStreaming={message.id === streamingMessageId}
+              isSavingContent={
+                message.id === streamingMessageId ? isSavingContent : undefined
+              }
+              streamingContentId={
+                message.id === streamingMessageId
+                  ? streamingContentId
+                  : undefined
+              }
             />
           ))
         )}

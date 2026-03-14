@@ -46,9 +46,7 @@ export function GenerateFromReelButton({ reel, analysis }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <p className="text-sm text-destructive px-1">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive px-1">{error}</p>}
 
           <DialogFooter>
             <Button
