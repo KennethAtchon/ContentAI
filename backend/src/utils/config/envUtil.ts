@@ -221,6 +221,34 @@ export const OPENAI_API_KEY = getEnvVar("OPENAI_API_KEY", false);
 export const OPENAI_MODEL = getEnvVar("OPENAI_MODEL", false, "gpt-4o-mini");
 
 // ============================================================================
+// Media Generation (Video / Image)
+// ============================================================================
+/** Active video generation provider. Options: kling-fal | runway | image-ken-burns */
+export const VIDEO_GENERATION_PROVIDER = getEnvVar(
+  "VIDEO_GENERATION_PROVIDER",
+  false,
+  "kling-fal",
+);
+/** fal.ai API key — used by kling-fal and image-ken-burns providers */
+export const FAL_API_KEY = getEnvVar("FAL_API_KEY", false);
+/** Runway API key — used by runway provider */
+export const RUNWAY_API_KEY = getEnvVar("RUNWAY_API_KEY", false);
+/** Runway model: gen3a_turbo (cheaper) or gen3a (higher quality) */
+export const RUNWAY_MODEL = getEnvVar("RUNWAY_MODEL", false, "gen3a_turbo");
+/** Kling model endpoint on fal.ai */
+export const KLING_MODEL = getEnvVar(
+  "KLING_MODEL",
+  false,
+  "fal-ai/kling-video/v2.1/standard/text-to-video",
+);
+/** FLUX model on fal.ai for image+ken-burns mode */
+export const FLUX_MODEL = getEnvVar(
+  "FLUX_MODEL",
+  false,
+  "fal-ai/flux/schnell",
+);
+
+// ============================================================================
 // Reels / Content Platform
 // ============================================================================
 export const REEL_SOURCE = getEnvVar("REEL_SOURCE", false, "manual");

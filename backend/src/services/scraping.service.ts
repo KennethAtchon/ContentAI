@@ -423,8 +423,19 @@ class ScrapingService {
                 },
               });
           }
-          // Fire-and-forget: upload media to R2 and persist keys back to the row
+          
+          // Auto-analyze the newly saved reel
           const reelId = result[0]!.id;
+          this.analyzeReelAsync(reelId).catch((err: unknown) =>
+            debugLog.error("Async reel analysis failed", {
+              service: "scraping-service",
+              operation: "analyzeReelAsync",
+              reelId,
+              error: err instanceof Error ? err.message : "Unknown",
+            }),
+          );
+          
+          // Fire-and-forget: upload media to R2 and persist keys back to the row
           this.uploadAndStoreMedia(
             reelId,
             externalId,
@@ -466,6 +477,40 @@ class ScrapingService {
     });
 
     return { saved, skipped };
+  }
+
+  /**
+   * Analyze a reel asynchronously after scraping.
+   * Fire-and-forget to avoid blocking the scraping process.
+   * TODO: Add audio transcript extraction for deeper analysis
+   */
+  private async analyzeReelAsync(reelId: number): Promise<void> {
+    try {
+      // Lazy import to avoid circular dependencies
+      const { analyzeReel } = await import("./reels/reel-analyzer");
+      
+      debugLog.info("Starting async reel analysis", {
+        service: "scraping-service",
+        operation: "analyzeReelAsync",
+        reelId,
+      });
+
+      await analyzeReel(reelId);
+      
+      debugLog.info("Async reel analysis completed", {
+        service: "scraping-service",
+        operation: "analyzeReelAsync",
+        reelId,
+      });
+    } catch (err) {
+      debugLog.error("Async reel analysis failed", {
+        service: "scraping-service",
+        operation: "analyzeReelAsync",
+        reelId,
+        error: err instanceof Error ? err.message : "Unknown",
+      });
+      // Don't rethrow - this is fire-and-forget
+    }
   }
 
   // ─── Media upload ──────────────────────────────────────────────────────────
