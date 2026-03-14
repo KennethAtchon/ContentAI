@@ -8,13 +8,17 @@
 - [x] Project-based conversation organization
 - [x] Chat session management (create, rename, delete)
 - [x] Real-time message persistence to database
+- [x] Message loading states (thinking dots + stream error UI)
 
 ### **Project Management**
 - [x] Create, edit, delete projects
-- [ ] Assign niches to projects (user niches vs system niches)
 - [x] Project sidebar with chat sessions
-- [ ] URL state management for project/session navigation
+- [x] URL state management (projectId/sessionId in search params)
 - [ ] Project-to-queue association
+
+### **Discover → Generate Bridge**
+- [ ] Replace "Run AI Analysis" button in `AnalysisPanel` with "Generate from this reel" — single action that: (1) shows confirmation modal explaining what will happen, (2) runs AI analysis, (3) auto-creates a project named after the reel hook/username, (4) auto-creates a chat session, (5) pre-loads analysis as chat context, (6) navigates to `/studio/generate?projectId=X&sessionId=Y`
+- [ ] Confirmation modal: explain that a new project + session will be created and the user will be taken to Generate — with Cancel / Continue buttons
 
 ### **Reel Referencing System**
 - [ ] "Attach Reel" button with searchable modal
@@ -24,8 +28,8 @@
 - [ ] Visual reel cards with metadata display
 
 ### **AI Pipeline (6 Phases)**
-- [x] **Phase 1**: Enhanced reel analysis (hook patterns, structure, engagement drivers)
-- [x] **Phase 2**: Script generation (hook, caption, shot list)
+- [x] **Phase 1**: Enhanced reel analysis (hook patterns, emotional triggers, format patterns, engagement drivers, replicability score)
+- [x] **Phase 2**: Script generation (hook, caption, shot list, structured metadata)
 - [ ] **Phase 3**: Audio production (TTS voiceover + music track)
 - [ ] **Phase 4**: Video production (AI-generated or user-provided + assembly)
 - [ ] **Phase 5**: In-browser editing suite (timeline editing)
@@ -33,34 +37,34 @@
 
 ### **Content Generation Features**
 - [x] Multiple output types (hook, caption, full script)
-- [x] Content versioning and history
-- [ ] AI model selection (OpenAI, Claude, etc.)
-- [ ] Content refinement and iteration
+- [x] Content versioning (version + parentId fields)
+- [ ] Content iteration linked to parent version
+- [ ] AI model selection (per-request model choice)
 - [ ] Export to queue functionality
-
-### **User Experience**
-- [x] Responsive chat interface
-- [ ] Message loading states and error handling
-- [ ] Typing indicators and AI status
-- [x] Message history persistence
-- [ ] Cross-device conversation sync
+- [ ] **System Audio Selection**
+  - [ ] Browse admin-curated audio library
+  - [ ] Audio preview and selection interface
+  - [ ] Audio search and filtering (mood, genre, tempo)
+  - [ ] Audio attachment to generated content
 
 ---
 
 ## 📋 Queue Tab (Content Management Hub)
 
 ### **Content Display**
-- [ ] Visual content grid with video previews
-- [ ] Content cards showing hook, project, version
-- [x] Status indicators (draft, ready, scheduled, posted, failed)
-- [ ] Thumbnail previews and video playback
-- [ ] Bulk selection and operations
+- [x] Content cards showing hook, project name, status
+- [x] Status badges (draft, ready, scheduled, posted, failed)
+- [ ] Visual grid layout with thumbnail previews
+- [ ] Video playback in queue
+- [ ] Version number display on cards
 
 ### **Content Management**
-- [ ] Edit content (redirect to generate tab or inline editing)
-- [x] Delete content (with confirmation)
+- [x] Delete content (with confirmation dialog)
+- [x] Edit → redirects to generate tab (project + session URL params)
+- [ ] Inline editing
 - [ ] Schedule content for posting
 - [ ] Duplicate content for variations
+- [ ] Bulk selection and operations
 - [ ] Move between projects
 
 ### **Scheduling & Publishing**
@@ -73,8 +77,8 @@
 ### **Filtering & Organization**
 - [x] Status filters (all, draft, ready, scheduled, posted, failed)
 - [x] Project-based filtering
-- [ ] Date range filtering
 - [x] Sort options (newest, oldest, alphabetical)
+- [ ] Date range filtering
 - [ ] Search functionality
 
 ---
@@ -83,37 +87,33 @@
 
 ### **TikTok-Style Feed**
 - [x] Full-screen vertical video feed
-- [ ] Swipe/scroll navigation between videos
+- [x] Scroll navigation between videos (Intersection Observer + keyboard arrows)
 - [x] Auto-play with Intersection Observer
-- [ ] Video virtualization for performance
+- [ ] Video virtualization (all reels in DOM currently — memory accumulates on scroll)
 - [ ] In-video UI overlays (TikTok style)
 
 ### **Video Playback System**
 - [x] Expose video URLs in API endpoints
 - [x] R2 signed URL generation for private videos
-- [ ] Video fallback strategies
-- [ ] Thumbnail and emoji placeholders
-- [ ] Video performance optimization
+- [x] Video fallback strategies (video → thumbnail → emoji gradient)
 
 ### **Content Rotation & Freshness**
-- [x] Daily background scanning system
-- [x] Automatic niche re-scraping (cron job)
-- [x] Freshness-weighted sorting (date + views)
+- [x] Daily background scanning system (3 AM cron)
+- [x] Automatic niche re-scraping with 30s stagger between niches
+- [x] Freshness-weighted sorting (`fresh` = date DESC + views DESC)
 - [x] Daily view rotation algorithm
-- [ ] Staggered scraping to avoid rate limits
 
 ### **Cross-Niche Trending**
-- [ ] "Top across all niches" trending view
-- [ ] Union-based trending calculations
-- [ ] Time-based trending windows
-- [ ] Viral content prioritization
-- [x] Trending audio detection
+- [x] "Trending — All Niches" view (last 7 days, sorted by views)
+- [ ] Advanced union-based trending (niche diversity, window functions)
+- [ ] Viral content prioritization beyond view count
 
 ### **Audio Features**
-- [x] Popular audio song sourcing
+- [x] Popular audio song sourcing (trendingAudio table)
 - [x] Audio trend analysis (7–90 day windows, per-niche)
-- [ ] Audio library integration
-- [x] Audio metadata extraction
+- [x] Audio metadata extraction (audioId, artist, use count)
+- [x] Trending audio sidebar in discover (rise/stable/decline indicators)
+- [ ] Audio library integration (Epidemic Sound, etc.)
 - [ ] Audio-based recommendation system
 
 ---
@@ -122,31 +122,30 @@
 
 ### **Subscription Tier System**
 - [x] Redesigned tiers (Free, Creator, Pro, Agency)
-- [x] Feature-based usage limits
-- [x] Hard blockers that can't be circumvented
-- [ ] Graceful degradation when limits reached
-- [ ] Upgrade prompts and notifications
+- [x] Feature-based usage limits per billing period
+- [x] Hard blockers via `usageGate` middleware (analysis + generation endpoints)
+- [x] 403 upgrade prompt handled gracefully in frontend
+- [ ] Upgrade prompts and notifications beyond 403 handling
 
 ### **Usage Tracking**
 - [x] Real-time usage monitoring
-- [x] Feature-specific counters (generations, analyses, etc.)
-- [x] Daily/monthly usage calculations
+- [x] Feature-specific counters (generations, analyses)
+- [x] Usage display in Generate tab sidebar (progress bars)
 - [ ] Usage history and analytics
 - [ ] Predictive usage alerts
 
 ### **Admin Cost Dashboard**
-- [x] AI model spending tracking (AiCostLedger table + token counts)
-- [x] Cost per feature breakdown
+- [x] AI model spending tracking (aiCostLedger table + token counts)
+- [x] Cost per feature breakdown (by provider/model/feature)
+- [x] Top users by cost endpoint
 - [ ] Monthly cost projections
-- [ ] ROI analytics per user
 - [ ] Cost optimization recommendations
 
 ### **Rate Limiting & Security**
-- [x] API endpoint rate limiting
-- [ ] Jailbreak prevention mechanisms
+- [x] API endpoint rate limiting (per-route rateLimiter middleware)
 - [x] Subscription validation middleware
+- [ ] Jailbreak/prompt injection prevention
 - [ ] Usage bypass detection
-- [ ] Automated abuse detection
 
 ---
 
@@ -155,133 +154,63 @@
 ### **Admin Portal**
 - [x] Niche management with scraping configuration
 - [x] User management and subscription oversight
+- [x] System health monitoring (Prometheus metrics)
+- [x] AI cost dashboard (spend, breakdown, top users)
 - [ ] Content moderation tools
-- [x] System health monitoring
 - [ ] A/B testing framework
+- [ ] **Audio Library Management (Admin Only)**
+  - [ ] Upload high-quality system audio tracks
+  - [ ] Audio categorization (mood, genre, tempo, duration)
+  - [ ] Audio metadata management
+  - [ ] Bulk audio import tools
 
 ### **Scraping System**
 - [x] Configurable scraping per niche (views threshold, age limits, viral-only)
 - [x] Advanced filtering (views, age, viral-only)
 - [x] Scraping job management and monitoring
-- [ ] Error handling and retry logic
+- [x] 30s stagger between niche scans to avoid rate limits
+- [ ] Per-reel staggered scraping (finer-grained rate limit management)
 - [ ] Scraping analytics and reporting
 
 ### **Database & Performance**
+- [x] Database migrations with Drizzle ORM
 - [ ] Database optimization for large datasets
 - [ ] Caching strategies for frequently accessed data
-- [ ] Background job processing
-- [ ] API response optimization
 - [ ] Search indexing and performance
 
-### **Monitoring & Analytics**
-- [ ] User behavior tracking
-- [ ] Feature usage analytics
-- [ ] Performance monitoring
-- [ ] Error tracking and alerting
-- [ ] Business intelligence dashboard
-
 ---
 
-## 🎨 Frontend Enhancements
+## 🎨 Frontend Quality
 
-### **UI/UX Improvements**
-- [x] Component library expansion (shadcn/ui + Radix)
-- [x] Responsive design optimization
-- [ ] Loading states and skeleton screens
-- [ ] Error boundary implementation
+### **UI/UX**
+- [x] Component library (shadcn/ui + Radix)
+- [x] Skeleton loading screens (discover, queue, audio sidebar)
+- [x] Error boundary (full error catching + recovery, integrated at root)
 - [ ] Accessibility improvements
+- [ ] Mobile-first design
 
-### **Performance Optimization**
+### **Performance**
 - [ ] Code splitting and lazy loading
-- [ ] Image and video optimization
 - [ ] Bundle size optimization
-- [ ] Caching strategies
-- [ ] Mobile performance tuning
-
-### **Mobile Experience**
-- [ ] Mobile-first design implementation
-- [ ] Touch gesture support
-- [ ] Mobile video playback optimization
-- [ ] Progressive Web App features
-- [ ] Offline functionality
+- [ ] Video virtualization in TikTok feed
 
 ---
 
-## 🔧 Technical Debt & Maintenance
+## 🔧 Technical Debt
 
-### **Code Quality**
 - [ ] TypeScript strict mode compliance
-- [x] Comprehensive test coverage (unit + integration tests)
+- [x] Unit + integration test coverage
 - [ ] Code documentation
-- [ ] Refactoring legacy code
-- [ ] Security audit implementation
-
-### **DevOps & Deployment**
-- [ ] CI/CD pipeline optimization
-- [ ] Environment management
-- [x] Database migration automation (Drizzle)
-- [ ] Backup and recovery procedures
-- [ ] Scaling preparation
+- [ ] CI/CD pipeline
 
 ---
 
-## 📈 Analytics & Insights
+## 📋 Raw Notes (Original Scope)
 
-### **User Analytics**
-- [ ] User journey tracking
-- [ ] Feature adoption metrics
-- [ ] Retention analysis
-- [ ] Conversion funnel optimization
-- [ ] User segmentation
-
-### **Content Analytics**
-- [ ] Content performance tracking
-- [ ] Viral content analysis
-- [x] Trending topic detection
-- [ ] Engagement metrics
-- [ ] Content recommendation algorithm
-
----
-
-## 🚀 Future Enhancements
-
-### **Advanced AI Features**
-- [ ] Multi-modal AI generation
-- [ ] Advanced video editing AI
-- [ ] Personalized content recommendations
-- [ ] AI-powered trend prediction
-- [ ] Voice cloning capabilities
-
-### **Platform Integrations**
-- [ ] Additional social media platforms
-- [ ] Third-party API integrations
-- [ ] Plugin system architecture
-- [ ] White-label solutions
-- [ ] API marketplace
-
----
-
-## 📋 Current Raw Notes (Original Content)
-
-You can create separate markdowns dividing deep for each one OR you can put similar concepts in a markdown:
-
-- After niche references the videos the AI, will scan and find out what makes the video special and made people click it. (we will have a specialized AI for analyze). Then we need a process for actually creating the reel (audio, video(this will be AI generated or user provides something), editting(might need to expand this section into some sort of AI editting suite but this is TBD), everything else needed for a video like hashtags or whatever).
-
-- Anything else I missed, can you catch them and let me know, these are just my raw thoughts for fully building out the generate tab. The queue tab will be very easy, it will just show generated content, and act like a way for users to view, delete, edit, their generated videos. (for edit, I think it will just redirect to the project in the generate tab, if the project is deleted ~ it will get tricky, so may need to add an option to "edit existing video" and then use that flow for that use case. )
-
-
-- We also need to ensure the proper usage blockers are in place and they are hard blockers that can't be jail broken.
-
-- We also need to track how much we are spending on AI models on the admin portal.
-
-
-- Also for discover page, everyday should rotate views, and we need a background scan going on, and discovery should prioritize date and then views (like on the same day)
-
-- Also need discovery to have a "top out of all niches" it will just show whats trending, might be a complicated union
-
-- Need a way to source popular audio songs to use
-
-So tldr on the TODOs:
-
-- Generate (this will be the bulk of the work we are doing for this project and what users are paying subscription for)
-- Queue (easy CRUD thing)
+- After niche references the videos the AI will scan and find out what makes the video special. Then we need a process for actually creating the reel (audio, video, editing suite TBD, hashtags, etc.).
+- Queue tab: show generated content, view/delete/edit. Edit redirects to generate tab; if project deleted, need "edit existing video" flow.
+- Usage blockers must be hard blockers that can't be jailbroken.
+- Track AI model spend in admin portal.
+- Discover: daily view rotation, background scan, prioritize date then views.
+- Discover: "top out of all niches" trending view.
+- Source popular audio songs.

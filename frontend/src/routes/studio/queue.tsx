@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +37,18 @@ function QueuePage() {
   const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Debounce search input
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearchQuery(searchInput), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchInput]);
 
   const { user } = useApp();
   const fetcher = useQueryFetcher<{ items: QueueItem[]; total: number }>();
@@ -47,6 +59,7 @@ function QueuePage() {
   const queueParams = {
     status: statusFilter === "all" ? undefined : statusFilter,
     projectId: projectFilter === "all" ? undefined : projectFilter,
+    search: searchQuery || undefined,
   };
 
   const { data, isLoading } = useQuery({
@@ -55,6 +68,7 @@ function QueuePage() {
       const params = new URLSearchParams({ limit: "20" });
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (projectFilter !== "all") params.set("projectId", projectFilter);
+      if (searchQuery) params.set("search", searchQuery);
       return fetcher(`/api/queue?${params}`);
     },
     enabled: !!user,
@@ -69,6 +83,17 @@ function QueuePage() {
   const deleteItem = useMutation({
     mutationFn: async (id: number) => {
       await authenticatedFetch(`/api/queue/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["api", "queue"] }),
+  });
+
+  const duplicateItem = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await authenticatedFetch(`/api/queue/${id}/duplicate`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to duplicate");
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["api", "queue"] }),
@@ -129,7 +154,7 @@ function QueuePage() {
                 <select
                   value={projectFilter}
                   onChange={(e) => setProjectFilter(e.target.value)}
-                  className="ml-auto text-[11px] font-medium px-3 py-1.5 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio appearance-none focus:outline-none focus:border-studio-accent/30 transition-colors"
+                  className="text-[11px] font-medium px-3 py-1.5 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio appearance-none focus:outline-none focus:border-studio-accent/30 transition-colors"
                 >
                   <option value="all">
                     {t("studio_queue_filter_all_projects")}
@@ -141,6 +166,14 @@ function QueuePage() {
                   ))}
                 </select>
               )}
+
+              {/* Search */}
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("studio_queue_search_placeholder")}
+                className="ml-auto text-[11px] font-medium px-3 py-1.5 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] placeholder:text-slate-200/25 focus:outline-none focus:border-studio-accent/30 transition-colors font-studio w-48"
+              />
             </div>
 
             {/* Content */}
@@ -170,7 +203,9 @@ function QueuePage() {
                     key={item.id}
                     item={item}
                     onDelete={() => deleteItem.mutate(item.id)}
+                    onDuplicate={() => duplicateItem.mutate(item.id)}
                     isDeleting={deleteItem.isPending}
+                    isDuplicating={duplicateItem.isPending}
                   />
                 ))}
               </div>
@@ -185,11 +220,15 @@ function QueuePage() {
 function QueueCard({
   item,
   onDelete,
+  onDuplicate,
   isDeleting,
+  isDuplicating,
 }: {
   item: QueueItem;
   onDelete: () => void;
+  onDuplicate: () => void;
   isDeleting: boolean;
+  isDuplicating: boolean;
 }) {
   const { t } = useTranslation();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -219,19 +258,26 @@ function QueueCard({
 
   return (
     <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-4 transition-colors hover:border-white/10">
-      {/* Top row: hook preview + status badge */}
+      {/* Top row: hook preview + version badge + status badge */}
       <div className="flex items-start justify-between gap-3 mb-2">
         <p className="text-[13px] font-semibold text-studio-fg leading-[1.4] flex-1">
           {hookPreview ?? `${t("studio_queue_itemLabel")} #${item.id}`}
         </p>
-        <span
-          className={cn(
-            "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.5px] shrink-0",
-            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
+        <div className="flex items-center gap-1.5 shrink-0">
+          {item.version != null && item.version > 1 && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/[0.08] text-slate-200/40 uppercase tracking-[0.5px]">
+              v{item.version}
+            </span>
           )}
-        >
-          {item.status}
-        </span>
+          <span
+            className={cn(
+              "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.5px]",
+              STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
+            )}
+          >
+            {item.status}
+          </span>
+        </div>
       </div>
 
       {/* Meta row */}
@@ -258,6 +304,14 @@ function QueueCard({
               {t("studio_queue_edit")}
             </a>
           )}
+
+          <button
+            onClick={onDuplicate}
+            disabled={isDuplicating}
+            className="text-[10px] font-semibold px-2.5 py-1.5 rounded-md border border-white/10 bg-white/[0.03] text-slate-200/50 cursor-pointer font-studio transition-all hover:text-slate-200/80 hover:border-white/20 disabled:opacity-40"
+          >
+            {t("studio_queue_duplicate")}
+          </button>
 
           {confirmDelete ? (
             <div className="flex items-center gap-1.5 ml-auto">

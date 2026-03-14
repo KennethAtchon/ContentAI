@@ -32,7 +32,9 @@ function DiscoverPage() {
   const [offset, setOffset] = useState(0);
   const [allReels, setAllReels] = useState<Reel[]>([]);
   const [audioHeight, setAudioHeight] = useState(130);
-  const dragState = useRef<{ startY: number; startHeight: number } | null>(null);
+  const dragState = useRef<{ startY: number; startHeight: number } | null>(
+    null
+  );
 
   const { data: nichesData } = useReelNiches();
   const niches = nichesData?.niches ?? [];
@@ -83,22 +85,27 @@ function DiscoverPage() {
     []
   );
 
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragState.current = { startY: e.clientY, startHeight: audioHeight };
-    const onMove = (e: globalThis.MouseEvent) => {
-      if (!dragState.current) return;
-      const delta = dragState.current.startY - e.clientY;
-      setAudioHeight(Math.max(60, Math.min(400, dragState.current.startHeight + delta)));
-    };
-    const onUp = () => {
-      dragState.current = null;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [audioHeight]);
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      dragState.current = { startY: e.clientY, startHeight: audioHeight };
+      const onMove = (e: globalThis.MouseEvent) => {
+        if (!dragState.current) return;
+        const delta = dragState.current.startY - e.clientY;
+        setAudioHeight(
+          Math.max(60, Math.min(400, dragState.current.startHeight + delta))
+        );
+      };
+      const onUp = () => {
+        dragState.current = null;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [audioHeight]
+  );
 
   const handleAnalyze = useCallback((id: number) => {
     setActiveReelId(id);
@@ -184,7 +191,10 @@ function DiscoverPage() {
                 >
                   <div className="w-6 h-[2px] rounded-full bg-white/10 group-hover:bg-studio-accent/50 transition-colors" />
                 </div>
-                <div style={{ height: audioHeight }} className="shrink-0 overflow-hidden">
+                <div
+                  style={{ height: audioHeight }}
+                  className="shrink-0 overflow-hidden"
+                >
                   <TrendingAudio nicheId={isTrending ? null : activeNicheId} />
                 </div>
               </>

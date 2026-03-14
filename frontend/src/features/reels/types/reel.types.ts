@@ -79,6 +79,7 @@ export interface QueueItem {
   generatedHook: string | null;
   generatedCaption: string | null;
   thumbnailR2Key: string | null;
+  version: number | null;
   // Project info (populated when content was generated via chat)
   projectId: string | null;
   projectName: string | null;

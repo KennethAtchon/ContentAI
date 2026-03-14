@@ -49,7 +49,11 @@ export function TrendingAudio({ nicheId }: { nicheId: number | null }) {
 
   return (
     <div className="px-3 pb-3 h-full flex flex-col">
-      <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col flex-1 min-h-0">
+      <Collapsible
+        open={open}
+        onOpenChange={setOpen}
+        className="flex flex-col flex-1 min-h-0"
+      >
         <CollapsibleTrigger
           className={cn(
             "w-full flex items-center justify-between text-[11px] font-semibold text-slate-200/60 shrink-0",

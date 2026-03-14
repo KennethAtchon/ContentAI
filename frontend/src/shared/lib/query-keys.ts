@@ -58,6 +58,7 @@ export const queryKeys = {
     queue: (params?: {
       status?: string;
       projectId?: string;
+      search?: string;
       sort?: string;
       limit?: number;
       offset?: number;

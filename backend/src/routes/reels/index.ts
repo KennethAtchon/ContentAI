@@ -7,7 +7,7 @@ import {
   niches,
   reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, gte, ilike, sql, and } from "drizzle-orm";
+import { eq, desc, gte, ilike, sql, and, or } from "drizzle-orm";
 import { analyzeReel } from "../../services/reels/reel-analyzer";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
@@ -128,6 +128,7 @@ reelsRouter.get(
       const minViewsParam = c.req.query("minViews");
       const minViews = minViewsParam ? parseInt(minViewsParam, 10) : null;
       const sort = c.req.query("sort") ?? "views";
+      const search = c.req.query("search")?.trim();
       const isTrending =
         nicheNameParam.toLowerCase() === "trending" ||
         nicheIdParam === "trending";
@@ -143,6 +144,15 @@ reelsRouter.get(
 
       const conditions: ReturnType<typeof gte>[] = [];
       if (minViews !== null) conditions.push(gte(reels.views, minViews));
+      if (search) {
+        const term = `%${search}%`;
+        conditions.push(
+          or(
+            ilike(reels.username, term),
+            ilike(reels.hook, term),
+          ) as ReturnType<typeof gte>,
+        );
+      }
 
       if (isTrending) {
         conditions.push(

@@ -13,8 +13,10 @@ import {
   chatSessions,
   chatMessages,
   projects,
+  generatedContent,
+  reels,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, max, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { loadPrompt, getModel } from "../../lib/aiClient";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
@@ -335,16 +337,72 @@ app.post(
         maxOutputTokens: 1024,
         onFinish: async ({ text, usage }) => {
           try {
+            // Parse AI text to extract hook/caption/script
+            const lines = text.split("\n").filter((l) => l.trim());
+            const firstLine = lines[0]?.replace(/^#+\s*/, "").trim() ?? null;
+            const generatedHook =
+              firstLine && firstLine.length <= 200 ? firstLine : null;
+            const generatedScript = text.length > 0 ? text : null;
+
+            // Determine version by finding the max version in this session
+            const [versionRow] = await db
+              .select({ maxVersion: max(generatedContent.version) })
+              .from(generatedContent)
+              .innerJoin(
+                chatMessages,
+                eq(chatMessages.generatedContentId, generatedContent.id),
+              )
+              .where(eq(chatMessages.sessionId, sessionId));
+
+            const nextVersion = (versionRow?.maxVersion ?? 0) + 1;
+
+            // Find parentId: most recent generatedContent in this session
+            let parentId: number | null = null;
+            if (nextVersion > 1) {
+              const [lastMsg] = await db
+                .select({ generatedContentId: chatMessages.generatedContentId })
+                .from(chatMessages)
+                .where(
+                  and(
+                    eq(chatMessages.sessionId, sessionId),
+                    eq(chatMessages.role, "assistant"),
+                    sql`${chatMessages.generatedContentId} IS NOT NULL`,
+                  ),
+                )
+                .orderBy(desc(chatMessages.createdAt))
+                .limit(1);
+              parentId = lastMsg?.generatedContentId ?? null;
+            }
+
+            // Insert generatedContent and assistant message atomically
+            const messageId = crypto.randomUUID();
+            const [newContent] = await db
+              .insert(generatedContent)
+              .values({
+                userId: auth.user.id,
+                prompt: content,
+                generatedHook,
+                generatedScript,
+                outputType: "full",
+                status: "draft",
+                version: nextVersion,
+                parentId,
+              })
+              .returning();
+
             await db.insert(chatMessages).values({
-              id: crypto.randomUUID(),
+              id: messageId,
               sessionId,
               role: "assistant",
               content: text,
+              generatedContentId: newContent.id,
             });
+
             await db
               .update(chatSessions)
               .set({ updatedAt: new Date() })
               .where(eq(chatSessions.id, sessionId));
+
             // Track generation usage and AI cost
             await recordUsage(
               auth.user.id,
@@ -391,13 +449,29 @@ async function buildChatContext(
   reelRefs?: number[],
 ) {
   try {
-    // Build context from project and referenced reels
     let context = `Project: ${project.name}`;
 
-    // If reel references are provided, fetch information about those reels
     if (reelRefs && reelRefs.length > 0) {
-      // This is a placeholder - you would fetch actual reel data here
-      context += `\nReferenced reels: ${reelRefs.join(", ")}`;
+      const reelRows = await db
+        .select({
+          id: reels.id,
+          username: reels.username,
+          hook: reels.hook,
+          views: reels.views,
+          niche: sql<string>`(SELECT n.name FROM niche n WHERE n.id = ${reels.nicheId})`,
+        })
+        .from(reels)
+        .where(inArray(reels.id, reelRefs));
+
+      if (reelRows.length > 0) {
+        const reelContext = reelRows
+          .map(
+            (r) =>
+              `Reel @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
+          )
+          .join("\n");
+        context += `\nReferenced reels:\n${reelContext}`;
+      }
     }
 
     return context;

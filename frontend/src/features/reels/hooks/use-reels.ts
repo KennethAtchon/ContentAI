@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
+import { addTimezoneHeader } from "@/shared/utils/api/add-timezone-header";
 import { useApp } from "@/shared/contexts/app-context";
 import type { Reel, ReelDetail, ReelAnalysis } from "../types/reel.types";
 
@@ -84,14 +85,15 @@ export function useReelMediaUrl(reelId: number | null, hasVideo: boolean) {
 }
 
 export function useAnalyzeReel() {
-  const { authenticatedFetch } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (reelId: number) => {
-      const res = await authenticatedFetch(`/api/reels/${reelId}/analyze`, {
-        method: "POST",
-      });
+      const res = await authenticatedFetch(
+        `/api/reels/${reelId}/analyze`,
+        addTimezoneHeader({ method: "POST" }),
+        60_000, // AI analysis can take up to 60s
+      );
       if (!res.ok) throw new Error("Analysis failed");
       return res.json() as Promise<{ analysis: ReelAnalysis }>;
     },

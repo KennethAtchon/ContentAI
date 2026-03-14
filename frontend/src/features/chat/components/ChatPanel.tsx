@@ -3,12 +3,14 @@ import { useTranslation } from "react-i18next";
 import { Sparkles, AlertCircle } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { UsageWarningBanner } from "./UsageWarningBanner";
+import { LimitHitModal } from "./LimitHitModal";
 import { STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, reelRefs?: number[]) => void;
   isStreaming?: boolean;
   streamingMessageId?: string;
   streamError?: string | null;
@@ -89,23 +91,28 @@ export function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t p-4 shrink-0">
-        {isLimitReached ? (
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
-            <span className="text-amber-400 font-medium">
-              {t("studio_chat_limit_reached")}
-            </span>
-            <a
-              href="/pricing"
-              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-            >
-              {t("studio_chat_limit_upgrade")}
-            </a>
-          </div>
-        ) : (
-          <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
-        )}
+      <div className="border-t shrink-0">
+        {!isLimitReached && <UsageWarningBanner />}
+        <div className="p-4">
+          {isLimitReached ? (
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+              <span className="text-amber-400 font-medium">
+                {t("studio_chat_limit_reached")}
+              </span>
+              <a
+                href="/pricing"
+                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+              >
+                {t("studio_chat_limit_upgrade")}
+              </a>
+            </div>
+          ) : (
+            <ChatInput onSendMessage={onSendMessage} disabled={isStreaming} />
+          )}
+        </div>
       </div>
+
+      <LimitHitModal open={!!isLimitReached} onClose={() => {}} />
     </div>
   );
 }

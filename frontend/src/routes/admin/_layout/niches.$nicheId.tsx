@@ -524,7 +524,9 @@ function ScrapeOptionsModal({
               {t("common_cancel")}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? `${t("admin_niche_queuing")}` : t("admin_niche_run_scrape")}
+              {isPending
+                ? `${t("admin_niche_queuing")}`
+                : t("admin_niche_run_scrape")}
             </Button>
           </DialogFooter>
         </form>

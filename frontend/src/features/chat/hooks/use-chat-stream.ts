@@ -16,7 +16,7 @@ export function useChatStream(sessionId: string) {
   const abortRef = useRef<AbortController | null>(null);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, reelRefs?: number[]) => {
       if (!sessionId || isStreaming) return;
 
       abortRef.current?.abort();
@@ -29,6 +29,7 @@ export function useChatStream(sessionId: string) {
         sessionId,
         role: "user",
         content,
+        reelRefs,
         createdAt: new Date().toISOString(),
       });
       setStreamingContent("");
@@ -41,7 +42,7 @@ export function useChatStream(sessionId: string) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content }),
+            body: JSON.stringify({ content, reelRefs }),
             signal: controller.signal,
           },
           120_000 // 2-min timeout for streaming

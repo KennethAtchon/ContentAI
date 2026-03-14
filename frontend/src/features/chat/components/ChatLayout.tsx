@@ -78,10 +78,10 @@ export function ChatLayout({
     });
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, reelRefs?: number[]) => {
     if (!sessionId) return;
     try {
-      await sendMessage(content);
+      await sendMessage(content, reelRefs);
     } catch (error) {
       debugLog.error("Failed to send message", {
         service: "chat-layout",

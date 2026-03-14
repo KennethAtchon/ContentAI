@@ -10,7 +10,7 @@ import {
   queueItems,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, asc, and, sql } from "drizzle-orm";
+import { eq, desc, asc, and, sql, ilike, or } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 
 const queueRouter = new Hono<HonoEnv>();
@@ -27,7 +27,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 /**
  * GET /api/queue
  * List user's queue items with generatedContent preview and optional filters.
- * Query params: status, projectId, sort (createdAt|scheduledFor), sortDir (asc|desc), limit, offset
+ * Query params: status, projectId, search, sort (createdAt|scheduledFor), sortDir (asc|desc), limit, offset
  */
 queueRouter.get(
   "/",
@@ -38,6 +38,7 @@ queueRouter.get(
       const auth = c.get("auth");
       const status = c.req.query("status");
       const projectId = c.req.query("projectId");
+      const search = c.req.query("search")?.trim();
       const sort = c.req.query("sort") ?? "createdAt";
       const sortDir = c.req.query("sortDir") ?? "desc";
       const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
@@ -53,6 +54,21 @@ queueRouter.get(
             WHERE cm.generated_content_id = ${queueItems.generatedContentId}
             AND cs.project_id = ${projectId}
           )`,
+        );
+      }
+      if (search) {
+        const term = `%${search}%`;
+        conditions.push(
+          or(
+            ilike(generatedContent.generatedHook, term),
+            sql`EXISTS (
+              SELECT 1 FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
+              JOIN project p ON cs.project_id = p.id
+              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              AND p.name ILIKE ${term}
+            )`,
+          ) as ReturnType<typeof eq>,
         );
       }
 
@@ -78,6 +94,7 @@ queueRouter.get(
             generatedHook: generatedContent.generatedHook,
             generatedCaption: generatedContent.generatedCaption,
             thumbnailR2Key: generatedContent.thumbnailR2Key,
+            version: generatedContent.version,
             // Project info via chat link (best-effort correlated subquery)
             projectId: sql<string | null>`(
               SELECT cs.project_id FROM chat_message cm
@@ -110,6 +127,10 @@ queueRouter.get(
         db
           .select({ total: sql<number>`count(*)::int` })
           .from(queueItems)
+          .leftJoin(
+            generatedContent,
+            eq(queueItems.generatedContentId, generatedContent.id),
+          )
           .where(and(...conditions)),
       ]);
 
@@ -121,6 +142,140 @@ queueRouter.get(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch queue" }, 500);
+    }
+  },
+);
+
+/**
+ * POST /api/queue
+ * Create a queue item from a generatedContentId.
+ */
+queueRouter.post(
+  "/",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const body = await c.req.json();
+      const generatedContentId = body?.generatedContentId as number | undefined;
+
+      if (!generatedContentId || typeof generatedContentId !== "number") {
+        return c.json({ error: "generatedContentId is required" }, 400);
+      }
+
+      // Verify content exists and belongs to user
+      const [content] = await db
+        .select()
+        .from(generatedContent)
+        .where(
+          and(
+            eq(generatedContent.id, generatedContentId),
+            eq(generatedContent.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!content) return c.json({ error: "Content not found" }, 404);
+
+      const [queueItem] = await db
+        .insert(queueItems)
+        .values({
+          userId: auth.user.id,
+          generatedContentId,
+          status: "draft",
+        })
+        .returning();
+
+      // Mark content as queued
+      await db
+        .update(generatedContent)
+        .set({ status: "queued" })
+        .where(eq(generatedContent.id, generatedContentId));
+
+      return c.json({ queueItem }, 201);
+    } catch (error) {
+      debugLog.error("Failed to create queue item", {
+        service: "queue-route",
+        operation: "createQueueItem",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to create queue item" }, 500);
+    }
+  },
+);
+
+/**
+ * POST /api/queue/:id/duplicate
+ * Clone a queue item as a new draft (version + 1).
+ */
+queueRouter.post(
+  "/:id/duplicate",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const id = parseInt(c.req.param("id"), 10);
+      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+
+      const [item] = await db
+        .select()
+        .from(queueItems)
+        .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)))
+        .limit(1);
+
+      if (!item) return c.json({ error: "Queue item not found" }, 404);
+
+      let newGeneratedContentId: number | null = item.generatedContentId;
+
+      if (item.generatedContentId) {
+        const [originalContent] = await db
+          .select()
+          .from(generatedContent)
+          .where(eq(generatedContent.id, item.generatedContentId))
+          .limit(1);
+
+        if (originalContent) {
+          const [newContent] = await db
+            .insert(generatedContent)
+            .values({
+              userId: auth.user.id,
+              sourceReelId: originalContent.sourceReelId,
+              prompt: originalContent.prompt,
+              generatedHook: originalContent.generatedHook,
+              generatedCaption: originalContent.generatedCaption,
+              generatedScript: originalContent.generatedScript,
+              outputType: originalContent.outputType,
+              model: originalContent.model,
+              status: "draft",
+              version: (originalContent.version ?? 1) + 1,
+              parentId: originalContent.id,
+            })
+            .returning();
+          newGeneratedContentId = newContent.id;
+        }
+      }
+
+      const [newItem] = await db
+        .insert(queueItems)
+        .values({
+          userId: auth.user.id,
+          generatedContentId: newGeneratedContentId,
+          status: "draft",
+        })
+        .returning();
+
+      return c.json({ queueItem: newItem }, 201);
+    } catch (error) {
+      debugLog.error("Failed to duplicate queue item", {
+        service: "queue-route",
+        operation: "duplicateQueueItem",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to duplicate queue item" }, 500);
     }
   },
 );
