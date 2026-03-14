@@ -1,19 +1,18 @@
 /**
  * AI Client Helper Functions
- * 
+ *
  * Common utilities and reusable logic for AI operations.
  */
 
-import { generateText, streamText } from "ai";
+import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
-import { 
-  AI_PROVIDERS, 
-  getModelForProvider, 
+import {
+  getModelForProvider,
   getProviderInfo,
-  getEnabledProviders 
+  getEnabledProviders,
 } from "./config";
 
 // ─── Provider Instances ───────────────────────────────────────────────────────────
@@ -26,7 +25,7 @@ export function getProviderInstance(provider: string) {
   }
 
   const config = getProviderInfo(provider);
-  
+
   switch (provider) {
     case "openrouter":
       if (!config.enabled) return null;
@@ -134,7 +133,7 @@ export interface AiCallResult {
 
 export async function attemptAiCall(
   provider: "openrouter" | "openai" | "claude",
-  params: AiCallParams
+  params: AiCallParams,
 ): Promise<AiCallResult> {
   const instance = getProviderInstance(provider);
   if (!instance) {
@@ -177,9 +176,11 @@ export async function attemptAiCall(
 
 // ─── Provider Fallback Logic ─────────────────────────────────────────────────────
 
-export async function callAiWithFallback(params: AiCallParams): Promise<AiCallResult> {
+export async function callAiWithFallback(
+  params: AiCallParams,
+): Promise<AiCallResult> {
   const enabledProviders = getEnabledProviders();
-  
+
   if (enabledProviders.length === 0) {
     throw new Error("No AI providers are enabled");
   }
@@ -197,15 +198,17 @@ export async function callAiWithFallback(params: AiCallParams): Promise<AiCallRe
   }
 
   throw new Error(
-    `All AI providers failed. Errors: ${errors.map(e => e instanceof Error ? e.message : String(e)).join("; ")}`
+    `All AI providers failed. Errors: ${errors.map((e) => (e instanceof Error ? e.message : String(e))).join("; ")}`,
   );
 }
 
 // ─── Streaming Helper ────────────────────────────────────────────────────────────
 
-export function getModelInstance(modelTier: "analysis" | "generation" = "generation") {
+export function getModelInstance(
+  modelTier: "analysis" | "generation" = "generation",
+) {
   const enabledProviders = getEnabledProviders();
-  
+
   for (const provider of enabledProviders) {
     const instance = getProviderInstance(provider);
     if (instance) {
@@ -217,6 +220,6 @@ export function getModelInstance(modelTier: "analysis" | "generation" = "generat
       };
     }
   }
-  
+
   throw new Error("No AI providers are available");
 }

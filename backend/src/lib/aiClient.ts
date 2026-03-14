@@ -1,7 +1,12 @@
 import { streamText } from "ai";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { callAiWithFallback, getModelInstance, extractUsageTokens, trackAiCall } from "./ai/helpers";
+import {
+  callAiWithFallback,
+  getModelInstance,
+  extractUsageTokens,
+  trackAiCall,
+} from "./ai/helpers";
 import { DEFAULT_SETTINGS } from "./ai/config";
 
 // ─── Prompt Loader ────────────────────────────────────────────────────────────

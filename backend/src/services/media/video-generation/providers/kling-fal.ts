@@ -88,7 +88,9 @@ async function pollUntilComplete(
     }
   }
 
-  throw new Error(`fal.ai job ${requestId} timed out after ${POLL_TIMEOUT_MS}ms`);
+  throw new Error(
+    `fal.ai job ${requestId} timed out after ${POLL_TIMEOUT_MS}ms`,
+  );
 }
 
 export const klingFalProvider: VideoGenerationProvider = {
@@ -128,7 +130,11 @@ export const klingFalProvider: VideoGenerationProvider = {
     }
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-kling.mp4`;
-    const r2Url = await storage.uploadFromUrl(result.video.url, r2Key, "video/mp4");
+    const r2Url = await storage.uploadFromUrl(
+      result.video.url,
+      r2Key,
+      "video/mp4",
+    );
 
     return {
       r2Key,

@@ -1,6 +1,6 @@
 /**
  * AI Provider Configuration
- * 
+ *
  * Centralized configuration for all AI providers and models.
  * Easy to edit and maintain without touching the core logic.
  */
@@ -80,10 +80,15 @@ export const DEFAULT_SETTINGS = {
 // ─── Helper Functions ─────────────────────────────────────────────────────────────
 
 export function getEnabledProviders(): ("openrouter" | "openai" | "claude")[] {
-  return PROVIDER_PRIORITY.filter(provider => AI_PROVIDERS[provider]?.enabled) as ("openrouter" | "openai" | "claude")[];
+  return PROVIDER_PRIORITY.filter(
+    (provider) => AI_PROVIDERS[provider]?.enabled,
+  ) as ("openrouter" | "openai" | "claude")[];
 }
 
-export function getModelForProvider(provider: string, modelTier: "analysis" | "generation"): string {
+export function getModelForProvider(
+  provider: string,
+  modelTier: "analysis" | "generation",
+): string {
   const models = AI_MODELS[provider];
   if (!models) {
     throw new Error(`No models configured for provider: ${provider}`);

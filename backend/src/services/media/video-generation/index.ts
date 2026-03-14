@@ -5,13 +5,23 @@ import { debugLog } from "@/utils/debug";
 import { klingFalProvider } from "./providers/kling-fal";
 import { runwayProvider } from "./providers/runway";
 import { imageKenBurnsProvider } from "./providers/image-ken-burns";
-import type { VideoProvider, VideoGenerationProvider, GenerateVideoClipParams, VideoClipResult } from "./types";
+import type {
+  VideoProvider,
+  VideoGenerationProvider,
+  GenerateVideoClipParams,
+  VideoClipResult,
+} from "./types";
 
-export type { VideoProvider, VideoGenerationProvider, GenerateVideoClipParams, VideoClipResult };
+export type {
+  VideoProvider,
+  VideoGenerationProvider,
+  GenerateVideoClipParams,
+  VideoClipResult,
+};
 
 const PROVIDERS: Record<VideoProvider, VideoGenerationProvider> = {
   "kling-fal": klingFalProvider,
-  "runway": runwayProvider,
+  runway: runwayProvider,
   "image-ken-burns": imageKenBurnsProvider,
 };
 
@@ -22,22 +32,33 @@ export function getVideoGenerationProvider(
   const provider = PROVIDERS[name];
 
   if (!provider) {
-    throw new Error(`Unknown video generation provider: "${name}". Valid options: ${Object.keys(PROVIDERS).join(", ")}`);
+    throw new Error(
+      `Unknown video generation provider: "${name}". Valid options: ${Object.keys(PROVIDERS).join(", ")}`,
+    );
   }
 
   if (!provider.isAvailable()) {
     // Gracefully fall back to the next available provider
-    const fallbackOrder: VideoProvider[] = ["kling-fal", "image-ken-burns", "runway"];
+    const fallbackOrder: VideoProvider[] = [
+      "kling-fal",
+      "image-ken-burns",
+      "runway",
+    ];
     for (const fallbackName of fallbackOrder) {
       if (fallbackName !== name && PROVIDERS[fallbackName].isAvailable()) {
-        debugLog.warn(`Provider "${name}" not available (missing API key). Falling back to "${fallbackName}".`, {
-          service: "video-generation",
-          operation: "getProvider",
-        });
+        debugLog.warn(
+          `Provider "${name}" not available (missing API key). Falling back to "${fallbackName}".`,
+          {
+            service: "video-generation",
+            operation: "getProvider",
+          },
+        );
         return PROVIDERS[fallbackName];
       }
     }
-    throw new Error(`No video generation provider is available. Set FAL_API_KEY or RUNWAY_API_KEY.`);
+    throw new Error(
+      `No video generation provider is available. Set FAL_API_KEY or RUNWAY_API_KEY.`,
+    );
   }
 
   return provider;

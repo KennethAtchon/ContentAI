@@ -13,9 +13,7 @@ import {
   chatSessions,
   chatMessages,
   projects,
-  generatedContent,
   reels,
-  reelAnalyses,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
@@ -416,8 +414,12 @@ app.post(
         auth,
         content,
         reelRefs,
-        get savedContentId() { return savedContentId || undefined; },
-        set savedContentId(value: number | undefined) { savedContentId = value || null; },
+        get savedContentId() {
+          return savedContentId || undefined;
+        },
+        set savedContentId(value: number | undefined) {
+          savedContentId = value || null;
+        },
       };
 
       const result = streamText({
@@ -438,7 +440,8 @@ app.post(
         onFinish: async ({ text, totalUsage }) => {
           try {
             const durationMs = Date.now() - streamStartMs;
-            const { inputTokens, outputTokens } = extractUsageTokens(totalUsage);
+            const { inputTokens, outputTokens } =
+              extractUsageTokens(totalUsage);
 
             debugLog.info("[chat:onFinish] Stream completed", {
               service: "chat-route",

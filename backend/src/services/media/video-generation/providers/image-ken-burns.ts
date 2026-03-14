@@ -67,15 +67,20 @@ async function applyKenBurns(
     "16:9": "1920:1080",
     "1:1": "1080:1080",
   };
-  const [outW, outH] = (resolutions[aspectRatio] ?? "1080:1920").split(":").map(Number);
+  const [outW, outH] = (resolutions[aspectRatio] ?? "1080:1920")
+    .split(":")
+    .map(Number);
   const fps = 25;
   const totalFrames = durationSeconds * fps;
 
   // Ken Burns: slow zoom in from 1.0x to 1.3x, centered
   const ffmpegArgs = [
-    "-loop", "1",
-    "-i", tmpIn,
-    "-vf", [
+    "-loop",
+    "1",
+    "-i",
+    tmpIn,
+    "-vf",
+    [
       `scale=${outW * 2}:${outH * 2}`,
       `zoompan=z='min(zoom+${(0.3 / totalFrames).toFixed(6)},1.3)':`,
       `d=${totalFrames}:`,
@@ -84,11 +89,16 @@ async function applyKenBurns(
       `scale=${outW}:${outH}:force_original_aspect_ratio=decrease,`,
       `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:black`,
     ].join(""),
-    "-t", String(durationSeconds),
-    "-r", String(fps),
-    "-c:v", "libx264",
-    "-preset", "fast",
-    "-pix_fmt", "yuv420p",
+    "-t",
+    String(durationSeconds),
+    "-r",
+    String(fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "fast",
+    "-pix_fmt",
+    "yuv420p",
     "-y",
     tmpOut,
   ];
@@ -102,14 +112,20 @@ async function applyKenBurns(
 
   if (proc.exitCode !== 0) {
     const stderr = await new Response(proc.stderr).text();
-    throw new Error(`FFmpeg Ken Burns failed (exit ${proc.exitCode}): ${stderr.slice(-500)}`);
+    throw new Error(
+      `FFmpeg Ken Burns failed (exit ${proc.exitCode}): ${stderr.slice(-500)}`,
+    );
   }
 
   const output = await Bun.file(tmpOut).arrayBuffer();
 
   // Cleanup temp files
   for (const f of [tmpIn, tmpOut]) {
-    try { if (existsSync(f)) unlinkSync(f); } catch {}
+    try {
+      if (existsSync(f)) unlinkSync(f);
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
   return Buffer.from(output);

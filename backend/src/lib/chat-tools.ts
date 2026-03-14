@@ -32,10 +32,7 @@ export function createSaveContentTool(context: ToolContext) {
         .describe(
           "Scene-by-scene shot list with timing, e.g. [0-3s] Opening...",
         ),
-      caption: z
-        .string()
-        .min(20)
-        .describe("Full caption text with emojis"),
+      caption: z.string().min(20).describe("Full caption text with emojis"),
       hashtags: z
         .array(z.string())
         .min(3)
@@ -43,9 +40,7 @@ export function createSaveContentTool(context: ToolContext) {
         .describe("3–15 relevant hashtags (without #)"),
       cta: z
         .string()
-        .describe(
-          "Call-to-action (comment, save, share, follow, etc.)",
-        ),
+        .describe("Call-to-action (comment, save, share, follow, etc.)"),
       contentType: z.enum(["hook_only", "caption_only", "full_script"]),
     }),
     // @ts-ignore - AI SDK v6 type issue
@@ -128,12 +123,15 @@ export function createGetReelAnalysisTool(context: ToolContext) {
       });
       // Security: only allow reels that were attached to this message
       if (!context.reelRefs || !context.reelRefs.includes(reelId)) {
-        debugLog.warn("[tool:get_reel_analysis] Reel not in context — blocked", {
-          service: "chat-tools",
-          operation: "get_reel_analysis",
-          reelId,
-          allowedReelRefs: context.reelRefs,
-        });
+        debugLog.warn(
+          "[tool:get_reel_analysis] Reel not in context — blocked",
+          {
+            service: "chat-tools",
+            operation: "get_reel_analysis",
+            reelId,
+            allowedReelRefs: context.reelRefs,
+          },
+        );
         return { error: "reel_not_in_context" };
       }
       try {
@@ -251,22 +249,28 @@ export function createIterateContentTool(context: ToolContext) {
 
         // Return not_found regardless of whether ID exists (don't leak existence)
         if (!parent) {
-          debugLog.warn("[tool:iterate_content] Parent content not found or unauthorized", {
-            service: "chat-tools",
-            operation: "iterate_content",
-            parentContentId,
-            userId: context.auth.user.id,
-          });
+          debugLog.warn(
+            "[tool:iterate_content] Parent content not found or unauthorized",
+            {
+              service: "chat-tools",
+              operation: "iterate_content",
+              parentContentId,
+              userId: context.auth.user.id,
+            },
+          );
           return { error: "not_found" };
         }
 
-        debugLog.info("[tool:iterate_content] Parent content found, creating new version", {
-          service: "chat-tools",
-          operation: "iterate_content",
-          parentContentId,
-          parentVersion: parent.version,
-          newVersion: parent.version + 1,
-        });
+        debugLog.info(
+          "[tool:iterate_content] Parent content found, creating new version",
+          {
+            service: "chat-tools",
+            operation: "iterate_content",
+            parentContentId,
+            parentVersion: parent.version,
+            newVersion: parent.version + 1,
+          },
+        );
 
         const [row] = await db
           .insert(generatedContent)
@@ -277,8 +281,7 @@ export function createIterateContentTool(context: ToolContext) {
             generatedCaption: caption ?? parent.generatedCaption,
             generatedScript: script ?? parent.generatedScript,
             generatedMetadata: {
-              hashtags:
-                hashtags ?? (parent.generatedMetadata as any)?.hashtags,
+              hashtags: hashtags ?? (parent.generatedMetadata as any)?.hashtags,
               cta: cta ?? (parent.generatedMetadata as any)?.cta,
               changeDescription,
             },

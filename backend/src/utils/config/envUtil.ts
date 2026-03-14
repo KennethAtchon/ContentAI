@@ -242,11 +242,7 @@ export const KLING_MODEL = getEnvVar(
   "fal-ai/kling-video/v2.1/standard/text-to-video",
 );
 /** FLUX model on fal.ai for image+ken-burns mode */
-export const FLUX_MODEL = getEnvVar(
-  "FLUX_MODEL",
-  false,
-  "fal-ai/flux/schnell",
-);
+export const FLUX_MODEL = getEnvVar("FLUX_MODEL", false, "fal-ai/flux/schnell");
 
 // ============================================================================
 // Reels / Content Platform

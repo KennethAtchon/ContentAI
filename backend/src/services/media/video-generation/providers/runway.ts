@@ -14,8 +14,8 @@ const POLL_TIMEOUT_MS = 300_000; // 5 min
 
 // Cost per second by model
 const COST_PER_SECOND: Record<string, number> = {
-  "gen3a_turbo": 0.05,
-  "gen3a": 0.10,
+  gen3a_turbo: 0.05,
+  gen3a: 0.1,
 };
 
 interface RunwayTask {
@@ -45,7 +45,9 @@ async function pollTask(taskId: string): Promise<RunwayTask> {
 
     if (task.status === "SUCCEEDED") return task;
     if (task.status === "FAILED") {
-      throw new Error(`Runway task ${taskId} failed: ${task.failure ?? "unknown"}`);
+      throw new Error(
+        `Runway task ${taskId} failed: ${task.failure ?? "unknown"}`,
+      );
     }
   }
 

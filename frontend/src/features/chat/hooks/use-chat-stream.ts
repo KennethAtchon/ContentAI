@@ -51,7 +51,9 @@ export function useChatStream(sessionId: string) {
       setIsSavingContent(false);
       setStreamingContentId(null);
 
-      debugLog.info("[ChatStream] Optimistic user message set, sending HTTP POST");
+      debugLog.info(
+        "[ChatStream] Optimistic user message set, sending HTTP POST"
+      );
 
       try {
         const fetchStart = Date.now();
@@ -195,7 +197,9 @@ export function useChatStream(sessionId: string) {
           type: "active",
         });
 
-        debugLog.info("[ChatStream] Cache refreshed — clearing optimistic state");
+        debugLog.info(
+          "[ChatStream] Cache refreshed — clearing optimistic state"
+        );
 
         // Real data is now in cache — safe to drop the optimistic overlay.
         setOptimisticUserMessage(null);
@@ -213,7 +217,9 @@ export function useChatStream(sessionId: string) {
         setOptimisticUserMessage(null);
         setStreamingContent(null);
       } finally {
-        debugLog.info("[ChatStream] sendMessage finished — resetting streaming state");
+        debugLog.info(
+          "[ChatStream] sendMessage finished — resetting streaming state"
+        );
         setIsStreaming(false);
         setIsSavingContent(false);
       }
