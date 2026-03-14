@@ -252,12 +252,15 @@ reelsRouter.post(
   async (c) => {
     try {
       const body = await c.req.json().catch(() => null);
-      const ids = Array.isArray(body?.ids) ? body.ids : [];
-      const uniqueIds = Array.from(
+      const ids: unknown[] = Array.isArray(body?.ids) ? body.ids : [];
+      const uniqueIds: number[] = Array.from(
         new Set(
           ids
-            .map((id) => (typeof id === "number" ? id : Number(id)))
-            .filter((id) => Number.isInteger(id) && id > 0),
+            .map((id: unknown) => (typeof id === "number" ? id : Number(id)))
+            .filter((id: unknown): id is number => {
+              const numId = typeof id === "number" ? id : Number(id);
+              return Number.isInteger(numId) && numId > 0;
+            }),
         ),
       ).slice(0, 50);
 
@@ -270,9 +273,11 @@ reelsRouter.post(
         .from(reels)
         .where(inArray(reels.id, uniqueIds));
 
-      const rowById = new Map(rows.map((row) => [row.id, row]));
+      const rowById = new Map<number, (typeof rows)[0]>(
+        rows.map((row) => [row.id, row]),
+      );
       const ordered = uniqueIds
-        .map((id) => rowById.get(id))
+        .map((id: number) => rowById.get(id))
         .filter(Boolean);
 
       return c.json({ reels: ordered });

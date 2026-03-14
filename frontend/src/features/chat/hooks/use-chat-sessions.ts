@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatService } from "../services/chat.service";
-import type { CreateSessionRequest, UpdateSessionRequest } from "../types/chat.types";
+import type {
+  CreateSessionRequest,
+  UpdateSessionRequest,
+} from "../types/chat.types";
 
 export const useChatSessions = (projectId?: string) => {
   return useQuery({
@@ -44,8 +47,13 @@ export const useUpdateChatSession = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: UpdateSessionRequest }) =>
-      chatService.updateChatSession(id, updates),
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: UpdateSessionRequest;
+    }) => chatService.updateChatSession(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
     },

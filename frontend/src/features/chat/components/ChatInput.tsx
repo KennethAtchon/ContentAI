@@ -13,7 +13,11 @@ interface ChatInputProps {
   activeReelRefs?: Reel[];
 }
 
-export function ChatInput({ onSendMessage, disabled, activeReelRefs }: ChatInputProps) {
+export function ChatInput({
+  onSendMessage,
+  disabled,
+  activeReelRefs,
+}: ChatInputProps) {
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [attachedReels, setAttachedReels] = useState<Reel[]>([]);
@@ -28,7 +32,6 @@ export function ChatInput({ onSendMessage, disabled, activeReelRefs }: ChatInput
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
-      console.log("Sending message:", message.trim(), attachedReels);
       const reelRefs =
         attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined;
       onSendMessage(message.trim(), reelRefs);

@@ -123,10 +123,10 @@ export function ChatPanel({
               </a>
             </div>
           ) : (
-            <ChatInput 
+            <ChatInput
               activeReelRefs={activeReelRefs}
-              onSendMessage={onSendMessage} 
-              disabled={isStreaming}  
+              onSendMessage={onSendMessage}
+              disabled={isStreaming}
             />
           )}
         </div>

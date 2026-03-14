@@ -90,14 +90,14 @@ export function ChatLayout({
             {
               method: "POST",
               body: JSON.stringify({ ids: lastReelRefs }),
-            },
+            }
           );
           if (!cancelled) setActiveReelRefs(data.reels);
         }
         // Otherwise, use URL reelId as fallback for initial session setup
         else if (search.reelId && sessionData) {
           const data = await authenticatedFetchJson<{ reel: Reel }>(
-            `/api/reels/${search.reelId}`,
+            `/api/reels/${search.reelId}`
           );
           if (!cancelled && data.reel) {
             setActiveReelRefs([data.reel]);

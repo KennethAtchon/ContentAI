@@ -15,7 +15,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { Plus, MessageSquare, Trash2, FolderOpen, Edit3, Check, X } from "lucide-react";
+import {
+  Plus,
+  MessageSquare,
+  Trash2,
+  FolderOpen,
+  Edit3,
+  Check,
+  X,
+} from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
 import {
   useProjects,
@@ -210,7 +218,7 @@ export function ProjectSidebar({
 
   const handleSaveSessionTitle = async () => {
     if (!editingSessionId || !editingSessionTitle.trim()) return;
-    
+
     try {
       await updateSessionMutation.mutateAsync({
         id: editingSessionId,
@@ -239,7 +247,7 @@ export function ProjectSidebar({
 
   const handleSaveProjectName = async () => {
     if (!editingProjectId || !editingProjectName.trim()) return;
-    
+
     try {
       await updateProjectMutation.mutateAsync({
         id: editingProjectId,
@@ -326,7 +334,9 @@ export function ProjectSidebar({
                         <input
                           type="text"
                           value={editingProjectName}
-                          onChange={(e) => setEditingProjectName(e.target.value)}
+                          onChange={(e) =>
+                            setEditingProjectName(e.target.value)
+                          }
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
@@ -441,7 +451,9 @@ export function ProjectSidebar({
                               <input
                                 type="text"
                                 value={editingSessionTitle}
-                                onChange={(e) => setEditingSessionTitle(e.target.value)}
+                                onChange={(e) =>
+                                  setEditingSessionTitle(e.target.value)
+                                }
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();

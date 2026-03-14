@@ -18,10 +18,26 @@ export function AnalysisPanel({ reel }: Props) {
           <SectionLabel>{t("studio_panel_metrics")}</SectionLabel>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { l: t("studio_panel_views"), v: fmtNum(reel.views), accent: false },
-              { l: t("studio_panel_likes"), v: fmtNum(reel.likes), accent: false },
-              { l: t("studio_panel_comments"), v: fmtNum(reel.comments), accent: false },
-              { l: t("studio_panel_engagement"), v: `${reel.engagementRate ?? 0}%`, accent: true },
+              {
+                l: t("studio_panel_views"),
+                v: fmtNum(reel.views),
+                accent: false,
+              },
+              {
+                l: t("studio_panel_likes"),
+                v: fmtNum(reel.likes),
+                accent: false,
+              },
+              {
+                l: t("studio_panel_comments"),
+                v: fmtNum(reel.comments),
+                accent: false,
+              },
+              {
+                l: t("studio_panel_engagement"),
+                v: `${reel.engagementRate ?? 0}%`,
+                accent: true,
+              },
             ].map((m) => (
               <div
                 key={m.l}
