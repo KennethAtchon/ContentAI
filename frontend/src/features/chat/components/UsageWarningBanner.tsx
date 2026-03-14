@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useApp } from "@/shared/contexts/app-context";
+import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 
 interface UsageData {
   contentGenerated: number;
@@ -17,6 +18,7 @@ export function UsageWarningBanner() {
   const { t } = useTranslation();
   const { user } = useApp();
   const fetcher = useQueryFetcher<UsageData>();
+  const { hasEnterpriseAccess } = useSubscription();
 
   const currentMonth = new Date().toISOString().slice(0, 7); // "2026-03"
   const dismissKey = `usage_warning_dismissed_${currentMonth}`;
@@ -51,12 +53,18 @@ export function UsageWarningBanner() {
         {t("studio_chat_usageWarning_body", { pct: pctDisplay })}
       </span>
       <div className="flex items-center gap-2 shrink-0">
-        <a
-          href="/pricing"
-          className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-        >
-          {t("studio_chat_usageWarning_upgrade")}
-        </a>
+        {hasEnterpriseAccess ? (
+          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400">
+            {t("studio_chat_usageWarning_contactSupport")}
+          </span>
+        ) : (
+          <a
+            href="/pricing"
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+          >
+            {t("studio_chat_usageWarning_upgrade")}
+          </a>
+        )}
         <button
           onClick={handleDismiss}
           className="text-amber-400/60 hover:text-amber-400 transition-colors"

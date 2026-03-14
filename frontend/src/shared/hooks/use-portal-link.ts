@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { QUERY_STALE } from "@/shared/lib/query-client";
@@ -31,6 +31,7 @@ interface PortalLinkResponse {
  */
 export function usePortalLink() {
   const { user } = useApp();
+  const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   const queryFn = async (): Promise<string> => {
     const response = await authenticatedFetchJson<PortalLinkResponse>(

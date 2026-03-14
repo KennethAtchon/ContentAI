@@ -58,6 +58,9 @@ export function useChatStream(sessionId: string) {
           const body = await response.json().catch(() => ({}));
           if ((body as { code?: string }).code === "USAGE_LIMIT_REACHED") {
             setIsLimitReached(true);
+            // Invalidate usage queries to update all UI components
+            await queryClient.invalidateQueries({ queryKey: ["api", "reels", "usage"] });
+            await queryClient.invalidateQueries({ queryKey: ["api", "account", "usage"] });
             return;
           }
         }
@@ -151,6 +154,10 @@ export function useChatStream(sessionId: string) {
     [sessionId, isStreaming, queryClient]
   );
 
+  const resetLimitReached = useCallback(() => {
+    setIsLimitReached(false);
+  }, []);
+
   return {
     sendMessage,
     optimisticUserMessage,
@@ -160,5 +167,6 @@ export function useChatStream(sessionId: string) {
     isLimitReached,
     isSavingContent,
     streamingContentId,
+    resetLimitReached,
   };
 }

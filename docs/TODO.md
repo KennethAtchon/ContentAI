@@ -14,18 +14,18 @@
 - [x] Create, edit, delete projects
 - [x] Project sidebar with chat sessions
 - [x] URL state management (projectId/sessionId in search params)
-- [ ] Project-to-queue association
+- [x] Project-to-queue association
 
 ### **Discover → Generate Bridge**
-- [ ] Replace "Run AI Analysis" button in `AnalysisPanel` with "Generate from this reel" — single action that: (1) shows confirmation modal explaining what will happen, (2) runs AI analysis, (3) auto-creates a project named after the reel hook/username, (4) auto-creates a chat session, (5) pre-loads analysis as chat context, (6) navigates to `/studio/generate?projectId=X&sessionId=Y`
-- [ ] Confirmation modal: explain that a new project + session will be created and the user will be taken to Generate — with Cancel / Continue buttons
+- [x] Replace "Run AI Analysis" button in `AnalysisPanel` with "Generate from this reel" — single action that: (1) shows confirmation modal explaining what will happen, (2) runs AI analysis, (3) auto-creates a project named after the reel hook/username, (4) auto-creates a chat session, (5) pre-loads analysis as chat context, (6) navigates to `/studio/generate?projectId=X&sessionId=Y`
+- [x] Confirmation modal: explain that a new project + session will be created and the user will be taken to Generate — with Cancel / Continue buttons
 
 ### **Reel Referencing System**
-- [ ] "Attach Reel" button with searchable modal
-- [ ] `@` mention with scoped search (debounced fuzzy search)
-- [ ] Reel picker with niche filtering
+- [x] "Attach Reel" button with searchable modal
+- [x] `@` mention with scoped search (debounced fuzzy search)
+- [x] Reel picker with niche filtering
 - [ ] Multiple reel selection in single message
-- [ ] Visual reel cards with metadata display
+- [x] Visual reel cards with metadata display
 
 ### **AI Pipeline (6 Phases)**
 - [x] **Phase 1**: Enhanced reel analysis (hook patterns, emotional triggers, format patterns, engagement drivers, replicability score)
@@ -38,9 +38,9 @@
 ### **Content Generation Features**
 - [x] Multiple output types (hook, caption, full script)
 - [x] Content versioning (version + parentId fields)
-- [ ] Content iteration linked to parent version
+- [x] Content iteration linked to parent version
 - [ ] AI model selection (per-request model choice)
-- [ ] Export to queue functionality
+- [x] Export to queue functionality
 - [ ] **System Audio Selection**
   - [ ] Browse admin-curated audio library
   - [ ] Audio preview and selection interface
@@ -89,7 +89,7 @@
 - [x] Full-screen vertical video feed
 - [x] Scroll navigation between videos (Intersection Observer + keyboard arrows)
 - [x] Auto-play with Intersection Observer
-- [ ] Video virtualization (all reels in DOM currently — memory accumulates on scroll)
+- [x] Video virtualization (all reels in DOM currently — memory accumulates on scroll)
 - [ ] In-video UI overlays (TikTok style)
 
 ### **Video Playback System**
@@ -186,13 +186,12 @@
 - [x] Component library (shadcn/ui + Radix)
 - [x] Skeleton loading screens (discover, queue, audio sidebar)
 - [x] Error boundary (full error catching + recovery, integrated at root)
-- [ ] Accessibility improvements
-- [ ] Mobile-first design
+- [x] Accessibility improvements
+- [x] Mobile-first design
 
 ### **Performance**
-- [ ] Code splitting and lazy loading
-- [ ] Bundle size optimization
-- [ ] Video virtualization in TikTok feed
+- [x] Code splitting and lazy loading
+- [x] Bundle size optimization
 
 ---
 

@@ -28,7 +28,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApp } from "@/shared/contexts/app-context";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/utils/debug";
 
 export interface PaginationInfo {
@@ -121,6 +121,7 @@ export function usePaginatedData<T>(
   };
 
   const { user, authLoading } = useApp();
+  const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   const [currentPage, setCurrentPage] = useState(opts.initialPage);
   const currentLimit = opts.initialLimit;

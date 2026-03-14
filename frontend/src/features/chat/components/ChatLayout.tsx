@@ -3,11 +3,12 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MessageSquarePlus } from "lucide-react";
 import { debugLog } from "@/shared/utils/debug/debug";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "../hooks/use-chat-sessions";
 import { useChatStream, STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
+import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import type { Project, ChatSession, ChatMessage } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
 
@@ -31,12 +32,14 @@ export function ChatLayout({
     reelId?: string;
   };
   const navigate = useNavigate();
+  const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [selectedSession, setSelectedSession] = useState<
     ChatSession | undefined
   >();
 
+  const { hasEnterpriseAccess } = useSubscription();
   const sessionId = search.sessionId || "";
   const { data: sessionData, isLoading: sessionLoading } =
     useChatSession(sessionId);
@@ -49,6 +52,7 @@ export function ChatLayout({
     isLimitReached,
     isSavingContent,
     streamingContentId,
+    resetLimitReached,
   } = useChatStream(sessionId);
   const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
 
@@ -216,9 +220,11 @@ export function ChatLayout({
               isStreaming={isStreaming}
               streamError={streamError}
               isLimitReached={isLimitReached}
+              isMaxPlan={hasEnterpriseAccess}
               isSavingContent={isSavingContent}
               streamingContentId={streamingContentId}
               activeReelRefs={activeReelRefs}
+              onResetLimitReached={resetLimitReached}
             />
           </>
         ) : (

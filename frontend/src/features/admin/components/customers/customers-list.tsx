@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useApp } from "@/shared/contexts/app-context";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/utils/debug";
 import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
 import { EmptyState } from "@/shared/components/custom-ui/empty-state";
@@ -153,6 +153,7 @@ export function CustomersList({
 }: CustomersListProps) {
   const { t } = useTranslation();
   const { user } = useApp();
+  const { authenticatedFetchJson } = useAuthenticatedFetch();
   const fetcher = useQueryFetcher<ApiResponse>();
 
   // Edit modal state

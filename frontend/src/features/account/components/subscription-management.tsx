@@ -43,7 +43,7 @@ interface UsageStats {
 export function SubscriptionManagement() {
   const { t } = useTranslation();
   const { user } = useApp();
-  const { role, isLoading: subscriptionLoading } = useSubscription();
+  const { role, hasEnterpriseAccess, isLoading: subscriptionLoading } = useSubscription();
   const fetcher = useQueryFetcher<UsageStats>();
 
   const {
@@ -172,7 +172,9 @@ export function SubscriptionManagement() {
               (usageStats.limitReached || usageStats.percentageUsed >= 100) && (
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {t("account_subscription_reached_limit_upgrade")}
+                    {hasEnterpriseAccess
+                      ? t("account_subscription_reached_limit_maxPlan")
+                      : t("account_subscription_reached_limit_upgrade")}
                   </AlertDescription>
                 </Alert>
               )}

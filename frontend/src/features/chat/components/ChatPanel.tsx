@@ -16,10 +16,12 @@ interface ChatPanelProps {
   streamingMessageId?: string;
   streamError?: string | null;
   isLimitReached?: boolean;
+  isMaxPlan?: boolean;
   isSavingContent?: boolean;
   streamingContentId?: number | null;
   reels?: any[];
   activeReelRefs?: Reel[];
+  onResetLimitReached?: () => void;
 }
 
 export function ChatPanel({
@@ -29,9 +31,11 @@ export function ChatPanel({
   streamingMessageId,
   streamError,
   isLimitReached,
+  isMaxPlan,
   isSavingContent,
   streamingContentId,
   activeReelRefs,
+  onResetLimitReached,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -115,12 +119,18 @@ export function ChatPanel({
               <span className="text-amber-400 font-medium">
                 {t("studio_chat_limit_reached")}
               </span>
-              <a
-                href="/pricing"
-                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-              >
-                {t("studio_chat_limit_upgrade")}
-              </a>
+              {isMaxPlan ? (
+                <span className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400">
+                  {t("studio_chat_limit_maxPlan")}
+                </span>
+              ) : (
+                <a
+                  href="/pricing"
+                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                >
+                  {t("studio_chat_limit_upgrade")}
+                </a>
+              )}
             </div>
           ) : (
             <ChatInput
@@ -132,7 +142,7 @@ export function ChatPanel({
         </div>
       </div>
 
-      <LimitHitModal open={!!isLimitReached} onClose={() => {}} />
+      <LimitHitModal open={!!isLimitReached} isMaxPlan={isMaxPlan} onClose={onResetLimitReached || (() => {})} />
     </div>
   );
 }

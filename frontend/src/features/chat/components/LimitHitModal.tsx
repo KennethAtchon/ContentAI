@@ -11,10 +11,11 @@ import { Button } from "@/shared/components/ui/button";
 
 interface Props {
   open: boolean;
+  isMaxPlan?: boolean;
   onClose: () => void;
 }
 
-export function LimitHitModal({ open, onClose }: Props) {
+export function LimitHitModal({ open, isMaxPlan, onClose }: Props) {
   const { t } = useTranslation();
 
   return (
@@ -23,7 +24,9 @@ export function LimitHitModal({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>{t("studio_chat_limitModal_title")}</DialogTitle>
           <DialogDescription>
-            {t("studio_chat_limitModal_body")}
+            {isMaxPlan
+              ? t("studio_chat_limitModal_body_maxPlan")
+              : t("studio_chat_limitModal_body")}
           </DialogDescription>
         </DialogHeader>
 
@@ -31,9 +34,11 @@ export function LimitHitModal({ open, onClose }: Props) {
           <Button variant="ghost" onClick={onClose}>
             {t("studio_chat_limitModal_close")}
           </Button>
-          <Button asChild>
-            <a href="/pricing">{t("studio_chat_limitModal_upgrade")}</a>
-          </Button>
+          {!isMaxPlan && (
+            <Button asChild>
+              <a href="/pricing">{t("studio_chat_limitModal_upgrade")}</a>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

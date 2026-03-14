@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { useApp } from "@/shared/contexts/app-context";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
@@ -88,6 +88,7 @@ const HISTORY_PAGE_LIMIT = 10;
 export function UsageDashboard() {
   const { t } = useTranslation();
   const { user } = useApp();
+  const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
   const fetcher = useQueryFetcher<UsageStats>();
   const [historyPage, setHistoryPage] = useState(1);
