@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { streamText, stepCountIs } from "ai";
+import { streamText, stepCountIs, createUIMessageStreamResponse } from "ai";
 import {
   authMiddleware,
   rateLimiter,
@@ -437,6 +437,15 @@ app.post(
         stopWhen: stepCountIs(5),
         tools: createChatTools(toolContext),
 
+        onError: async ({ error }) => {
+          debugLog.error("[chat:streamText] AI provider stream error", {
+            service: "chat-route",
+            operation: "onError",
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+
         onFinish: async ({ text, totalUsage }) => {
           try {
             const durationMs = Date.now() - streamStartMs;
@@ -534,7 +543,46 @@ app.post(
         sessionId,
       });
 
-      return result.toUIMessageStreamResponse();
+      // Wrap the UI stream to catch provider errors and close gracefully,
+      // preventing ERR_INCOMPLETE_CHUNKED_ENCODING on network/provider failures.
+      const safeStream = new ReadableStream({
+        start(controller) {
+          const reader = result.toUIMessageStream().getReader();
+          (async () => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  controller.close();
+                  break;
+                }
+                controller.enqueue(value);
+              }
+            } catch (err) {
+              debugLog.error("[chat:stream] Stream terminated with error", {
+                service: "chat-route",
+                operation: "stream-error",
+                sessionId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+              try {
+                controller.enqueue({
+                  type: "error" as const,
+                  errorText:
+                    err instanceof Error
+                      ? err.message
+                      : "An error occurred while generating the response.",
+                });
+                controller.close();
+              } catch {
+                // stream already closed
+              }
+            }
+          })();
+        },
+      });
+
+      return createUIMessageStreamResponse({ stream: safeStream });
     } catch (error) {
       debugLog.error("Failed to send chat message", {
         service: "chat-route",

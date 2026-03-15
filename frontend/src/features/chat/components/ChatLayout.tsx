@@ -7,7 +7,7 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "../hooks/use-chat-sessions";
-import { useChatStream, STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
+import { useChatStream } from "../hooks/use-chat-stream";
 import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import type { Project, ChatSession, ChatMessage } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
@@ -47,6 +47,7 @@ export function ChatLayout({
     sendMessage,
     optimisticUserMessage,
     streamingContent,
+    streamingMessageId,
     isStreaming,
     streamError,
     isLimitReached,
@@ -184,7 +185,7 @@ export function ChatLayout({
     }
     if (streamingContent) {
       extra.push({
-        id: STREAMING_MESSAGE_ID,
+        id: streamingMessageId,
         sessionId,
         role: "assistant",
         content: streamingContent,
@@ -197,6 +198,7 @@ export function ChatLayout({
     sessionData?.messages,
     optimisticUserMessage,
     streamingContent,
+    streamingMessageId,
     sessionId,
   ]);
 
@@ -230,7 +232,7 @@ export function ChatLayout({
             <ChatPanel
               messages={displayMessages}
               streamingMessageId={
-                isStreaming ? STREAMING_MESSAGE_ID : undefined
+                isStreaming ? streamingMessageId : undefined
               }
               onSendMessage={handleSendMessage}
               isStreaming={isStreaming}

@@ -6,8 +6,13 @@ import {
 import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
-import { SOCIAL_API_KEY, VIRAL_VIEWS_THRESHOLD } from "../utils/config/envUtil";
+import {
+  DEV_USE_MOCK_REEL_SCRAPE,
+  SOCIAL_API_KEY,
+  VIRAL_VIEWS_THRESHOLD,
+} from "../utils/config/envUtil";
 import { storage } from "./storage/index";
+import devMockReels from "./scraping/dev-mock-reels.json";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +67,21 @@ interface ApifyReelItem {
   takenAt?: number;
 }
 
+interface DevMockReelTemplate {
+  externalId?: string;
+  username: string;
+  caption?: string;
+  likes?: number;
+  comments?: number;
+  views?: number;
+  audioId?: string;
+  audioName?: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
+  postedAt?: string;
+  videoLengthSeconds?: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
@@ -84,6 +104,28 @@ class ScrapingService {
     nicheName: string,
     config: Partial<ScrapeConfig> = {},
   ): Promise<ScrapeResult> {
+    // Default configuration
+    const defaultConfig: ScrapeConfig = {
+      limit: 100,
+      minViews: 1000,
+      maxDaysOld: 30,
+      viralOnly: false,
+    };
+
+    const finalConfig = { ...defaultConfig, ...config };
+
+    if (DEV_USE_MOCK_REEL_SCRAPE) {
+      debugLog.info(
+        "DEV_USE_MOCK_REEL_SCRAPE enabled — using local reels as scrape source",
+        {
+          service: "scraping-service",
+          nicheId,
+          nicheName,
+        },
+      );
+      return this.scrapeViaMockData(nicheId, finalConfig);
+    }
+
     const apiKey = SOCIAL_API_KEY;
 
     if (!apiKey) {
@@ -97,16 +139,6 @@ class ScrapingService {
       );
       return { saved: 0, skipped: 0 };
     }
-
-    // Default configuration
-    const defaultConfig: ScrapeConfig = {
-      limit: 100,
-      minViews: 1000,
-      maxDaysOld: 30,
-      viralOnly: false,
-    };
-
-    const finalConfig = { ...defaultConfig, ...config };
 
     let lastError: Error = new Error("Unknown error");
 
@@ -138,6 +170,61 @@ class ScrapingService {
     }
 
     throw lastError;
+  }
+
+  private async scrapeViaMockData(
+    nicheId: number,
+    config: ScrapeConfig,
+  ): Promise<ScrapeResult> {
+    const sourceReels = devMockReels as DevMockReelTemplate[];
+
+    if (sourceReels.length === 0) {
+      debugLog.warn("No hardcoded mock reels available for development scrape", {
+        service: "scraping-service",
+        nicheId,
+      });
+      return { saved: 0, skipped: 0 };
+    }
+
+    const totalToGenerate = Math.max(0, Math.floor(config.limit));
+
+    if (totalToGenerate === 0) {
+      return { saved: 0, skipped: 0 };
+    }
+
+    const runSuffix = `dev-${Date.now()}`;
+    const mockItems: ApifyReelItem[] = Array.from(
+      { length: totalToGenerate },
+      (_, index) => {
+        const reel = sourceReels[index % sourceReels.length]!;
+        return {
+          id: `${reel.externalId ?? `local-${index % sourceReels.length}`}-${runSuffix}-${index}`,
+          url: reel.videoUrl,
+          videoUrl: reel.videoUrl,
+          thumbnailUrl: reel.thumbnailUrl,
+          caption: reel.caption,
+          likesCount: reel.likes ?? 0,
+          commentsCount: reel.comments ?? 0,
+          videoViewCount: reel.views ?? 0,
+          ownerUsername: reel.username,
+          musicInfo:
+            reel.audioName || reel.audioId
+              ? {
+                  song_name: reel.audioName,
+                  audio_id: reel.audioId,
+                }
+              : undefined,
+          productType: "clips",
+          isVideo: true,
+          videoDuration: reel.videoLengthSeconds,
+          timestamp:
+            reel.postedAt ??
+            new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString(),
+        };
+      },
+    );
+
+    return this.saveReels(mockItems, nicheId, config);
   }
 
   // ─── Retry wrapper ─────────────────────────────────────────────────────────

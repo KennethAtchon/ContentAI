@@ -85,7 +85,11 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
 // ─── Helper Functions for Streaming ──────────────────────────────────────────
 
 export function getModel(modelTier: "analysis" | "generation" = "generation") {
-  const { instance, model } = getModelInstance(modelTier);
+  const { instance, provider, model } = getModelInstance(modelTier);
+  // Use Chat Completions API for openai/openrouter to avoid Responses API format mismatch
+  if (provider !== "claude" && typeof (instance as any).chat === "function") {
+    return (instance as any).chat(model);
+  }
   return instance(model);
 }
 
@@ -109,9 +113,13 @@ export async function streamAi(params: AiMessage): Promise<any> {
 
   const { instance, provider, model } = getModelInstance(modelTier);
   const startMs = Date.now();
+  const resolvedModel =
+    provider !== "claude" && typeof (instance as any).chat === "function"
+      ? (instance as any).chat(model)
+      : instance(model);
 
   return streamText({
-    model: instance(model),
+    model: resolvedModel,
     system,
     messages: [
       {

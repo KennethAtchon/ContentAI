@@ -144,8 +144,13 @@ export async function attemptAiCall(
   const model = getModelForProvider(provider, params.modelTier || "analysis");
   const startMs = Date.now();
 
+  const resolvedModel =
+    typeof (instance as any).chat === "function"
+      ? (instance as any).chat(model)
+      : instance(model);
+
   const { text, usage } = await generateText({
-    model: instance(model),
+    model: resolvedModel,
     system: params.system,
     messages: [
       {

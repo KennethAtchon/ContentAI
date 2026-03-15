@@ -5,6 +5,7 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
 
+// Stable fallback used as default; overridden per-invocation via streamingIdRef.
 export const STREAMING_MESSAGE_ID = "streaming-ai-response";
 
 export function useChatStream(sessionId: string) {
@@ -20,6 +21,9 @@ export function useChatStream(sessionId: string) {
     null
   );
   const abortRef = useRef<AbortController | null>(null);
+  // Pinned once per sendMessage call so the streaming message key is stable
+  // for the entire lifecycle of a single AI response.
+  const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
 
   const sendMessage = useCallback(
     async (content: string, reelRefs?: number[]) => {
@@ -35,16 +39,20 @@ export function useChatStream(sessionId: string) {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+      // Pin a stable ID for this response's streaming message so the React
+      // key never changes mid-stream (avoids unnecessary remounts).
+      streamingIdRef.current = `streaming-${sessionId}-${Date.now()}`;
 
-      // Show user message immediately
-      setOptimisticUserMessage({
+      // Show user message immediately — keep a local ref to reuse in setQueryData.
+      const optimisticMsg: ChatMessage = {
         id: `optimistic-${Date.now()}`,
         sessionId,
         role: "user",
         content,
         reelRefs,
         createdAt: new Date().toISOString(),
-      });
+      };
+      setOptimisticUserMessage(optimisticMsg);
       setStreamingContent("");
       setIsStreaming(true);
       setStreamError(null);
@@ -154,6 +162,12 @@ export function useChatStream(sessionId: string) {
                 setStreamingContentId(output.contentId);
               }
               setIsSavingContent(false);
+            } else if (chunk.type === "error") {
+              const errorText = (chunk.errorText as string) || "An error occurred";
+              debugLog.error("[ChatStream] Error chunk received from server", {
+                errorText,
+              });
+              setStreamError(errorText);
             } else {
               debugLog.debug("[ChatStream] SSE event", { type: chunk.type });
             }
@@ -186,24 +200,48 @@ export function useChatStream(sessionId: string) {
           finalContentLength: accumulated.length,
         });
 
-        // Refresh persisted messages after stream ends.
-        // We must wait for the session refetch to complete before clearing
-        // optimistic state, otherwise there's a flash where both the user
-        // message and AI response disappear while the cache is still stale.
-        debugLog.info("[ChatStream] Invalidating and refetching session cache");
-        await queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
-        await queryClient.refetchQueries({
-          queryKey: ["chat-sessions", sessionId],
-          type: "active",
-        });
-
-        debugLog.info(
-          "[ChatStream] Cache refreshed — clearing optimistic state"
+        // Inject the final messages into the TanStack Query cache and clear
+        // optimistic state in the same synchronous batch. This prevents the
+        // 4-message flash (server user + server AI + optimistic user +
+        // streaming AI all visible simultaneously for one render frame).
+        queryClient.setQueryData(
+          ["chat-sessions", sessionId],
+          (old: { session: unknown; messages: ChatMessage[] } | undefined) => {
+            if (!old) return old;
+            return {
+              ...old,
+              messages: [
+                ...old.messages,
+                optimisticMsg,
+                ...(accumulated
+                  ? [
+                      {
+                        // Use a distinct temp ID — not streamingIdRef.current —
+                        // to avoid a duplicate-key collision: useSyncExternalStore
+                        // forces a synchronous render from setQueryData before the
+                        // setStreamingContent(null) setState is committed, so the
+                        // overlay message (id=streamingIdRef.current) briefly
+                        // coexists with the injected cache entry.
+                        id: `ai-pending-${Date.now()}`,
+                        sessionId,
+                        role: "assistant" as const,
+                        content: accumulated,
+                        createdAt: new Date().toISOString(),
+                      },
+                    ]
+                  : []),
+              ],
+            };
+          }
         );
-
-        // Real data is now in cache — safe to drop the optimistic overlay.
         setOptimisticUserMessage(null);
         setStreamingContent(null);
+
+        // Background refetch to replace temp IDs with real server IDs.
+        debugLog.info("[ChatStream] Triggering background session refresh");
+        void queryClient.invalidateQueries({
+          queryKey: ["chat-sessions", sessionId],
+        });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           debugLog.info("[ChatStream] Stream aborted by user");
@@ -235,6 +273,7 @@ export function useChatStream(sessionId: string) {
     sendMessage,
     optimisticUserMessage,
     streamingContent,
+    streamingMessageId: streamingIdRef.current,
     isStreaming,
     streamError,
     isLimitReached,

@@ -5,7 +5,6 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { UsageWarningBanner } from "./UsageWarningBanner";
 import { LimitHitModal } from "./LimitHitModal";
-import { STREAMING_MESSAGE_ID } from "../hooks/use-chat-stream";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
 
@@ -39,17 +38,24 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const prevMessageCountRef = useRef(0);
 
   useEffect(() => {
-    scrollToBottom();
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    // Smooth scroll only when a new message is appended (count increases).
+    // Use instant during streaming so rapid chunk updates don't continuously
+    // interrupt and restart the smooth scroll animation.
+    const isNewMessage = messages.length > prevCount;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: isNewMessage ? "smooth" : "instant",
+    });
   }, [messages]);
 
   // Show thinking dots while streaming but no content has arrived yet
-  const hasStreamingMessage = messages.some((m) => m.id === STREAMING_MESSAGE_ID);
+  const hasStreamingMessage =
+    !!streamingMessageId &&
+    messages.some((m) => m.id === streamingMessageId);
   const isWaitingForFirstToken = isStreaming && !hasStreamingMessage;
 
   return (
