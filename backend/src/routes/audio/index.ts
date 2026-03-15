@@ -16,6 +16,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getFileUrl, uploadFile, deleteFile } from "../../services/storage/r2";
+import { R2_PUBLIC_URL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 import { VOICES, getVoiceById } from "../../config/voices";
 import { generateSpeech, type TTSSpeed } from "../../services/tts/elevenlabs";
@@ -117,13 +118,10 @@ audioRouter.get(
   authMiddleware("user"),
   async (c) => {
     try {
-      const voicesWithUrls = await Promise.all(
-        VOICES.map(async (voice) => {
+      const voicesWithUrls = VOICES.map((voice) => {
           let previewUrl = "";
-          try {
-            previewUrl = await getFileUrl(voice.previewR2Key!, 3600);
-          } catch {
-            // Preview URL generation failed — return empty string
+          if (voice.previewR2Key && R2_PUBLIC_URL) {
+            previewUrl = `${R2_PUBLIC_URL}/${voice.previewR2Key}`;
           }
           return {
             id: voice.id,
@@ -133,8 +131,7 @@ audioRouter.get(
             previewUrl,
             provider: "elevenlabs",
           };
-        }),
-      );
+        });
       return c.json({ voices: voicesWithUrls });
     } catch (error) {
       debugLog.error("Failed to fetch voices", {

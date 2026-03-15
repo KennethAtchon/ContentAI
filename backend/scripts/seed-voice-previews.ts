@@ -2,14 +2,22 @@
  * Seed script: generate and upload voice preview audio files to R2.
  *
  * Run with:  bun run seed:voice-previews
+ *            bun run seed:voice-previews --dry-run   (preview without API calls)
  *
  * Requires ELEVENLABS_API_KEY, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
  * R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME to be set in .env.
+ *
+ * Files are uploaded under a "testing/" prefix when APP_ENV=development,
+ * matching the same prefix logic used by the app's r2.ts service.
  */
 
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { VOICES } from "../src/config/voices";
+
+// ── flags ──────────────────────────────────────────────────────────────────────
+
+const DRY_RUN = process.argv.includes("--dry-run");
 
 // ── env ────────────────────────────────────────────────────────────────────────
 
@@ -43,12 +51,13 @@ const s3 = new S3Client({
 
 // Short, distinct preview sentences per voice
 const PREVIEW_TEXTS: Record<string, string> = {
-  "aria-v1": "Hey, welcome back! Let's create something amazing together.",
+  "rachel-v1": "Hey, welcome back! Let's create something amazing together.",
   "marcus-v1": "Here's what you need to know to grow your brand fast.",
-  "luna-v1": "Let's go! This is your sign to start creating today.",
+  "elli-v1": "Let's go! This is your sign to start creating today.",
   "james-v1": "In today's video, I'll show you exactly how it's done.",
   "nova-v1": "Every great story starts with a single moment. This is yours.",
 };
+
 
 async function generatePreview(
   elevenLabsId: string,
@@ -84,6 +93,22 @@ async function generatePreview(
   return Buffer.from(await response.arrayBuffer());
 }
 
+async function checkIfExistsInR2(key: string): Promise<boolean> {
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: R2_BUCKET_NAME!, Key: key }));
+    return true;
+  } catch (error: any) {
+    if (
+      error.$metadata?.httpStatusCode === 404 ||
+      error.name === "NotFound" ||
+      error.name === "NoSuchKey"
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function uploadToR2(key: string, buffer: Buffer): Promise<void> {
   const upload = new Upload({
     client: s3,
@@ -98,6 +123,8 @@ async function uploadToR2(key: string, buffer: Buffer): Promise<void> {
 }
 
 async function main() {
+  if (DRY_RUN) console.log(`[dry-run] no API calls or uploads will be made\n`);
+
   console.log(`Seeding ${VOICES.length} voice previews...\n`);
 
   for (const voice of VOICES) {
@@ -106,17 +133,30 @@ async function main() {
       continue;
     }
 
+    const r2Key = voice.previewR2Key;
     const text = PREVIEW_TEXTS[voice.id] ?? `Hi, I'm ${voice.name}.`;
-    process.stdout.write(`  ${voice.name} (${voice.id})... `);
+    process.stdout.write(`  ${voice.name} (${voice.id}) → ${r2Key}... `);
+
+    if (DRY_RUN) {
+      // Check existence without generating audio
+      const exists = await checkIfExistsInR2(r2Key);
+      console.log(exists ? "✓ already exists" : "✗ missing (would upload)");
+      continue;
+    }
 
     try {
+      const exists = await checkIfExistsInR2(r2Key);
+      if (exists) {
+        console.log(`✓ already exists`);
+        continue;
+      }
+
       const buffer = await generatePreview(voice.elevenLabsId, text);
-      await uploadToR2(voice.previewR2Key, buffer);
-      console.log(
-        `✓ uploaded to ${voice.previewR2Key} (${buffer.length} bytes)`,
-      );
+      await uploadToR2(r2Key, buffer);
+      console.log(`✓ uploaded (${buffer.length} bytes)`);
     } catch (err) {
-      console.log(`✗ failed: ${err instanceof Error ? err.message : err}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.log(`✗ failed: ${errorMessage}`);
     }
   }
 

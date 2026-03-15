@@ -18,8 +18,8 @@ COPY . .
 # Expose port
 EXPOSE 3001
 
-# Run migrations then start dev server
-CMD ["sh", "scripts/start-dev.sh"]
+# Seed and start server
+CMD ["sh", "scripts/start.sh"]
 
 # Build stage
 FROM base AS builder

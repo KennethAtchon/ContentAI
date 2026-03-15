@@ -3,9 +3,9 @@ import type { Voice } from "../types/audio.types";
 import { AudioPlayer } from "./AudioPlayer";
 
 const AVATAR_COLORS: Record<string, string> = {
-  "aria-v1": "from-pink-400 to-purple-400",
+  "rachel-v1": "from-pink-400 to-purple-400",
   "marcus-v1": "from-blue-400 to-indigo-400",
-  "luna-v1": "from-yellow-400 to-orange-400",
+  "elli-v1": "from-yellow-400 to-orange-400",
   "james-v1": "from-green-400 to-teal-400",
   "nova-v1": "from-violet-400 to-pink-400",
 };
@@ -58,7 +58,7 @@ export function VoiceCard({
 
       {voice.previewUrl && (
         <div
-          className="absolute bottom-2 right-2"
+          className="absolute bottom-1 right-2"
           onClick={(e) => e.stopPropagation()}
         >
           <AudioPlayer src={voice.previewUrl} variant="compact" duration={3} />
