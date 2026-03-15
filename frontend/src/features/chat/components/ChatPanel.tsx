@@ -48,10 +48,9 @@ export function ChatPanel({
     scrollToBottom();
   }, [messages]);
 
-  // Show thinking dots only while waiting for the first streaming token
-  const streamingMessage = messages.find((m) => m.id === STREAMING_MESSAGE_ID);
-  const isWaitingForFirstToken =
-    isStreaming && streamingMessage?.content === "";
+  // Show thinking dots while streaming but no content has arrived yet
+  const hasStreamingMessage = messages.some((m) => m.id === STREAMING_MESSAGE_ID);
+  const isWaitingForFirstToken = isStreaming && !hasStreamingMessage;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

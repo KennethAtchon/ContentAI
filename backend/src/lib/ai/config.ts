@@ -66,8 +66,20 @@ export const AI_MODELS: Record<string, ModelConfig> = {
 };
 
 // ─── Provider Priority ─────────────────────────────────────────────────────────────
+//
+// Change the order here to set which AI provider is tried first.
+// Providers are tried in this order, falling back to the next if one fails.
+// Only enabled providers (those with API keys) will be used.
+//
+// Current order: OpenRouter → OpenAI → Claude
+// To prioritize Claude first: ["claude", "openrouter", "openai"]
+// To prioritize OpenAI first: ["openai", "openrouter", "claude"]
 
-export const PROVIDER_PRIORITY: string[] = ["openrouter", "openai", "claude"];
+export const PROVIDER_PRIORITY: string[] = [
+  "openrouter", // 1st priority - OpenRouter (good model variety)
+  "openai", // 2nd priority - OpenAI (reliable GPT models)
+  "claude", // 3rd priority - Claude/Anthropic (strong reasoning)
+];
 
 // ─── Default Settings ─────────────────────────────────────────────────────────────
 
@@ -102,4 +114,36 @@ export function getProviderInfo(provider: string): ProviderConfig {
     throw new Error(`Unknown provider: ${provider}`);
   }
   return config;
+}
+
+// ─── Priority Management ────────────────────────────────────────────────────────────
+
+export function setProviderPriority(priority: string[]): void {
+  // Validate all providers exist
+  const invalidProviders = priority.filter((p) => !AI_PROVIDERS[p]);
+  if (invalidProviders.length > 0) {
+    throw new Error(`Unknown providers: ${invalidProviders.join(", ")}`);
+  }
+
+  // Update the priority array
+  PROVIDER_PRIORITY.length = 0; // Clear existing
+  PROVIDER_PRIORITY.push(...priority);
+}
+
+export function getProviderPriority(): string[] {
+  return [...PROVIDER_PRIORITY]; // Return copy to prevent external modification
+}
+
+// Quick presets for common configurations
+export const PRESETS = {
+  openrouterFirst: ["openrouter", "openai", "claude"],
+  openaiFirst: ["openai", "openrouter", "claude"],
+  claudeFirst: ["claude", "openrouter", "openai"],
+  openaiOnly: ["openai"],
+  claudeOnly: ["claude"],
+  openrouterOnly: ["openrouter"],
+} as const;
+
+export function applyPreset(preset: keyof typeof PRESETS): void {
+  setProviderPriority([...PRESETS[preset]]);
 }

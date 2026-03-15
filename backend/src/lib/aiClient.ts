@@ -85,8 +85,8 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
 // ─── Helper Functions for Streaming ──────────────────────────────────────────
 
 export function getModel(modelTier: "analysis" | "generation" = "generation") {
-  const { instance } = getModelInstance(modelTier);
-  return instance;
+  const { instance, model } = getModelInstance(modelTier);
+  return instance(model);
 }
 
 export function getModelInfo(
@@ -111,7 +111,7 @@ export async function streamAi(params: AiMessage): Promise<any> {
   const startMs = Date.now();
 
   return streamText({
-    model: instance,
+    model: instance(model),
     system,
     messages: [
       {

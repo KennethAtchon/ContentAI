@@ -32,7 +32,8 @@ export function getProviderInstance(provider: string) {
       providerInstances[provider] = createOpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
-      } as any);
+        compatibility: config.compatibility as "compatible" | "strict" | undefined,
+      });
       break;
     case "openai":
       if (!config.enabled) return null;
@@ -146,7 +147,12 @@ export async function attemptAiCall(
   const { text, usage } = await generateText({
     model: instance(model),
     system: params.system,
-    prompt: params.userContent,
+    messages: [
+      {
+        role: "user",
+        content: params.userContent,
+      },
+    ],
     maxOutputTokens: params.maxTokens || 1024,
   });
 

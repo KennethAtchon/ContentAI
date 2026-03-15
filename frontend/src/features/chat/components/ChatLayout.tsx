@@ -182,7 +182,7 @@ export function ChatLayout({
     if (optimisticUserMessage) {
       extra.push(optimisticUserMessage);
     }
-    if (streamingContent !== null) {
+    if (streamingContent) {
       extra.push({
         id: STREAMING_MESSAGE_ID,
         sessionId,
