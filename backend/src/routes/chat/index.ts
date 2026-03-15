@@ -313,7 +313,9 @@ app.get(
           ),
         );
       const idsWithChildren = new Set(
-        childRows.map((r) => r.parentId).filter((id): id is number => id != null),
+        childRows
+          .map((r) => r.parentId)
+          .filter((id): id is number => id != null),
       );
       const tips = records
         .filter((r) => !idsWithChildren.has(r.id))

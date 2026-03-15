@@ -58,7 +58,6 @@ const PREVIEW_TEXTS: Record<string, string> = {
   "nova-v1": "Every great story starts with a single moment. This is yours.",
 };
 
-
 async function generatePreview(
   elevenLabsId: string,
   text: string,

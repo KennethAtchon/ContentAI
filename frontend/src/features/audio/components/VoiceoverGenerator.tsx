@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Mic, AlertCircle, RefreshCw, Loader2, Copy, Check, ArrowLeft } from "lucide-react";
+import {
+  Mic,
+  AlertCircle,
+  RefreshCw,
+  Loader2,
+  Copy,
+  Check,
+  ArrowLeft,
+} from "lucide-react";
 import { VoiceSelector } from "./VoiceSelector";
 import { SpeedToggle } from "./SpeedToggle";
 import { useVoices } from "../hooks/use-voices";
@@ -47,7 +55,8 @@ export function VoiceoverGenerator({
   const usingHookFallback = !generatedScript && !!generatedHook;
 
   const wordCount = scriptValue.trim().split(/\s+/).filter(Boolean).length;
-  const estimatedSeconds = wordCount > 0 ? Math.round((wordCount / 150) * 60) : 0;
+  const estimatedSeconds =
+    wordCount > 0 ? Math.round((wordCount / 150) * 60) : 0;
 
   const {
     data: voicesData,

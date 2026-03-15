@@ -40,8 +40,10 @@ describe("createSaveContentTool", () => {
     // Test that the schema accepts cleanScript
     const validInput = {
       hook: "Amazing hook that stops the scroll",
-      script: "[0-3s] Opening hook with visual\n[3-8s] Problem setup\n[8-15s] Solution demonstration",
-      cleanScript: "Amazing hook that stops the scroll. Here's the problem setup, and now let me show you the solution demonstration.",
+      script:
+        "[0-3s] Opening hook with visual\n[3-8s] Problem setup\n[8-15s] Solution demonstration",
+      cleanScript:
+        "Amazing hook that stops the scroll. Here's the problem setup, and now let me show you the solution demonstration.",
       caption: "Amazing caption with emojis 🔥",
       hashtags: ["viral", "trending", "fyp"],
       cta: "Follow for more!",
@@ -90,7 +92,7 @@ describe("createSaveContentTool", () => {
         values: expect.objectContaining({
           cleanScriptForAudio: "Test script without timestamps for clean audio",
         }),
-      })
+      }),
     );
   });
 });

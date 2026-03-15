@@ -74,7 +74,8 @@ export const queryKeys = {
     contentAssets: (generatedContentId: number, type?: string) =>
       ["api", "assets", generatedContentId, type] as const,
     generatedContent: (id: number) => ["api", "generation", id] as const,
-    sessionDrafts: (sessionId: string) => ["api", "session-drafts", sessionId] as const,
+    sessionDrafts: (sessionId: string) =>
+      ["api", "session-drafts", sessionId] as const,
 
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>

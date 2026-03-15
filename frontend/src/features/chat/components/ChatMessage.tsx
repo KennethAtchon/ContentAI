@@ -297,9 +297,7 @@ export function ChatMessage({
             <AudioStatusBadge
               generatedContentId={resolvedContentId}
               onClick={
-                onOpenAudio
-                  ? () => onOpenAudio(resolvedContentId)
-                  : undefined
+                onOpenAudio ? () => onOpenAudio(resolvedContentId) : undefined
               }
             />
           </div>

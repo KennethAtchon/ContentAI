@@ -30,20 +30,22 @@ const audioRouter = new Hono<HonoEnv>();
  * bullet markers, and collapses excess whitespace.
  */
 function sanitizeScriptForTTS(text: string): string {
-  return text
-    // Remove timing markers: [0-3s], [0:03], [20-27s], etc.
-    .replace(/\[\d+[:\-]\d+s?\]/g, "")
-    // Remove stage directions in parentheses: (video of...), (cut to...)
-    .replace(/\([^)]*\)/g, "")
-    // Remove bracketed labels that aren't timing: [HOOK], [CTA], [Scene 1]
-    .replace(/\[[^\]]*\]/g, "")
-    // Remove leading bullet/dash markers
-    .replace(/^\s*[-•*]\s*/gm, "")
-    // Remove lines that are purely a section label like "CTA:" or "Hook:"
-    .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
-    // Collapse multiple blank lines into one
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return (
+    text
+      // Remove timing markers: [0-3s], [0:03], [20-27s], etc.
+      .replace(/\[\d+[:\-]\d+s?\]/g, "")
+      // Remove stage directions in parentheses: (video of...), (cut to...)
+      .replace(/\([^)]*\)/g, "")
+      // Remove bracketed labels that aren't timing: [HOOK], [CTA], [Scene 1]
+      .replace(/\[[^\]]*\]/g, "")
+      // Remove leading bullet/dash markers
+      .replace(/^\s*[-•*]\s*/gm, "")
+      // Remove lines that are purely a section label like "CTA:" or "Hook:"
+      .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
+      // Collapse multiple blank lines into one
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 const ttsRequestSchema = z.object({
@@ -141,19 +143,19 @@ audioRouter.get(
   async (c) => {
     try {
       const voicesWithUrls = VOICES.map((voice) => {
-          let previewUrl = "";
-          if (voice.previewR2Key && R2_PUBLIC_URL) {
-            previewUrl = `${R2_PUBLIC_URL}/${voice.previewR2Key}`;
-          }
-          return {
-            id: voice.id,
-            name: voice.name,
-            description: voice.description,
-            gender: voice.gender,
-            previewUrl,
-            provider: "elevenlabs",
-          };
-        });
+        let previewUrl = "";
+        if (voice.previewR2Key && R2_PUBLIC_URL) {
+          previewUrl = `${R2_PUBLIC_URL}/${voice.previewR2Key}`;
+        }
+        return {
+          id: voice.id,
+          name: voice.name,
+          description: voice.description,
+          gender: voice.gender,
+          previewUrl,
+          provider: "elevenlabs",
+        };
+      });
       return c.json({ voices: voicesWithUrls });
     } catch (error) {
       debugLog.error("Failed to fetch voices", {
@@ -223,7 +225,13 @@ audioRouter.post(
       const spokenText = sanitizeScriptForTTS(text);
 
       if (!spokenText) {
-        return c.json({ error: "Script is empty after removing stage directions", code: "EMPTY_TEXT" }, 400);
+        return c.json(
+          {
+            error: "Script is empty after removing stage directions",
+            code: "EMPTY_TEXT",
+          },
+          400,
+        );
       }
 
       // Generate TTS

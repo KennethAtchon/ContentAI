@@ -34,7 +34,8 @@ function DraftItemRow({
   onSelect: (contentId: number) => void;
 }) {
   const { data } = useContentAssets(item.contentId);
-  const hasVoiceover = data?.assets?.some((a) => a.type === "voiceover") ?? false;
+  const hasVoiceover =
+    data?.assets?.some((a) => a.type === "voiceover") ?? false;
 
   return (
     <DropdownMenuItem
@@ -58,7 +59,9 @@ function DraftItemRow({
       <span
         className={cn(
           "flex-1 text-xs truncate transition-colors",
-          isActive ? "text-foreground font-medium" : "text-muted-foreground group-hover:text-foreground"
+          isActive
+            ? "text-foreground font-medium"
+            : "text-muted-foreground group-hover:text-foreground"
         )}
       >
         {item.label}
@@ -78,21 +81,24 @@ function DraftItemRow({
             <span>VO</span>
           </span>
         )}
-        {isActive && (
-          <Check className="w-3 h-3 text-primary flex-none" />
-        )}
+        {isActive && <Check className="w-3 h-3 text-primary flex-none" />}
       </span>
     </DropdownMenuItem>
   );
 }
 
-export function DraftPicker({ drafts, activeContentId, onSelect }: DraftPickerProps) {
+export function DraftPicker({
+  drafts,
+  activeContentId,
+  onSelect,
+}: DraftPickerProps) {
   const { t } = useTranslation();
 
   if (drafts.length === 0) return null;
 
   const activeDraft = drafts.find((i) => i.contentId === activeContentId);
-  const triggerLabel = activeDraft?.label ?? t("studio_chat_content_picker_trigger");
+  const triggerLabel =
+    activeDraft?.label ?? t("studio_chat_content_picker_trigger");
 
   return (
     <DropdownMenu>
@@ -110,17 +116,11 @@ export function DraftPicker({ drafts, activeContentId, onSelect }: DraftPickerPr
         >
           <FileText className="w-3 h-3 flex-none opacity-70" />
           <span className="truncate leading-none">{triggerLabel}</span>
-          <ChevronDown
-            className="w-3 h-3 flex-none opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180"
-          />
+          <ChevronDown className="w-3 h-3 flex-none opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align="end"
-        sideOffset={6}
-        className="w-64 p-1.5"
-      >
+      <DropdownMenuContent align="end" sideOffset={6} className="w-64 p-1.5">
         <DropdownMenuLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           {t("studio_chat_content_picker_label")} · {drafts.length}
         </DropdownMenuLabel>

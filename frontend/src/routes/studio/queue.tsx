@@ -163,10 +163,10 @@ function QueuePage() {
                     value={projectFilter}
                     onValueChange={setProjectFilter}
                   >
-                    <SelectTrigger
-                      className="text-[11px] font-medium px-2 py-1 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio focus:outline-none focus:border-studio-accent/30 transition-colors h-[28px] min-w-[100px] [&>svg]:h-3 [&>svg]:w-3"
-                    >
-                      <SelectValue placeholder={t("studio_queue_filter_all_projects")} />
+                    <SelectTrigger className="text-[11px] font-medium px-2 py-1 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio focus:outline-none focus:border-studio-accent/30 transition-colors h-[28px] min-w-[100px] [&>svg]:h-3 [&>svg]:w-3">
+                      <SelectValue
+                        placeholder={t("studio_queue_filter_all_projects")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">

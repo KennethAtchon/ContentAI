@@ -97,7 +97,9 @@ export function VolumeBalance({
           {t("audio_mix_sectionTitle")}
         </span>
         <div className="flex items-center gap-1.5">
-          {isSaving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground/40" />}
+          {isSaving && (
+            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground/40" />
+          )}
           {canPreview && (
             <button
               onClick={mixPlaying ? handleMixStop : () => void handleMixPlay()}
@@ -121,10 +123,20 @@ export function VolumeBalance({
 
       {/* Hidden audio elements for mix preview */}
       {voiceoverUrl && (
-        <audio ref={voiceRef} src={voiceoverUrl} onEnded={handleMixStop} className="hidden" />
+        <audio
+          ref={voiceRef}
+          src={voiceoverUrl}
+          onEnded={handleMixStop}
+          className="hidden"
+        />
       )}
       {musicUrl && (
-        <audio ref={musicRef} src={musicUrl} onEnded={handleMixStop} className="hidden" />
+        <audio
+          ref={musicRef}
+          src={musicUrl}
+          onEnded={handleMixStop}
+          className="hidden"
+        />
       )}
 
       {/* Balance chips + slider */}
@@ -154,8 +166,12 @@ export function VolumeBalance({
 
       {/* Labels */}
       <div className="flex justify-between px-[2px]">
-        <span className="text-[10px] text-muted-foreground/50">{t("audio_volume_voice")}</span>
-        <span className="text-[10px] text-muted-foreground/50">{t("audio_volume_music")}</span>
+        <span className="text-[10px] text-muted-foreground/50">
+          {t("audio_volume_voice")}
+        </span>
+        <span className="text-[10px] text-muted-foreground/50">
+          {t("audio_volume_music")}
+        </span>
       </div>
     </div>
   );

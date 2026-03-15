@@ -110,7 +110,9 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
                   setLocalAudioUrl(url);
                   setIsRegenerating(false);
                 }}
-                onCancel={isRegenerating ? () => setIsRegenerating(false) : undefined}
+                onCancel={
+                  isRegenerating ? () => setIsRegenerating(false) : undefined
+                }
               />
             ) : (
               voiceoverAsset &&
@@ -135,12 +137,12 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
               <>
                 <div className="h-px bg-border" />
                 <VolumeBalance
-                value={volumeBalance}
-                onChange={handleVolumeChange}
-                isSaving={updateMetadata.isPending}
-                voiceoverUrl={audioUrl ?? undefined}
-                musicUrl={currentMusicTrack?.previewUrl || undefined}
-              />
+                  value={volumeBalance}
+                  onChange={handleVolumeChange}
+                  isSaving={updateMetadata.isPending}
+                  voiceoverUrl={audioUrl ?? undefined}
+                  musicUrl={currentMusicTrack?.previewUrl || undefined}
+                />
               </>
             )}
           </>

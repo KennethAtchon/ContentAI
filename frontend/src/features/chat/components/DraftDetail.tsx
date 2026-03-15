@@ -15,7 +15,13 @@ interface DraftDetailProps {
   onSetActive: (id: number) => void;
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
@@ -26,12 +32,21 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive }: DraftDetailProps) {
+export function DraftDetail({
+  draft,
+  isActive,
+  onBack,
+  onOpenAudio,
+  onSetActive,
+}: DraftDetailProps) {
   const { t } = useTranslation();
   const sendToQueue = useSendToQueue();
   const [sent, setSent] = useState(false);
   const { data: assetsData } = useContentAssets(draft.id);
-  const hasAudio = assetsData?.assets.some((a) => a.type === "voiceover" || a.type === "music") ?? false;
+  const hasAudio =
+    assetsData?.assets.some(
+      (a) => a.type === "voiceover" || a.type === "music"
+    ) ?? false;
 
   const metadata = draft.generatedMetadata as {
     hashtags?: string[];
@@ -70,7 +85,10 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
               {t("workspace_draft_active")}
             </span>
           )}
-          <AudioStatusBadge generatedContentId={draft.id} onClick={onOpenAudio} />
+          <AudioStatusBadge
+            generatedContentId={draft.id}
+            onClick={onOpenAudio}
+          />
         </div>
       </div>
 
@@ -126,13 +144,17 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
 
         {metadata?.cta && (
           <Section label={t("workspace_section_cta")}>
-            <p className="text-xs text-foreground/80 italic">"{metadata.cta}"</p>
+            <p className="text-xs text-foreground/80 italic">
+              "{metadata.cta}"
+            </p>
           </Section>
         )}
 
         {metadata?.changeDescription && (
           <Section label={t("workspace_section_changes")}>
-            <p className="text-xs text-muted-foreground italic">{metadata.changeDescription}</p>
+            <p className="text-xs text-muted-foreground italic">
+              {metadata.changeDescription}
+            </p>
           </Section>
         )}
       </div>
@@ -149,11 +171,20 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
           )}
         >
           {sent ? (
-            <><Check className="w-3.5 h-3.5 text-emerald-500" />{t("workspace_queued")}</>
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              {t("workspace_queued")}
+            </>
           ) : sendToQueue.isPending ? (
-            <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t("workspace_queuing")}</>
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              {t("workspace_queuing")}
+            </>
           ) : (
-            <><ListPlus className="w-3.5 h-3.5" />{t("workspace_send_to_queue")}</>
+            <>
+              <ListPlus className="w-3.5 h-3.5" />
+              {t("workspace_send_to_queue")}
+            </>
           )}
         </button>
         <button

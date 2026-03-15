@@ -88,7 +88,9 @@ const analysisSchema = z.object({
     .min(1)
     .max(10)
     .nullable()
-    .describe("1-10: how easily any creator can replicate this (10 = very easy)"),
+    .describe(
+      "1-10: how easily any creator can replicate this (10 = very easy)",
+    ),
   replicabilityNotes: z
     .string()
     .nullable()

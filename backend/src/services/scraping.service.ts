@@ -607,25 +607,42 @@ class ScrapingService {
     const isOwnR2Url = (url: string | null) =>
       !!url && !!R2_PUBLIC_URL && url.startsWith(R2_PUBLIC_URL);
 
-    const [videoResult, audioResult, thumbnailResult] = await Promise.allSettled([
-      videoUrl
-        ? isOwnR2Url(videoUrl)
-          ? Promise.resolve(videoUrl)
-          : storage.uploadFromUrl(videoUrl, `video/${keyBase}.mp4`, "video/mp4")
-        : Promise.resolve(null),
-      audioUrl
-        ? isOwnR2Url(audioUrl)
-          ? Promise.resolve(audioUrl)
-          : storage.uploadFromUrl(audioUrl, `audio/${keyBase}.m4a`, "audio/mp4")
-        : Promise.resolve(null),
-      thumbnailUrl
-        ? isOwnR2Url(thumbnailUrl)
-          ? Promise.resolve(thumbnailUrl)
-          : storage.uploadFromUrl(thumbnailUrl, `thumbnails/${keyBase}.jpg`, "image/jpeg")
-        : Promise.resolve(null),
-    ]);
+    const [videoResult, audioResult, thumbnailResult] =
+      await Promise.allSettled([
+        videoUrl
+          ? isOwnR2Url(videoUrl)
+            ? Promise.resolve(videoUrl)
+            : storage.uploadFromUrl(
+                videoUrl,
+                `video/${keyBase}.mp4`,
+                "video/mp4",
+              )
+          : Promise.resolve(null),
+        audioUrl
+          ? isOwnR2Url(audioUrl)
+            ? Promise.resolve(audioUrl)
+            : storage.uploadFromUrl(
+                audioUrl,
+                `audio/${keyBase}.m4a`,
+                "audio/mp4",
+              )
+          : Promise.resolve(null),
+        thumbnailUrl
+          ? isOwnR2Url(thumbnailUrl)
+            ? Promise.resolve(thumbnailUrl)
+            : storage.uploadFromUrl(
+                thumbnailUrl,
+                `thumbnails/${keyBase}.jpg`,
+                "image/jpeg",
+              )
+          : Promise.resolve(null),
+      ]);
 
-    const updates: { videoR2Url?: string; audioR2Url?: string; thumbnailR2Url?: string } = {};
+    const updates: {
+      videoR2Url?: string;
+      audioR2Url?: string;
+      thumbnailR2Url?: string;
+    } = {};
 
     if (videoResult.status === "fulfilled" && videoResult.value) {
       updates.videoR2Url = videoResult.value;

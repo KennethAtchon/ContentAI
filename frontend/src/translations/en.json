@@ -1142,7 +1142,7 @@
   "audio_mix_preview": "Preview",
   "audio_mix_stop": "Stop",
   "audio_music_browse": "Browse Music",
-"audio_music_change": "Change",
+  "audio_music_change": "Change",
   "audio_music_remove": "Remove",
   "audio_music_loadError": "Could not load the music library.",
   "audio_music_noResults": "No tracks match your filters.",

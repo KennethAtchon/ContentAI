@@ -60,7 +60,9 @@ export function ChatLayout({
   const [pendingReelIds, setPendingReelIds] = useState<number[]>([]);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [activeContentId, setActiveContentId] = useState<number | null>(null);
-  const [requestAudioForContentId, setRequestAudioForContentId] = useState<number | null>(null);
+  const [requestAudioForContentId, setRequestAudioForContentId] = useState<
+    number | null
+  >(null);
 
   // Track previous draft count to auto-open workspace when first draft appears
   const prevDraftCountRef = useRef(0);
@@ -202,7 +204,8 @@ export function ChatLayout({
   }, []);
 
   const workspaceToggleClass = useMemo(() => {
-    const base = "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-all duration-150";
+    const base =
+      "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-all duration-150";
     return workspaceOpen
       ? `${base} border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] hover:border-primary/40`
       : `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
@@ -278,9 +281,7 @@ export function ChatLayout({
 
             <ChatPanel
               messages={displayMessages}
-              streamingMessageId={
-                isStreaming ? streamingMessageId : undefined
-              }
+              streamingMessageId={isStreaming ? streamingMessageId : undefined}
               onSendMessage={handleSendMessage}
               isStreaming={isStreaming}
               streamError={streamError}

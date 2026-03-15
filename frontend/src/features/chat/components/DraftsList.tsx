@@ -64,10 +64,12 @@ function DraftCard({
         </div>
       )}
 
-      <p className={cn(
-        "text-xs leading-relaxed mb-2",
-        isActive ? "text-foreground font-medium" : "text-foreground/80"
-      )}>
+      <p
+        className={cn(
+          "text-xs leading-relaxed mb-2",
+          isActive ? "text-foreground font-medium" : "text-foreground/80"
+        )}
+      >
         {label}
       </p>
 
@@ -99,8 +101,16 @@ function DraftCard({
         <div
           role="button"
           tabIndex={0}
-          onClick={(e) => { e.stopPropagation(); onSetActive(draft.id); }}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onSetActive(draft.id); } }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSetActive(draft.id);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              onSetActive(draft.id);
+            }
+          }}
           className="mt-2 text-[10px] text-muted-foreground/50 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
         >
           {t("workspace_draft_set_active")}
@@ -110,7 +120,12 @@ function DraftCard({
   );
 }
 
-export function DraftsList({ drafts, activeContentId, onSelect, onSetActive }: DraftsListProps) {
+export function DraftsList({
+  drafts,
+  activeContentId,
+  onSelect,
+  onSetActive,
+}: DraftsListProps) {
   const { t } = useTranslation();
 
   if (drafts.length === 0) {
@@ -120,8 +135,12 @@ export function DraftsList({ drafts, activeContentId, onSelect, onSetActive }: D
           <FileText className="w-5 h-5 text-muted-foreground/40" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground/70">{t("workspace_empty_title")}</p>
-          <p className="text-xs text-muted-foreground mt-1">{t("workspace_empty_description")}</p>
+          <p className="text-sm font-medium text-foreground/70">
+            {t("workspace_empty_title")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("workspace_empty_description")}
+          </p>
         </div>
       </div>
     );

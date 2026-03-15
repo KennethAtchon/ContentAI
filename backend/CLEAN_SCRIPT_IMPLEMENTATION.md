@@ -5,9 +5,11 @@
 When the AI generates content, it will now call `save_content` with both script formats:
 
 ### Input to AI:
+
 "Create a reel about anteaters for a wildlife education channel"
 
 ### AI calls save_content with:
+
 ```json
 {
   "hook": "Did you know anteaters can eat 30,000 ants in one day?",
@@ -23,6 +25,7 @@ When the AI generates content, it will now call `save_content` with both script 
 ## What Gets Stored in Database
 
 ### generated_content table:
+
 - `generatedScript`: "[0-3s] Amazing anteater fact with close-up of snout..."
 - `cleanScriptForAudio`: "Did you know anteaters can eat 30,000 ants in one day? Let me show you..."
 
@@ -43,7 +46,7 @@ The `generatedScript` field with timestamps is still available for video product
 ## Testing the Implementation
 
 1. Generate new content in the chat
-2. Open the Audio Panel 
+2. Open the Audio Panel
 3. The script textarea should show clean text without timestamps
 4. Generate voiceover - it should sound natural without reading timestamps
 

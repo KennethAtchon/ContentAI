@@ -46,7 +46,10 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
     // Generate fresh signed URLs for audio assets (voiceover + music)
     const assetsWithUrls = await Promise.all(
       assets.map(async (asset) => {
-        if ((asset.type === "voiceover" || asset.type === "music") && asset.r2Key) {
+        if (
+          (asset.type === "voiceover" || asset.type === "music") &&
+          asset.r2Key
+        ) {
           try {
             const audioUrl = await getFileUrl(asset.r2Key, 3600);
             return { ...asset, audioUrl };

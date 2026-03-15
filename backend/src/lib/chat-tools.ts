@@ -35,7 +35,9 @@ export function createSaveContentTool(context: ToolContext) {
       cleanScript: z
         .string()
         .min(30)
-        .describe("Clean script without timestamps for audio/TTS generation - natural spoken text"),
+        .describe(
+          "Clean script without timestamps for audio/TTS generation - natural spoken text",
+        ),
       caption: z.string().min(20).describe("Full caption text with emojis"),
       hashtags: z
         .array(z.string())
@@ -309,9 +311,12 @@ export function createIterateContentTool(context: ToolContext) {
             generatedHook: hook ?? effectiveParent.generatedHook,
             generatedCaption: caption ?? effectiveParent.generatedCaption,
             generatedScript: script ?? effectiveParent.generatedScript,
-            cleanScriptForAudio: cleanScript ?? effectiveParent.cleanScriptForAudio,
+            cleanScriptForAudio:
+              cleanScript ?? effectiveParent.cleanScriptForAudio,
             generatedMetadata: {
-              hashtags: hashtags ?? (effectiveParent.generatedMetadata as any)?.hashtags,
+              hashtags:
+                hashtags ??
+                (effectiveParent.generatedMetadata as any)?.hashtags,
               cta: cta ?? (effectiveParent.generatedMetadata as any)?.cta,
               changeDescription,
             },
