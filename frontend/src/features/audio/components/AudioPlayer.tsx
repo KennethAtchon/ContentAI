@@ -13,7 +13,13 @@ interface AudioPlayerProps {
   className?: string;
 }
 
-type PlayerState = "idle" | "loading" | "playing" | "paused" | "ended" | "error";
+type PlayerState =
+  | "idle"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "ended"
+  | "error";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -108,6 +114,11 @@ export function AudioPlayer({
     stop();
   };
 
+  const handleError = () => {
+    setState("error");
+    stop();
+  };
+
   const handleLoadedMetadata = () => {
     const audio = audioRef.current;
     if (audio && audio.duration && isFinite(audio.duration)) {
@@ -140,28 +151,24 @@ export function AudioPlayer({
           src={src}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
+          onError={handleError}
           className="hidden"
         />
-        {state === "error" ? (
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <AlertCircle className="w-3 h-3" />
-            {t("audio_player_previewUnavailable")}
-          </span>
-        ) : (
-          <button
-            onClick={isPlaying ? handlePause : handlePlay}
-            className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
-            aria-label={isPlaying ? t("audio_player_pause") : t("audio_player_play")}
-          >
-            {state === "loading" ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="w-3 h-3" />
-            ) : (
-              <Play className="w-3 h-3" />
-            )}
-          </button>
-        )}
+        <button
+          onClick={isPlaying ? handlePause : handlePlay}
+          className="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition-colors"
+          aria-label={
+            isPlaying ? t("audio_player_pause") : t("audio_player_play")
+          }
+        >
+          {state === "loading" ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="w-3 h-3" />
+          ) : (
+            <Play className="w-3 h-3" />
+          )}
+        </button>
       </div>
     );
   }
@@ -173,6 +180,7 @@ export function AudioPlayer({
         src={src}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
+        onError={handleError}
         className="hidden"
       />
 
@@ -181,7 +189,9 @@ export function AudioPlayer({
           onClick={isPlaying ? handlePause : handlePlay}
           disabled={state === "error"}
           className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors disabled:opacity-50"
-          aria-label={isPlaying ? t("audio_player_pause") : t("audio_player_play")}
+          aria-label={
+            isPlaying ? t("audio_player_pause") : t("audio_player_play")
+          }
         >
           {state === "loading" ? (
             <Loader2 className="w-4 h-4 animate-spin" />

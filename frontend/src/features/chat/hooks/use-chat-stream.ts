@@ -16,7 +16,9 @@ export const STREAMING_MESSAGE_ID = "streaming-ai-response";
  */
 function filterToolCallXml(text: string): string {
   // Remove fully-received tool call blocks
-  let filtered = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trimEnd();
+  let filtered = text
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
+    .trimEnd();
   // Remove an in-progress (partially streamed) block at the end
   const openIdx = filtered.lastIndexOf("<tool_call>");
   if (openIdx !== -1) {
@@ -153,8 +155,11 @@ export function useChatStream(sessionId: string) {
               const displayText = filterToolCallXml(accumulated);
               setStreamingContent(displayText || null);
               // Detect text-based tool calls to show the saving indicator
-              if (accumulated.includes("<tool_call>") &&
-                (accumulated.includes("save_content") || accumulated.includes("iterate_content"))) {
+              if (
+                accumulated.includes("<tool_call>") &&
+                (accumulated.includes("save_content") ||
+                  accumulated.includes("iterate_content"))
+              ) {
                 setIsSavingContent(true);
               }
               if (textDeltaCount % 20 === 0) {
@@ -188,7 +193,8 @@ export function useChatStream(sessionId: string) {
               }
               setIsSavingContent(false);
             } else if (chunk.type === "error") {
-              const errorText = (chunk.errorText as string) || "An error occurred";
+              const errorText =
+                (chunk.errorText as string) || "An error occurred";
               debugLog.error("[ChatStream] Error chunk received from server", {
                 errorText,
               });

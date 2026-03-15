@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, Bot, ListPlus, Check, Loader2, Mic } from "lucide-react";
+import {
+  User,
+  Bot,
+  ListPlus,
+  Check,
+  Loader2,
+  Mic,
+  Music,
+  Wand2,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -8,6 +17,7 @@ import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import { ReelRefCard } from "./ReelRefCard";
 import { useSendToQueue } from "../hooks/use-send-to-queue";
 import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
+import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 
 const markdownComponents: Components = {
   p: ({ children }) => (
@@ -79,12 +89,79 @@ const markdownComponents: Components = {
   ),
 };
 
+// ── Contextual next-step chips (Layer 2 discovery) ────────────────────────────
+
+interface MessageChipsProps {
+  contentId: number;
+  messageContent: string;
+  onOpenAudio: (contentId: number, scriptText: string) => void;
+  onSendMessage: (content: string) => void;
+}
+
+function MessageChips({
+  contentId,
+  messageContent,
+  onOpenAudio,
+  onSendMessage,
+}: MessageChipsProps) {
+  const { t } = useTranslation();
+  const { data } = useContentAssets(contentId);
+
+  const assets = data?.assets ?? [];
+  const hasVoiceover = assets.some((a) => a.type === "voiceover");
+  const hasMusic = assets.some((a) => a.type === "music");
+
+  const chips: Array<{
+    icon: React.ElementType;
+    label: string;
+    onClick: () => void;
+  }> = [];
+
+  if (!hasVoiceover) {
+    chips.push({
+      icon: Mic,
+      label: t("studio_chat_chip_addVoiceover"),
+      onClick: () => onOpenAudio(contentId, messageContent),
+    });
+  } else if (!hasMusic) {
+    chips.push({
+      icon: Music,
+      label: t("studio_chat_chip_addMusic"),
+      onClick: () => onOpenAudio(contentId, messageContent),
+    });
+  }
+
+  chips.push({
+    icon: Wand2,
+    label: t("studio_chat_chip_adjustHook"),
+    onClick: () => onSendMessage(t("studio_chat_chip_adjustHook_prompt")),
+  });
+
+  return (
+    <div className="flex flex-wrap gap-1.5 px-1 pt-0.5">
+      {chips.slice(0, 2).map(({ icon: Icon, label, onClick }) => (
+        <button
+          key={label}
+          onClick={onClick}
+          className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 px-2.5 py-1 rounded-full border border-border/50 hover:border-border hover:text-foreground hover:bg-muted/40 transition-all"
+        >
+          <Icon className="w-2.5 h-2.5" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
 interface ChatMessageProps {
   message: ChatMessageType;
   isStreaming?: boolean;
   isSavingContent?: boolean;
   streamingContentId?: number | null;
   onOpenAudio?: (contentId: number, scriptText: string) => void;
+  onSendMessage?: (content: string) => void;
 }
 
 export function ChatMessage({
@@ -93,6 +170,7 @@ export function ChatMessage({
   isSavingContent,
   streamingContentId,
   onOpenAudio,
+  onSendMessage,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
@@ -105,6 +183,14 @@ export function ChatMessage({
 
   const resolvedContentId =
     streamingContentId ?? message.generatedContentId ?? null;
+
+  const showChips =
+    !isUser &&
+    !isStreaming &&
+    !isSavingContent &&
+    !!resolvedContentId &&
+    !!onOpenAudio &&
+    !!onSendMessage;
 
   async function handleSendToQueue() {
     if (!resolvedContentId) return;
@@ -177,6 +263,7 @@ export function ChatMessage({
           )}
         </div>
 
+        {/* Action row */}
         <div className="flex items-center gap-2 px-1">
           <span className="text-[10px] text-muted-foreground/60">
             {new Date(message.createdAt).toLocaleTimeString([], {
@@ -204,18 +291,9 @@ export function ChatMessage({
               )}
             </button>
           )}
-
-          {!isUser && resolvedContentId && !isSavingContent && onOpenAudio && (
-            <button
-              onClick={() => onOpenAudio(resolvedContentId, message.content)}
-              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border border-primary/20 bg-primary/[0.06] text-primary/70 hover:bg-primary/[0.12] hover:text-primary transition-colors"
-            >
-              <Mic className="w-2.5 h-2.5" />
-              {t("studio_chat_generateVoiceover")}
-            </button>
-          )}
         </div>
 
+        {/* Audio status badge */}
         {!isUser && resolvedContentId && (
           <div className="px-1">
             <AudioStatusBadge
@@ -227,6 +305,16 @@ export function ChatMessage({
               }
             />
           </div>
+        )}
+
+        {/* Layer 2: contextual next-step chips */}
+        {showChips && (
+          <MessageChips
+            contentId={resolvedContentId}
+            messageContent={message.content}
+            onOpenAudio={onOpenAudio}
+            onSendMessage={onSendMessage}
+          />
         )}
       </div>
     </div>

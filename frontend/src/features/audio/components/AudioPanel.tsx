@@ -28,8 +28,7 @@ export function AudioPanel({
   const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  const { data: assetsData, isLoading } =
-    useContentAssets(generatedContentId);
+  const { data: assetsData, isLoading } = useContentAssets(generatedContentId);
   const attachMusic = useAttachMusic();
   const deleteAsset = useDeleteAsset(generatedContentId);
   const updateMetadata = useUpdateAssetMetadata(generatedContentId);

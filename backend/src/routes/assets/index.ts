@@ -69,7 +69,9 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   }
 });
 
-const patchAssetSchema = z.object({ metadata: z.record(z.string(), z.unknown()) });
+const patchAssetSchema = z.object({
+  metadata: z.record(z.string(), z.unknown()),
+});
 
 // PATCH /api/assets/:id
 app.patch(

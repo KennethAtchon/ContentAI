@@ -219,9 +219,13 @@ function DeleteConfirm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-studio-surface border border-white/[0.08] rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-        <h3 className="text-base font-semibold text-studio-fg">Delete Track?</h3>
+        <h3 className="text-base font-semibold text-studio-fg">
+          Delete Track?
+        </h3>
         <p className="text-[13px] text-slate-200/50">
-          This will permanently remove <strong className="text-studio-fg">{track.name}</strong> from the library. Existing user attachments will show "track unavailable".
+          This will permanently remove{" "}
+          <strong className="text-studio-fg">{track.name}</strong> from the
+          library. Existing user attachments will show "track unavailable".
         </p>
         <div className="flex gap-2">
           <Button variant="ghost" className="flex-1" onClick={onCancel}>
@@ -246,7 +250,9 @@ function DeleteConfirm({
 function MusicPage() {
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [deletingTrack, setDeletingTrack] = useState<AdminMusicTrack | null>(null);
+  const [deletingTrack, setDeletingTrack] = useState<AdminMusicTrack | null>(
+    null
+  );
 
   const { data, isLoading, refetch } = useAdminMusicTracks(search || undefined);
   const toggleTrack = useToggleMusicTrack();
@@ -286,7 +292,9 @@ function MusicPage() {
               <Music className="h-5 w-5 text-studio-accent" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-studio-fg">Music Library</h2>
+              <h2 className="text-xl font-bold text-studio-fg">
+                Music Library
+              </h2>
               <p className="text-[12px] text-slate-200/40">
                 Upload and manage background music tracks for users
               </p>
@@ -331,7 +339,10 @@ function MusicPage() {
           {isLoading ? (
             <div className="divide-y divide-white/[0.04]">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="px-4 py-4 flex gap-4 items-center animate-pulse">
+                <div
+                  key={i}
+                  className="px-4 py-4 flex gap-4 items-center animate-pulse"
+                >
                   <div className="h-4 flex-1 bg-white/[0.05] rounded" />
                   <div className="h-5 w-20 bg-white/[0.05] rounded-full" />
                   <div className="h-4 w-16 bg-white/[0.05] rounded" />

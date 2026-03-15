@@ -32,7 +32,6 @@ export function getProviderInstance(provider: string) {
       providerInstances[provider] = createOpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
-        compatibility: config.compatibility as "compatible" | "strict" | undefined,
       });
       break;
     case "openai":

@@ -29,9 +29,7 @@ export function MusicAttachment({
           onClick={onBrowse}
           disabled={!hasVoiceover}
           title={
-            !hasVoiceover
-              ? t("audio_music_browseDisabledTooltip")
-              : undefined
+            !hasVoiceover ? t("audio_music_browseDisabledTooltip") : undefined
           }
           className="text-xs font-medium px-3 py-1.5 rounded border border-border hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >

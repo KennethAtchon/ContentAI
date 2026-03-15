@@ -10,7 +10,8 @@ export function useContentAssets(
   const fetcher = useQueryFetcher<AssetsResponse>();
 
   const params = new URLSearchParams();
-  if (generatedContentId) params.set("generatedContentId", String(generatedContentId));
+  if (generatedContentId)
+    params.set("generatedContentId", String(generatedContentId));
   if (type) params.set("type", type);
 
   return useQuery({

@@ -5,7 +5,7 @@ export interface VoiceConfig {
   description: string;
   gender: "male" | "female" | "neutral";
   elevenLabsId: string; // ElevenLabs voice ID
-  previewR2Key: string; // R2 key for preview audio
+  previewR2Key?: string; // R2 key for preview audio (optional until uploaded)
 }
 
 export const VOICES: VoiceConfig[] = [

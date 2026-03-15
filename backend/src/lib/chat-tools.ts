@@ -20,7 +20,7 @@ export function createSaveContentTool(context: ToolContext) {
   return tool({
     description:
       "Save a complete generated content piece (hook, script, caption, hashtags, CTA) to the database. Call this after writing a full generation. Never print raw content as plain text — always call this tool.",
-    parameters: z.object({
+    inputSchema: z.object({
       hook: z
         .string()
         .min(10)
@@ -43,7 +43,6 @@ export function createSaveContentTool(context: ToolContext) {
         .describe("Call-to-action (comment, save, share, follow, etc.)"),
       contentType: z.enum(["hook_only", "caption_only", "full_script"]),
     }),
-    // @ts-ignore - AI SDK v6 type issue
     execute: async ({
       hook,
       script,
@@ -108,12 +107,11 @@ export function createGetReelAnalysisTool(context: ToolContext) {
   return tool({
     description:
       "Fetch detailed analysis data for a reel that was attached to this message. Use this before generating content to understand the reel's hook patterns, emotional triggers, and format. Only call for reels explicitly attached by the user.",
-    parameters: z.object({
+    inputSchema: z.object({
       reelId: z
         .number()
         .describe("The numeric ID of the reel to fetch analysis for"),
     }),
-    // @ts-ignore - AI SDK v6 type issue
     execute: async ({ reelId }: { reelId: number }) => {
       debugLog.info("[tool:get_reel_analysis] Tool invoked", {
         service: "chat-tools",
@@ -187,7 +185,7 @@ export function createIterateContentTool(context: ToolContext) {
   return tool({
     description:
       "Create a new version of an existing piece of generated content. Call this when the user asks to modify, shorten, rewrite, or change a specific piece. Provide all fields you want to keep or change.",
-    parameters: z.object({
+    inputSchema: z.object({
       parentContentId: z
         .number()
         .describe("The ID of the content piece to iterate on"),
@@ -202,7 +200,6 @@ export function createIterateContentTool(context: ToolContext) {
           'Brief description of what changed, e.g. "made hook shorter and more aggressive"',
         ),
     }),
-    // @ts-ignore - AI SDK v6 type issue
     execute: async ({
       parentContentId,
       hook,

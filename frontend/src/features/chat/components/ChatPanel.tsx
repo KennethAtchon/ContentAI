@@ -1,6 +1,13 @@
 import React, { useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Sparkles, AlertCircle } from "lucide-react";
+import {
+  Sparkles,
+  AlertCircle,
+  Zap,
+  Film,
+  FileText,
+  Repeat2,
+} from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { UsageWarningBanner } from "./UsageWarningBanner";
@@ -56,26 +63,65 @@ export function ChatPanel({
 
   // Show thinking dots while streaming but no content has arrived yet
   const hasStreamingMessage =
-    !!streamingMessageId &&
-    messages.some((m) => m.id === streamingMessageId);
+    !!streamingMessageId && messages.some((m) => m.id === streamingMessageId);
   const isWaitingForFirstToken = isStreaming && !hasStreamingMessage;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary/60" />
-            </div>
-            <div>
-              <h3 className="text-base font-medium mb-1">
+          <div className="flex flex-col items-center justify-center h-full gap-6">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-primary/60" />
+              </div>
+              <h3 className="text-base font-medium">
                 {t("studio_chat_startConversation")}
               </h3>
               <p className="text-sm text-muted-foreground max-w-xs">
                 {t("studio_chat_startConversationDescription")}
               </p>
             </div>
+
+            <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+              {[
+                {
+                  icon: Zap,
+                  label: t("studio_chat_prompt_hook"),
+                  prompt: t("studio_chat_prompt_hook_text"),
+                },
+                {
+                  icon: Film,
+                  label: t("studio_chat_prompt_script"),
+                  prompt: t("studio_chat_prompt_script_text"),
+                },
+                {
+                  icon: FileText,
+                  label: t("studio_chat_prompt_caption"),
+                  prompt: t("studio_chat_prompt_caption_text"),
+                },
+                {
+                  icon: Repeat2,
+                  label: t("studio_chat_prompt_remix"),
+                  prompt: t("studio_chat_prompt_remix_text"),
+                },
+              ].map(({ icon: Icon, label, prompt }) => (
+                <button
+                  key={label}
+                  onClick={() => onSendMessage(prompt)}
+                  className="flex items-start gap-2.5 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 hover:border-border transition-colors text-left group"
+                >
+                  <Icon className="w-3.5 h-3.5 text-muted-foreground/60 group-hover:text-primary/60 mt-0.5 shrink-0 transition-colors" />
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-snug">
+                    {label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground/40 text-center">
+              {t("studio_chat_hint")}
+            </p>
           </div>
         ) : (
           messages.map((message) => (
@@ -92,6 +138,7 @@ export function ChatPanel({
                   : undefined
               }
               onOpenAudio={onOpenAudio}
+              onSendMessage={onSendMessage}
             />
           ))
         )}

@@ -179,10 +179,13 @@ class ScrapingService {
     const sourceReels = devMockReels as DevMockReelTemplate[];
 
     if (sourceReels.length === 0) {
-      debugLog.warn("No hardcoded mock reels available for development scrape", {
-        service: "scraping-service",
-        nicheId,
-      });
+      debugLog.warn(
+        "No hardcoded mock reels available for development scrape",
+        {
+          service: "scraping-service",
+          nicheId,
+        },
+      );
       return { saved: 0, skipped: 0 };
     }
 

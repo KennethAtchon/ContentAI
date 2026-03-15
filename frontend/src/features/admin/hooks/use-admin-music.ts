@@ -54,10 +54,13 @@ export function useToggleMusicTrack() {
 
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      authenticatedFetchJson<{ track: AdminMusicTrack }>(`/api/admin/music/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ isActive }),
-      }),
+      authenticatedFetchJson<{ track: AdminMusicTrack }>(
+        `/api/admin/music/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ isActive }),
+        }
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },

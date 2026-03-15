@@ -121,7 +121,7 @@ audioRouter.get(
         VOICES.map(async (voice) => {
           let previewUrl = "";
           try {
-            previewUrl = await getFileUrl(voice.previewR2Key, 3600);
+            previewUrl = await getFileUrl(voice.previewR2Key!, 3600);
           } catch {
             // Preview URL generation failed — return empty string
           }

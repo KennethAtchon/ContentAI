@@ -178,7 +178,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const queryClient = useQueryClient();
 
   // User profile state - now using React Query
-  const fetcher = useQueryFetcher<{
+  const _fetcher = useQueryFetcher<{
     profile: UserProfile;
     isOAuthUser: boolean;
   }>();
@@ -342,18 +342,21 @@ export function AppProvider({ children }: AppProviderProps) {
       if (!user) {
         throw new Error("User not authenticated");
       }
-      
+
       const token = await user.getIdToken();
-      
+
       return baseAuthenticatedFetchJson<{
         profile: UserProfile;
         isOAuthUser: boolean;
-      }>("/api/customer/profile", addTimezoneHeader({
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }));
+      }>(
+        "/api/customer/profile",
+        addTimezoneHeader({
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      );
     },
     enabled: !!user && !authLoading && backendReady,
     staleTime: QUERY_STALE.long,

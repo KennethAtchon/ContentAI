@@ -177,9 +177,7 @@ app.post(
           ),
         );
       if (existingMusic) {
-        await db
-          .delete(reelAssets)
-          .where(eq(reelAssets.id, existingMusic.id));
+        await db.delete(reelAssets).where(eq(reelAssets.id, existingMusic.id));
       }
 
       // Create new music asset reference

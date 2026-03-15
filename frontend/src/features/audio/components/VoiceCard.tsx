@@ -25,14 +25,20 @@ export function VoiceCard({
 }: VoiceCardProps) {
   const { t: _t } = useTranslation();
   const initials = voice.name.slice(0, 2).toUpperCase();
-  const gradient =
-    AVATAR_COLORS[voice.id] || "from-muted to-muted-foreground";
+  const gradient = AVATAR_COLORS[voice.id] || "from-muted to-muted-foreground";
 
   return (
-    <button
-      onClick={onSelect}
-      disabled={disabled}
-      className={`relative w-[120px] shrink-0 h-[140px] rounded-xl border-2 flex flex-col items-center p-3 gap-1.5 transition-all text-left ${
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onClick={disabled ? undefined : onSelect}
+      onKeyDown={(e) => {
+        if (!disabled && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`relative w-[120px] shrink-0 h-[140px] rounded-xl border-2 flex flex-col items-center p-3 gap-1.5 transition-all cursor-pointer ${
         isSelected
           ? "border-primary bg-primary/5"
           : "border-border bg-card hover:border-primary/40"
@@ -58,6 +64,6 @@ export function VoiceCard({
           <AudioPlayer src={voice.previewUrl} variant="compact" duration={3} />
         </div>
       )}
-    </button>
+    </div>
   );
 }
