@@ -1,6 +1,7 @@
 import { db } from "./db/db";
 import {
   reels,
+  reelAnalyses,
   trendingAudio,
 } from "../infrastructure/database/drizzle/schema";
 import type { NewReel } from "../infrastructure/database/drizzle/schema";
@@ -8,6 +9,7 @@ import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import {
   DEV_USE_MOCK_REEL_SCRAPE,
+  R2_PUBLIC_URL,
   SOCIAL_API_KEY,
   VIRAL_VIEWS_THRESHOLD,
 } from "../utils/config/envUtil";
@@ -227,42 +229,7 @@ class ScrapingService {
       },
     );
 
-    return this.saveReels(mockItems, nicheId, config);
-  }
-
-  // ─── Retry wrapper ─────────────────────────────────────────────────────────
-
-  private async scrapeWithRetry(
-    nicheId: number,
-    nicheName: string,
-    apiKey: string,
-    config: ScrapeConfig,
-  ): Promise<ScrapeResult> {
-    let lastError: Error = new Error("Unknown error");
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      try {
-        return await this.scrapeViaApify(nicheId, nicheName, apiKey, config);
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
-
-        debugLog.warn(
-          `Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`,
-          {
-            service: "scraping-service",
-            nicheId,
-            error: lastError.message,
-          },
-        );
-
-        if (attempt < MAX_RETRIES - 1) {
-          await sleep(delay);
-        }
-      }
-    }
-
-    throw lastError;
+    return this.saveReels(mockItems, nicheId, config, sourceReels.length);
   }
 
   // ─── Apify integration ─────────────────────────────────────────────────────
@@ -397,6 +364,7 @@ class ScrapingService {
     items: ApifyReelItem[],
     nicheId: number,
     config: ScrapeConfig,
+    maxAnalyses = Infinity,
   ): Promise<ScrapeResult> {
     if (items.length === 0) return { saved: 0, skipped: 0 };
 
@@ -404,6 +372,7 @@ class ScrapingService {
     let skipped = 0;
     let notVideo = 0;
     let duplicate = 0;
+    let analysisCount = 0;
 
     for (const item of items) {
       // Skip non-video posts (images, carousels) — only store reels/videos
@@ -514,16 +483,19 @@ class ScrapingService {
               });
           }
 
-          // Auto-analyze the newly saved reel
+          // Auto-analyze the newly saved reel (capped by maxAnalyses)
           const reelId = result[0]!.id;
-          this.analyzeReelAsync(reelId).catch((err: unknown) =>
-            debugLog.error("Async reel analysis failed", {
-              service: "scraping-service",
-              operation: "analyzeReelAsync",
-              reelId,
-              error: err instanceof Error ? err.message : "Unknown",
-            }),
-          );
+          if (analysisCount < maxAnalyses) {
+            analysisCount++;
+            this.analyzeReelAsync(reelId).catch((err: unknown) =>
+              debugLog.error("Async reel analysis failed", {
+                service: "scraping-service",
+                operation: "analyzeReelAsync",
+                reelId,
+                error: err instanceof Error ? err.message : "Unknown",
+              }),
+            );
+          }
 
           // Fire-and-forget: upload media to R2 and persist keys back to the row
           this.uploadAndStoreMedia(
@@ -577,6 +549,20 @@ class ScrapingService {
    */
   private async analyzeReelAsync(reelId: number): Promise<void> {
     try {
+      const [existing] = await db
+        .select({ id: reelAnalyses.id })
+        .from(reelAnalyses)
+        .where(eq(reelAnalyses.reelId, reelId));
+
+      if (existing) {
+        debugLog.info("Reel already analyzed — skipping", {
+          service: "scraping-service",
+          operation: "analyzeReelAsync",
+          reelId,
+        });
+        return;
+      }
+
       // Lazy import to avoid circular dependencies
       const { analyzeReel } = await import("./reels/reel-analyzer");
 
@@ -615,15 +601,27 @@ class ScrapingService {
   ): Promise<void> {
     const keyBase = externalId ?? `reel-${reelId}`;
 
+    // If a URL already points to our own R2 bucket, skip the re-upload and
+    // use it directly. This avoids redundant download→upload cycles when the
+    // mock data (or a re-scrape) already has stable R2 URLs as the source.
+    const isOwnR2Url = (url: string | null) =>
+      !!url && !!R2_PUBLIC_URL && url.startsWith(R2_PUBLIC_URL);
+
     const [videoResult, audioResult, thumbnailResult] = await Promise.allSettled([
       videoUrl
-        ? storage.uploadFromUrl(videoUrl, `video/${keyBase}.mp4`, "video/mp4")
+        ? isOwnR2Url(videoUrl)
+          ? Promise.resolve(videoUrl)
+          : storage.uploadFromUrl(videoUrl, `video/${keyBase}.mp4`, "video/mp4")
         : Promise.resolve(null),
       audioUrl
-        ? storage.uploadFromUrl(audioUrl, `audio/${keyBase}.m4a`, "audio/mp4")
+        ? isOwnR2Url(audioUrl)
+          ? Promise.resolve(audioUrl)
+          : storage.uploadFromUrl(audioUrl, `audio/${keyBase}.m4a`, "audio/mp4")
         : Promise.resolve(null),
       thumbnailUrl
-        ? storage.uploadFromUrl(thumbnailUrl, `thumbnails/${keyBase}.jpg`, "image/jpeg")
+        ? isOwnR2Url(thumbnailUrl)
+          ? Promise.resolve(thumbnailUrl)
+          : storage.uploadFromUrl(thumbnailUrl, `thumbnails/${keyBase}.jpg`, "image/jpeg")
         : Promise.resolve(null),
     ]);
 

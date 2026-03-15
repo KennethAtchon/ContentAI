@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, ListPlus, Mic, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useSendToQueue } from "../hooks/use-send-to-queue";
+import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
+import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 import { cn } from "@/shared/utils/helpers/utils";
 import type { SessionDraft } from "../types/chat.types";
 
@@ -28,6 +30,8 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
   const { t } = useTranslation();
   const sendToQueue = useSendToQueue();
   const [sent, setSent] = useState(false);
+  const { data: assetsData } = useContentAssets(draft.id);
+  const hasAudio = assetsData?.assets.some((a) => a.type === "voiceover" || a.type === "music") ?? false;
 
   const metadata = draft.generatedMetadata as {
     hashtags?: string[];
@@ -66,6 +70,7 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
               {t("workspace_draft_active")}
             </span>
           )}
+          <AudioStatusBadge generatedContentId={draft.id} onClick={onOpenAudio} />
         </div>
       </div>
 
@@ -156,7 +161,7 @@ export function DraftDetail({ draft, isActive, onBack, onOpenAudio, onSetActive 
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
         >
           <Mic className="w-3.5 h-3.5" />
-          {t("workspace_add_audio")}
+          {hasAudio ? t("workspace_edit_audio") : t("workspace_add_audio")}
         </button>
       </div>
     </div>

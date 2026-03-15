@@ -28,6 +28,7 @@ import {
 } from "@/shared/components/ui/select";
 import {
   Database,
+  Download,
   Loader2,
   AlertCircle,
   CheckCircle2,
@@ -266,6 +267,36 @@ function DeveloperPage() {
     return expectedParamsMap[selectedTable.name];
   }, [selectedTable, expectedParamsMap]);
 
+  const handleExportCsv = useCallback(() => {
+    if (!tableData || tableData.length === 0 || !selectedTable) return;
+
+    const fields =
+      selectedTable.keyFields.length > 0
+        ? selectedTable.keyFields
+        : Object.keys(tableData[0]!);
+
+    const escape = (val: unknown) => {
+      const str =
+        typeof val === "object" && val !== null
+          ? JSON.stringify(val)
+          : String(val ?? "");
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const rows = [
+      fields.join(","),
+      ...tableData.map((row) => fields.map((f) => escape(row[f])).join(",")),
+    ];
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedTable.name}-page${currentPage}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [tableData, selectedTable, currentPage]);
+
   const paginationButtons = useMemo(() => {
     if (totalPages <= 1) return null;
 
@@ -418,11 +449,26 @@ function DeveloperPage() {
           {/* Table Data */}
           <Card className="border-2">
             <CardHeader>
-              <CardTitle>Current {selectedTable.name} Elements</CardTitle>
-              <CardDescription>
-                {totalCount > 0 &&
-                  `Showing ${(currentPage - 1) * pageSize + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`}
-              </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <CardTitle>Current {selectedTable.name} Elements</CardTitle>
+                  <CardDescription>
+                    {totalCount > 0 &&
+                      `Showing ${(currentPage - 1) * pageSize + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`}
+                  </CardDescription>
+                </div>
+                {tableData && tableData.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCsv}
+                    className="shrink-0"
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Export CSV
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (

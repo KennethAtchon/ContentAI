@@ -19,7 +19,7 @@ export interface ToolContext {
 export function createSaveContentTool(context: ToolContext) {
   return tool({
     description:
-      "Save a complete generated content piece (hook, script, caption, hashtags, CTA) to the database. Call this after writing a full generation. Never print raw content as plain text — always call this tool.",
+      "Save a complete generated content piece (hook, structured script, clean script, caption, hashtags, CTA) to the database. Call this after writing a full generation. The script field should contain timestamps for video production [0-3s], while cleanScript should be the same content written as natural spoken text without timestamps for audio/TTS generation. Never output raw content as plain text — always call this tool.",
     inputSchema: z.object({
       hook: z
         .string()
@@ -32,6 +32,10 @@ export function createSaveContentTool(context: ToolContext) {
         .describe(
           "Scene-by-scene shot list with timing, e.g. [0-3s] Opening...",
         ),
+      cleanScript: z
+        .string()
+        .min(30)
+        .describe("Clean script without timestamps for audio/TTS generation - natural spoken text"),
       caption: z.string().min(20).describe("Full caption text with emojis"),
       hashtags: z
         .array(z.string())
@@ -46,6 +50,7 @@ export function createSaveContentTool(context: ToolContext) {
     execute: async ({
       hook,
       script,
+      cleanScript,
       caption,
       hashtags,
       cta,
@@ -53,6 +58,7 @@ export function createSaveContentTool(context: ToolContext) {
     }: {
       hook: string;
       script: string;
+      cleanScript: string;
       caption: string;
       hashtags: string[];
       cta: string;
@@ -64,6 +70,7 @@ export function createSaveContentTool(context: ToolContext) {
         contentType,
         hookLength: hook.length,
         scriptLength: script.length,
+        cleanScriptLength: cleanScript.length,
         captionLength: caption.length,
         hashtagCount: hashtags.length,
         userId: context.auth.user.id,
@@ -77,6 +84,7 @@ export function createSaveContentTool(context: ToolContext) {
             generatedHook: hook,
             generatedCaption: caption,
             generatedScript: script,
+            cleanScriptForAudio: cleanScript,
             generatedMetadata: { hashtags, cta, contentType },
             outputType: contentType,
             status: "draft",
@@ -184,13 +192,14 @@ export function createGetReelAnalysisTool(context: ToolContext) {
 export function createIterateContentTool(context: ToolContext) {
   return tool({
     description:
-      "Create a new version of an existing piece of generated content. Call this when the user asks to modify, shorten, rewrite, or change a specific piece. Provide all fields you want to keep or change.",
+      "Create a new version of an existing piece of generated content. Call this when the user asks to modify, shorten, rewrite, or change a specific piece. Provide all fields you want to keep or change. If modifying the script, provide both script (with timestamps for video) and cleanScript (without timestamps for audio) if applicable.",
     inputSchema: z.object({
       parentContentId: z
         .number()
         .describe("The ID of the content piece to iterate on"),
       hook: z.string().max(200).optional(),
       script: z.string().optional(),
+      cleanScript: z.string().optional(),
       caption: z.string().optional(),
       hashtags: z.array(z.string()).optional(),
       cta: z.string().optional(),
@@ -204,6 +213,7 @@ export function createIterateContentTool(context: ToolContext) {
       parentContentId,
       hook,
       script,
+      cleanScript,
       caption,
       hashtags,
       cta,
@@ -212,6 +222,7 @@ export function createIterateContentTool(context: ToolContext) {
       parentContentId: number;
       hook?: string;
       script?: string;
+      cleanScript?: string;
       caption?: string;
       hashtags?: string[];
       cta?: string;
@@ -225,6 +236,7 @@ export function createIterateContentTool(context: ToolContext) {
         fieldsOverridden: {
           hook: hook !== undefined,
           script: script !== undefined,
+          cleanScript: cleanScript !== undefined,
           caption: caption !== undefined,
           hashtags: hashtags !== undefined,
           cta: cta !== undefined,
@@ -297,6 +309,7 @@ export function createIterateContentTool(context: ToolContext) {
             generatedHook: hook ?? effectiveParent.generatedHook,
             generatedCaption: caption ?? effectiveParent.generatedCaption,
             generatedScript: script ?? effectiveParent.generatedScript,
+            cleanScriptForAudio: cleanScript ?? effectiveParent.cleanScriptForAudio,
             generatedMetadata: {
               hashtags: hashtags ?? (effectiveParent.generatedMetadata as any)?.hashtags,
               cta: cta ?? (effectiveParent.generatedMetadata as any)?.cta,

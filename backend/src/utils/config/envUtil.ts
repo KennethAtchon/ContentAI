@@ -260,9 +260,9 @@ export const VIRAL_VIEWS_THRESHOLD = parseInt(
   10,
 );
 /** Use local mock reels for scrape jobs in development (avoids external API costs). */
-export const DEV_USE_MOCK_REEL_SCRAPE = false
-  // IS_DEVELOPMENT &&
-  // getEnvVarAsBoolean("DEV_USE_MOCK_REEL_SCRAPE", IS_DEVELOPMENT);
+export const DEV_USE_MOCK_REEL_SCRAPE = 
+  IS_DEVELOPMENT &&
+  getEnvVarAsBoolean("DEV_USE_MOCK_REEL_SCRAPE", IS_DEVELOPMENT);
 
 // ============================================================================
 // Cron Jobs

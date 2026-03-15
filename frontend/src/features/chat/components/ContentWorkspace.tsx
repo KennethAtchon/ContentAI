@@ -34,7 +34,6 @@ export function ContentWorkspace({
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
-  const [audioContentId, setAudioContentId] = useState<number | null>(null);
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
@@ -58,7 +57,6 @@ export function ContentWorkspace({
   // Switch to audio tab when requested from parent
   useEffect(() => {
     if (requestAudioForContentId) {
-      setAudioContentId(requestAudioForContentId);
       setActiveTab("audio");
     }
   }, [requestAudioForContentId]);
@@ -74,7 +72,7 @@ export function ContentWorkspace({
   const handleOpenAudio = () => {
     const id = selectedDraft?.id ?? activeContentId ?? drafts[drafts.length - 1]?.id;
     if (id) {
-      setAudioContentId(id);
+      onActiveContentChange(id);
       setActiveTab("audio");
     }
   };
@@ -155,12 +153,10 @@ export function ContentWorkspace({
         )
       ) : (
         <AudioPlaybackProvider>
-          {audioContentId || activeContentId || drafts[drafts.length - 1]?.id ? (
+          {activeContentId ?? drafts[drafts.length - 1]?.id ? (
             <AudioPanel
               generatedContentId={
-                audioContentId ??
-                activeContentId ??
-                drafts[drafts.length - 1]!.id
+                activeContentId ?? drafts[drafts.length - 1]!.id
               }
             />
           ) : (

@@ -3,25 +3,4 @@ Given a video's hook text, caption, audio, and engagement metrics, extract the s
 
 Focus on the STRUCTURE, not the specific content. Your goal is to identify reusable formulas.
 
-Respond ONLY with valid JSON using exactly these keys:
-{
-  "hookPattern": "concise label for the hook formula, e.g. 'If X Stop Y', 'Top N List', 'POV Transformation', 'You Are Losing X'",
-  "hookCategory": "one of: Warning | Authority | Question | Curiosity | List | POV | MythBust | SocialProof",
-  "emotionalTrigger": "primary emotions triggered, comma-separated from: Fear, Curiosity, Aspiration, Authority, Shock, FOMO, Relatability",
-  "formatPattern": "one of: Fast-cut talking head | Single-shot | B-roll overlay | Text-only | Reaction | Storytime | Tutorial | Transformation",
-  "ctaType": "primary call to action from: Save | Comment | Share | Tag | Follow | Link in bio",
-  "captionFramework": "describe the caption structure pattern, e.g. 'Problem → Proof → Solution → CTA' or 'Story → Lesson → Invite'",
-  "curiosityGapStyle": "how the hook creates an open loop, or null if not applicable",
-  "remixSuggestion": "a specific, actionable suggestion to adapt this structure for a new variation. Be concrete about the angle change, not generic.",
-  "shotBreakdown": [
-    { "timestamp": "0-3s", "description": "hook shot description", "textOverlay": "on-screen text if any or null" }
-  ],
-  "engagementDrivers": ["list of specific factors driving engagement, e.g. 'trending_audio', 'text_overlay_hook', 'pattern_interrupt', 'relatable_scenario'"],
-  "replicabilityScore": 8,
-  "replicabilityNotes": "explanation of why this score was given and what would make it easier or harder to replicate"
-}
-
-For shotBreakdown: include 3-6 entries covering the key moments of the video based on typical pacing for the format. Use time ranges like '0-3s', '3-8s', etc.
-For replicabilityScore: rate 1-10 where 10 = any creator can replicate this with minimal resources, 1 = requires unique circumstances (celebrity, viral moment, etc.).
-
-Do not include any text outside the JSON object.
+Call the analyze_reel tool with your complete analysis. Do not write anything else.

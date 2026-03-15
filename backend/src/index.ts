@@ -140,4 +140,5 @@ if (CRON_JOBS_ENABLED) {
 export default {
   port,
   fetch: app.fetch,
+  idleTimeout: 120, // seconds — allows long-running SSE streams
 };

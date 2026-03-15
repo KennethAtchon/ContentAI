@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Mic, AlertCircle, RefreshCw, Loader2, Copy, Check } from "lucide-react";
+import { Mic, AlertCircle, RefreshCw, Loader2, Copy, Check, ArrowLeft } from "lucide-react";
 import { VoiceSelector } from "./VoiceSelector";
 import { SpeedToggle } from "./SpeedToggle";
 import { useVoices } from "../hooks/use-voices";
@@ -12,6 +12,7 @@ interface VoiceoverGeneratorProps {
   generatedScript: string | null;
   generatedHook: string | null;
   onSuccess: (audioUrl: string) => void;
+  onCancel?: () => void;
 }
 
 type ScriptMode = "script" | "hook";
@@ -21,6 +22,7 @@ export function VoiceoverGenerator({
   generatedScript,
   generatedHook,
   onSuccess,
+  onCancel,
 }: VoiceoverGeneratorProps) {
   const { t } = useTranslation();
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
@@ -93,6 +95,16 @@ export function VoiceoverGenerator({
 
   return (
     <div className="flex flex-col gap-4">
+      {onCancel && (
+        <button
+          onClick={onCancel}
+          disabled={isGenerating}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors self-start disabled:opacity-50"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          {t("audio_generate_back")}
+        </button>
+      )}
       <div className="flex flex-col items-center gap-2 py-2 text-center">
         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
           <Mic className="w-6 h-6 text-muted-foreground" />

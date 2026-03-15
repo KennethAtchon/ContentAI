@@ -183,8 +183,10 @@ export async function authenticatedFetch(
 
   // Firebase does not attach tokens to our API calls; we send the token explicitly.
   const idToken = await user.getIdToken();
+  // Skip default Content-Type for FormData — the browser must set it with the multipart boundary
+  const isFormData = requestInit.body instanceof FormData;
   const requestHeaders: Record<string, string> = {
-    ...DEFAULT_HEADERS,
+    ...(isFormData ? {} : DEFAULT_HEADERS),
     Authorization: `Bearer ${idToken}`,
     ...(requestInit.headers as Record<string, string>),
   };

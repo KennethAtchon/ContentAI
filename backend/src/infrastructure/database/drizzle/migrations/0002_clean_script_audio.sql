@@ -1,0 +1,1 @@
+ALTER TABLE "generated_content" ADD COLUMN "clean_script_for_audio" text;

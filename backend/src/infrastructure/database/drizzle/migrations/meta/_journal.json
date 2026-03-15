@@ -8,6 +8,20 @@
       "when": 1773606071740,
       "tag": "0000_cute_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773608149494,
+      "tag": "0001_lean_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773609965615,
+      "tag": "0002_even_bug",
+      "breakpoints": true
     }
   ]
 }

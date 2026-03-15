@@ -22,23 +22,31 @@ export function VoiceoverPlayer({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          {t("audio_voiceover_sectionTitle")}
+        </span>
+        <button
+          onClick={onRegenerate}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" />
+          {t("audio_voiceover_regenerate")}
+        </button>
+      </div>
+
+      {/* Voice info + player */}
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <Mic className="w-3.5 h-3.5 text-primary" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-medium">{voiceName}</p>
           <p className="text-[10px] text-muted-foreground capitalize">
             {speed} {t("audio_speed_label").toLowerCase()}
           </p>
         </div>
-        <button
-          onClick={onRegenerate}
-          className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-          {t("audio_voiceover_regenerate")}
-        </button>
       </div>
 
       <AudioPlayer

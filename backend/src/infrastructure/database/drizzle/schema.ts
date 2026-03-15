@@ -9,6 +9,7 @@ import {
   jsonb,
   serial,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -187,7 +188,7 @@ export const reelAnalyses = pgTable(
     rawResponse: jsonb("raw_response"),
     analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
   },
-  (t) => [index("reel_analyses_reel_id_idx").on(t.reelId)],
+  (t) => [uniqueIndex("reel_analyses_reel_id_idx").on(t.reelId)],
 );
 
 /**
@@ -215,7 +216,8 @@ export const generatedContent = pgTable(
     // AI-authored copy
     generatedHook: text("generated_hook"),
     generatedCaption: text("generated_caption"),
-    generatedScript: text("generated_script"),
+    generatedScript: text("generated_script"), // Structured script with timestamps for video production
+    cleanScriptForAudio: text("clean_script_for_audio"), // Clean script without timestamps for TTS/audio generation
     generatedMetadata: jsonb("generated_metadata"),
     // Audio assets — denormalized for fast publish reads (source of truth is reel_assets)
     voiceoverUrl: text("voiceover_url"),

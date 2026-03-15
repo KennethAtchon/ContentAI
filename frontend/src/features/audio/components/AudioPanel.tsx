@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { CheckCircle2 } from "lucide-react";
 import { VoiceoverGenerator } from "./VoiceoverGenerator";
 import { VoiceoverPlayer } from "./VoiceoverPlayer";
 import { MusicLibraryBrowser } from "./MusicLibraryBrowser";
@@ -18,7 +16,6 @@ interface AudioPanelProps {
 }
 
 export function AudioPanel({ generatedContentId }: AudioPanelProps) {
-  const { t } = useTranslation();
   const [showMusicBrowser, setShowMusicBrowser] = useState(false);
   const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -26,7 +23,7 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
   const { data: contentData } = useGeneratedContent(generatedContentId);
   const { data: assetsData, isLoading } = useContentAssets(generatedContentId);
 
-  const generatedScript = contentData?.content.generatedScript ?? null;
+  const cleanScriptForAudio = contentData?.content.cleanScriptForAudio ?? null;
   const generatedHook = contentData?.content.generatedHook ?? null;
   const attachMusic = useAttachMusic();
   const deleteAsset = useDeleteAsset(generatedContentId);
@@ -39,8 +36,6 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
   const audioUrl = localAudioUrl ?? voiceoverAsset?.audioUrl ?? null;
   const hasVoiceover = !!voiceoverAsset;
   const hasMusic = !!musicAsset;
-  const isReady = hasVoiceover && hasMusic;
-
   // Build a minimal MusicTrack from stored asset metadata for display
   const currentMusicTrack: MusicTrack | null = musicAsset
     ? {
@@ -59,7 +54,7 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
         mood: String(
           (musicAsset.metadata as Record<string, unknown>)?.mood ?? ""
         ),
-        previewUrl: "",
+        previewUrl: musicAsset.audioUrl ?? "",
         isSystemTrack: true,
       }
     : null;
@@ -97,13 +92,6 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {isReady && (
-        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 px-4 pt-3">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span className="text-[11px] font-medium">{t("audio_panel_ready")}</span>
-        </div>
-      )}
-
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
         {isLoading ? (
@@ -111,48 +99,47 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
             <div className="h-24 bg-muted rounded-xl animate-pulse" />
             <div className="h-8 bg-muted rounded animate-pulse" />
           </div>
-        ) : showGenerator ? (
-          <VoiceoverGenerator
-            generatedContentId={generatedContentId}
-            generatedScript={generatedScript}
-            generatedHook={generatedHook}
-            onSuccess={(url) => {
-              setLocalAudioUrl(url);
-              setIsRegenerating(false);
-            }}
-          />
         ) : (
-          voiceoverAsset &&
-          audioUrl && (
-            <VoiceoverPlayer
-              asset={voiceoverAsset}
-              audioUrl={audioUrl}
-              onRegenerate={handleRegenerate}
-            />
-          )
-        )}
-
-        {!showGenerator && (
           <>
-            <div className="h-px bg-border" />
-
-            {hasVoiceover && hasMusic && (
-              <>
-                <VolumeBalance
-                  value={volumeBalance}
-                  onChange={handleVolumeChange}
-                  isSaving={updateMetadata.isPending}
+            {showGenerator ? (
+              <VoiceoverGenerator
+                generatedContentId={generatedContentId}
+                generatedScript={cleanScriptForAudio}
+                generatedHook={generatedHook}
+                onSuccess={(url) => {
+                  setLocalAudioUrl(url);
+                  setIsRegenerating(false);
+                }}
+                onCancel={isRegenerating ? () => setIsRegenerating(false) : undefined}
+              />
+            ) : (
+              voiceoverAsset &&
+              audioUrl && (
+                <VoiceoverPlayer
+                  asset={voiceoverAsset}
+                  audioUrl={audioUrl}
+                  onRegenerate={handleRegenerate}
                 />
-                <div className="h-px bg-border" />
-              </>
+              )
             )}
 
+            <div className="h-px bg-border" />
+
             <MusicAttachment
-              hasVoiceover={hasVoiceover}
               currentTrack={currentMusicTrack}
               onBrowse={() => setShowMusicBrowser(true)}
               onRemove={() => void handleRemoveMusic()}
             />
+
+            {hasVoiceover && hasMusic && (
+              <VolumeBalance
+                value={volumeBalance}
+                onChange={handleVolumeChange}
+                isSaving={updateMetadata.isPending}
+                voiceoverUrl={audioUrl ?? undefined}
+                musicUrl={currentMusicTrack?.previewUrl || undefined}
+              />
+            )}
           </>
         )}
       </div>

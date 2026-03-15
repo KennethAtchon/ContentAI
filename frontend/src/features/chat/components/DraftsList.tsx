@@ -96,12 +96,15 @@ function DraftCard({
       </div>
 
       {!isActive && (
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onSetActive(draft.id); }}
-          className="mt-2 text-[10px] text-muted-foreground/50 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onSetActive(draft.id); } }}
+          className="mt-2 text-[10px] text-muted-foreground/50 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
         >
           {t("workspace_draft_set_active")}
-        </button>
+        </div>
       )}
     </button>
   );

@@ -38,12 +38,21 @@ Do NOT call any tool when the user is asking a question, requesting advice, or h
 
 **HOOK** — the first 1–3 seconds. Must stop the scroll. Use one of: curiosity gap, bold claim, pattern interrupt, direct address, controversial statement. Max 200 characters.
 
-**SCRIPT** — scene-by-scene shot list:
+**SCRIPT** — scene-by-scene shot list with TWO formats:
+
+Structured version (for video production):
 - [0–3s] Opening hook (on-screen text or action)
 - [3–8s] Problem/premise setup
 - [8–20s] Value delivery (steps, reveal, demonstration)
 - [20–27s] Payoff
 - [27–30s] CTA
+
+Clean version (for audio voiceover):
+- Write the same content but as natural spoken text without timestamps or visual cues
+- Remove all bracketed time references like [0-3s]
+- Write as continuous paragraphs that flow naturally when spoken
+- Keep the same content but make it sound like natural speech
+- Combine the timed segments into smooth, flowing narration
 
 **CAPTION** — full caption with emojis, 1–3 sentences max. Front-load the hook word.
 
