@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useApp } from "@/shared/contexts/app-context";
 import { chatService } from "../services/chat.service";
 import type {
   CreateProjectRequest,
@@ -6,9 +7,11 @@ import type {
 } from "../types/chat.types";
 
 export const useProjects = () => {
+  const { user } = useApp();
   return useQuery({
     queryKey: ["projects"],
     queryFn: () => chatService.getProjects(),
+    enabled: !!user,
   });
 };
 

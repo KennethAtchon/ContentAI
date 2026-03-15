@@ -8,6 +8,23 @@ import type { ChatMessage } from "../types/chat.types";
 // Stable fallback used as default; overridden per-invocation via streamingIdRef.
 export const STREAMING_MESSAGE_ID = "streaming-ai-response";
 
+/**
+ * Strips <tool_call>...</tool_call> XML blocks from streamed text.
+ * Some models (e.g. certain OpenRouter models without native function calling)
+ * output tool invocations as raw XML text instead of structured tool calls.
+ * This keeps the chat display clean while the SDK-level tool handling runs.
+ */
+function filterToolCallXml(text: string): string {
+  // Remove fully-received tool call blocks
+  let filtered = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trimEnd();
+  // Remove an in-progress (partially streamed) block at the end
+  const openIdx = filtered.lastIndexOf("<tool_call>");
+  if (openIdx !== -1) {
+    filtered = filtered.substring(0, openIdx).trimEnd();
+  }
+  return filtered;
+}
+
 export function useChatStream(sessionId: string) {
   const queryClient = useQueryClient();
   const [optimisticUserMessage, setOptimisticUserMessage] =
@@ -131,7 +148,15 @@ export function useChatStream(sessionId: string) {
             if (chunk.type === "text-delta") {
               textDeltaCount++;
               accumulated += (chunk.delta as string) ?? "";
-              setStreamingContent(accumulated);
+              // Filter tool call XML that some models emit as plain text
+              // instead of structured function calls (e.g. certain OpenRouter models)
+              const displayText = filterToolCallXml(accumulated);
+              setStreamingContent(displayText || null);
+              // Detect text-based tool calls to show the saving indicator
+              if (accumulated.includes("<tool_call>") &&
+                (accumulated.includes("save_content") || accumulated.includes("iterate_content"))) {
+                setIsSavingContent(true);
+              }
               if (textDeltaCount % 20 === 0) {
                 debugLog.debug("[ChatStream] text-delta progress", {
                   textDeltaCount,

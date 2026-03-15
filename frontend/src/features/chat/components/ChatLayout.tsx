@@ -178,9 +178,13 @@ export function ChatLayout({
   // Combine server messages with optimistic/streaming overlay
   const displayMessages = useMemo((): ChatMessage[] => {
     const server = sessionData?.messages ?? [];
+    const serverIds = new Set(server.map((m) => m.id));
     const extra: ChatMessage[] = [];
 
-    if (optimisticUserMessage) {
+    // Skip optimistic message if already injected into the cache (avoids
+    // the duplicate-key flash when setQueryData fires synchronously before
+    // setOptimisticUserMessage(null) is committed).
+    if (optimisticUserMessage && !serverIds.has(optimisticUserMessage.id)) {
       extra.push(optimisticUserMessage);
     }
     if (streamingContent) {

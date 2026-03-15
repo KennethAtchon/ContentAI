@@ -446,7 +446,12 @@ app.post(
           });
         },
 
-        onFinish: async ({ text, totalUsage }) => {
+        onFinish: async ({ text: rawText, totalUsage }) => {
+          // Strip <tool_call>...</tool_call> XML that some models emit as plain text
+          // (non-native function calling fallback) to keep stored messages clean.
+          const text = rawText
+            .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
+            .trimEnd();
           try {
             const durationMs = Date.now() - streamStartMs;
             const { inputTokens, outputTokens } =

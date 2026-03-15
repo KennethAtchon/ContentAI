@@ -76,9 +76,9 @@ export const AI_MODELS: Record<string, ModelConfig> = {
 // To prioritize OpenAI first: ["openai", "openrouter", "claude"]
 
 export const PROVIDER_PRIORITY: string[] = [
-  "openrouter", // 1st priority - OpenRouter (good model variety)
-  "openai", // 2nd priority - OpenAI (reliable GPT models)
-  "claude", // 3rd priority - Claude/Anthropic (strong reasoning)
+  "openai", // 1st priority - OpenAI (reliable, native tool calling)
+  "claude", // 2nd priority - Claude/Anthropic (strong reasoning)
+  "openrouter", // 3rd priority - OpenRouter (good model variety)
 ];
 
 // ─── Default Settings ─────────────────────────────────────────────────────────────
