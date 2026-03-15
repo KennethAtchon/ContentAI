@@ -10,13 +10,13 @@ export interface VoiceConfig {
 
 export const VOICES: VoiceConfig[] = [
   {
-    id: "rachel-v1",
-    name: "Rachel",
+    id: "jessica-v1",
+    name: "Jessica",
     description:
       "Warm, conversational female voice. Great for lifestyle and wellness content.",
     gender: "female",
-    elevenLabsId: "21m00Tcm4TlvDq8ikWAM", // ElevenLabs "Rachel"
-    previewR2Key: "voices/rachel-preview.mp3",
+    elevenLabsId: "cgSgspJ2msm6clMCkdW9", // ElevenLabs "Jessica"
+    previewR2Key: "voices/jessica-preview.mp3",
   },
   {
     id: "marcus-v1",
@@ -28,13 +28,13 @@ export const VOICES: VoiceConfig[] = [
     previewR2Key: "voices/marcus-preview.mp3",
   },
   {
-    id: "elli-v1",
-    name: "Elli",
+    id: "laura-v1",
+    name: "Laura",
     description:
       "Bright, energetic female voice. Perfect for motivational and fitness content.",
     gender: "female",
-    elevenLabsId: "MF3mGyEYCl7XYWbV9V6O", // ElevenLabs "Elli"
-    previewR2Key: "voices/elli-preview.mp3",
+    elevenLabsId: "FGY2WhTYpPnrIDTdsKH5", // ElevenLabs "Laura"
+    previewR2Key: "voices/laura-preview.mp3",
   },
   {
     id: "james-v1",

@@ -3,9 +3,9 @@ import type { Voice } from "../types/audio.types";
 import { AudioPlayer } from "./AudioPlayer";
 
 const AVATAR_COLORS: Record<string, string> = {
-  "rachel-v1": "from-pink-400 to-purple-400",
+  "jessica-v1": "from-pink-400 to-purple-400",
   "marcus-v1": "from-blue-400 to-indigo-400",
-  "elli-v1": "from-yellow-400 to-orange-400",
+  "laura-v1": "from-yellow-400 to-orange-400",
   "james-v1": "from-green-400 to-teal-400",
   "nova-v1": "from-violet-400 to-pink-400",
 };

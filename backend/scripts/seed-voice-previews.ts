@@ -51,9 +51,9 @@ const s3 = new S3Client({
 
 // Short, distinct preview sentences per voice
 const PREVIEW_TEXTS: Record<string, string> = {
-  "rachel-v1": "Hey, welcome back! Let's create something amazing together.",
+  "jessica-v1": "Hey, welcome back! Let's create something amazing together.",
   "marcus-v1": "Here's what you need to know to grow your brand fast.",
-  "elli-v1": "Let's go! This is your sign to start creating today.",
+  "laura-v1": "Let's go! This is your sign to start creating today.",
   "james-v1": "In today's video, I'll show you exactly how it's done.",
   "nova-v1": "Every great story starts with a single moment. This is yours.",
 };

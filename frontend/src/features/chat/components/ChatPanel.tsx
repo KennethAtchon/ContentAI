@@ -28,7 +28,7 @@ interface ChatPanelProps {
   reels?: unknown[];
   activeReelRefs?: Reel[];
   onResetLimitReached?: () => void;
-  onOpenAudio?: (contentId: number, scriptText: string) => void;
+  onOpenAudio?: (contentId: number) => void;
 }
 
 export function ChatPanel({

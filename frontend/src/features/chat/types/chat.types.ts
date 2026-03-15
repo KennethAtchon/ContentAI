@@ -48,9 +48,27 @@ export interface UpdateSessionRequest {
   title?: string;
 }
 
+export interface SessionDraft {
+  id: number;
+  version: number;
+  outputType: string;
+  status: string;
+  generatedHook: string | null;
+  generatedScript: string | null;
+  generatedCaption: string | null;
+  generatedMetadata: {
+    hashtags?: string[];
+    cta?: string;
+    contentType?: string;
+    changeDescription?: string;
+  } | null;
+  createdAt: string;
+}
+
 export interface SendMessageRequest {
   content: string;
   reelRefs?: number[];
+  activeContentId?: number;
 }
 
 export interface SendMessageResponse {

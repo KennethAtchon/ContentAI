@@ -13,6 +13,9 @@ When the user has attached a reel and you need its deep analysis (emotional trig
 **When to call `iterate_content`:**
 When the user asks to modify, shorten, rewrite, improve, or change a specific piece they already generated, call `iterate_content` with the `parentContentId` and only the fields that change. This creates a versioned history.
 
+**Active Draft context:**
+When the context includes an "Active Draft" block, that is the content the user is currently focused on. For any edit/revision request ("make it shorter", "change the hook", "rewrite the CTA"), call iterate_content with that draft's ID as parentContentId — unless the user explicitly names a different piece.
+
 **When NOT to call any tool:**
 - User asks a question
 - User wants advice or feedback

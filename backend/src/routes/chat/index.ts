@@ -14,8 +14,9 @@ import {
   chatMessages,
   projects,
   reels,
+  generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, isNotNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { loadPrompt, getModel } from "../../lib/aiClient";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
@@ -59,6 +60,7 @@ const createSessionSchema = z.object({
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(4000),
   reelRefs: z.array(z.number()).optional(),
+  activeContentId: z.number().optional(),
 });
 
 const updateSessionSchema = z.object({
@@ -226,6 +228,113 @@ app.get(
   },
 );
 
+// GET /api/chat/sessions/:id/content - Get chain-tip drafts for a session
+app.get(
+  "/sessions/:id/content",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const sessionId = c.req.param("id");
+
+      // Verify session belongs to user
+      const [session] = await db
+        .select({ id: chatSessions.id })
+        .from(chatSessions)
+        .where(
+          and(
+            eq(chatSessions.id, sessionId),
+            eq(chatSessions.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!session) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+
+      // Get all generatedContentIds from chatMessages for this session
+      const messageRows = await db
+        .select({ generatedContentId: chatMessages.generatedContentId })
+        .from(chatMessages)
+        .where(
+          and(
+            eq(chatMessages.sessionId, sessionId),
+            eq(chatMessages.role, "assistant"),
+            isNotNull(chatMessages.generatedContentId),
+          ),
+        );
+
+      const contentIds = [
+        ...new Set(
+          messageRows
+            .map((r) => r.generatedContentId)
+            .filter((id): id is number => id != null),
+        ),
+      ];
+
+      if (contentIds.length === 0) {
+        return c.json({ drafts: [] });
+      }
+
+      // Fetch those generatedContent records with ownership check
+      const records = await db
+        .select({
+          id: generatedContent.id,
+          version: generatedContent.version,
+          outputType: generatedContent.outputType,
+          status: generatedContent.status,
+          generatedHook: generatedContent.generatedHook,
+          generatedScript: generatedContent.generatedScript,
+          generatedCaption: generatedContent.generatedCaption,
+          generatedMetadata: generatedContent.generatedMetadata,
+          parentId: generatedContent.parentId,
+          createdAt: generatedContent.createdAt,
+        })
+        .from(generatedContent)
+        .where(
+          and(
+            inArray(generatedContent.id, contentIds),
+            eq(generatedContent.userId, auth.user.id),
+          ),
+        );
+
+      // Find tips: records that have no children anywhere in the table.
+      // Checking only within the fetched set would miss branches created by the
+      // AI re-iterating an already-iterated parent (both siblings would pass).
+      const childRows = await db
+        .select({ parentId: generatedContent.parentId })
+        .from(generatedContent)
+        .where(
+          and(
+            inArray(generatedContent.parentId, contentIds),
+            eq(generatedContent.userId, auth.user.id),
+          ),
+        );
+      const idsWithChildren = new Set(
+        childRows.map((r) => r.parentId).filter((id): id is number => id != null),
+      );
+      const tips = records
+        .filter((r) => !idsWithChildren.has(r.id))
+        .sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )
+        .map(({ parentId: _parentId, ...rest }) => rest);
+
+      return c.json({ drafts: tips });
+    } catch (error) {
+      debugLog.error("Failed to fetch session content", {
+        service: "chat-route",
+        operation: "getSessionContent",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch session content" }, 500);
+    }
+  },
+);
+
 // DELETE /api/chat/sessions/:id - Delete chat session
 app.delete(
   "/sessions/:id",
@@ -315,7 +424,7 @@ app.post(
     try {
       const auth = c.get("auth");
       const sessionId = c.req.param("id");
-      const { content, reelRefs } = c.req.valid("json");
+      const { content, reelRefs, activeContentId } = c.req.valid("json");
 
       debugLog.info("[chat:sendMessage] Request received", {
         service: "chat-route",
@@ -421,6 +530,7 @@ app.post(
         auth.user.id,
         session.project,
         reelRefs,
+        activeContentId,
       );
       const systemPrompt = getChatSystemPrompt();
       const userPrompt = context
@@ -648,6 +758,7 @@ async function buildChatContext(
   userId: string,
   project: any,
   reelRefs?: number[],
+  activeContentId?: number,
 ) {
   try {
     let context = `Project: ${project.name}`;
@@ -672,6 +783,34 @@ async function buildChatContext(
           )
           .join("\n");
         context += `\nAttached reels (use get_reel_analysis to fetch deep analysis before generating):\n${reelContext}`;
+      }
+    }
+
+    if (activeContentId) {
+      const [active] = await db
+        .select({
+          id: generatedContent.id,
+          version: generatedContent.version,
+          outputType: generatedContent.outputType,
+          generatedHook: generatedContent.generatedHook,
+          generatedScript: generatedContent.generatedScript,
+        })
+        .from(generatedContent)
+        .where(
+          and(
+            eq(generatedContent.id, activeContentId),
+            eq(generatedContent.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (active) {
+        context += `\n\nActive Draft (ID: ${active.id}, v${active.version}):
+Hook: "${active.generatedHook ?? "none"}"
+Script: "${(active.generatedScript ?? "none").slice(0, 300)}..."
+Type: ${active.outputType}
+
+When the user asks to edit, refine, or change this content, call iterate_content with parentContentId: ${active.id}.`;
       }
     }
 

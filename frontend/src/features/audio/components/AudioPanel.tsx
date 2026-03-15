@@ -7,6 +7,7 @@ import { MusicLibraryBrowser } from "./MusicLibraryBrowser";
 import { MusicAttachment } from "./MusicAttachment";
 import { VolumeBalance } from "./VolumeBalance";
 import { useContentAssets } from "../hooks/use-content-assets";
+import { useGeneratedContent } from "../hooks/use-generated-content";
 import { useAttachMusic } from "../hooks/use-attach-music";
 import { useDeleteAsset } from "../hooks/use-delete-asset";
 import { useUpdateAssetMetadata } from "../hooks/use-update-asset-metadata";
@@ -14,13 +15,11 @@ import type { MusicTrack } from "../types/audio.types";
 
 interface AudioPanelProps {
   generatedContentId: number;
-  scriptText: string;
   onClose: () => void;
 }
 
 export function AudioPanel({
   generatedContentId,
-  scriptText,
   onClose,
 }: AudioPanelProps) {
   const { t } = useTranslation();
@@ -28,7 +27,11 @@ export function AudioPanel({
   const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
+  const { data: contentData } = useGeneratedContent(generatedContentId);
   const { data: assetsData, isLoading } = useContentAssets(generatedContentId);
+
+  const generatedScript = contentData?.content.generatedScript ?? null;
+  const generatedHook = contentData?.content.generatedHook ?? null;
   const attachMusic = useAttachMusic();
   const deleteAsset = useDeleteAsset(generatedContentId);
   const updateMetadata = useUpdateAssetMetadata(generatedContentId);
@@ -130,7 +133,8 @@ export function AudioPanel({
         ) : showGenerator ? (
           <VoiceoverGenerator
             generatedContentId={generatedContentId}
-            scriptText={scriptText}
+            generatedScript={generatedScript}
+            generatedHook={generatedHook}
             onSuccess={(url) => {
               setLocalAudioUrl(url);
               setIsRegenerating(false);

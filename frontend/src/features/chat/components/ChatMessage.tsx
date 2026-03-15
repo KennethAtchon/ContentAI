@@ -93,14 +93,12 @@ const markdownComponents: Components = {
 
 interface MessageChipsProps {
   contentId: number;
-  messageContent: string;
-  onOpenAudio: (contentId: number, scriptText: string) => void;
+  onOpenAudio: (contentId: number) => void;
   onSendMessage: (content: string) => void;
 }
 
 function MessageChips({
   contentId,
-  messageContent,
   onOpenAudio,
   onSendMessage,
 }: MessageChipsProps) {
@@ -121,13 +119,13 @@ function MessageChips({
     chips.push({
       icon: Mic,
       label: t("studio_chat_chip_addVoiceover"),
-      onClick: () => onOpenAudio(contentId, messageContent),
+      onClick: () => onOpenAudio(contentId),
     });
   } else if (!hasMusic) {
     chips.push({
       icon: Music,
       label: t("studio_chat_chip_addMusic"),
-      onClick: () => onOpenAudio(contentId, messageContent),
+      onClick: () => onOpenAudio(contentId),
     });
   }
 
@@ -160,7 +158,7 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   isSavingContent?: boolean;
   streamingContentId?: number | null;
-  onOpenAudio?: (contentId: number, scriptText: string) => void;
+  onOpenAudio?: (contentId: number) => void;
   onSendMessage?: (content: string) => void;
 }
 
@@ -300,7 +298,7 @@ export function ChatMessage({
               generatedContentId={resolvedContentId}
               onClick={
                 onOpenAudio
-                  ? () => onOpenAudio(resolvedContentId, message.content)
+                  ? () => onOpenAudio(resolvedContentId)
                   : undefined
               }
             />
@@ -311,7 +309,6 @@ export function ChatMessage({
         {showChips && (
           <MessageChips
             contentId={resolvedContentId}
-            messageContent={message.content}
             onOpenAudio={onOpenAudio}
             onSendMessage={onSendMessage}
           />
