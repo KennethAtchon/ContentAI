@@ -24,6 +24,28 @@ import { recordAiCost } from "../../lib/cost-tracker";
 
 const audioRouter = new Hono<HonoEnv>();
 
+/**
+ * Strip production metadata from a script before sending to TTS.
+ * Removes timing markers ([0-3s]), stage directions in parens, section labels,
+ * bullet markers, and collapses excess whitespace.
+ */
+function sanitizeScriptForTTS(text: string): string {
+  return text
+    // Remove timing markers: [0-3s], [0:03], [20-27s], etc.
+    .replace(/\[\d+[:\-]\d+s?\]/g, "")
+    // Remove stage directions in parentheses: (video of...), (cut to...)
+    .replace(/\([^)]*\)/g, "")
+    // Remove bracketed labels that aren't timing: [HOOK], [CTA], [Scene 1]
+    .replace(/\[[^\]]*\]/g, "")
+    // Remove leading bullet/dash markers
+    .replace(/^\s*[-•*]\s*/gm, "")
+    // Remove lines that are purely a section label like "CTA:" or "Hook:"
+    .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
+    // Collapse multiple blank lines into one
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const ttsRequestSchema = z.object({
   generatedContentId: z.number().int().positive(),
   text: z.string().min(1).max(5000),
@@ -196,10 +218,18 @@ audioRouter.post(
         await db.delete(reelAssets).where(eq(reelAssets.id, existing.id));
       }
 
+      // Strip timing markers, stage directions, and other production metadata
+      // before sending to TTS — ElevenLabs reads everything verbatim.
+      const spokenText = sanitizeScriptForTTS(text);
+
+      if (!spokenText) {
+        return c.json({ error: "Script is empty after removing stage directions", code: "EMPTY_TEXT" }, 400);
+      }
+
       // Generate TTS
       const startMs = Date.now();
       const { audioBuffer, durationMs } = await generateSpeech(
-        text,
+        spokenText,
         voice,
         speed as TTSSpeed,
       );
@@ -226,14 +256,14 @@ audioRouter.post(
             voiceName: voice.name,
             speed,
             provider: "elevenlabs",
-            characterCount: text.length,
+            characterCount: spokenText.length,
             volumeBalance: 70,
           },
         })
         .returning();
 
       // Track cost (ElevenLabs ~$0.30/1000 chars for standard voices)
-      const costUsd = (text.length / 1000) * 0.3;
+      const costUsd = (spokenText.length / 1000) * 0.3;
       recordAiCost({
         userId: auth.user.id,
         provider: "openai", // use openai as placeholder since the field is a union type
@@ -243,7 +273,7 @@ audioRouter.post(
         outputTokens: 0,
         durationMs: generationMs,
         metadata: {
-          characterCount: text.length,
+          characterCount: spokenText.length,
           voiceId,
           durationMs,
           costUsd,
@@ -252,6 +282,13 @@ audioRouter.post(
 
       // Generate signed URL for playback
       const audioUrl = await getFileUrl(r2Key, 3600);
+
+      // Denormalize the public voiceover URL onto generated_content for fast publish reads
+      const voiceoverPublicUrl = `${R2_PUBLIC_URL}/${r2Key}`;
+      await db
+        .update(generatedContent)
+        .set({ voiceoverUrl: voiceoverPublicUrl })
+        .where(eq(generatedContent.id, generatedContentId));
 
       return c.json({ asset, audioUrl });
     } catch (error) {

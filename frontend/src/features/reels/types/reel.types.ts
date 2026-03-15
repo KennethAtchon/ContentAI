@@ -8,9 +8,8 @@ export interface Reel {
   engagementRate: string | null;
   hook: string | null;
   thumbnailEmoji: string | null;
-  thumbnailUrl: string | null;
-  videoUrl: string | null;
-  // R2 storage URL for downloaded video (full URL including environment prefix)
+  // Always R2 URLs — never Instagram CDN URLs
+  thumbnailR2Url: string | null;
   videoR2Url: string | null;
   daysAgo: number | null;
   isViral: boolean;

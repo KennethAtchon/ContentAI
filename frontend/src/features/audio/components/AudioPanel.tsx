@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { VoiceoverGenerator } from "./VoiceoverGenerator";
 import { VoiceoverPlayer } from "./VoiceoverPlayer";
 import { MusicLibraryBrowser } from "./MusicLibraryBrowser";
@@ -15,13 +15,9 @@ import type { MusicTrack } from "../types/audio.types";
 
 interface AudioPanelProps {
   generatedContentId: number;
-  onClose: () => void;
 }
 
-export function AudioPanel({
-  generatedContentId,
-  onClose,
-}: AudioPanelProps) {
+export function AudioPanel({ generatedContentId }: AudioPanelProps) {
   const { t } = useTranslation();
   const [showMusicBrowser, setShowMusicBrowser] = useState(false);
   const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
@@ -100,28 +96,13 @@ export function AudioPanel({
   const showGenerator = !hasVoiceover || isRegenerating;
 
   return (
-    <div className="w-[380px] h-full border-l bg-background flex flex-col shrink-0">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{t("audio_panel_title")}</h3>
-          {isReady && (
-            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span className="text-[11px] font-medium">
-                {t("audio_panel_ready")}
-              </span>
-            </div>
-          )}
+    <div className="flex-1 flex flex-col min-h-0">
+      {isReady && (
+        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 px-4 pt-3">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium">{t("audio_panel_ready")}</span>
         </div>
-        <button
-          onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-          aria-label={t("audio_panel_close")}
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      )}
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">

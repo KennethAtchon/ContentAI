@@ -307,7 +307,7 @@ nichesRouter.get(
       if (viralFilter === "false")
         whereConditions.push(eq(reels.isViral, false));
       if (hasVideoFilter === "true")
-        whereConditions.push(isNotNull(reels.videoUrl));
+        whereConditions.push(isNotNull(reels.videoR2Url));
       const where = and(...whereConditions);
 
       const [reelRows, [{ total }]] = await Promise.all([

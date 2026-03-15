@@ -189,8 +189,7 @@ reelsRouter.get(
             engagementRate: reels.engagementRate,
             hook: reels.hook,
             thumbnailEmoji: reels.thumbnailEmoji,
-            thumbnailUrl: reels.thumbnailUrl,
-            videoUrl: reels.videoUrl,
+            thumbnailR2Url: reels.thumbnailR2Url,
             videoR2Url: reels.videoR2Url,
             daysAgo: reels.daysAgo,
             isViral: reels.isViral,
@@ -339,32 +338,22 @@ reelsRouter.get(
       if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
 
       const [reel] = await db
-        .select({
-          videoR2Url: reels.videoR2Url,
-          videoUrl: reels.videoUrl,
-        })
+        .select({ videoR2Url: reels.videoR2Url })
         .from(reels)
         .where(eq(reels.id, id));
 
       if (!reel) return c.json({ error: "Reel not found" }, 404);
 
-      // Prefer R2 presigned URL, fall back to CDN URL
-      // TODO: Rename columns for clarity: videoR2Url/audioR2Url are now full URLs.
-      // Keep extractKeyFromUrl while values are full URLs; remove only if storage migrates to raw keys.
+      if (!reel.videoR2Url) return c.json({ error: "No video available" }, 404);
+
       let url: string | null = null;
-      if (reel.videoR2Url) {
-        try {
-          const rawKey = extractKeyFromUrl(reel.videoR2Url);
-          if (rawKey) {
-            url = await getFileUrl(rawKey, 3600);
-          } else {
-            url = reel.videoUrl;
-          }
-        } catch {
-          url = reel.videoUrl;
+      try {
+        const rawKey = extractKeyFromUrl(reel.videoR2Url);
+        if (rawKey) {
+          url = await getFileUrl(rawKey, 3600);
         }
-      } else {
-        url = reel.videoUrl;
+      } catch {
+        // signed URL generation failed
       }
 
       if (!url) return c.json({ error: "No video available" }, 404);

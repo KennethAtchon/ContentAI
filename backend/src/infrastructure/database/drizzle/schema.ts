@@ -127,9 +127,10 @@ export const reels = pgTable(
     thumbnailEmoji: text("thumbnail_emoji"),
     thumbnailUrl: text("thumbnail_url"),
     videoUrl: text("video_url"),
-    // R2 storage URLs for downloaded media
+    // R2 storage URLs for downloaded media (always prefer these over Instagram CDN URLs)
     videoR2Url: text("video_r2_url"),
     audioR2Url: text("audio_r2_url"),
+    thumbnailR2Url: text("thumbnail_r2_url"),
     // Video metadata
     videoLengthSeconds: integer("video_length_seconds"),
     cutFrequencySeconds: numeric("cut_frequency_seconds", {
@@ -189,6 +190,21 @@ export const reelAnalyses = pgTable(
   (t) => [index("reel_analyses_reel_id_idx").on(t.reelId)],
 );
 
+/**
+ * THE most important table in the entire database.
+ *
+ * A generated_content row is the thing users are paying for — the finished,
+ * structured content package that gets published to Instagram, TikTok, etc.
+ * It contains everything needed to produce a real post:
+ *   - The hook, script, caption, hashtags, and CTA (AI-authored copy)
+ *   - The voiceover audio URL (spoken narration, generated via TTS)
+ *   - The background audio URL (music track attached by the user)
+ *   - The final video file URL once rendered
+ *
+ * Rows form a version chain via parentId: v1 → v2 → v3 (iterate_content).
+ * The tip of each chain (no child exists) is the canonical "current" draft.
+ * Status lifecycle: draft → queued → processing → published | failed.
+ */
 export const generatedContent = pgTable(
   "generated_content",
   {
@@ -196,14 +212,20 @@ export const generatedContent = pgTable(
     userId: text("user_id").notNull(),
     sourceReelId: integer("source_reel_id"),
     prompt: text("prompt").notNull(),
+    // AI-authored copy
     generatedHook: text("generated_hook"),
     generatedCaption: text("generated_caption"),
     generatedScript: text("generated_script"),
     generatedMetadata: jsonb("generated_metadata"),
+    // Audio assets — denormalized for fast publish reads (source of truth is reel_assets)
+    voiceoverUrl: text("voiceover_url"),
+    backgroundAudioUrl: text("background_audio_url"),
+    // Final rendered video
     thumbnailR2Key: text("thumbnail_r2_key"),
     videoR2Url: text("video_r2_url"),
     outputType: text("output_type").notNull().default("full"),
     model: text("model"),
+    // draft → queued → processing → published | failed
     status: text("status").notNull().default("draft"),
     version: integer("version").notNull().default(1),
     parentId: integer("parent_id"),

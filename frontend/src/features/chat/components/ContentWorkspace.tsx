@@ -162,7 +162,6 @@ export function ContentWorkspace({
                 activeContentId ??
                 drafts[drafts.length - 1]!.id
               }
-              onClose={() => setActiveTab("drafts")}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">

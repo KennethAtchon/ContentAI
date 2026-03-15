@@ -45,8 +45,8 @@ export interface AdminNicheReel {
   caption: string | null;
   audioName: string | null;
   thumbnailEmoji: string | null;
-  thumbnailUrl: string | null;
-  videoUrl: string | null;
+  thumbnailR2Url: string | null;
+  videoR2Url: string | null;
   isViral: boolean;
   hasAnalysis: boolean;
   createdAt: string;

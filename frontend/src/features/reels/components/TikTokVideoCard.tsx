@@ -26,7 +26,7 @@ export function TikTokVideoCard({
   const [isBuffering, setIsBuffering] = useState(true);
   const [captionExpanded, setCaptionExpanded] = useState(false);
 
-  const hasVideo = !!(reel.videoUrl || reel.videoR2Url);
+  const hasVideo = !!reel.videoR2Url;
   const { data: mediaData } = useReelMediaUrl(
     isActive ? reel.id : null,
     hasVideo
@@ -87,9 +87,9 @@ export function TikTokVideoCard({
           onCanPlay={() => setIsBuffering(false)}
           className="absolute inset-0 w-full h-full object-contain cursor-pointer"
         />
-      ) : reel.thumbnailUrl ? (
+      ) : reel.thumbnailR2Url ? (
         <img
-          src={reel.thumbnailUrl}
+          src={reel.thumbnailR2Url}
           alt={reel.username}
           className="absolute inset-0 w-full h-full object-contain"
         />

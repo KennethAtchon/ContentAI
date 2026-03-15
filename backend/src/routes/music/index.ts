@@ -15,6 +15,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, ilike, or, gte, lte, desc, sql } from "drizzle-orm";
 import { getFileUrl } from "../../services/storage/r2";
+import { R2_PUBLIC_URL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 
 const app = new Hono<HonoEnv>();
@@ -198,6 +199,13 @@ app.post(
           },
         })
         .returning();
+
+      // Denormalize the public background audio URL onto generated_content for fast publish reads
+      const backgroundAudioPublicUrl = `${R2_PUBLIC_URL}/${track.r2Key}`;
+      await db
+        .update(generatedContent)
+        .set({ backgroundAudioUrl: backgroundAudioPublicUrl })
+        .where(eq(generatedContent.id, generatedContentId));
 
       return c.json({ asset });
     } catch (error) {

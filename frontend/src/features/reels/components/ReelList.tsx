@@ -41,9 +41,9 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
               )}
             >
               {/* Thumbnail image or emoji fallback */}
-              {reel.thumbnailUrl ? (
+              {reel.thumbnailR2Url ? (
                 <img
-                  src={reel.thumbnailUrl}
+                  src={reel.thumbnailR2Url}
                   alt={reel.username}
                   className={cn(
                     "w-[38px] h-[50px] rounded-[6px] object-cover shrink-0",
@@ -68,7 +68,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 <p className="text-[10px] text-slate-200/35 mt-px">
                   {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
                 </p>
-                {reel.videoUrl ? (
+                {reel.videoR2Url ? (
                   <span className="inline-block mt-0.5 text-[8px] font-semibold text-green-400/70 bg-green-400/10 px-1 py-px rounded">
                     ▶ VIDEO
                   </span>

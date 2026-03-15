@@ -9,6 +9,13 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import type { QueueItem } from "@/features/reels/types/reel.types";
 
 interface Project {
@@ -151,20 +158,28 @@ function QueuePage() {
 
               {/* Project filter */}
               {projects.length > 0 && (
-                <select
-                  value={projectFilter}
-                  onChange={(e) => setProjectFilter(e.target.value)}
-                  className="text-[11px] font-medium px-3 py-1.5 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio appearance-none focus:outline-none focus:border-studio-accent/30 transition-colors"
-                >
-                  <option value="all">
-                    {t("studio_queue_filter_all_projects")}
-                  </option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                <span className="inline-flex">
+                  <Select
+                    value={projectFilter}
+                    onValueChange={setProjectFilter}
+                  >
+                    <SelectTrigger
+                      className="text-[11px] font-medium px-2 py-1 rounded-full border bg-white/[0.03] text-slate-200/60 border-white/[0.08] cursor-pointer font-studio focus:outline-none focus:border-studio-accent/30 transition-colors h-[28px] min-w-[100px] [&>svg]:h-3 [&>svg]:w-3"
+                    >
+                      <SelectValue placeholder={t("studio_queue_filter_all_projects")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        {t("studio_queue_filter_all_projects")}
+                      </SelectItem>
+                      {projects.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </span>
               )}
 
               {/* Search */}

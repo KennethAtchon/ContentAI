@@ -142,8 +142,8 @@ function ReelRow({
           className="flex items-center justify-end gap-1"
           onClick={(e) => e.stopPropagation()}
         >
-          {reel.videoUrl && (
-            <a href={reel.videoUrl} target="_blank" rel="noopener noreferrer">
+          {reel.videoR2Url && (
+            <a href={reel.videoR2Url} target="_blank" rel="noopener noreferrer">
               <Button
                 variant="ghost"
                 size="sm"

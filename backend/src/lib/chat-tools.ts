@@ -258,14 +258,34 @@ export function createIterateContentTool(context: ToolContext) {
           return { error: "not_found" };
         }
 
+        // Resolve to the tip of the chain to prevent branching.
+        // If the AI passes an outdated parentId, walk forward to the latest version.
+        let effectiveParent = parent;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const [child] = await db
+            .select()
+            .from(generatedContent)
+            .where(
+              and(
+                eq(generatedContent.parentId, effectiveParent.id),
+                eq(generatedContent.userId, context.auth.user.id),
+              ),
+            )
+            .limit(1);
+          if (!child) break;
+          effectiveParent = child;
+        }
+
         debugLog.info(
           "[tool:iterate_content] Parent content found, creating new version",
           {
             service: "chat-tools",
             operation: "iterate_content",
             parentContentId,
-            parentVersion: parent.version,
-            newVersion: parent.version + 1,
+            resolvedParentId: effectiveParent.id,
+            parentVersion: effectiveParent.version,
+            newVersion: effectiveParent.version + 1,
           },
         );
 
@@ -274,18 +294,18 @@ export function createIterateContentTool(context: ToolContext) {
           .values({
             userId: context.auth.user.id,
             prompt: context.content,
-            generatedHook: hook ?? parent.generatedHook,
-            generatedCaption: caption ?? parent.generatedCaption,
-            generatedScript: script ?? parent.generatedScript,
+            generatedHook: hook ?? effectiveParent.generatedHook,
+            generatedCaption: caption ?? effectiveParent.generatedCaption,
+            generatedScript: script ?? effectiveParent.generatedScript,
             generatedMetadata: {
-              hashtags: hashtags ?? (parent.generatedMetadata as any)?.hashtags,
-              cta: cta ?? (parent.generatedMetadata as any)?.cta,
+              hashtags: hashtags ?? (effectiveParent.generatedMetadata as any)?.hashtags,
+              cta: cta ?? (effectiveParent.generatedMetadata as any)?.cta,
               changeDescription,
             },
-            outputType: parent.outputType,
+            outputType: effectiveParent.outputType,
             status: "draft",
-            version: parent.version + 1,
-            parentId: parent.id,
+            version: effectiveParent.version + 1,
+            parentId: effectiveParent.id,
           })
           .returning();
 

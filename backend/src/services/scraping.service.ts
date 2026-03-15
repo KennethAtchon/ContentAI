@@ -531,6 +531,7 @@ class ScrapingService {
             externalId,
             videoUrl,
             audioUrl,
+            newReel.thumbnailUrl ?? null,
           ).catch((err) =>
             debugLog.error("Media upload failed", {
               service: "scraping-service",
@@ -610,21 +611,23 @@ class ScrapingService {
     externalId: string | null,
     videoUrl: string | null,
     audioUrl: string | null,
+    thumbnailUrl: string | null,
   ): Promise<void> {
     const keyBase = externalId ?? `reel-${reelId}`;
 
-    const [videoResult, audioResult] = await Promise.allSettled([
+    const [videoResult, audioResult, thumbnailResult] = await Promise.allSettled([
       videoUrl
         ? storage.uploadFromUrl(videoUrl, `video/${keyBase}.mp4`, "video/mp4")
         : Promise.resolve(null),
       audioUrl
         ? storage.uploadFromUrl(audioUrl, `audio/${keyBase}.m4a`, "audio/mp4")
         : Promise.resolve(null),
+      thumbnailUrl
+        ? storage.uploadFromUrl(thumbnailUrl, `thumbnails/${keyBase}.jpg`, "image/jpeg")
+        : Promise.resolve(null),
     ]);
 
-    const updates: { videoR2Url?: string; audioR2Url?: string } = {};
-
-    // Storing full URLs is correct design - they include environment prefixes and can be used directly
+    const updates: { videoR2Url?: string; audioR2Url?: string; thumbnailR2Url?: string } = {};
 
     if (videoResult.status === "fulfilled" && videoResult.value) {
       updates.videoR2Url = videoResult.value;
@@ -643,6 +646,16 @@ class ScrapingService {
         service: "scraping-service",
         externalId,
         error: (audioResult.reason as Error)?.message,
+      });
+    }
+
+    if (thumbnailResult.status === "fulfilled" && thumbnailResult.value) {
+      updates.thumbnailR2Url = thumbnailResult.value;
+    } else if (thumbnailResult.status === "rejected") {
+      debugLog.warn("Thumbnail R2 upload failed", {
+        service: "scraping-service",
+        externalId,
+        error: (thumbnailResult.reason as Error)?.message,
       });
     }
 
