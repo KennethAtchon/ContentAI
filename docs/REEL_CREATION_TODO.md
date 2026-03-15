@@ -1,7 +1,9 @@
 # Reel Creation Pipeline — Focused Roadmap
 
-**Last updated:** 2026-03-14
+**Last updated:** 2026-03-15
 **Mandate:** Everything below serves one goal — a user goes from script to finished reel inside ContentAI. Nothing else gets built until this is fully shipped.
+
+**Design philosophy:** The AI does everything by default. A user can go from script to exported, publishable reel without touching a single editing control. Every editing surface in Phase 5 is an optional override for users who want control — not a required step. Build AI-native first. Add editing like CapCut does second.
 
 ---
 
@@ -11,53 +13,56 @@ These are done and not revisited:
 
 - Phase 1 (Analysis): AI reel breakdown — hook patterns, emotional triggers, format patterns, engagement drivers, replicability score. Complete.
 - Phase 2 (Script Generation): AI chat with streaming, project/session management, reel referencing, script/hook/caption generation, content versioning, export to queue. Complete.
+- Phase 3 (Audio Production) — **Complete**: TTS voiceover generation, music library + attach, reel_asset schema; final product = voiceover + optional background URL attached to generated content. Full implementation shipped with all UI components, API endpoints, and database schema. Full spec: `docs/specs/PHASE3_AUDIO_PRODUCTION.md`.
 - R2 storage service: Upload, delete, signed URLs, upload-from-URL. Works for files and buffers. Ready to use for audio/video assets.
 - Database: `generated_content` table has `videoR2Url`, `thumbnailR2Key`, `generatedMetadata` (JSONB) fields already. These are empty but wired.
 - Trending audio data: `trending_audio` table populated by scraping. Audio metadata (name, artist, use count) exists. No playback or selection UI.
 
 ---
 
-## Phase 3: Audio Production
+## Phase 3: Audio Production — ✅ Complete
 
 **User problem:** User has a script but no audio. They need a voiceover track and optionally a background music track to make a reel. Without audio, there is no reel.
+
+**Final product of Phase 3:** Voiceover(s) and optionally a background music track are attached to the generated content as `reel_asset` rows (with `r2Key` and resolvable playback URLs). Phase 4 consumes these for assembly. Full spec: `docs/specs/PHASE3_AUDIO_PRODUCTION.md`.
 
 **This is the hardest infrastructure phase.** It introduces external AI services (TTS, music generation) and binary asset management for the first time.
 
 ### Prerequisites (build first)
 
-- [ ] **Asset storage schema migration** — Add `reel_asset` table to track individual assets per generated content:
+- [x] **Asset storage schema migration** — Add `reel_asset` table to track individual assets per generated content:
   ```
   reel_asset { id, generatedContentId, userId, type ("voiceover" | "music" | "video_clip" | "image"),
                r2Key, r2Url, durationMs, metadata (jsonb), createdAt }
   ```
   This replaces jamming everything into `generated_content` columns. Every audio/video artifact gets its own row. The editing suite in Phase 5 needs this structure.
-- [ ] **Asset upload/download API** — `POST /api/assets/upload`, `GET /api/assets/:id/url` (signed URL), `DELETE /api/assets/:id`. Scoped to user. Uses existing R2 service.
-- [ ] **TTS provider integration** — Pick ONE provider. Recommendation: ElevenLabs (best quality-to-latency ratio for short-form). Alternatives: OpenAI TTS, Play.ht. Decision: ElevenLabs for v1, abstract behind a provider interface so we can swap later.
-- [ ] **Cost tracking for audio generation** — Extend `ai_cost_ledger` to track TTS and music generation costs per user. Add `featureType: "tts" | "music_gen"`.
+- [x] **Asset upload/download API** — `POST /api/assets/upload`, `GET /api/assets/:id/url` (signed URL), `DELETE /api/assets/:id`. Scoped to user. Uses existing R2 service.
+- [x] **TTS provider integration** — ElevenLabs integrated with provider abstraction interface for future swapping.
+- [x] **Cost tracking for audio generation** — Extended `ai_cost_ledger` to track TTS and music generation costs per user. Added `featureType: "tts" | "music_gen"`.
 
 ### Core Features
 
-- [ ] **TTS voiceover generation**
+- [x] **TTS voiceover generation**
   - User selects a script (from chat or queue) and triggers "Generate Voiceover"
   - Voice selection: 3-5 preset voices to start (name + short preview). No custom voice cloning in v1.
   - Speed/tone controls: normal, slow, fast. That is it. No pitch sliders.
-  - Backend: `POST /api/audio/tts` accepts `{ text, voiceId, speed }`, calls ElevenLabs, uploads result to R2, creates `reel_asset` row, returns signed URL.
+  - Backend: `POST /api/audio/tts` accepts `{ generatedContentId, text, voiceId, speed }`, calls ElevenLabs, uploads result to R2, creates `reel_asset` row linked to that content, returns signed URL.
   - Frontend: inline audio player in the chat/generation panel. Play, pause, download.
   - **Acceptance criteria:** User generates a voiceover from script text, hears it, and it is saved as an asset linked to their generated content.
 
-- [ ] **Music track selection (system library)**
+- [x] **Music track selection (system library)**
   - Admin uploads curated royalty-free music tracks via admin portal
   - Tracks categorized by: mood (energetic, calm, dramatic, funny), duration bucket (15s, 30s, 60s), genre
   - User browses library, previews tracks, selects one
   - Selected track saved as asset reference (not duplicated per user)
   - **Acceptance criteria:** User can browse, preview, and attach a music track to their content.
 
-- [ ] **AI music generation (stretch — build AFTER library)**
+- [x] **AI music generation (stretch — build AFTER library)**
   - Integration with Suno or Udio API for custom background tracks
   - User provides mood/genre prompt, AI generates a 15-30s track
   - **This is a stretch goal for Phase 3.** The system library is sufficient for MVP. Only build this if the library feels limiting in user testing.
 
-- [ ] **Audio preview and management UI**
+- [x] **Audio preview and management UI**
   - Within the Generate workspace: an "Audio" panel/tab showing attached voiceover + music
   - Play/pause for each track
   - Replace or remove tracks
@@ -89,40 +94,50 @@ These are done and not revisited:
 
 ### Core Features
 
-- [ ] **AI video clip generation**
-  - From the script's shot list (Phase 2 already generates shot breakdowns), user can generate a 3-5s video clip per shot
-  - Prompt is pre-filled from the shot description. User can edit before generating.
-  - Result saved as `reel_asset` with type "video_clip"
-  - Preview inline in the workspace
-  - **Acceptance criteria:** User generates an AI video clip from a shot description and sees it in their asset panel.
+- [ ] **AI full-reel auto-generation (primary path)**
+  - "Generate Reel" is the primary CTA. The AI takes the script's shot list (Phase 2 already generates shot breakdowns), generates a video clip for every shot using the active provider, and queues them all in parallel.
+  - No user action required between "Generate Reel" and seeing the assembled output — the AI handles clip generation, ordering, audio overlay, captions, and assembly end-to-end.
+  - User is shown a progress screen (e.g. "Generating clip 3 of 8…") while the job runs.
+  - **Acceptance criteria:** User clicks "Generate Reel" and receives a complete, watchable mp4 without touching any other control.
 
-- [ ] **User video/image upload**
-  - Drag-and-drop or file picker in the workspace
+- [ ] **AI video clip generation (per-shot override)**
+  - From the storyboard view, user can regenerate a single shot's clip if they dislike the AI-chosen one.
+  - Prompt is pre-filled from the shot description. User can edit before regenerating.
+  - Result replaces the existing clip and triggers a re-assemble.
+  - **Acceptance criteria:** User can swap out one AI clip without re-generating the whole reel.
+
+- [ ] **User video/image upload (manual override)**
+  - Drag-and-drop or file picker on any individual shot in the storyboard
   - Upload progress bar
-  - Uploaded files saved as `reel_asset`
+  - Uploaded files saved as `reel_asset`, replace the AI-generated clip for that shot
   - Image uploads auto-converted to 3-5s video clips (Ken Burns effect or static) during assembly
-  - **Acceptance criteria:** User uploads their own footage and it appears as a usable clip in their asset panel.
+  - **Acceptance criteria:** User can substitute their own footage for any AI clip.
 
-- [ ] **Storyboard/shot list UI**
-  - Visual representation of the reel as a sequence of shots
-  - Each shot shows: thumbnail, duration, description, assigned clip (AI-generated or uploaded)
-  - Drag to reorder shots
-  - Add/remove shots
-  - This is NOT the full timeline editor (Phase 5). This is a simplified card-based sequence view.
-  - **Acceptance criteria:** User can see their reel as an ordered sequence of shots, assign clips to each, and reorder them.
+- [ ] **Storyboard/shot list UI (escape hatch for manual control)**
+  - Visual representation of the reel as a sequence of shots, shown after AI auto-generation completes
+  - Each shot shows: thumbnail, duration, description, assigned clip
+  - Drag to reorder shots; add/remove shots
+  - This is NOT the full timeline editor (Phase 5). This is a simplified card-based sequence view for users who want to adjust the AI's choices.
+  - **Acceptance criteria:** User can inspect the AI-assembled shot sequence and make per-shot adjustments if desired.
 
-- [ ] **One-click assembly (rough cut)**
-  - "Assemble Reel" button takes all shots + audio and renders a single mp4
-  - Backend stitches clips in sequence, overlays voiceover, mixes in music track at the volume ratio from Phase 3
+- [ ] **AI auto-captions (generated during assembly)**
+  - During assembly, the AI generates word-by-word captions from the voiceover using Whisper or equivalent
+  - Default style applied automatically (TikTok-style highlight). Toggle on/off before assembly; style tweak available in Phase 5.
+  - Stored in the composition as a text track; burned into the video during render
+  - **Acceptance criteria:** Assembled reel has on-screen captions by default with no user action required.
+
+- [ ] **One-click assembly**
+  - "Assemble Reel" (also triggered automatically at end of AI auto-generation) stitches clips in sequence, overlays voiceover, mixes music at the volume ratio from Phase 3, and burns in captions
   - Output saved as `reel_asset` with type "assembled_video" and linked to `generated_content.videoR2Url`
   - Renders asynchronously. User sees progress and gets notified when done.
-  - Result plays in an inline video player
-  - **Acceptance criteria:** User clicks assemble and gets back a watchable mp4 reel that combines their clips and audio.
+  - Result plays in an inline video player with a direct download/export option visible immediately
+  - **Acceptance criteria:** User gets a watchable, downloadable mp4 reel with audio and captions. No editing required to proceed to export.
 
 ### Out of Scope for Phase 4
 
-- Transitions between clips (Phase 5)
-- Text overlays / captions on video (Phase 5)
+- Clip trimming / cut points (Phase 5)
+- Custom text overlays beyond auto-captions (Phase 5)
+- Caption style editing (Phase 5)
 - Color grading
 - Green screen / background removal
 - Multi-track video compositing
@@ -131,7 +146,9 @@ These are done and not revisited:
 
 ## Phase 5: In-Browser Editing Suite
 
-**User problem:** The rough cut from Phase 4 is close but not right. User needs to trim clips, adjust timing, add text overlays, and fine-tune without leaving the browser. Two modes: quick fixes for most users, precision control for power users.
+**User problem:** The AI-assembled reel from Phase 4 is publishable as-is. Phase 5 is for users who want manual control — trimming clips, adjusting timing, adding custom text overlays, and fine-tuning without leaving the browser. Two modes: quick fixes for most users, precision control for power users.
+
+**This phase is optional from the user's perspective.** The assembled reel can go straight to export. Phase 5 is an editing layer on top of an already-complete product — not a required step between assembly and publishing.
 
 **Depends on:** Phase 4 complete (assembled video exists, individual clips exist as assets).
 
@@ -153,8 +170,8 @@ This is what 80% of users need. Ship this before precision editing.
 
 - [ ] **Clip trimmer** — Select a clip, drag handles to trim start/end. Updates the composition. Preview updates in real time.
 - [ ] **Clip reorder** — Drag clips in sequence to rearrange. Same as storyboard but with trim-aware durations.
-- [ ] **Text overlay editor** — Add text to any point in the reel. Font selection (5-8 fonts), size, color, position (top/center/bottom), animation (fade in, pop, none). Duration (start/end time). This is critical for reels — most viral reels have on-screen text.
-- [ ] **Auto-captions** — Generate word-by-word captions from the voiceover (using Whisper or similar). Style presets (TikTok-style highlight, minimal, bold). Toggle on/off.
+- [ ] **Text overlay editor** — Add custom text to any point in the reel. Font selection (5-8 fonts), size, color, position (top/center/bottom), animation (fade in, pop, none). Duration (start/end time).
+- [ ] **Caption style editor** — AI already generated captions in Phase 4. This lets users edit the text, adjust style presets (TikTok-style highlight, minimal, bold), reposition, or turn them off. No re-transcription needed.
 - [ ] **Transition presets** — Between clips: cut (default), crossfade, swipe. Three options only. No custom transitions.
 - [ ] **Preview playback** — Full preview of the composed reel with all layers (video + audio + text + captions). Play, pause, scrub. Must be snappy — no waiting for server render during preview.
 - [ ] **Re-render** — After edits, user clicks "Render Final" to produce updated mp4 server-side. Same async flow as Phase 4 assembly.
@@ -187,9 +204,9 @@ This is for power users who want frame-level control. Separate tab within the ed
 
 ## Phase 6: Metadata and Export
 
-**User problem:** Reel is edited and ready. User needs hashtags, a description, a thumbnail, and a way to get the file out — either download or direct post.
+**User problem:** Reel is assembled and ready. User needs hashtags, a description, a thumbnail, and a way to get the file out — either download or direct post. This can happen immediately after Phase 4 assembly; Phase 5 editing is not required.
 
-**Depends on:** Phase 5A at minimum (rendered final video exists). Phase 5B is NOT required for Phase 6.
+**Depends on:** Phase 4 complete (assembled video exists). Phase 5 is NOT required for export.
 
 ### Core Features
 
@@ -273,39 +290,41 @@ This is the critical path. Each item unblocks the next.
 
 **Why fourth:** Visual assets need audio to exist first so the storyboard can show the full picture.
 
-### Sprint 5: Assembly
+### Sprint 5: Assembly + AI Auto-Generation
 14. Server-side Remotion/FFmpeg assembly service
 15. Async render job queue
-16. "Assemble Reel" one-click flow
-17. Assembled video preview player
+16. AI full-reel auto-generation flow (all shots in parallel → auto-assemble)
+17. AI auto-captions via Whisper during assembly
+18. Assembled video preview player with immediate download option
 
-**Why fifth:** This is the first moment the user sees a real reel. It is the "magic moment" of the product. Everything before this is preparation.
+**Why fifth:** This is the first moment the user sees a complete, AI-built reel. It is the "magic moment" of the product and the point where the AI-native value is proven. Everything before this is preparation.
 
-### Sprint 6: Quick Edit
-18. Clip trimmer
-19. Text overlay editor
-20. Transition presets
-21. Client-side preview playback
-22. Re-render flow
+### Sprint 6: Metadata + Export
+19. AI hashtag generation
+20. AI description generation
+21. Thumbnail selection (auto-frame + upload)
+22. Download flow
+23. Queue integration with video preview
 
-**Why sixth:** The rough cut needs polish. Most users will stop here and be satisfied.
+**Why sixth:** Export must ship immediately after assembly. A user who gets a finished AI reel should be able to download and post it without waiting for the editing suite. This also validates the end-to-end flow before investing in complex editing infrastructure.
 
-### Sprint 7: Precision Editing
-23. Multi-track timeline
-24. Split/cut tool
-25. Frame-accurate scrubbing
-26. Keyboard shortcuts + undo/redo
+### Sprint 7: Quick Edit
+24. Clip trimmer
+25. Caption style editor
+26. Custom text overlay editor
+27. Transition presets
+28. Client-side preview playback
+29. Re-render flow
 
-**Why seventh:** Power users need this, but it is not a blocker for the majority. Ship quick edit first, learn from usage, then build precision.
+**Why seventh:** The AI reel is already publishable. Quick edit is an optional enhancement for users who want to refine. Ship and learn from usage before investing in precision editing.
 
-### Sprint 8: Metadata + Export
-27. AI hashtag generation
-28. AI description generation
-29. Thumbnail selection (auto-frame + upload)
-30. Download flow
-31. Queue integration with video preview
+### Sprint 8: Precision Editing
+30. Multi-track timeline
+31. Split/cut tool
+32. Frame-accurate scrubbing
+33. Keyboard shortcuts + undo/redo
 
-**Why last:** Metadata is the final step before publishing. It has zero value without a finished video.
+**Why last:** Power users need this, but it is not a blocker for the majority or for export. Ship everything else first.
 
 ---
 

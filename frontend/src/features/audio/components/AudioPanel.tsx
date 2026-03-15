@@ -132,13 +132,16 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
             />
 
             {hasVoiceover && hasMusic && (
-              <VolumeBalance
+              <>
+                <div className="h-px bg-border" />
+                <VolumeBalance
                 value={volumeBalance}
                 onChange={handleVolumeChange}
                 isSaving={updateMetadata.isPending}
                 voiceoverUrl={audioUrl ?? undefined}
                 musicUrl={currentMusicTrack?.previewUrl || undefined}
               />
+              </>
             )}
           </>
         )}
