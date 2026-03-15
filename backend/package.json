@@ -18,7 +18,6 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:introspect": "drizzle-kit introspect",
-    "db:seed:reels": "bun run scripts/seed-reels.ts",
     "seed:voice-previews": "bun run scripts/seed-voice-previews.ts",
     "db:reset": "bash scripts/db-reset.sh",
     "test": "bun test",

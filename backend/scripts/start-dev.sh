@@ -17,5 +17,8 @@ echo "Database is ready."
 echo "Running database migrations..."
 bun run scripts/migrate.ts
 
+echo "Seeding voice previews..."
+bun run scripts/seed-voice-previews.ts
+
 echo "Starting development server..."
 exec bun run --hot src/index.ts

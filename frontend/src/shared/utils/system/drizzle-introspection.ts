@@ -61,108 +61,36 @@ async function fetchSchema(): Promise<{ tables: any[] } | null> {
   return schemaPromise;
 }
 
-// Extract field information from fetched schema
-async function getDrizzleFieldInfo(
-  tableName: string
-): Promise<{ fields: string[]; fieldsInfo: Record<string, FieldInfo> }> {
-  try {
-    const schema = await fetchSchema();
-
-    if (!schema || !schema.tables) {
-      debugLog.warn(
-        `Schema not available for table ${tableName}`,
-        { service: "drizzle-introspection", operation: "getDrizzleFieldInfo" },
-        { tableName }
-      );
-      return { fields: [], fieldsInfo: {} };
-    }
-
-    const table = schema.tables.find(
-      (t: any) => t.name === tableName || t.tableName === tableName
-    );
-
-    if (!table) {
-      debugLog.warn(
-        `Table ${tableName} not found in schema`,
-        { service: "drizzle-introspection", operation: "getDrizzleFieldInfo" },
-        { tableName }
-      );
-      return { fields: [], fieldsInfo: {} };
-    }
-
-    const fields: string[] = [];
-    const fieldsInfo: Record<string, FieldInfo> = {};
-
-    table.columns.forEach((column: any) => {
-      // Skip null/undefined columns and columns without required properties
-      if (
-        !column ||
-        typeof column.name !== "string" ||
-        typeof column.dataType !== "string"
-      ) {
-        return;
-      }
-
-      fields.push(column.name);
-      fieldsInfo[column.name] = {
-        type: column.dataType,
-        nullable: Boolean(column.nullable),
-        hasDefaultValue: Boolean(column.hasDefault),
-        primaryKey: Boolean(column.primaryKey),
-        unique: Boolean(column.unique),
-      };
-    });
-
-    return { fields, fieldsInfo };
-  } catch (error) {
-    debugLog.error(
-      `Error extracting fields for ${tableName}`,
-      { service: "drizzle-introspection", operation: "getDrizzleFieldInfo" },
-      error
-    );
-    return { fields: [], fieldsInfo: {} };
-  }
-}
-
 export async function getTableConfigs(): Promise<TableConfig[]> {
-  const modelConfigs = [
-    { name: "User", tableName: "user", apiEndpoint: "/api/users" },
-    { name: "Order", tableName: "order", apiEndpoint: "/api/admin/orders" },
-    {
-      name: "ContactMessage",
-      tableName: "contact_message",
-      apiEndpoint: "/api/shared/contact-messages",
-    },
-    {
-      name: "FeatureUsage",
-      tableName: "feature_usage",
-      apiEndpoint: "/api/admin/feature-usages",
-    },
-  ];
+  const schema = await fetchSchema();
+  if (!schema?.tables) return [];
 
-  const configs = await Promise.all(
-    modelConfigs.map(async (config) => {
-      const { fields, fieldsInfo } = await getDrizzleFieldInfo(config.name);
-      return {
-        name: config.name,
-        tableName: config.tableName,
-        keyFields: fields,
-        apiEndpoint: config.apiEndpoint,
-        fieldsInfo,
-      };
-    })
-  );
-
-  return configs;
+  return schema.tables.map((table: any) => ({
+    name: table.name,
+    tableName: table.tableName,
+    keyFields: (table.columns ?? []).map((c: any) => c.name),
+    apiEndpoint: `/api/admin/tables/${table.name}`,
+    fieldsInfo: Object.fromEntries(
+      (table.columns ?? []).map((col: any) => [
+        col.name,
+        {
+          type: col.dataType,
+          nullable: col.nullable,
+          hasDefaultValue: col.hasDefault,
+          primaryKey: col.primaryKey,
+          unique: col.unique,
+        } satisfies FieldInfo,
+      ])
+    ),
+  }));
 }
 
-export async function generateExpectedParams(
-  tableName: string
-): Promise<Record<string, string>> {
-  const { fieldsInfo } = await getDrizzleFieldInfo(tableName);
+export function generateExpectedParams(
+  config: TableConfig
+): Record<string, string> {
   const params: Record<string, string> = {};
 
-  Object.entries(fieldsInfo).forEach(([fieldName, info]) => {
+  Object.entries(config.fieldsInfo).forEach(([fieldName, info]) => {
     // Skip auto-generated fields
     if (
       fieldName === "id" ||
@@ -172,9 +100,8 @@ export async function generateExpectedParams(
       return;
     }
 
-    let typeStr = info.type.toLowerCase();
+    let typeStr = (info.type ?? "unknown").toLowerCase();
 
-    // Map Drizzle types to more readable formats
     switch (info.type) {
       case "string":
         typeStr = "string";
@@ -193,7 +120,6 @@ export async function generateExpectedParams(
         typeStr = "object/array (JSON)";
         break;
       default:
-        // Handle arrays and other types
         if (info.type.includes("[]")) {
           typeStr = "array";
         } else {

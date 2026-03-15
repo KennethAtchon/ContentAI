@@ -13,11 +13,12 @@ import { debugLog } from "../../utils/debug/debug";
 import {
   users,
   orders,
-  contactMessages,
   featureUsages,
   aiCostLedger,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, or, ilike, desc, gte, lte, sql } from "drizzle-orm";
+import * as allSchema from "../../infrastructure/database/drizzle/schema";
+import { eq, and, or, ilike, desc, gte, lte, sql, is } from "drizzle-orm";
+import { PgTable } from "drizzle-orm/pg-core";
 import {
   getMonthBoundaries,
   calculatePercentChange,
@@ -984,66 +985,31 @@ admin.get(
   authMiddleware("admin"),
   async (c) => {
     try {
-      // Return actual Drizzle schema structure
-      const getTableName = (table: any) => {
-        const firstColumn = Object.values(table)[0] as { tableName?: string };
-        return firstColumn?.tableName || "unknown";
-      };
+      const tables = Object.entries(allSchema)
+        .filter(([, val]) => is(val as any, PgTable))
+        .map(([exportName, table]) => {
+          const tbl = table as PgTable;
+          const firstColumn = Object.values(tbl)[0] as { tableName?: string };
+          return {
+            name: exportName,
+            tableName: firstColumn?.tableName || exportName,
+            columns: Object.entries(tbl)
+              .filter(
+                ([, column]) => typeof (column as any)?.dataType === "string",
+              )
+              .map(([key, column]) => ({
+                name: key,
+                dataType: (column as any).dataType as string,
+                nullable: (column as any).nullable ?? true,
+                hasDefault: !!(column as any).hasDefault,
+                primaryKey: key === "id",
+                unique:
+                  (column as any).isUnique || (column as any).unique || false,
+              })),
+          };
+        });
 
-      const schema = {
-        tables: [
-          {
-            name: "User",
-            tableName: getTableName(users),
-            columns: Object.entries(users).map(([key, column]) => ({
-              name: key,
-              dataType: (column as any).dataType,
-              nullable: (column as any).nullable,
-              hasDefault: !!(column as any).hasDefault,
-              primaryKey: key === "id",
-              unique: (column as any).unique || false,
-            })),
-          },
-          {
-            name: "Order",
-            tableName: getTableName(orders),
-            columns: Object.entries(orders).map(([key, column]) => ({
-              name: key,
-              dataType: (column as any).dataType,
-              nullable: (column as any).nullable,
-              hasDefault: !!(column as any).hasDefault,
-              primaryKey: key === "id",
-              unique: (column as any).unique || false,
-            })),
-          },
-          {
-            name: "ContactMessage",
-            tableName: getTableName(contactMessages),
-            columns: Object.entries(contactMessages).map(([key, column]) => ({
-              name: key,
-              dataType: (column as any).dataType,
-              nullable: (column as any).nullable,
-              hasDefault: !!(column as any).hasDefault,
-              primaryKey: key === "id",
-              unique: (column as any).unique || false,
-            })),
-          },
-          {
-            name: "FeatureUsage",
-            tableName: getTableName(featureUsages),
-            columns: Object.entries(featureUsages).map(([key, column]) => ({
-              name: key,
-              dataType: (column as any).dataType,
-              nullable: (column as any).nullable,
-              hasDefault: !!(column as any).hasDefault,
-              primaryKey: key === "id",
-              unique: (column as any).unique || false,
-            })),
-          },
-        ],
-      };
-
-      return c.json(schema);
+      return c.json({ tables });
     } catch (error) {
       debugLog.error("Failed to fetch schema", {
         service: "admin-route",
@@ -1051,6 +1017,68 @@ admin.get(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch schema" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/admin/tables/:exportName ────────────────────────────────────────
+
+admin.get(
+  "/tables/:exportName",
+  rateLimiter("admin"),
+  authMiddleware("admin"),
+  async (c) => {
+    const exportName = c.req.param("exportName");
+    const page = Math.max(1, parseInt(c.req.query("page") || "1"));
+    const limit = Math.min(
+      200,
+      Math.max(1, parseInt(c.req.query("limit") || "50")),
+    );
+    const includeDeleted = c.req.query("includeDeleted") === "true";
+
+    const tableEntry = Object.entries(allSchema).find(
+      ([name, val]) => name === exportName && is(val as any, PgTable),
+    );
+
+    if (!tableEntry) {
+      return c.json({ error: "Table not found" }, 404);
+    }
+
+    const table = tableEntry[1] as PgTable;
+    const offset = (page - 1) * limit;
+
+    try {
+      const hasIsDeleted = "isDeleted" in table;
+      const whereClause =
+        !includeDeleted && hasIsDeleted
+          ? eq((table as any).isDeleted, false)
+          : undefined;
+
+      const [rows, countResult] = await Promise.all([
+        db.select().from(table).where(whereClause).limit(limit).offset(offset),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(table)
+          .where(whereClause),
+      ]);
+
+      const total = countResult[0]?.count ?? 0;
+
+      return c.json({
+        data: rows,
+        pagination: {
+          page,
+          totalPages: Math.ceil(total / limit),
+          total,
+        },
+      });
+    } catch (error) {
+      debugLog.error("Failed to query table", {
+        service: "admin-route",
+        operation: "getTable",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to query table" }, 500);
     }
   },
 );

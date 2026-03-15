@@ -69,11 +69,8 @@ function DeveloperPage() {
         const tableConfigs = await getTableConfigs();
         setTables(tableConfigs);
 
-        const paramEntries = await Promise.all(
-          tableConfigs.map(
-            async (table) =>
-              [table.name, await generateExpectedParams(table.name)] as const
-          )
+        const paramEntries = tableConfigs.map(
+          (table) => [table.name, generateExpectedParams(table)] as const
         );
         setExpectedParamsMap(Object.fromEntries(paramEntries));
       } catch (err) {

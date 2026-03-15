@@ -58,6 +58,7 @@ RUN bun install --production
 # Copy built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
 
 # Copy Drizzle migrations
 COPY --from=builder /app/src/infrastructure/database/drizzle/migrations ./src/infrastructure/database/drizzle/migrations
@@ -69,5 +70,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start production server
-CMD ["bun", "run", "start"]
+# Seed and start production server
+CMD ["sh", "scripts/start.sh"]

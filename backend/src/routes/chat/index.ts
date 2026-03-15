@@ -61,6 +61,10 @@ const sendMessageSchema = z.object({
   reelRefs: z.array(z.number()).optional(),
 });
 
+const updateSessionSchema = z.object({
+  title: z.string().min(1).max(100),
+});
+
 // GET /api/chat/sessions - List user chat sessions (optionally filter by projectId)
 app.get(
   "/sessions",
@@ -255,6 +259,46 @@ app.delete(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to delete session" }, 500);
+    }
+  },
+);
+
+// PUT /api/chat/sessions/:id - Update chat session (e.g., rename title)
+app.put(
+  "/sessions/:id",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator("json", updateSessionSchema),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const sessionId = c.req.param("id");
+      const { title } = c.req.valid("json");
+
+      const [updatedSession] = await db
+        .update(chatSessions)
+        .set({ title, updatedAt: new Date() })
+        .where(
+          and(
+            eq(chatSessions.id, sessionId),
+            eq(chatSessions.userId, auth.user.id),
+          ),
+        )
+        .returning();
+
+      if (!updatedSession) {
+        return c.json({ error: "Session not found" }, 404);
+      }
+
+      return c.json({ session: updatedSession });
+    } catch (error) {
+      debugLog.error("Failed to update chat session", {
+        service: "chat-route",
+        operation: "updateSession",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to update session" }, 500);
     }
   },
 );
