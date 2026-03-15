@@ -245,6 +245,11 @@ export const KLING_MODEL = getEnvVar(
 export const FLUX_MODEL = getEnvVar("FLUX_MODEL", false, "fal-ai/flux/schnell");
 
 // ============================================================================
+// Text-to-Speech (ElevenLabs)
+// ============================================================================
+export const ELEVENLABS_API_KEY = getEnvVar("ELEVENLABS_API_KEY", false);
+
+// ============================================================================
 // Reels / Content Platform
 // ============================================================================
 export const REEL_SOURCE = getEnvVar("REEL_SOURCE", false, "manual");

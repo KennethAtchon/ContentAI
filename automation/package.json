@@ -9,9 +9,11 @@
     "stripe:cancel-subs": "bun stripe/cancel-subscriptions.ts",
     "stripe:reset": "bun stripe/reset.ts",
     "firebase:clear-customers": "bun firebase/clear-customers.ts",
-    "firebase:clear-users": "bun firebase/clear-users.ts"
+    "firebase:clear-users": "bun firebase/clear-users.ts",
+    "r2:clean-testing": "bun r2/clean-testing-data.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.645.0",
     "firebase-admin": "^13.6.0",
     "stripe": "^17.0.0"
   }

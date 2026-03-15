@@ -97,6 +97,37 @@ bun firebase/clear-users.ts --confirm          # skip confirmation prompt
 
 ---
 
+## R2 Scripts
+
+### `bun r2/clean-testing-data.ts`
+
+Cleans testing data from Cloudflare R2 storage. In development mode, only deletes files with the `testing/` prefix. Production cleanup requires explicit `--production` flag.
+
+```bash
+bun r2/clean-testing-data.ts                    # Delete testing files only
+bun r2/clean-testing-data.ts --dry-run         # Preview what would be deleted
+bun r2/clean-testing-data.ts --all --confirm   # Delete all files in development
+bun r2/clean-testing-data.ts --production      # Delete all files in production
+bun r2/clean-testing-data.ts --file test.mp4   # Delete specific file
+```
+
+**Options:**
+- `--dry-run` - Show what would be deleted without actually deleting
+- `--confirm` - Skip the confirmation prompt
+- `--all` - Delete ALL files (not just testing files) in development
+- `--production` - Required for production environment cleanup
+- `--file <path>` - Delete a specific file
+- `--help` - Show help message
+
+**Safety features:**
+- Production environment requires `--production` flag
+- Supports dry-run mode for preview
+- Batched deletion (1000 files at a time)
+- Confirmation prompts by default
+- Detailed progress reporting
+
+---
+
 ## Common Workflows
 
 ### Fresh Stripe setup (new test account or after a reset)
@@ -131,15 +162,18 @@ bun stripe/setup-products.ts
 # 1. Cancel Stripe subscriptions
 bun stripe/cancel-subscriptions.ts --immediate
 
-# 2. Clear Firestore customer/subscription data
+# 2. Clear R2 testing data
+bun r2/clean-testing-data.ts --confirm
+
+# 3. Clear Firestore customer/subscription data
 bun firebase/clear-customers.ts --confirm
 
-# 3. Delete Firebase Auth users
+# 4. Delete Firebase Auth users
 bun firebase/clear-users.ts --confirm
 
-# 4. Reset Postgres (from backend/)
+# 5. Reset Postgres (from backend/)
 cd ../backend && bash scripts/db-reset-and-migrate.sh
 
-# 5. Recreate Stripe products
+# 6. Recreate Stripe products
 cd ../automation && bun stripe/setup-products.ts
 ```

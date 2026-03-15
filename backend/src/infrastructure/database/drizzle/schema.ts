@@ -322,6 +322,54 @@ export const chatMessages = pgTable(
   (t) => [index("chat_messages_session_id_idx").on(t.sessionId)],
 );
 
+// ─── Reel Assets ──────────────────────────────────────────────────────────────
+export const reelAssets = pgTable(
+  "reel_asset",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    generatedContentId: integer("generated_content_id")
+      .notNull()
+      .references(() => generatedContent.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    type: text("type").notNull(), // "voiceover" | "music" | "video_clip" | "image"
+    r2Key: text("r2_key").notNull(),
+    r2Url: text("r2_url"),
+    durationMs: integer("duration_ms"),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("reel_asset_content_idx").on(t.generatedContentId),
+    index("reel_asset_user_idx").on(t.userId),
+    index("reel_asset_type_idx").on(t.generatedContentId, t.type),
+  ],
+);
+
+// ─── Music Tracks ─────────────────────────────────────────────────────────────
+export const musicTracks = pgTable(
+  "music_track",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    artistName: text("artist_name"),
+    durationSeconds: integer("duration_seconds").notNull(),
+    mood: text("mood").notNull(), // "energetic" | "calm" | "dramatic" | "funny" | "inspiring"
+    genre: text("genre"),
+    r2Key: text("r2_key").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    uploadedBy: text("uploaded_by"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("music_track_mood_idx").on(t.mood),
+    index("music_track_active_idx").on(t.isActive),
+  ],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -438,3 +486,7 @@ export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type ReelAsset = typeof reelAssets.$inferSelect;
+export type NewReelAsset = typeof reelAssets.$inferInsert;
+export type MusicTrack = typeof musicTracks.$inferSelect;
+export type NewMusicTrack = typeof musicTracks.$inferInsert;

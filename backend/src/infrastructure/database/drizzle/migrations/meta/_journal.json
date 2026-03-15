@@ -36,6 +36,13 @@
       "when": 1773389500413,
       "tag": "0004_flippant_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773544507972,
+      "tag": "0005_boring_veda",
+      "breakpoints": true
     }
   ]
 }

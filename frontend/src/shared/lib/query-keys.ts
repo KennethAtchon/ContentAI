@@ -64,6 +64,15 @@ export const queryKeys = {
       offset?: number;
     }) => ["api", "queue", params] as const,
     projects: () => ["api", "projects"] as const,
+    audioVoices: () => ["api", "audio", "voices"] as const,
+    musicLibrary: (filters?: {
+      search?: string;
+      mood?: string;
+      durationBucket?: string;
+      page?: number;
+    }) => ["api", "music", "library", filters] as const,
+    contentAssets: (generatedContentId: number, type?: string) =>
+      ["api", "assets", generatedContentId, type] as const,
 
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>

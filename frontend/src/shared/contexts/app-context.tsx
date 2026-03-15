@@ -337,12 +337,31 @@ export function AppProvider({ children }: AppProviderProps) {
     refetch: refetchProfile,
   } = useQuery({
     queryKey: queryKeys.api.profile(),
-    queryFn: () => fetcher("/api/customer/profile"),
+    queryFn: async () => {
+      // Get fresh token directly from Firebase user to avoid stale closure issues
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
+      const token = await user.getIdToken();
+      
+      return baseAuthenticatedFetchJson<{
+        profile: UserProfile;
+        isOAuthUser: boolean;
+      }>("/api/customer/profile", addTimezoneHeader({
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }));
+    },
     enabled: !!user && !authLoading && backendReady,
     staleTime: QUERY_STALE.long,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     gcTime: QUERY_STALE.long,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * attemptIndex, 3000),
   });
 
   // Extract profile from SWR response

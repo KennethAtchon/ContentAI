@@ -11,6 +11,8 @@ import { useChatStream } from "../hooks/use-chat-stream";
 import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import type { Project, ChatSession, ChatMessage } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
+import { AudioPanel } from "@/features/audio/components/AudioPanel";
+import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackContext";
 
 interface ChatLayoutProps {
   projects: Project[];
@@ -57,6 +59,10 @@ export function ChatLayout({
   } = useChatStream(sessionId);
   const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
   const [pendingReelIds, setPendingReelIds] = useState<number[]>([]);
+  const [audioContext, setAudioContext] = useState<{
+    contentId: number;
+    scriptText: string;
+  } | null>(null);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -207,68 +213,81 @@ export function ChatLayout({
   ]);
 
   return (
-    <div className="flex h-full overflow-hidden">
-      <ProjectSidebar
-        selectedProjectId={selectedProject?.id}
-        selectedSessionId={selectedSession?.id}
-        onProjectSelect={handleProjectSelect}
-        onSessionSelect={handleSessionSelect}
-        onNewProject={onNewProject}
-        showNewProjectForm={showNewProjectForm}
-        onHideNewProjectForm={onHideNewProjectForm}
-        onSessionDeleted={handleSessionDeleted}
-      />
+    <AudioPlaybackProvider>
+      <div className="flex h-full overflow-hidden">
+        <ProjectSidebar
+          selectedProjectId={selectedProject?.id}
+          selectedSessionId={selectedSession?.id}
+          onProjectSelect={handleProjectSelect}
+          onSessionSelect={handleSessionSelect}
+          onNewProject={onNewProject}
+          showNewProjectForm={showNewProjectForm}
+          onHideNewProjectForm={onHideNewProjectForm}
+          onSessionDeleted={handleSessionDeleted}
+        />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {selectedSession ? (
-          <>
-            <div className="border-b px-5 py-3 shrink-0">
-              <h2 className="text-sm font-semibold truncate">
-                {selectedSession.title}
-              </h2>
-              {selectedProject && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {selectedProject.name}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {selectedSession ? (
+            <>
+              <div className="border-b px-5 py-3 shrink-0">
+                <h2 className="text-sm font-semibold truncate">
+                  {selectedSession.title}
+                </h2>
+                {selectedProject && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {selectedProject.name}
+                  </p>
+                )}
+              </div>
+
+              <ChatPanel
+                messages={displayMessages}
+                streamingMessageId={
+                  isStreaming ? streamingMessageId : undefined
+                }
+                onSendMessage={handleSendMessage}
+                isStreaming={isStreaming}
+                streamError={streamError}
+                isLimitReached={isLimitReached}
+                isMaxPlan={hasEnterpriseAccess}
+                isSavingContent={isSavingContent}
+                streamingContentId={streamingContentId}
+                activeReelRefs={activeReelRefs}
+                onResetLimitReached={resetLimitReached}
+                onOpenAudio={(contentId, scriptText) =>
+                  setAudioContext({ contentId, scriptText })
+                }
+              />
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <MessageSquarePlus className="w-6 h-6 text-muted-foreground/60" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold mb-1">
+                  {selectedProject
+                    ? selectedProject.name
+                    : t("studio_chat_selectProject")}
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  {selectedProject
+                    ? t("studio_chat_projectSelected")
+                    : t("studio_chat_selectProjectDescription")}
                 </p>
-              )}
+              </div>
             </div>
+          )}
+        </div>
 
-            <ChatPanel
-              messages={displayMessages}
-              streamingMessageId={
-                isStreaming ? streamingMessageId : undefined
-              }
-              onSendMessage={handleSendMessage}
-              isStreaming={isStreaming}
-              streamError={streamError}
-              isLimitReached={isLimitReached}
-              isMaxPlan={hasEnterpriseAccess}
-              isSavingContent={isSavingContent}
-              streamingContentId={streamingContentId}
-              activeReelRefs={activeReelRefs}
-              onResetLimitReached={resetLimitReached}
-            />
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-              <MessageSquarePlus className="w-6 h-6 text-muted-foreground/60" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold mb-1">
-                {selectedProject
-                  ? selectedProject.name
-                  : t("studio_chat_selectProject")}
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                {selectedProject
-                  ? t("studio_chat_projectSelected")
-                  : t("studio_chat_selectProjectDescription")}
-              </p>
-            </div>
-          </div>
+        {audioContext !== null && selectedSession && (
+          <AudioPanel
+            generatedContentId={audioContext.contentId}
+            scriptText={audioContext.scriptText}
+            onClose={() => setAudioContext(null)}
+          />
         )}
       </div>
-    </div>
+    </AudioPlaybackProvider>
   );
 }

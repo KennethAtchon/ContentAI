@@ -32,6 +32,7 @@ export default [
         MutationObserver: "readonly",
         File: "readonly",
         FileReader: "readonly",
+        FormData: "readonly",
         HTMLInputElement: "readonly",
         HTMLTextAreaElement: "readonly",
         HTMLFormElement: "readonly",
@@ -65,6 +66,9 @@ export default [
         Blob: "readonly",
         NodeJS: "readonly",
         alert: "readonly",
+        HTMLAudioElement: "readonly",
+        cancelAnimationFrame: "readonly",
+        requestAnimationFrame: "readonly",
       },
     },
     plugins: {

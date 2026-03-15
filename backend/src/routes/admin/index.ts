@@ -30,11 +30,15 @@ import {
 import { getTierConfig } from "../../constants/subscription.constants";
 import { FirebaseUserSync } from "../../services/firebase/sync";
 import nichesRouter from "./niches";
+import musicAdminRouter from "./music";
 
 const admin = new Hono<HonoEnv>();
 
 // Mount niches & admin-reel sub-router
 admin.route("/", nichesRouter);
+
+// Mount music admin sub-router
+admin.route("/", musicAdminRouter);
 
 // ─── GET /api/admin/verify ────────────────────────────────────────────────────
 

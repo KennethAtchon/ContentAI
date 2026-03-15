@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { User, Bot, ListPlus, Check, Loader2 } from "lucide-react";
+import { User, Bot, ListPlus, Check, Loader2, Mic } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import { ReelRefCard } from "./ReelRefCard";
 import { useSendToQueue } from "../hooks/use-send-to-queue";
+import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
 
 const markdownComponents: Components = {
   p: ({ children }) => (
@@ -83,6 +84,7 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   isSavingContent?: boolean;
   streamingContentId?: number | null;
+  onOpenAudio?: (contentId: number, scriptText: string) => void;
 }
 
 export function ChatMessage({
@@ -90,6 +92,7 @@ export function ChatMessage({
   isStreaming,
   isSavingContent,
   streamingContentId,
+  onOpenAudio,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
@@ -201,7 +204,30 @@ export function ChatMessage({
               )}
             </button>
           )}
+
+          {!isUser && resolvedContentId && !isSavingContent && onOpenAudio && (
+            <button
+              onClick={() => onOpenAudio(resolvedContentId, message.content)}
+              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border border-primary/20 bg-primary/[0.06] text-primary/70 hover:bg-primary/[0.12] hover:text-primary transition-colors"
+            >
+              <Mic className="w-2.5 h-2.5" />
+              {t("studio_chat_generateVoiceover")}
+            </button>
+          )}
         </div>
+
+        {!isUser && resolvedContentId && (
+          <div className="px-1">
+            <AudioStatusBadge
+              generatedContentId={resolvedContentId}
+              onClick={
+                onOpenAudio
+                  ? () => onOpenAudio(resolvedContentId, message.content)
+                  : undefined
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ import {
   CreditCard,
   HelpCircle,
   Database,
+  Music,
 } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
@@ -49,6 +50,11 @@ function useAdminNavItems(): AdminNavItem[] {
       href: "/admin/niches",
       icon: Database,
       label: "Niches & Scraping",
+    },
+    {
+      href: "/admin/music",
+      icon: Music,
+      label: "Music Library",
     },
     {
       href: "/admin/subscriptions",
