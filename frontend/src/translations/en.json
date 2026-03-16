@@ -1175,5 +1175,11 @@
   "studio_chat_slash_script": "Generate a full reel script",
   "studio_chat_slash_caption": "Write a caption with hashtags",
   "studio_chat_slash_shorter": "Make it shorter and punchier",
-  "studio_chat_slash_remix": "Remix with a different angle"
+  "studio_chat_slash_remix": "Remix with a different angle",
+  "workspace_section_video": "Video",
+  "workspace_video_generating": "Generating reel...",
+  "workspace_video_ready": "Reel ready",
+  "workspace_video_not_generated": "No reel generated yet",
+  "workspace_generate_reel": "Generate Reel",
+  "workspace_generate_reel_pending": "Generating..."
 }

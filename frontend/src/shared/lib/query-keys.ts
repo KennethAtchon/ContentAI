@@ -73,6 +73,9 @@ export const queryKeys = {
     }) => ["api", "music", "library", filters] as const,
     contentAssets: (generatedContentId: number, type?: string) =>
       ["api", "assets", generatedContentId, type] as const,
+    videoJob: (jobId: string) => ["api", "video", "job", jobId] as const,
+    videoOutput: (generatedContentId: number) =>
+      ["api", "video", "output", generatedContentId] as const,
     generatedContent: (id: number) => ["api", "generation", id] as const,
     sessionDrafts: (sessionId: string) =>
       ["api", "session-drafts", sessionId] as const,

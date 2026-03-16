@@ -7,43 +7,43 @@
 
 ## Already implemented (do not redo)
 
-- [x] **Video clip generation service** — `backend/src/services/media/video-generation/`: provider abstraction (Kling fal, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, cost ledger. No API route calls it yet.
-- [x] **Assets API (partial)** — GET `/api/assets`, PATCH `/api/assets/:id`, DELETE `/api/assets/:id`. Supports metadata (e.g. `useClipAudio`). No upload endpoint.
+- [x] **Video clip generation service** — `backend/src/services/media/video-generation/`: provider abstraction (Kling fal, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, cost ledger.
+- [x] **Assets API (partial)** — GET `/api/assets`, PATCH `/api/assets/:id`, DELETE `/api/assets/:id`.
 - [x] **Database** — `reel_asset`, `generated_content` (including `videoR2Url`, `thumbnailR2Key`, `generatedMetadata`). Schema ready for Phase 4.
 
 ---
 
 ## Backend — Prerequisites
 
-- [ ] **User file upload** — `POST /api/assets/upload` for video (mp4, mov) and images (jpg, png, webp). Size limits: 100MB video, 10MB image. Validate mime server-side; upload to R2; support `generatedContentId` + `shotIndex` + `assetType`. Return asset id + signed URL.
+- [x] **User file upload** — `POST /api/assets/upload` implemented for video (mp4, mov) and images (jpg, png, webp). Size limits: 100MB video, 10MB image. Server-side mime validation, R2 upload, `generatedContentId` + `shotIndex` + `assetType` supported.
 - [ ] **Assembly service** — Remotion (recommended) or FFmpeg backend: sequence clips, overlay voiceover + music (Phase 3 ratio), burn captions, output mp4 to R2. Respect per-shot `useClipAudio` when clip has embedded audio.
-- [ ] **Render job queue** — Async processing (e.g. Redis-backed). Job states: `queued`, `rendering`, `completed`, `failed`. Worker runs assembly and updates status. Persist terminal state for polling.
+- [x] **Render job queue (baseline)** — Redis-backed async video job state implemented (`queued`/`running`/`completed`/`failed`) via `backend/src/services/video/job.service.ts`. Polling works via `/api/video/jobs/:jobId`.
 
 ---
 
 ## Backend — Video / Reel API
 
-- [ ] **Start full reel generation** — `POST /api/video/reel` with `generatedContentId`, optional `provider`, `includeCaptions`. Resolve shot list, call `generateVideoClip()` per shot, enqueue assembly job. Return `202` with `jobId`.
-- [ ] **Regenerate single shot** — `POST /api/video/shots/regenerate` with `generatedContentId`, `shotIndex`, `prompt`, optional `provider`. Replace shot asset; do not re-run full reel.
-- [ ] **Request assembly** — `POST /api/video/assemble` with `generatedContentId`, `includeCaptions`. Enqueue assembly job. Return `202` with `jobId`.
-- [ ] **Job status** — `GET /api/video/jobs/:jobId`. Return status, progress, and on completion `result.assetId` / `result.videoUrl` (signed). Support `completed`, `failed` (with `retryable`), in-progress.
-- [ ] **Job retry** — `POST /api/video/jobs/:jobId/retry` to create a new job from same state (optional).
+- [x] **Start full reel generation** — `POST /api/video/reel` implemented with `generatedContentId`, optional provider/aspect/duration/prompt. Resolves shots, generates clips, enqueues async processing, returns `202` + `jobId`.
+- [x] **Regenerate single shot** — `POST /api/video/shots/regenerate` implemented.
+- [x] **Request assembly** — `POST /api/video/assemble` implemented.
+- [x] **Job status** — `GET /api/video/jobs/:jobId` implemented.
+- [x] **Job retry** — `POST /api/video/jobs/:jobId/retry` implemented.
 - [ ] **Shot audio preference** — Ensure `PATCH /api/assets/:id` supports `metadata.useClipAudio` (already have PATCH; confirm contract and that assembly reads it).
 
 ---
 
 ## Backend — Data & behavior
 
-- [ ] **Shot list source** — Derive or store structured shot list (e.g. from Phase 2 script/metadata or `generatedMetadata.phase4.shots[]`) so orchestration knows count, order, and per-shot description.
-- [ ] **Clip audio detection** — At upload/ingest, set `reel_asset.metadata.hasEmbeddedAudio` when clip has an audio track. Assembly and UI use this for “Use this clip’s audio” toggle.
+- [x] **Shot list source (baseline)** — Script timestamp parsing added for generated scripts with fallback to prompt/hook; stored in `generatedMetadata.phase4.shots`.
+- [x] **Clip audio detection (baseline)** — Upload path sets `hasEmbeddedAudio` true for uploaded video clips; AI clips default false.
 - [ ] **Caption generation** — Whisper (or equivalent) during assembly: voiceover → word-level timings → burn-in. CapCut-style variable caption sizes: research and implement placement/sizing (see REEL_CREATION_TODO.md).
 
 ---
 
 ## Frontend — Generate & progress
 
-- [ ] **Generate Reel CTA** — Primary button in Generate workspace (e.g. from draft detail). Calls `POST /api/video/reel`, then polls `GET /api/video/jobs/:jobId`.
-- [ ] **Progress UI** — Show state: queued → generating clips (e.g. “Clip 3 of 8”) → assembling → completed / failed. Use i18n keys from `docs/specs/PHASE4_UI_STATES_AND_WIREFLOWS.md`.
+- [x] **Generate Reel CTA (baseline)** — Added button in draft detail that calls `POST /api/video/reel` and polls `GET /api/video/jobs/:jobId`.
+- [x] **Progress UI (baseline)** — Added basic queued/running/completed state surface in draft detail with i18n keys.
 - [ ] **Error & retry** — Retryable failure: inline banner + Retry. Terminal: blocking modal + “Back to Draft”. Preserve existing clips on failure.
 
 ---

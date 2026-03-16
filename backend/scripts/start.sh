@@ -2,32 +2,33 @@
 set -e
 
 echo "Waiting for database to be ready..."
-# Try a simpler approach using pg_isready if available, otherwise fall back to our Node script
-if command -v pg_isready >/dev/null 2>&1; then
-  until pg_isready -d "$DATABASE_URL"; do
-    echo "  Database not ready — retrying in 2s..."
-    sleep 2
-  done
-else
-  # Fallback to Node script but with better error handling
-  until bun -e "
-    try {
-      const { default: postgres } = require('postgres');
-      const sql = postgres(process.env.DATABASE_URL, { 
-        connect_timeout: 5,
-        max: 1 
-      });
-      await sql\`SELECT 1\`;
-      await sql.end();
-      process.exit(0);
-    } catch (err) {
-      process.exit(1);
-    }
-  " 2>/dev/null; do
-    echo "  Database not ready — retrying in 2s..."
-    sleep 2
-  done
-fi
+
+RETRY=0
+MAX_RETRIES=15
+DELAY=2
+
+until [ $RETRY -ge $MAX_RETRIES ]; do
+  if bun -e "
+    const { default: postgres } = await import('postgres');
+    const sql = postgres(process.env.DATABASE_URL, { connect_timeout: 5, max: 1 });
+    await sql\`SELECT 1\`;
+    await sql.end();
+  " 2>/dev/null; then
+    break
+  fi
+
+  RETRY=$((RETRY + 1))
+  if [ $RETRY -ge $MAX_RETRIES ]; then
+    echo "Database not ready after $MAX_RETRIES attempts — giving up."
+    exit 1
+  fi
+
+  echo "  Database not ready — retrying in ${DELAY}s... (attempt $RETRY/$MAX_RETRIES)"
+  sleep $DELAY
+  DELAY=$((DELAY * 2))
+  [ $DELAY -gt 30 ] && DELAY=30
+done
+
 echo "Database is ready."
 
 echo "Running database migrations..."

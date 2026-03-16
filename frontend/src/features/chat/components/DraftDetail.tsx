@@ -1,10 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ListPlus, Mic, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, ListPlus, Mic, Check, Loader2, Film } from "lucide-react";
 import { useState } from "react";
 import { useSendToQueue } from "../hooks/use-send-to-queue";
 import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 import { cn } from "@/shared/utils/helpers/utils";
+import { useGenerateReel } from "@/features/video/hooks/use-generate-reel";
+import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import type { SessionDraft } from "../types/chat.types";
 
 interface DraftDetailProps {
@@ -41,12 +43,19 @@ export function DraftDetail({
 }: DraftDetailProps) {
   const { t } = useTranslation();
   const sendToQueue = useSendToQueue();
+  const generateReel = useGenerateReel();
   const [sent, setSent] = useState(false);
+  const [videoJobId, setVideoJobId] = useState<string | null>(null);
   const { data: assetsData } = useContentAssets(draft.id);
+  const { data: videoJobData } = useVideoJob(videoJobId);
   const hasAudio =
     assetsData?.assets.some(
       (a) => a.type === "voiceover" || a.type === "music"
     ) ?? false;
+  const assembledAsset =
+    assetsData?.assets.find((a) => a.type === "assembled_video") ?? null;
+  const videoStatus = videoJobData?.job.status ?? null;
+  const videoRunning = videoStatus === "queued" || videoStatus === "running";
 
   const metadata = draft.generatedMetadata as {
     hashtags?: string[];
@@ -59,6 +68,17 @@ export function DraftDetail({
       await sendToQueue.mutateAsync(draft.id);
       setSent(true);
       setTimeout(() => setSent(false), 2000);
+    } catch {
+      // silently handled
+    }
+  };
+
+  const handleGenerateReel = async () => {
+    try {
+      const res = await generateReel.mutateAsync({
+        generatedContentId: draft.id,
+      });
+      setVideoJobId(res.jobId);
     } catch {
       // silently handled
     }
@@ -157,6 +177,21 @@ export function DraftDetail({
             </p>
           </Section>
         )}
+
+        <Section label={t("workspace_section_video")}>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {videoRunning ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>{t("workspace_video_generating")}</span>
+              </>
+            ) : assembledAsset ? (
+              <span>{t("workspace_video_ready")}</span>
+            ) : (
+              <span>{t("workspace_video_not_generated")}</span>
+            )}
+          </div>
+        </Section>
       </div>
 
       {/* Action footer */}
@@ -193,6 +228,23 @@ export function DraftDetail({
         >
           <Mic className="w-3.5 h-3.5" />
           {hasAudio ? t("workspace_edit_audio") : t("workspace_add_audio")}
+        </button>
+        <button
+          onClick={() => void handleGenerateReel()}
+          disabled={generateReel.isPending || videoRunning}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-emerald-300/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {generateReel.isPending || videoRunning ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              {t("workspace_generate_reel_pending")}
+            </>
+          ) : (
+            <>
+              <Film className="w-3.5 h-3.5" />
+              {t("workspace_generate_reel")}
+            </>
+          )}
         </button>
       </div>
     </div>
