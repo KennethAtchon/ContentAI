@@ -82,6 +82,9 @@ These are done and not revisited:
 
 ## Phase 4: Video Production
 
+**Current status:** MVP baseline complete (core generation, storyboard, assembly, and preview/export loops are implemented).  
+Use `docs/PHASE4_IMPLEMENTATION_TODO.md` for remaining post-MVP hardening items and `docs/PHASE4_MVP_WORKING_GUIDE.md` for day-to-day operation guidance.
+
 **User problem:** User has script + audio but no visuals. They need video clips (AI-generated or uploaded) assembled into a reel with their audio track.
 
 **Depends on:** Phase 3 complete (audio assets exist and are manageable).

@@ -3,19 +3,24 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { CreateReelResponse } from "../types/video.types";
 
+type AssembleReelArgs = {
+  generatedContentId: number;
+  includeCaptions?: boolean;
+};
+
 export function useAssembleReel() {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (generatedContentId: number) =>
+    mutationFn: ({ generatedContentId, includeCaptions = true }: AssembleReelArgs) =>
       authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
         method: "POST",
-        body: JSON.stringify({ generatedContentId, includeCaptions: true }),
+        body: JSON.stringify({ generatedContentId, includeCaptions }),
       }),
-    onSuccess: (res, generatedContentId) => {
+    onSuccess: (res, variables) => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(generatedContentId),
+        queryKey: queryKeys.api.contentAssets(variables.generatedContentId),
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.videoJob(res.jobId),

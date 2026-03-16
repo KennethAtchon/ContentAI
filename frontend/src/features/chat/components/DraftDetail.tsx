@@ -165,7 +165,10 @@ export function DraftDetail({
 
   const handleReassemble = async () => {
     try {
-      const res = await assembleReel.mutateAsync(draft.id);
+      const res = await assembleReel.mutateAsync({
+        generatedContentId: draft.id,
+        includeCaptions: true,
+      });
       setVideoJobId(res.jobId);
       setStoryboardDirty(false);
     } catch {

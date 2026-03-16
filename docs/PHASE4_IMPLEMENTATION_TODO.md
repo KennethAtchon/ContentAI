@@ -1,5 +1,15 @@
 # Phase 4 Video Production — Implementation Checklist
 
+## Status: MVP Baseline Complete
+
+Phase 4 is considered **MVP baseline complete** for internal use and iterative shipping.  
+Core generate -> storyboard -> re-assemble -> preview/export flows are implemented.
+
+Remaining unchecked items are treated as **post-MVP enhancements / hardening**:
+- Advanced caption intelligence and styling parity (Whisper timing + CapCut-style behavior)
+- Additional UI/UX polish to fully match blueprint-level interactions
+- Full contract/integration test coverage and formal release-gate signoff
+
 **Last updated:** 2026-03-15  
 **Purpose:** Track what is built vs remaining for Phase 4 (video production). Use with `docs/REEL_CREATION_TODO.md` and `docs/specs/PHASE4_*.md`.
 
@@ -46,7 +56,7 @@
 - [x] **Generate Reel CTA (baseline)** — Added button in draft detail that calls `POST /api/video/reel` and polls `GET /api/video/jobs/:jobId`.
 - [x] **Progress UI (baseline)** — Added basic queued/running/completed state surface in draft detail with i18n keys.
 - [ ] **Error & retry** — Retryable failure: inline banner + Retry. Terminal: blocking modal + “Back to Draft”. Preserve existing clips on failure.  
-  Baseline inline retry action is implemented in draft detail; terminal failure modal flow is still pending.
+  Baseline inline retry + terminal failure modal with “Back to Drafts” is implemented in video workspace; preserve-existing-clips behavior is still implicitly relied on and needs explicit coverage tests.
 
 ---
 
@@ -57,21 +67,23 @@
 - [x] **Use clip audio toggle** — When `hasEmbeddedAudio`, show “Use this clip’s audio” vs “Voiceover only” in shot inspector. Persist via `PATCH /api/assets/:id` (or content metadata).  
   Baseline toggle is implemented in the draft-detail storyboard section.
 - [x] **Re-assemble CTA (baseline)** — Enabled when storyboard changes are made; calls `POST /api/video/assemble` and resumes polling via returned `jobId`.
+  Includes a user-facing "include auto-captions" toggle in the video workspace.
 
 ---
 
 ## Frontend — Final preview & export
 
-- [ ] **Final video player** — When job completed, show inline player with signed URL. Download button. Optional “Back to Storyboard” / “Create new version.”  
-  Baseline inline player + download link is implemented in draft detail; dedicated final-preview workspace controls remain.
+- [x] **Final video player (baseline)** — When job completed, show inline player with signed URL. Download button. Optional “Back to Storyboard” / “Create new version.”  
+  Baseline inline player + download link + "Back to Storyboard" + "Create new version" are implemented in the video workspace.
 - [x] **Reel workspace shell (baseline)** — Dedicated `Video` workspace tab now groups regions for Generate, Storyboard, and Final Preview/Export in one shell.  
-  Still pending: richer layout polish and navigation flow parity with full blueprint/handoff docs.
+  Includes baseline action feedback (success/error toasts) for regenerate/upload/re-assemble/retry/version actions. Still pending: richer layout polish and navigation flow parity with full blueprint/handoff docs.
 
 ---
 
 ## Quality & release
 
-- [ ] **Tests** — Contract/integration tests for new endpoints; failure and retry paths; upload validation; clip-audio choice. See `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`.
+- [ ] **Tests** — Contract/integration tests for new endpoints; failure and retry paths; upload validation; clip-audio choice. See `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`.  
+  Baseline unit coverage added for video parsing/caption/clip-audio utility logic (`backend/__tests__/unit/routes/video-route-utils.test.ts`) and job queue service behavior (`backend/__tests__/unit/services/video/job.service.test.ts`); endpoint contract/integration coverage is still pending.
 - [ ] **Release gates** — All go/no-go criteria in test/release doc passed before marking Phase 4 complete.
 
 ---
@@ -82,3 +94,4 @@
 - Specs: `docs/specs/PHASE4_VIDEO_PRODUCTION_MVP.md`, `PHASE4_TECHNICAL_DESIGN.md`, `PHASE4_API_AND_FLOW_CONTRACTS.md`
 - UI: `docs/specs/PHASE4_UI_LAYOUT_BLUEPRINT.md`, `PHASE4_UI_STATES_AND_WIREFLOWS.md`, `PHASE4_UI_IMPLEMENTATION_HANDOFF.md`
 - Tests & gates: `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`
+- Working guide: `docs/PHASE4_MVP_WORKING_GUIDE.md`

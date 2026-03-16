@@ -188,7 +188,10 @@ export function ContentWorkspace({
           )}
         </AudioPlaybackProvider>
       ) : resolvedVideoDraft ? (
-        <VideoWorkspacePanel draft={resolvedVideoDraft} />
+        <VideoWorkspacePanel
+          draft={resolvedVideoDraft}
+          onBackToDrafts={() => setActiveTab("drafts")}
+        />
       ) : (
         <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
           {t("workspace_video_no_content")}
