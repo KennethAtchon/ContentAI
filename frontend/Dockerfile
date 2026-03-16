@@ -1,9 +1,6 @@
 # Frontend Dockerfile
 FROM oven/bun:1-alpine AS base
 
-# Install curl for health checks
-RUN apk add --no-cache curl
-
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -70,9 +67,6 @@ COPY --from=builder /app/dist ./dist
 # Expose port (Railway overrides via $PORT)
 EXPOSE 4173
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://127.0.0.1:${PORT:-4173} || exit 1
 
 # Start production server (use $PORT from Railway, fall back to 4173)
 CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-4173}"]
