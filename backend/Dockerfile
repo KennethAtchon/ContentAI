@@ -46,7 +46,7 @@ FROM base AS production
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache libc6-compat tzdata curl
+RUN apk add --no-cache libc6-compat tzdata curl postgresql-client
 
 # Copy package files
 COPY --from=deps /app/package.json ./package.json

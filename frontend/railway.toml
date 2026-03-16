@@ -7,12 +7,13 @@ dockerfile = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [[services]]
 name = "frontend"
+startCommand = "bun run preview --host 0.0.0.0 --port 4173"
 
 [services.variables]
 NODE_ENV = "production"
@@ -32,6 +33,7 @@ hard = 250
 [[services.ports.health_checks]]
 path = "/"
 scheme = "http"
-interval_seconds = 15
-timeout_seconds = 10
+interval_seconds = 30
+timeout_seconds = 20
 method = "GET"
+grace_period_seconds = 10
