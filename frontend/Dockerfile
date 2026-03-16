@@ -60,9 +60,9 @@ FROM base AS production
 WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
-COPY serve.ts .
+COPY serve.js .
 
 # Expose port (Railway overrides via $PORT)
 EXPOSE 4173
 
-CMD ["sh", "-c", "bun serve.ts"]
+CMD ["sh", "-c", "bun serve.js"]

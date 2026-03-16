@@ -68,5 +68,5 @@ if [ "$NODE_ENV" = "development" ]; then
   exec bun run --hot src/index.ts
 else
   echo "Starting production server..."
-  exec bun run start
+  exec bun dist/index.js
 fi
