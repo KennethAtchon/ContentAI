@@ -160,6 +160,7 @@ export default [
     ignores: [
       "dist",
       "node_modules",
+      "serve.js",
       "src/routeTree.gen.ts",
       "src/shared/components/ui",
     ],
