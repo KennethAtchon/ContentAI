@@ -1,6 +1,9 @@
 # Frontend Dockerfile
 FROM oven/bun:1-alpine AS base
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -64,11 +67,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
 # Expose port
-EXPOSE 3000
+EXPOSE 4173
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+  CMD curl -f http://localhost:4173 || exit 1
 
 # Start production server
-CMD ["bun", "run", "preview", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["bun", "run", "preview", "--host", "0.0.0.0", "--port", "4173"]

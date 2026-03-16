@@ -17,6 +17,7 @@ These are done and not revisited:
 - R2 storage service: Upload, delete, signed URLs, upload-from-URL. Works for files and buffers. Ready to use for audio/video assets.
 - Database: `generated_content` table has `videoR2Url`, `thumbnailR2Key`, `generatedMetadata` (JSONB) fields already. These are empty but wired.
 - Trending audio data: `trending_audio` table populated by scraping. Audio metadata (name, artist, use count) exists. No playback or selection UI.
+- **Video clip generation (partial)** — The *service* is complete; the *end-to-end Phase 4 system* is not. Implemented: `backend/src/services/media/video-generation/` with provider abstraction (Kling fal, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, and cost ledger. Assets API has GET/PATCH/DELETE (no upload). **Not yet implemented:** no API route calls `generateVideoClip` (no `POST /api/video/reel`, no per-shot regenerate), no `POST /api/assets/upload` for video/image, no assembly service (Remotion/FFmpeg), no render job queue, no Phase 4 frontend. See `docs/PHASE4_IMPLEMENTATION_TODO.md` for the full checklist.
 
 ---
 
@@ -85,6 +86,14 @@ These are done and not revisited:
 
 **Depends on:** Phase 3 complete (audio assets exist and are manageable).
 
+**Detailed implementation package (Phase 4):**
+
+- `docs/specs/PHASE4_VIDEO_PRODUCTION_MVP.md`
+- `docs/specs/PHASE4_TECHNICAL_DESIGN.md`
+- `docs/specs/PHASE4_API_AND_FLOW_CONTRACTS.md`
+- `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`
+- **Implementation checklist:** `docs/PHASE4_IMPLEMENTATION_TODO.md`
+
 ### Prerequisites
 
 - [ ] **Video generation provider integration** — Pick ONE for AI video. Recommendation: Runway Gen-3 or Kling for short clips (3-5s each). Abstract behind provider interface. These are expensive — usage limits matter here.
@@ -125,6 +134,9 @@ These are done and not revisited:
   - Default style applied automatically (TikTok-style highlight). Toggle on/off before assembly; style tweak available in Phase 5.
   - Stored in the composition as a text track; burned into the video during render
   - **Acceptance criteria:** Assembled reel has on-screen captions by default with no user action required.
+- [ ] **Automatic caption tool (variable sizes, CapCut-style)**
+  - Automatic caption tool that places captions on the video in various sizes (word-by-word or phrase-level). We will research how editors like CapCut implement caption placement and sizing and align our behavior with that pattern.
+  - **Acceptance criteria:** User gets auto-generated captions with size/placement that feel familiar from tools like CapCut; no manual positioning required for default output.
 
 - [ ] **One-click assembly**
   - "Assemble Reel" (also triggered automatically at end of AI auto-generation) stitches clips in sequence, overlays voiceover, mixes music at the volume ratio from Phase 3, and burns in captions

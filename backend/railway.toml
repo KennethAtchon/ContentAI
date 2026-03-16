@@ -1,0 +1,36 @@
+# Railway configuration for ContentAI Backend
+# This file tells Railway how to build and deploy your backend application using Docker
+
+[build]
+# Use Dockerfile for building
+dockerfile = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "backend"
+
+[services.variables]
+NODE_ENV = "production"
+APP_ENV = "production"
+PORT = "3001"
+
+[[services.ports]]
+port = 3001
+handlers = ["http"]
+
+[services.ports.concurrency]
+type = "connections"
+soft = 200
+hard = 250
+
+[[services.ports.health_checks]]
+path = "/api/health"
+scheme = "http"
+interval_seconds = 15
+timeout_seconds = 10
+method = "GET"

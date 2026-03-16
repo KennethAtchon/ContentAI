@@ -1,0 +1,37 @@
+# Railway configuration for ContentAI Frontend
+# This file tells Railway how to build and deploy your frontend application using Docker
+
+[build]
+# Use Dockerfile for building
+dockerfile = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "frontend"
+
+[services.variables]
+NODE_ENV = "production"
+VITE_API_URL = "${RAILWAY_PUBLIC_URL}"
+VITE_APP_NAME = "ContentAI"
+VITE_APP_URL = "${RAILWAY_PUBLIC_URL}"
+
+[[services.ports]]
+port = 4173
+handlers = ["http"]
+
+[services.ports.concurrency]
+type = "connections"
+soft = 200
+hard = 250
+
+[[services.ports.health_checks]]
+path = "/"
+scheme = "http"
+interval_seconds = 15
+timeout_seconds = 10
+method = "GET"
