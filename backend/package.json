@@ -6,7 +6,7 @@
   "packageManager": "bun@1.2.14",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts",
+    "start": "bun dist/index.js",
     "build": "bun build src/index.ts --outdir ./dist --target bun",
     "build:all": "bun run lint && bun run format && bun x tsc --noEmit && bun run build",
     "clean": "rm -rf node_modules dist bun.lock",

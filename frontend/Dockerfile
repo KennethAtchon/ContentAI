@@ -59,14 +59,10 @@ RUN bun run build
 FROM base AS production
 WORKDIR /app
 
-# Install production dependencies
-COPY --from=builder /app/package.json ./package.json
-COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY serve.ts .
 
 # Expose port (Railway overrides via $PORT)
 EXPOSE 4173
 
-
-# Start production server (use $PORT from Railway, fall back to 4173)
-CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-4173}"]
+CMD ["sh", "-c", "bun serve.ts"]
