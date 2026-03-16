@@ -3,20 +3,16 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { CreateReelResponse } from "../types/video.types";
 
-export function useAssembleReel() {
+export function useRetryVideoJob() {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (generatedContentId: number) =>
-      authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
+    mutationFn: (jobId: string) =>
+      authenticatedFetchJson<CreateReelResponse>(`/api/video/jobs/${jobId}/retry`, {
         method: "POST",
-        body: JSON.stringify({ generatedContentId, includeCaptions: true }),
       }),
-    onSuccess: (res, generatedContentId) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(generatedContentId),
-      });
+    onSuccess: (res) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.videoJob(res.jobId),
       });

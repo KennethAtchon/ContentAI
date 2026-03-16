@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { X, FileText, Mic } from "lucide-react";
+import { X, FileText, Mic, Film } from "lucide-react";
 import { DraftsList } from "./DraftsList";
 import { DraftDetail } from "./DraftDetail";
 import { AudioPanel } from "@/features/audio/components/AudioPanel";
 import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackContext";
+import { VideoWorkspacePanel } from "@/features/video/components/VideoWorkspacePanel";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/utils/helpers/utils";
 import type { SessionDraft } from "../types/chat.types";
 
-type WorkspaceTab = "drafts" | "audio";
+type WorkspaceTab = "drafts" | "audio" | "video";
 
 interface ContentWorkspaceProps {
   sessionId: string;
@@ -37,6 +38,11 @@ export function ContentWorkspace({
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
+  const resolvedVideoDraft =
+    selectedDraft ??
+    drafts.find((draft) => draft.id === activeContentId) ??
+    drafts[drafts.length - 1] ??
+    null;
 
   // Invalidate drafts when stream produces new content
   useEffect(() => {
@@ -118,6 +124,18 @@ export function ContentWorkspace({
             <Mic className="w-3.5 h-3.5" />
             {t("workspace_tab_audio")}
           </button>
+          <button
+            onClick={() => setActiveTab("video")}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+              activeTab === "video"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <Film className="w-3.5 h-3.5" />
+            {t("workspace_tab_video")}
+          </button>
         </div>
         <button
           onClick={onClose}
@@ -155,7 +173,7 @@ export function ContentWorkspace({
             onSetActive={handleSetActive}
           />
         )
-      ) : (
+      ) : activeTab === "audio" ? (
         <AudioPlaybackProvider>
           {(activeContentId ?? drafts[drafts.length - 1]?.id) ? (
             <AudioPanel
@@ -169,6 +187,12 @@ export function ContentWorkspace({
             </div>
           )}
         </AudioPlaybackProvider>
+      ) : resolvedVideoDraft ? (
+        <VideoWorkspacePanel draft={resolvedVideoDraft} />
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
+          {t("workspace_video_no_content")}
+        </div>
       )}
     </div>
   );

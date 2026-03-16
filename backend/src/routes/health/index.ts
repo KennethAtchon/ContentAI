@@ -128,10 +128,9 @@ async function checkRedisHealth(
   try {
     if (!getEnvVar("REDIS_URL", false)) {
       return {
-        status: "unhealthy",
-        message: "Redis not configured",
+        status: "healthy",
+        message: "Redis not configured (optional)",
         response_time_ms: Date.now() - start,
-        error: "REDIS_URL not set",
       };
     }
     const redis = getRedis();

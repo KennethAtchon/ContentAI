@@ -17,7 +17,7 @@ These are done and not revisited:
 - R2 storage service: Upload, delete, signed URLs, upload-from-URL. Works for files and buffers. Ready to use for audio/video assets.
 - Database: `generated_content` table has `videoR2Url`, `thumbnailR2Key`, `generatedMetadata` (JSONB) fields already. These are empty but wired.
 - Trending audio data: `trending_audio` table populated by scraping. Audio metadata (name, artist, use count) exists. No playback or selection UI.
-- **Video clip generation (partial)** — The *service* is complete; the *end-to-end Phase 4 system* is not. Implemented: `backend/src/services/media/video-generation/` with provider abstraction (Kling fal, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, and cost ledger. Assets API has GET/PATCH/DELETE (no upload). **Not yet implemented:** no API route calls `generateVideoClip` (no `POST /api/video/reel`, no per-shot regenerate), no `POST /api/assets/upload` for video/image, no assembly service (Remotion/FFmpeg), no render job queue, no Phase 4 frontend. See `docs/PHASE4_IMPLEMENTATION_TODO.md` for the full checklist.
+- **Video production system (partial, actively implemented)** — Implemented: `backend/src/services/media/video-generation/` (Kling fal, Runway, image-ken-burns), Phase 4 video routes (`POST /api/video/reel`, shot regenerate, assemble, job status/retry), Redis-backed render jobs, `POST /api/assets/upload` for video/image, and FFmpeg baseline assembly (concat + audio mix + script-based caption burn + R2 output). **Still pending:** storyboard-rich frontend, advanced retry UX, and advanced caption pipeline parity (Whisper word-level timing + CapCut-style controls). See `docs/PHASE4_IMPLEMENTATION_TODO.md` for current checklist status.
 
 ---
 

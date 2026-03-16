@@ -65,11 +65,11 @@ If a clip (AI-generated or user-uploaded) has an embedded audio track, the **use
 
 | Area | Status | Notes |
 |------|--------|--------|
-| Video clip generation *service* | Done | `backend/src/services/media/video-generation/`: providers (Kling, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, cost ledger. No route calls it yet. |
-| Assets API | Partial | GET list, PATCH metadata, DELETE. No `POST /api/assets/upload` for video/image. |
-| Video/reel API | Not started | No `POST /api/video/reel`, `POST /api/video/shots/regenerate`, `POST /api/video/assemble`, `GET /api/video/jobs/:id`. |
-| Assembly + job queue | Not started | No Remotion/FFmpeg assembly, no render job queue. |
-| Phase 4 frontend | Not started | No Generate Reel flow, storyboard, or job polling. |
+| Video clip generation *service* | Done | `backend/src/services/media/video-generation/`: providers (Kling, Runway, image-ken-burns), `generateVideoClip()`, R2 upload, cost ledger. Wired into Phase 4 routes. |
+| Assets API | Partial | GET/PATCH/DELETE + `POST /api/assets/upload` for video/image implemented. Storyboard-focused upload UX still pending. |
+| Video/reel API | Baseline implemented | `POST /api/video/reel`, `POST /api/video/shots/regenerate`, `POST /api/video/assemble`, `GET /api/video/jobs/:id`, retry endpoint are in place. |
+| Assembly + job queue | Baseline implemented | Redis-backed async job state + FFmpeg assembly pipeline (concat, audio mix, caption burn, R2 output). Advanced caption timing/styling still pending. |
+| Phase 4 frontend | Partial | Generate Reel CTA + job polling + inline final preview exist; storyboard workspace and richer retry UX are pending. |
 
 Full checklist: `docs/PHASE4_IMPLEMENTATION_TODO.md`.
 
