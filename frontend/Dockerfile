@@ -67,12 +67,12 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
-# Expose port
+# Expose port (Railway overrides via $PORT)
 EXPOSE 4173
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:4173 || exit 1
+  CMD curl -f http://127.0.0.1:${PORT:-4173} || exit 1
 
-# Start production server
-CMD ["bun", "run", "preview", "--host", "0.0.0.0", "--port", "4173"]
+# Start production server (use $PORT from Railway, fall back to 4173)
+CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-4173}"]
