@@ -1,6 +1,6 @@
 # Checklist Incomplete Items — Prioritized
 
-**Last reviewed:** Feb 21, 2026  
+**Last reviewed:** March 16, 2026  
 **Source checklists:** `security.md`, `production-readiness.md`, `testing.md`, `monitoring.md`, `performance.md`, `documentation.md`, `compliance.md`
 
 Priority levels: **P1 — Blocker** (must fix before going live), **P2 — High** (fix soon after launch), **P3 — Medium** (next quarter), **P4 — Low** (nice to have / situational)
@@ -42,6 +42,7 @@ Critical for ongoing security, observability, and operational confidence.
 | ~~18~~ | ~~On-call procedures documented~~ | ~~monitoring, production-readiness~~ | ✅ **Done** — `docs/runbooks/on-call.md` with rotation schedule, SLAs, escalation path, handoff checklist, and tooling list |
 | ~~19~~ | ~~OWASP Top 10 reviewed~~ | ~~security~~ | ✅ **Done** — full review completed Feb 21, 2026; `owasp-top10-review.md`; CSP added, `checkRevoked` patched, rate limit fixed |
 | ~~20~~ | ~~Security headers validated externally (securityheaders.com)~~ | ~~security~~ | ✅ **Code-complete** — CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy all set in `middleware.ts`; also see `cloudflare-setup.md` for Cloudflare WAF/managed rules; validate at securityheaders.com after first live deploy |
+| 21 | **Video endpoint integration tests** | testing | ❌ **Missing** - Need `api-video.test.ts` to complete Phase 4 test coverage. Unit tests exist for video utilities and job service, but integration tests for `/api/video/*` endpoints are missing. See `docs/specs/PHASE4_IMPLEMENTATION_TODO.md`. |
 
 ---
 

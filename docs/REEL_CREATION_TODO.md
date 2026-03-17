@@ -415,6 +415,220 @@ Cost tracking reuses `aiCostLedger` table via a new `recordMediaCost()` helper t
 
 ---
 
+## CapCut-Style Caption Enhancement - Post-MVP Follow-up
+
+**Current Status**: Basic ASS caption burning implemented (fixed fonts, simple timing, word chunks).  
+**Target**: CapCut-parity caption system with intelligent sizing, positioning, and animations.
+
+### Current Implementation vs CapCut Gap Analysis
+
+**What We Have**:
+- Fixed Arial font (48-56px)
+- Script-based text extraction (not voiceover-aware)
+- 3-word chunk grouping  
+- Basic ASS file generation
+- Static bottom-center positioning
+- Simple timing distribution
+
+**What CapCut Does**:
+- **Voiceover script synchronization**: Use existing voiceover script text with word-level timing
+- **Background analysis fallback**: If no voiceover script, analyze background audio/speech
+- **Font & color customization**: User-selectable fonts and color schemes
+- **Dynamic font sizing**: Words resize based on length/importance
+- **Intelligent positioning**: Avoids on-screen action, safe area awareness
+- **Animation presets**: Pop-in, slide-in, typewriter effects
+- **Word-by-word timing**: Precise synchronization with audio
+- **Style presets**: Multiple caption styles (highlight, minimal, bold, etc.)
+- **Smart line breaking**: Natural reading flow, avoids awkward splits
+
+### Implementation Plan
+
+#### Phase 4B: Advanced Caption Intelligence
+```typescript
+// Enhanced caption service to extend createAssCaptions
+backend/src/services/media/caption-generation/
+├── types.ts           # CaptionStyle, CaptionPreset, WordTiming, FontConfig
+├── index.ts           # generateCaptions(), applyCaptionStyle()
+├── analyzers/
+│   ├── script-timing.ts # Word-level timing from voiceover script + audio
+│   ├── audio-analysis.ts # Background audio analysis fallback
+│   ├── scene-analysis.ts # Detect busy areas, avoid positioning conflicts
+│   └── text-analysis.ts # Word importance, optimal breaking points
+└── presets/
+    ├── capcut-default.ts  # Mimic CapCut's default behavior
+    ├── highlight.ts       # Bold/colored keywords
+    ├── minimal.ts        # Clean, simple style
+    └── font-themes.ts    # Font + color scheme collections
+```
+
+#### Key Features to Build
+
+1. **Voiceover Script Synchronization**
+   ```typescript
+   interface ScriptTiming {
+     source: 'voiceover_script' | 'background_audio' | 'generated_script';
+     words: WordTiming[];
+     totalDurationMs: number;
+   }
+   
+   interface WordTiming {
+     word: string;
+     startTimeMs: number;
+     endTimeMs: number;
+     confidence: number;
+   }
+   ```
+
+2. **Font & Color Customization**
+   ```typescript
+   interface FontConfig {
+     family: string;           // "Arial", "Helvetica", "Montserrat", "Inter", "Poppins"
+     size: { min: number; max: number };
+     color: string;            // Hex colors
+     weight: 'normal' | 'bold' | 'semibold';
+     outline: {
+       enabled: boolean;
+       color: string;
+       width: number;
+     };
+   }
+   
+   interface ColorScheme {
+     name: string;
+     primary: string;     // Main text color
+     secondary: string;   // Outline/shadow color
+     background: string;  // Background box (optional)
+   }
+   ```
+
+3. **Dynamic Caption Styling**
+   ```typescript
+   interface CaptionPreset {
+     name: string;
+     font: FontConfig;
+     colorScheme: ColorScheme;
+     position: 'bottom' | 'middle' | 'adaptive';
+     animation: 'pop' | 'slide' | 'typewriter' | 'none';
+     wordHighlight: boolean;
+     lineBreak: 'natural' | 'balanced' | 'strict';
+   }
+   ```
+
+4. **Text Source Detection**
+   - Priority 1: Voiceover script text (`cleanScriptForAudio`)
+   - Priority 2: Background audio speech analysis
+   - Fallback: Generated script text (`generatedScript`)
+
+5. **Word-Level Timing Calculation**
+   - Use existing voiceover audio duration + script word count
+   - Calculate natural speaking rhythm (words per minute)
+   - Distribute timing based on word length and punctuation
+   - No Whisper API cost - use existing assets!
+
+6. **Scene-Aware Positioning**
+   - Detect lower-third busy areas (watermarks, UI elements)
+   - Adaptive positioning (bottom/middle based on content)
+   - Safe area margins for mobile vs desktop
+
+7. **Smart Text Processing**
+   - Natural word boundaries from script punctuation
+   - Importance-based sizing (keywords larger)
+   - Reading rhythm optimization based on voiceover pace
+
+#### API Enhancement
+
+```typescript
+// Enhanced assembly endpoint
+POST /api/video/assemble
+{
+  "generatedContentId": 123,
+  "includeCaptions": true,
+  "captionSource": "auto",          // "auto" | "voiceover_script" | "background" | "generated_script"
+  "captionPreset": "capcut-default",  // New
+  "captionStyle": {                   // New
+    "font": {
+      "family": "Montserrat",
+      "color": "#FFFFFF",
+      "outline": {
+        "enabled": true,
+        "color": "#000000",
+        "width": 2
+      }
+    },
+    "colorScheme": "high-contrast",   // Predefined color schemes
+    "animation": "pop",
+    "position": "adaptive",
+    "wordHighlight": true
+  }
+}
+```
+
+#### Frontend Integration
+
+- **Caption style picker** with font family dropdown (Arial, Helvetica, Montserrat, Inter, Poppins)
+- **Color scheme selector** with predefined palettes (high-contrast, neon, pastel, monochrome)
+- **Font size slider** with real-time preview
+- **Animation preview** - show each animation style on sample text
+- **Text source selector** - choose between voiceover script, background analysis, or auto-detect
+- **Real-time preview** - see caption changes immediately in video player
+- **Custom preset creation** for power users
+- **Caption-only export** (SRT file for other platforms)
+
+#### Font & Color Libraries
+
+```typescript
+const FONT_FAMILIES = [
+  "Arial",           // Classic, widely available
+  "Helvetica",       // Clean, professional
+  "Montserrat",      // Modern, geometric
+  "Inter",           // Tech-friendly, readable
+  "Poppins",         // Friendly, rounded
+  "Roboto",          // Android standard
+  "Open Sans",       // Web-optimized
+  "Playfair Display" // Elegant, serif option
+];
+
+const COLOR_SCHEMES = {
+  "high-contrast": {
+    primary: "#FFFFFF",
+    secondary: "#000000", 
+    background: "transparent"
+  },
+  "neon": {
+    primary: "#00FF41",
+    secondary: "#FF00FF",
+    background: "rgba(0,0,0,0.7)"
+  },
+  "pastel": {
+    primary: "#FFE5E5",
+    secondary: "#E5E5FF",
+    background: "rgba(255,255,255,0.8)"
+  },
+  "monochrome": {
+    primary: "#F0F0F0",
+    secondary: "#808080",
+    background: "rgba(0,0,0,0.5)"
+  }
+};
+```
+
+### Success Metrics
+
+- **User perception**: "Captions feel like CapCut"
+- **Engagement**: Higher completion rates with better captions
+- **Flexibility**: Multiple styles without manual positioning
+- **Performance**: No significant increase in render time
+
+### Technical Considerations
+
+- **No Whisper API cost** - Use existing voiceover script + audio duration
+- **Timing algorithm** - Calculate words-per-minute from voiceover length
+- **Font licensing** - Ensure fonts are commercially licensed  
+- **Mobile optimization** - Smaller text, larger safe areas
+- **Performance** - Word-level timing increases ASS complexity but manageable
+
+---
+
 ## What is Explicitly Cut
 
 These items from the main TODO.md do NOT get worked on until the above is fully shipped:

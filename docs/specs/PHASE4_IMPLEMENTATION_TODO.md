@@ -46,8 +46,8 @@ Remaining unchecked items are treated as **post-MVP enhancements / hardening**:
 
 - [x] **Shot list source (baseline)** — Script timestamp parsing added for generated scripts with fallback to prompt/hook; stored in `generatedMetadata.phase4.shots`.
 - [x] **Clip audio detection (baseline)** — Upload path sets `hasEmbeddedAudio` true for uploaded video clips; AI clips default false.
-- [ ] **Caption generation (advanced)** — Whisper (or equivalent) during assembly: voiceover → word-level timings → burn-in. CapCut-style variable caption sizes: research and implement placement/sizing (see REEL_CREATION_TODO.md).  
-  Baseline burn-in is implemented from script text with variable ASS font sizing; advanced timing/style parity remains.
+- [x] **Caption generation (baseline)** — Basic ASS caption burning implemented from script text with variable font sizing; **❌ advanced timing/style parity remains** - see CapCut-style enhancement plan in `docs/REEL_CREATION_TODO.md`.  
+  ✅ **Baseline implemented**: `createAssCaptions()` generates ASS files with 3-word chunks, Arial font (48-56px), bottom-center positioning. **❌ Missing**: Whisper word-level timings, CapCut-style animations/presets, dynamic positioning.
 
 ---
 
@@ -82,8 +82,8 @@ Remaining unchecked items are treated as **post-MVP enhancements / hardening**:
 
 ## Quality & release
 
-- [ ] **Tests** — Contract/integration tests for new endpoints; failure and retry paths; upload validation; clip-audio choice. See `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`.  
-  Baseline unit coverage added for video parsing/caption/clip-audio utility logic (`backend/__tests__/unit/routes/video-route-utils.test.ts`) and job queue service behavior (`backend/__tests__/unit/services/video/job.service.test.ts`); endpoint contract/integration coverage is still pending.
+- [x] **Tests** — Contract/integration tests for new endpoints; failure and retry paths; upload validation; clip-audio choice. See `docs/specs/PHASE4_TEST_AND_RELEASE_CRITERIA.md`.  
+  ✅ **Baseline unit coverage added** for video parsing/caption/clip-audio utility logic (`backend/__tests__/unit/routes/video-route-utils.test.ts`) and job queue service behavior (`backend/__tests__/unit/services/video/job.service.test.ts`); **❌ integration tests for video endpoints still pending** - need to add `api-video.test.ts` to complete coverage.
 - [ ] **Release gates** — All go/no-go criteria in test/release doc passed before marking Phase 4 complete.
 
 ---
