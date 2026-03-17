@@ -13,7 +13,10 @@ import type {
   EditorSelection,
   Timeline,
 } from "@/features/video/types/composition.types";
-import { normalizeTimeline, splitVideoItemAt } from "@/features/video/utils/timeline-utils";
+import {
+  normalizeTimeline,
+  splitVideoItemAt,
+} from "@/features/video/utils/timeline-utils";
 
 function ReelEditorRoute() {
   const { t } = useTranslation();
@@ -36,8 +39,16 @@ function ReelEditorRoute() {
     () =>
       initComposition
         .mutateAsync({ generatedContentId, mode: "quick" })
-        .then((data) => setCompositionId(data.compositionId))
-        .catch(() => {}),
+        .then((data) => {
+          setCompositionId(data.compositionId);
+          // Render from init payload immediately; do not block on follow-up GET.
+          setEditableComposition(data);
+          setSelection({
+            videoClipId: data.timeline.tracks.video[0]?.id ?? null,
+            textOverlayId: null,
+          });
+          history.resetHistory();
+        }),
     [generatedContentId, initComposition],
   );
 
@@ -74,10 +85,9 @@ function ReelEditorRoute() {
       );
     if (!hasVideoSelection || !hasTextSelection) {
       setSelection((prev) => ({
-        videoClipId:
-          hasVideoSelection
-            ? prev.videoClipId
-            : editableComposition.timeline.tracks.video[0]?.id ?? null,
+        videoClipId: hasVideoSelection
+          ? prev.videoClipId
+          : editableComposition.timeline.tracks.video[0]?.id ?? null,
         textOverlayId: hasTextSelection ? prev.textOverlayId : null,
       }));
     }
@@ -100,13 +110,17 @@ function ReelEditorRoute() {
     },
   });
 
-  const isLoading = initComposition.isPending || compositionQuery.isLoading;
+  const isLoading = Boolean(
+    isValidDraftId &&
+      !editableComposition &&
+      (initComposition.isPending ||
+        (!initComposition.error && !compositionId) ||
+        (Boolean(compositionId) && compositionQuery.isFetching)),
+  );
   const errorMessage = useMemo(() => {
     if (!isValidDraftId) return t("phase5_editor_invalid_draft");
     return (
-      initComposition.error?.message ??
-      compositionQuery.error?.message ??
-      null
+      initComposition.error?.message ?? compositionQuery.error?.message ?? null
     );
   }, [
     compositionQuery.error?.message,
@@ -162,38 +176,38 @@ function ReelEditorRoute() {
       t("phase5_editor_action_delete"),
       { source: "keyboard", category: "other" },
       (prev) => {
-      if (selection.textOverlayId) {
-        return {
-          timeline: {
+        if (selection.textOverlayId) {
+          return {
+            timeline: {
+              ...prev.timeline,
+              tracks: {
+                ...prev.timeline.tracks,
+                text: prev.timeline.tracks.text.filter(
+                  (item) =>
+                    String((item as Record<string, unknown>).id ?? "") !==
+                    selection.textOverlayId,
+                ),
+              },
+            },
+            selection: { textOverlayId: null },
+          };
+        }
+        if (selection.videoClipId && prev.timeline.tracks.video.length > 1) {
+          const nextTimeline = normalizeTimeline({
             ...prev.timeline,
             tracks: {
               ...prev.timeline.tracks,
-              text: prev.timeline.tracks.text.filter(
-                (item) =>
-                  String((item as Record<string, unknown>).id ?? "") !==
-                  selection.textOverlayId,
+              video: prev.timeline.tracks.video.filter(
+                (item) => item.id !== selection.videoClipId,
               ),
             },
-          },
-          selection: { textOverlayId: null },
-        };
-      }
-      if (selection.videoClipId && prev.timeline.tracks.video.length > 1) {
-        const nextTimeline = normalizeTimeline({
-          ...prev.timeline,
-          tracks: {
-            ...prev.timeline.tracks,
-            video: prev.timeline.tracks.video.filter(
-              (item) => item.id !== selection.videoClipId,
-            ),
-          },
-        });
-        return {
-          timeline: nextTimeline,
-          selection: { videoClipId: nextTimeline.tracks.video[0]?.id ?? null },
-        };
-      }
-      return null;
+          });
+          return {
+            timeline: nextTimeline,
+            selection: { videoClipId: nextTimeline.tracks.video[0]?.id ?? null },
+          };
+        }
+        return null;
       },
     );
   }, [history, selection, t]);
@@ -206,17 +220,19 @@ function ReelEditorRoute() {
       t("phase5_editor_action_split"),
       { source: "keyboard", category: "timeline" },
       (prev) => {
-      if (!selection.videoClipId) return null;
-      const nextTimeline = splitVideoItemAt(prev.timeline, selection.videoClipId);
-      if (nextTimeline === prev.timeline) return null;
-      const nextSelected =
-        nextTimeline.tracks.video.find((item) =>
-          item.id.startsWith(`${selection.videoClipId}-a-`),
-        )?.id ?? nextTimeline.tracks.video[0]?.id ?? null;
-      return {
-        timeline: nextTimeline,
-        selection: { videoClipId: nextSelected },
-      };
+        if (!selection.videoClipId) return null;
+        const nextTimeline = splitVideoItemAt(prev.timeline, selection.videoClipId);
+        if (nextTimeline === prev.timeline) return null;
+        const nextSelected =
+          nextTimeline.tracks.video.find((item) =>
+            item.id.startsWith(`${selection.videoClipId}-a-`),
+          )?.id ??
+          nextTimeline.tracks.video[0]?.id ??
+          null;
+        return {
+          timeline: nextTimeline,
+          selection: { videoClipId: nextSelected },
+        };
       },
     );
   }, [history, selection, t]);
@@ -228,9 +244,7 @@ function ReelEditorRoute() {
         | null;
       const tag = target?.tagName?.toLowerCase();
       const isTypingTarget =
-        tag === "input" ||
-        tag === "textarea" ||
-        target?.isContentEditable === true;
+        tag === "input" || tag === "textarea" || target?.isContentEditable === true;
       if (isTypingTarget) return;
 
       const isCmdOrCtrl = event.metaKey || event.ctrlKey;
@@ -262,12 +276,11 @@ function ReelEditorRoute() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleDeleteShortcut, handleRedo, handleSplitShortcut, handleUndo]);
+
   if (isLoading) {
     content = (
       <div className="flex h-full items-center justify-center">
-        <p className="text-xs text-muted-foreground">
-          {t("phase5_editor_loading")}
-        </p>
+        <p className="text-xs text-muted-foreground">{t("phase5_editor_loading")}</p>
       </div>
     );
   } else if (errorMessage) {
@@ -327,6 +340,6 @@ function ReelEditorRoute() {
   );
 }
 
-export const Route = createFileRoute("/studio/generate/$generatedContentId/reel/edit")({
+export const Route = createFileRoute("/studio/editor/$generatedContentId")({
   component: ReelEditorRoute,
 });

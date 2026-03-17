@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
@@ -7,9 +7,15 @@ import { Film, Scissors, Sparkles } from "lucide-react";
 
 function EditorPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const isChildEditorRoute = location.pathname !== "/studio/editor";
   const { data, isLoading } = useGenerationHistory();
   const recentItems = data?.items ?? [];
   const recentDrafts = recentItems.slice(0, 12);
+
+  if (isChildEditorRoute) {
+    return <Outlet />;
+  }
 
   return (
     <AuthGuard authType="user">
@@ -63,7 +69,7 @@ function EditorPage() {
                           {t("studio_editor_status", { status: item.status })}
                         </span>
                         <Link
-                          to="/studio/generate/$generatedContentId/reel/edit"
+                          to="/studio/editor/$generatedContentId"
                           params={{ generatedContentId: String(item.id) }}
                           className="inline-flex items-center gap-1 rounded-md border border-studio-accent/40 bg-studio-accent/10 px-2.5 py-1 text-[11px] font-medium text-studio-accent hover:bg-studio-accent/15"
                         >

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import {
   Film,
   Loader2,
@@ -286,12 +287,13 @@ export function VideoWorkspacePanel({
             </button>
           )}
           {!videoRunning && (hasVideoOutput || shotClips.length > 0) && (
-            <a
-              href={`/studio/generate/${draft.id}/reel/edit`}
+            <Link
+              to="/studio/editor/$generatedContentId"
+              params={{ generatedContentId: String(draft.id) }}
               className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-[11px] text-foreground/80 hover:bg-muted"
             >
               {t("phase5_editor_open")}
-            </a>
+            </Link>
           )}
           {videoFailed && (
             <button

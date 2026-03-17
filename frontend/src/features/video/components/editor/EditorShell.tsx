@@ -4,7 +4,9 @@ import type {
   Timeline,
 } from "../../types/composition.types";
 import type { HistoryViewEntry } from "../../hooks/use-editor-history";
+import { normalizeTimeline } from "../../utils/timeline-utils";
 import { EditorHeader } from "./EditorHeader";
+import { MediaBinPanel } from "./MediaBinPanel";
 import { PreviewPanel } from "./PreviewPanel";
 import { QuickToolsPlaceholder } from "./QuickToolsPlaceholder";
 import { RenderPanel } from "./RenderPanel";
@@ -48,6 +50,29 @@ export function EditorShell({
   nextRedoLabel,
   historyTrail,
 }: EditorShellProps) {
+  const handleAppendVideoClip = (assetId: string, durationMs: number) => {
+    const lastVideo = composition.timeline.tracks.video[composition.timeline.tracks.video.length - 1];
+    const startMs = lastVideo ? lastVideo.endMs : 0;
+    const clipDuration = Math.max(500, durationMs);
+    const nextTimeline = normalizeTimeline({
+      ...composition.timeline,
+      tracks: {
+        ...composition.timeline.tracks,
+        video: [
+          ...composition.timeline.tracks.video,
+          {
+            id: `clip-${Date.now()}`,
+            assetId,
+            lane: 0,
+            startMs,
+            endMs: startMs + clipDuration,
+          },
+        ],
+      },
+    });
+    onTimelineChange(nextTimeline);
+  };
+
   return (
     <div className="h-full grid grid-rows-[auto_1fr]">
       <EditorHeader
@@ -64,14 +89,23 @@ export function EditorShell({
         nextRedoLabel={nextRedoLabel}
         historyTrail={historyTrail}
       />
-      <div className="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[280px_1.5fr_1fr]">
+        <div className="space-y-4">
+          <MediaBinPanel
+            generatedContentId={generatedContentId}
+            onAppendVideoClip={handleAppendVideoClip}
+          />
+        </div>
         <div className="space-y-4">
           <PreviewPanel
+            generatedContentId={generatedContentId}
             composition={composition}
             onTimelineChange={onTimelineChange}
             selectedVideoClipId={selectedVideoClipId}
             onSelectVideoClip={onSelectVideoClip}
           />
+        </div>
+        <div className="space-y-4">
           <QuickToolsPlaceholder
             timeline={composition.timeline}
             onChange={onTimelineChange}
@@ -80,8 +114,6 @@ export function EditorShell({
             onSelectVideoClip={onSelectVideoClip}
             onSelectTextOverlay={onSelectTextOverlay}
           />
-        </div>
-        <div className="space-y-4">
           <RenderPanel
             compositionId={composition.compositionId}
             version={composition.version}

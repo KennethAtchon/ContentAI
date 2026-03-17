@@ -159,13 +159,43 @@ export function QuickToolsPlaceholder({
     });
   };
 
+  const cycleClipTransition = (clipId: string) => {
+    const types = ["cut", "crossfade", "swipe"] as const;
+    const nextVideo = timeline.tracks.video.map((item) => {
+      if (item.id !== clipId) return item;
+      const row = item as Record<string, unknown>;
+      const currentType =
+        typeof (row.transitionOut as Record<string, unknown> | undefined)?.type ===
+        "string"
+          ? String((row.transitionOut as Record<string, unknown>).type)
+          : "cut";
+      const idx = types.findIndex((value) => value === currentType);
+      const nextType = types[(idx + 1) % types.length];
+      return {
+        ...item,
+        transitionOut: {
+          type: nextType,
+          durationMs: nextType === "cut" ? 0 : 250,
+        },
+      };
+    });
+
+    onChange({
+      ...timeline,
+      tracks: {
+        ...timeline.tracks,
+        video: nextVideo,
+      },
+    });
+  };
+
   return (
     <section className="rounded-lg border border-border/60 p-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
         {t("phase5_editor_tools")}
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        {t("phase5_editor_tools_placeholder")}
+        {t("phase5_editor_tools_help")}
       </p>
       <div className="mt-3 space-y-2">
         {videoItems.length > 0 && (
@@ -257,7 +287,22 @@ export function QuickToolsPlaceholder({
               >
                 {t("phase5_editor_trim_longer")}
               </button>
+              <button
+                onClick={() => cycleClipTransition(item.id)}
+                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+              >
+                {t("phase5_editor_transition_cycle")}
+              </button>
             </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {t("phase5_editor_transition_current", {
+                value: String(
+                  ((item as Record<string, unknown>).transitionOut as
+                    | Record<string, unknown>
+                    | undefined)?.type ?? "cut",
+                ),
+              })}
+            </p>
           </div>
         ))}
         <div className="flex flex-wrap gap-2">

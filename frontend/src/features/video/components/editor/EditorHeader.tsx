@@ -88,7 +88,7 @@ export function EditorHeader({
           {t("phase5_editor_version", { version: composition.version })}
         </span>
         <Link
-          to="/studio/generate"
+          to="/studio/editor"
           className="rounded border border-border/60 px-2.5 py-1.5 text-foreground/80 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
         >
           {t("phase5_editor_back")}
