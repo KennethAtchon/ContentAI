@@ -2,31 +2,58 @@
 
 Last updated: 2026-03-16
 Related:
-- `docs/specs/PHASE5_EDITING_SUITE_MVP.md`
-- `docs/specs/PHASE5_UI_STATES_AND_WIREFLOWS.md`
-- `docs/specs/PHASE5_UI_IMPLEMENTATION_HANDOFF.md`
+- `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
+- `docs/specs/phase5/PHASE5_UI_STATES_AND_WIREFLOWS.md`
+- `docs/specs/phase5/PHASE5_UI_IMPLEMENTATION_HANDOFF.md`
 
 ## Purpose
 
-Define concrete layout architecture for the Phase 5 editor so implementation can ship a consistent quick-edit-first experience and a gated precision timeline experience across desktop and mobile.
+Define implementation-grade layout architecture for the Phase 5 editor so engineering can ship:
+
+- quick-edit-first UX for most users (5A)
+- precision timeline UX for power users (5B, gated)
+- consistent behavior across desktop and mobile fallbacks
 
 ## Information Architecture
 
-Phase 5 editor runs as one route-level workspace with two tabs:
+Phase 5 editor is one route-level workspace with two modes:
 
-1. `Quick Edit` (default, MVP path)
-2. `Precision` (post-MVP, feature-flagged)
+1. `Quick Edit` (default, MVP)
+2. `Precision` (feature-flagged, post-MVP)
 
-Supporting regions:
+Primary IA regions:
 
-- Media preview player
-- Editing controls and inspector
-- Asset tray
-- Render panel
+- editor header and mode controls
+- preview and transport area
+- tools/inspector area
+- timeline/asset area (precision-heavy)
+- render and version area
 
-Recommended route shape:
+Recommended route:
 
 - `/(customer)/generate/$generatedContentId/reel/edit`
+
+Entry behavior:
+
+- open to `Quick Edit`
+- initialize composition if missing
+- show latest successful output context and current save state
+
+## Primary Region Flow
+
+```mermaid
+flowchart LR
+    header[EditorHeader] --> modeTabs[ModeTabs]
+    modeTabs --> quickMode[QuickEditSurface]
+    modeTabs --> precisionMode[PrecisionSurface]
+    quickMode --> preview[PreviewPanel]
+    quickMode --> quickTools[QuickToolsPanel]
+    precisionMode --> timeline[PrecisionTimelinePanel]
+    preview --> renderPanel[RenderPanel]
+    timeline --> inspector[InspectorPanel]
+    timeline --> assetTray[AssetTray]
+    inspector --> renderPanel
+```
 
 ## Screen Architecture
 
@@ -34,68 +61,100 @@ Recommended route shape:
 
 ### Desktop Layout (>= 1024px)
 
-- **Header row**: title, mode tabs, save status, version badge, actions (`Back`, `Render Final`)
-- **Main 12-col grid**:
-  - `col-span-7`: preview player + scrub bar
+- **Header row**
+  - left: page title + breadcrumb + mode tabs
+  - right: save status badge, version badge, `Render Final` CTA
+- **Main grid (`12 cols`)**
+  - `col-span-7`: preview player, scrubber, transport controls
   - `col-span-5`: quick tools stack (`Trim`, `Reorder`, `Text`, `Captions`, `Transitions`)
-- **Bottom rail**:
-  - compact clip sequence strip for reorder context
-  - selected clip metadata and trim handles
+- **Bottom rail**
+  - sequence strip for clip order context
+  - selected clip mini-inspector (duration, trim handles, transition summary)
 
 ### Mobile Layout (< 1024px)
 
-- Sticky header with mode tabs and render action
-- Single-column stack:
+- sticky compact header with mode + render action
+- single-column stack:
   1. preview player
-  2. quick tool segmented control
-  3. active tool panel (trim/text/caption/transition)
-  4. horizontal clip strip
-- Inspector controls appear in bottom sheet (`80vh`) for dense settings
+  2. transport controls
+  3. tool switcher segmented control
+  4. active tool panel
+  5. horizontal clip strip
+- dense inspector controls appear in bottom sheet (`80vh`)
+
+### Quick Edit Interaction Priorities
+
+- keep one active tool open at a time
+- preserve selection when switching tools
+- avoid panel jumps while autosave status updates
 
 ## 2) Precision Mode (5B)
 
 ### Desktop Layout (>= 1200px preferred)
 
-- **Top row**: transport controls, timecode, zoom controls, undo/redo
-- **Middle split**:
-  - `col-span-8`: preview player and ruler
-  - `col-span-4`: inspector panel (selected item properties)
-- **Bottom timeline zone**:
-  - multi-track timeline lanes (video/audio/text/captions)
-  - playhead and markers
-  - horizontal/vertical scroll
-- **Left asset drawer** (collapsible): drag sources into timeline
+- **Top control row**
+  - transport controls, timecode, zoom, snapping toggles, undo/redo
+- **Middle split (`12 cols`)**
+  - `col-span-8`: preview + ruler
+  - `col-span-4`: inspector (selected item properties)
+- **Bottom timeline zone**
+  - multi-track lanes (video/audio/text/captions)
+  - playhead, markers, scrollbars
+  - timeline actions bar
+- **Collapsible left asset tray**
+  - media library and drag-in controls
 
-### Mobile Layout (< 1200px fallback behavior)
+### Mobile Fallback (< 1200px)
 
-- Precision mode is optional on mobile; if enabled:
-  - single-track compressed timeline view
-  - drawer-based track switching
-  - reduced shortcut discoverability via actions menu
-- If disabled, show guardrail messaging and keep Quick Edit path primary.
+- precision mode optional behind device capability checks
+- if enabled:
+  - compressed timeline view
+  - track switching via drawer/tabs
+  - shortcuts exposed via actions menu
+- if disabled:
+  - clear guardrail message
+  - route users back to quick-edit path
+
+## 3) Render and Version Region
+
+Render region behavior in both modes:
+
+- always visible `Render Final` primary action
+- status surface (`idle`, `queued`, `rendering`, `completed`, `failed`)
+- retry action on retryable failures
+- version list with latest and fallback outputs
+
+Placement:
+
+- desktop: right-side card anchored below tools/inspector
+- mobile: sticky bottom render action, expandable status card
 
 ## Region Responsibilities
 
 | Region | Responsibility | Must Not Do |
 | --- | --- | --- |
-| `EditorHeader` | navigation, mode switch, save/render status | host detailed clip controls |
-| `PreviewPanel` | playback, scrub, visual output verification | mutate persisted composition directly |
-| `QuickToolsPanel` | 5A edits with guided controls | expose dense frame-level settings |
-| `PrecisionTimelinePanel` | frame-level track manipulation | hide failure state feedback |
-| `InspectorPanel` | selected item properties and advanced controls | run async API calls directly without hook layer |
-| `AssetTray` | import/select reusable assets | alter timeline timing implicitly |
-| `RenderPanel` | render trigger, status, retry, version list | perform timeline edits |
+| `EditorHeader` | navigation, mode switching, save/render status at a glance | host complex clip controls |
+| `PreviewPanel` | playback, scrub, visual verification | mutate persisted composition directly |
+| `QuickToolsPanel` | 5A guided edits | expose deep frame-level editing UI |
+| `PrecisionTimelinePanel` | lane editing and frame operations | suppress failure and validation feedback |
+| `InspectorPanel` | selected-item detail controls | call APIs directly outside hook layer |
+| `AssetTray` | asset discovery and insertion source | apply implicit timeline mutations |
+| `RenderPanel` | render trigger/status/retry/version visibility | perform timeline editing |
 
 ## Component Tree
 
 ```text
 Phase5EditorPage
   EditorHeader
-  EditorModeTabs
+    Breadcrumbs
+    ModeTabs
+    SaveStatusBadge
+    RenderAction
   EditorShell
     PreviewPanel
       EditorPlayer
       PreviewScrubber
+      TransportControls
     QuickEditPanel
       TrimTool
       ReorderStrip
@@ -103,6 +162,7 @@ Phase5EditorPage
       CaptionStyleTool
       TransitionTool
     PrecisionTimelinePanel
+      TimelineToolbar
       TimelineRuler
       TrackLaneList
       Playhead
@@ -110,26 +170,77 @@ Phase5EditorPage
     InspectorPanel
     AssetTray
     RenderPanel
+      RenderStatusCard
+      VersionList
   EditorToastRegion
   EditorBlockingModalRegion
 ```
 
-## Layout Rules (Implementation Constraints)
+## Desktop Layout Guidance (Implementation)
 
-- Keep one prominent primary CTA per mode (`Render Final`).
-- Preserve context when switching tabs (selection/playhead/zoom).
-- Do not force full-page rerenders during timeline or polling updates.
-- Keep save status visible in header in both modes.
-- Ensure all critical actions remain keyboard and touch accessible.
+```mermaid
+flowchart LR
+    header[EditorHeader] --> shell[EditorGrid]
+    shell --> leftMain[PreviewAndTimeline8Cols]
+    shell --> rightPanel[ToolsInspectorRender4Cols]
+    leftMain --> preview[PreviewPanel]
+    leftMain --> timeline[TimelineOrSequenceRegion]
+    rightPanel --> tools[QuickToolsOrInspector]
+    rightPanel --> render[RenderPanel]
+```
+
+Suggested grid classes:
+
+- container: `grid grid-cols-12 gap-4 lg:gap-6`
+- left: `col-span-12 xl:col-span-8`
+- right: `col-span-12 xl:col-span-4`
+
+## Mobile Layout Guidance (Implementation)
+
+```mermaid
+flowchart TD
+    mobileHeader[StickyHeader] --> preview[PreviewPanel]
+    preview --> toolTabs[ToolTabs]
+    toolTabs --> activeTool[ActiveToolPanel]
+    activeTool --> sequenceStrip[SequenceStrip]
+    sequenceStrip --> stickyRender[StickyRenderBar]
+```
+
+Mobile implementation notes:
+
+- keep render CTA within thumb zone
+- avoid nested scroll conflicts between tool panel and clip strip
+- preserve playhead position when opening/closing bottom sheet
+
+## Layout Rules and Constraints
+
+- Keep one dominant primary CTA (`Render Final`) visible in current mode.
+- Preserve context on mode switches (selection, playhead, zoom, scroll where feasible).
+- Never full-remount editor shell for polling/save updates.
+- Keep save status visible in header in all modes.
+- Ensure all critical actions are keyboard and touch reachable.
+- Keep timeline and inspector state resilient to transient API failures.
+
+## Accessibility and Interaction Guardrails
+
+- minimum 44x44 touch targets for interactive controls
+- clear focus ring on clip items, timeline items, and transport controls
+- do not rely on color-only status cues
+- maintain deterministic tab order across regions
+- support reduced motion where feasible for animated transitions
 
 ## Responsive Guardrails
 
-- Minimum editor-supported viewport for full precision mode: 1200x700.
-- For smaller viewports, prefer Quick Edit controls and progressive disclosure.
-- Maintain consistent preview aspect ratio with letterboxing where needed.
+- full precision support target: minimum `1200x700`
+- quick-edit support target: minimum `360x640`
+- when below support threshold:
+  - degrade to quick-edit
+  - hide unsupported precision controls
+  - preserve editability and render path
 
-## Phase 4 Compatibility Rules
+## Phase 4 and Phase 6 Compatibility Rules
 
-- If composition data unavailable, redirect safely to Phase 4 preview flow.
-- Preserve current assembled output references until user completes a successful Phase 5 render.
-- Never block Phase 6 export from previously rendered valid output.
+- if composition is unavailable, route safely to Phase 4 preview flow
+- preserve existing assembled output references until successful Phase 5 render
+- never block Phase 6 export from latest valid output
+- avoid UI states that require precision mode for essential completion path

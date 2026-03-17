@@ -74,6 +74,12 @@ export const queryKeys = {
     contentAssets: (generatedContentId: number, type?: string) =>
       ["api", "assets", generatedContentId, type] as const,
     videoJob: (jobId: string) => ["api", "video", "job", jobId] as const,
+    videoComposition: (compositionId: string) =>
+      ["api", "video", "composition", compositionId] as const,
+    videoCompositionVersions: (compositionId: string) =>
+      ["api", "video", "composition", compositionId, "versions"] as const,
+    videoCompositionJob: (jobId: string) =>
+      ["api", "video", "composition-job", jobId] as const,
     videoOutput: (generatedContentId: number) =>
       ["api", "video", "output", generatedContentId] as const,
     generatedContent: (id: number) => ["api", "generation", id] as const,

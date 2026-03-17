@@ -2,16 +2,16 @@
 
 Last updated: 2026-03-16
 Related:
-- `docs/specs/PHASE5_EDITING_SUITE_MVP.md`
+- `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
 - `docs/specs/PHASE4_TECHNICAL_DESIGN.md`
 
 ## Architecture Overview
 
-Phase 5 introduces an editor system that sits between Phase 4 assembly and Phase 6 export:
+Phase 5 adds an editor system between Phase 4 assembly and Phase 6 export:
 
-- frontend editor shell (quick + precision modes)
-- composition persistence service
-- client preview runtime
+- editor shell (quick + precision modes)
+- composition persistence layer
+- in-browser preview runtime
 - composition-aware render orchestration
 
 ```mermaid
@@ -21,16 +21,19 @@ flowchart TB
         quickEdit[QuickEditMode]
         precisionEdit[PrecisionMode]
         previewRuntime[PreviewRuntime]
+        autosaveEngine[AutosaveEngine]
     end
 
     subgraph backendApi [BackendAPI]
         compositionRoutes[CompositionRoutes]
+        validationRoutes[ValidationRoutes]
         renderRoutes[RenderFromCompositionRoutes]
         jobRoutes[RenderJobRoutes]
     end
 
     subgraph backendServices [BackendServices]
         compositionService[CompositionService]
+        migrationService[CompositionMigrationService]
         timelineValidator[TimelineValidator]
         renderOrchestrator[RenderOrchestrator]
         assemblyRenderer[AssemblyRenderer]
@@ -45,7 +48,10 @@ flowchart TB
     editorShell --> compositionRoutes
     quickEdit --> previewRuntime
     precisionEdit --> previewRuntime
+    autosaveEngine --> compositionRoutes
     compositionRoutes --> compositionService
+    compositionRoutes --> migrationService
+    validationRoutes --> timelineValidator
     compositionService --> postgres
     renderRoutes --> renderOrchestrator
     renderOrchestrator --> timelineValidator
@@ -59,28 +65,30 @@ flowchart TB
 
 ### Backend
 
-- `backend/src/routes/video/index.ts` owns current render orchestration baseline.
-- `backend/src/services/video/job.service.ts` is the existing async lifecycle pattern.
-- `backend/src/infrastructure/database/drizzle/schema.ts` contains media-linked entities and can be extended.
+- `backend/src/routes/video/index.ts` (current orchestration baseline)
+- `backend/src/services/video/job.service.ts` (queue lifecycle pattern)
+- `backend/src/infrastructure/database/drizzle/schema.ts` (schema extension point)
 
 ### Frontend
 
-- `frontend/src/features/reel/` (workspace surface) is the Phase 5 entry point.
-- Existing query patterns (`queryKeys`, `useQueryFetcher`, `useAuthenticatedFetch`) should remain canonical.
+- `frontend/src/features/reel/` (Phase 5 entry point)
+- `queryKeys`, `useQueryFetcher`, `useAuthenticatedFetch` (canonical data patterns)
 
-## Composition Model Decision
+## Composition Storage Decision
 
-Recommendation: create a dedicated `reel_composition` table as the canonical project file.
+Recommendation: dedicated `reel_composition` table as canonical project file.
 
-Why:
+Rationale:
 
-- independent versioning from generated content metadata
-- easier conflict handling and audit trail
-- cleaner migration path from Phase 4 metadata without mutating existing contracts
+- isolated versioning independent of `generated_content.generatedMetadata`
+- cleaner conflict handling and auditability
+- safer future migrations and schema evolution
+
+Alternative (metadata embedding) remains possible but is not recommended for long-term editor complexity.
 
 ## Data Contracts
 
-### Table Contract (`reel_composition`)
+### SQL Contract (`reel_composition`)
 
 ```sql
 CREATE TABLE reel_composition (
@@ -92,13 +100,21 @@ CREATE TABLE reel_composition (
   latestRenderedAssetId UUID NULL REFERENCES reel_asset(id),
   version INTEGER NOT NULL DEFAULT 1,
   editMode TEXT NOT NULL DEFAULT 'quick',
+  previewPreset TEXT NOT NULL DEFAULT 'instagram-9-16',
   createdAt TIMESTAMP NOT NULL DEFAULT NOW(),
   updatedAt TIMESTAMP NOT NULL DEFAULT NOW(),
   UNIQUE(generatedContentId, userId)
 );
 ```
 
-### Canonical Timeline JSON (v1)
+Suggested indexes:
+
+```sql
+CREATE INDEX idx_reel_composition_generated_content ON reel_composition(generatedContentId);
+CREATE INDEX idx_reel_composition_user_updated ON reel_composition(userId, updatedAt DESC);
+```
+
+### Timeline Schema (v1)
 
 ```json
 {
@@ -111,12 +127,14 @@ CREATE TABLE reel_composition (
       {
         "id": "clip-1",
         "assetId": "video-asset-id",
+        "lane": 0,
         "startMs": 0,
         "endMs": 4000,
         "trimStartMs": 0,
         "trimEndMs": 4000,
         "opacity": 1,
-        "transitionOut": { "type": "cut", "durationMs": 0 }
+        "transitionIn": { "type": "cut", "durationMs": 0 },
+        "transitionOut": { "type": "crossfade", "durationMs": 250 }
       }
     ],
     "audio": [
@@ -128,14 +146,23 @@ CREATE TABLE reel_composition (
         "endMs": 28500,
         "gainDb": 0,
         "keyframes": []
+      },
+      {
+        "id": "music-main",
+        "assetId": "music-asset-id",
+        "role": "music",
+        "startMs": 0,
+        "endMs": 28500,
+        "gainDb": -8,
+        "keyframes": [{ "timeMs": 0, "gainDb": -8 }]
       }
     ],
     "text": [
       {
-        "id": "title-overlay-1",
-        "content": "3 mistakes to avoid",
-        "startMs": 1200,
-        "endMs": 3600,
+        "id": "overlay-1",
+        "content": "Stop scrolling",
+        "startMs": 800,
+        "endMs": 2200,
         "stylePreset": "bold-impact",
         "position": "top",
         "animation": "pop"
@@ -147,7 +174,7 @@ CREATE TABLE reel_composition (
         "enabled": true,
         "stylePreset": "tiktok-highlight",
         "segments": [
-          { "startMs": 200, "endMs": 900, "text": "Start with this hook" }
+          { "id": "c1", "startMs": 200, "endMs": 900, "text": "Start with this hook" }
         ]
       }
     ]
@@ -160,97 +187,156 @@ CREATE TABLE reel_composition (
 }
 ```
 
-## Phase 4 -> Phase 5 Migration
+## Composition Lifecycle
 
-On first editor open for a `generatedContentId`:
+```mermaid
+flowchart LR
+    firstOpen[FirstEditorOpen] --> init[InitComposition]
+    init --> migrate[BuildFromPhase4Metadata]
+    migrate --> persistV1[PersistVersion1]
+    persistV1 --> edit[UserEdits]
+    edit --> autosave[AutosaveVersionN]
+    autosave --> validate[ValidateOnSaveOrRender]
+    validate --> render[RenderFinal]
+    render --> complete[PersistLatestRenderedAsset]
+```
 
-1. Load `generatedMetadata.phase4.shots`
-2. Resolve referenced `reel_asset` rows
-3. Build baseline `timeline`:
-   - one sequential video track from shot order
-   - voiceover/music tracks from attached Phase 3 assets
-   - caption track from persisted Phase 4 caption metadata
-4. Persist first `reel_composition` row with `version = 1`
+## Phase 4 -> Phase 5 Migration Strategy
 
-If composition already exists, skip migration and load persisted state.
+On first editor open:
+
+1. Load `generatedMetadata.phase4.shots` and resolve shot assets.
+2. Build sequential video track in shot order.
+3. Attach voiceover/music tracks from existing `reel_asset` rows.
+4. Map Phase 4 caption metadata to caption track if available.
+5. Persist first composition (`version = 1`, `editMode = quick`).
+
+Migration rules:
+
+- no destructive updates to Phase 4 metadata
+- if captions missing, create empty caption track with `enabled = false`
+- if shot asset missing, mark item invalid and block render until fixed
+
+## Versioning and Conflict Strategy
+
+Use optimistic concurrency:
+
+- every save requires `expectedVersion`
+- server increments on accepted save
+- stale save returns conflict with latest version
+
+Conflict handling:
+
+- client prompts reload latest or duplicate local draft branch
+- render requests also require `expectedVersion`
 
 ## Render Handoff Model
 
-- Client preview is authoritative for UX feedback.
-- Server render is authoritative for downloadable output.
-- `Render Final` submits `compositionId` + optimistic `version`.
-- Backend fetches canonical timeline and renders exactly that version.
+- Client preview is authoritative for UX.
+- Server render is authoritative for final downloadable output.
+- `Render Final` submits `compositionId` + `expectedVersion`.
+- Render worker uses canonical server timeline only.
 
-If client version is stale, return conflict and require refresh.
+Output update rules:
 
-## Undo/Redo and Change History
+- create new `assembled_video` asset for each successful render
+- update `reel_composition.latestRenderedAssetId`
+- update `generated_content.videoR2Url` to latest successful render
+- keep prior rendered assets for fallback/version history
 
-Use command-stack model in frontend state:
+## Undo/Redo and Edit Commands
 
-- every timeline mutation pushes a command
-- redo stack cleared when new command is committed
-- autosave debounced (e.g., 750ms idle)
-- persist snapshot hash to avoid no-op writes
+Use command stack in frontend state:
 
-Requirements:
-
-- minimum 50 undo levels in precision mode
-- command granularity by user intent (`trimClip`, `moveClip`, `splitClip`, `updateTextStyle`)
+- each mutation is command-based (`trimClip`, `moveClip`, `splitClip`, `updateText`)
+- redo stack cleared on new command
+- minimum 50 undo levels for precision mode
+- autosave debounced (target 750ms idle)
+- no-op writes avoided via timeline hash
 
 ## Preview Runtime Strategy
 
-Recommendation for 5A:
+### 5A Quick Edit
 
-- HTML5 video/audio elements + canvas overlay for text/caption compositing
-- deterministic timeline scheduler in frontend state
-- target low-latency scrub and quick edit feedback
+- HTML5 media elements + canvas text/caption overlays
+- deterministic timeline scheduler
+- scrub and trim feedback without backend roundtrip
 
-5B extension:
+### 5B Precision
 
-- optimize frame stepping and ruler snapping
-- add beat marker generation from music waveform metadata
+- frame-step optimization for playhead movement
+- timeline ruler snapping (grid and edge)
+- optional beat markers derived from music metadata
 
-## Validation and Failure Handling
+## Validation Rules
 
-### Timeline Validation (Server-Side)
+### Structural Validation
+
+- `schemaVersion` supported
+- required top-level keys present
+- known track/item type constraints
+
+### Temporal Validation
 
 - no negative durations
-- item ranges must be non-overlapping within same exclusive track lane unless explicitly allowed
-- referenced `assetId` must exist and belong to user
-- transition duration cannot exceed source clip segment length
-- composition duration must stay within product limit
+- `startMs < endMs` for all timed items
+- no invalid overlap in exclusive lanes
+- transition duration <= available source clip span
 
-### Failure Handling
+### Ownership Validation
 
-- Save failure: keep local edits dirty, show retry banner, no data loss
-- Render failure: keep composition stable and previous output available
-- Conflict (stale version): prompt to reload latest or duplicate draft branch
-- Missing asset: mark affected clip invalid and block render until resolved
+- all referenced `assetId` rows must exist and belong to user
+- asset types must match track role (`video` track cannot reference audio-only asset)
+
+### Render Readiness Validation
+
+- composition duration within product limits
+- at least one valid video segment exists
+- voiceover/music references valid when enabled
+
+## Failure Handling and Recovery
+
+- Save failure: keep local dirty state, show retry action, avoid data loss.
+- Validation failure: return structured issue list keyed by item/track.
+- Conflict: block overwrite, offer reload or branch-from-current.
+- Render failure: keep composition stable and previous output available.
+- Missing asset: mark invalid item and block render until replaced.
 
 ## Performance and Cost Guardrails
 
 ### Performance Targets
 
 - Initial editor load (existing composition): p95 < 2.5s
-- Quick preview interactions (trim drag, text move): frame response target < 100ms
+- Interactive trim/drag response: target < 100ms feedback
 - Save roundtrip: p95 < 800ms
 - Render job creation response: p95 < 2s
+- Job status endpoint: p95 < 500ms
 
-### Cost/Compute Targets
+### Cost and Compute Controls
 
-- Do not trigger backend render for local preview interactions
-- Limit render retries per composition version
-- Track render costs separately from Phase 4 baseline assembly costs
+- no backend render calls from preview interactions
+- cap concurrent render jobs per user/content
+- cap retries per composition version
+- track Phase 5 render costs separately from Phase 4 assembly costs
+
+## Observability Requirements
+
+- composition save success/failure counts
+- conflict and validation error histogram by code
+- render lifecycle metrics (`queued`, `rendering`, `completed`, `failed`)
+- render latency percentiles by duration bucket
+- retry success rates
 
 ## Security and Ownership Rules
 
-- Composition CRUD is user-scoped and auth-protected.
-- Timeline payload must be schema-validated before persistence.
-- Asset references must be ownership-checked at save and render.
-- Never persist signed URLs in timeline; use asset IDs only.
+- composition CRUD is auth-protected and user-scoped
+- timeline payloads are schema-validated before persistence
+- asset references are ownership-checked on save and render
+- signed URLs are never persisted in composition timeline
 
 ## Deferred to Phase 6+
 
-- Advanced color and audio FX graph
-- Template marketplace / project sharing
-- Multi-user collaborative editing
+- advanced color grading and LUT workflow
+- advanced audio FX chains
+- collaborative multi-user editing
+- reusable template marketplace

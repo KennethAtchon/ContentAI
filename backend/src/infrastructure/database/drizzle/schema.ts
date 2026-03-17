@@ -372,6 +372,38 @@ export const reelAssets = pgTable(
   ],
 );
 
+export const reelCompositions = pgTable(
+  "reel_composition",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    generatedContentId: integer("generated_content_id")
+      .notNull()
+      .references(() => generatedContent.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    timeline: jsonb("timeline").notNull(),
+    baseAssembledAssetId: text("base_assembled_asset_id"),
+    latestRenderedAssetId: text("latest_rendered_asset_id"),
+    version: integer("version").notNull().default(1),
+    editMode: text("edit_mode").notNull().default("quick"),
+    previewPreset: text("preview_preset").notNull().default("instagram-9-16"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("reel_composition_generated_content_idx").on(t.generatedContentId),
+    index("reel_composition_user_updated_idx").on(t.userId, t.updatedAt),
+    uniqueIndex("reel_composition_content_user_idx").on(
+      t.generatedContentId,
+      t.userId,
+    ),
+  ],
+);
+
 // ─── Music Tracks ─────────────────────────────────────────────────────────────
 export const musicTracks = pgTable(
   "music_track",
@@ -513,5 +545,7 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type ReelAsset = typeof reelAssets.$inferSelect;
 export type NewReelAsset = typeof reelAssets.$inferInsert;
+export type ReelComposition = typeof reelCompositions.$inferSelect;
+export type NewReelComposition = typeof reelCompositions.$inferInsert;
 export type MusicTrack = typeof musicTracks.$inferSelect;
 export type NewMusicTrack = typeof musicTracks.$inferInsert;

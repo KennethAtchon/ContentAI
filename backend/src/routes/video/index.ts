@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { tmpdir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync, rmSync, unlinkSync } from "fs";
@@ -14,6 +14,7 @@ import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import {
   generatedContent,
+  reelCompositions,
   reelAssets,
 } from "../../infrastructure/database/drizzle/schema";
 import { generateVideoClip } from "../../services/media/video-generation";
@@ -26,6 +27,7 @@ import {
   type VideoRenderJob,
   type VideoJobKind,
 } from "../../services/video/job.service";
+import getRedisConnection from "../../services/db/redis";
 import {
   deriveUseClipAudioByIndex,
   extractCaptionSourceText,
@@ -69,10 +71,64 @@ const assembleSchema = z.object({
     .optional(),
 });
 
+const timelineItemSchema = z.object({
+  id: z.string().min(1),
+  assetId: z.string().min(1).optional(),
+  lane: z.number().int().min(0).optional(),
+  startMs: z.number().int().min(0),
+  endMs: z.number().int().min(1),
+  trimStartMs: z.number().int().min(0).optional(),
+  trimEndMs: z.number().int().min(1).optional(),
+  role: z.string().optional(),
+});
+
+const timelineSchema = z.object({
+  schemaVersion: z.number().int().default(1),
+  fps: z.number().int().min(1).max(120).default(30),
+  durationMs: z.number().int().min(1),
+  tracks: z.object({
+    video: z.array(timelineItemSchema).default([]),
+    audio: z.array(timelineItemSchema).default([]),
+    text: z.array(z.record(z.string(), z.unknown())).default([]),
+    captions: z.array(z.record(z.string(), z.unknown())).default([]),
+  }),
+});
+
+const compositionInitSchema = z.object({
+  generatedContentId: z.number().int().positive(),
+  mode: z.enum(["quick", "precision"]).default("quick"),
+});
+
+const compositionSaveSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  editMode: z.enum(["quick", "precision"]).default("quick"),
+  timeline: timelineSchema,
+});
+
+const compositionValidateSchema = z.object({
+  timeline: timelineSchema,
+});
+
+const compositionRenderSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  outputPreset: z.string().min(1).default("instagram-9-16"),
+  includeCaptions: z.boolean().optional().default(true),
+});
+
 type AudioAssets = {
   voiceover: typeof reelAssets.$inferSelect | null;
   music: typeof reelAssets.$inferSelect | null;
 };
+
+type TimelineIssue = {
+  code: string;
+  track: string;
+  itemIds: string[];
+  severity: "error" | "warning";
+  message: string;
+};
+
+type TimelinePayload = z.infer<typeof timelineSchema>;
 
 async function cleanupTempFiles(paths: string[]): Promise<void> {
   for (const p of paths) {
@@ -82,6 +138,195 @@ async function cleanupTempFiles(paths: string[]): Promise<void> {
       // Ignore cleanup errors
     }
   }
+}
+
+function getAssetTypeForTrack(track: "video" | "audio", role?: string): string[] {
+  if (track === "video") return ["video_clip", "image"];
+  if (role === "voiceover") return ["voiceover"];
+  if (role === "music") return ["music"];
+  return ["voiceover", "music"];
+}
+
+function hasTrackOverlap(items: Array<{ startMs: number; endMs: number }>): boolean {
+  const sorted = [...items].sort((a, b) => a.startMs - b.startMs);
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (sorted[i].startMs < sorted[i - 1].endMs) return true;
+  }
+  return false;
+}
+
+async function validateTimeline(input: {
+  userId: string;
+  generatedContentId: number;
+  timeline: TimelinePayload;
+}): Promise<TimelineIssue[]> {
+  const issues: TimelineIssue[] = [];
+  const videoItems = input.timeline.tracks.video ?? [];
+  const audioItems = input.timeline.tracks.audio ?? [];
+
+  for (const item of [...videoItems, ...audioItems]) {
+    if (item.endMs <= item.startMs) {
+      issues.push({
+        code: "INVALID_TIME_RANGE",
+        track: videoItems.includes(item) ? "video" : "audio",
+        itemIds: [item.id],
+        severity: "error",
+        message: "Timeline item has invalid start/end range.",
+      });
+    }
+    if (item.endMs > input.timeline.durationMs) {
+      issues.push({
+        code: "ITEM_EXCEEDS_DURATION",
+        track: videoItems.includes(item) ? "video" : "audio",
+        itemIds: [item.id],
+        severity: "error",
+        message: "Timeline item exceeds composition duration.",
+      });
+    }
+  }
+
+  const laneGroups = new Map<number, typeof videoItems>();
+  for (const item of videoItems) {
+    const lane = item.lane ?? 0;
+    const laneItems = laneGroups.get(lane) ?? [];
+    laneItems.push(item);
+    laneGroups.set(lane, laneItems);
+  }
+  for (const [lane, items] of laneGroups.entries()) {
+    if (hasTrackOverlap(items)) {
+      issues.push({
+        code: "OVERLAPPING_VIDEO_SEGMENTS",
+        track: "video",
+        itemIds: items.map((it) => it.id),
+        severity: "error",
+        message: `Video segments overlap in lane ${lane}.`,
+      });
+    }
+  }
+
+  if (videoItems.length === 0) {
+    issues.push({
+      code: "MISSING_VIDEO_SEGMENTS",
+      track: "video",
+      itemIds: [],
+      severity: "error",
+      message: "At least one video segment is required.",
+    });
+  }
+
+  const refs = [
+    ...videoItems
+      .filter((i) => i.assetId)
+      .map((i) => ({ track: "video" as const, itemId: i.id, assetId: i.assetId!, role: i.role })),
+    ...audioItems
+      .filter((i) => i.assetId)
+      .map((i) => ({ track: "audio" as const, itemId: i.id, assetId: i.assetId!, role: i.role })),
+  ];
+
+  if (refs.length > 0) {
+    const assets = await db
+      .select({
+        id: reelAssets.id,
+        type: reelAssets.type,
+      })
+      .from(reelAssets)
+      .where(
+        and(
+          eq(reelAssets.userId, input.userId),
+          eq(reelAssets.generatedContentId, input.generatedContentId),
+          inArray(
+            reelAssets.id,
+            refs.map((ref) => ref.assetId),
+          ),
+        ),
+      );
+
+    const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
+    for (const ref of refs) {
+      const asset = assetMap.get(ref.assetId);
+      if (!asset) {
+        issues.push({
+          code: "ASSET_OWNERSHIP_INVALID",
+          track: ref.track,
+          itemIds: [ref.itemId],
+          severity: "error",
+          message: "Referenced asset is missing or not owned by user.",
+        });
+        continue;
+      }
+
+      const allowedTypes = getAssetTypeForTrack(ref.track, ref.role);
+      if (!allowedTypes.includes(asset.type)) {
+        issues.push({
+          code: "ASSET_TYPE_MISMATCH",
+          track: ref.track,
+          itemIds: [ref.itemId],
+          severity: "error",
+          message: `Asset type ${asset.type} is not valid for ${ref.track} track.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+async function buildInitialTimeline(input: {
+  userId: string;
+  generatedContentId: number;
+}): Promise<TimelinePayload> {
+  const videoAssets = await loadShotAssets(input.userId, input.generatedContentId);
+  const auxAudio = await loadAuxAudioAssets(input.userId, input.generatedContentId);
+
+  let cursor = 0;
+  const video = videoAssets.map((asset, idx) => {
+    const durationMs = Math.max(1, asset.durationMs ?? 5000);
+    const item = {
+      id: `clip-${idx + 1}`,
+      assetId: asset.id,
+      lane: 0,
+      startMs: cursor,
+      endMs: cursor + durationMs,
+      trimStartMs: 0,
+      trimEndMs: durationMs,
+    };
+    cursor += durationMs;
+    return item;
+  });
+
+  const durationMs = Math.max(cursor, 1000);
+  const audio: Array<z.infer<typeof timelineItemSchema>> = [];
+
+  if (auxAudio.voiceover) {
+    audio.push({
+      id: "voiceover-main",
+      assetId: auxAudio.voiceover.id,
+      role: "voiceover",
+      startMs: 0,
+      endMs: durationMs,
+    });
+  }
+  if (auxAudio.music) {
+    audio.push({
+      id: "music-main",
+      assetId: auxAudio.music.id,
+      role: "music",
+      startMs: 0,
+      endMs: durationMs,
+    });
+  }
+
+  return {
+    schemaVersion: 1,
+    fps: 30,
+    durationMs,
+    tracks: {
+      video,
+      audio,
+      text: [],
+      captions: [],
+    },
+  };
 }
 
 async function ffmpegConcatClips(input: {
@@ -478,32 +723,6 @@ async function upsertAssembledAsset(input: {
   durationMs: number;
   metadata: Record<string, unknown>;
 }): Promise<string> {
-  const [existing] = await db
-    .select({ id: reelAssets.id })
-    .from(reelAssets)
-    .where(
-      and(
-        eq(reelAssets.generatedContentId, input.generatedContentId),
-        eq(reelAssets.userId, input.userId),
-        eq(reelAssets.type, "assembled_video"),
-      ),
-    )
-    .limit(1);
-
-  if (existing) {
-    const [updated] = await db
-      .update(reelAssets)
-      .set({
-        r2Key: input.r2Key,
-        r2Url: input.r2Url,
-        durationMs: input.durationMs,
-        metadata: input.metadata,
-      })
-      .where(eq(reelAssets.id, existing.id))
-      .returning({ id: reelAssets.id });
-    return updated.id;
-  }
-
   const [assembled] = await db
     .insert(reelAssets)
     .values({
@@ -1076,6 +1295,95 @@ async function runShotRegenerate(input: {
   }
 }
 
+async function runCompositionRender(input: {
+  job: VideoRenderJob;
+  compositionId: string;
+  expectedVersion: number;
+  includeCaptions: boolean;
+  outputPreset: string;
+}): Promise<void> {
+  const { job } = input;
+  await videoJobService.updateJob(job.id, {
+    status: "running",
+    startedAt: new Date().toISOString(),
+    error: undefined,
+  });
+
+  const lockKey = `phase5_render:${input.compositionId}:${input.expectedVersion}`;
+  try {
+    const [composition] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, input.compositionId),
+          eq(reelCompositions.userId, job.userId),
+        ),
+      )
+      .limit(1);
+
+    if (!composition) {
+      throw new Error("Composition not found");
+    }
+    if (composition.version !== input.expectedVersion) {
+      throw new Error("Composition version conflict");
+    }
+
+    const issues = await validateTimeline({
+      userId: job.userId,
+      generatedContentId: job.generatedContentId,
+      timeline: composition.timeline as TimelinePayload,
+    });
+    if (issues.some((issue) => issue.severity === "error")) {
+      throw new Error("Timeline validation failed");
+    }
+
+    await runAssembleFromExistingClips({ job });
+
+    const latestJob = await videoJobService.getJob(job.id);
+    const assembledAssetId = latestJob?.result?.assembledAssetId;
+
+    if (latestJob?.status === "completed" && assembledAssetId) {
+      const versionLabel = `v${composition.version}-edited`;
+      await db
+        .update(reelAssets)
+        .set({
+          metadata: {
+            ...(((await db
+              .select({ metadata: reelAssets.metadata })
+              .from(reelAssets)
+              .where(eq(reelAssets.id, assembledAssetId))
+              .limit(1))[0]?.metadata as Record<string, unknown> | null) ?? {}),
+            sourceType: "phase5-composition",
+            compositionId: composition.id,
+            compositionVersion: composition.version,
+            versionLabel,
+            includeCaptions: input.includeCaptions,
+            outputPreset: input.outputPreset,
+          },
+        })
+        .where(eq(reelAssets.id, assembledAssetId));
+
+      await db
+        .update(reelCompositions)
+        .set({
+          latestRenderedAssetId: assembledAssetId,
+        })
+        .where(eq(reelCompositions.id, composition.id));
+
+      await videoJobService.updateJob(job.id, {
+        result: {
+          ...(latestJob.result ?? {}),
+          compositionId: composition.id,
+          compositionVersion: composition.version,
+        },
+      });
+    }
+  } finally {
+    await getRedisConnection().del(lockKey).catch(() => {});
+  }
+}
+
 function enqueue(kind: VideoJobKind, fn: () => Promise<void>): void {
   setTimeout(() => void fn(), 0);
   debugLog.info("Video job enqueued", {
@@ -1100,6 +1408,15 @@ function getRetryRunner(
   switch (job.kind) {
     case "assemble":
       return () => runAssembleFromExistingClips({ job: retryJob });
+    case "composition_render":
+      return () =>
+        runCompositionRender({
+          job: retryJob,
+          compositionId: String(req.compositionId ?? ""),
+          expectedVersion: Number(req.expectedVersion ?? 1),
+          includeCaptions: Boolean(req.includeCaptions ?? true),
+          outputPreset: String(req.outputPreset ?? "instagram-9-16"),
+        });
     case "shot_regenerate":
       return () =>
         runShotRegenerate({
@@ -1279,6 +1596,637 @@ app.post(
       });
       return c.json({ error: "Failed to queue assembly" }, 500);
     }
+  },
+);
+
+// POST /api/video/compositions/init
+app.post(
+  "/compositions/init",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator("json", compositionInitSchema),
+  async (c) => {
+    const auth = c.get("auth");
+    const payload = c.req.valid("json");
+
+    const content = await fetchOwnedContent(auth.user.id, payload.generatedContentId);
+    if (!content) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "GENERATED_CONTENT_NOT_FOUND",
+            message: "Generated content not found",
+          },
+        },
+        404,
+      );
+    }
+
+    const [existing] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.generatedContentId, payload.generatedContentId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      return c.json({
+        ok: true,
+        data: {
+          compositionId: existing.id,
+          generatedContentId: existing.generatedContentId,
+          version: existing.version,
+          mode: existing.editMode,
+          timeline: existing.timeline,
+          createdFromPhase4: false,
+        },
+      });
+    }
+
+    const timeline = await buildInitialTimeline({
+      userId: auth.user.id,
+      generatedContentId: payload.generatedContentId,
+    });
+
+    try {
+      const [created] = await db
+        .insert(reelCompositions)
+        .values({
+          generatedContentId: payload.generatedContentId,
+          userId: auth.user.id,
+          editMode: payload.mode,
+          timeline,
+        })
+        .returning();
+
+      return c.json({
+        ok: true,
+        data: {
+          compositionId: created.id,
+          generatedContentId: created.generatedContentId,
+          version: created.version,
+          mode: created.editMode,
+          timeline: created.timeline,
+          createdFromPhase4: true,
+        },
+      });
+    } catch {
+      const [raceResolved] = await db
+        .select()
+        .from(reelCompositions)
+        .where(
+          and(
+            eq(reelCompositions.generatedContentId, payload.generatedContentId),
+            eq(reelCompositions.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+      if (!raceResolved) {
+        return c.json(
+          {
+            ok: false,
+            error: {
+              code: "COMPOSITION_INIT_FAILED",
+              message: "Failed to initialize composition",
+            },
+          },
+          409,
+        );
+      }
+
+      return c.json({
+        ok: true,
+        data: {
+          compositionId: raceResolved.id,
+          generatedContentId: raceResolved.generatedContentId,
+          version: raceResolved.version,
+          mode: raceResolved.editMode,
+          timeline: raceResolved.timeline,
+          createdFromPhase4: false,
+        },
+      });
+    }
+  },
+);
+
+// GET /api/video/compositions/:compositionId
+app.get(
+  "/compositions/:compositionId",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    const auth = c.get("auth");
+    const { compositionId } = c.req.param();
+
+    const [composition] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, compositionId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!composition) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_NOT_FOUND",
+            message: "Composition not found",
+          },
+        },
+        404,
+      );
+    }
+
+    return c.json({
+      ok: true,
+      data: {
+        compositionId: composition.id,
+        generatedContentId: composition.generatedContentId,
+        version: composition.version,
+        editMode: composition.editMode,
+        timeline: composition.timeline,
+        updatedAt: composition.updatedAt,
+      },
+    });
+  },
+);
+
+// PUT /api/video/compositions/:compositionId
+app.put(
+  "/compositions/:compositionId",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator("json", compositionSaveSchema),
+  async (c) => {
+    const auth = c.get("auth");
+    const { compositionId } = c.req.param();
+    const payload = c.req.valid("json");
+
+    const [composition] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, compositionId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!composition) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_NOT_FOUND",
+            message: "Composition not found",
+          },
+        },
+        404,
+      );
+    }
+
+    if (composition.version !== payload.expectedVersion) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_VERSION_CONFLICT",
+            message: "Composition has a newer version.",
+            details: { latestVersion: composition.version },
+          },
+        },
+        409,
+      );
+    }
+
+    const issues = await validateTimeline({
+      userId: auth.user.id,
+      generatedContentId: composition.generatedContentId,
+      timeline: payload.timeline,
+    });
+    if (issues.some((issue) => issue.severity === "error")) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "TIMELINE_VALIDATION_FAILED",
+            message: "Timeline contains invalid segments.",
+            details: { issues },
+          },
+        },
+        422,
+      );
+    }
+
+    const [updated] = await db
+      .update(reelCompositions)
+      .set({
+        timeline: payload.timeline,
+        editMode: payload.editMode,
+        version: composition.version + 1,
+      })
+      .where(eq(reelCompositions.id, composition.id))
+      .returning();
+
+    return c.json({
+      ok: true,
+      data: {
+        compositionId: updated.id,
+        saved: true,
+        version: updated.version,
+        updatedAt: updated.updatedAt,
+      },
+    });
+  },
+);
+
+// POST /api/video/compositions/:compositionId/validate
+app.post(
+  "/compositions/:compositionId/validate",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator("json", compositionValidateSchema),
+  async (c) => {
+    const auth = c.get("auth");
+    const { compositionId } = c.req.param();
+    const payload = c.req.valid("json");
+
+    const [composition] = await db
+      .select({
+        id: reelCompositions.id,
+        generatedContentId: reelCompositions.generatedContentId,
+      })
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, compositionId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+    if (!composition) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_NOT_FOUND",
+            message: "Composition not found",
+          },
+        },
+        404,
+      );
+    }
+
+    const issues = await validateTimeline({
+      userId: auth.user.id,
+      generatedContentId: composition.generatedContentId,
+      timeline: payload.timeline,
+    });
+
+    return c.json({
+      ok: true,
+      data: {
+        valid: issues.every((issue) => issue.severity !== "error"),
+        issues,
+      },
+    });
+  },
+);
+
+// GET /api/video/compositions/:compositionId/versions
+app.get(
+  "/compositions/:compositionId/versions",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    const auth = c.get("auth");
+    const { compositionId } = c.req.param();
+
+    const [composition] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, compositionId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+    if (!composition) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_NOT_FOUND",
+            message: "Composition not found",
+          },
+        },
+        404,
+      );
+    }
+
+    const assets = await db
+      .select({
+        id: reelAssets.id,
+        createdAt: reelAssets.createdAt,
+        durationMs: reelAssets.durationMs,
+        metadata: reelAssets.metadata,
+      })
+      .from(reelAssets)
+      .where(
+        and(
+          eq(reelAssets.userId, auth.user.id),
+          eq(reelAssets.generatedContentId, composition.generatedContentId),
+          eq(reelAssets.type, "assembled_video"),
+        ),
+      )
+      .orderBy(desc(reelAssets.createdAt));
+
+    return c.json({
+      ok: true,
+      data: {
+        items: assets.map((asset) => ({
+          assetId: asset.id,
+          label:
+            ((asset.metadata as Record<string, unknown> | null)?.versionLabel as
+              | string
+              | undefined) ?? "edited-version",
+          createdAt: asset.createdAt,
+          durationMs:
+            asset.durationMs ??
+            Number(
+              (composition.timeline as Record<string, unknown>)?.durationMs ?? 0,
+            ),
+          isLatest: asset.id === composition.latestRenderedAssetId,
+        })),
+      },
+    });
+  },
+);
+
+// POST /api/video/compositions/:compositionId/render
+app.post(
+  "/compositions/:compositionId/render",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator("json", compositionRenderSchema),
+  async (c) => {
+    const auth = c.get("auth");
+    const { compositionId } = c.req.param();
+    const payload = c.req.valid("json");
+
+    const [composition] = await db
+      .select()
+      .from(reelCompositions)
+      .where(
+        and(
+          eq(reelCompositions.id, compositionId),
+          eq(reelCompositions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+    if (!composition) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_NOT_FOUND",
+            message: "Composition not found",
+          },
+        },
+        404,
+      );
+    }
+
+    if (composition.version !== payload.expectedVersion) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "COMPOSITION_VERSION_CONFLICT",
+            message: "Composition has a newer version.",
+            details: { latestVersion: composition.version },
+          },
+        },
+        409,
+      );
+    }
+
+    const issues = await validateTimeline({
+      userId: auth.user.id,
+      generatedContentId: composition.generatedContentId,
+      timeline: composition.timeline as TimelinePayload,
+    });
+    if (issues.some((issue) => issue.severity === "error")) {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "TIMELINE_VALIDATION_FAILED",
+            message: "Timeline contains invalid segments.",
+            details: { issues },
+          },
+        },
+        422,
+      );
+    }
+
+    const lockKey = `phase5_render:${composition.id}:${composition.version}`;
+    const existingJobId = await getRedisConnection().get(lockKey);
+    if (existingJobId) {
+      const existingJob = await videoJobService.getJob(existingJobId);
+      if (
+        existingJob &&
+        (existingJob.status === "queued" || existingJob.status === "running")
+      ) {
+        return c.json(
+          {
+            ok: true,
+            data: {
+              jobId: existingJob.id,
+              status: existingJob.status,
+              compositionId: composition.id,
+              compositionVersion: composition.version,
+            },
+          },
+          202,
+        );
+      }
+    }
+
+    const job = await videoJobService.createJob({
+      userId: auth.user.id,
+      generatedContentId: composition.generatedContentId,
+      kind: "composition_render",
+      request: {
+        compositionId: composition.id,
+        expectedVersion: composition.version,
+        includeCaptions: payload.includeCaptions,
+        outputPreset: payload.outputPreset,
+      },
+    });
+
+    await getRedisConnection().set(lockKey, job.id, "EX", 600);
+    enqueue("composition_render", () =>
+      runCompositionRender({
+        job,
+        compositionId: composition.id,
+        expectedVersion: composition.version,
+        includeCaptions: payload.includeCaptions,
+        outputPreset: payload.outputPreset,
+      }),
+    );
+
+    return c.json(
+      {
+        ok: true,
+        data: {
+          jobId: job.id,
+          status: job.status,
+          compositionId: composition.id,
+          compositionVersion: composition.version,
+        },
+      },
+      202,
+    );
+  },
+);
+
+// GET /api/video/composition-jobs/:jobId
+app.get(
+  "/composition-jobs/:jobId",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    const auth = c.get("auth");
+    const { jobId } = c.req.param();
+    const job = await videoJobService.getJob(jobId);
+
+    if (!job) {
+      return c.json(
+        {
+          ok: false,
+          error: { code: "COMPOSITION_JOB_NOT_FOUND", message: "Job not found" },
+        },
+        404,
+      );
+    }
+    if (job.userId !== auth.user.id) {
+      return c.json(
+        {
+          ok: false,
+          error: { code: "OWNERSHIP_FORBIDDEN", message: "Forbidden" },
+        },
+        403,
+      );
+    }
+
+    if (job.status === "failed") {
+      return c.json({
+        ok: false,
+        error: {
+          code: "COMPOSITION_RENDER_FAILED",
+          message: job.error ?? "Render failed",
+          details: { retryable: true },
+        },
+      });
+    }
+
+    return c.json({
+      ok: true,
+      data: {
+        jobId: job.id,
+        status: job.status === "running" ? "rendering" : job.status,
+        result: job.result,
+      },
+    });
+  },
+);
+
+// POST /api/video/composition-jobs/:jobId/retry
+app.post(
+  "/composition-jobs/:jobId/retry",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    const auth = c.get("auth");
+    const { jobId } = c.req.param();
+    const job = await videoJobService.getJob(jobId);
+
+    if (!job) {
+      return c.json(
+        {
+          ok: false,
+          error: { code: "COMPOSITION_JOB_NOT_FOUND", message: "Job not found" },
+        },
+        404,
+      );
+    }
+    if (job.userId !== auth.user.id) {
+      return c.json(
+        {
+          ok: false,
+          error: { code: "OWNERSHIP_FORBIDDEN", message: "Forbidden" },
+        },
+        403,
+      );
+    }
+    if (job.kind !== "composition_render") {
+      return c.json(
+        {
+          ok: false,
+          error: { code: "INVALID_INPUT", message: "Not a composition render job" },
+        },
+        400,
+      );
+    }
+    if (job.status !== "failed" && job.status !== "completed") {
+      return c.json(
+        {
+          ok: false,
+          error: {
+            code: "INVALID_INPUT",
+            message: "Retry allowed only for terminal jobs",
+          },
+        },
+        400,
+      );
+    }
+
+    const retryJob = await videoJobService.createJob({
+      userId: job.userId,
+      generatedContentId: job.generatedContentId,
+      kind: "composition_render",
+      request: job.request,
+    });
+    enqueue("composition_render", getRetryRunner(job, retryJob));
+
+    return c.json(
+      {
+        ok: true,
+        data: {
+          jobId: retryJob.id,
+          status: retryJob.status,
+        },
+      },
+      202,
+    );
   },
 );
 

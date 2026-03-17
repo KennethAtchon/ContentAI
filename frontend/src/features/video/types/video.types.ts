@@ -13,7 +13,7 @@ export interface VideoRenderJob {
   id: string;
   userId: string;
   generatedContentId: number;
-  kind: "reel_generate" | "shot_regenerate" | "assemble";
+  kind: "reel_generate" | "shot_regenerate" | "assemble" | "composition_render";
   status: VideoJobStatus;
   createdAt: string;
   startedAt?: string;

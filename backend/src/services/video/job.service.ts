@@ -2,7 +2,11 @@ import getRedisConnection from "../db/redis";
 import { debugLog } from "../../utils/debug/debug";
 
 export type VideoJobStatus = "queued" | "running" | "completed" | "failed";
-export type VideoJobKind = "reel_generate" | "shot_regenerate" | "assemble";
+export type VideoJobKind =
+  | "reel_generate"
+  | "shot_regenerate"
+  | "assemble"
+  | "composition_render";
 
 export interface VideoJobResult {
   clipAssetId?: string;
@@ -11,6 +15,8 @@ export interface VideoJobResult {
   provider?: string;
   durationSeconds?: number;
   shotCount?: number;
+  compositionId?: string;
+  compositionVersion?: number;
 }
 
 export interface VideoRenderJob {

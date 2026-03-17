@@ -540,6 +540,12 @@ export function DraftDetail({
           <Mic className="w-3.5 h-3.5" />
           {hasAudio ? t("workspace_edit_audio") : t("workspace_add_audio")}
         </button>
+        <a
+          href={`/studio/generate/${draft.id}/reel/edit`}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-border/60 bg-muted/30 text-foreground/80 hover:bg-muted transition-colors"
+        >
+          {t("phase5_editor_open")}
+        </a>
         <button
           onClick={() => void handleGenerateReel()}
           disabled={generateReel.isPending || videoRunning}

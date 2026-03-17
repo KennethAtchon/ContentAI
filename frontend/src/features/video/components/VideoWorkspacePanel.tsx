@@ -285,6 +285,14 @@ export function VideoWorkspacePanel({
                 : t("workspace_video_reassemble")}
             </button>
           )}
+          {!videoRunning && (hasVideoOutput || shotClips.length > 0) && (
+            <a
+              href={`/studio/generate/${draft.id}/reel/edit`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-[11px] text-foreground/80 hover:bg-muted"
+            >
+              {t("phase5_editor_open")}
+            </a>
+          )}
           {videoFailed && (
             <button
               onClick={() => void handleRetryVideo()}
