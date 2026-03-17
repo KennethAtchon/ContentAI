@@ -1,6 +1,6 @@
 # Phase 5 API and Flow Contracts
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Related:
 - `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
 - `docs/specs/phase5/PHASE5_TECHNICAL_DESIGN.md`
@@ -14,6 +14,25 @@ Related:
 - Long-running operations return quickly with `jobId`
 - Phase 4 contracts remain valid; Phase 5 adds composition-first contracts
 - Request/response payloads are JSON unless noted
+
+## Implementation Status Snapshot
+
+Implemented in backend (`backend/src/routes/video/index.ts` and related services):
+
+- `POST /api/video/compositions/init`
+- `GET /api/video/compositions/:compositionId`
+- `PUT /api/video/compositions/:compositionId`
+- `POST /api/video/compositions/:compositionId/validate`
+- `GET /api/video/compositions/:compositionId/versions`
+- `POST /api/video/compositions/:compositionId/render`
+- `GET /api/video/composition-jobs/:jobId`
+- `POST /api/video/composition-jobs/:jobId/retry`
+
+Notes:
+
+- response envelope shape and error taxonomy are active in current implementation
+- render de-duplication for same composition version is implemented with Redis lock keying
+- Phase 4 endpoints remain supported in parallel
 
 ## Common Response Envelopes
 

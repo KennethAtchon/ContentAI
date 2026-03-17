@@ -1,16 +1,16 @@
 # Phase 5 In-Browser Editing Suite — Implementation Checklist
 
-## Status: Planning Complete, Implementation Not Started
+## Status: In Progress (Backend complete, Frontend 5A partial)
 
-Phase 5 documentation package is complete and implementation-ready.  
-No engineering tasks are marked complete yet for this phase.
+Phase 5 documentation package is complete and active implementation is underway.  
+Backend composition/render foundations are implemented; frontend quick-edit UI is partially implemented.
 
 Remaining items are intentionally split by delivery stage:
 
 - 5A Quick Edit MVP (ship first)
 - 5B Precision Editing (ship second, behind quality gates)
 
-**Last updated:** 2026-03-16  
+**Last updated:** 2026-03-17  
 **Purpose:** Track what is built vs remaining for Phase 5 (editing suite). Use with `docs/REEL_CREATION_TODO.md` and `docs/specs/PHASE5_*.md`.
 
 ---
@@ -26,41 +26,41 @@ Remaining items are intentionally split by delivery stage:
 
 ## Backend — Prerequisites and data model
 
-- [ ] **Composition persistence schema** — Add canonical `reel_composition` storage contract.  
+- [x] **Composition persistence schema** — Canonical `reel_composition` storage contract added.  
   Spec: `docs/specs/PHASE5_TECHNICAL_DESIGN.md`
-- [ ] **Composition migration initializer** — First-open migration from Phase 4 metadata to composition timeline.  
+- [x] **Composition migration initializer** — First-open init path seeds timeline from existing Phase 4/asset state.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
-- [ ] **Timeline validation service** — Shared server validator for overlaps, ownership, and duration constraints.  
+- [x] **Timeline validation service** — Shared server validator for overlap/ownership/duration constraints.  
   Spec: `docs/specs/PHASE5_TECHNICAL_DESIGN.md`
-- [ ] **Version conflict handling** — Optimistic concurrency contract for save and render operations.  
+- [x] **Version conflict handling** — Optimistic concurrency contract enforced for save and render operations.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
 
 ---
 
 ## Backend — Composition and render APIs
 
-- [ ] **Init/load composition endpoints** — Create or fetch editable project state.  
+- [x] **Init/load composition endpoints** — Create or fetch editable project state.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
-- [ ] **Save composition endpoint** — Persist versioned timeline updates.  
+- [x] **Save composition endpoint** — Persist versioned timeline updates.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
-- [ ] **Validate endpoint** — Return structured validation issues for UI blocking guidance.  
+- [x] **Validate endpoint** — Return structured validation issues for UI blocking guidance.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
-- [ ] **Render from composition endpoint** — Queue final render from canonical timeline.  
+- [x] **Render from composition endpoint** — Queue final render from canonical timeline.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
-- [ ] **Phase 5 render job status/retry endpoints** — Expose lifecycle and retry path.  
+- [x] **Phase 5 render job status/retry endpoints** — Expose lifecycle and retry path.  
   Spec: `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
 
 ---
 
 ## Frontend — 5A Quick Edit MVP
 
-- [ ] **Editor route/shell** — Add Phase 5 editor entry route and workspace shell.
-- [ ] **Quick tool stack** — Trim, reorder, text overlay, caption style, transition presets.
-- [ ] **Preview runtime** — In-browser preview updates from local composition edits.
-- [ ] **Autosave UX** — Debounced save with visible state and retry behavior.
-- [ ] **Validation UX** — Surface blocking issues with actionable guidance.
-- [ ] **Render panel** — Trigger render, poll status, retry failures.
-- [ ] **Version list UX** — Show latest output and preserve fallback to prior successful versions.
+- [x] **Editor route/shell** — Phase 5 editor route and shell added under studio flow.
+- [ ] **Quick tool stack** — Trim/reorder/text/caption/split are implemented; transition preset editing remains.
+- [ ] **Preview runtime** — Lightweight timeline/selection preview is implemented; full media-accurate preview remains.
+- [x] **Autosave UX** — Debounced autosave with visible save status and retry-safe flow added.
+- [x] **Validation UX** — Validation trigger and issue display added in render panel.
+- [x] **Render panel** — Render trigger, status polling, and retry flow added.
+- [x] **Version list UX** — Rendered versions list is shown in editor render panel.
 
 Specs:
 
@@ -75,12 +75,12 @@ Specs:
 - [ ] **Precision tab activation** — Feature-flagged entry and gated rollout.
 - [ ] **Multi-track timeline** — Video/audio/text/caption lanes with ruler and playhead.
 - [ ] **Frame-accurate scrubbing** — Timecode-synced preview updates.
-- [ ] **Split/cut tool** — Segment split and delete operations.
+- [ ] **Split/cut tool** — Keyboard split/delete path exists (`S`, `Delete`), full precision cut UX remains.
 - [ ] **Bring-in workflow** — Asset tray drag/drop insertion.
 - [ ] **Per-track keyframes** — Volume/opacity keyframe editing.
 - [ ] **Snapping behaviors** — Grid, edge, and beat snapping rules.
-- [ ] **Keyboard controls** — Space, J/K/L, I/O, S, Delete, undo shortcuts.
-- [ ] **Undo/redo stack** — Minimum 50 levels with deterministic behavior.
+- [ ] **Keyboard controls** — Implemented subset: `S`, `Delete/Backspace`, undo/redo; transport/timecode keys remain.
+- [x] **Undo/redo stack** — 50-entry history with action labels/selection restore is implemented.
 
 Specs:
 

@@ -1,6 +1,6 @@
 # Phase 5 Technical Design
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Related:
 - `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
 - `docs/specs/PHASE4_TECHNICAL_DESIGN.md`
@@ -73,6 +73,30 @@ flowchart TB
 
 - `frontend/src/features/reel/` (Phase 5 entry point)
 - `queryKeys`, `useQueryFetcher`, `useAuthenticatedFetch` (canonical data patterns)
+
+## Implementation Status Snapshot
+
+As of current implementation:
+
+- Backend composition foundation is implemented:
+  - `reel_composition` schema + migration
+  - composition CRUD/validate/render endpoints
+  - composition job status + retry path
+  - optimistic version conflict handling
+  - timeline validation for structural/time/ownership checks
+- Frontend 5A baseline is implemented:
+  - editor route + shell and render panel wiring
+  - autosave status and validation/render UX
+  - quick-edit controls for reorder/trim/text/caption baseline
+  - timeline interaction baseline (selection, drag reorder, split/delete shortcuts)
+  - undo/redo stack with labeled history metadata
+
+Still pending for full Phase 5 completion:
+
+- media-accurate preview parity for all supported edits
+- transition preset authoring controls in editor UI
+- full precision timeline feature set and keyboard transport controls
+- test/release gates from `PHASE5_TEST_AND_RELEASE_CRITERIA`
 
 ## Composition Storage Decision
 

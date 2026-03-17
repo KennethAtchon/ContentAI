@@ -3,6 +3,7 @@ import type {
   SaveState,
   Timeline,
 } from "../../types/composition.types";
+import type { HistoryViewEntry } from "../../hooks/use-editor-history";
 import { EditorHeader } from "./EditorHeader";
 import { PreviewPanel } from "./PreviewPanel";
 import { QuickToolsPlaceholder } from "./QuickToolsPlaceholder";
@@ -22,6 +23,10 @@ export type EditorShellProps = {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  lastActionLabel: string | null;
+  nextUndoLabel: string | null;
+  nextRedoLabel: string | null;
+  historyTrail: HistoryViewEntry[];
 };
 
 export function EditorShell({
@@ -38,6 +43,10 @@ export function EditorShell({
   canRedo,
   onUndo,
   onRedo,
+  lastActionLabel,
+  nextUndoLabel,
+  nextRedoLabel,
+  historyTrail,
 }: EditorShellProps) {
   return (
     <div className="h-full grid grid-rows-[auto_1fr]">
@@ -50,6 +59,10 @@ export function EditorShell({
         canRedo={canRedo}
         onUndo={onUndo}
         onRedo={onRedo}
+        lastActionLabel={lastActionLabel}
+        nextUndoLabel={nextUndoLabel}
+        nextRedoLabel={nextRedoLabel}
+        historyTrail={historyTrail}
       />
       <div className="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-4">

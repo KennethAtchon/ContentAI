@@ -6,6 +6,7 @@ import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { EditorShell } from "@/features/video/components/editor/EditorShell";
 import { useAutosaveComposition } from "@/features/video/hooks/use-autosave-composition";
 import { useComposition } from "@/features/video/hooks/use-composition";
+import { useEditorHistory } from "@/features/video/hooks/use-editor-history";
 import { useInitComposition } from "@/features/video/hooks/use-init-composition";
 import type {
   CompositionRecord,
@@ -29,8 +30,7 @@ function ReelEditorRoute() {
     videoClipId: null,
     textOverlayId: null,
   });
-  const [pastTimelines, setPastTimelines] = useState<Timeline[]>([]);
-  const [futureTimelines, setFutureTimelines] = useState<Timeline[]>([]);
+  const history = useEditorHistory();
 
   const runInit = useCallback(
     () =>
@@ -55,8 +55,7 @@ function ReelEditorRoute() {
       videoClipId: compositionQuery.data.timeline.tracks.video[0]?.id ?? null,
       textOverlayId: null,
     });
-    setPastTimelines([]);
-    setFutureTimelines([]);
+    history.resetHistory();
   }, [compositionQuery.data]);
 
   useEffect(() => {
@@ -117,72 +116,67 @@ function ReelEditorRoute() {
   ]);
 
   let content: React.ReactNode = null;
-  const handleTimelineChange = useCallback((nextTimeline: Timeline) => {
-    setEditableComposition((prev) => {
-      if (!prev) return prev;
-      const prevHash = JSON.stringify(prev.timeline);
-      const nextHash = JSON.stringify(nextTimeline);
-      if (prevHash === nextHash) return prev;
-      setPastTimelines((items) => [...items.slice(-49), prev.timeline]);
-      setFutureTimelines([]);
-      return {
-        ...prev,
-        timeline: nextTimeline,
-      };
-    });
-  }, []);
+  const handleTimelineChange = useCallback(
+    (nextTimeline: Timeline) => {
+      history.applyTimelineAction(
+        selection,
+        setEditableComposition,
+        setSelection,
+        t("phase5_editor_action_timeline_edit"),
+        { source: "ui", category: "timeline" },
+        () => ({
+          timeline: nextTimeline,
+        }),
+      );
+    },
+    [history, selection, t],
+  );
 
   const handleUndo = useCallback(() => {
-    setPastTimelines((items) => {
-      if (items.length === 0) return items;
-      const previous = items[items.length - 1];
-      setEditableComposition((prev) => {
-        if (!prev) return prev;
-        setFutureTimelines((future) => [prev.timeline, ...future].slice(0, 50));
-        return {
-          ...prev,
-          timeline: previous,
-        };
-      });
-      return items.slice(0, -1);
-    });
-  }, []);
+    history.undo(
+      selection,
+      t("phase5_editor_action_timeline_edit"),
+      { source: "keyboard", category: "history" },
+      (label) => t("phase5_editor_action_undo_named", { label }),
+      setEditableComposition,
+      setSelection,
+    );
+  }, [history, selection, t]);
 
   const handleRedo = useCallback(() => {
-    setFutureTimelines((items) => {
-      if (items.length === 0) return items;
-      const [next, ...rest] = items;
-      setEditableComposition((prev) => {
-        if (!prev) return prev;
-        setPastTimelines((past) => [...past.slice(-49), prev.timeline]);
-        return {
-          ...prev,
-          timeline: next,
-        };
-      });
-      return rest;
-    });
-  }, []);
+    history.redo(
+      selection,
+      t("phase5_editor_action_timeline_edit"),
+      { source: "keyboard", category: "history" },
+      (label) => t("phase5_editor_action_redo_named", { label }),
+      setEditableComposition,
+      setSelection,
+    );
+  }, [history, selection, t]);
 
   const handleDeleteShortcut = useCallback(() => {
-    setEditableComposition((prev) => {
-      if (!prev) return prev;
+    history.applyTimelineAction(
+      selection,
+      setEditableComposition,
+      setSelection,
+      t("phase5_editor_action_delete"),
+      { source: "keyboard", category: "other" },
+      (prev) => {
       if (selection.textOverlayId) {
-        const nextTimeline = {
-          ...prev.timeline,
-          tracks: {
-            ...prev.timeline.tracks,
-            text: prev.timeline.tracks.text.filter(
-              (item) =>
-                String((item as Record<string, unknown>).id ?? "") !==
-                selection.textOverlayId,
-            ),
+        return {
+          timeline: {
+            ...prev.timeline,
+            tracks: {
+              ...prev.timeline.tracks,
+              text: prev.timeline.tracks.text.filter(
+                (item) =>
+                  String((item as Record<string, unknown>).id ?? "") !==
+                  selection.textOverlayId,
+              ),
+            },
           },
+          selection: { textOverlayId: null },
         };
-        setPastTimelines((items) => [...items.slice(-49), prev.timeline]);
-        setFutureTimelines([]);
-        setSelection((current) => ({ ...current, textOverlayId: null }));
-        return { ...prev, timeline: nextTimeline };
       }
       if (selection.videoClipId && prev.timeline.tracks.video.length > 1) {
         const nextTimeline = normalizeTimeline({
@@ -194,36 +188,38 @@ function ReelEditorRoute() {
             ),
           },
         });
-        setPastTimelines((items) => [...items.slice(-49), prev.timeline]);
-        setFutureTimelines([]);
-        setSelection((current) => ({
-          ...current,
-          videoClipId: nextTimeline.tracks.video[0]?.id ?? null,
-        }));
-        return { ...prev, timeline: nextTimeline };
+        return {
+          timeline: nextTimeline,
+          selection: { videoClipId: nextTimeline.tracks.video[0]?.id ?? null },
+        };
       }
-      return prev;
-    });
-  }, [selection.textOverlayId, selection.videoClipId]);
+      return null;
+      },
+    );
+  }, [history, selection, t]);
 
   const handleSplitShortcut = useCallback(() => {
-    setEditableComposition((prev) => {
-      if (!prev || !selection.videoClipId) return prev;
+    history.applyTimelineAction(
+      selection,
+      setEditableComposition,
+      setSelection,
+      t("phase5_editor_action_split"),
+      { source: "keyboard", category: "timeline" },
+      (prev) => {
+      if (!selection.videoClipId) return null;
       const nextTimeline = splitVideoItemAt(prev.timeline, selection.videoClipId);
-      if (nextTimeline === prev.timeline) return prev;
+      if (nextTimeline === prev.timeline) return null;
       const nextSelected =
         nextTimeline.tracks.video.find((item) =>
           item.id.startsWith(`${selection.videoClipId}-a-`),
         )?.id ?? nextTimeline.tracks.video[0]?.id ?? null;
-      setPastTimelines((items) => [...items.slice(-49), prev.timeline]);
-      setFutureTimelines([]);
-      setSelection((current) => ({ ...current, videoClipId: nextSelected }));
       return {
-        ...prev,
         timeline: nextTimeline,
+        selection: { videoClipId: nextSelected },
       };
-    });
-  }, [selection.videoClipId]);
+      },
+    );
+  }, [history, selection, t]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -309,10 +305,14 @@ function ReelEditorRoute() {
         onSelectTextOverlay={(overlayId) =>
           setSelection((prev) => ({ ...prev, textOverlayId: overlayId }))
         }
-        canUndo={pastTimelines.length > 0}
-        canRedo={futureTimelines.length > 0}
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        lastActionLabel={history.lastActionLabel}
+        nextUndoLabel={history.nextUndoLabel}
+        nextRedoLabel={history.nextRedoLabel}
+        historyTrail={history.historyTrail}
       />
     );
   }
@@ -320,7 +320,7 @@ function ReelEditorRoute() {
   return (
     <AuthGuard authType="user">
       <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
-        <StudioTopBar variant="studio" activeTab="generate" />
+        <StudioTopBar variant="studio" activeTab="editor" />
         <div className="min-h-0 overflow-hidden">{content}</div>
       </div>
     </AuthGuard>

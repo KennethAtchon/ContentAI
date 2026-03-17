@@ -1,6 +1,6 @@
 # Phase 5 Test and Release Criteria
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Related:
 - `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
 - `docs/specs/phase5/PHASE5_TECHNICAL_DESIGN.md`
@@ -15,6 +15,20 @@ Phase 5 is releasable when users can reliably:
 - render final outputs without losing composition data or previous successful versions
 
 5B precision controls are gated and evaluated separately.
+
+## Implementation Status Snapshot
+
+Current state against this release criteria doc:
+
+- backend API surface for composition init/load/save/validate/render/job/retry is implemented
+- frontend 5A baseline UX for quick edits, autosave, validation feedback, and render lifecycle is implemented
+- precision 5B remains gated/partial and is not release-ready
+
+Still pending before 5A go/no-go:
+
+- contract/integration/UI automated coverage for the full 5A matrix
+- performance budget validation in staging
+- observability/alerts verification for save/render failure spikes and latency budgets
 
 ## Test Strategy
 

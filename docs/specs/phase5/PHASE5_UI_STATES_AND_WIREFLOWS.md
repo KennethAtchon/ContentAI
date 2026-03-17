@@ -1,6 +1,6 @@
 # Phase 5 UI States, Tokens, and Wireflows
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Related:
 - `docs/specs/phase5/PHASE5_UI_LAYOUT_BLUEPRINT.md`
 - `docs/specs/phase5/PHASE5_API_AND_FLOW_CONTRACTS.md`
@@ -9,6 +9,21 @@ Related:
 ## Interaction States and Microcopy
 
 All user-facing text must use i18n keys (no hardcoded UI copy).
+
+## Implementation Status Snapshot
+
+Implemented so far:
+
+- save state UX states are wired (`saving`, `saved`, `failed`) in editor header/status badge
+- validation issues are surfaced in render flow before final render
+- render lifecycle UI states (`queued`, `rendering`, `completed`, `failed`) and retry path are implemented
+- keyboard subset is implemented (`undo/redo`, `split`, `delete`) with history labels
+
+Still pending:
+
+- full transition microcopy/state UX
+- precision-only state surfaces (keyframes, snapping, frame transport states)
+- complete state parity between spec matrix and final i18n key inventory
 
 ## Core State Matrix
 

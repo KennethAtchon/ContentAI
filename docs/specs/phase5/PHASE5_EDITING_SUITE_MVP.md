@@ -1,8 +1,8 @@
 # Phase 5 In-Browser Editing Suite MVP
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Owner: Reel Editor + Media Pipeline
-Status: Draft for implementation
+Status: In progress (backend contracts complete, frontend 5A partial)
 
 ## Goal
 
@@ -126,39 +126,39 @@ Guardrails:
 
 ## MVP Deliverables
 
-1. Composition create/read/update API contract
-2. Quick Edit UI shell with responsive desktop/mobile layout
-3. Client preview engine for trim/reorder/overlay/caption/transition visualization
-4. Server render endpoint for composition-based finalization
-5. Render job status and retry UX
-6. Version history behavior for fallback and comparison
-7. QA and release gates for functional, performance, and ownership safety
+1. [x] Composition create/read/update API contract
+2. [x] Quick Edit UI shell with responsive desktop/mobile layout (baseline shell)
+3. [ ] Client preview engine for trim/reorder/overlay/caption/transition visualization (partial timeline preview)
+4. [x] Server render endpoint for composition-based finalization
+5. [x] Render job status and retry UX
+6. [x] Version history behavior for fallback and comparison (baseline list/history behavior)
+7. [ ] QA and release gates for functional, performance, and ownership safety
 
 ## Milestones and Release Slices
 
 ### Slice 1: Composition Foundation
 
-- init/load/save contracts
-- migration from Phase 4 metadata
-- versioning and conflict handling
+- [x] init/load/save contracts
+- [x] migration from Phase 4 metadata/state
+- [x] versioning and conflict handling
 
 ### Slice 2: Quick Edit 5A End-to-End
 
-- trim/reorder/text/caption/transition controls
-- preview parity for supported controls
-- autosave and validation UX
+- [ ] trim/reorder/text/caption/transition controls (transition controls pending)
+- [ ] preview parity for supported controls (partial)
+- [x] autosave and validation UX
 
 ### Slice 3: Render Reliability
 
-- render endpoint from composition
-- status polling/retry/fallback behavior
-- release gate verification
+- [x] render endpoint from composition
+- [x] status polling/retry/fallback behavior
+- [ ] release gate verification
 
 ### Slice 4: Precision 5B (Feature Flag)
 
-- timeline lanes and frame tools
-- shortcuts and undo/redo depth
-- staged rollout after stability metrics pass
+- [ ] timeline lanes and frame tools
+- [ ] shortcuts and undo/redo depth (partial keyboard + 50-entry undo/redo added)
+- [ ] staged rollout after stability metrics pass
 
 ## AI-First Product Rules
 

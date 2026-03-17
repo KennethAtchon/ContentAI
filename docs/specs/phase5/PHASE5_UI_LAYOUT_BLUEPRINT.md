@@ -1,6 +1,6 @@
 # Phase 5 UI Layout Blueprint
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 Related:
 - `docs/specs/phase5/PHASE5_EDITING_SUITE_MVP.md`
 - `docs/specs/phase5/PHASE5_UI_STATES_AND_WIREFLOWS.md`
@@ -13,6 +13,21 @@ Define implementation-grade layout architecture for the Phase 5 editor so engine
 - quick-edit-first UX for most users (5A)
 - precision timeline UX for power users (5B, gated)
 - consistent behavior across desktop and mobile fallbacks
+
+## Implementation Status Snapshot
+
+Implemented so far:
+
+- route-level editor workspace is live at `/(customer)/generate/$generatedContentId/reel/edit`
+- `EditorHeader`, `EditorShell`, `PreviewPanel`, `QuickTools`, and `RenderPanel` regions are wired
+- render/version area is implemented with status + retry + versions list
+- timeline strip supports selection + drag reorder baseline
+
+Still pending from this blueprint:
+
+- full transport-driven preview player parity
+- transition controls in quick tools
+- precision layout regions (`PrecisionTimelinePanel`, `InspectorPanel`, `AssetTray`) as interactive production surfaces
 
 ## Information Architecture
 
