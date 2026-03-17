@@ -58,9 +58,9 @@ echo "✅  Done! Fresh migration created in $MIGRATIONS_DIR"
 echo ""
 read -rp "Apply the migration now? (y/N) " apply
 if [[ "$apply" == "y" || "$apply" == "Y" ]]; then
-  echo "🚀  Pushing schema to database..."
-  bunx drizzle-kit push
-  echo "✅  Schema pushed!"
+  echo "🚀  Running migrations..."
+  bunx drizzle-kit migrate
+  echo "✅  Migrations applied!"
 else
   echo "ℹ️  Run 'bun run db:push' or 'bun run db:migrate' when ready."
 fi

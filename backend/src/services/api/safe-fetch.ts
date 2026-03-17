@@ -89,7 +89,7 @@ export async function safeFetch(
       debugLog.debug("Request Logging", {
         service: "safe-fetch",
         operation: "request-logging",
-        url,
+        url: sanitizeUrl(url),
         method: requestInit.method || "GET",
         signal: signal.aborted,
         timeout: timeout,
@@ -98,7 +98,7 @@ export async function safeFetch(
         retryOn: retryOn,
         validateResponse: validateResponse,
         logRequests: logRequests,
-        requestInit,
+        requestInit: sanitizeRequestInit(requestInit),
       });
 
       try {
@@ -305,6 +305,44 @@ function sanitizeUrl(url: string): string {
     // If URL parsing fails, return a generic placeholder
     return "[URL_PARSE_ERROR]";
   }
+}
+
+function sanitizeRequestInit(requestInit: RequestInit): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {
+    ...requestInit,
+  };
+
+  sanitized.headers = sanitizeHeaders(requestInit.headers);
+
+  if (requestInit.body !== undefined) {
+    if (typeof requestInit.body === "string") {
+      sanitized.body =
+        requestInit.body.length > 500
+          ? `[STRING_BODY_${requestInit.body.length}_CHARS]`
+          : requestInit.body;
+    } else {
+      sanitized.body = "[NON_STRING_BODY]";
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeHeaders(
+  headers: HeadersInit | undefined,
+): Record<string, string> | undefined {
+  if (!headers) return undefined;
+
+  const normalized = new Headers(headers);
+  const redacted: Record<string, string> = {};
+  const sensitiveHeaderPattern =
+    /authorization|x-api-key|api-key|token|secret|cookie/i;
+
+  normalized.forEach((value, key) => {
+    redacted[key] = sensitiveHeaderPattern.test(key) ? "[REDACTED]" : value;
+  });
+
+  return redacted;
 }
 
 /**

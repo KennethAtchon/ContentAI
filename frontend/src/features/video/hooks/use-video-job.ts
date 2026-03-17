@@ -14,6 +14,6 @@ export function useVideoJob(jobId: string | null) {
       query.state.data?.job.status === "completed" ||
       query.state.data?.job.status === "failed"
         ? false
-        : 2000,
+        : 5000,
   });
 }

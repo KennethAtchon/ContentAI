@@ -69,6 +69,10 @@ function checkStorageAvailability(): boolean {
 }
 ```
 
+### Runtime Binary Requirements
+- `ffmpeg` must be available in the backend runtime `PATH` for assembly jobs.
+- Assembly performs a preflight check and fails fast with an actionable error when `ffmpeg` is missing.
+
 ### Required Environment Variables
 ```env
 # AI Services (through AI client abstraction)
@@ -362,9 +366,19 @@ const assembledR2Url = await uploadFile(outputBuffer, assembledR2Key, "video/mp4
 ```json
 {
   "generatedContentId": 123,
-  "includeCaptions": true
+  "includeCaptions": true,
+  "audioMix": {
+    "includeClipAudio": true,
+    "voiceoverVolume": 1.0,
+    "musicVolume": 0.22,
+    "clipAudioVolume": 0.35
+  }
 }
 ```
+
+### How Caption Rendering Works
+- Captions are rendered as an ASS subtitle file, then burned into the video using FFmpeg `-vf ass=...`.
+- Captions are composited on top of the picture and become part of the final exported video frames.
 
 ## Job Queue System
 
@@ -499,6 +513,15 @@ async function recordMediaCost({
 ```
 
 ## Frontend Integration
+
+### Re-assembly UX
+- The Video workspace exposes a dedicated **Re-assemble** action in the generation controls.
+- Re-assembly still uses `POST /api/video/assemble` against existing shot/audio assets, so users can rebuild final output without regenerating clips.
+- Users can tune assembly mix controls per run:
+  - `includeClipAudio` (on/off)
+  - `voiceoverVolume` (`0.00`–`2.00`)
+  - `musicVolume` (`0.00`–`1.00`)
+  - `clipAudioVolume` (`0.00`–`1.00`)
 
 ### React Hooks
 ```typescript

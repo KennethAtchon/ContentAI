@@ -6,6 +6,12 @@ import type { CreateReelResponse } from "../types/video.types";
 type AssembleReelArgs = {
   generatedContentId: number;
   includeCaptions?: boolean;
+  audioMix?: {
+    includeClipAudio?: boolean;
+    clipAudioVolume?: number;
+    voiceoverVolume?: number;
+    musicVolume?: number;
+  };
 };
 
 export function useAssembleReel() {
@@ -13,10 +19,10 @@ export function useAssembleReel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ generatedContentId, includeCaptions = true }: AssembleReelArgs) =>
+    mutationFn: ({ generatedContentId, includeCaptions = true, audioMix }: AssembleReelArgs) =>
       authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
         method: "POST",
-        body: JSON.stringify({ generatedContentId, includeCaptions }),
+        body: JSON.stringify({ generatedContentId, includeCaptions, audioMix }),
       }),
     onSuccess: (res, variables) => {
       void queryClient.invalidateQueries({

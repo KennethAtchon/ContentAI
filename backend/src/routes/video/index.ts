@@ -59,6 +59,14 @@ const regenerateShotSchema = z.object({
 const assembleSchema = z.object({
   generatedContentId: z.number().int().positive(),
   includeCaptions: z.boolean().optional(),
+  audioMix: z
+    .object({
+      includeClipAudio: z.boolean().optional(),
+      clipAudioVolume: z.number().min(0).max(1).optional(),
+      voiceoverVolume: z.number().min(0).max(2).optional(),
+      musicVolume: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
 });
 
 type AudioAssets = {
@@ -276,6 +284,25 @@ async function runFfmpeg(args: string[]): Promise<void> {
   }
 }
 
+async function ensureFfmpegAvailable(): Promise<void> {
+  try {
+    const proc = Bun.spawn(["ffmpeg", "-version"], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    await proc.exited;
+    if (proc.exitCode !== 0) {
+      throw new Error("ffmpeg exited with non-zero status");
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown ffmpeg error";
+    throw new Error(
+      `ffmpeg is required for video assembly but is unavailable: ${errorMessage}. Install ffmpeg on the host (or include it in the backend container image).`,
+    );
+  }
+}
+
 async function downloadSignedAssetToPath(
   r2Key: string,
   localPath: string,
@@ -317,11 +344,15 @@ async function mixAssemblyAudio(input: {
   voiceoverPath?: string;
   musicPath?: string;
   keepClipAudio: boolean;
+  clipAudioVolume: number;
+  voiceoverVolume: number;
+  musicVolume: number;
 }): Promise<boolean> {
   const hasVoiceover = Boolean(input.voiceoverPath);
   const hasMusic = Boolean(input.musicPath);
+  const hasClipAudio = input.keepClipAudio && input.clipAudioVolume > 0;
   if (!hasVoiceover && !hasMusic && input.keepClipAudio) return false;
-  if (!hasVoiceover && !hasMusic && !input.keepClipAudio) {
+  if (!hasVoiceover && !hasMusic && !hasClipAudio) {
     await runFfmpeg(["-i", input.inputVideoPath, "-an", "-c:v", "copy", "-y", input.outputPath]);
     return true;
   }
@@ -329,12 +360,14 @@ async function mixAssemblyAudio(input: {
   const args = ["-i", input.inputVideoPath];
   if (input.voiceoverPath) args.push("-i", input.voiceoverPath);
   if (input.musicPath) args.push("-i", input.musicPath);
+  const voiceoverInputIndex = input.voiceoverPath ? 1 : -1;
+  const musicInputIndex = input.musicPath ? (input.voiceoverPath ? 2 : 1) : -1;
 
-  if (input.keepClipAudio) {
+  if (hasClipAudio) {
     if (hasVoiceover && hasMusic) {
       args.push(
         "-filter_complex",
-        "[0:a]volume=0.35[clip];[1:a]volume=1.0[vo];[2:a]volume=0.22[music];[clip][vo][music]amix=inputs=3:duration=longest:dropout_transition=2[mix]",
+        `[0:a]volume=${input.clipAudioVolume}[clip];[${voiceoverInputIndex}:a]volume=${input.voiceoverVolume}[vo];[${musicInputIndex}:a]volume=${input.musicVolume}[music];[clip][vo][music]amix=inputs=3:duration=longest:dropout_transition=2[mix]`,
         "-map",
         "0:v",
         "-map",
@@ -343,7 +376,7 @@ async function mixAssemblyAudio(input: {
     } else if (hasVoiceover) {
       args.push(
         "-filter_complex",
-        "[0:a]volume=0.4[clip];[1:a]volume=1.0[vo];[clip][vo]amix=inputs=2:duration=longest:dropout_transition=2[mix]",
+        `[0:a]volume=${input.clipAudioVolume}[clip];[${voiceoverInputIndex}:a]volume=${input.voiceoverVolume}[vo];[clip][vo]amix=inputs=2:duration=longest:dropout_transition=2[mix]`,
         "-map",
         "0:v",
         "-map",
@@ -352,7 +385,7 @@ async function mixAssemblyAudio(input: {
     } else {
       args.push(
         "-filter_complex",
-        "[0:a]volume=0.45[clip];[1:a]volume=0.25[music];[clip][music]amix=inputs=2:duration=longest:dropout_transition=2[mix]",
+        `[0:a]volume=${input.clipAudioVolume}[clip];[${musicInputIndex}:a]volume=${input.musicVolume}[music];[clip][music]amix=inputs=2:duration=longest:dropout_transition=2[mix]`,
         "-map",
         "0:v",
         "-map",
@@ -362,16 +395,30 @@ async function mixAssemblyAudio(input: {
   } else if (hasVoiceover && hasMusic) {
     args.push(
       "-filter_complex",
-      "[1:a]volume=1.0[vo];[2:a]volume=0.22[music];[vo][music]amix=inputs=2:duration=longest:dropout_transition=2[mix]",
+      `[${voiceoverInputIndex}:a]volume=${input.voiceoverVolume}[vo];[${musicInputIndex}:a]volume=${input.musicVolume}[music];[vo][music]amix=inputs=2:duration=longest:dropout_transition=2[mix]`,
       "-map",
       "0:v",
       "-map",
       "[mix]",
     );
   } else if (hasVoiceover) {
-    args.push("-map", "0:v", "-map", "1:a");
+    args.push(
+      "-filter_complex",
+      `[${voiceoverInputIndex}:a]volume=${input.voiceoverVolume}[vo]`,
+      "-map",
+      "0:v",
+      "-map",
+      "[vo]",
+    );
   } else {
-    args.push("-map", "0:v", "-map", "1:a");
+    args.push(
+      "-filter_complex",
+      `[${musicInputIndex}:a]volume=${input.musicVolume}[music]`,
+      "-map",
+      "0:v",
+      "-map",
+      "[music]",
+    );
   }
 
   args.push("-c:v", "copy", "-c:a", "aac", "-shortest", "-y", input.outputPath);
@@ -540,6 +587,8 @@ async function runAssembleFromExistingClips({
       throw new Error("Content not found");
     }
 
+    await ensureFfmpegAvailable();
+
     const shotAssets = await loadShotAssets(job.userId, job.generatedContentId);
     if (shotAssets.length === 0) {
       throw new Error("No shot clips available for assembly");
@@ -581,6 +630,26 @@ async function runAssembleFromExistingClips({
       const metadata = (asset.metadata as Record<string, unknown> | null) ?? {};
       return Boolean(metadata.useClipAudio);
     });
+    const requestedMix = (job.request?.audioMix as Record<string, unknown> | undefined) ?? {};
+    const includeClipAudioOverride = requestedMix.includeClipAudio;
+    const keepClipAudio =
+      typeof includeClipAudioOverride === "boolean"
+        ? includeClipAudioOverride
+        : shouldKeepClipAudio;
+    const clipAudioVolume =
+      typeof requestedMix.clipAudioVolume === "number"
+        ? Math.min(Math.max(requestedMix.clipAudioVolume, 0), 1)
+        : keepClipAudio
+          ? 0.35
+          : 0;
+    const voiceoverVolume =
+      typeof requestedMix.voiceoverVolume === "number"
+        ? Math.min(Math.max(requestedMix.voiceoverVolume, 0), 2)
+        : 1.0;
+    const musicVolume =
+      typeof requestedMix.musicVolume === "number"
+        ? Math.min(Math.max(requestedMix.musicVolume, 0), 1)
+        : 0.22;
 
     const audioAssets = await loadAuxAudioAssets(job.userId, job.generatedContentId);
     let workingVideoPath = baseVideoPath;
@@ -596,7 +665,7 @@ async function runAssembleFromExistingClips({
     if (
       audioAssets.voiceover ||
       audioAssets.music ||
-      !shouldKeepClipAudio
+      !keepClipAudio
     ) {
       try {
         appliedAudioMix = await mixAssemblyAudio({
@@ -604,7 +673,10 @@ async function runAssembleFromExistingClips({
           outputPath: mixedVideoPath,
           voiceoverPath: audioAssets.voiceover ? voiceoverPath : undefined,
           musicPath: audioAssets.music ? musicPath : undefined,
-          keepClipAudio: shouldKeepClipAudio,
+          keepClipAudio,
+          clipAudioVolume,
+          voiceoverVolume,
+          musicVolume,
         });
         if (appliedAudioMix) {
           workingVideoPath = mixedVideoPath;

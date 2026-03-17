@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X, FileText, Mic, Film } from "lucide-react";
+import { toast } from "sonner";
 import { DraftsList } from "./DraftsList";
 import { DraftDetail } from "./DraftDetail";
 import { AudioPanel } from "@/features/audio/components/AudioPanel";
 import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackContext";
 import { VideoWorkspacePanel } from "@/features/video/components/VideoWorkspacePanel";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
+import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/utils/helpers/utils";
@@ -35,6 +37,22 @@ export function ContentWorkspace({
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
+  const storageKey = `video_job_${sessionId}`;
+  const [videoJobId, setVideoJobId] = useState<string | null>(
+    () => localStorage.getItem(storageKey),
+  );
+  const { data: videoJobData } = useVideoJob(videoJobId);
+  const prevVideoStatusRef = useRef<string | null>(null);
+
+  const startVideoJob = (jobId: string) => {
+    localStorage.setItem(storageKey, jobId);
+    setVideoJobId(jobId);
+  };
+
+  const clearVideoJob = () => {
+    localStorage.removeItem(storageKey);
+    setVideoJobId(null);
+  };
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
@@ -66,6 +84,31 @@ export function ContentWorkspace({
       setActiveTab("audio");
     }
   }, [requestAudioForContentId]);
+
+  // Toast + cleanup when video job completes or fails (including after page refresh)
+  useEffect(() => {
+    const status = videoJobData?.job.status ?? null;
+    const prev = prevVideoStatusRef.current;
+    prevVideoStatusRef.current = status;
+
+    if (status === "completed") {
+      clearVideoJob();
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.api.contentAssets(resolvedVideoDraft?.id ?? 0),
+      });
+      // Only toast if transitioning — not on first render when already completed
+      if (prev !== "completed") {
+        toast.success(t("workspace_video_ready"));
+      }
+    } else if (status === "failed") {
+      clearVideoJob();
+      if (prev !== "failed") {
+        toast.error(t("workspace_video_failed"), {
+          description: videoJobData?.job.error ?? undefined,
+        });
+      }
+    }
+  }, [videoJobData?.job.status, videoJobData?.job.error, t, queryClient, resolvedVideoDraft?.id]);
 
   const handleSelectDraft = (draft: SessionDraft) => {
     setSelectedDraft(draft);
@@ -191,6 +234,9 @@ export function ContentWorkspace({
         <VideoWorkspacePanel
           draft={resolvedVideoDraft}
           onBackToDrafts={() => setActiveTab("drafts")}
+          videoJobId={videoJobId}
+          onJobStarted={startVideoJob}
+          videoJobData={videoJobData}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">

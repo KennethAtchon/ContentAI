@@ -1,6 +1,9 @@
 # Backend Dockerfile
 FROM oven/bun:1-alpine AS base
 
+# Common runtime tools required by media pipeline and startup scripts
+RUN apk add --no-cache ffmpeg libc6-compat tzdata curl postgresql-client
+
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
@@ -44,9 +47,6 @@ RUN bun run build
 # Production stage
 FROM base AS production
 WORKDIR /app
-
-# Install runtime dependencies
-RUN apk add --no-cache libc6-compat tzdata curl postgresql-client
 
 # Copy package files
 COPY --from=deps /app/package.json ./package.json
