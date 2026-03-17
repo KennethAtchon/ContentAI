@@ -46,7 +46,8 @@ function toShotClip(asset: ReelAsset): ShotClip | null {
   if (asset.type !== "video_clip") return null;
   const metadata = (asset.metadata ?? {}) as Record<string, unknown>;
   const rawShot = metadata.shotIndex;
-  const shotIndex = typeof rawShot === "number" ? rawShot : Number(rawShot ?? -1);
+  const shotIndex =
+    typeof rawShot === "number" ? rawShot : Number(rawShot ?? -1);
   if (!Number.isFinite(shotIndex) || shotIndex < 0) return null;
   return {
     ...asset,
@@ -114,7 +115,8 @@ export function DraftDetail({
   const videoStatus = videoJobData?.job.status ?? null;
   const videoRunning = videoStatus === "queued" || videoStatus === "running";
   const videoFailed = videoStatus === "failed";
-  const hasVideoOutput = !!assembledAsset || !!videoJobData?.job.result?.videoUrl;
+  const hasVideoOutput =
+    !!assembledAsset || !!videoJobData?.job.result?.videoUrl;
   const previewVideoUrl =
     assembledAsset?.mediaUrl ?? videoJobData?.job.result?.videoUrl ?? null;
 
@@ -176,7 +178,10 @@ export function DraftDetail({
     }
   };
 
-  const handleSetUseClipAudio = async (asset: ShotClip, useClipAudio: boolean) => {
+  const handleSetUseClipAudio = async (
+    asset: ShotClip,
+    useClipAudio: boolean
+  ) => {
     try {
       await updateAssetMetadata.mutateAsync({
         assetId: asset.id,
@@ -207,10 +212,13 @@ export function DraftDetail({
 
   const handleRegenerateShot = async (clip: ShotClip) => {
     const defaultPrompt =
-      clip.generationPrompt || draft.generatedHook || draft.generatedScript || "";
+      clip.generationPrompt ||
+      draft.generatedHook ||
+      draft.generatedScript ||
+      "";
     const prompt = window.prompt(
       t("workspace_storyboard_regenerate_prompt"),
-      defaultPrompt,
+      defaultPrompt
     );
     if (!prompt || !prompt.trim()) return;
 
@@ -329,7 +337,9 @@ export function DraftDetail({
                 <span>{t("workspace_video_generating")}</span>
               </>
             ) : videoFailed ? (
-              <span className="text-red-500">{t("workspace_video_failed")}</span>
+              <span className="text-red-500">
+                {t("workspace_video_failed")}
+              </span>
             ) : hasVideoOutput ? (
               <span>{t("workspace_video_ready")}</span>
             ) : (
@@ -414,7 +424,7 @@ export function DraftDetail({
                     {t("workspace_storyboard_duration", {
                       seconds: Math.max(
                         1,
-                        Math.round((clip.durationMs ?? 0) / 1000),
+                        Math.round((clip.durationMs ?? 0) / 1000)
                       ),
                     })}
                   </div>

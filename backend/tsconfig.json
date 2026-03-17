@@ -14,7 +14,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "jsx": "react-jsx",
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "types": ["bun-types"],
     "baseUrl": ".",
     "paths": {

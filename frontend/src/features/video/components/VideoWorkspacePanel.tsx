@@ -32,7 +32,8 @@ function toShotClip(asset: ReelAsset): ShotClip | null {
   if (asset.type !== "video_clip") return null;
   const metadata = (asset.metadata ?? {}) as Record<string, unknown>;
   const rawShot = metadata.shotIndex;
-  const shotIndex = typeof rawShot === "number" ? rawShot : Number(rawShot ?? -1);
+  const shotIndex =
+    typeof rawShot === "number" ? rawShot : Number(rawShot ?? -1);
   if (!Number.isFinite(shotIndex) || shotIndex < 0) return null;
   return {
     ...asset,
@@ -87,7 +88,8 @@ export function VideoWorkspacePanel({
   const { data: assetsData } = useContentAssets(draft.id);
 
   const assembledAsset =
-    assetsData?.assets.find((asset) => asset.type === "assembled_video") ?? null;
+    assetsData?.assets.find((asset) => asset.type === "assembled_video") ??
+    null;
   const shotClips: ShotClip[] =
     assetsData?.assets
       .map(toShotClip)
@@ -97,7 +99,8 @@ export function VideoWorkspacePanel({
   const videoStatus = videoJobData?.job.status ?? null;
   const videoRunning = videoStatus === "queued" || videoStatus === "running";
   const videoFailed = videoStatus === "failed";
-  const hasVideoOutput = !!assembledAsset || !!videoJobData?.job.result?.videoUrl;
+  const hasVideoOutput =
+    !!assembledAsset || !!videoJobData?.job.result?.videoUrl;
   const previewVideoUrl =
     assembledAsset?.mediaUrl ?? videoJobData?.job.result?.videoUrl ?? null;
   const mutatingStoryboard =
@@ -158,7 +161,10 @@ export function VideoWorkspacePanel({
     }
   };
 
-  const handleSetUseClipAudio = async (asset: ShotClip, useClipAudio: boolean) => {
+  const handleSetUseClipAudio = async (
+    asset: ShotClip,
+    useClipAudio: boolean
+  ) => {
     try {
       await updateAssetMetadata.mutateAsync({
         assetId: asset.id,
@@ -171,7 +177,7 @@ export function VideoWorkspacePanel({
       toast.success(
         useClipAudio
           ? t("workspace_video_action_clip_audio_enabled")
-          : t("workspace_video_action_clip_audio_disabled"),
+          : t("workspace_video_action_clip_audio_disabled")
       );
     } catch {
       toast.error(t("workspace_video_action_clip_audio_failed"));
@@ -198,10 +204,13 @@ export function VideoWorkspacePanel({
 
   const handleRegenerateShot = async (clip: ShotClip) => {
     const defaultPrompt =
-      clip.generationPrompt || draft.generatedHook || draft.generatedScript || "";
+      clip.generationPrompt ||
+      draft.generatedHook ||
+      draft.generatedScript ||
+      "";
     const prompt = window.prompt(
       t("workspace_storyboard_regenerate_prompt"),
-      defaultPrompt,
+      defaultPrompt
     );
     if (!prompt || !prompt.trim()) return;
 
@@ -297,7 +306,9 @@ export function VideoWorkspacePanel({
           <input
             type="checkbox"
             checked={includeCaptions}
-            onChange={(event) => setIncludeCaptions(event.currentTarget.checked)}
+            onChange={(event) =>
+              setIncludeCaptions(event.currentTarget.checked)
+            }
             className="h-3.5 w-3.5"
           />
           {t("workspace_video_include_captions")}
@@ -306,7 +317,9 @@ export function VideoWorkspacePanel({
           <input
             type="checkbox"
             checked={includeClipAudioInMix}
-            onChange={(event) => setIncludeClipAudioInMix(event.currentTarget.checked)}
+            onChange={(event) =>
+              setIncludeClipAudioInMix(event.currentTarget.checked)
+            }
             className="h-3.5 w-3.5"
           />
           {t("workspace_video_include_clip_audio")}
@@ -339,7 +352,9 @@ export function VideoWorkspacePanel({
               max={1}
               step={0.05}
               value={musicVolume}
-              onChange={(event) => setMusicVolume(Number(event.currentTarget.value))}
+              onChange={(event) =>
+                setMusicVolume(Number(event.currentTarget.value))
+              }
               className="flex-1"
             />
             <span className="w-8 text-right">{musicVolume.toFixed(2)}</span>
@@ -386,7 +401,9 @@ export function VideoWorkspacePanel({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs font-medium">
-                    {t("workspace_storyboard_shot", { index: clip.shotIndex + 1 })}
+                    {t("workspace_storyboard_shot", {
+                      index: clip.shotIndex + 1,
+                    })}
                   </div>
                   <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {clip.sourceType}
@@ -394,7 +411,10 @@ export function VideoWorkspacePanel({
                 </div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   {t("workspace_storyboard_duration", {
-                    seconds: Math.max(1, Math.round((clip.durationMs ?? 0) / 1000)),
+                    seconds: Math.max(
+                      1,
+                      Math.round((clip.durationMs ?? 0) / 1000)
+                    ),
                   })}
                 </div>
                 {clip.mediaUrl && (
@@ -515,9 +535,11 @@ export function VideoWorkspacePanel({
               onClick={() =>
                 void sendToQueue
                   .mutateAsync(draft.id)
-                  .then(() => toast.success(t("workspace_video_action_version_created")))
+                  .then(() =>
+                    toast.success(t("workspace_video_action_version_created"))
+                  )
                   .catch(() =>
-                    toast.error(t("workspace_video_action_version_failed")),
+                    toast.error(t("workspace_video_action_version_failed"))
                   )
               }
               disabled={sendToQueue.isPending}

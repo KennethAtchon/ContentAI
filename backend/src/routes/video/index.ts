@@ -70,8 +70,8 @@ const assembleSchema = z.object({
 });
 
 type AudioAssets = {
-  voiceover: (typeof reelAssets.$inferSelect) | null;
-  music: (typeof reelAssets.$inferSelect) | null;
+  voiceover: typeof reelAssets.$inferSelect | null;
+  music: typeof reelAssets.$inferSelect | null;
 };
 
 async function cleanupTempFiles(paths: string[]): Promise<void> {
@@ -109,16 +109,7 @@ async function ffmpegConcatClips(input: {
       if (!shouldKeepClipAudio) {
         const mutedPath = join(input.workDir, `clip-${i}-muted.mp4`);
         const muteProc = Bun.spawn(
-          [
-            "ffmpeg",
-            "-i",
-            clipPath,
-            "-c:v",
-            "copy",
-            "-an",
-            "-y",
-            mutedPath,
-          ],
+          ["ffmpeg", "-i", clipPath, "-c:v", "copy", "-an", "-y", mutedPath],
           {
             stderr: "pipe",
             stdout: "ignore",
@@ -161,7 +152,10 @@ async function ffmpegConcatClips(input: {
       }
     }
 
-    await Bun.write(listPath, concatClipPaths.map((p) => `file '${p}'`).join("\n"));
+    await Bun.write(
+      listPath,
+      concatClipPaths.map((p) => `file '${p}'`).join("\n"),
+    );
 
     const copyProc = Bun.spawn(
       [
@@ -237,7 +231,12 @@ async function createAssCaptions(input: {
   const chunkSize = 3;
   const chunks: string[] = [];
   for (let i = 0; i < words.length; i += chunkSize) {
-    chunks.push(words.slice(i, i + chunkSize).join(" ").toUpperCase());
+    chunks.push(
+      words
+        .slice(i, i + chunkSize)
+        .join(" ")
+        .toUpperCase(),
+    );
   }
   if (chunks.length === 0) return false;
 
@@ -353,7 +352,15 @@ async function mixAssemblyAudio(input: {
   const hasClipAudio = input.keepClipAudio && input.clipAudioVolume > 0;
   if (!hasVoiceover && !hasMusic && input.keepClipAudio) return false;
   if (!hasVoiceover && !hasMusic && !hasClipAudio) {
-    await runFfmpeg(["-i", input.inputVideoPath, "-an", "-c:v", "copy", "-y", input.outputPath]);
+    await runFfmpeg([
+      "-i",
+      input.inputVideoPath,
+      "-an",
+      "-c:v",
+      "copy",
+      "-y",
+      input.outputPath,
+    ]);
     return true;
   }
 
@@ -630,7 +637,8 @@ async function runAssembleFromExistingClips({
       const metadata = (asset.metadata as Record<string, unknown> | null) ?? {};
       return Boolean(metadata.useClipAudio);
     });
-    const requestedMix = (job.request?.audioMix as Record<string, unknown> | undefined) ?? {};
+    const requestedMix =
+      (job.request?.audioMix as Record<string, unknown> | undefined) ?? {};
     const includeClipAudioOverride = requestedMix.includeClipAudio;
     const keepClipAudio =
       typeof includeClipAudioOverride === "boolean"
@@ -651,22 +659,24 @@ async function runAssembleFromExistingClips({
         ? Math.min(Math.max(requestedMix.musicVolume, 0), 1)
         : 0.22;
 
-    const audioAssets = await loadAuxAudioAssets(job.userId, job.generatedContentId);
+    const audioAssets = await loadAuxAudioAssets(
+      job.userId,
+      job.generatedContentId,
+    );
     let workingVideoPath = baseVideoPath;
     let appliedAudioMix = false;
 
     if (audioAssets.voiceover) {
-      await downloadSignedAssetToPath(audioAssets.voiceover.r2Key, voiceoverPath);
+      await downloadSignedAssetToPath(
+        audioAssets.voiceover.r2Key,
+        voiceoverPath,
+      );
     }
     if (audioAssets.music) {
       await downloadSignedAssetToPath(audioAssets.music.r2Key, musicPath);
     }
 
-    if (
-      audioAssets.voiceover ||
-      audioAssets.music ||
-      !keepClipAudio
-    ) {
+    if (audioAssets.voiceover || audioAssets.music || !keepClipAudio) {
       try {
         appliedAudioMix = await mixAssemblyAudio({
           inputVideoPath: workingVideoPath,
@@ -735,20 +745,29 @@ async function runAssembleFromExistingClips({
             captionError instanceof Error
               ? captionError.message
               : "Unknown caption error";
-          debugLog.warn("Assembly caption burn failed; continuing without captions", {
-            service: "video-route",
-            operation: "runAssembleFromExistingClips",
-            jobId: job.id,
-            generatedContentId: job.generatedContentId,
-            error: errorMessage,
-          });
+          debugLog.warn(
+            "Assembly caption burn failed; continuing without captions",
+            {
+              service: "video-route",
+              operation: "runAssembleFromExistingClips",
+              jobId: job.id,
+              generatedContentId: job.generatedContentId,
+              error: errorMessage,
+            },
+          );
         }
       }
     }
 
-    const outputBuffer = Buffer.from(await Bun.file(workingVideoPath).arrayBuffer());
+    const outputBuffer = Buffer.from(
+      await Bun.file(workingVideoPath).arrayBuffer(),
+    );
     const assembledR2Key = `assembled/${job.userId}/${job.generatedContentId}/${job.id}.mp4`;
-    const assembledR2Url = await uploadFile(outputBuffer, assembledR2Key, "video/mp4");
+    const assembledR2Url = await uploadFile(
+      outputBuffer,
+      assembledR2Key,
+      "video/mp4",
+    );
     try {
       rmSync(workDir, { recursive: true, force: true });
     } catch {
@@ -805,7 +824,8 @@ async function runAssembleFromExistingClips({
       error: undefined,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await videoJobService.updateJob(job.id, {
       status: "failed",
       completedAt: new Date().toISOString(),
@@ -849,7 +869,9 @@ async function runReelGeneration(input: {
     }
 
     const fallbackPrompt =
-      input.prompt?.trim() || content.generatedHook?.trim() || content.prompt?.trim();
+      input.prompt?.trim() ||
+      content.generatedHook?.trim() ||
+      content.prompt?.trim();
     if (!fallbackPrompt) {
       throw new Error("No prompt available for video generation");
     }
@@ -866,7 +888,9 @@ async function runReelGeneration(input: {
             },
           ];
 
-    const sceneDescription = content.sceneDescription?.trim() || null;
+    const sceneDescription = content.generatedMetadata?.sceneDescription as
+      | string
+      | undefined;
 
     debugLog.info("[runReelGeneration] Starting clip generation", {
       service: "video-route",
@@ -954,7 +978,8 @@ async function runReelGeneration(input: {
 
     await runAssembleFromExistingClips({ job });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await videoJobService.updateJob(job.id, {
       status: "failed",
       completedAt: new Date().toISOString(),
@@ -1033,7 +1058,8 @@ async function runShotRegenerate(input: {
       });
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     await videoJobService.updateJob(job.id, {
       status: "failed",
       completedAt: new Date().toISOString(),
@@ -1065,7 +1091,9 @@ function getRetryRunner(
 ): () => Promise<void> {
   const req = (job.request ?? {}) as Record<string, unknown>;
   const opts = {
-    durationSeconds: req.durationSeconds ? Number(req.durationSeconds) : undefined,
+    durationSeconds: req.durationSeconds
+      ? Number(req.durationSeconds)
+      : undefined,
     aspectRatio: req.aspectRatio as "9:16" | "16:9" | "1:1" | undefined,
     provider: req.provider as VideoProvider | undefined,
   };
@@ -1102,13 +1130,18 @@ app.post(
       const auth = c.get("auth");
       const payload = c.req.valid("json");
 
-      const content = await fetchOwnedContent(auth.user.id, payload.generatedContentId);
+      const content = await fetchOwnedContent(
+        auth.user.id,
+        payload.generatedContentId,
+      );
       if (!content) {
         return c.json({ error: "Content not found" }, 404);
       }
 
       const resolvedPrompt =
-        payload.prompt?.trim() || content.generatedHook?.trim() || content.prompt?.trim();
+        payload.prompt?.trim() ||
+        content.generatedHook?.trim() ||
+        content.prompt?.trim();
       if (!resolvedPrompt) {
         return c.json(
           {
@@ -1170,7 +1203,10 @@ app.post(
       const auth = c.get("auth");
       const payload = c.req.valid("json");
 
-      const content = await fetchOwnedContent(auth.user.id, payload.generatedContentId);
+      const content = await fetchOwnedContent(
+        auth.user.id,
+        payload.generatedContentId,
+      );
       if (!content) {
         return c.json({ error: "Content not found" }, 404);
       }
@@ -1217,7 +1253,10 @@ app.post(
       const auth = c.get("auth");
       const payload = c.req.valid("json");
 
-      const content = await fetchOwnedContent(auth.user.id, payload.generatedContentId);
+      const content = await fetchOwnedContent(
+        auth.user.id,
+        payload.generatedContentId,
+      );
       if (!content) {
         return c.json({ error: "Content not found" }, 404);
       }
@@ -1255,7 +1294,10 @@ app.get(
 
       const job = await videoJobService.getJob(jobId);
       if (!job) {
-        return c.json({ error: "Job not found", code: "PHASE4_JOB_NOT_FOUND" }, 404);
+        return c.json(
+          { error: "Job not found", code: "PHASE4_JOB_NOT_FOUND" },
+          404,
+        );
       }
 
       if (job.userId !== auth.user.id) {
@@ -1287,7 +1329,10 @@ app.post(
       const job = await videoJobService.getJob(jobId);
 
       if (!job) {
-        return c.json({ error: "Job not found", code: "PHASE4_JOB_NOT_FOUND" }, 404);
+        return c.json(
+          { error: "Job not found", code: "PHASE4_JOB_NOT_FOUND" },
+          404,
+        );
       }
 
       if (job.userId !== auth.user.id) {

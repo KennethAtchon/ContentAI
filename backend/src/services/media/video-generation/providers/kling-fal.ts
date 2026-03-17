@@ -68,7 +68,9 @@ async function submitJob(
   });
 
   if (!res.ok) {
-    throw new Error(`fal.ai submit failed (${res.status} ${res.statusText}): ${body}`);
+    throw new Error(
+      `fal.ai submit failed (${res.status} ${res.statusText}): ${body}`,
+    );
   }
 
   let data: FalQueueResponse;
@@ -202,7 +204,9 @@ async function pollUntilComplete(
       });
 
       if (!resultRes.ok) {
-        throw new Error(`fal.ai result fetch failed (${resultRes.status}): ${resultBody}`);
+        throw new Error(
+          `fal.ai result fetch failed (${resultRes.status}): ${resultBody}`,
+        );
       }
 
       return JSON.parse(resultBody) as FalResultResponse;
@@ -271,7 +275,9 @@ export const klingFalProvider: VideoGenerationProvider = {
     });
 
     if (!result.video?.url) {
-      throw new Error(`fal.ai returned no video URL. Full result: ${JSON.stringify(result)}`);
+      throw new Error(
+        `fal.ai returned no video URL. Full result: ${JSON.stringify(result)}`,
+      );
     }
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-kling.mp4`;

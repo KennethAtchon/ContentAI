@@ -38,8 +38,8 @@ export function ContentWorkspace({
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
   const storageKey = `video_job_${sessionId}`;
-  const [videoJobId, setVideoJobId] = useState<string | null>(
-    () => localStorage.getItem(storageKey),
+  const [videoJobId, setVideoJobId] = useState<string | null>(() =>
+    localStorage.getItem(storageKey)
   );
   const { data: videoJobData } = useVideoJob(videoJobId);
   const prevVideoStatusRef = useRef<string | null>(null);
@@ -108,7 +108,13 @@ export function ContentWorkspace({
         });
       }
     }
-  }, [videoJobData?.job.status, videoJobData?.job.error, t, queryClient, resolvedVideoDraft?.id]);
+  }, [
+    videoJobData?.job.status,
+    videoJobData?.job.error,
+    t,
+    queryClient,
+    resolvedVideoDraft?.id,
+  ]);
 
   const handleSelectDraft = (draft: SessionDraft) => {
     setSelectedDraft(draft);

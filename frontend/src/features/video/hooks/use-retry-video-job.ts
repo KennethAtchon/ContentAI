@@ -9,9 +9,12 @@ export function useRetryVideoJob() {
 
   return useMutation({
     mutationFn: (jobId: string) =>
-      authenticatedFetchJson<CreateReelResponse>(`/api/video/jobs/${jobId}/retry`, {
-        method: "POST",
-      }),
+      authenticatedFetchJson<CreateReelResponse>(
+        `/api/video/jobs/${jobId}/retry`,
+        {
+          method: "POST",
+        }
+      ),
     onSuccess: (res) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.videoJob(res.jobId),

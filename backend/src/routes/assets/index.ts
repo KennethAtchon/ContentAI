@@ -69,7 +69,8 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         if (asset.r2Key) {
           try {
             const signedUrl = await getFileUrl(asset.r2Key, 3600);
-            const isAudio = asset.type === "voiceover" || asset.type === "music";
+            const isAudio =
+              asset.type === "voiceover" || asset.type === "music";
             return {
               ...asset,
               audioUrl: isAudio ? signedUrl : null,
@@ -106,7 +107,9 @@ app.post(
       const form = await c.req.formData();
 
       const fileEntry = form.get("file");
-      const generatedContentIdRaw = String(form.get("generatedContentId") ?? "");
+      const generatedContentIdRaw = String(
+        form.get("generatedContentId") ?? "",
+      );
       const assetTypeRaw = String(form.get("assetType") ?? "");
       const shotIndexRaw = String(form.get("shotIndex") ?? "");
 
@@ -121,10 +124,7 @@ app.post(
 
       const parsedType = uploadAssetTypeSchema.safeParse(assetTypeRaw);
       if (!parsedType.success) {
-        return c.json(
-          { error: "assetType must be video_clip or image" },
-          400,
-        );
+        return c.json({ error: "assetType must be video_clip or image" }, 400);
       }
 
       const shotIndex =
@@ -158,13 +158,19 @@ app.post(
 
       if (isVideo && fileEntry.size > MAX_VIDEO_BYTES) {
         return c.json(
-          { error: "Video exceeds 100MB limit", code: "PHASE4_UPLOAD_TOO_LARGE" },
+          {
+            error: "Video exceeds 100MB limit",
+            code: "PHASE4_UPLOAD_TOO_LARGE",
+          },
           400,
         );
       }
       if (!isVideo && fileEntry.size > MAX_IMAGE_BYTES) {
         return c.json(
-          { error: "Image exceeds 10MB limit", code: "PHASE4_UPLOAD_TOO_LARGE" },
+          {
+            error: "Image exceeds 10MB limit",
+            code: "PHASE4_UPLOAD_TOO_LARGE",
+          },
           400,
         );
       }

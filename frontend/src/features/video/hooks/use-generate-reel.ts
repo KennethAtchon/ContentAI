@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
-import type { CreateReelRequest, CreateReelResponse } from "../types/video.types";
+import type {
+  CreateReelRequest,
+  CreateReelResponse,
+} from "../types/video.types";
 
 export function useGenerateReel() {
   const { authenticatedFetchJson } = useAuthenticatedFetch();

@@ -17,10 +17,13 @@ export function useRegenerateShot() {
 
   return useMutation({
     mutationFn: (data: RegenerateShotArgs) =>
-      authenticatedFetchJson<CreateReelResponse>("/api/video/shots/regenerate", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      authenticatedFetchJson<CreateReelResponse>(
+        "/api/video/shots/regenerate",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        }
+      ),
     onSuccess: (res, variables) => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.contentAssets(variables.generatedContentId),

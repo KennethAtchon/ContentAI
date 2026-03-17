@@ -8,6 +8,9 @@ import { reportError } from "@/utils/error-handling/global-error-handler";
 import { debugLog } from "@/utils/debug";
 import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
 
+// Type definition for HeadersInit
+type HeadersInit = string[][] | Record<string, string> | Headers;
+
 export interface SafeFetchOptions extends RequestInit {
   timeout?: number;
   retryAttempts?: number;
@@ -307,7 +310,9 @@ function sanitizeUrl(url: string): string {
   }
 }
 
-function sanitizeRequestInit(requestInit: RequestInit): Record<string, unknown> {
+function sanitizeRequestInit(
+  requestInit: RequestInit,
+): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {
     ...requestInit,
   };
@@ -333,7 +338,20 @@ function sanitizeHeaders(
 ): Record<string, string> | undefined {
   if (!headers) return undefined;
 
-  const normalized = new Headers(headers);
+  let normalized: Headers;
+
+  if (headers instanceof Headers) {
+    normalized = headers;
+  } else if (Array.isArray(headers)) {
+    // Convert string[][] to proper format for Headers constructor
+    const properArray = headers.filter(
+      (pair) => Array.isArray(pair) && pair.length >= 2,
+    ) as [string, string][];
+    normalized = new Headers(properArray);
+  } else {
+    normalized = new Headers(headers);
+  }
+
   const redacted: Record<string, string> = {};
   const sensitiveHeaderPattern =
     /authorization|x-api-key|api-key|token|secret|cookie/i;

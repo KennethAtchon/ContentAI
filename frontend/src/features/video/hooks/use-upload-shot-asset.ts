@@ -24,7 +24,7 @@ export function useUploadShotAsset() {
       formData.set("shotIndex", String(shotIndex));
       formData.set(
         "assetType",
-        file.type.toLowerCase().startsWith("video/") ? "video_clip" : "image",
+        file.type.toLowerCase().startsWith("video/") ? "video_clip" : "image"
       );
 
       const response = await authenticatedFetch("/api/assets/upload", {

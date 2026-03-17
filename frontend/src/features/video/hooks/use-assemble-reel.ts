@@ -19,7 +19,11 @@ export function useAssembleReel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ generatedContentId, includeCaptions = true, audioMix }: AssembleReelArgs) =>
+    mutationFn: ({
+      generatedContentId,
+      includeCaptions = true,
+      audioMix,
+    }: AssembleReelArgs) =>
       authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
         method: "POST",
         body: JSON.stringify({ generatedContentId, includeCaptions, audioMix }),

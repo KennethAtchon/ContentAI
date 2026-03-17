@@ -8,7 +8,8 @@ export function useVideoJob(jobId: string | null) {
 
   return useQuery({
     queryKey: queryKeys.api.videoJob(jobId ?? ""),
-    queryFn: () => authenticatedFetchJson<VideoJobResponse>(`/api/video/jobs/${jobId}`),
+    queryFn: () =>
+      authenticatedFetchJson<VideoJobResponse>(`/api/video/jobs/${jobId}`),
     enabled: !!jobId,
     refetchInterval: (query) =>
       query.state.data?.job.status === "completed" ||

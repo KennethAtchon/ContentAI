@@ -43,7 +43,7 @@ root.render(
           <ThemeProvider storageKey="ui-theme">
             <AppProvider>
               <RouterProvider router={router} />
-              {false && import.meta.env.DEV && (
+              {import.meta.env.DEV && (
                 <ReactQueryDevtools
                   initialIsOpen={false}
                   buttonPosition="bottom-left"

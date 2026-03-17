@@ -92,7 +92,12 @@ class VideoJobService {
   private async persistJob(job: VideoRenderJob): Promise<void> {
     try {
       const redis = getRedisConnection();
-      await redis.set(JOB_KEY(job.id), JSON.stringify(job), "EX", JOB_TTL_SECONDS);
+      await redis.set(
+        JOB_KEY(job.id),
+        JSON.stringify(job),
+        "EX",
+        JOB_TTL_SECONDS,
+      );
     } catch (err) {
       debugLog.error("Failed to persist video job", {
         service: "video-job-service",

@@ -19,7 +19,11 @@ export function extractCaptionSourceText(input: {
   cleanScriptForAudio: string | null;
   generatedScript: string | null;
 }): string {
-  const source = (input.cleanScriptForAudio ?? input.generatedScript ?? "").trim();
+  const source = (
+    input.cleanScriptForAudio ??
+    input.generatedScript ??
+    ""
+  ).trim();
   if (!source) return "";
   return source
     .replace(/^\[[^\]]+\]\s*/gm, "")
@@ -68,30 +72,40 @@ export function parseScriptShots(script: string | null): ShotInput[] {
     const start = Number(match[1]);
     const end = Number(match[2]);
     const text = match[3]?.trim();
-    
+
     // Validate timing format
     if (isNaN(start) || isNaN(end)) {
-      throw new Error(`Invalid timing values in line: "${line}". Expected format: [start-end] description`);
+      throw new Error(
+        `Invalid timing values in line: "${line}". Expected format: [start-end] description`,
+      );
     }
-    
+
     if (start < 0 || end < 0) {
       throw new Error(`Negative timing values not allowed in line: "${line}"`);
     }
-    
+
     if (end <= start) {
-      throw new Error(`End time must be greater than start time in line: "${line}"`);
+      throw new Error(
+        `End time must be greater than start time in line: "${line}"`,
+      );
     }
-    
+
     if (!text) {
-      throw new Error(`Description cannot be empty in line: "${line}". Expected format: [start-end] description`);
+      throw new Error(
+        `Description cannot be empty in line: "${line}". Expected format: [start-end] description`,
+      );
     }
 
     if (text.length < 3) {
-      throw new Error(`Description too short (minimum 3 characters) in line: "${line}"`);
+      throw new Error(
+        `Description too short (minimum 3 characters) in line: "${line}"`,
+      );
     }
 
     if (text.length > 1000) {
-      throw new Error(`Description too long (maximum 1000 characters) in line: "${line}"`);
+      throw new Error(
+        `Description too long (maximum 1000 characters) in line: "${line}"`,
+      );
     }
 
     const durationSeconds = Math.max(3, Math.min(10, end - start || 5));
@@ -107,11 +121,11 @@ export function parseScriptShots(script: string | null): ShotInput[] {
   if (shots.length === 0) {
     if (invalidLines.length > 0) {
       throw new Error(
-        `No valid script shots found. All lines failed to parse. Expected format: "[0-5] A person walking on beach". Invalid lines:\n${invalidLines.map(line => `  - "${line}"`).join('\n')}`
+        `No valid script shots found. All lines failed to parse. Expected format: "[0-5] A person walking on beach". Invalid lines:\n${invalidLines.map((line) => `  - "${line}"`).join("\n")}`,
       );
     } else {
       throw new Error(
-        `No valid script shots found. Expected format: "[0-5] A person walking on beach" where numbers represent seconds`
+        `No valid script shots found. Expected format: "[0-5] A person walking on beach" where numbers represent seconds`,
       );
     }
   }
@@ -120,7 +134,7 @@ export function parseScriptShots(script: string | null): ShotInput[] {
   if (invalidLines.length > 0 && invalidLines.length > lines.length / 2) {
     debugLog.warn(
       `More than half of script lines failed to parse (${invalidLines.length}/${lines.length}). ` +
-      `Expected format: "[start-end] description". Invalid lines:\n${invalidLines.map(line => `  - "${line}"`).join('\n')}`
+        `Expected format: "[start-end] description". Invalid lines:\n${invalidLines.map((line) => `  - "${line}"`).join("\n")}`,
     );
   }
 
