@@ -794,6 +794,22 @@ async function runReelGeneration(input: {
             },
           ];
 
+    const sceneDescription = content.sceneDescription?.trim() || null;
+
+    debugLog.info("[runReelGeneration] Starting clip generation", {
+      service: "video-route",
+      operation: "runReelGeneration",
+      generatedContentId: job.generatedContentId,
+      shotCount: shots.length,
+      hasSceneDescription: !!sceneDescription,
+      sceneDescription,
+      shots: shots.map((s) => ({
+        shotIndex: s.shotIndex,
+        durationSeconds: s.durationSeconds,
+        description: s.description,
+      })),
+    });
+
     const createdShots: Array<{
       shotIndex: number;
       description: string;
@@ -803,8 +819,19 @@ async function runReelGeneration(input: {
     }> = [];
 
     for (const shot of shots) {
+      const videoPrompt = sceneDescription
+        ? `${sceneDescription}. ${shot.description}`
+        : shot.description;
+
+      debugLog.info("[runReelGeneration] Sending prompt to video provider", {
+        service: "video-route",
+        operation: "runReelGeneration",
+        shotIndex: shot.shotIndex,
+        prompt: videoPrompt,
+      });
+
       const clip = await generateVideoClip({
-        prompt: shot.description,
+        prompt: videoPrompt,
         durationSeconds: shot.durationSeconds,
         aspectRatio: input.aspectRatio,
         userId: job.userId,

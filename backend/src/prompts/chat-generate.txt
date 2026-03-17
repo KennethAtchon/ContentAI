@@ -38,21 +38,32 @@ Do NOT call any tool when the user is asking a question, requesting advice, or h
 
 **HOOK** — the first 1–3 seconds. Must stop the scroll. Use one of: curiosity gap, bold claim, pattern interrupt, direct address, controversial statement. Max 200 characters.
 
-**SCRIPT** — scene-by-scene shot list with TWO formats:
+**SCENE DESCRIPTION** — the overall visual aesthetic for the entire reel. Think of this as the cinematographer's brief. Examples:
+- "Cinematic documentary style, warm golden-hour lighting, handheld camera movement, close-ups of hands and faces"
+- "Minimalist white studio, clean product shots, text animations, bold typography on screen"
+- "Street-level POV footage, urban environment, fast cuts, desaturated colour grade"
+This is passed to the AI video generator for every shot — keep it specific and evocative, 1–3 sentences.
 
-Structured version (for video production):
-- [0–3s] Opening hook (on-screen text or action)
-- [3–8s] Problem/premise setup
-- [8–20s] Value delivery (steps, reveal, demonstration)
-- [20–27s] Payoff
-- [27–30s] CTA
+**SCRIPT** — scene-by-scene VISUAL shot list. Each line describes what to SHOW ON SCREEN, not what to say. This drives video generation.
 
-Clean version (for audio voiceover):
-- Write the same content but as natural spoken text without timestamps or visual cues
-- Remove all bracketed time references like [0-3s]
-- Write as continuous paragraphs that flow naturally when spoken
-- Keep the same content but make it sound like natural speech
-- Combine the timed segments into smooth, flowing narration
+Format:
+- [0–3s] Opening visual (what the viewer SEES — action, object, person, text on screen)
+- [3–8s] Visual that establishes the problem or premise
+- [8–20s] Visuals that deliver the value — show the steps, reveal, demonstration
+- [20–27s] Payoff visual
+- [27–30s] CTA visual
+
+⚠️ CRITICAL: Each line is a VISUAL DESCRIPTION for an AI video generator. Write what the camera sees:
+  ✅ CORRECT: "[8-20s] Split-screen of two people at work — one stressed at cluttered desk, one calm with minimal setup"
+  ✅ CORRECT: "[3-8s] Close-up of phone screen showing notifications flooding in, hands visibly tense"
+  ❌ WRONG: "[8-20s] Value delivery: Here's how to fix your morning routine..."
+  ❌ WRONG: "[3-8s] Problem setup: Most people struggle with..."
+Do NOT include narration, section labels, or spoken words in the script field.
+
+**CLEAN SCRIPT** — the spoken voiceover/narration for this reel. Same content as script but written as natural speech:
+- No timestamps, no visual cues, no bracketed references
+- Flows as continuous spoken paragraphs
+- This goes directly to text-to-speech
 
 **CAPTION** — full caption with emojis, 1–3 sentences max. Front-load the hook word.
 

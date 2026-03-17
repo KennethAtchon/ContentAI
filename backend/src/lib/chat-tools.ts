@@ -19,7 +19,7 @@ export interface ToolContext {
 export function createSaveContentTool(context: ToolContext) {
   return tool({
     description:
-      "Save a complete generated content piece (hook, structured script, clean script, caption, hashtags, CTA) to the database. Call this after writing a full generation. The script field should contain timestamps for video production [0-3s], while cleanScript should be the same content written as natural spoken text without timestamps for audio/TTS generation. Never output raw content as plain text — always call this tool.",
+      "Save a complete generated content piece (hook, structured script, clean script, caption, hashtags, CTA, sceneDescription) to the database. Call this after writing a full generation. The script field should contain VISUAL descriptions of what to show on screen with timestamps [0-3s], while cleanScript should be the spoken narration without timestamps for audio/TTS generation. sceneDescription sets the overall visual aesthetic for all shots. Never output raw content as plain text — always call this tool.",
     inputSchema: z.object({
       hook: z
         .string()
@@ -30,13 +30,19 @@ export function createSaveContentTool(context: ToolContext) {
         .string()
         .min(50)
         .describe(
-          "Scene-by-scene shot list with timing, e.g. [0-3s] Opening...",
+          "Scene-by-scene VISUAL shot list with timing, e.g. [0-3s] Close-up of person looking shocked at phone screen. Describes what to SHOW on screen, not what to say.",
         ),
       cleanScript: z
         .string()
         .min(30)
         .describe(
-          "Clean script without timestamps for audio/TTS generation - natural spoken text",
+          "Spoken narration without timestamps for audio/TTS — natural speech, no visual cues",
+        ),
+      sceneDescription: z
+        .string()
+        .min(10)
+        .describe(
+          "Overall visual style for the reel, e.g. 'Cinematic documentary style, warm colour grading, handheld camera, close-ups'. Applied to all shots for visual coherence.",
         ),
       caption: z.string().min(20).describe("Full caption text with emojis"),
       hashtags: z
@@ -53,6 +59,7 @@ export function createSaveContentTool(context: ToolContext) {
       hook,
       script,
       cleanScript,
+      sceneDescription,
       caption,
       hashtags,
       cta,
@@ -61,6 +68,7 @@ export function createSaveContentTool(context: ToolContext) {
       hook: string;
       script: string;
       cleanScript: string;
+      sceneDescription: string;
       caption: string;
       hashtags: string[];
       cta: string;
@@ -87,6 +95,7 @@ export function createSaveContentTool(context: ToolContext) {
             generatedCaption: caption,
             generatedScript: script,
             cleanScriptForAudio: cleanScript,
+            sceneDescription,
             generatedMetadata: { hashtags, cta, contentType },
             outputType: contentType,
             status: "draft",
@@ -202,6 +211,7 @@ export function createIterateContentTool(context: ToolContext) {
       hook: z.string().max(200).optional(),
       script: z.string().optional(),
       cleanScript: z.string().optional(),
+      sceneDescription: z.string().optional(),
       caption: z.string().optional(),
       hashtags: z.array(z.string()).optional(),
       cta: z.string().optional(),
@@ -216,6 +226,7 @@ export function createIterateContentTool(context: ToolContext) {
       hook,
       script,
       cleanScript,
+      sceneDescription,
       caption,
       hashtags,
       cta,
@@ -225,6 +236,7 @@ export function createIterateContentTool(context: ToolContext) {
       hook?: string;
       script?: string;
       cleanScript?: string;
+      sceneDescription?: string;
       caption?: string;
       hashtags?: string[];
       cta?: string;
@@ -239,6 +251,7 @@ export function createIterateContentTool(context: ToolContext) {
           hook: hook !== undefined,
           script: script !== undefined,
           cleanScript: cleanScript !== undefined,
+          sceneDescription: sceneDescription !== undefined,
           caption: caption !== undefined,
           hashtags: hashtags !== undefined,
           cta: cta !== undefined,
@@ -275,7 +288,6 @@ export function createIterateContentTool(context: ToolContext) {
         // Resolve to the tip of the chain to prevent branching.
         // If the AI passes an outdated parentId, walk forward to the latest version.
         let effectiveParent = parent;
-        // eslint-disable-next-line no-constant-condition
         while (true) {
           const [child] = await db
             .select()
@@ -313,6 +325,8 @@ export function createIterateContentTool(context: ToolContext) {
             generatedScript: script ?? effectiveParent.generatedScript,
             cleanScriptForAudio:
               cleanScript ?? effectiveParent.cleanScriptForAudio,
+            sceneDescription:
+              sceneDescription ?? effectiveParent.sceneDescription,
             generatedMetadata: {
               hashtags:
                 hashtags ??

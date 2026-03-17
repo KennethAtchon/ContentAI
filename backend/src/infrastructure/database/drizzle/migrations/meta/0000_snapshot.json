@@ -1,5 +1,5 @@
 {
-  "id": "1f5d7f91-807a-4dbf-b560-48c92999eece",
+  "id": "b4b2287d-e79a-4823-b98d-92cad4568f3a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -218,8 +218,12 @@
           "name": "chat_message_session_id_chat_session_id_fk",
           "tableFrom": "chat_message",
           "tableTo": "chat_session",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -310,8 +314,12 @@
           "name": "chat_session_project_id_project_id_fk",
           "tableFrom": "chat_session",
           "tableTo": "project",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -492,6 +500,18 @@
         },
         "generated_script": {
           "name": "generated_script",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clean_script_for_audio": {
+          "name": "clean_script_for_audio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scene_description": {
+          "name": "scene_description",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -854,7 +874,9 @@
         "niche_name_unique": {
           "name": "niche_name_unique",
           "nullsNotDistinct": false,
-          "columns": ["name"]
+          "columns": [
+            "name"
+          ]
         }
       },
       "policies": {},
@@ -959,7 +981,9 @@
         "order_stripe_session_id_unique": {
           "name": "order_stripe_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["stripe_session_id"]
+          "columns": [
+            "stripe_session_id"
+          ]
         }
       },
       "policies": {},
@@ -1288,7 +1312,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1420,8 +1444,12 @@
           "name": "reel_asset_generated_content_id_generated_content_id_fk",
           "tableFrom": "reel_asset",
           "tableTo": "generated_content",
-          "columnsFrom": ["generated_content_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "generated_content_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1630,8 +1658,12 @@
           "name": "reel_niche_id_niche_id_fk",
           "tableFrom": "reel",
           "tableTo": "niche",
-          "columnsFrom": ["niche_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "niche_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1641,7 +1673,9 @@
         "reel_external_id_unique": {
           "name": "reel_external_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["external_id"]
+          "columns": [
+            "external_id"
+          ]
         }
       },
       "policies": {},
@@ -1721,7 +1755,9 @@
         "trending_audio_audio_id_unique": {
           "name": "trending_audio_audio_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["audio_id"]
+          "columns": [
+            "audio_id"
+          ]
         }
       },
       "policies": {},
@@ -1843,12 +1879,16 @@
         "user_firebase_uid_unique": {
           "name": "user_firebase_uid_unique",
           "nullsNotDistinct": false,
-          "columns": ["firebase_uid"]
+          "columns": [
+            "firebase_uid"
+          ]
         },
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},

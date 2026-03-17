@@ -218,6 +218,7 @@ export const generatedContent = pgTable(
     generatedCaption: text("generated_caption"),
     generatedScript: text("generated_script"), // Structured script with timestamps for video production
     cleanScriptForAudio: text("clean_script_for_audio"), // Clean script without timestamps for TTS/audio generation
+    sceneDescription: text("scene_description"), // Visual style setter: overall aesthetic, lighting, camera style for all shots
     generatedMetadata: jsonb("generated_metadata"),
     // Audio assets — denormalized for fast publish reads (source of truth is reel_assets)
     voiceoverUrl: text("voiceover_url"),

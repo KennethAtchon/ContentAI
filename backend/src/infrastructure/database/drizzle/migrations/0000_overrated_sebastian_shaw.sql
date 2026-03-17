@@ -61,6 +61,8 @@ CREATE TABLE "generated_content" (
 	"generated_hook" text,
 	"generated_caption" text,
 	"generated_script" text,
+	"clean_script_for_audio" text,
+	"scene_description" text,
 	"generated_metadata" jsonb,
 	"voiceover_url" text,
 	"background_audio_url" text,
@@ -266,7 +268,7 @@ CREATE INDEX "orders_user_id_idx" ON "order" USING btree ("user_id");--> stateme
 CREATE INDEX "projects_user_id_idx" ON "project" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "queue_items_user_id_idx" ON "queue_item" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "queue_items_status_idx" ON "queue_item" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "reel_analyses_reel_id_idx" ON "reel_analysis" USING btree ("reel_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "reel_analyses_reel_id_idx" ON "reel_analysis" USING btree ("reel_id");--> statement-breakpoint
 CREATE INDEX "reel_asset_content_idx" ON "reel_asset" USING btree ("generated_content_id");--> statement-breakpoint
 CREATE INDEX "reel_asset_user_idx" ON "reel_asset" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "reel_asset_type_idx" ON "reel_asset" USING btree ("generated_content_id","type");--> statement-breakpoint

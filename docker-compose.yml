@@ -2,10 +2,10 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: website-template-postgres
+    container_name: contentAI-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-website_template}
+      POSTGRES_DB: ${POSTGRES_DB:-contentAI}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - website-template-network
+      - contentAI-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-website_template}"]
       interval: 10s
@@ -23,14 +23,14 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: website-template-redis
+    container_name: contentAI-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - website-template-network
+      - contentAI-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -43,14 +43,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: ${NODE_ENV:-development}
-    container_name: website-template-backend
+    container_name: contentAI-backend
     restart: unless-stopped
     env_file:
       - .env
       - ./backend/.env
     environment:
-      # Override localhost URLs from backend/.env with Docker service names
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-acme}
+      # Override localhost URLs from backend/.env with Docker service names (defaults must match postgres service)
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-website_template}?sslmode=disable
       REDIS_URL: redis://redis:6379
     ports:
       - "3001:3001"
@@ -64,7 +64,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - website-template-network
+      - contentAI-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/live"]
       interval: 30s
@@ -77,7 +77,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: ${NODE_ENV:-development}
-    container_name: website-template-frontend
+    container_name: contentAI-frontend
     restart: unless-stopped
     env_file:
       - .env
@@ -91,7 +91,7 @@ services:
     depends_on:
       - backend
     networks:
-      - website-template-network
+      - contentAI-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
       interval: 30s
@@ -104,11 +104,11 @@ services:
       context: ./e2e
       dockerfile: Dockerfile.e2e
       target: e2e
-    container_name: website-template-e2e
+    container_name: contentAI-e2e
     environment:
       - NODE_ENV=test
       - E2E_BASE_URL=http://frontend:3000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/website_template
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/contentAI?sslmode=disable
       - VITE_API_URL=http://backend:3001
       - VITE_APP_URL=http://frontend:3000
     env_file:
@@ -118,7 +118,7 @@ services:
       - ./frontend/playwright-report:/app/playwright-report
       - ./backend:/app/backend:ro
     networks:
-      - website-template-network
+      - contentAI-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,7 +134,7 @@ services:
   # Nginx Reverse Proxy (Production)
   nginx:
     image: nginx:alpine
-    container_name: website-template-nginx
+    container_name: contentAI-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -146,7 +146,7 @@ services:
       - frontend
       - backend
     networks:
-      - website-template-network
+      - contentAI-network
     profiles:
       - production
 
@@ -157,5 +157,5 @@ volumes:
     driver: local
 
 networks:
-  website-template-network:
+  contentAI-network:
     driver: bridge
