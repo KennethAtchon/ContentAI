@@ -118,6 +118,7 @@
 
 - [x] Test cases documented — `__tests__/integration/README.md`, inline JSDoc in test files
 - [x] Test scenarios documented — [Integration Tests Plan](../AI_Orchestrator/consider/integration-tests-plan.md), [Testing Implementation Plan](../AI_Orchestrator/consider/testing-implementation-plan.md)
+- [x] Phase 5 reel-editor test/release gates documented — `docs/specs/PHASE5_TEST_AND_RELEASE_CRITERIA.md`
 - [x] Known issues documented — Bun `mock.module` isolation bug (oven-sh/bun#25712): running unit+integration in a single `bun test` invocation causes mock bleed; `test:ci` runs them separately to avoid this
 - [x] Test coverage reports available — `bun test --coverage` generates `coverage/` (lcov + text)
 - [x] Testing procedures documented — [Testing Plan: 100% Coverage](../AI_Orchestrator/consider/testing-100-coverage-plan.md)

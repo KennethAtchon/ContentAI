@@ -169,6 +169,18 @@ Use `docs/PHASE4_IMPLEMENTATION_TODO.md` for remaining post-MVP hardening items 
 
 **This is the most complex frontend phase.** It requires a canvas/timeline rendering system. Build it incrementally.
 
+**Detailed implementation package (Phase 5):**
+
+- `docs/specs/PHASE5_EDITING_SUITE_MVP.md`
+- `docs/specs/PHASE5_TECHNICAL_DESIGN.md`
+- `docs/specs/PHASE5_API_AND_FLOW_CONTRACTS.md`
+- `docs/specs/PHASE5_TEST_AND_RELEASE_CRITERIA.md`
+- `docs/specs/PHASE5_UI_LAYOUT_BLUEPRINT.md`
+- `docs/specs/PHASE5_UI_STATES_AND_WIREFLOWS.md`
+- `docs/specs/PHASE5_UI_IMPLEMENTATION_HANDOFF.md`
+- `docs/specs/PHASE5_IMPLEMENTATION_TODO.md` (implementation checklist)
+- `docs/specs/PHASE5_MVP_WORKING_GUIDE.md`
+
 ### Prerequisites
 
 - [ ] **Client-side video rendering library** — Recommendation: Remotion Player for preview (already using Remotion on backend), or custom canvas-based renderer. The preview must be frame-accurate and responsive. Evaluate: Remotion Player vs custom HTML5 Canvas + Web Audio API.
