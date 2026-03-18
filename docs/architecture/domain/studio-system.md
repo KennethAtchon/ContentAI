@@ -8,6 +8,7 @@ The ReelStudio workspace is the core product experience. It provides four integr
 2. **Analyze** — AI breakdown of why a reel performs
 3. **Generate** — AI remix of hooks, captions, and scripts
 4. **Queue** — Schedule generated content to Instagram
+5. **Editor** — Manual timeline editor for a draft reel (`/studio/editor/:generatedContentId`); see **[Manual editor system](./manual-editor-system.md)** for composition init, autosave, validate, and render flows.
 
 The Studio runs at `/studio/*` and is a protected (authenticated) workspace with its own dark-theme shell, completely separate from the public/customer route groups.
 
@@ -281,6 +282,7 @@ StudioTopBar
 ├── Logo / Home
 ├── [Discover]   ← /studio/discover (default)
 ├── [✦ Generate] ← /studio/generate
+├── [Editor]     ← /studio/editor (pick draft → /studio/editor/:id)
 └── [Queue]      ← /studio/queue
 ```
 
