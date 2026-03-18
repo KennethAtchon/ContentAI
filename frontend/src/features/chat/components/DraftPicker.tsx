@@ -73,7 +73,7 @@ function DraftItemRow({
             className={cn(
               "flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors",
               isActive
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                ? "bg-success/15 text-success dark:text-success"
                 : "bg-muted text-muted-foreground/60"
             )}
           >

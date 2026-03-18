@@ -118,12 +118,12 @@ function SupportPage() {
                   <Icon className="h-5 w-5 text-studio-accent" />
                 </div>
                 <h3 className="mb-1 font-semibold">{title}</h3>
-                <p className="text-sm text-slate-200/45">{description}</p>
+                <p className="text-sm text-dim-2">{description}</p>
               </div>
             ))}
           </div>
 
-          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+          <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
@@ -139,7 +139,7 @@ function SupportPage() {
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-studio-accent/15 text-xs font-bold text-studio-accent">
                       {i + 1}
                     </span>
-                    <span className="text-slate-200/45 pt-0.5">{step}</span>
+                    <span className="text-dim-2 pt-0.5">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -162,7 +162,7 @@ function SupportPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+          <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
@@ -182,7 +182,7 @@ function SupportPage() {
                     <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-slate-200/45 pb-4">
+                    <AccordionContent className="text-dim-2 pb-4">
                       {item.answer}
                     </AccordionContent>
                   </AccordionItem>
@@ -191,7 +191,7 @@ function SupportPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-2 bg-white/[0.03]">
+          <Card className="border-2 bg-overlay-xs">
             <CardContent className="p-8 md:p-12 text-center">
               <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-studio-accent/15">
                 <HelpCircle className="h-8 w-8 text-studio-accent" />
@@ -199,7 +199,7 @@ function SupportPage() {
               <h2 className="mb-4 text-3xl font-bold tracking-tight">
                 {t("support_still_need_help")}
               </h2>
-              <p className="mb-6 text-lg text-slate-200/45">
+              <p className="mb-6 text-lg text-dim-2">
                 {t("support_reach_out")}
               </p>
               <a

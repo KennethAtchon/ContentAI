@@ -61,18 +61,18 @@ function HomePage() {
           </button>
           <Link
             to={REDIRECT_PATHS.PRICING}
-            className="bg-white/[0.05] border border-white/[0.08] text-slate-200/60 text-[14px] font-semibold px-7 py-3 rounded-lg no-underline cursor-pointer transition-all hover:bg-white/[0.08] hover:text-studio-fg font-studio"
+            className="bg-overlay-sm border border-overlay-md text-dim-1 text-[14px] font-semibold px-7 py-3 rounded-lg no-underline cursor-pointer transition-all hover:bg-overlay-md hover:text-studio-fg font-studio"
           >
             {t("home_hero_cta_view_pricing")}
           </Link>
         </div>
-        <p className="mt-5 text-[11px] text-slate-200/25">
+        <p className="mt-5 text-[11px] text-dim-3">
           {t("home_hero_footer")}
         </p>
       </StudioHero>
 
       {/* Social proof bar */}
-      <section className="border-b border-white/[0.05] bg-white/[0.015] py-7">
+      <section className="border-b border-overlay-sm bg-overlay-xs py-7">
         <div className="max-w-[900px] mx-auto px-6">
           <div className="flex flex-wrap items-center justify-center gap-10 md:gap-16 text-center">
             {[
@@ -85,7 +85,7 @@ function HomePage() {
                 <p className="text-[20px] font-bold text-studio-accent font-studio-mono">
                   {value}
                 </p>
-                <p className="text-[10px] text-slate-200/35 uppercase tracking-[1px] mt-1">
+                <p className="text-[10px] text-dim-3 uppercase tracking-[1px] mt-1">
                   {label}
                 </p>
               </div>
@@ -97,10 +97,10 @@ function HomePage() {
       {/* Features grid */}
       <StudioSection>
         <div className="text-center mb-10">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+          <h2 className="mb-3 text-[22px] font-bold text-primary">
             {t("home_features_title")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-slate-200/40">
+          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
             {t("home_features_description")}
           </p>
         </div>
@@ -136,7 +136,7 @@ function HomePage() {
       <StudioSection variant="muted">
         <div className="mx-auto max-w-[800px]">
           <div className="mb-10 text-center">
-            <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+            <h2 className="mb-3 text-[22px] font-bold text-primary">
               {t("about_why_choose_reelstudio")}
             </h2>
           </div>
@@ -148,7 +148,7 @@ function HomePage() {
               <h3 className="mb-1.5 text-[14px] font-bold text-studio-fg">
                 {t("home_benefits_accurate_title")}
               </h3>
-              <p className="text-[12px] text-slate-200/45 leading-[1.6]">
+              <p className="text-[12px] text-dim-2 leading-[1.6]">
                 {t("home_benefits_accurate_description")}
               </p>
             </div>
@@ -159,7 +159,7 @@ function HomePage() {
               <h3 className="mb-1.5 text-[14px] font-bold text-studio-fg">
                 {t("home_benefits_export_title")}
               </h3>
-              <p className="text-[12px] text-slate-200/45 leading-[1.6]">
+              <p className="text-[12px] text-dim-2 leading-[1.6]">
                 {t("home_benefits_export_description")}
               </p>
             </div>
@@ -170,7 +170,7 @@ function HomePage() {
               <h3 className="mb-1.5 text-[14px] font-bold text-studio-fg">
                 {t("home_benefits_secure_title")}
               </h3>
-              <p className="text-[12px] text-slate-200/45 leading-[1.6]">
+              <p className="text-[12px] text-dim-2 leading-[1.6]">
                 {t("home_benefits_secure_description")}
               </p>
             </div>
@@ -180,11 +180,11 @@ function HomePage() {
 
       {/* CTA section */}
       <StudioSection maxWidth="3xl">
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+        <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-10 text-center">
+          <h2 className="mb-3 text-[22px] font-bold text-primary">
             {t("features_ready_to_start")}
           </h2>
-          <p className="mb-7 mx-auto max-w-[500px] text-[13px] text-slate-200/40">
+          <p className="mb-7 mx-auto max-w-[500px] text-[13px] text-dim-2">
             {t("home_cta_description")}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -197,7 +197,7 @@ function HomePage() {
             </Link>
             <Link
               to="/contact"
-              className="bg-white/[0.05] border border-white/[0.08] text-slate-200/60 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-white/[0.08] hover:text-studio-fg transition-all"
+              className="bg-overlay-sm border border-overlay-md text-dim-1 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
             >
               {t("home_cta_contact_sales")}
             </Link>

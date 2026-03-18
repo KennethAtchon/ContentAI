@@ -127,9 +127,9 @@ export function EditorShell({
       {/* ── Row 2: Three-panel workspace ───────────────────── */}
       <div className="grid grid-cols-[220px_1fr_280px] min-h-0 overflow-hidden">
         {/* Left: Media library */}
-        <div className="border-r border-white/[0.06] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
+        <div className="border-r border-overlay-sm overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
           {isMobile && editMode === "precision" ? (
-            <p className="mx-3 mt-3 rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] text-slate-200/40">
+            <p className="mx-3 mt-3 rounded border border-overlay-md bg-overlay-xs px-2 py-1 text-[10px] text-dim-2">
               {t("phase5_editor_mobile_precision_fallback")}
             </p>
           ) : null}
@@ -155,7 +155,7 @@ export function EditorShell({
         </div>
 
         {/* Right: Properties + Export */}
-        <div className="border-l border-white/[0.06] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
+        <div className="border-l border-overlay-sm overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
           <QuickToolsPlaceholder
             timeline={composition.timeline}
             onChange={onTimelineChange}
@@ -165,7 +165,7 @@ export function EditorShell({
             onSelectTextOverlay={onSelectTextOverlay}
             editMode={effectiveMode}
           />
-          <div className="mt-auto border-t border-white/[0.06]">
+          <div className="mt-auto border-t border-overlay-sm">
             <RenderPanel
               compositionId={composition.compositionId}
               version={composition.version}
@@ -176,7 +176,7 @@ export function EditorShell({
       </div>
 
       {/* ── Row 3: Full-width timeline ─────────────────────── */}
-      <div className="border-t border-white/[0.06] overflow-hidden">
+      <div className="border-t border-overlay-sm overflow-hidden">
         <TimelineStrip
           timeline={composition.timeline}
           onChange={onTimelineChange}

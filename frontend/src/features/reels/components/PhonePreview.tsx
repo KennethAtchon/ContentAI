@@ -36,7 +36,7 @@ export function PhonePreview({ reel }: Props) {
       />
 
       {/* Phone mockup */}
-      <div className="w-[220px] h-[390px] rounded-[32px] border-2 border-white/[0.12] bg-[#111] relative overflow-hidden studio-phone-shadow shrink-0">
+      <div className="w-[220px] h-[390px] rounded-[32px] border-2 border-overlay-lg bg-surface-1 relative overflow-hidden studio-phone-shadow shrink-0">
         {/* Notch */}
         <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[60px] h-1.5 bg-[#222] rounded-full z-[2]" />
 
@@ -90,9 +90,9 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-[#0E0E1A]/90 border border-white/[0.08] rounded-xl px-3.5 py-2.5 backdrop-blur-xl text-[11px] ${className ?? ""}`}
+      className={`bg-studio-topbar/90 border border-overlay-md rounded-xl px-3.5 py-2.5 backdrop-blur-xl text-[11px] ${className ?? ""}`}
     >
-      <p className="text-slate-200/35 text-[10px] mb-0.5">{label}</p>
+      <p className="text-dim-3 text-[10px] mb-0.5">{label}</p>
       <p
         className={`text-[16px] font-bold text-studio-accent ${valueClassName ?? ""}`}
       >

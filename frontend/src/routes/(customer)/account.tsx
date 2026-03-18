@@ -16,7 +16,7 @@ function AccountPage() {
             <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
               {t("common_account_dashboard")}
             </h1>
-            <p className="text-lg text-slate-200/45">
+            <p className="text-lg text-dim-2">
               {t(
                 "common_manage_your_subscription_view_usage_and_access_studio"
               )}

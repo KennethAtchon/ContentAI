@@ -25,7 +25,7 @@ export function StudioFeatureCard({
   return (
     <div
       className={cn(
-        "bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-5",
+        "bg-overlay-xs border border-overlay-sm rounded-[14px] p-5",
         hoverable &&
           "transition-all hover:border-studio-accent/30 group cursor-pointer",
         className
@@ -36,7 +36,7 @@ export function StudioFeatureCard({
       </div>
       <h3 className="mb-1.5 text-[14px] font-bold text-studio-fg">{title}</h3>
       {description && (
-        <p className="text-[12px] text-slate-200/45 leading-[1.6]">
+        <p className="text-[12px] text-dim-2 leading-[1.6]">
           {description}
         </p>
       )}

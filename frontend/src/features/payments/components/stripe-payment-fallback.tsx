@@ -528,11 +528,11 @@ export default function StripePaymentFallback() {
         case "timeout":
           return <AlertCircle className="h-12 w-12 mx-auto text-yellow-600" />;
         case "validation":
-          return <AlertCircle className="h-12 w-12 mx-auto text-red-600" />;
+          return <AlertCircle className="h-12 w-12 mx-auto text-error" />;
         case "payment":
-          return <CreditCard className="h-12 w-12 mx-auto text-red-600" />;
+          return <CreditCard className="h-12 w-12 mx-auto text-error" />;
         default:
-          return <AlertCircle className="h-12 w-12 mx-auto text-red-600" />;
+          return <AlertCircle className="h-12 w-12 mx-auto text-error" />;
       }
     };
 

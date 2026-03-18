@@ -60,28 +60,28 @@ export function MediaBinPanel({
     if (!groupAssets.length) return null;
     return (
       <div className="space-y-px">
-        <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-200/22">
+        <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-dim-3">
           {title}
         </p>
         {groupAssets.slice(0, 12).map((asset) => (
           <div
             key={asset.id}
-            className="group flex items-center gap-2 px-3 py-2 cursor-grab hover:bg-white/[0.04] transition-colors border-l-2 border-transparent hover:border-blue-400/40"
+            className="group flex items-center gap-2 px-3 py-2 cursor-grab hover:bg-overlay-xs transition-colors border-l-2 border-transparent hover:border-blue-400/40"
             draggable
             onDragStart={(event) =>
               handleDragStart(event, asset.id, asset.durationMs ?? 2000)
             }
           >
             {/* Thumbnail placeholder */}
-            <div className="w-9 h-6 rounded bg-blue-500/15 border border-white/[0.08] shrink-0 flex items-center justify-center">
+            <div className="w-9 h-6 rounded bg-blue-500/15 border border-overlay-md shrink-0 flex items-center justify-center">
               <span className="text-[8px] text-blue-300/40">▶</span>
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="truncate text-[10px] text-slate-200/65 font-medium leading-tight">
+              <p className="truncate text-[10px] text-dim-1 font-medium leading-tight">
                 {asset.id.slice(-8)}
               </p>
-              <p className="text-[9px] text-slate-200/28">
+              <p className="text-[9px] text-dim-3">
                 {t("phase5_editor_media_duration", {
                   seconds: Math.max(1, Math.floor((asset.durationMs ?? 1000) / 1000)),
                 })}
@@ -101,7 +101,7 @@ export function MediaBinPanel({
                 onClick={() =>
                   onInsertVideoClip(asset.id, asset.durationMs ?? 2000, defaultInsertIndex)
                 }
-                className="px-1.5 py-0.5 rounded text-[8px] font-semibold text-slate-200/40 hover:text-slate-200/80 hover:bg-white/[0.06] transition-colors"
+                className="px-1.5 py-0.5 rounded text-[8px] font-semibold text-dim-2 hover:text-dim-1 hover:bg-overlay-sm transition-colors"
                 title={t("phase5_editor_media_insert_to_timeline")}
               >
                 ↤
@@ -117,8 +117,8 @@ export function MediaBinPanel({
     // No outer border box — the left column border in EditorShell provides the separation
     <div className="flex flex-col h-full">
       {/* Panel header */}
-      <div className="px-3 py-2.5 border-b border-white/[0.06] shrink-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/35">
+      <div className="px-3 py-2.5 border-b border-overlay-sm shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-dim-3">
           {t("phase5_editor_media_bin")}
         </p>
       </div>
@@ -127,14 +127,14 @@ export function MediaBinPanel({
       {isLoading ? (
         <div className="px-3 py-4 space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-9 rounded bg-white/[0.04] animate-pulse" />
+            <div key={i} className="h-9 rounded bg-overlay-xs animate-pulse" />
           ))}
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Video section */}
           <div className="py-1">
-            <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-200/45">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-dim-2">
               {t("phase5_editor_media_video")}
             </p>
             {videoAssets.length > 0 ? (
@@ -157,7 +157,7 @@ export function MediaBinPanel({
               </div>
             ) : (
               <div className="px-3 py-4 space-y-2">
-                <p className="text-[10px] text-slate-200/30">
+                <p className="text-[10px] text-dim-3">
                   {t("phase5_editor_media_empty_video")}
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -169,7 +169,7 @@ export function MediaBinPanel({
                   </a>
                   <a
                     href="/studio"
-                    className="text-[10px] text-slate-200/40 hover:text-slate-200/70 transition-colors"
+                    className="text-[10px] text-dim-2 hover:text-dim-1 transition-colors"
                   >
                     → {t("phase5_editor_media_cta_upload")}
                   </a>
@@ -179,27 +179,27 @@ export function MediaBinPanel({
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-white/[0.05] mx-3 my-1" />
+          <div className="h-px bg-overlay-sm mx-3 my-1" />
 
           {/* Audio section */}
           <div className="py-1">
-            <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-200/45">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-dim-2">
               {t("phase5_editor_media_audio")}
             </p>
             {audioAssets.length > 0 ? (
               audioAssets.slice(0, 8).map((asset) => (
                 <div
                   key={asset.id}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-overlay-xs transition-colors"
                 >
-                  <div className="w-9 h-6 rounded bg-purple-500/15 border border-white/[0.08] shrink-0 flex items-center justify-center">
+                  <div className="w-9 h-6 rounded bg-purple-500/15 border border-overlay-md shrink-0 flex items-center justify-center">
                     <span className="text-[8px] text-purple-300/40">♫</span>
                   </div>
-                  <p className="truncate text-[10px] text-slate-200/50">{asset.id.slice(-8)}</p>
+                  <p className="truncate text-[10px] text-dim-2">{asset.id.slice(-8)}</p>
                 </div>
               ))
             ) : (
-              <p className="px-3 py-2 text-[10px] text-slate-200/25">
+              <p className="px-3 py-2 text-[10px] text-dim-3">
                 {t("phase5_editor_media_empty_audio")}
               </p>
             )}

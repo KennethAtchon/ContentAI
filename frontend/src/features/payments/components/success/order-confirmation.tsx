@@ -140,10 +140,10 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
 
   if (error) {
     return (
-      <Card className="mb-8 border-red-200">
+      <Card className="mb-8 border-error">
         <CardContent className="pt-6">
           <div className="text-center">
-            <div className="text-red-600 mb-4">
+            <div className="text-error mb-4">
               <svg
                 className="w-12 h-12 mx-auto mb-2"
                 fill="none"
@@ -158,15 +158,15 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-red-800 mb-2">
+            <h3 className="text-lg font-semibold text-error mb-2">
               Failed to Load Order
             </h3>
-            <p className="text-red-600 mb-4">{error}</p>
+            <p className="text-error mb-4">{error}</p>
             <div className="flex gap-4 justify-center">
               <Button
                 variant="outline"
                 onClick={handleRetry}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                className="bg-error hover:bg-error text-white px-4 py-2 rounded-md"
               >
                 Try Again
               </Button>

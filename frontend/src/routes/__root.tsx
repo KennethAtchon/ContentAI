@@ -28,8 +28,8 @@ function NotFoundBoundary() {
     <div className="h-screen bg-studio-bg text-studio-fg font-studio flex items-center justify-center">
       <div className="text-center space-y-3">
         <span className="text-[48px] opacity-40">🔍</span>
-        <p className="text-[32px] font-bold text-slate-100">404</p>
-        <p className="text-[14px] text-slate-200/40">
+        <p className="text-[32px] font-bold text-primary">404</p>
+        <p className="text-[14px] text-dim-2">
           {t("common_page_not_found")}
         </p>
       </div>

@@ -153,7 +153,7 @@ export function PreviewPanel({
                   );
                 })}
                 {captionTrack?.enabled && activeCaptionSegment ? (
-                  <p className="rounded bg-amber-500/80 px-2 py-1 text-center text-xs font-semibold text-black">
+                  <p className="rounded bg-warning/80 px-2 py-1 text-center text-xs font-semibold text-black">
                     {String(activeCaptionSegment.text ?? "")}
                   </p>
                 ) : null}
@@ -162,7 +162,7 @@ export function PreviewPanel({
           </div>
 
           {/* Playhead scrubber — below video, inside the preview area */}
-          <div className="w-full flex items-center gap-2 px-4 py-2 shrink-0 border-t border-white/[0.06]">
+          <div className="w-full flex items-center gap-2 px-4 py-2 shrink-0 border-t border-overlay-sm">
             <input
               type="range"
               min={0}
@@ -178,7 +178,7 @@ export function PreviewPanel({
               }}
               className="flex-1 accent-blue-400"
             />
-            <span className="text-[10px] text-slate-200/40 font-mono tabular-nums shrink-0">
+            <span className="text-[10px] text-dim-2 font-mono tabular-nums shrink-0">
               {t("phase5_editor_playhead", {
                 current: Math.floor(currentTimeMs / 1000),
                 total: Math.floor(composition.timeline.durationMs / 1000),
@@ -188,8 +188,8 @@ export function PreviewPanel({
         </>
       ) : (
         <div className="text-center space-y-2">
-          <p className="text-[13px] text-slate-200/30">{t("phase5_editor_preview_unavailable")}</p>
-          <p className="text-[10px] text-slate-200/18">{t("phase5_editor_duration", { ms: composition.timeline.durationMs })}</p>
+          <p className="text-[13px] text-dim-3">{t("phase5_editor_preview_unavailable")}</p>
+          <p className="text-[10px] text-dim-3">{t("phase5_editor_duration", { ms: composition.timeline.durationMs })}</p>
         </div>
       )}
     </div>

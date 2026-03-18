@@ -125,18 +125,18 @@ function DiscoverPage() {
           style={{ gridTemplateColumns: "220px 1fr 300px" }}
         >
           {/* Left sidebar */}
-          <aside className="bg-studio-surface border-r border-white/[0.05] flex flex-col overflow-hidden">
+          <aside className="bg-studio-surface border-r border-overlay-sm flex flex-col overflow-hidden">
             {/* Niche selector */}
             {niches.length > 0 && (
-              <div className="px-3 pt-3 pb-2 border-b border-white/[0.05]">
+              <div className="px-3 pt-3 pb-2 border-b border-overlay-sm">
                 <Select
                   value={activeNicheValue ?? undefined}
                   onValueChange={(val) => handleNicheChange(val)}
                 >
-                  <SelectTrigger className="w-full h-8 bg-white/[0.05] border-white/[0.08] text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
+                  <SelectTrigger className="w-full h-8 bg-overlay-sm border-overlay-md text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
                     <SelectValue placeholder={t("studio_search_placeholder")} />
                   </SelectTrigger>
-                  <SelectContent className="bg-studio-surface border-white/[0.1] text-studio-fg">
+                  <SelectContent className="bg-studio-surface border-overlay-md text-studio-fg">
                     <SelectItem
                       value="trending"
                       className="text-[12px] text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
@@ -174,7 +174,7 @@ function DiscoverPage() {
                     <button
                       onClick={loadMore}
                       disabled={isFetching}
-                      className="mx-3 mb-2 py-1.5 text-[11px] text-slate-200/40 hover:text-studio-accent border border-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
+                      className="mx-3 mb-2 py-1.5 text-[11px] text-dim-2 hover:text-studio-accent border border-overlay-sm rounded-lg transition-colors disabled:opacity-40"
                     >
                       {isFetching
                         ? "Loading…"
@@ -185,7 +185,7 @@ function DiscoverPage() {
                 {/* Resize handle */}
                 <div
                   onMouseDown={handleDragStart}
-                  className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-white/[0.05] hover:border-studio-accent/30 transition-colors"
+                  className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-overlay-sm hover:border-studio-accent/30 transition-colors"
                 >
                   <div className="w-6 h-[2px] rounded-full bg-white/10 group-hover:bg-studio-accent/50 transition-colors" />
                 </div>
@@ -223,7 +223,7 @@ function DiscoverPage() {
           {selectedReel ? (
             <AnalysisPanel reel={selectedReel} />
           ) : (
-            <aside className="bg-studio-surface border-l border-white/[0.05] flex items-center justify-center">
+            <aside className="bg-studio-surface border-l border-overlay-sm flex items-center justify-center">
               <EmptyCanvas label={t("studio_panel_selectReel")} icon="✦" />
             </aside>
           )}
@@ -245,8 +245,8 @@ function EmptyCanvas({
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12 text-center">
       <span className="text-[40px] opacity-50">{icon}</span>
-      <p className="text-[14px] font-semibold text-slate-200/50">{label}</p>
-      {sub && <p className="text-[12px] text-slate-200/25">{sub}</p>}
+      <p className="text-[14px] font-semibold text-dim-2">{label}</p>
+      {sub && <p className="text-[12px] text-dim-3">{sub}</p>}
     </div>
   );
 }

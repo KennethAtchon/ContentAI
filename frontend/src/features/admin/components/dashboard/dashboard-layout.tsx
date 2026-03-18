@@ -162,7 +162,7 @@ interface SidebarProps {
 function BrandHeader({ onClose }: { onClose?: () => void }) {
   const { t } = useTranslation();
   return (
-    <div className="flex h-16 items-center justify-between border-b border-white/[0.06] bg-studio-surface px-6">
+    <div className="flex h-16 items-center justify-between border-b border-overlay-sm bg-studio-surface px-6">
       <Link
         to="/admin/dashboard"
         className="flex items-center gap-3 font-bold text-lg"
@@ -199,7 +199,7 @@ function NavigationLink({
         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
         isActive
           ? "bg-studio-accent/[0.12] text-studio-accent"
-          : "text-slate-200/45 hover:bg-white/[0.05] hover:text-studio-fg"
+          : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
       )}
     >
       <Icon className="h-4 w-4" />
@@ -212,7 +212,7 @@ function DesktopSidebar({ pathname }: SidebarProps) {
   const adminNavItems = useAdminNavItems();
 
   return (
-    <div className="hidden w-64 flex-col border-r border-white/[0.06] bg-studio-surface md:flex">
+    <div className="hidden w-64 flex-col border-r border-overlay-sm bg-studio-surface md:flex">
       <BrandHeader />
       <div className="flex-1 overflow-auto py-4">
         <nav className="grid gap-1 px-3">
@@ -251,7 +251,7 @@ function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
       )}
       <div
         className={cn(
-          "fixed top-0 left-0 bottom-0 w-3/4 max-w-[270px] z-30 transform transition-transform duration-300 ease-in-out flex flex-col border-r border-white/[0.06] bg-studio-surface shadow-xl md:hidden",
+          "fixed top-0 left-0 bottom-0 w-3/4 max-w-[270px] z-30 transform transition-transform duration-300 ease-in-out flex flex-col border-r border-overlay-sm bg-studio-surface shadow-xl md:hidden",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -266,7 +266,7 @@ function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
                   pathname === item.href
                     ? "bg-studio-accent/[0.12] text-studio-accent"
-                    : "text-slate-200/45 hover:bg-white/[0.05] hover:text-studio-fg"
+                    : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
                 )}
                 onClick={onClose}
               >
@@ -324,7 +324,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       />
 
       <div className="flex flex-col overflow-hidden w-full">
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b border-white/[0.06] bg-studio-topbar/95 backdrop-blur-sm px-4 md:px-6">
+        <header className="flex h-16 shrink-0 items-center gap-4 border-b border-overlay-sm bg-studio-topbar/95 backdrop-blur-sm px-4 md:px-6">
           <Button
             variant="outline"
             size="icon"

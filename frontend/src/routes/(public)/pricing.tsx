@@ -69,25 +69,25 @@ function PricingPage() {
       {/* FAQ */}
       <StudioSection maxWidth="3xl">
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+          <h2 className="mb-3 text-[22px] font-bold text-primary">
             {t("common_frequently_asked_questions")}
           </h2>
-          <p className="text-[13px] text-slate-200/40">
+          <p className="text-[13px] text-dim-2">
             {t("common_everything_you_need_to_know_about_our_pricing")}
           </p>
         </div>
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-6">
+        <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-6">
           <Accordion type="single" collapsible className="w-full">
             {pricingFAQs.map((faq, index) => (
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="border-b border-white/[0.05]"
+                className="border-b border-overlay-sm"
               >
                 <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-[12px] text-slate-200/45 leading-[1.7]">
+                <AccordionContent className="text-[12px] text-dim-2 leading-[1.7]">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -98,11 +98,11 @@ function PricingPage() {
 
       {/* CTA */}
       <StudioSection variant="gradient" maxWidth="3xl">
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+        <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-10 text-center">
+          <h2 className="mb-3 text-[22px] font-bold text-primary">
             {t("pricing_ready_title")}
           </h2>
-          <p className="mb-7 text-[13px] text-slate-200/40">
+          <p className="mb-7 text-[13px] text-dim-2">
             {t(
               "common_start_your_14_day_free_trial_today_no_credit_card_required"
             )}
@@ -120,7 +120,7 @@ function PricingPage() {
             </Link>
             <Link
               to="/contact"
-              className="bg-white/[0.05] border border-white/[0.08] text-slate-200/60 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-white/[0.08] hover:text-studio-fg transition-all"
+              className="bg-overlay-sm border border-overlay-md text-dim-1 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
             >
               {t("home_cta_contact_sales")}
             </Link>

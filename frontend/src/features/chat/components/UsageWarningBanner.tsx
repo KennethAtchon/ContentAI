@@ -48,26 +48,26 @@ export function UsageWarningBanner() {
   }
 
   return (
-    <div className="mx-4 mb-2 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
-      <span className="text-amber-400 text-xs font-medium">
+    <div className="mx-4 mb-2 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-sm">
+      <span className="text-warning text-xs font-medium">
         {t("studio_chat_usageWarning_body", { pct: pctDisplay })}
       </span>
       <div className="flex items-center gap-2 shrink-0">
         {hasEnterpriseAccess ? (
-          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400">
+          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning">
             {t("studio_chat_usageWarning_contactSupport")}
           </span>
         ) : (
           <a
             href="/pricing"
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
           >
             {t("studio_chat_usageWarning_upgrade")}
           </a>
         )}
         <button
           onClick={handleDismiss}
-          className="text-amber-400/60 hover:text-amber-400 transition-colors"
+          className="text-warning/60 hover:text-warning transition-colors"
           aria-label={t("studio_chat_usageWarning_dismiss")}
         >
           <X className="w-3.5 h-3.5" />

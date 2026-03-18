@@ -28,7 +28,7 @@ export function StudioFooter() {
   const { t } = useTranslation();
 
   return (
-    <footer className="border-t border-white/[0.05] bg-studio-surface px-6 py-10 mt-8">
+    <footer className="border-t border-overlay-sm bg-studio-surface px-6 py-10 mt-8">
       <div className="max-w-[1000px] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -37,18 +37,18 @@ export function StudioFooter() {
               <div className="w-6 h-6 bg-gradient-to-br from-studio-accent to-studio-purple rounded-[7px] flex items-center justify-center text-[11px] shrink-0">
                 ✦
               </div>
-              <span className="text-[14px] font-bold text-slate-100 tracking-[-0.3px]">
+              <span className="text-[14px] font-bold text-primary tracking-[-0.3px]">
                 {APP_NAME}
               </span>
             </div>
-            <p className="text-[11px] text-slate-200/35 leading-[1.6]">
+            <p className="text-[11px] text-dim-3 leading-[1.6]">
               AI-powered content intelligence for viral short-form video.
             </p>
           </div>
 
           {/* Product */}
           <div>
-            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25 mb-3">
+            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Product
             </p>
             <ul className="space-y-2">
@@ -56,7 +56,7 @@ export function StudioFooter() {
                 <li key={link.href}>
                   <Link
                     to={link.href}
-                    className="text-[12px] text-slate-200/45 hover:text-studio-accent transition-colors no-underline"
+                    className="text-[12px] text-dim-2 hover:text-studio-accent transition-colors no-underline"
                   >
                     {t(link.labelKey)}
                   </Link>
@@ -67,7 +67,7 @@ export function StudioFooter() {
 
           {/* Company */}
           <div>
-            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25 mb-3">
+            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Company
             </p>
             <ul className="space-y-2">
@@ -75,7 +75,7 @@ export function StudioFooter() {
                 <li key={link.href}>
                   <Link
                     to={link.href}
-                    className="text-[12px] text-slate-200/45 hover:text-studio-accent transition-colors no-underline"
+                    className="text-[12px] text-dim-2 hover:text-studio-accent transition-colors no-underline"
                   >
                     {t(link.labelKey)}
                   </Link>
@@ -86,7 +86,7 @@ export function StudioFooter() {
 
           {/* Legal */}
           <div>
-            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25 mb-3">
+            <p className="text-[10px] font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Legal
             </p>
             <ul className="space-y-2">
@@ -94,7 +94,7 @@ export function StudioFooter() {
                 <li key={link.href}>
                   <Link
                     to={link.href}
-                    className="text-[12px] text-slate-200/45 hover:text-studio-accent transition-colors no-underline"
+                    className="text-[12px] text-dim-2 hover:text-studio-accent transition-colors no-underline"
                   >
                     {t(link.labelKey)}
                   </Link>
@@ -105,7 +105,7 @@ export function StudioFooter() {
         </div>
 
         {/* Copyright */}
-        <div className="mt-8 pt-5 border-t border-white/[0.05] text-[10px] text-slate-200/20 text-center">
+        <div className="mt-8 pt-5 border-t border-overlay-sm text-[10px] text-dim-3 text-center">
           © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
         </div>
       </div>

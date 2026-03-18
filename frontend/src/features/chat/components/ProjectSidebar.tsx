@@ -72,9 +72,9 @@ function UsageBar({
         <span
           className={
             isAtLimit
-              ? "text-red-500 font-semibold"
+              ? "text-error font-semibold"
               : isNearLimit
-                ? "text-amber-500"
+                ? "text-warning"
                 : "text-muted-foreground"
           }
         >
@@ -86,9 +86,9 @@ function UsageBar({
           <div
             className={`h-full rounded-full transition-all duration-300 ${
               isAtLimit
-                ? "bg-red-500"
+                ? "bg-error"
                 : isNearLimit
-                  ? "bg-amber-500"
+                  ? "bg-warning"
                   : "bg-primary"
             }`}
             style={{ width: `${pct}%` }}
@@ -561,7 +561,7 @@ export function ProjectSidebar({
             !hasEnterpriseAccess && (
               <a
                 href="/pricing"
-                className="block w-full text-center text-[11px] font-semibold py-1.5 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors"
+                className="block w-full text-center text-[11px] font-semibold py-1.5 rounded-md bg-warning/15 text-warning hover:bg-warning/25 transition-colors"
               >
                 {t("studio_generate_upgrade")}
               </a>

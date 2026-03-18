@@ -144,11 +144,11 @@ function ErrorBoundaryContent({
                 </div>
               )}
 
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-                <p className="text-sm font-semibold text-blue-800 mb-1">
+              <div className="rounded-md bg-info/10 border border-info/20 p-3">
+                <p className="text-sm font-semibold text-info mb-1">
                   Debug Info:
                 </p>
-                <div className="text-xs text-blue-700 space-y-1">
+                <div className="text-xs text-info/80 space-y-1">
                   <p>
                     <strong>Location:</strong> {window.location.href}
                   </p>

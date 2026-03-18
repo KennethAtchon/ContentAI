@@ -45,12 +45,12 @@ function PaymentPage() {
             <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
               {t("payment_complete_your_payment")}
             </h1>
-            <p className="text-lg text-slate-200/45">
+            <p className="text-lg text-dim-2">
               {t("common_secure_payment_processing_powered_by_stripe")}
             </p>
           </div>
 
-          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+          <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-studio-accent" />
@@ -70,7 +70,7 @@ function PaymentPage() {
                     <p className="font-semibold text-sm">
                       {t("payment_ssl_encrypted")}
                     </p>
-                    <p className="text-xs text-slate-200/45">
+                    <p className="text-xs text-dim-2">
                       {t("payment_bank_level_security")}
                     </p>
                   </div>
@@ -83,7 +83,7 @@ function PaymentPage() {
                     <p className="font-semibold text-sm">
                       {t("payment_secure_processing_badge")}
                     </p>
-                    <p className="text-xs text-slate-200/45">
+                    <p className="text-xs text-dim-2">
                       {t("payment_pci_compliant")}
                     </p>
                   </div>
@@ -91,11 +91,11 @@ function PaymentPage() {
               </div>
 
               <div className="rounded-lg border-2 border-dashed bg-muted/30 p-12 text-center">
-                <Sparkles className="mx-auto mb-4 h-12 w-12 text-slate-200/45" />
+                <Sparkles className="mx-auto mb-4 h-12 w-12 text-dim-2" />
                 <p className="mb-2 font-medium">
                   {t("common_payment_processing")}
                 </p>
-                <p className="text-sm text-slate-200/45">
+                <p className="text-sm text-dim-2">
                   {t(
                     "common_payment_form_will_be_integrated_here_with_stripe_elements"
                   )}
@@ -106,7 +106,7 @@ function PaymentPage() {
                 <p className="text-sm font-semibold">
                   {t("payment_your_payment_is_secure")}
                 </p>
-                <ul className="space-y-1 text-xs text-slate-200/45">
+                <ul className="space-y-1 text-xs text-dim-2">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
                     {t("payment_never_store_card")}

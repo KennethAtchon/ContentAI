@@ -21,7 +21,7 @@ export function SaveStatusBadge({
   }
   if (saveState === "saved") {
     return (
-      <span className="rounded border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-300">
+      <span className="rounded border border-success/30 bg-success/10 px-2 py-1 text-[11px] text-success">
         {t("phase5_editor_saved")}
       </span>
     );
@@ -30,7 +30,7 @@ export function SaveStatusBadge({
     return (
       <span
         title={saveError ?? undefined}
-        className="rounded border border-red-400/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300"
+        className="rounded border border-error/30 bg-error/10 px-2 py-1 text-[11px] text-error"
       >
         {t("phase5_editor_save_failed")}
       </span>

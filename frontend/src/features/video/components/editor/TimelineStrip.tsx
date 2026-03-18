@@ -251,11 +251,11 @@ export function TimelineStrip({
   const hasTextTrack = textItems.length > 0 || captionsEnabled;
 
   return (
-    <div className="h-full flex bg-[#0a0a0c] select-none overflow-hidden font-studio">
+    <div className="h-full flex bg-surface-0 select-none overflow-hidden font-studio">
       {/* ── Track label column ─────────────────────────────────────────── */}
-      <div className="w-[52px] shrink-0 flex flex-col border-r border-white/[0.06] overflow-hidden">
+      <div className="w-[52px] shrink-0 flex flex-col border-r border-overlay-sm overflow-hidden">
         {/* Ruler stub — aligns with ruler */}
-        <div className="h-6 shrink-0 border-b border-white/[0.06] flex items-end pb-0.5 px-1.5">
+        <div className="h-6 shrink-0 border-b border-overlay-sm flex items-end pb-0.5 px-1.5">
           <span className="text-[8px] font-mono tabular-nums text-white/40 leading-none">
             {formatMsFull(currentTimeMs)}
           </span>
@@ -263,7 +263,7 @@ export function TimelineStrip({
 
         {/* Video label */}
         <div
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 border-b border-white/[0.06]"
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 border-b border-overlay-sm"
           style={{ minHeight: 60 }}
         >
           <span className="text-[7px] font-black uppercase tracking-[0.15em] text-blue-300/50">
@@ -276,7 +276,7 @@ export function TimelineStrip({
 
         {/* Audio label */}
         {audioItems.length > 0 && (
-          <div className="h-7 shrink-0 flex items-center justify-center border-b border-white/[0.06]">
+          <div className="h-7 shrink-0 flex items-center justify-center border-b border-overlay-sm">
             <span className="text-[7px] font-black uppercase tracking-[0.15em] text-purple-300/40">
               AUDIO
             </span>
@@ -286,7 +286,7 @@ export function TimelineStrip({
         {/* Text/Caption label */}
         {hasTextTrack && (
           <div className="h-6 shrink-0 flex items-center justify-center">
-            <span className="text-[7px] font-black uppercase tracking-[0.15em] text-emerald-300/40">
+            <span className="text-[7px] font-black uppercase tracking-[0.15em] text-success/40">
               TEXT
             </span>
           </div>
@@ -300,8 +300,8 @@ export function TimelineStrip({
         <div
           ref={rulerRef}
           className={cn(
-            "h-6 shrink-0 relative border-b border-white/[0.06] cursor-col-resize overflow-hidden",
-            interaction.type === "scrubbing" && "bg-white/[0.03]",
+            "h-6 shrink-0 relative border-b border-overlay-sm cursor-col-resize overflow-hidden",
+            interaction.type === "scrubbing" && "bg-overlay-xs",
           )}
           onPointerDown={handleRulerPointerDown}
           onPointerMove={handleRulerPointerMove}
@@ -351,7 +351,7 @@ export function TimelineStrip({
         {/* ── Video track ──────────────────────────────────────────────── */}
         <div
           className={cn(
-            "flex-1 relative border-b border-white/[0.06] transition-colors overflow-hidden",
+            "flex-1 relative border-b border-overlay-sm transition-colors overflow-hidden",
             isMediaDragOver && reorderFromIndex === null && "bg-blue-400/[0.06]",
           )}
           style={{ minHeight: 60 }}
@@ -371,7 +371,7 @@ export function TimelineStrip({
                   "rounded-lg border-2 border-dashed px-8 py-3 text-center transition-all",
                   insertionIndex === 0
                     ? "border-blue-400/60 bg-blue-400/10 text-blue-300/70"
-                    : "border-white/[0.10] text-white/20",
+                    : "border-overlay-md text-white/20",
                 )}
               >
                 <p className="text-[11px] font-medium">
@@ -520,14 +520,14 @@ export function TimelineStrip({
 
           {/* Global playhead line through video track */}
           <div
-            className="absolute top-0 bottom-0 w-px bg-red-400/70 pointer-events-none z-30"
+            className="absolute top-0 bottom-0 w-px bg-error/70 pointer-events-none z-30"
             style={{ left: `${playheadPct}%` }}
           />
         </div>
 
         {/* ── Audio track ──────────────────────────────────────────────── */}
         {audioItems.length > 0 && (
-          <div className="h-7 shrink-0 relative border-b border-white/[0.06] overflow-hidden">
+          <div className="h-7 shrink-0 relative border-b border-overlay-sm overflow-hidden">
             {audioItems.map((item) => {
               const startPct = (item.startMs / totalMs) * 100;
               const widthPct = ((item.endMs - item.startMs) / totalMs) * 100;
@@ -562,7 +562,7 @@ export function TimelineStrip({
 
             {/* Playhead through audio track */}
             <div
-              className="absolute top-0 bottom-0 w-px bg-red-400/50 pointer-events-none z-10"
+              className="absolute top-0 bottom-0 w-px bg-error/50 pointer-events-none z-10"
               style={{ left: `${playheadPct}%` }}
             />
           </div>
@@ -588,8 +588,8 @@ export function TimelineStrip({
                       "linear-gradient(180deg, rgba(52,211,153,0.35) 0%, rgba(16,185,129,0.22) 100%)",
                   }}
                 >
-                  <div className="absolute top-px left-0 right-0 h-px bg-emerald-300/30" />
-                  <span className="absolute inset-x-1 top-0 bottom-0 flex items-center text-[7px] text-emerald-200/60 truncate leading-none">
+                  <div className="absolute top-px left-0 right-0 h-px bg-success/30" />
+                  <span className="absolute inset-x-1 top-0 bottom-0 flex items-center text-[7px] text-success/60 truncate leading-none">
                     {String(row.content ?? "T")}
                   </span>
                 </div>
@@ -598,7 +598,7 @@ export function TimelineStrip({
 
             {/* Playhead through text track */}
             <div
-              className="absolute top-0 bottom-0 w-px bg-red-400/40 pointer-events-none z-10"
+              className="absolute top-0 bottom-0 w-px bg-error/40 pointer-events-none z-10"
               style={{ left: `${playheadPct}%` }}
             />
           </div>

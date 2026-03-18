@@ -68,18 +68,18 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-studio-surface border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="p-6 border-b border-white/[0.06]">
+      <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="p-6 border-b border-overlay-sm">
           <h2 className="text-lg font-semibold text-studio-fg">Upload Track</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-200/60 uppercase tracking-wider">
-              MP3 File <span className="text-red-400">*</span>
+            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+              MP3 File <span className="text-error">*</span>
             </label>
             <div
               onClick={() => fileRef.current?.click()}
-              className="w-full bg-white/[0.05] border border-dashed border-white/[0.12] rounded-xl h-20 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-dashed border-overlay-lg rounded-xl h-20 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-studio-accent/50 transition-colors"
             >
               {file ? (
                 <>
@@ -90,8 +90,8 @@ function UploadModal({ onClose }: { onClose: () => void }) {
                 </>
               ) : (
                 <>
-                  <Upload className="h-4 w-4 text-slate-200/30" />
-                  <span className="text-[12px] text-slate-200/40">
+                  <Upload className="h-4 w-4 text-dim-3" />
+                  <span className="text-[12px] text-dim-2">
                     Click to select MP3 (max 10MB)
                   </span>
                 </>
@@ -107,41 +107,41 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-200/60 uppercase tracking-wider">
-              Track Name <span className="text-red-400">*</span>
+            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+              Track Name <span className="text-error">*</span>
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="e.g. Sunset Drive"
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-slate-200/25 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-200/60 uppercase tracking-wider">
+            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
               Artist Name
             </label>
             <input
               value={artistName}
               onChange={(e) => setArtistName(e.target.value)}
               placeholder="e.g. Audio Library"
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-slate-200/25 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/60 uppercase tracking-wider">
-                Mood <span className="text-red-400">*</span>
+              <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+                Mood <span className="text-error">*</span>
               </label>
               <select
                 value={mood}
                 onChange={(e) =>
                   setMood(e.target.value as (typeof MOODS)[number])
                 }
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 px-3 text-[13px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors"
+                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-3 text-[13px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors"
               >
                 {MOODS.map((m) => (
                   <option key={m} value={m} className="bg-gray-900 capitalize">
@@ -152,20 +152,20 @@ function UploadModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/60 uppercase tracking-wider">
+              <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
                 Genre
               </label>
               <input
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 placeholder="e.g. lo-fi"
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-slate-200/25 outline-none focus:border-studio-accent/50 transition-colors"
+                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+            <p className="text-[12px] text-error bg-error/10 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -218,11 +218,11 @@ function DeleteConfirm({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-studio-surface border border-white/[0.08] rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+      <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
         <h3 className="text-base font-semibold text-studio-fg">
           Delete Track?
         </h3>
-        <p className="text-[13px] text-slate-200/50">
+        <p className="text-[13px] text-dim-2">
           This will permanently remove{" "}
           <strong className="text-studio-fg">{track.name}</strong> from the
           library. Existing user attachments will show "track unavailable".
@@ -295,7 +295,7 @@ function MusicPage() {
               <h2 className="text-xl font-bold text-studio-fg">
                 Music Library
               </h2>
-              <p className="text-[12px] text-slate-200/40">
+              <p className="text-[12px] text-dim-2">
                 Upload and manage background music tracks for users
               </p>
             </div>
@@ -305,7 +305,7 @@ function MusicPage() {
               variant="ghost"
               size="icon"
               onClick={() => refetch()}
-              className="text-slate-200/40 hover:text-studio-fg"
+              className="text-dim-2 hover:text-studio-fg"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -317,17 +317,17 @@ function MusicPage() {
         </div>
 
         <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-200/30 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dim-3 pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tracks…"
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl h-10 pl-9 pr-4 text-[13px] text-studio-fg placeholder:text-slate-200/25 outline-none focus:border-studio-accent/50 transition-colors"
+            className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 pl-9 pr-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
           />
         </div>
 
-        <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
-          <div className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06]">
+        <div className="rounded-2xl border border-overlay-sm overflow-hidden">
+          <div className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] text-[11px] font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
             <span>Track</span>
             <span>Mood</span>
             <span>Genre</span>
@@ -343,19 +343,19 @@ function MusicPage() {
                   key={i}
                   className="px-4 py-4 flex gap-4 items-center animate-pulse"
                 >
-                  <div className="h-4 flex-1 bg-white/[0.05] rounded" />
-                  <div className="h-5 w-20 bg-white/[0.05] rounded-full" />
-                  <div className="h-4 w-16 bg-white/[0.05] rounded" />
-                  <div className="h-4 w-12 bg-white/[0.05] rounded" />
-                  <div className="h-5 w-16 bg-white/[0.05] rounded-full" />
-                  <div className="h-8 w-24 bg-white/[0.05] rounded-lg ml-auto" />
+                  <div className="h-4 flex-1 bg-overlay-sm rounded" />
+                  <div className="h-5 w-20 bg-overlay-sm rounded-full" />
+                  <div className="h-4 w-16 bg-overlay-sm rounded" />
+                  <div className="h-4 w-12 bg-overlay-sm rounded" />
+                  <div className="h-5 w-16 bg-overlay-sm rounded-full" />
+                  <div className="h-8 w-24 bg-overlay-sm rounded-lg ml-auto" />
                 </div>
               ))}
             </div>
           ) : tracks.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
-              <Music className="h-10 w-10 text-slate-200/10" />
-              <p className="text-[14px] font-medium text-slate-200/30">
+              <Music className="h-10 w-10 text-dim-3" />
+              <p className="text-[14px] font-medium text-dim-3">
                 {search ? "No tracks match your search" : "No music tracks yet"}
               </p>
               {!search && (
@@ -372,28 +372,28 @@ function MusicPage() {
               {tracks.map((track) => (
                 <div
                   key={track.id}
-                  className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] items-center px-4 py-3.5 hover:bg-white/[0.02] transition-colors"
+                  className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] items-center px-4 py-3.5 hover:bg-overlay-xs transition-colors"
                 >
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium text-studio-fg truncate">
                       {track.name}
                     </p>
                     {track.artistName && (
-                      <p className="text-[11px] text-slate-200/40 truncate mt-0.5">
+                      <p className="text-[11px] text-dim-2 truncate mt-0.5">
                         {track.artistName}
                       </p>
                     )}
                   </div>
 
-                  <span className="text-[12px] text-slate-200/60 capitalize">
+                  <span className="text-[12px] text-dim-1 capitalize">
                     {track.mood}
                   </span>
 
-                  <span className="text-[12px] text-slate-200/40">
+                  <span className="text-[12px] text-dim-2">
                     {track.genre || "—"}
                   </span>
 
-                  <span className="text-[12px] text-slate-200/60 tabular-nums">
+                  <span className="text-[12px] text-dim-1 tabular-nums">
                     {formatDuration(track.durationSeconds)}
                   </span>
 
@@ -404,14 +404,14 @@ function MusicPage() {
                       className={cn(
                         "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors",
                         track.isActive
-                          ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                          : "bg-slate-200/[0.06] text-slate-200/30 hover:bg-slate-200/[0.10]"
+                          ? "bg-success/10 text-success hover:bg-success/20"
+                          : "bg-overlay-sm text-dim-3 hover:bg-overlay-md"
                       )}
                     >
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          track.isActive ? "bg-emerald-400" : "bg-slate-200/30"
+                          track.isActive ? "bg-success" : "bg-overlay-xs"
                         )}
                       />
                       {track.isActive ? "Active" : "Inactive"}
@@ -422,7 +422,7 @@ function MusicPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                      className="h-7 w-7 p-0 text-error hover:text-error hover:bg-error/10"
                       onClick={() => setDeletingTrack(track)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -435,7 +435,7 @@ function MusicPage() {
         </div>
 
         {tracks.length > 0 && (
-          <p className="text-[12px] text-slate-200/25 text-right">
+          <p className="text-[12px] text-dim-3 text-right">
             {tracks.length} track{tracks.length !== 1 ? "s" : ""} total
           </p>
         )}

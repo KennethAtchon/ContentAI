@@ -131,13 +131,13 @@ export default function AdminVerifyPage() {
         <Button
           variant="ghost"
           onClick={handleGoBack}
-          className="mb-6 text-slate-400 hover:text-slate-200"
+          className="mb-6 text-dim-2 hover:text-studio-fg"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t("common_go_back")}
         </Button>
 
-        <Card className="border-white/[0.05] bg-studio-surface">
+        <Card className="border-overlay-sm bg-studio-surface">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-studio-accent/20 rounded-full flex items-center justify-center mb-4">
               <Shield className="h-6 w-6 text-studio-accent" />
@@ -145,7 +145,7 @@ export default function AdminVerifyPage() {
             <CardTitle className="text-white text-xl">
               {t("admin_verify_title")}
             </CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-dim-2">
               {t("admin_verify_description")}
             </CardDescription>
           </CardHeader>
@@ -157,7 +157,7 @@ export default function AdminVerifyPage() {
                   placeholder={t("admin_verify_code_placeholder")}
                   value={adminCode}
                   onChange={(e) => setAdminCode(e.target.value)}
-                  className="bg-studio-surface border-white/[0.1] text-white placeholder:text-slate-500"
+                  className="bg-studio-surface border-overlay-md text-white placeholder:text-dim-3"
                   disabled={isVerifying}
                   autoFocus
                 />
@@ -166,10 +166,10 @@ export default function AdminVerifyPage() {
               {error && (
                 <Alert
                   variant="destructive"
-                  className="bg-red-500/10 border-red-500/20"
+                  className="bg-error/10 border-error/20"
                 >
                   <Lock className="h-4 w-4" />
-                  <AlertDescription className="text-red-400">
+                  <AlertDescription className="text-error">
                     {error}
                   </AlertDescription>
                 </Alert>
@@ -187,7 +187,7 @@ export default function AdminVerifyPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-dim-2">
                 {t("admin_verify_footer_note")}
               </p>
             </div>

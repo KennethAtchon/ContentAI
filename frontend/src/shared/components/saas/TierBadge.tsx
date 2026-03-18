@@ -18,7 +18,7 @@ interface TierBadgeProps {
 const tierColors: Record<SubscriptionTier, string> = {
   basic: "bg-blue-100 text-blue-800 border-blue-200",
   pro: "bg-purple-100 text-purple-800 border-purple-200",
-  enterprise: "bg-amber-100 text-amber-800 border-amber-200",
+  enterprise: "bg-warning text-warning border-warning",
 };
 
 export function TierBadge({ tier, className }: TierBadgeProps) {

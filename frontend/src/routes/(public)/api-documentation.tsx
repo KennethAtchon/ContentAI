@@ -112,7 +112,7 @@ function ApiDocumentationPage() {
   const methodColors: Record<string, string> = {
     GET: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
     POST: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-    DELETE: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+    DELETE: "bg-error text-error dark:bg-error/30 dark:text-error",
   };
 
   const errorCodes = [
@@ -137,7 +137,7 @@ function ApiDocumentationPage() {
         description={t("api_documentation_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-dim-2">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-studio-accent" />
             <span>{t("api_authentication_title")}</span>
@@ -155,7 +155,7 @@ function ApiDocumentationPage() {
 
       <StudioSection maxWidth="4xl">
         <div className="space-y-8">
-          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+          <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
@@ -174,7 +174,7 @@ function ApiDocumentationPage() {
           {endpointGroups.map((group) => (
             <Card
               key={group.title}
-              className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]"
+              className="bg-overlay-xs border border-overlay-sm rounded-[14px]"
             >
               <CardHeader>
                 <CardTitle className="text-2xl">{group.title}</CardTitle>
@@ -187,7 +187,7 @@ function ApiDocumentationPage() {
                       className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-start gap-3"
                     >
                       <Badge
-                        className={`shrink-0 font-mono text-xs ${methodColors[ep.method] ?? "bg-muted text-slate-200/45"}`}
+                        className={`shrink-0 font-mono text-xs ${methodColors[ep.method] ?? "bg-muted text-dim-2"}`}
                         variant="secondary"
                       >
                         {ep.method}
@@ -196,7 +196,7 @@ function ApiDocumentationPage() {
                         <code className="text-sm font-mono text-foreground break-all">
                           {ep.path.replace(`${ep.method} `, "")}
                         </code>
-                        <p className="mt-1 text-sm text-slate-200/45">
+                        <p className="mt-1 text-sm text-dim-2">
                           {ep.description}
                         </p>
                       </div>
@@ -207,14 +207,14 @@ function ApiDocumentationPage() {
             </Card>
           ))}
 
-          <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+          <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
               <CardTitle className="text-2xl">
                 {t("api_error_codes_title")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-slate-200/45">
+              <ul className="space-y-2 text-dim-2">
                 {errorCodes.map((code) => (
                   <li key={code} className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />

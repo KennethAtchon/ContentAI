@@ -322,7 +322,7 @@ export function DraftDetail({
                 <span>{t("workspace_video_generating")}</span>
               </>
             ) : videoFailed ? (
-              <span className="text-red-500">
+              <span className="text-error">
                 {t("workspace_video_failed")}
               </span>
             ) : hasVideoOutput ? (
@@ -332,14 +332,14 @@ export function DraftDetail({
             )}
           </div>
           {videoFailed && (
-            <div className="mt-2 flex items-center justify-between rounded-md border border-red-300/50 bg-red-500/5 px-2.5 py-2 text-[11px]">
-              <span className="text-red-600 dark:text-red-300">
+            <div className="mt-2 flex items-center justify-between rounded-md border border-error/50 bg-error/5 px-2.5 py-2 text-[11px]">
+              <span className="text-error dark:text-error">
                 {videoJobData?.job.error || t("workspace_video_failed_details")}
               </span>
               <button
                 onClick={() => void handleRetryVideo()}
                 disabled={retryVideoJob.isPending || !videoJobId}
-                className="ml-2 inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-300"
+                className="ml-2 inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
               >
                 {retryVideoJob.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -474,7 +474,7 @@ export function DraftDetail({
               <button
                 onClick={() => void handleReassemble()}
                 disabled={assembleReel.isPending || videoRunning}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-300/50 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 hover:bg-amber-500/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-amber-300"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-[11px] text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
               >
                 {assembleReel.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -509,7 +509,7 @@ export function DraftDetail({
         <button
           onClick={() => void handleGenerateReel()}
           disabled={generateReel.isPending || videoRunning}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-emerald-300/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-success/50 bg-success/10 text-success dark:text-success hover:bg-success/15 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {generateReel.isPending || videoRunning ? (
             <>

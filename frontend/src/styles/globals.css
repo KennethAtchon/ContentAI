@@ -4,73 +4,151 @@
 @custom-variant dark (&:is(.dark *));
 @config "../../tailwind.config.ts";
 
-/* ── Studio dark-app design tokens ───────────────────────────────────────── */
-/* These feed into tailwind.config.ts studio.* color palette                  */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SINGLE SOURCE OF TRUTH — edit only this block to change the theme.
+   Hierarchy: primitive palette → studio aliases → shadcn/ui semantic tokens
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --studio-bg: #08080f;
-  --studio-surface: #0c0c18;
-  --studio-topbar: #0e0e1a;
-  --studio-accent: #818cf8;
-  --studio-purple: #c084fc;
-  --studio-fg: #e2e8f0;
-  --studio-fg-dim: rgba(226, 232, 240, 0.4);
-  --studio-border: rgba(255, 255, 255, 0.06);
-  --studio-ring: rgba(129, 140, 248, 0.5);
-  --font-studio: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-studio-mono: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+  /* 1. Brand palette (raw HSL triplets — used by hsl() below) */
+  --color-accent: 234 89% 74%;
+
+  /* 2. Surface scale */
+  --surface-0:   230 25% 4%;   /* deepest bg       */
+  --surface-1:   240 28% 7%;   /* card / sidebar   */
+  --surface-2:   240 25% 10%;  /* elevated card    */
+  --surface-top: 232 26% 9%;   /* topbar           */
+
+  /* 3. Text scale */
+  --text-primary: 214 32% 91%;
+  --text-dim-1: hsl(214 32% 91% / 0.7);   /* replaces slate-200/60–70 */
+  --text-dim-2: hsl(214 32% 91% / 0.45);  /* replaces slate-200/40–55 */
+  --text-dim-3: hsl(214 32% 91% / 0.25);  /* replaces slate-200/22–35 */
+
+  /* 4. Status colors (raw HSL triplets) */
+  --color-success: 160 84% 39%;
+  --color-warning:  38 92% 50%;
+  --color-error:     0 84% 60%;
+  --color-info:    217 91% 60%;
+
+  /* 5. Overlay scale (replaces bg-white/[0.0X] / border-white/[0.0X]) */
+  --overlay-xs: rgb(255 255 255 / 0.03);
+  --overlay-sm: rgb(255 255 255 / 0.06);
+  --overlay-md: rgb(255 255 255 / 0.10);
+  --overlay-lg: rgb(255 255 255 / 0.15);
+
+  /* 6. Typography */
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── Studio aliases (derived from primitives) ── */
+  --studio-bg:       hsl(var(--surface-0));
+  --studio-surface:  hsl(var(--surface-1));
+  --studio-topbar:   hsl(var(--surface-top));
+  --studio-accent:   hsl(var(--color-accent));
+  --studio-purple:   hsl(270 91% 75%);
+  --studio-fg:       hsl(var(--text-primary));
+  --studio-fg-dim:   var(--text-dim-2);
+  --studio-border:   var(--overlay-sm);
+  --studio-ring:     hsl(var(--color-accent) / 0.5);
+  --font-studio:     var(--font-body);
+  --font-studio-mono: var(--font-mono);
+
+  /* ── Sidebar (outer :root — consumed by @theme inline) ── */
+  --sidebar:                      hsl(var(--surface-1));
+  --sidebar-foreground:           hsl(var(--text-primary));
+  --sidebar-primary:              hsl(var(--color-accent));
+  --sidebar-primary-foreground:   hsl(0 0% 100%);
+  --sidebar-accent:               hsl(240 6% 14%);
+  --sidebar-accent-foreground:    hsl(var(--text-primary));
+  --sidebar-border:               hsl(240 6% 20%);
+  --sidebar-ring:                 hsl(var(--color-accent));
+}
+
+/* ── Shadcn/ui semantic tokens (reference primitives) ─────────────────────── */
+
+@layer base {
+  :root {
+    --background:              var(--surface-0);
+    --foreground:              var(--text-primary);
+    --card:                    var(--surface-1);
+    --card-foreground:         var(--text-primary);
+    --popover:                 var(--surface-1);
+    --popover-foreground:      var(--text-primary);
+    --primary:                 var(--color-accent);
+    --primary-foreground:      0 0% 100%;
+    --purple:                  270 91% 75%;
+    --purple-foreground:       0 0% 100%;
+    --gradient-from:           var(--color-accent);
+    --gradient-via:            260 90% 75%;
+    --gradient-to:             270 91% 75%;
+    --secondary:               240 6% 10%;
+    --secondary-foreground:    var(--text-primary);
+    --muted:                   240 6% 10%;
+    --muted-foreground:        215 20% 55%;
+    --accent:                  var(--color-accent);
+    --accent-foreground:       0 0% 100%;
+    --destructive:             var(--color-error);
+    --destructive-foreground:  0 0% 100%;
+    --border:                  240 6% 20%;
+    --input:                   240 6% 15%;
+    --ring:                    var(--color-accent);
+    --chart-1:                 var(--color-accent);
+    --chart-2:                 270 91% 75%;
+    --chart-3:                 190 80% 50%;
+    --chart-4:                 var(--color-success);
+    --chart-5:                 var(--color-warning);
+    --radius:                  0.625rem;
+    --sidebar-background:      var(--surface-1);
+    --sidebar-foreground:      var(--text-primary);
+    --sidebar-primary:         var(--color-accent);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:          240 6% 14%;
+    --sidebar-accent-foreground: var(--text-primary);
+    --sidebar-border:          240 6% 20%;
+    --sidebar-ring:            var(--color-accent);
+  }
 }
 
 /* ── Studio keyframes ─────────────────────────────────────────────────────── */
 
 @keyframes gen-bar {
-  0% {
-    width: 0;
-  }
-  100% {
-    width: 100%;
-  }
+  0% { width: 0; }
+  100% { width: 100%; }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-/* ── Studio compound utilities (layout-critical, can't do in inline Tailwind) */
+/* ── Studio compound utilities ────────────────────────────────────────────── */
 
 @layer components {
-  /* Phone glow — complex multi-layer shadow */
   .studio-phone-shadow {
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 40px 80px rgba(0, 0, 0, 0.8),
-      0 0 60px rgba(129, 140, 248, 0.1);
+      0 0 0 1px rgb(255 255 255 / 0.04),
+      0 40px 80px rgb(0 0 0 / 0.8),
+      0 0 60px hsl(var(--color-accent) / 0.1);
   }
 
-  /* Shimmer skeleton */
   .studio-skeleton {
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.04) 25%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.04) 75%
+      var(--overlay-xs) 25%,
+      var(--overlay-sm) 50%,
+      var(--overlay-xs) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 6px;
   }
 
-  /* Gen-bar loading animation */
   .studio-gen-bar {
     position: absolute;
     inset-block: 0;
     left: 0;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgb(255 255 255 / 0.2);
     animation: gen-bar 2.2s ease forwards;
   }
 }
@@ -83,13 +161,11 @@
 
 /* ── Scrollbars ───────────────────────────────────────────────────────────── */
 
-/* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(129, 140, 248, 0.15) transparent;
+  scrollbar-color: hsl(var(--color-accent) / 0.15) transparent;
 }
 
-/* WebKit (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -100,86 +176,35 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(129, 140, 248, 0.18);
+  background: hsl(var(--color-accent) / 0.18);
   border-radius: 99px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(129, 140, 248, 0.38);
+  background: hsl(var(--color-accent) / 0.38);
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* ── Base design tokens — DARK STUDIO THEME (unified) ────────────────────── */
-
-@layer base {
-  :root {
-    --font-inter: "Plus Jakarta Sans";
-    --font-lora: "Plus Jakarta Sans";
-    --background: 230 25% 4%;
-    --foreground: 214 32% 91%;
-    --card: 240 28% 7%;
-    --card-foreground: 214 32% 91%;
-    --popover: 240 28% 7%;
-    --popover-foreground: 214 32% 91%;
-    --primary: 234 89% 74%;
-    --primary-foreground: 0 0% 100%;
-    --purple: 270 91% 75%;
-    --purple-foreground: 0 0% 100%;
-    --gradient-from: 234 89% 74%;
-    --gradient-via: 260 90% 75%;
-    --gradient-to: 270 91% 75%;
-    --secondary: 240 6% 10%;
-    --secondary-foreground: 214 32% 91%;
-    --muted: 240 6% 10%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 234 89% 74%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 6% 20%;
-    --input: 240 6% 15%;
-    --ring: 234 89% 74%;
-    --chart-1: 234 89% 74%;
-    --chart-2: 270 91% 75%;
-    --chart-3: 190 80% 50%;
-    --chart-4: 150 60% 50%;
-    --chart-5: 45 90% 65%;
-    --radius: 0.625rem;
-    --sidebar-background: 240 28% 7%;
-    --sidebar-foreground: 214 32% 91%;
-    --sidebar-primary: 234 89% 74%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 14%;
-    --sidebar-accent-foreground: 214 32% 91%;
-    --sidebar-border: 240 6% 20%;
-    --sidebar-ring: 234 89% 74%;
-  }
-}
+/* ── Base layer ───────────────────────────────────────────────────────────── */
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
 
   body {
     @apply bg-studio-bg text-studio-fg font-studio antialiased;
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     @apply font-studio font-bold tracking-tight;
   }
 
-  button,
-  .btn {
+  button, .btn {
     @apply font-studio;
   }
 }
@@ -190,7 +215,7 @@
   }
 
   .saas-card {
-    @apply rounded-[14px] border border-white/[0.06] bg-white/[0.03] transition-all hover:border-white/20;
+    @apply rounded-[14px] border border-overlay-sm bg-overlay-xs transition-all hover:border-overlay-md;
   }
 
   .saas-button {
@@ -198,55 +223,27 @@
   }
 }
 
-/* ── Sidebar tokens (dark) ─────────────────────────────────────────────── */
-
-:root {
-  --sidebar: hsl(240 28% 7%);
-  --sidebar-foreground: hsl(214 32% 91%);
-  --sidebar-primary: hsl(234 89% 74%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 6% 14%);
-  --sidebar-accent-foreground: hsl(214 32% 91%);
-  --sidebar-border: hsl(240 6% 20%);
-  --sidebar-ring: hsl(234 89% 74%);
-}
+/* ── @theme inline — Tailwind v4 color aliases with opacity-modifier support */
 
 @theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar:                      var(--sidebar);
+  --color-sidebar-foreground:           var(--sidebar-foreground);
+  --color-sidebar-primary:              var(--sidebar-primary);
+  --color-sidebar-primary-foreground:   var(--sidebar-primary-foreground);
+  --color-sidebar-accent:               var(--sidebar-accent);
+  --color-sidebar-accent-foreground:    var(--sidebar-accent-foreground);
+  --color-sidebar-border:               var(--sidebar-border);
+  --color-sidebar-ring:                 var(--sidebar-ring);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
   }
 
   @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-studio-bg text-studio-fg;
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
   }
 }

@@ -246,7 +246,7 @@ export function VideoWorkspacePanel({
               <span>{t("workspace_video_generating")}</span>
             </>
           ) : videoFailed ? (
-            <span className="text-red-500">{t("workspace_video_failed")}</span>
+            <span className="text-error">{t("workspace_video_failed")}</span>
           ) : hasVideoOutput ? (
             <span>{t("workspace_video_ready")}</span>
           ) : (
@@ -257,7 +257,7 @@ export function VideoWorkspacePanel({
           <button
             onClick={() => void handleGenerateReel()}
             disabled={generateReel.isPending || videoRunning}
-            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300/50 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-emerald-700 hover:bg-emerald-500/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-emerald-300"
+            className="inline-flex items-center gap-1.5 rounded-md border border-success/50 bg-success/10 px-2.5 py-1.5 text-[11px] text-success hover:bg-success/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-success"
           >
             {generateReel.isPending || videoRunning ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -297,7 +297,7 @@ export function VideoWorkspacePanel({
             <button
               onClick={() => void handleRetryVideo()}
               disabled={retryVideoJob.isPending || !videoJobId}
-              className="inline-flex items-center gap-1 rounded-md border border-red-300/50 bg-red-500/5 px-2.5 py-1.5 text-[11px] text-red-700 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-300"
+              className="inline-flex items-center gap-1 rounded-md border border-error/50 bg-error/5 px-2.5 py-1.5 text-[11px] text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
             >
               {retryVideoJob.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -495,7 +495,7 @@ export function VideoWorkspacePanel({
           <button
             onClick={() => void handleReassemble()}
             disabled={mutatingStoryboard}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-300/50 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 hover:bg-amber-500/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-amber-300"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-[11px] text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
           >
             {assembleReel.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -549,8 +549,8 @@ export function VideoWorkspacePanel({
 
       {showFailureModal && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="w-[320px] rounded-lg border border-red-300/50 bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold text-red-600 dark:text-red-300">
+          <div className="w-[320px] rounded-lg border border-error/50 bg-background p-4 shadow-lg">
+            <h3 className="text-sm font-semibold text-error dark:text-error">
               {t("workspace_video_failed")}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -566,7 +566,7 @@ export function VideoWorkspacePanel({
               <button
                 onClick={() => void handleRetryVideo()}
                 disabled={retryVideoJob.isPending || !videoJobId}
-                className="inline-flex items-center gap-1 rounded border border-red-300/50 bg-red-500/5 px-2.5 py-1.5 text-[11px] text-red-700 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-red-300"
+                className="inline-flex items-center gap-1 rounded border border-error/50 bg-error/5 px-2.5 py-1.5 text-[11px] text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
               >
                 {retryVideoJob.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />

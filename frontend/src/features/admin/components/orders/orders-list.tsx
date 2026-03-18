@@ -126,11 +126,11 @@ function StatusBadge({ status }: { status: OrderStatus | string }) {
   switch (normalizedStatus) {
     case ORDER_STATUS.PAID:
       return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600">Paid</Badge>
+        <Badge className="bg-success hover:bg-success">Paid</Badge>
       );
     case ORDER_STATUS.PENDING:
       return (
-        <Badge variant="outline" className="text-amber-600 border-amber-600">
+        <Badge variant="outline" className="text-warning border-warning">
           Pending
         </Badge>
       );

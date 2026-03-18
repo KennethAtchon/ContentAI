@@ -85,7 +85,7 @@ function DraftCard({
 
         <div className="flex items-center gap-1">
           {hasVoiceover && (
-            <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-0.5 text-[10px] text-success dark:text-success">
               <Mic className="w-3 h-3" />
             </span>
           )}

@@ -112,16 +112,16 @@ function SignInPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-[calc(100vh-48px)]">
         <div className="w-full max-w-md space-y-6">
           {/* Sign In Card */}
-          <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] overflow-hidden">
+          <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] overflow-hidden">
             {/* Header */}
             <div className="p-6 pb-2 space-y-3 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-studio-accent/15">
                 <LogIn className="h-6 w-6 text-studio-accent" />
               </div>
-              <h1 className="text-[22px] font-bold text-slate-100">
+              <h1 className="text-[22px] font-bold text-primary">
                 {t("common_welcome_back")}
               </h1>
-              <p className="text-[13px] text-slate-200/40">
+              <p className="text-[13px] text-dim-2">
                 {t("common_sign_in_to_your_reelstudio_account")}
               </p>
             </div>
@@ -136,7 +136,7 @@ function SignInPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="text-[11px] font-semibold text-slate-200/50"
+                    className="text-[11px] font-semibold text-dim-2"
                   >
                     {t("admin_settings_placeholder_email")}
                   </label>
@@ -150,9 +150,9 @@ function SignInPage() {
                     disabled={loading}
                     data-testid="email-input"
                     className={cn(
-                      "w-full h-11 bg-white/[0.05] border border-white/[0.08] rounded-lg",
+                      "w-full h-11 bg-overlay-sm border border-overlay-md rounded-lg",
                       "text-studio-fg text-[13px] px-3 outline-none font-studio",
-                      "placeholder:text-slate-200/20 transition-colors",
+                      "placeholder:text-dim-3 transition-colors",
                       "focus:border-studio-ring/50 disabled:opacity-50"
                     )}
                   />
@@ -161,7 +161,7 @@ function SignInPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="password"
-                    className="text-[11px] font-semibold text-slate-200/50"
+                    className="text-[11px] font-semibold text-dim-2"
                   >
                     {t("common_password")}
                   </label>
@@ -176,15 +176,15 @@ function SignInPage() {
                       disabled={loading}
                       data-testid="password-input"
                       className={cn(
-                        "w-full h-11 bg-white/[0.05] border border-white/[0.08] rounded-lg",
+                        "w-full h-11 bg-overlay-sm border border-overlay-md rounded-lg",
                         "text-studio-fg text-[13px] px-3 pr-10 outline-none font-studio",
-                        "placeholder:text-slate-200/20 transition-colors",
+                        "placeholder:text-dim-3 transition-colors",
                         "focus:border-studio-ring/50 disabled:opacity-50"
                       )}
                     />
                     <button
                       type="button"
-                      className="absolute right-0 top-0 h-full px-3 bg-transparent border-0 text-slate-200/40 hover:text-studio-fg cursor-pointer transition-colors"
+                      className="absolute right-0 top-0 h-full px-3 bg-transparent border-0 text-dim-2 hover:text-studio-fg cursor-pointer transition-colors"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={loading}
                     >
@@ -198,8 +198,8 @@ function SignInPage() {
                 </div>
 
                 {error && (
-                  <div className="bg-red-400/[0.08] border border-red-400/20 rounded-lg px-3 py-2.5">
-                    <p className="text-[12px] font-medium text-red-400">
+                  <div className="bg-error/[0.08] border border-error/20 rounded-lg px-3 py-2.5">
+                    <p className="text-[12px] font-medium text-error">
                       {error}
                     </p>
                   </div>
@@ -222,10 +222,10 @@ function SignInPage() {
               {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-white/[0.06]" />
+                  <span className="w-full border-t border-overlay-sm" />
                 </div>
                 <div className="relative flex justify-center text-[10px] uppercase tracking-[1px]">
-                  <span className="bg-studio-surface px-3 text-slate-200/25">
+                  <span className="bg-studio-surface px-3 text-dim-3">
                     {t("common_or_continue_with")}
                   </span>
                 </div>
@@ -237,9 +237,9 @@ function SignInPage() {
                 onClick={handleGoogleSignIn}
                 disabled={loading}
                 className={cn(
-                  "w-full h-11 bg-white/[0.05] border border-white/[0.08]",
-                  "text-slate-200/60 text-[13px] font-medium rounded-lg",
-                  "cursor-pointer transition-all hover:bg-white/[0.08] hover:text-studio-fg",
+                  "w-full h-11 bg-overlay-sm border border-overlay-md",
+                  "text-dim-1 text-[13px] font-medium rounded-lg",
+                  "cursor-pointer transition-all hover:bg-overlay-md hover:text-studio-fg",
                   "disabled:opacity-50 disabled:cursor-not-allowed font-studio",
                   "flex items-center justify-center gap-2"
                 )}
@@ -267,7 +267,7 @@ function SignInPage() {
 
               {/* Sign up link */}
               <div className="text-center text-[12px] pt-1">
-                <span className="text-slate-200/35">
+                <span className="text-dim-3">
                   {t("auth_no_account")}{" "}
                 </span>
                 <Link
@@ -281,7 +281,7 @@ function SignInPage() {
           </div>
 
           {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-[10px] text-slate-200/30">
+          <div className="flex items-center justify-center gap-6 text-[10px] text-dim-3">
             <div className="flex items-center gap-1.5">
               <Sparkles className="h-3 w-3 text-studio-accent" />
               <span>{t("common_14_day_free_trial")}</span>

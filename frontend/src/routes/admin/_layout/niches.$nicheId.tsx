@@ -84,8 +84,8 @@ function Toast({
       className={cn(
         "fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl text-[13px] font-medium border max-w-xs",
         type === "success" &&
-          "bg-emerald-500/20 border-emerald-500/30 text-emerald-400",
-        type === "error" && "bg-red-500/20 border-red-500/30 text-red-400",
+          "bg-success/20 border-success/30 text-success",
+        type === "error" && "bg-error/20 border-error/30 text-error",
         type === "info" &&
           "bg-studio-accent/20 border-studio-accent/30 text-studio-accent"
       )}
@@ -115,7 +115,7 @@ function ReelRow({
   return (
     <>
       <div
-        className="grid grid-cols-[44px_1fr_90px_90px_140px] items-center px-4 py-3 hover:bg-white/[0.02] transition-colors cursor-pointer"
+        className="grid grid-cols-[44px_1fr_90px_90px_140px] items-center px-4 py-3 hover:bg-overlay-xs transition-colors cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
         <div onClick={(e) => e.stopPropagation()} className="flex items-center">
@@ -128,12 +128,12 @@ function ReelRow({
           <p className="text-[13px] text-studio-fg truncate font-medium">
             {reel.hook ?? reel.caption ?? `@${reel.username}`}
           </p>
-          <p className="text-[11px] text-slate-200/30">@{reel.username}</p>
+          <p className="text-[11px] text-dim-3">@{reel.username}</p>
         </div>
-        <span className="text-[13px] text-slate-200/60 tabular-nums">
+        <span className="text-[13px] text-dim-1 tabular-nums">
           {fmtNum(reel.views)}
         </span>
-        <span className="text-[13px] text-slate-200/60 tabular-nums">
+        <span className="text-[13px] text-dim-1 tabular-nums">
           {reel.engagementRate
             ? `${Number(reel.engagementRate).toFixed(1)}%`
             : "—"}
@@ -156,22 +156,22 @@ function ReelRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-400/10"
+            className="h-7 text-[11px] text-error hover:text-error hover:bg-error/10"
             onClick={() => deleteReel.mutate({ reelId: reel.id, nicheId })}
             disabled={deleteReel.isPending}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
           {expanded ? (
-            <ChevronUp className="h-3 w-3 text-slate-200/20" />
+            <ChevronUp className="h-3 w-3 text-dim-3" />
           ) : (
-            <ChevronDown className="h-3 w-3 text-slate-200/20" />
+            <ChevronDown className="h-3 w-3 text-dim-3" />
           )}
         </div>
       </div>
 
       {expanded && (
-        <div className="px-[52px] pb-4 bg-white/[0.01] border-t border-white/[0.04] grid grid-cols-2 gap-x-6 gap-y-2">
+        <div className="px-[52px] pb-4 bg-overlay-xs border-t border-overlay-xs grid grid-cols-2 gap-x-6 gap-y-2">
           {[
             [t("admin_niche_row_likes"), fmtNum(reel.likes)],
             [t("admin_niche_row_comments"), fmtNum(reel.comments)],
@@ -184,10 +184,10 @@ function ReelRow({
             [t("admin_niche_row_caption"), reel.caption ?? "—"],
           ].map(([label, value]) => (
             <div key={label} className="flex gap-2 py-1">
-              <span className="text-[11px] text-slate-200/30 w-28 shrink-0">
+              <span className="text-[11px] text-dim-3 w-28 shrink-0">
                 {label}
               </span>
-              <span className="text-[12px] text-slate-200/70 truncate">
+              <span className="text-[12px] text-dim-1 truncate">
                 {value}
               </span>
             </div>
@@ -201,10 +201,10 @@ function ReelRow({
 // ── Job Row ───────────────────────────────────────────────────────────────────
 
 const STATUS_CLASS: Record<ScrapeJob["status"], string> = {
-  queued: "bg-slate-200/10 text-slate-200/50 border-transparent",
+  queued: "bg-overlay-md text-dim-2 border-transparent",
   running: "bg-blue-500/20 text-blue-400 border-transparent",
-  completed: "bg-emerald-500/20 text-emerald-400 border-transparent",
-  failed: "bg-red-500/20 text-red-400 border-transparent",
+  completed: "bg-success/20 text-success border-transparent",
+  failed: "bg-error/20 text-error border-transparent",
 };
 
 function JobRow({ job }: { job: ScrapeJob }) {
@@ -212,30 +212,30 @@ function JobRow({ job }: { job: ScrapeJob }) {
   const durationMs = job.result?.durationMs;
 
   return (
-    <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-white/[0.04] last:border-0">
-      <span className="text-[11px] text-slate-200/40 font-mono truncate">
+    <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-overlay-xs last:border-0">
+      <span className="text-[11px] text-dim-2 font-mono truncate">
         {job.id}
       </span>
       <Badge className={cn("text-[11px] w-fit", STATUS_CLASS[job.status])}>
         {job.status}
       </Badge>
-      <span className="text-[11px] text-slate-200/40">
+      <span className="text-[11px] text-dim-2">
         {created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         {" · "}
         {created.toLocaleDateString([], { month: "short", day: "numeric" })}
       </span>
-      <span className="text-[11px] text-slate-200/60 tabular-nums">
+      <span className="text-[11px] text-dim-1 tabular-nums">
         {job.result ? `+${job.result.saved}` : job.startedAt ? "…" : "—"}
       </span>
-      <span className="text-[11px] text-slate-200/40 tabular-nums">
+      <span className="text-[11px] text-dim-2 tabular-nums">
         {durationMs != null ? `${(durationMs / 1000).toFixed(1)}s` : "—"}
       </span>
       {job.error ? (
-        <span className="text-[11px] text-red-400 truncate" title={job.error}>
+        <span className="text-[11px] text-error truncate" title={job.error}>
           {job.error}
         </span>
       ) : job.result ? (
-        <span className="text-[11px] text-slate-200/30">
+        <span className="text-[11px] text-dim-3">
           {job.result.skipped} skipped
         </span>
       ) : (
@@ -252,8 +252,8 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
 
   if (job.status === "completed") {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-success/10 border border-success/20 text-success">
+        <span className="h-2 w-2 rounded-full bg-success shrink-0" />
         <span className="text-[13px] font-medium">
           {t("admin_niche_scan_complete", {
             saved: job.result?.saved ?? 0,
@@ -273,8 +273,8 @@ function ScanStatusBanner({ job }: { job: ScrapeJob }) {
 
   if (job.status === "failed") {
     return (
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-        <span className="h-2 w-2 rounded-full bg-red-400 shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-error/10 border border-error/20 text-error">
+        <span className="h-2 w-2 rounded-full bg-error shrink-0" />
         <span className="text-[13px] font-medium">
           {t("admin_niche_scan_failed")}
           {job.error ? `: ${job.error}` : ""}
@@ -347,12 +347,12 @@ function NicheEditModal({
           />
           <div className="flex items-center gap-3">
             <Switch checked={isActive} onCheckedChange={setIsActive} />
-            <span className="text-[13px] text-slate-200/60">
+            <span className="text-[13px] text-dim-1">
               {isActive ? t("common_active") : t("common_unavailable")}
             </span>
           </div>
           {error && (
-            <p className="text-[12px] text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
+            <p className="text-[12px] text-error bg-error/10 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -416,17 +416,17 @@ function ScrapeOptionsModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("admin_niche_scrape_options_title")}</DialogTitle>
-          <p className="text-[12px] text-slate-200/40 mt-1">
+          <p className="text-[12px] text-dim-2 mt-1">
             {t("admin_niche_scrape_options_description")}
           </p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/70">
+              <label className="text-[12px] font-medium text-dim-1">
                 {t("admin_niche_scrape_limit_label")}
                 {niche.scrapeLimit != null && (
-                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                  <span className="ml-1.5 text-[11px] text-dim-3">
                     {t("admin_niche_scrape_defaults_badge", {
                       value: niche.scrapeLimit,
                     })}
@@ -442,16 +442,16 @@ function ScrapeOptionsModal({
                 onChange={(e) => setLimit(e.target.value)}
                 className="h-8 text-[13px]"
               />
-              <p className="text-[11px] text-slate-200/25">
+              <p className="text-[11px] text-dim-3">
                 {t("admin_niche_scrape_limit_hint")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/70">
+              <label className="text-[12px] font-medium text-dim-1">
                 {t("admin_niche_scrape_min_views_label")}
                 {niche.scrapeMinViews != null && (
-                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                  <span className="ml-1.5 text-[11px] text-dim-3">
                     {t("admin_niche_scrape_defaults_badge", {
                       value: niche.scrapeMinViews.toLocaleString(),
                     })}
@@ -466,16 +466,16 @@ function ScrapeOptionsModal({
                 onChange={(e) => setMinViews(e.target.value)}
                 className="h-8 text-[13px]"
               />
-              <p className="text-[11px] text-slate-200/25">
+              <p className="text-[11px] text-dim-3">
                 {t("admin_niche_scrape_min_views_hint")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/70">
+              <label className="text-[12px] font-medium text-dim-1">
                 {t("admin_niche_scrape_max_days_label")}
                 {niche.scrapeMaxDaysOld != null && (
-                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                  <span className="ml-1.5 text-[11px] text-dim-3">
                     {t("admin_niche_scrape_defaults_badge", {
                       value: niche.scrapeMaxDaysOld,
                     })}
@@ -491,16 +491,16 @@ function ScrapeOptionsModal({
                 onChange={(e) => setMaxDaysOld(e.target.value)}
                 className="h-8 text-[13px]"
               />
-              <p className="text-[11px] text-slate-200/25">
+              <p className="text-[11px] text-dim-3">
                 {t("admin_niche_scrape_max_days_hint")}
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-200/70">
+              <label className="text-[12px] font-medium text-dim-1">
                 {t("admin_niche_scrape_viral_only_label")}
                 {niche.scrapeIncludeViralOnly != null && (
-                  <span className="ml-1.5 text-[11px] text-slate-200/30">
+                  <span className="ml-1.5 text-[11px] text-dim-3">
                     {t("admin_niche_scrape_defaults_badge", {
                       value: niche.scrapeIncludeViralOnly ? "on" : "off",
                     })}
@@ -512,7 +512,7 @@ function ScrapeOptionsModal({
                   checked={viralOnly ?? niche.scrapeIncludeViralOnly ?? false}
                   onCheckedChange={(v) => setViralOnly(v)}
                 />
-                <span className="text-[12px] text-slate-200/50">
+                <span className="text-[12px] text-dim-2">
                   {t("admin_niche_scrape_viral_only_hint")}
                 </span>
               </div>
@@ -678,7 +678,7 @@ function NicheDetailPage() {
         <div className="space-y-4">
           <Link
             to="/admin/niches"
-            className="inline-flex items-center gap-2 text-[12px] text-slate-200/40 hover:text-studio-fg transition-colors"
+            className="inline-flex items-center gap-2 text-[12px] text-dim-2 hover:text-studio-fg transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             {t("admin_niche_back_to_niches")}
@@ -690,7 +690,7 @@ function NicheDetailPage() {
                 {niche?.name ?? `Niche #${nicheId}`}
               </h2>
               {niche?.description && (
-                <p className="text-[13px] text-slate-200/40 mt-1">
+                <p className="text-[13px] text-dim-2 mt-1">
                   {niche.description}
                 </p>
               )}
@@ -735,7 +735,7 @@ function NicheDetailPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => refetch()}
-                className="text-slate-200/40"
+                className="text-dim-2"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -881,7 +881,7 @@ function NicheDetailPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 text-[12px] text-slate-200/40"
+                  className="h-8 text-[12px] text-dim-2"
                   onClick={() => {
                     setPage(1);
                     setReelParams({ sortBy: "views", sortOrder: "desc" });
@@ -898,7 +898,7 @@ function NicheDetailPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 gap-2 text-[12px] text-slate-200/40 hover:text-studio-fg"
+                  className="h-7 gap-2 text-[12px] text-dim-2 hover:text-studio-fg"
                   onClick={handleSelectAll}
                 >
                   <Checkbox
@@ -909,7 +909,7 @@ function NicheDetailPage() {
                 </Button>
                 {selected.size > 0 && (
                   <>
-                    <span className="text-[12px] text-slate-200/30">
+                    <span className="text-[12px] text-dim-3">
                       {t("admin_niche_selected_count", {
                         count: selected.size,
                       })}
@@ -917,7 +917,7 @@ function NicheDetailPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 gap-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                      className="h-7 gap-1.5 text-[11px] text-error hover:text-error hover:bg-error/10"
                       onClick={handleDeleteSelected}
                       disabled={deleteReel.isPending}
                     >
@@ -942,8 +942,8 @@ function NicheDetailPage() {
             )}
 
             {/* Reels table */}
-            <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
-              <div className="grid grid-cols-[44px_1fr_90px_90px_140px] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06]">
+            <div className="rounded-2xl border border-overlay-sm overflow-hidden">
+              <div className="grid grid-cols-[44px_1fr_90px_90px_140px] text-[11px] font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
                 <span />
                 <span>{t("admin_niche_col_hook")}</span>
                 <span>{t("admin_niche_col_views")}</span>
@@ -960,17 +960,17 @@ function NicheDetailPage() {
                       key={i}
                       className="px-4 py-4 flex gap-4 items-center animate-pulse"
                     >
-                      <div className="h-4 w-4 bg-white/[0.05] rounded" />
-                      <div className="h-4 flex-1 bg-white/[0.05] rounded" />
-                      <div className="h-4 w-16 bg-white/[0.05] rounded" />
-                      <div className="h-4 w-16 bg-white/[0.05] rounded" />
-                      <div className="h-7 w-20 bg-white/[0.05] rounded-lg ml-auto" />
+                      <div className="h-4 w-4 bg-overlay-sm rounded" />
+                      <div className="h-4 flex-1 bg-overlay-sm rounded" />
+                      <div className="h-4 w-16 bg-overlay-sm rounded" />
+                      <div className="h-4 w-16 bg-overlay-sm rounded" />
+                      <div className="h-7 w-20 bg-overlay-sm rounded-lg ml-auto" />
                     </div>
                   ))}
                 </div>
               ) : reels.length === 0 ? (
                 <div className="py-16 flex flex-col items-center gap-3">
-                  <p className="text-[14px] text-slate-200/25 font-medium">
+                  <p className="text-[14px] text-dim-3 font-medium">
                     {t("admin_niche_empty_no_reels")}
                   </p>
                   <Button
@@ -1008,7 +1008,7 @@ function NicheDetailPage() {
                 >
                   {t("common_pagination_previous")}
                 </Button>
-                <span className="text-[12px] text-slate-200/40">
+                <span className="text-[12px] text-dim-2">
                   {t("common_pagination_showing", {
                     page,
                     totalPages,
@@ -1029,8 +1029,8 @@ function NicheDetailPage() {
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
-            <div className="rounded-2xl border border-white/[0.06] overflow-hidden">
-              <div className="grid grid-cols-[140px_90px_100px_80px_80px_1fr] text-[11px] font-semibold uppercase tracking-wider text-slate-200/30 bg-white/[0.02] px-4 py-3 border-b border-white/[0.06] gap-2">
+            <div className="rounded-2xl border border-overlay-sm overflow-hidden">
+              <div className="grid grid-cols-[140px_90px_100px_80px_80px_1fr] text-[11px] font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm gap-2">
                 <span>{t("admin_niche_col_job_id")}</span>
                 <span>{t("admin_niche_col_status")}</span>
                 <span>{t("admin_niche_col_started")}</span>
@@ -1042,18 +1042,18 @@ function NicheDetailPage() {
                 <div className="divide-y divide-white/[0.04]">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="px-4 py-4 flex gap-4 animate-pulse">
-                      <div className="h-4 w-32 bg-white/[0.05] rounded" />
-                      <div className="h-4 w-16 bg-white/[0.05] rounded" />
-                      <div className="h-4 w-24 bg-white/[0.05] rounded" />
+                      <div className="h-4 w-32 bg-overlay-sm rounded" />
+                      <div className="h-4 w-16 bg-overlay-sm rounded" />
+                      <div className="h-4 w-24 bg-overlay-sm rounded" />
                     </div>
                   ))}
                 </div>
               ) : jobs.length === 0 ? (
                 <div className="py-16 flex flex-col items-center gap-3">
-                  <p className="text-[14px] text-slate-200/25 font-medium">
+                  <p className="text-[14px] text-dim-3 font-medium">
                     {t("admin_niche_empty_no_jobs")}
                   </p>
-                  <p className="text-[12px] text-slate-200/15">
+                  <p className="text-[12px] text-dim-3">
                     {t("admin_niche_empty_no_jobs_hint")}
                   </p>
                 </div>
@@ -1065,10 +1065,10 @@ function NicheDetailPage() {
 
           <TabsContent value="analytics" className="mt-4">
             <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <p className="text-[14px] font-medium text-slate-200/25">
+              <p className="text-[14px] font-medium text-dim-3">
                 Analytics coming soon
               </p>
-              <p className="text-[12px] text-slate-200/15">
+              <p className="text-[12px] text-dim-3">
                 Per-niche engagement trends and growth charts will appear here.
               </p>
             </div>

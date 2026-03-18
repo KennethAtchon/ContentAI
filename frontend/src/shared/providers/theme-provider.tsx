@@ -4,7 +4,7 @@ type Theme = "dark" | "light" | "system";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
-  // defaultTheme?: Theme;
+  defaultTheme?: Theme;
   storageKey?: string;
 };
 
@@ -14,7 +14,7 @@ type ThemeProviderState = {
 };
 
 const initialState: ThemeProviderState = {
-  theme: "light",
+  theme: "dark",
   setTheme: () => null,
 };
 
@@ -22,17 +22,24 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
   children,
-  // defaultTheme = "light",
+  defaultTheme = "dark",
   storageKey = "ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem(storageKey) as Theme) ?? defaultTheme
+  );
 
   useEffect(() => {
     const root = window.document.documentElement;
-
     root.classList.remove("light", "dark");
-    root.classList.add("light"); // Always force light theme like old frontend
+
+    if (theme === "system") {
+      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.classList.add(systemDark ? "dark" : "light");
+    } else {
+      root.classList.add(theme);
+    }
   }, [theme]);
 
   const value = {

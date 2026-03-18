@@ -27,7 +27,7 @@ function PrivacyPage() {
         )}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-dim-2">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-studio-accent" />
             <span>{t("privacy_secure_data")}</span>
@@ -44,13 +44,13 @@ function PrivacyPage() {
       </StudioHero>
 
       <StudioSection maxWidth="4xl">
-        <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+        <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
               <h2 className="text-3xl font-bold mb-4">
                 {t("privacy_introduction")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("privacy_introduction_text")}
               </p>
             </section>
@@ -59,10 +59,10 @@ function PrivacyPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_information_we_collect")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed mb-4">
+              <p className="text-lg text-dim-2 leading-relaxed mb-4">
                 {t("privacy_information_collect_text")}
               </p>
-              <ul className="space-y-2 text-slate-200/45">
+              <ul className="space-y-2 text-dim-2">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 flex-shrink-0" />
                   <span>{t("privacy_account_info")}</span>
@@ -86,7 +86,7 @@ function PrivacyPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_how_we_use_your_information")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t(
                   "common_your_information_is_used_to_provide_and_improve_our_services"
                 )}
@@ -97,7 +97,7 @@ function PrivacyPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("privacy_data_security")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("privacy_data_security_text")}
               </p>
             </section>
@@ -106,12 +106,12 @@ function PrivacyPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("privacy_your_rights")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed mb-4">
+              <p className="text-lg text-dim-2 leading-relaxed mb-4">
                 {t(
                   "common_you_have_the_right_to_access_correct_or_delete_your_personal"
                 )}
               </p>
-              <ul className="space-y-2 text-slate-200/45">
+              <ul className="space-y-2 text-dim-2">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 flex-shrink-0" />
                   <span>{t("common_access_your_personal_data")}</span>
@@ -135,7 +135,7 @@ function PrivacyPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("contact_metadata_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("privacy_contact_text")}{" "}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}

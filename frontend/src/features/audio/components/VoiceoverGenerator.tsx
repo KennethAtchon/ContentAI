@@ -165,7 +165,7 @@ export function VoiceoverGenerator({
             aria-label={t("audio_generate_copy_script")}
           >
             {copied ? (
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <Check className="w-3.5 h-3.5 text-success" />
             ) : (
               <Copy className="w-3.5 h-3.5" />
             )}
@@ -173,7 +173,7 @@ export function VoiceoverGenerator({
         </div>
 
         {usingHookFallback && (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+          <p className="text-[11px] text-warning dark:text-warning">
             {t("audio_generate_hook_fallback")}
           </p>
         )}

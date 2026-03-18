@@ -18,6 +18,7 @@ const config: Config = {
         serif: ["var(--font-studio)", "Georgia", "serif"],
         display: ["var(--font-studio)", "system-ui", "sans-serif"],
         studio: ["var(--font-studio)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
         "studio-mono": ["var(--font-studio-mono)", "monospace"],
       },
       colors: {
@@ -80,6 +81,25 @@ const config: Config = {
           border: "var(--studio-border)",
           ring: "var(--studio-ring)",
         },
+        // Surface scale
+        "surface-0":   "hsl(var(--surface-0))",
+        "surface-1":   "hsl(var(--surface-1))",
+        "surface-2":   "hsl(var(--surface-2))",
+        "surface-top": "hsl(var(--surface-top))",
+        // Text dim scale (full CSS values with alpha)
+        "dim-1": "var(--text-dim-1)",
+        "dim-2": "var(--text-dim-2)",
+        "dim-3": "var(--text-dim-3)",
+        // Status colors
+        success: "hsl(var(--color-success))",
+        warning: "hsl(var(--color-warning))",
+        error:   "hsl(var(--color-error))",
+        info:    "hsl(var(--color-info))",
+        // Overlay scale (white glass layers)
+        "overlay-xs": "var(--overlay-xs)",
+        "overlay-sm": "var(--overlay-sm)",
+        "overlay-md": "var(--overlay-md)",
+        "overlay-lg": "var(--overlay-lg)",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background, var(--background)))",
           foreground: "hsl(var(--sidebar-foreground, var(--foreground)))",

@@ -79,7 +79,7 @@ export function ReelPickerModal({
                 className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
                   !selectedNicheId
                     ? "bg-primary/15 text-primary border-primary/30"
-                    : "bg-white/[0.03] text-muted-foreground border-white/10 hover:text-foreground"
+                    : "bg-overlay-xs text-muted-foreground border-overlay-md hover:text-foreground"
                 }`}
               >
                 {t("studio_chat_reelPicker_niche_all")}
@@ -93,7 +93,7 @@ export function ReelPickerModal({
                   className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
                     selectedNicheId === n.id
                       ? "bg-primary/15 text-primary border-primary/30"
-                      : "bg-white/[0.03] text-muted-foreground border-white/10 hover:text-foreground"
+                      : "bg-overlay-xs text-muted-foreground border-overlay-md hover:text-foreground"
                   }`}
                 >
                   {n.name}
@@ -109,7 +109,7 @@ export function ReelPickerModal({
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-14 rounded-lg bg-white/[0.04] animate-pulse"
+                  className="h-14 rounded-lg bg-overlay-xs animate-pulse"
                 />
               ))}
             </div>
@@ -125,11 +125,11 @@ export function ReelPickerModal({
                   key={reel.id}
                   onClick={() => handleSelect(reel)}
                   disabled={isSelected}
-                  className={`w-full text-left px-4 py-2.5 hover:bg-white/[0.04] transition-colors flex items-center gap-3 ${
+                  className={`w-full text-left px-4 py-2.5 hover:bg-overlay-xs transition-colors flex items-center gap-3 ${
                     isSelected ? "opacity-40 cursor-default" : "cursor-pointer"
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-base shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-overlay-sm flex items-center justify-center text-base shrink-0">
                     {reel.thumbnailEmoji ?? "🎬"}
                   </div>
                   <div className="flex-1 min-w-0">

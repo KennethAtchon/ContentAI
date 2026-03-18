@@ -27,7 +27,7 @@ function TermsPage() {
         )}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-dim-2">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-studio-accent" />
             <span>{t("common_legal_agreement")}</span>
@@ -44,13 +44,13 @@ function TermsPage() {
       </StudioHero>
 
       <StudioSection maxWidth="4xl">
-        <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+        <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_acceptance_of_terms")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("terms_acceptance_text")}
               </p>
             </section>
@@ -59,7 +59,7 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_use_of_services")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t(
                   "common_you_agree_to_use_our_services_only_for_lawful_purposes_and_i"
                 )}
@@ -70,7 +70,7 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_user_accounts")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("terms_user_accounts_text")}
               </p>
             </section>
@@ -79,10 +79,10 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("terms_subscription")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed mb-4">
+              <p className="text-lg text-dim-2 leading-relaxed mb-4">
                 {t("terms_subscription_text")}
               </p>
-              <ul className="space-y-2 text-slate-200/45">
+              <ul className="space-y-2 text-dim-2">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 flex-shrink-0" />
                   <span>{t("terms_subscription_trial")}</span>
@@ -106,7 +106,7 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_intellectual_property")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t(
                   "common_all_content_and_materials_provided_through_reelstudio_services"
                 )}
@@ -117,7 +117,7 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("common_limitation_of_liability")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("terms_limitation_text")}
               </p>
             </section>
@@ -126,7 +126,7 @@ function TermsPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("contact_metadata_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("terms_contact_text")}{" "}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}

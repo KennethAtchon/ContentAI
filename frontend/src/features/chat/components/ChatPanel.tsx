@@ -170,18 +170,18 @@ export function ChatPanel({
         {!isLimitReached && <UsageWarningBanner />}
         <div className="p-4">
           {isLimitReached ? (
-            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
-              <span className="text-amber-400 font-medium">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-sm">
+              <span className="text-warning font-medium">
                 {t("studio_chat_limit_reached")}
               </span>
               {isMaxPlan ? (
-                <span className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400">
+                <span className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning">
                   {t("studio_chat_limit_maxPlan")}
                 </span>
               ) : (
                 <a
                   href="/pricing"
-                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
                 >
                   {t("studio_chat_limit_upgrade")}
                 </a>

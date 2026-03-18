@@ -29,7 +29,7 @@ export function QuickToolsPlaceholder({
   const { t } = useTranslation();
   const [precisionZoom, setPrecisionZoom] = useState(1);
   const [precisionPlayheadMs, setPrecisionPlayheadMs] = useState(0);
-  const [ioMarkers, setIoMarkers] = useState<{ inMs: number | null; outMs: number | null }>({
+  const [_ioMarkers, setIoMarkers] = useState<{ inMs: number | null; outMs: number | null }>({
     inMs: null,
     outMs: null,
   });
@@ -202,28 +202,28 @@ export function QuickToolsPlaceholder({
   const captionStyle = String(captionTrack?.stylePreset ?? "default");
 
   const panelBtn =
-    "px-2.5 py-1.5 rounded text-[10px] font-medium text-slate-200/55 hover:text-slate-200/90 hover:bg-white/[0.06] transition-colors border border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed";
+    "px-2.5 py-1.5 rounded text-[10px] font-medium text-dim-2 hover:text-dim-1 hover:bg-overlay-sm transition-colors border border-overlay-md disabled:opacity-30 disabled:cursor-not-allowed";
 
   return (
     // No outer border — the right column border in EditorShell provides separation
     <div className="flex flex-col">
       {/* Panel header */}
-      <div className="px-3 py-2.5 border-b border-white/[0.06] shrink-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/35">
+      <div className="px-3 py-2.5 border-b border-overlay-sm shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-dim-3">
           {t("phase5_editor_tools")}
         </p>
       </div>
 
       {/* Precision mode controls */}
       {editMode === "precision" && (
-        <div className="border-b border-white/[0.06] px-3 py-3 space-y-3">
-          <p className="text-[10px] font-semibold text-slate-200/50">
+        <div className="border-b border-overlay-sm px-3 py-3 space-y-3">
+          <p className="text-[10px] font-semibold text-dim-2">
             {t("phase5_editor_precision_title")}
           </p>
 
           {/* Timecode + transport */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[10px] text-slate-200/40 tabular-nums bg-white/[0.05] px-2 py-1 rounded">
+            <span className="font-mono text-[10px] text-dim-2 tabular-nums bg-overlay-sm px-2 py-1 rounded">
               {formatTimecode(precisionPlayheadMs)}
             </span>
             <button
@@ -260,7 +260,7 @@ export function QuickToolsPlaceholder({
           />
 
           {/* Zoom */}
-          <div className="flex items-center gap-2 text-[9px] text-slate-200/35">
+          <div className="flex items-center gap-2 text-[9px] text-dim-3">
             <span>{t("phase5_editor_precision_zoom")}</span>
             <input
               type="range"
@@ -279,10 +279,10 @@ export function QuickToolsPlaceholder({
             {timelineRows.map((row) => (
               <div
                 key={row.id}
-                className="flex items-center justify-between text-[9px] text-slate-200/40 py-0.5"
+                className="flex items-center justify-between text-[9px] text-dim-2 py-0.5"
               >
                 <span>{row.label}</span>
-                <span className="tabular-nums text-slate-200/25">
+                <span className="tabular-nums text-dim-3">
                   {t("phase5_editor_precision_items", { count: row.count })}
                 </span>
               </div>
@@ -291,7 +291,7 @@ export function QuickToolsPlaceholder({
 
           {/* Drop zone */}
           <div
-            className="rounded border border-dashed border-white/[0.12] px-2 py-2 text-[9px] text-slate-200/25 text-center hover:border-blue-400/30 hover:bg-blue-400/5 transition-colors"
+            className="rounded border border-dashed border-overlay-lg px-2 py-2 text-[9px] text-dim-3 text-center hover:border-blue-400/30 hover:bg-blue-400/5 transition-colors"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
@@ -319,9 +319,9 @@ export function QuickToolsPlaceholder({
 
       {/* Selected clip controls */}
       {videoItems.length > 0 && (
-        <div className="border-b border-white/[0.06] px-3 py-3 space-y-2">
+        <div className="border-b border-overlay-sm px-3 py-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold text-slate-200/50">
+            <p className="text-[10px] font-semibold text-dim-2">
               {t("phase5_editor_selected_clip", { index: selectedClipIndex + 1 })}
             </p>
             {/* Duration input */}
@@ -336,7 +336,7 @@ export function QuickToolsPlaceholder({
                   Number(e.currentTarget.value),
                 )
               }
-              className="w-20 rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[10px] text-slate-200/70 font-mono tabular-nums text-right focus:outline-none focus:border-blue-400/50"
+              className="w-20 rounded bg-overlay-sm border border-overlay-md px-2 py-1 text-[10px] text-dim-1 font-mono tabular-nums text-right focus:outline-none focus:border-blue-400/50"
             />
           </div>
 
@@ -389,7 +389,7 @@ export function QuickToolsPlaceholder({
 
       {/* Clip list */}
       {videoItems.length > 0 && (
-        <div className="border-b border-white/[0.06] px-3 py-2 space-y-1 max-h-48 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="border-b border-overlay-sm px-3 py-2 space-y-1 max-h-48 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {videoItems.map((item, index) => {
             const isSelected = selectedVideoClipId === item.id;
             const transition = String(
@@ -402,15 +402,15 @@ export function QuickToolsPlaceholder({
                 className={cn(
                   "flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors",
                   isSelected
-                    ? "bg-blue-500/15 text-slate-100"
-                    : "hover:bg-white/[0.04] text-slate-200/55",
+                    ? "bg-blue-500/15 text-primary"
+                    : "hover:bg-overlay-xs text-dim-2",
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
                     className={cn(
                       "text-[9px] font-bold shrink-0",
-                      isSelected ? "text-blue-300" : "text-slate-200/30",
+                      isSelected ? "text-blue-300" : "text-dim-3",
                     )}
                   >
                     {index + 1}
@@ -425,7 +425,7 @@ export function QuickToolsPlaceholder({
                       e.stopPropagation();
                       cycleClipTransition(item.id);
                     }}
-                    className="text-[8px] px-1.5 py-0.5 rounded text-slate-200/30 hover:text-slate-200/70 hover:bg-white/[0.06] transition-colors"
+                    className="text-[8px] px-1.5 py-0.5 rounded text-dim-3 hover:text-dim-1 hover:bg-overlay-sm transition-colors"
                     title={t("phase5_editor_transition_cycle")}
                   >
                     {transition === "cut" ? "CUT" : transition.slice(0, 3).toUpperCase()}
@@ -445,7 +445,7 @@ export function QuickToolsPlaceholder({
           </button>
           <button
             onClick={toggleCaptions}
-            className={cn(panelBtn, captionsEnabled && "border-amber-400/30 text-amber-300/70")}
+            className={cn(panelBtn, captionsEnabled && "border-warning/30 text-warning/70")}
           >
             {t("phase5_editor_toggle_captions")}
           </button>
@@ -459,7 +459,7 @@ export function QuickToolsPlaceholder({
         {/* Text overlays */}
         {timeline.tracks.text.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-200/22">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-dim-3">
               {t("phase5_editor_text_overlays")}
             </p>
             {timeline.tracks.text.map((overlay) => {
@@ -476,14 +476,14 @@ export function QuickToolsPlaceholder({
                     "rounded px-2 py-2 space-y-2 cursor-pointer border transition-colors",
                     isSelected
                       ? "border-blue-400/30 bg-blue-500/10"
-                      : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]",
+                      : "border-overlay-sm bg-overlay-xs hover:bg-overlay-xs",
                   )}
                 >
                   <input
                     value={String(row.content ?? "")}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => updateTextOverlay(overlayId, "content", e.currentTarget.value)}
-                    className="w-full rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[10px] text-slate-200/80 focus:outline-none focus:border-blue-400/50"
+                    className="w-full rounded bg-overlay-sm border border-overlay-md px-2 py-1 text-[10px] text-dim-1 focus:outline-none focus:border-blue-400/50"
                   />
                   <div className="grid grid-cols-2 gap-1.5">
                     <input
@@ -494,7 +494,7 @@ export function QuickToolsPlaceholder({
                       onChange={(e) =>
                         updateTextOverlay(overlayId, "startMs", Number(e.currentTarget.value))
                       }
-                      className="rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[9px] text-slate-200/60 font-mono focus:outline-none focus:border-blue-400/50"
+                      className="rounded bg-overlay-sm border border-overlay-md px-2 py-1 text-[9px] text-dim-1 font-mono focus:outline-none focus:border-blue-400/50"
                     />
                     <input
                       type="number"
@@ -504,7 +504,7 @@ export function QuickToolsPlaceholder({
                       onChange={(e) =>
                         updateTextOverlay(overlayId, "endMs", Number(e.currentTarget.value))
                       }
-                      className="rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[9px] text-slate-200/60 font-mono focus:outline-none focus:border-blue-400/50"
+                      className="rounded bg-overlay-sm border border-overlay-md px-2 py-1 text-[9px] text-dim-1 font-mono focus:outline-none focus:border-blue-400/50"
                     />
                   </div>
                   <button
@@ -512,7 +512,7 @@ export function QuickToolsPlaceholder({
                       e.stopPropagation();
                       removeTextOverlay(overlayId);
                     }}
-                    className="text-[9px] text-red-400/50 hover:text-red-400 transition-colors"
+                    className="text-[9px] text-error/50 hover:text-error transition-colors"
                   >
                     {t("phase5_editor_remove_text")}
                   </button>

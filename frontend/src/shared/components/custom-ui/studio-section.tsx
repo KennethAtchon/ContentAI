@@ -45,7 +45,7 @@ const paddingClasses: Record<string, string> = {
 
 const variantClasses: Record<string, string> = {
   default: "",
-  muted: "bg-white/[0.015]",
+  muted: "bg-overlay-xs",
   gradient: "bg-gradient-to-b from-white/[0.02] to-transparent",
 };
 

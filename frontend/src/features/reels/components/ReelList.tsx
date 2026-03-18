@@ -16,7 +16,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
     <>
       {/* Header */}
       <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
-        <span className="text-[10px] font-semibold tracking-[1.5px] uppercase text-slate-200/25">
+        <span className="text-[10px] font-semibold tracking-[1.5px] uppercase text-dim-3">
           {t("studio_sidebar_sourceReels")}
         </span>
         <span className="bg-studio-accent/15 text-studio-accent text-[9px] font-bold px-1.5 py-px rounded-full">
@@ -37,7 +37,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 "border-0 border-l-2 transition-colors duration-100 font-studio cursor-pointer",
                 isActive
                   ? "bg-studio-accent/[0.08] border-l-studio-accent"
-                  : "bg-transparent border-l-transparent hover:bg-white/[0.03]"
+                  : "bg-transparent border-l-transparent hover:bg-overlay-xs"
               )}
             >
               {/* Thumbnail image or emoji fallback */}
@@ -55,7 +55,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 <div
                   className={cn(
                     "w-[38px] h-[50px] rounded-[6px] flex items-center justify-center text-base shrink-0",
-                    isActive ? "bg-studio-accent/15" : "bg-white/[0.06]"
+                    isActive ? "bg-studio-accent/15" : "bg-overlay-sm"
                   )}
                 >
                   {reel.thumbnailEmoji ?? "🎬"}
@@ -65,7 +65,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 <p className="text-[12px] font-semibold text-studio-fg truncate">
                   {reel.username}
                 </p>
-                <p className="text-[10px] text-slate-200/35 mt-px">
+                <p className="text-[10px] text-dim-3 mt-px">
                   {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
                 </p>
                 {reel.videoR2Url ? (
@@ -80,7 +80,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
 
         {reels.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 px-3.5 py-8 text-center">
-            <p className="text-[11px] font-semibold text-slate-200/40">
+            <p className="text-[11px] font-semibold text-dim-2">
               {t("studio_sidebar_noReels")}
             </p>
           </div>

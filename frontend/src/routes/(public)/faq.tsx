@@ -124,7 +124,7 @@ function FaqPage() {
           {faqCategories.map((category, ci) => (
             <div
               key={ci}
-              className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] overflow-hidden"
+              className="bg-overlay-xs border border-overlay-sm rounded-[14px] overflow-hidden"
             >
               <div className="p-5 pb-2 flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-studio-accent/15">
@@ -140,12 +140,12 @@ function FaqPage() {
                     <AccordionItem
                       key={ii}
                       value={`c${ci}-i${ii}`}
-                      className="border-b border-white/[0.05] last:border-b-0"
+                      className="border-b border-overlay-sm last:border-b-0"
                     >
                       <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline py-3.5">
                         {item.question}
                       </AccordionTrigger>
-                      <AccordionContent className="text-[12px] text-slate-200/45 leading-[1.7] pb-3.5">
+                      <AccordionContent className="text-[12px] text-dim-2 leading-[1.7] pb-3.5">
                         {item.answer}
                       </AccordionContent>
                     </AccordionItem>
@@ -159,14 +159,14 @@ function FaqPage() {
 
       {/* CTA */}
       <StudioSection variant="gradient" maxWidth="3xl">
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-[14px] p-10 text-center">
+        <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-10 text-center">
           <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-studio-accent/15">
             <Sparkles className="h-7 w-7 text-studio-accent" />
           </div>
-          <h2 className="mb-3 text-[22px] font-bold text-slate-100">
+          <h2 className="mb-3 text-[22px] font-bold text-primary">
             {t("faq_still_have_questions")}
           </h2>
-          <p className="mb-6 text-[13px] text-slate-200/40">
+          <p className="mb-6 text-[13px] text-dim-2">
             {t("faq_cant_find")}
           </p>
           <Link

@@ -11,7 +11,7 @@ export function AnalysisPanel({ reel }: Props) {
   const { t } = useTranslation();
 
   return (
-    <aside className="bg-studio-surface border-l border-white/[0.05] flex flex-col overflow-hidden font-studio">
+    <aside className="bg-studio-surface border-l border-overlay-sm flex flex-col overflow-hidden font-studio">
       <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Metrics grid */}
         <div>
@@ -41,9 +41,9 @@ export function AnalysisPanel({ reel }: Props) {
             ].map((m) => (
               <div
                 key={m.l}
-                className="bg-white/[0.04] border border-white/[0.06] rounded-[10px] p-3"
+                className="bg-overlay-xs border border-overlay-sm rounded-[10px] p-3"
               >
-                <p className="text-[9px] text-slate-200/30 tracking-[1px] uppercase mb-1">
+                <p className="text-[9px] text-dim-3 tracking-[1px] uppercase mb-1">
                   {m.l}
                 </p>
                 <p
@@ -68,7 +68,7 @@ export function AnalysisPanel({ reel }: Props) {
         {reel.caption && (
           <div>
             <SectionLabel>{t("studio_panel_caption")}</SectionLabel>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-[10px] p-3 text-[11px] text-slate-200/50 leading-[1.7] font-studio-mono">
+            <div className="bg-overlay-xs border border-overlay-sm rounded-[10px] p-3 text-[11px] text-dim-2 leading-[1.7] font-studio-mono">
               {reel.caption.slice(0, 180)}…
             </div>
           </div>
@@ -77,7 +77,7 @@ export function AnalysisPanel({ reel }: Props) {
         {reel.audioName && (
           <div>
             <SectionLabel>{t("studio_panel_audio")}</SectionLabel>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-[10px] p-2.5 flex items-center gap-2.5">
+            <div className="bg-overlay-xs border border-overlay-sm rounded-[10px] p-2.5 flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-studio-accent to-studio-purple flex items-center justify-center text-sm shrink-0">
                 ♪
               </div>
@@ -86,7 +86,7 @@ export function AnalysisPanel({ reel }: Props) {
                   {reel.audioName}
                 </p>
                 {reel.audioId && (
-                  <p className="text-[10px] text-slate-200/30 font-studio-mono mt-px">
+                  <p className="text-[10px] text-dim-3 font-studio-mono mt-px">
                     {reel.audioId}
                   </p>
                 )}
@@ -103,7 +103,7 @@ export function AnalysisPanel({ reel }: Props) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold tracking-[1px] uppercase text-slate-200/25 mb-2.5">
+    <p className="text-[10px] font-semibold tracking-[1px] uppercase text-dim-3 mb-2.5">
       {children}
     </p>
   );

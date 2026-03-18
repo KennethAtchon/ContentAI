@@ -121,7 +121,7 @@ function StatusBadge({
 
   if (normalizedStatus === STATUS_ACTIVE) {
     return (
-      <Badge className="bg-emerald-500 hover:bg-emerald-600">
+      <Badge className="bg-success hover:bg-success">
         {t("common_active")}
       </Badge>
     );
@@ -129,7 +129,7 @@ function StatusBadge({
 
   if (normalizedStatus === STATUS_INACTIVE) {
     return (
-      <Badge variant="outline" className="text-slate-600 border-slate-600">
+      <Badge variant="outline" className="text-dim-1 border-dim-1">
         {t("admin_customers_inactive")}
       </Badge>
     );

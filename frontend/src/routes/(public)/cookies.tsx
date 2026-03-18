@@ -48,7 +48,7 @@ function CookiesPage() {
         description={t("metadata_cookies_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-200/45">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-dim-2">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-studio-accent" />
             <span>{t("privacy_protected_information")}</span>
@@ -61,13 +61,13 @@ function CookiesPage() {
       </StudioHero>
 
       <StudioSection maxWidth="4xl">
-        <Card className="bg-white/[0.03] border border-white/[0.06] rounded-[14px]">
+        <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_what_are_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("cookies_what_are_text")}
               </p>
             </section>
@@ -86,7 +86,7 @@ function CookiesPage() {
                       <Icon className="h-5 w-5 text-studio-accent" />
                     </div>
                     <h3 className="mb-2 font-semibold">{title}</h3>
-                    <p className="text-sm text-slate-200/45 leading-relaxed">
+                    <p className="text-sm text-dim-2 leading-relaxed">
                       {text}
                     </p>
                   </div>
@@ -98,7 +98,7 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_control_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("cookies_control_text")}
               </p>
             </section>
@@ -107,7 +107,7 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("cookies_changes_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("cookies_changes_text")}
               </p>
             </section>
@@ -116,7 +116,7 @@ function CookiesPage() {
               <h2 className="text-3xl font-bold mb-4">
                 {t("contact_metadata_title")}
               </h2>
-              <p className="text-lg text-slate-200/45 leading-relaxed">
+              <p className="text-lg text-dim-2 leading-relaxed">
                 {t("cookies_contact_text")}{" "}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
@@ -131,7 +131,7 @@ function CookiesPage() {
             <section className="rounded-xl border bg-muted/40 p-5">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="h-5 w-5 text-studio-accent mt-0.5 shrink-0" />
-                <p className="text-sm text-slate-200/45">
+                <p className="text-sm text-dim-2">
                   <strong>Last reviewed:</strong> February 21, 2026
                 </p>
               </div>

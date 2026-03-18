@@ -100,16 +100,16 @@ export function StudioTopBar({
 
   return (
     <>
-      <header className="bg-studio-topbar border-b border-white/[0.06] flex items-center px-4 shrink-0 gap-0 font-studio relative z-50">
+      <header className="bg-studio-topbar border-b border-overlay-sm flex items-center px-4 shrink-0 gap-0 font-studio relative z-50">
         {/* Logo */}
         <Link
           to={variant === "studio" ? "/studio/discover" : "/"}
-          className="flex items-center gap-2 pr-5 border-r border-white/[0.06] mr-4 no-underline hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 pr-5 border-r border-overlay-sm mr-4 no-underline hover:opacity-90 transition-opacity"
         >
           <div className="w-6 h-6 bg-gradient-to-br from-studio-accent to-studio-purple rounded-[7px] flex items-center justify-center text-[11px] shrink-0">
             ✦
           </div>
-          <span className="text-[14px] font-bold text-slate-100 tracking-[-0.3px] hidden sm:inline">
+          <span className="text-[14px] font-bold text-primary tracking-[-0.3px] hidden sm:inline">
             {APP_NAME}
           </span>
         </Link>
@@ -118,7 +118,7 @@ export function StudioTopBar({
         {variant === "auth" && (
           <Link
             to="/"
-            className="flex items-center gap-1.5 text-[12px] text-slate-200/40 hover:text-slate-200/70 transition-colors no-underline font-studio"
+            className="flex items-center gap-1.5 text-[12px] text-dim-2 hover:text-dim-1 transition-colors no-underline font-studio"
           >
             ← {t("common_back_to_home")}
           </Link>
@@ -137,7 +137,7 @@ export function StudioTopBar({
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-studio-ring",
                   isActive(tab.key, tab.path)
                     ? "text-studio-accent border-b-studio-accent"
-                    : "text-slate-200/40 border-b-transparent hover:text-slate-200/70"
+                    : "text-dim-2 border-b-transparent hover:text-dim-1"
                 )}
               >
                 {tab.key === "generate" && (
@@ -158,7 +158,7 @@ export function StudioTopBar({
             <div className="hidden md:flex items-center gap-2">
               <Link
                 to="/sign-in"
-                className="text-[12px] font-medium text-slate-200/50 hover:text-studio-fg transition-colors px-3 py-1.5 no-underline"
+                className="text-[12px] font-medium text-dim-2 hover:text-studio-fg transition-colors px-3 py-1.5 no-underline"
               >
                 {t("navigation_signIn")}
               </Link>
@@ -178,7 +178,7 @@ export function StudioTopBar({
           {variant !== "auth" && (
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden bg-transparent border-0 text-slate-200/50 hover:text-studio-fg p-1.5 cursor-pointer"
+              className="md:hidden bg-transparent border-0 text-dim-2 hover:text-studio-fg p-1.5 cursor-pointer"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             >
               {mobileMenuOpen ? "✕" : "☰"}
@@ -189,7 +189,7 @@ export function StudioTopBar({
 
       {/* Mobile menu overlay */}
       {mobileMenuOpen && variant !== "auth" && (
-        <div className="md:hidden absolute top-[48px] left-0 w-full bg-studio-surface border-b border-white/[0.05] z-40 shadow-2xl">
+        <div className="md:hidden absolute top-[48px] left-0 w-full bg-studio-surface border-b border-overlay-sm z-40 shadow-2xl">
           <nav className="flex flex-col p-3 space-y-0.5">
             {tabs.map((tab) => (
               <button
@@ -203,18 +203,18 @@ export function StudioTopBar({
                   "bg-transparent border-0 cursor-pointer font-studio transition-all",
                   isActive(tab.key, tab.path)
                     ? "bg-studio-accent/[0.08] text-studio-accent"
-                    : "text-slate-200/40 hover:text-slate-200/70 hover:bg-white/[0.03]"
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs"
                 )}
               >
                 {t(TAB_LABELS[tab.key] ?? tab.key)}
               </button>
             ))}
             {variant === "public" && !user && (
-              <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-white/[0.05]">
+              <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-overlay-sm">
                 <Link
                   to="/sign-in"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-center text-[12px] font-medium text-slate-200/50 py-2.5 rounded-lg border border-white/[0.08] no-underline hover:bg-white/[0.03]"
+                  className="text-center text-[12px] font-medium text-dim-2 py-2.5 rounded-lg border border-overlay-md no-underline hover:bg-overlay-xs"
                 >
                   {t("navigation_signIn")}
                 </Link>

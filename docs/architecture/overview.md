@@ -190,6 +190,31 @@ sequenceDiagram
 - Niche scan jobs (scraping) triggered via admin panel
 - Protected by `authMiddleware("admin")`
 
+### Design Token System
+All visual theming is centralized in `frontend/src/styles/globals.css`. The token hierarchy is:
+
+```
+Primitive palette → Studio aliases → Shadcn/ui semantic vars → Tailwind utilities
+```
+
+**To change the theme, edit only `globals.css`:**
+
+| What | Token | Effect |
+|------|-------|--------|
+| Accent/brand color | `--color-accent` (HSL triplet) | Updates primary, ring, sidebar-primary, chart-1 |
+| Background darkness | `--surface-0` → `--surface-top` | Updates bg, card, sidebar, topbar |
+| Text contrast | `--text-primary`, `--text-dim-1/2/3` | Updates all text opacities |
+| Status colors | `--color-success/warning/error/info` | Updates success/warning/error/info utilities |
+| Fonts | `@import` URL + `--font-body`, `--font-mono` | Propagates via `font-sans`/`font-studio`/`font-mono` |
+
+**Tailwind utility classes added:**
+- `bg-surface-{0,1,2,top}` / `text-surface-*`
+- `text-dim-{1,2,3}` (replaces `text-slate-200/{opacity}`)
+- `text-success`, `text-warning`, `text-error`, `text-info` (+ `bg-*` variants)
+- `bg-overlay-{xs,sm,md,lg}` / `border-overlay-*` (replaces `bg-white/[0.0X]`)
+
+**ThemeProvider** defaults to `"dark"`, reads `localStorage`, and supports `"system"` for future light/dark switching. The `.dark` class is applied to `<html>`, enabling Tailwind `dark:` variants.
+
 ### Security
 - **Rate limiting**: Redis-backed, keyed by client IP
 - **CSRF**: AES-256-GCM encrypted tokens bound to Firebase UID, required on all mutations
