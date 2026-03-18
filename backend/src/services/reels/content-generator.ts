@@ -3,6 +3,7 @@ import {
   reels,
   reelAnalyses,
   generatedContent,
+  queueItems,
 } from "../../infrastructure/database/drizzle/schema";
 import type { GeneratedContent } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -127,6 +128,13 @@ Generate an original variation following the same viral structure.`;
       status: "draft",
     })
     .returning();
+
+  // Auto-enroll every generated draft in the pipeline queue.
+  await db.insert(queueItems).values({
+    userId,
+    generatedContentId: content.id,
+    status: "draft",
+  }).onConflictDoNothing();
 
   return content;
 }

@@ -15,7 +15,6 @@ import { useRetryVideoJob } from "@/features/video/hooks/use-retry-video-job";
 import { useAssembleReel } from "@/features/video/hooks/use-assemble-reel";
 import { useRegenerateShot } from "@/features/video/hooks/use-regenerate-shot";
 import { useUploadShotAsset } from "@/features/video/hooks/use-upload-shot-asset";
-import { useSendToQueue } from "@/features/chat/hooks/use-send-to-queue";
 import { toast } from "sonner";
 import type { ReelAsset } from "@/features/audio/types/audio.types";
 import type { SessionDraft } from "@/features/chat/types/chat.types";
@@ -69,7 +68,6 @@ export function VideoWorkspacePanel({
   const assembleReel = useAssembleReel();
   const regenerateShot = useRegenerateShot();
   const uploadShotAsset = useUploadShotAsset();
-  const sendToQueue = useSendToQueue();
   const updateAssetMetadata = useUpdateAssetMetadata(draft.id);
 
   const [storyboardDirty, setStoryboardDirty] = useState(false);
@@ -540,29 +538,6 @@ export function VideoWorkspacePanel({
               className="mt-2 ml-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted"
             >
               {t("workspace_video_back_to_storyboard")}
-            </button>
-            <button
-              onClick={() =>
-                void sendToQueue
-                  .mutateAsync(draft.id)
-                  .then(() =>
-                    toast.success(t("workspace_video_action_version_created"))
-                  )
-                  .catch(() =>
-                    toast.error(t("workspace_video_action_version_failed"))
-                  )
-              }
-              disabled={sendToQueue.isPending}
-              className="mt-2 ml-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sendToQueue.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <WandSparkles className="h-3 w-3" />
-              )}
-              {sendToQueue.isPending
-                ? t("workspace_video_creating_version_pending")
-                : t("workspace_video_create_new_version")}
             </button>
           </>
         ) : (

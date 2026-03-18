@@ -1,10 +1,7 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   User,
   Bot,
-  ListPlus,
-  Check,
   Loader2,
   Mic,
   Music,
@@ -15,7 +12,6 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import { ReelRefCard } from "./ReelRefCard";
-import { useSendToQueue } from "../hooks/use-send-to-queue";
 import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 
@@ -172,8 +168,6 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
-  const sendToQueue = useSendToQueue();
-  const [sent, setSent] = useState(false);
 
   if (message.role === "system") {
     return null;
@@ -189,17 +183,6 @@ export function ChatMessage({
     !!resolvedContentId &&
     !!onOpenAudio &&
     !!onSendMessage;
-
-  async function handleSendToQueue() {
-    if (!resolvedContentId) return;
-    try {
-      await sendToQueue.mutateAsync(resolvedContentId);
-      setSent(true);
-      setTimeout(() => setSent(false), 2000);
-    } catch {
-      // error silently handled
-    }
-  }
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -269,26 +252,6 @@ export function ChatMessage({
               minute: "2-digit",
             })}
           </span>
-
-          {!isUser && resolvedContentId && !isSavingContent && (
-            <button
-              onClick={handleSendToQueue}
-              disabled={sendToQueue.isPending || sent}
-              className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md border border-primary/20 bg-primary/[0.06] text-primary/70 hover:bg-primary/[0.12] hover:text-primary transition-colors disabled:opacity-50"
-            >
-              {sent ? (
-                <>
-                  <Check className="w-2.5 h-2.5" />
-                  {t("studio_chat_sentToQueue")}
-                </>
-              ) : (
-                <>
-                  <ListPlus className="w-2.5 h-2.5" />
-                  {t("studio_chat_sendToQueue")}
-                </>
-              )}
-            </button>
-          )}
         </div>
 
         {/* Audio status badge */}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../services/db/db";
 import {
   generatedContent,
+  queueItems,
   reelAnalyses,
 } from "../infrastructure/database/drizzle/schema";
 import { eq, and } from "drizzle-orm";
@@ -103,6 +104,14 @@ export function createSaveContentTool(context: ToolContext) {
           })
           .returning();
         context.savedContentId = row.id;
+
+        // Auto-enroll in queue — every saved draft is immediately visible in the pipeline.
+        await db.insert(queueItems).values({
+          userId: context.auth.user.id,
+          generatedContentId: row.id,
+          status: "draft",
+        }).onConflictDoNothing();
+
         debugLog.info("[tool:save_content] Content saved to DB", {
           service: "chat-tools",
           operation: "save_content",

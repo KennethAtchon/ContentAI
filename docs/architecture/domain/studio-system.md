@@ -231,16 +231,33 @@ Limit enforced server-side. Client shows `UpgradePrompt` component when `429` is
 
 ### 4. Content Queue System
 
-**Purpose:** Schedule generated content to Instagram pages.
+**Purpose:** Pipeline dashboard — every generated draft is **automatically** enrolled. The queue shows the full pipeline status (copy, voiceover, video, assembly, manual edit) and lets users manage scheduling, inspect details, and duplicate.
 
-**UI:** `/studio/queue` page with status-based filters and a scheduling date picker.
+**UI:** `/studio/queue` page with status pills, project/search filters, and an Edit detail sheet.
+
+**Key behaviours:**
+- New content (chat save, API generation) creates a `queue_item` automatically — no manual "Add to queue" action.
+- Queue list auto-refetches every 6 s when any item has an in-progress stage.
+- **Edit** always opens a full detail sheet (hook, caption, script, audio links, video links, pipeline stage breakdown, and deep links to editor or chat session) — not gated on project/session fields.
+- **Duplicate** copies all fields (`cleanScriptForAudio`, `sceneDescription`, `generatedMetadata`, etc.) and starts a fresh video pipeline (audio URLs cleared).
 
 **Queue States:**
 | State | Meaning |
 |-------|---------|
+| `draft` | Just created / in pipeline |
+| `ready` | Pipeline complete, ready to schedule |
 | `scheduled` | Waiting to be published |
 | `posted` | Successfully published |
 | `failed` | Publishing failed (errorMessage stored) |
+
+**Pipeline stages** (derived server-side per queue item):
+| Stage | Source |
+|-------|--------|
+| Copy | `generatedHook` / `generatedScript` presence |
+| Voiceover | `voiceoverUrl` or `reel_assets.type = "voiceover"` |
+| Video clips | `reel_assets.type = "video_clip"` count + `generatedMetadata.phase4.status` |
+| Assembly | `videoR2Url` or `reel_assets.type = "assembled_video"` |
+| Manual edit | `reel_composition` row exists |
 
 **Data Flow:**
 
@@ -257,10 +274,12 @@ sequenceDiagram
     PostgreSQL-->>Backend: Queue items with generated content
     Backend-->>Queue UI: { items, total }
 
-    User->>Queue UI: Click "Schedule" on a generated content item
-    Queue UI->>Backend: POST /api/generation/99/queue { scheduledFor, instagramPageId }
-    Backend->>PostgreSQL: INSERT queue_item + UPDATE generated_content status="queued"
-    Backend-->>Queue UI: Queue item created
+    Note over Queue UI: Items auto-enrolled when content is created — no manual add needed
+
+    User->>Queue UI: Click Edit on a queue item
+    Queue UI->>Backend: GET /api/queue/55/detail
+    Backend-->>Queue UI: Full content + assets + composition + sessionId
+    Queue UI->>User: Detail sheet (copy, audio, video, links)
 
     User->>Queue UI: Edit scheduled time
     Queue UI->>Backend: PATCH /api/queue/55 { scheduledFor: "2026-03-15T10:00:00Z" }

@@ -9,9 +9,92 @@ import { db } from "../../services/db/db";
 import {
   queueItems,
   generatedContent,
+  reelAssets,
+  reelCompositions,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, asc, and, sql, ilike, or } from "drizzle-orm";
+import { eq, desc, asc, and, sql, ilike, or, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
+
+type PipelineStageStatus = "pending" | "running" | "ok" | "failed";
+
+interface PipelineStage {
+  id: string;
+  label: string;
+  status: PipelineStageStatus;
+  error?: string;
+}
+
+function deriveStages(
+  row: {
+    generatedHook: string | null;
+    generatedScript: string | null;
+    generatedMetadata: unknown;
+    voiceoverUrl: string | null;
+    videoR2Url: string | null;
+    status: string;
+  },
+  assetTypeCounts: Record<string, number>,
+  hasComposition: boolean,
+): PipelineStage[] {
+  const meta = (row.generatedMetadata ?? {}) as Record<string, unknown>;
+  const phase4 = (meta.phase4 ?? {}) as Record<string, unknown>;
+  const phase4Status = phase4.status as string | undefined;
+  const contentFailed = row.status === "failed";
+
+  const hasCopy = !!(row.generatedHook || row.generatedScript);
+  const hasVoiceover = !!(
+    row.voiceoverUrl || (assetTypeCounts["voiceover"] ?? 0) > 0
+  );
+  const hasVideoClips = (assetTypeCounts["video_clip"] ?? 0) > 0;
+  const hasAssembled =
+    !!(row.videoR2Url) || (assetTypeCounts["assembled_video"] ?? 0) > 0;
+
+  const videoRunning =
+    phase4Status === "running" || phase4Status === "pending";
+  const videoFailed = phase4Status === "failed" || contentFailed;
+
+  const stages: PipelineStage[] = [
+    {
+      id: "copy",
+      label: "Copy",
+      status: hasCopy ? "ok" : "pending",
+    },
+    {
+      id: "voiceover",
+      label: "Voiceover",
+      status: hasVoiceover ? "ok" : "pending",
+    },
+    {
+      id: "video",
+      label: "Video clips",
+      status: videoFailed
+        ? "failed"
+        : videoRunning
+          ? "running"
+          : hasVideoClips
+            ? "ok"
+            : "pending",
+      error: videoFailed
+        ? (phase4.error as string | undefined)
+        : undefined,
+    },
+    {
+      id: "assembled",
+      label: "Assembly",
+      status: hasAssembled ? "ok" : hasVideoClips ? "pending" : "pending",
+    },
+  ];
+
+  if (hasComposition) {
+    stages.push({
+      id: "editor",
+      label: "Manual edit",
+      status: "ok",
+    });
+  }
+
+  return stages;
+}
 
 const queueRouter = new Hono<HonoEnv>();
 
@@ -95,6 +178,11 @@ queueRouter.get(
             generatedCaption: generatedContent.generatedCaption,
             thumbnailR2Key: generatedContent.thumbnailR2Key,
             version: generatedContent.version,
+            generatedScript: generatedContent.generatedScript,
+            generatedMetadata: generatedContent.generatedMetadata,
+            voiceoverUrl: generatedContent.voiceoverUrl,
+            videoR2Url: generatedContent.videoR2Url,
+            contentStatus: generatedContent.status,
             // Project info via chat link (best-effort correlated subquery)
             projectId: sql<string | null>`(
               SELECT cs.project_id FROM chat_message cm
@@ -134,7 +222,77 @@ queueRouter.get(
           .where(and(...conditions)),
       ]);
 
-      return c.json({ items: rows, total });
+      // Derive pipeline stages from asset counts for all returned content IDs.
+      const contentIds = rows
+        .map((r) => r.generatedContentId)
+        .filter((id): id is number => id !== null);
+
+      const [assetCounts, compositionRows] = await Promise.all([
+        contentIds.length > 0
+          ? db
+              .select({
+                generatedContentId: reelAssets.generatedContentId,
+                type: reelAssets.type,
+                count: sql<number>`count(*)::int`,
+              })
+              .from(reelAssets)
+              .where(inArray(reelAssets.generatedContentId, contentIds))
+              .groupBy(reelAssets.generatedContentId, reelAssets.type)
+          : Promise.resolve([]),
+        contentIds.length > 0
+          ? db
+              .select({ generatedContentId: reelCompositions.generatedContentId })
+              .from(reelCompositions)
+              .where(inArray(reelCompositions.generatedContentId, contentIds))
+          : Promise.resolve([]),
+      ]);
+
+      // Build lookup maps.
+      const assetCountMap: Record<number, Record<string, number>> = {};
+      for (const row of assetCounts) {
+        if (row.generatedContentId === null) continue;
+        assetCountMap[row.generatedContentId] ??= {};
+        assetCountMap[row.generatedContentId][row.type] = row.count;
+      }
+      const compositionSet = new Set(compositionRows.map((r) => r.generatedContentId));
+
+      const items = rows.map((row) => {
+        const typeCounts = assetCountMap[row.generatedContentId ?? -1] ?? {};
+        const hasComposition = compositionSet.has(row.generatedContentId);
+        const stages = deriveStages(
+          {
+            generatedHook: row.generatedHook,
+            generatedScript: row.generatedScript,
+            generatedMetadata: row.generatedMetadata,
+            voiceoverUrl: row.voiceoverUrl,
+            videoR2Url: row.videoR2Url,
+            status: row.contentStatus ?? "draft",
+          },
+          typeCounts,
+          hasComposition,
+        );
+        return {
+          id: row.id,
+          userId: row.userId,
+          generatedContentId: row.generatedContentId,
+          scheduledFor: row.scheduledFor,
+          postedAt: row.postedAt,
+          instagramPageId: row.instagramPageId,
+          status: row.status,
+          errorMessage: row.errorMessage,
+          createdAt: row.createdAt,
+          generatedHook: row.generatedHook,
+          generatedCaption: row.generatedCaption,
+          thumbnailR2Key: row.thumbnailR2Key,
+          version: row.version,
+          projectId: row.projectId,
+          projectName: row.projectName,
+          sessionId: row.sessionId,
+          stages,
+        };
+      });
+
+      return c.json({ items, total });
     } catch (error) {
       debugLog.error("Failed to fetch queue", {
         service: "queue-route",
@@ -207,6 +365,90 @@ queueRouter.post(
 );
 
 /**
+ * GET /api/queue/:id/detail
+ * Full content detail for a queue item: generated content + assets + composition info.
+ */
+queueRouter.get(
+  "/:id/detail",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const id = parseInt(c.req.param("id"), 10);
+      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+
+      const [item] = await db
+        .select()
+        .from(queueItems)
+        .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)))
+        .limit(1);
+
+      if (!item) return c.json({ error: "Queue item not found" }, 404);
+
+      let content = null;
+      let assets: typeof reelAssets.$inferSelect[] = [];
+      let composition = null;
+
+      if (item.generatedContentId) {
+        const [contentRow] = await db
+          .select()
+          .from(generatedContent)
+          .where(eq(generatedContent.id, item.generatedContentId))
+          .limit(1);
+        content = contentRow ?? null;
+
+        [assets] = await Promise.all([
+          db
+            .select()
+            .from(reelAssets)
+            .where(eq(reelAssets.generatedContentId, item.generatedContentId))
+            .orderBy(asc(reelAssets.createdAt)),
+        ]);
+
+        const [compositionRow] = await db
+          .select({
+            id: reelCompositions.id,
+            version: reelCompositions.version,
+            editMode: reelCompositions.editMode,
+            updatedAt: reelCompositions.updatedAt,
+          })
+          .from(reelCompositions)
+          .where(
+            and(
+              eq(reelCompositions.generatedContentId, item.generatedContentId),
+              eq(reelCompositions.userId, auth.user.id),
+            ),
+          )
+          .limit(1);
+        composition = compositionRow ?? null;
+      }
+
+      const sessionId = await db
+        .execute(
+          sql`SELECT cm.session_id FROM chat_message cm WHERE cm.generated_content_id = ${item.generatedContentId} LIMIT 1`,
+        )
+        .then((r) => (r.rows[0] as { session_id: string } | undefined)?.session_id ?? null);
+
+      return c.json({
+        queueItem: item,
+        content,
+        assets,
+        composition,
+        sessionId,
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch queue item detail", {
+        service: "queue-route",
+        operation: "getQueueItemDetail",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch queue item detail" }, 500);
+    }
+  },
+);
+
+/**
  * POST /api/queue/:id/duplicate
  * Clone a queue item as a new draft (version + 1).
  */
@@ -248,8 +490,14 @@ queueRouter.post(
               generatedHook: originalContent.generatedHook,
               generatedCaption: originalContent.generatedCaption,
               generatedScript: originalContent.generatedScript,
+              cleanScriptForAudio: originalContent.cleanScriptForAudio,
+              sceneDescription: originalContent.sceneDescription,
+              generatedMetadata: originalContent.generatedMetadata,
               outputType: originalContent.outputType,
               model: originalContent.model,
+              // Audio URLs intentionally cleared — duplicate starts a fresh pipeline.
+              voiceoverUrl: null,
+              backgroundAudioUrl: null,
               status: "draft",
               version: (originalContent.version ?? 1) + 1,
               parentId: originalContent.id,
@@ -268,7 +516,10 @@ queueRouter.post(
         })
         .returning();
 
-      return c.json({ queueItem: newItem }, 201);
+      return c.json({
+        queueItem: newItem,
+        newGeneratedContentId,
+      }, 201);
     } catch (error) {
       debugLog.error("Failed to duplicate queue item", {
         service: "queue-route",

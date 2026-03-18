@@ -50,6 +50,15 @@ export interface GeneratedContent {
   createdAt: string;
 }
 
+export type PipelineStageStatus = "pending" | "running" | "ok" | "failed";
+
+export interface PipelineStage {
+  id: string;
+  label: string;
+  status: PipelineStageStatus;
+  error?: string;
+}
+
 export interface QueueItem {
   id: number;
   userId: string;
@@ -69,4 +78,6 @@ export interface QueueItem {
   projectId: string | null;
   projectName: string | null;
   sessionId: string | null;
+  // Pipeline stages derived server-side
+  stages: PipelineStage[];
 }

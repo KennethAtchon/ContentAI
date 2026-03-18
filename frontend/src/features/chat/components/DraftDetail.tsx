@@ -2,9 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  ListPlus,
   Mic,
-  Check,
   Loader2,
   Film,
   RotateCcw,
@@ -12,10 +10,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSendToQueue } from "../hooks/use-send-to-queue";
 import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
-import { cn } from "@/shared/utils/helpers/utils";
 import { useGenerateReel } from "@/features/video/hooks/use-generate-reel";
 import { useAssembleReel } from "@/features/video/hooks/use-assemble-reel";
 import { useRetryVideoJob } from "@/features/video/hooks/use-retry-video-job";
@@ -90,14 +86,12 @@ export function DraftDetail({
 }: DraftDetailProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const sendToQueue = useSendToQueue();
   const generateReel = useGenerateReel();
   const assembleReel = useAssembleReel();
   const retryVideoJob = useRetryVideoJob();
   const uploadShotAsset = useUploadShotAsset();
   const regenerateShot = useRegenerateShot();
   const updateAssetMetadata = useUpdateAssetMetadata(draft.id);
-  const [sent, setSent] = useState(false);
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
   const [storyboardDirty, setStoryboardDirty] = useState(false);
   const { data: assetsData } = useContentAssets(draft.id);
@@ -134,16 +128,6 @@ export function DraftDetail({
     cta?: string;
     changeDescription?: string;
   } | null;
-
-  const handleSendToQueue = async () => {
-    try {
-      await sendToQueue.mutateAsync(draft.id);
-      setSent(true);
-      setTimeout(() => setSent(false), 2000);
-    } catch {
-      // silently handled
-    }
-  };
 
   const handleGenerateReel = async () => {
     try {
@@ -508,32 +492,6 @@ export function DraftDetail({
 
       {/* Action footer */}
       <div className="shrink-0 border-t px-4 py-3 flex items-center gap-2">
-        <button
-          onClick={() => void handleSendToQueue()}
-          disabled={sendToQueue.isPending || sent}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors",
-            "border border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          {sent ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
-              {t("workspace_queued")}
-            </>
-          ) : sendToQueue.isPending ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              {t("workspace_queuing")}
-            </>
-          ) : (
-            <>
-              <ListPlus className="w-3.5 h-3.5" />
-              {t("workspace_send_to_queue")}
-            </>
-          )}
-        </button>
         <button
           onClick={onOpenAudio}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
