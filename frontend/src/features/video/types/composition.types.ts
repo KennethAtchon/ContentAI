@@ -24,6 +24,14 @@ export type TimelineItem = {
   trimStartMs?: number;
   trimEndMs?: number;
   role?: string;
+  transitionIn?: {
+    type: "cut" | "crossfade" | "swipe" | "fade";
+    durationMs: number;
+  };
+  transitionOut?: {
+    type: "cut" | "crossfade" | "swipe" | "fade";
+    durationMs: number;
+  };
 };
 
 export type Timeline = {
@@ -60,6 +68,11 @@ export type CompositionVersionItem = {
 export type CompositionRenderJob = {
   jobId: string;
   status: "queued" | "rendering" | "completed" | "failed";
+  progress?: {
+    phase: "queued" | "decode" | "graph-build" | "encode" | "finalize" | "completed";
+    percent: number;
+    message?: string;
+  };
   result?: {
     assembledAssetId?: string;
     videoUrl?: string;

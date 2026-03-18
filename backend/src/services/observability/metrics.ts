@@ -45,6 +45,8 @@ let _dbConnectionPoolActive: PromGauge | null = null;
 let _dbConnectionPoolIdle: PromGauge | null = null;
 let _dbConnectionPoolMax: PromGauge | null = null;
 let _appUptimeSeconds: PromGauge | null = null;
+let _compositionEventsTotal: PromCounter | null = null;
+let _compositionLatencySeconds: PromHistogram | null = null;
 let _initialised = false;
 
 function init() {
@@ -118,6 +120,21 @@ function init() {
   _appUptimeSeconds = new Gauge({
     name: "app_uptime_seconds",
     help: "Application uptime in seconds",
+    registers: [_registry],
+  });
+
+  _compositionEventsTotal = new Counter({
+    name: "composition_events_total",
+    help: "Total composition save/validate/render events",
+    labelNames: ["event", "status"],
+    registers: [_registry],
+  });
+
+  _compositionLatencySeconds = new Histogram({
+    name: "composition_latency_seconds",
+    help: "Composition operation latency in seconds",
+    labelNames: ["event"],
+    buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
     registers: [_registry],
   });
 }
@@ -253,4 +270,22 @@ export function getErrorMetrics(): Record<string, unknown> {
       _uncaughtExceptionsTotal !== null ? "available" : "unavailable",
     initialised: _initialised,
   };
+}
+
+export function recordCompositionEvent(
+  event: "init" | "save" | "validate" | "render" | "render_retry",
+  status: "ok" | "error" | "conflict" | "validation_failed",
+): void {
+  if (!serverOnly()) return;
+  init();
+  _compositionEventsTotal!.labels(event, status).inc();
+}
+
+export function recordCompositionLatency(
+  event: "init" | "save" | "validate" | "render",
+  durationMs: number,
+): void {
+  if (!serverOnly()) return;
+  init();
+  _compositionLatencySeconds!.labels(event).observe(durationMs / 1000);
 }

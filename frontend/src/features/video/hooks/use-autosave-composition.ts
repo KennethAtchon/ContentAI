@@ -34,8 +34,14 @@ export function useAutosaveComposition(input: UseAutosaveCompositionInput) {
   const latestSavedHashRef = useRef<string | null>(null);
 
   const timelineHash = useMemo(
-    () => (timeline ? JSON.stringify(timeline) : null),
-    [timeline],
+    () =>
+      timeline
+        ? JSON.stringify({
+            timeline,
+            editMode,
+          })
+        : null,
+    [editMode, timeline],
   );
 
   useEffect(() => {

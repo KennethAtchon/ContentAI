@@ -19,6 +19,12 @@ export interface VideoJobResult {
   compositionVersion?: number;
 }
 
+export type VideoJobProgress = {
+  phase: "queued" | "decode" | "graph-build" | "encode" | "finalize" | "completed";
+  percent: number;
+  message?: string;
+};
+
 export interface VideoRenderJob {
   id: string;
   userId: string;
@@ -31,6 +37,7 @@ export interface VideoRenderJob {
   request?: Record<string, unknown>;
   error?: string;
   result?: VideoJobResult;
+  progress?: VideoJobProgress;
 }
 
 const JOB_TTL_SECONDS = 60 * 60 * 24; // 24 hours
@@ -50,6 +57,10 @@ class VideoJobService {
       kind: params.kind,
       request: params.request,
       status: "queued",
+      progress: {
+        phase: "queued",
+        percent: 0,
+      },
       createdAt: new Date().toISOString(),
     };
 

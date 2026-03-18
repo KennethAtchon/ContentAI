@@ -39,6 +39,11 @@ export function RenderPanel({
     if (status === "completed") return t("phase5_editor_status_completed");
     return t("phase5_editor_status_failed");
   }, [compositionJob.data?.status, t]);
+  const progressPhaseLabel = useMemo(() => {
+    const phase = compositionJob.data?.progress?.phase;
+    if (!phase) return null;
+    return t(`phase5_editor_progress_phase_${phase}`);
+  }, [compositionJob.data?.progress?.phase, t]);
 
   const handleValidate = async () => {
     await validateTimeline.mutateAsync({ compositionId, timeline });
@@ -105,6 +110,27 @@ export function RenderPanel({
           <p>
             {t("phase5_editor_job_status", { status: jobStatusLabel })}
           </p>
+          {compositionJob.data.progress ? (
+            <div className="mt-2 space-y-1">
+              <p className="text-[10px] text-muted-foreground">
+                {t("phase5_editor_progress_label", {
+                  phase: progressPhaseLabel ?? compositionJob.data.progress.phase,
+                  percent: Math.round(compositionJob.data.progress.percent),
+                })}
+              </p>
+              <div className="h-1.5 overflow-hidden rounded bg-muted">
+                <div
+                  className="h-full bg-emerald-400/80"
+                  style={{
+                    width: `${Math.max(
+                      0,
+                      Math.min(compositionJob.data.progress.percent, 100),
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
           {compositionJob.data.result?.videoUrl && (
             <a
               href={compositionJob.data.result.videoUrl}

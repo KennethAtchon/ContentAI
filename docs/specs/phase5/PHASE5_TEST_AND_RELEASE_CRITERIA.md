@@ -21,14 +21,15 @@ Phase 5 is releasable when users can reliably:
 Current state against this release criteria doc:
 
 - backend API surface for composition init/load/save/validate/render/job/retry is implemented
-- frontend 5A baseline UX for quick edits, autosave, validation feedback, and render lifecycle is implemented
-- precision 5B remains gated/partial and is not release-ready
+- backend validation includes transition-span checks, caption timing constraints, and long-duration guard rails
+- frontend 5A quick-edit UX and precision baseline controls are implemented
+- observability counters/histograms for composition save/validate/render lifecycle are implemented
+- focused unit coverage for timeline operations and composition metrics is implemented
 
-Still pending before 5A go/no-go:
+Current release follow-up focus:
 
-- contract/integration/UI automated coverage for the full 5A matrix
-- performance budget validation in staging
-- observability/alerts verification for save/render failure spikes and latency budgets
+- expand integration/e2e coverage depth for full matrix scenarios
+- execute staging performance and alert-verification runbook
 
 ## Test Strategy
 

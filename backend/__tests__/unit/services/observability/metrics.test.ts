@@ -13,6 +13,8 @@ import {
   recordUncaughtException,
   recordDbQuery,
   recordConnectionPool,
+  recordCompositionEvent,
+  recordCompositionLatency,
   setUptimeSeconds,
   getMetricsContent,
   isMetricsEnabled,
@@ -82,6 +84,14 @@ describe("observability metrics", () => {
   describe("recordConnectionPool", () => {
     it("does not throw when called", () => {
       recordConnectionPool(2, 8, 10);
+    });
+  });
+
+  describe("composition metrics", () => {
+    it("records composition events and latencies without throwing", () => {
+      recordCompositionEvent("save", "ok");
+      recordCompositionEvent("render", "validation_failed");
+      recordCompositionLatency("validate", 125);
     });
   });
 

@@ -91,6 +91,46 @@ export function setVideoItemDuration(
   });
 }
 
+export function setVideoItemDurationById(
+  timeline: Timeline,
+  clipId: string,
+  durationMs: number,
+): Timeline {
+  const index = timeline.tracks.video.findIndex((item) => item.id === clipId);
+  if (index < 0) return timeline;
+  return setVideoItemDuration(timeline, index, durationMs);
+}
+
+export function insertVideoItemAt(
+  timeline: Timeline,
+  input: {
+    insertAtIndex: number;
+    assetId: string;
+    durationMs: number;
+  },
+): Timeline {
+  const insertAt = Math.max(
+    0,
+    Math.min(input.insertAtIndex, timeline.tracks.video.length),
+  );
+  const nextVideo = timeline.tracks.video.map((item) => ({ ...item }));
+  nextVideo.splice(insertAt, 0, {
+    id: `clip-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    assetId: input.assetId,
+    lane: 0,
+    startMs: 0,
+    endMs: clampDuration(input.durationMs),
+  });
+
+  return normalizeTimeline({
+    ...timeline,
+    tracks: {
+      ...timeline.tracks,
+      video: nextVideo,
+    },
+  });
+}
+
 export function splitVideoItemAt(
   timeline: Timeline,
   clipId: string,

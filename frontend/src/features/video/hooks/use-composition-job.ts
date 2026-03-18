@@ -9,6 +9,7 @@ import type {
 type CompositionJobData = {
   jobId: string;
   status: "queued" | "rendering" | "completed";
+  progress?: CompositionRenderJob["progress"];
   result?: CompositionRenderJob["result"];
 };
 
@@ -26,6 +27,7 @@ export function useCompositionJob(jobId: string | null) {
         return {
           jobId: res.data.jobId,
           status: res.data.status,
+          progress: res.data.progress,
           result: res.data.result,
         };
       }

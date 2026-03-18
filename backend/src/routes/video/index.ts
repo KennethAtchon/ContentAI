@@ -29,6 +29,10 @@ import {
 } from "../../services/video/job.service";
 import getRedisConnection from "../../services/db/redis";
 import {
+  recordCompositionEvent,
+  recordCompositionLatency,
+} from "../../services/observability/metrics";
+import {
   deriveUseClipAudioByIndex,
   extractCaptionSourceText,
   formatAssTime,
@@ -80,6 +84,18 @@ const timelineItemSchema = z.object({
   trimStartMs: z.number().int().min(0).optional(),
   trimEndMs: z.number().int().min(1).optional(),
   role: z.string().optional(),
+  transitionIn: z
+    .object({
+      type: z.enum(["cut", "crossfade", "swipe", "fade"]),
+      durationMs: z.number().int().min(0).max(2000),
+    })
+    .optional(),
+  transitionOut: z
+    .object({
+      type: z.enum(["cut", "crossfade", "swipe", "fade"]),
+      durationMs: z.number().int().min(0).max(2000),
+    })
+    .optional(),
 });
 
 const timelineSchema = z.object({
@@ -130,6 +146,10 @@ type TimelineIssue = {
 
 type TimelinePayload = z.infer<typeof timelineSchema>;
 
+const MAX_COMPOSITION_DURATION_MS = 180_000;
+const MIN_RECOMMENDED_CLIP_MS = 800;
+const MAX_RECOMMENDED_CLIP_MS = 12_000;
+
 async function cleanupTempFiles(paths: string[]): Promise<void> {
   for (const p of paths) {
     try {
@@ -153,6 +173,23 @@ function hasTrackOverlap(items: Array<{ startMs: number; endMs: number }>): bool
     if (sorted[i].startMs < sorted[i - 1].endMs) return true;
   }
   return false;
+}
+
+function getItemSpanMs(item: {
+  startMs: number;
+  endMs: number;
+  trimStartMs?: number;
+  trimEndMs?: number;
+}): number {
+  const clipSpan = item.endMs - item.startMs;
+  if (
+    typeof item.trimStartMs === "number" &&
+    typeof item.trimEndMs === "number" &&
+    item.trimEndMs > item.trimStartMs
+  ) {
+    return item.trimEndMs - item.trimStartMs;
+  }
+  return clipSpan;
 }
 
 async function validateTimeline(input: {
@@ -185,6 +222,16 @@ async function validateTimeline(input: {
     }
   }
 
+  if (input.timeline.durationMs > MAX_COMPOSITION_DURATION_MS) {
+    issues.push({
+      code: "COMPOSITION_DURATION_LIMIT_EXCEEDED",
+      track: "timeline",
+      itemIds: [],
+      severity: "error",
+      message: `Composition duration exceeds ${MAX_COMPOSITION_DURATION_MS}ms product limit.`,
+    });
+  }
+
   const laneGroups = new Map<number, typeof videoItems>();
   for (const item of videoItems) {
     const lane = item.lane ?? 0;
@@ -201,6 +248,72 @@ async function validateTimeline(input: {
         severity: "error",
         message: `Video segments overlap in lane ${lane}.`,
       });
+    }
+
+    const sorted = [...items].sort((a, b) => a.startMs - b.startMs);
+    for (let i = 0; i < sorted.length; i += 1) {
+      const item = sorted[i];
+      const spanMs = Math.max(1, getItemSpanMs(item));
+      if (spanMs < MIN_RECOMMENDED_CLIP_MS || spanMs > MAX_RECOMMENDED_CLIP_MS) {
+        issues.push({
+          code: "CLIP_PACING_WARNING",
+          track: "video",
+          itemIds: [item.id],
+          severity: "warning",
+          message: `Clip ${item.id} duration is outside recommended pacing range (${MIN_RECOMMENDED_CLIP_MS}-${MAX_RECOMMENDED_CLIP_MS}ms).`,
+        });
+      }
+
+      const nextItem = sorted[i + 1];
+      const transitions = [
+        { key: "transitionIn" as const, value: item.transitionIn },
+        { key: "transitionOut" as const, value: item.transitionOut },
+      ];
+      for (const transition of transitions) {
+        const t = transition.value;
+        if (!t) continue;
+        if (t.type === "cut" && t.durationMs !== 0) {
+          issues.push({
+            code: "TRANSITION_DURATION_INVALID",
+            track: "video",
+            itemIds: [item.id],
+            severity: "error",
+            message: "Cut transitions must use 0ms duration.",
+          });
+          continue;
+        }
+        if (t.type !== "cut" && t.durationMs <= 0) {
+          issues.push({
+            code: "TRANSITION_DURATION_INVALID",
+            track: "video",
+            itemIds: [item.id],
+            severity: "error",
+            message: `${t.type} transitions must use a positive duration.`,
+          });
+          continue;
+        }
+        if (t.durationMs > spanMs) {
+          issues.push({
+            code: "TRANSITION_EXCEEDS_CLIP_SPAN",
+            track: "video",
+            itemIds: [item.id],
+            severity: "error",
+            message: "Transition duration cannot exceed source clip span.",
+          });
+        }
+        if (transition.key === "transitionOut" && nextItem) {
+          const nextSpan = Math.max(1, getItemSpanMs(nextItem));
+          if (t.durationMs > nextSpan) {
+            issues.push({
+              code: "TRANSITION_EXCEEDS_NEXT_CLIP_SPAN",
+              track: "video",
+              itemIds: [item.id, nextItem.id],
+              severity: "error",
+              message: "Transition out duration exceeds next clip source span.",
+            });
+          }
+        }
+      }
     }
   }
 
@@ -268,6 +381,53 @@ async function validateTimeline(input: {
     }
   }
 
+  const captionTracks = input.timeline.tracks.captions ?? [];
+  for (const captionTrack of captionTracks) {
+    const segmentsRaw = Array.isArray(captionTrack?.segments)
+      ? (captionTrack.segments as Array<Record<string, unknown>>)
+      : [];
+    const normalized = segmentsRaw
+      .map((segment) => ({
+        id: String(segment.id ?? ""),
+        startMs: Math.max(0, Number(segment.startMs ?? 0)),
+        endMs: Math.max(0, Number(segment.endMs ?? 0)),
+      }))
+      .sort((a, b) => a.startMs - b.startMs);
+
+    for (const segment of normalized) {
+      if (segment.endMs <= segment.startMs) {
+        issues.push({
+          code: "CAPTION_INVALID_TIME_RANGE",
+          track: "captions",
+          itemIds: [segment.id].filter(Boolean),
+          severity: "error",
+          message: "Caption segment has invalid time range.",
+        });
+      }
+      if (segment.startMs < 0 || segment.endMs > input.timeline.durationMs) {
+        issues.push({
+          code: "CAPTION_OUT_OF_BOUNDS",
+          track: "captions",
+          itemIds: [segment.id].filter(Boolean),
+          severity: "error",
+          message: "Caption segment must stay within composition duration.",
+        });
+      }
+    }
+
+    for (let i = 1; i < normalized.length; i += 1) {
+      if (normalized[i].startMs < normalized[i - 1].endMs) {
+        issues.push({
+          code: "CAPTION_OVERLAP",
+          track: "captions",
+          itemIds: [normalized[i - 1].id, normalized[i].id].filter(Boolean),
+          severity: "error",
+          message: "Caption segments cannot overlap.",
+        });
+      }
+    }
+  }
+
   return issues;
 }
 
@@ -294,7 +454,7 @@ async function buildInitialTimeline(input: {
     return item;
   });
 
-  const durationMs = Math.max(cursor, 1000);
+  const durationMs = Math.min(Math.max(cursor, 1000), MAX_COMPOSITION_DURATION_MS);
   const audio: Array<z.infer<typeof timelineItemSchema>> = [];
 
   if (auxAudio.voiceover) {
@@ -325,6 +485,41 @@ async function buildInitialTimeline(input: {
       audio,
       text: [],
       captions: [],
+    },
+  };
+}
+
+function normalizeTimelineForPersistence(timeline: TimelinePayload): TimelinePayload {
+  const durationMs = Math.min(timeline.durationMs, MAX_COMPOSITION_DURATION_MS);
+  const captions = (timeline.tracks.captions ?? []).map((track) => {
+    const row = track as Record<string, unknown>;
+    const rawSegments = Array.isArray(row.segments)
+      ? (row.segments as Array<Record<string, unknown>>)
+      : [];
+    const segments = rawSegments.map((segment) => {
+      const startMs = Math.min(
+        durationMs,
+        Math.max(0, Number(segment.startMs ?? 0)),
+      );
+      const endMs = Math.min(durationMs, Math.max(startMs, Number(segment.endMs ?? startMs)));
+      return {
+        ...segment,
+        startMs,
+        endMs,
+      };
+    });
+    return {
+      ...row,
+      segments,
+    };
+  });
+
+  return {
+    ...timeline,
+    durationMs,
+    tracks: {
+      ...timeline.tracks,
+      captions,
     },
   };
 }
@@ -805,6 +1000,11 @@ async function runAssembleFromExistingClips({
     status: "running",
     startedAt: new Date().toISOString(),
     error: undefined,
+    progress: {
+      phase: "decode",
+      percent: 10,
+      message: "Decoding and validating composition",
+    },
   });
 
   try {
@@ -1338,12 +1538,27 @@ async function runCompositionRender(input: {
       throw new Error("Timeline validation failed");
     }
 
+    await videoJobService.updateJob(job.id, {
+      progress: {
+        phase: "graph-build",
+        percent: 45,
+        message: "Building render graph",
+      },
+    });
+
     await runAssembleFromExistingClips({ job });
 
     const latestJob = await videoJobService.getJob(job.id);
     const assembledAssetId = latestJob?.result?.assembledAssetId;
 
     if (latestJob?.status === "completed" && assembledAssetId) {
+      await videoJobService.updateJob(job.id, {
+        progress: {
+          phase: "encode",
+          percent: 85,
+          message: "Encoding final render",
+        },
+      });
       const versionLabel = `v${composition.version}-edited`;
       await db
         .update(reelAssets)
@@ -1372,6 +1587,11 @@ async function runCompositionRender(input: {
         .where(eq(reelCompositions.id, composition.id));
 
       await videoJobService.updateJob(job.id, {
+        progress: {
+          phase: "completed",
+          percent: 100,
+          message: "Render completed",
+        },
         result: {
           ...(latestJob.result ?? {}),
           compositionId: composition.id,
@@ -1736,6 +1956,7 @@ app.get(
       .limit(1);
 
     if (!composition) {
+      recordCompositionEvent("save", "error");
       return c.json(
         {
           ok: false,
@@ -1770,6 +1991,7 @@ app.put(
   authMiddleware("user"),
   zValidator("json", compositionSaveSchema),
   async (c) => {
+    const startedAt = Date.now();
     const auth = c.get("auth");
     const { compositionId } = c.req.param();
     const payload = c.req.valid("json");
@@ -1799,6 +2021,7 @@ app.put(
     }
 
     if (composition.version !== payload.expectedVersion) {
+      recordCompositionEvent("save", "conflict");
       return c.json(
         {
           ok: false,
@@ -1812,12 +2035,15 @@ app.put(
       );
     }
 
+    const normalizedTimeline = normalizeTimelineForPersistence(payload.timeline);
+
     const issues = await validateTimeline({
       userId: auth.user.id,
       generatedContentId: composition.generatedContentId,
-      timeline: payload.timeline,
+      timeline: normalizedTimeline,
     });
     if (issues.some((issue) => issue.severity === "error")) {
+      recordCompositionEvent("save", "validation_failed");
       return c.json(
         {
           ok: false,
@@ -1834,14 +2060,14 @@ app.put(
     const [updated] = await db
       .update(reelCompositions)
       .set({
-        timeline: payload.timeline,
+        timeline: normalizedTimeline,
         editMode: payload.editMode,
         version: composition.version + 1,
       })
       .where(eq(reelCompositions.id, composition.id))
       .returning();
 
-    return c.json({
+    const response = c.json({
       ok: true,
       data: {
         compositionId: updated.id,
@@ -1850,6 +2076,9 @@ app.put(
         updatedAt: updated.updatedAt,
       },
     });
+    recordCompositionEvent("save", "ok");
+    recordCompositionLatency("save", Date.now() - startedAt);
+    return response;
   },
 );
 
@@ -1861,6 +2090,7 @@ app.post(
   authMiddleware("user"),
   zValidator("json", compositionValidateSchema),
   async (c) => {
+    const startedAt = Date.now();
     const auth = c.get("auth");
     const { compositionId } = c.req.param();
     const payload = c.req.valid("json");
@@ -1879,6 +2109,7 @@ app.post(
       )
       .limit(1);
     if (!composition) {
+      recordCompositionEvent("validate", "error");
       return c.json(
         {
           ok: false,
@@ -1891,19 +2122,28 @@ app.post(
       );
     }
 
+    const normalizedTimeline = normalizeTimelineForPersistence(payload.timeline);
     const issues = await validateTimeline({
       userId: auth.user.id,
       generatedContentId: composition.generatedContentId,
-      timeline: payload.timeline,
+      timeline: normalizedTimeline,
     });
 
-    return c.json({
+    const response = c.json({
       ok: true,
       data: {
         valid: issues.every((issue) => issue.severity !== "error"),
         issues,
       },
     });
+    recordCompositionEvent(
+      "validate",
+      issues.some((issue) => issue.severity === "error")
+        ? "validation_failed"
+        : "ok",
+    );
+    recordCompositionLatency("validate", Date.now() - startedAt);
+    return response;
   },
 );
 
@@ -1986,6 +2226,7 @@ app.post(
   authMiddleware("user"),
   zValidator("json", compositionRenderSchema),
   async (c) => {
+    const startedAt = Date.now();
     const auth = c.get("auth");
     const { compositionId } = c.req.param();
     const payload = c.req.valid("json");
@@ -2014,6 +2255,7 @@ app.post(
     }
 
     if (composition.version !== payload.expectedVersion) {
+      recordCompositionEvent("render", "conflict");
       return c.json(
         {
           ok: false,
@@ -2033,6 +2275,7 @@ app.post(
       timeline: composition.timeline as TimelinePayload,
     });
     if (issues.some((issue) => issue.severity === "error")) {
+      recordCompositionEvent("render", "validation_failed");
       return c.json(
         {
           ok: false,
@@ -2092,7 +2335,7 @@ app.post(
       }),
     );
 
-    return c.json(
+    const response = c.json(
       {
         ok: true,
         data: {
@@ -2104,6 +2347,9 @@ app.post(
       },
       202,
     );
+    recordCompositionEvent("render", "ok");
+    recordCompositionLatency("render", Date.now() - startedAt);
+    return response;
   },
 );
 
@@ -2152,6 +2398,7 @@ app.get(
       data: {
         jobId: job.id,
         status: job.status === "running" ? "rendering" : job.status,
+        progress: job.progress,
         result: job.result,
       },
     });
@@ -2216,6 +2463,7 @@ app.post(
       request: job.request,
     });
     enqueue("composition_render", getRetryRunner(job, retryJob));
+    recordCompositionEvent("render_retry", "ok");
 
     return c.json(
       {

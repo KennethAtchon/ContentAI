@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import type {
+  CompositionMode,
   CompositionRecord,
   SaveState,
 } from "../../types/composition.types";
@@ -20,6 +21,8 @@ export type EditorHeaderProps = {
   nextUndoLabel: string | null;
   nextRedoLabel: string | null;
   historyTrail: HistoryViewEntry[];
+  editMode: CompositionMode;
+  onEditModeChange: (mode: CompositionMode) => void;
 };
 
 export function EditorHeader({
@@ -35,6 +38,8 @@ export function EditorHeader({
   nextUndoLabel,
   nextRedoLabel,
   historyTrail,
+  editMode,
+  onEditModeChange,
 }: EditorHeaderProps) {
   const { t } = useTranslation();
 
@@ -84,6 +89,27 @@ export function EditorHeader({
             ))}
           </div>
         ) : null}
+        <div className="flex items-center rounded border border-border/60">
+          <button
+            onClick={() => onEditModeChange("quick")}
+            className={`px-2 py-1 ${
+              editMode === "quick" ? "bg-blue-500/20 text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            {t("phase5_editor_mode_quick")}
+          </button>
+          <button
+            onClick={() => onEditModeChange("precision")}
+            className={`border-l border-border/60 px-2 py-1 ${
+              editMode === "precision" ? "bg-blue-500/20 text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            {t("phase5_editor_mode_precision")}
+          </button>
+        </div>
+        <span className="hidden rounded border border-border/60 px-2 py-1 text-[10px] text-muted-foreground lg:inline-flex">
+          {t("phase5_editor_shortcuts_persistent")}
+        </span>
         <span className="rounded bg-muted px-2 py-1 text-muted-foreground">
           {t("phase5_editor_version", { version: composition.version })}
         </span>

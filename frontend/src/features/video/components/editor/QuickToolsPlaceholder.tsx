@@ -1,7 +1,9 @@
 import { useTranslation } from "react-i18next";
-import type { Timeline } from "../../types/composition.types";
+import { useMemo, useState } from "react";
+import type { CompositionMode, Timeline } from "../../types/composition.types";
 import {
   clampDuration,
+  insertVideoItemAt,
   reorderVideoItems,
   setVideoItemDuration,
 } from "../../utils/timeline-utils";
@@ -13,6 +15,7 @@ export function QuickToolsPlaceholder({
   selectedTextOverlayId,
   onSelectVideoClip,
   onSelectTextOverlay,
+  editMode,
 }: {
   timeline: Timeline;
   onChange: (nextTimeline: Timeline) => void;
@@ -20,8 +23,16 @@ export function QuickToolsPlaceholder({
   selectedTextOverlayId: string | null;
   onSelectVideoClip: (clipId: string) => void;
   onSelectTextOverlay: (overlayId: string | null) => void;
+  editMode: CompositionMode;
 }) {
   const { t } = useTranslation();
+  const [precisionZoom, setPrecisionZoom] = useState(1);
+  const [precisionPlayheadMs, setPrecisionPlayheadMs] = useState(0);
+  const [ioMarkers, setIoMarkers] = useState<{ inMs: number | null; outMs: number | null }>({
+    inMs: null,
+    outMs: null,
+  });
+  const [transportSpeed, setTransportSpeed] = useState<0 | 1 | 2 | 4>(0);
   const videoItems = timeline.tracks.video;
   const selectedClipIndex = Math.max(
     0,
@@ -160,7 +171,7 @@ export function QuickToolsPlaceholder({
   };
 
   const cycleClipTransition = (clipId: string) => {
-    const types = ["cut", "crossfade", "swipe"] as const;
+    const types = ["cut", "crossfade", "swipe", "fade"] as const;
     const nextVideo = timeline.tracks.video.map((item) => {
       if (item.id !== clipId) return item;
       const row = item as Record<string, unknown>;
@@ -189,6 +200,34 @@ export function QuickToolsPlaceholder({
     });
   };
 
+  const timelineRows = useMemo(
+    () => [
+      { id: "video", label: t("phase5_editor_precision_lane_video"), count: timeline.tracks.video.length },
+      { id: "audio", label: t("phase5_editor_precision_lane_audio"), count: timeline.tracks.audio.length },
+      { id: "text", label: t("phase5_editor_precision_lane_text"), count: timeline.tracks.text.length },
+      {
+        id: "captions",
+        label: t("phase5_editor_precision_lane_captions"),
+        count: timeline.tracks.captions.length,
+      },
+    ],
+    [t, timeline.tracks.audio.length, timeline.tracks.captions.length, timeline.tracks.text.length, timeline.tracks.video.length],
+  );
+
+  const formatTimecode = (ms: number) => {
+    const totalFrames = Math.floor((ms / 1000) * timeline.fps);
+    const frame = totalFrames % timeline.fps;
+    const totalSeconds = Math.floor(totalFrames / timeline.fps);
+    const seconds = totalSeconds % 60;
+    const minutes = Math.floor(totalSeconds / 60) % 60;
+    const hours = Math.floor(totalSeconds / 3600);
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}:${frame
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
   return (
     <section className="rounded-lg border border-border/60 p-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
@@ -197,6 +236,123 @@ export function QuickToolsPlaceholder({
       <p className="mt-2 text-xs text-muted-foreground">
         {t("phase5_editor_tools_help")}
       </p>
+      {editMode === "precision" ? (
+        <div className="mt-3 space-y-2 rounded border border-border/60 bg-muted/20 p-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-medium text-foreground/90">
+              {t("phase5_editor_precision_title")}
+            </p>
+            <span className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {formatTimecode(precisionPlayheadMs)}
+            </span>
+            <button
+              onClick={() => setTransportSpeed(transportSpeed === 0 ? 1 : 0)}
+              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+            >
+              {transportSpeed === 0 ? "L" : "K"}
+            </button>
+            <button
+              onClick={() => setTransportSpeed(2)}
+              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+            >
+              J
+            </button>
+            <button
+              onClick={() =>
+                setIoMarkers((prev) => ({
+                  ...prev,
+                  inMs: precisionPlayheadMs,
+                }))
+              }
+              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+            >
+              I
+            </button>
+            <button
+              onClick={() =>
+                setIoMarkers((prev) => ({
+                  ...prev,
+                  outMs: precisionPlayheadMs,
+                }))
+              }
+              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+            >
+              O
+            </button>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(timeline.durationMs, 1)}
+            value={Math.min(precisionPlayheadMs, timeline.durationMs)}
+            onChange={(event) => setPrecisionPlayheadMs(Number(event.currentTarget.value))}
+            className="w-full"
+          />
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span>{t("phase5_editor_precision_zoom")}</span>
+            <input
+              type="range"
+              min={1}
+              max={8}
+              step={0.5}
+              value={precisionZoom}
+              onChange={(event) => setPrecisionZoom(Number(event.currentTarget.value))}
+              className="w-32"
+            />
+            <span>x{precisionZoom.toFixed(1)}</span>
+            <span>{t("phase5_editor_precision_snapping")}</span>
+          </div>
+          <div className="max-h-44 space-y-1 overflow-auto rounded border border-border/60 bg-background/40 p-2">
+            {timelineRows.map((row) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between rounded border border-border/50 px-2 py-1 text-[10px]"
+              >
+                <span>{row.label}</span>
+                <span>{t("phase5_editor_precision_items", { count: row.count })}</span>
+              </div>
+            ))}
+            <div
+              className="rounded border border-dashed border-border/60 px-2 py-1 text-[10px] text-muted-foreground"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const payload = event.dataTransfer.getData(
+                  "application/x-contentai-video-asset",
+                );
+                if (!payload) return;
+                try {
+                  const parsed = JSON.parse(payload) as {
+                    assetId?: string;
+                    durationMs?: number;
+                  };
+                  if (!parsed.assetId) return;
+                  onChange(
+                    insertVideoItemAt(timeline, {
+                      assetId: parsed.assetId,
+                      durationMs: parsed.durationMs ?? 2000,
+                      insertAtIndex: videoItems.length,
+                    }),
+                  );
+                } catch {
+                  // Ignore invalid payload.
+                }
+              }}
+            >
+              {t("phase5_editor_precision_bring_in")}
+            </div>
+            <div className="rounded border border-border/50 px-2 py-1 text-[10px] text-muted-foreground">
+              {t("phase5_editor_precision_keyframes")}
+            </div>
+            <div className="rounded border border-border/50 px-2 py-1 text-[10px] text-muted-foreground">
+              {t("phase5_editor_precision_split_marker", {
+                from: ioMarkers.inMs ?? "-",
+                to: ioMarkers.outMs ?? "-",
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mt-3 space-y-2">
         {videoItems.length > 0 && (
           <div className="rounded border border-border/60 bg-muted/20 p-2">

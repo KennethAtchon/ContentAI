@@ -288,6 +288,9 @@ function ReelEditorRoute() {
       <div className="flex h-full items-center justify-center px-4">
         <div className="max-w-md rounded-lg border border-red-400/40 bg-red-500/10 p-4 text-center">
           <p className="text-sm text-red-300">{errorMessage}</p>
+          <p className="mt-2 text-xs text-red-200/80">
+            {t("phase5_editor_guardrail_missing_composition")}
+          </p>
           <button
             onClick={() => {
               hasInitializedRef.current = false;
@@ -326,6 +329,17 @@ function ReelEditorRoute() {
         nextUndoLabel={history.nextUndoLabel}
         nextRedoLabel={history.nextRedoLabel}
         historyTrail={history.historyTrail}
+        editMode={editableComposition.editMode ?? "quick"}
+        onEditModeChange={(mode) =>
+          setEditableComposition((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  editMode: mode,
+                }
+              : prev,
+          )
+        }
       />
     );
   }

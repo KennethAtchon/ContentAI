@@ -1,10 +1,13 @@
 import type {
+  CompositionMode,
   CompositionRecord,
   SaveState,
   Timeline,
 } from "../../types/composition.types";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useTranslation } from "react-i18next";
 import type { HistoryViewEntry } from "../../hooks/use-editor-history";
-import { normalizeTimeline } from "../../utils/timeline-utils";
+import { insertVideoItemAt, normalizeTimeline } from "../../utils/timeline-utils";
 import { EditorHeader } from "./EditorHeader";
 import { MediaBinPanel } from "./MediaBinPanel";
 import { PreviewPanel } from "./PreviewPanel";
@@ -29,6 +32,8 @@ export type EditorShellProps = {
   nextUndoLabel: string | null;
   nextRedoLabel: string | null;
   historyTrail: HistoryViewEntry[];
+  editMode: CompositionMode;
+  onEditModeChange: (mode: CompositionMode) => void;
 };
 
 export function EditorShell({
@@ -49,7 +54,13 @@ export function EditorShell({
   nextUndoLabel,
   nextRedoLabel,
   historyTrail,
+  editMode,
+  onEditModeChange,
 }: EditorShellProps) {
+  const { t } = useTranslation();
+  const isMobile = useIsMobile();
+  const effectiveMode: CompositionMode = isMobile ? "quick" : editMode;
+
   const handleAppendVideoClip = (assetId: string, durationMs: number) => {
     const lastVideo = composition.timeline.tracks.video[composition.timeline.tracks.video.length - 1];
     const startMs = lastVideo ? lastVideo.endMs : 0;
@@ -73,6 +84,19 @@ export function EditorShell({
     onTimelineChange(nextTimeline);
   };
 
+  const handleInsertVideoClip = (
+    assetId: string,
+    durationMs: number,
+    insertAtIndex: number,
+  ) => {
+    const nextTimeline = insertVideoItemAt(composition.timeline, {
+      assetId,
+      durationMs,
+      insertAtIndex,
+    });
+    onTimelineChange(nextTimeline);
+  };
+
   return (
     <div className="h-full grid grid-rows-[auto_1fr]">
       <EditorHeader
@@ -88,12 +112,20 @@ export function EditorShell({
         nextUndoLabel={nextUndoLabel}
         nextRedoLabel={nextRedoLabel}
         historyTrail={historyTrail}
+        editMode={effectiveMode}
+        onEditModeChange={onEditModeChange}
       />
       <div className="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[280px_1.5fr_1fr]">
         <div className="space-y-4">
+          {isMobile && editMode === "precision" ? (
+            <p className="rounded border border-border/60 bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground">
+              {t("phase5_editor_mobile_precision_fallback")}
+            </p>
+          ) : null}
           <MediaBinPanel
             generatedContentId={generatedContentId}
             onAppendVideoClip={handleAppendVideoClip}
+            onInsertVideoClip={handleInsertVideoClip}
           />
         </div>
         <div className="space-y-4">
@@ -102,6 +134,7 @@ export function EditorShell({
             composition={composition}
             onTimelineChange={onTimelineChange}
             selectedVideoClipId={selectedVideoClipId}
+            selectedTextOverlayId={selectedTextOverlayId}
             onSelectVideoClip={onSelectVideoClip}
           />
         </div>
@@ -113,6 +146,7 @@ export function EditorShell({
             selectedTextOverlayId={selectedTextOverlayId}
             onSelectVideoClip={onSelectVideoClip}
             onSelectTextOverlay={onSelectTextOverlay}
+            editMode={effectiveMode}
           />
           <RenderPanel
             compositionId={composition.compositionId}

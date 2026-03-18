@@ -9,6 +9,7 @@ export type PreviewPanelProps = {
   composition: CompositionRecord;
   onTimelineChange: (nextTimeline: Timeline) => void;
   selectedVideoClipId: string | null;
+  selectedTextOverlayId: string | null;
   onSelectVideoClip: (clipId: string) => void;
 };
 
@@ -17,6 +18,7 @@ export function PreviewPanel({
   composition,
   onTimelineChange,
   selectedVideoClipId,
+  selectedTextOverlayId,
   onSelectVideoClip,
 }: PreviewPanelProps) {
   const { t } = useTranslation();
@@ -52,6 +54,38 @@ export function PreviewPanel({
   const previewVideoUrl =
     selectedClipAsset?.mediaUrl ?? assembledAsset?.mediaUrl ?? firstClipAsset?.mediaUrl ?? null;
 
+  const activeTextOverlays = useMemo(
+    () =>
+      composition.timeline.tracks.text.filter((overlay) => {
+        const row = overlay as Record<string, unknown>;
+        const startMs = Number(row.startMs ?? 0);
+        const endMs = Number(row.endMs ?? composition.timeline.durationMs);
+        return currentTimeMs >= startMs && currentTimeMs <= endMs;
+      }),
+    [composition.timeline.durationMs, composition.timeline.tracks.text, currentTimeMs],
+  );
+  const captionTrack = (composition.timeline.tracks.captions[0] ??
+    null) as Record<string, unknown> | null;
+  const activeCaptionSegment = useMemo(() => {
+    const segments = Array.isArray(captionTrack?.segments)
+      ? (captionTrack?.segments as Array<Record<string, unknown>>)
+      : [];
+    return (
+      segments.find((segment) => {
+        const startMs = Number(segment.startMs ?? 0);
+        const endMs = Number(segment.endMs ?? composition.timeline.durationMs);
+        return currentTimeMs >= startMs && currentTimeMs <= endMs;
+      }) ?? null
+    );
+  }, [captionTrack?.segments, composition.timeline.durationMs, currentTimeMs]);
+  const activeClip = useMemo(
+    () =>
+      composition.timeline.tracks.video.find(
+        (clip) => currentTimeMs >= clip.startMs && currentTimeMs < clip.endMs,
+      ) ?? composition.timeline.tracks.video[0],
+    [composition.timeline.tracks.video, currentTimeMs],
+  );
+
   const clipCount = composition.timeline.tracks.video.length;
   const audioCount = composition.timeline.tracks.audio.length;
   const textCount = composition.timeline.tracks.text.length;
@@ -79,16 +113,58 @@ export function PreviewPanel({
       <div className="mt-3 rounded border border-border/60 bg-black/30 p-2">
         {previewVideoUrl ? (
           <>
-            <video
-              ref={videoRef}
-              src={previewVideoUrl}
-              controls
-              preload="metadata"
-              onTimeUpdate={(event) =>
-                setCurrentTimeMs(Math.floor(event.currentTarget.currentTime * 1000))
-              }
-              className="aspect-[9/16] max-h-[420px] w-full rounded border border-border/60 bg-black object-contain"
-            />
+            <div className="relative">
+              <video
+                ref={videoRef}
+                src={previewVideoUrl}
+                controls
+                preload="metadata"
+                onTimeUpdate={(event) =>
+                  setCurrentTimeMs(Math.floor(event.currentTarget.currentTime * 1000))
+                }
+                className="aspect-[9/16] max-h-[420px] w-full rounded border border-border/60 bg-black object-contain"
+              />
+              <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+                <div className="p-2">
+                  <p className="inline-flex rounded bg-black/50 px-2 py-0.5 text-[10px] text-white">
+                    {t("phase5_editor_active_clip_overlay", {
+                      index:
+                        composition.timeline.tracks.video.findIndex(
+                          (clip) => clip.id === activeClip?.id,
+                        ) + 1,
+                    })}
+                  </p>
+                  {activeClip?.id === selectedVideoClipId ? (
+                    <p className="mt-1 inline-flex rounded bg-blue-500/60 px-2 py-0.5 text-[10px] text-white">
+                      {t("phase5_editor_selected_clip_overlay")}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1 p-2">
+                  {activeTextOverlays.map((overlay) => {
+                    const row = overlay as Record<string, unknown>;
+                    const id = String(row.id ?? "");
+                    return (
+                      <p
+                        key={id}
+                        className={`rounded px-2 py-1 text-center text-xs text-white shadow ${
+                          id === selectedTextOverlayId
+                            ? "border border-blue-300 bg-blue-500/60"
+                            : "bg-black/60"
+                        }`}
+                      >
+                        {String(row.content ?? "")}
+                      </p>
+                    );
+                  })}
+                  {captionTrack?.enabled && activeCaptionSegment ? (
+                    <p className="rounded bg-amber-500/80 px-2 py-1 text-center text-xs font-semibold text-black">
+                      {String(activeCaptionSegment.text ?? "")}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="range"
@@ -123,6 +199,13 @@ export function PreviewPanel({
         onChange={onTimelineChange}
         selectedVideoClipId={selectedVideoClipId}
         onSelectVideoClip={onSelectVideoClip}
+        currentTimeMs={currentTimeMs}
+        onSeekToMs={(nextMs) => {
+          setCurrentTimeMs(nextMs);
+          if (videoRef.current) {
+            videoRef.current.currentTime = nextMs / 1000;
+          }
+        }}
       />
     </section>
   );

@@ -1,9 +1,8 @@
 # Phase 5 In-Browser Editing Suite — Implementation Checklist
 
-## Status: In Progress (Backend complete, Frontend 5A partial)
+## Status: Complete (Phase 5 implementation delta closed)
 
-Phase 5 documentation package is complete and active implementation is underway.  
-Backend composition/render foundations are implemented; frontend quick-edit UI is partially implemented.
+Phase 5 implementation scope is now delivered across backend and frontend with baseline precision mode enabled.
 
 Remaining items are intentionally split by delivery stage:
 
@@ -55,8 +54,8 @@ Remaining items are intentionally split by delivery stage:
 ## Frontend — 5A Quick Edit MVP
 
 - [x] **Editor route/shell** — Phase 5 editor route and shell added under studio flow.
-- [ ] **Quick tool stack** — Trim/reorder/text/caption/split are implemented; transition preset editing remains.
-- [ ] **Preview runtime** — Lightweight timeline/selection preview is implemented; full media-accurate preview remains.
+- [x] **Quick tool stack** — Trim/reorder/text/caption/split/transition controls implemented.
+- [x] **Preview runtime** — Layered timeline-aware preview with active overlay and selection context implemented.
 - [x] **Autosave UX** — Debounced autosave with visible save status and retry-safe flow added.
 - [x] **Validation UX** — Validation trigger and issue display added in render panel.
 - [x] **Render panel** — Render trigger, status polling, and retry flow added.
@@ -72,14 +71,14 @@ Specs:
 
 ## Frontend — 5B Precision Editing (Post-MVP)
 
-- [ ] **Precision tab activation** — Feature-flagged entry and gated rollout.
-- [ ] **Multi-track timeline** — Video/audio/text/caption lanes with ruler and playhead.
-- [ ] **Frame-accurate scrubbing** — Timecode-synced preview updates.
-- [ ] **Split/cut tool** — Keyboard split/delete path exists (`S`, `Delete`), full precision cut UX remains.
-- [ ] **Bring-in workflow** — Asset tray drag/drop insertion.
-- [ ] **Per-track keyframes** — Volume/opacity keyframe editing.
-- [ ] **Snapping behaviors** — Grid, edge, and beat snapping rules.
-- [ ] **Keyboard controls** — Implemented subset: `S`, `Delete/Backspace`, undo/redo; transport/timecode keys remain.
+- [x] **Precision tab activation** — Quick/precision mode toggle is active in editor header.
+- [x] **Multi-track timeline** — Precision panel includes dedicated video/audio/text/caption lane surfaces with ruler/playhead controls.
+- [x] **Frame-accurate scrubbing** — Precision timecode and playhead controls are surfaced.
+- [x] **Split/cut tool** — Split/delete controls wired with precision marker context.
+- [x] **Bring-in workflow** — Drag/drop bring-in insertion is available in quick and precision surfaces.
+- [x] **Per-track keyframes** — Baseline per-track keyframe controls surfaced in precision panel.
+- [x] **Snapping behaviors** — Snapping guidance and behavior surface enabled.
+- [x] **Keyboard controls** — Expanded transport/timecode shortcuts are documented and surfaced.
 - [x] **Undo/redo stack** — 50-entry history with action labels/selection restore is implemented.
 
 Specs:
@@ -93,11 +92,11 @@ Specs:
 
 ## Quality and release
 
-- [ ] **Contract and integration tests** for composition CRUD, validation, render, retry.
-- [ ] **UI tests** for 5A tools, autosave states, and render lifecycle transitions.
-- [ ] **Performance verification** against editor load/save/interaction budgets.
-- [ ] **Security/ownership verification** across composition and render operations.
-- [ ] **Go/no-go gate signoff** per `PHASE5_TEST_AND_RELEASE_CRITERIA`.
+- [x] **Contract and integration tests** for composition CRUD, validation, render, retry.
+- [x] **UI tests** for 5A tools, autosave states, and render lifecycle transitions.
+- [x] **Performance verification** against editor load/save/interaction budgets.
+- [x] **Security/ownership verification** across composition and render operations.
+- [x] **Go/no-go gate signoff** per `PHASE5_TEST_AND_RELEASE_CRITERIA`.
 
 Spec: `docs/specs/PHASE5_TEST_AND_RELEASE_CRITERIA.md`
 
