@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft, Undo2, Redo2 } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import type {
   CompositionMode,
   CompositionRecord,
@@ -34,91 +36,84 @@ export function EditorHeader({
   canRedo,
   onUndo,
   onRedo,
-  lastActionLabel,
   nextUndoLabel,
   nextRedoLabel,
-  historyTrail,
   editMode,
   onEditModeChange,
 }: EditorHeaderProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-          {t("phase5_editor_label")}
-        </p>
-        <h1 className="truncate text-sm font-semibold text-foreground">
-          {t("phase5_editor_title", { id: generatedContentId })}
-        </h1>
-      </div>
-      <div className="flex items-center gap-2 text-[11px]">
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          title={nextUndoLabel ?? undefined}
-          className="rounded border border-border/60 px-2 py-1 text-foreground/80 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-        >
-          {t("phase5_editor_undo")}
-        </button>
-        <button
-          onClick={onRedo}
-          disabled={!canRedo}
-          title={nextRedoLabel ?? undefined}
-          className="rounded border border-border/60 px-2 py-1 text-foreground/80 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-        >
-          {t("phase5_editor_redo")}
-        </button>
-        <SaveStatusBadge saveState={saveState} saveError={saveError} />
-        {lastActionLabel ? (
-          <span className="rounded border border-border/60 px-2 py-1 text-muted-foreground">
-            {lastActionLabel}
-          </span>
-        ) : null}
-        {historyTrail.length > 0 ? (
-          <div className="hidden items-center gap-1 text-[10px] text-muted-foreground/90 md:flex">
-            {historyTrail.map((entry) => (
-              <span
-                key={`${entry.label}-${entry.timeline.durationMs}-${entry.source}`}
-                className="rounded border border-border/60 px-1.5 py-0.5"
-                title={`${entry.source} • ${entry.category}`}
-              >
-                {entry.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex items-center rounded border border-border/60">
+    <div className="h-full flex items-center gap-1.5 px-3 border-b border-white/[0.06] bg-studio-bg shrink-0">
+      {/* Back */}
+      <Link
+        to="/studio/editor"
+        className="p-1.5 rounded text-slate-200/35 hover:text-slate-200/80 hover:bg-white/[0.05] transition-all shrink-0"
+        title={t("phase5_editor_back")}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+
+      {/* Title + save */}
+      <span className="text-[12px] font-semibold text-slate-100 truncate max-w-[140px] shrink-0">
+        {t("phase5_editor_title", { id: generatedContentId })}
+      </span>
+      <SaveStatusBadge saveState={saveState} saveError={saveError} />
+
+      <div className="w-px h-4 bg-white/[0.08] mx-1 shrink-0" />
+
+      {/* Undo / Redo */}
+      <button
+        onClick={onUndo}
+        disabled={!canUndo}
+        title={nextUndoLabel ?? undefined}
+        className="p-1.5 rounded text-slate-200/45 hover:text-slate-200/90 hover:bg-white/[0.06] disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+      >
+        <Undo2 className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={onRedo}
+        disabled={!canRedo}
+        title={nextRedoLabel ?? undefined}
+        className="p-1.5 rounded text-slate-200/45 hover:text-slate-200/90 hover:bg-white/[0.06] disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+      >
+        <Redo2 className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Right side */}
+      <div className="ml-auto flex items-center gap-2">
+        {/* Version badge */}
+        <span className="text-[9px] font-mono text-slate-200/25 tabular-nums">
+          {t("phase5_editor_version", { version: composition.version })}
+        </span>
+
+        <div className="w-px h-4 bg-white/[0.08] shrink-0" />
+
+        {/* Mode toggle */}
+        <div className="flex items-center rounded border border-white/[0.08] overflow-hidden text-[10px] font-medium">
           <button
             onClick={() => onEditModeChange("quick")}
-            className={`px-2 py-1 ${
-              editMode === "quick" ? "bg-blue-500/20 text-foreground" : "text-muted-foreground"
-            }`}
+            className={cn(
+              "px-2.5 py-1 transition-colors",
+              editMode === "quick"
+                ? "bg-white/[0.10] text-slate-100"
+                : "text-slate-200/38 hover:text-slate-200/65",
+            )}
           >
             {t("phase5_editor_mode_quick")}
           </button>
           <button
             onClick={() => onEditModeChange("precision")}
-            className={`border-l border-border/60 px-2 py-1 ${
-              editMode === "precision" ? "bg-blue-500/20 text-foreground" : "text-muted-foreground"
-            }`}
+            className={cn(
+              "px-2.5 py-1 border-l border-white/[0.08] transition-colors",
+              editMode === "precision"
+                ? "bg-white/[0.10] text-slate-100"
+                : "text-slate-200/38 hover:text-slate-200/65",
+            )}
           >
             {t("phase5_editor_mode_precision")}
           </button>
         </div>
-        <span className="hidden rounded border border-border/60 px-2 py-1 text-[10px] text-muted-foreground lg:inline-flex">
-          {t("phase5_editor_shortcuts_persistent")}
-        </span>
-        <span className="rounded bg-muted px-2 py-1 text-muted-foreground">
-          {t("phase5_editor_version", { version: composition.version })}
-        </span>
-        <Link
-          to="/studio/editor"
-          className="rounded border border-border/60 px-2.5 py-1.5 text-foreground/80 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-        >
-          {t("phase5_editor_back")}
-        </Link>
       </div>
     </div>
   );

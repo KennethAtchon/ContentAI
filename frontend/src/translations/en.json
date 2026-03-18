@@ -1032,6 +1032,8 @@
   "studio_queue_detail_status": "Status",
   "studio_queue_detail_queue_status": "Queue",
   "studio_queue_detail_content_status": "Content",
+  "studio_queue_select_prompt": "Select an item to view details",
+  "studio_queue_pipeline_label": "Pipeline",
   "studio_search_placeholder": "Search niche...",
   "studio_search_scan": "Scan",
   "studio_sidebar_aiTools": "AI Tools",

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   CompositionMode,
   CompositionRecord,
@@ -13,6 +14,7 @@ import { MediaBinPanel } from "./MediaBinPanel";
 import { PreviewPanel } from "./PreviewPanel";
 import { QuickToolsPlaceholder } from "./QuickToolsPlaceholder";
 import { RenderPanel } from "./RenderPanel";
+import { TimelineStrip } from "./TimelineStrip";
 
 export type EditorShellProps = {
   generatedContentId: number;
@@ -61,8 +63,12 @@ export function EditorShell({
   const isMobile = useIsMobile();
   const effectiveMode: CompositionMode = isMobile ? "quick" : editMode;
 
+  // Playhead state lifted to EditorShell so both PreviewPanel and TimelineStrip share it
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+
   const handleAppendVideoClip = (assetId: string, durationMs: number) => {
-    const lastVideo = composition.timeline.tracks.video[composition.timeline.tracks.video.length - 1];
+    const lastVideo =
+      composition.timeline.tracks.video[composition.timeline.tracks.video.length - 1];
     const startMs = lastVideo ? lastVideo.endMs : 0;
     const clipDuration = Math.max(500, durationMs);
     const nextTimeline = normalizeTimeline({
@@ -98,7 +104,9 @@ export function EditorShell({
   };
 
   return (
-    <div className="h-full grid grid-rows-[auto_1fr]">
+    // CapCut-style: header | 3-panel area | full-width timeline
+    <div className="h-full grid grid-rows-[48px_1fr_168px] overflow-hidden bg-studio-bg">
+      {/* ── Row 1: Header bar ─────────────────────────────── */}
       <EditorHeader
         generatedContentId={generatedContentId}
         composition={composition}
@@ -115,10 +123,13 @@ export function EditorShell({
         editMode={effectiveMode}
         onEditModeChange={onEditModeChange}
       />
-      <div className="grid min-h-0 gap-4 overflow-y-auto p-4 lg:grid-cols-[280px_1.5fr_1fr]">
-        <div className="space-y-4">
+
+      {/* ── Row 2: Three-panel workspace ───────────────────── */}
+      <div className="grid grid-cols-[220px_1fr_280px] min-h-0 overflow-hidden">
+        {/* Left: Media library */}
+        <div className="border-r border-white/[0.06] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
           {isMobile && editMode === "precision" ? (
-            <p className="rounded border border-border/60 bg-muted/20 px-2 py-1 text-[11px] text-muted-foreground">
+            <p className="mx-3 mt-3 rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[10px] text-slate-200/40">
               {t("phase5_editor_mobile_precision_fallback")}
             </p>
           ) : null}
@@ -128,7 +139,9 @@ export function EditorShell({
             onInsertVideoClip={handleInsertVideoClip}
           />
         </div>
-        <div className="space-y-4">
+
+        {/* Center: Video preview — dominant black space */}
+        <div className="bg-black/60 overflow-hidden flex items-center justify-center">
           <PreviewPanel
             generatedContentId={generatedContentId}
             composition={composition}
@@ -136,9 +149,13 @@ export function EditorShell({
             selectedVideoClipId={selectedVideoClipId}
             selectedTextOverlayId={selectedTextOverlayId}
             onSelectVideoClip={onSelectVideoClip}
+            currentTimeMs={currentTimeMs}
+            onCurrentTimeChange={setCurrentTimeMs}
           />
         </div>
-        <div className="space-y-4">
+
+        {/* Right: Properties + Export */}
+        <div className="border-l border-white/[0.06] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
           <QuickToolsPlaceholder
             timeline={composition.timeline}
             onChange={onTimelineChange}
@@ -148,12 +165,26 @@ export function EditorShell({
             onSelectTextOverlay={onSelectTextOverlay}
             editMode={effectiveMode}
           />
-          <RenderPanel
-            compositionId={composition.compositionId}
-            version={composition.version}
-            timeline={composition.timeline}
-          />
+          <div className="mt-auto border-t border-white/[0.06]">
+            <RenderPanel
+              compositionId={composition.compositionId}
+              version={composition.version}
+              timeline={composition.timeline}
+            />
+          </div>
         </div>
+      </div>
+
+      {/* ── Row 3: Full-width timeline ─────────────────────── */}
+      <div className="border-t border-white/[0.06] overflow-hidden">
+        <TimelineStrip
+          timeline={composition.timeline}
+          onChange={onTimelineChange}
+          selectedVideoClipId={selectedVideoClipId}
+          onSelectVideoClip={onSelectVideoClip}
+          currentTimeMs={currentTimeMs}
+          onSeekToMs={setCurrentTimeMs}
+        />
       </div>
     </div>
   );

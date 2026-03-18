@@ -428,7 +428,7 @@ queueRouter.get(
         .execute(
           sql`SELECT cm.session_id FROM chat_message cm WHERE cm.generated_content_id = ${item.generatedContentId} LIMIT 1`,
         )
-        .then((r) => (r.rows[0] as { session_id: string } | undefined)?.session_id ?? null);
+        .then((r) => (r[0] as { session_id: string } | undefined)?.session_id ?? null);
 
       return c.json({
         queueItem: item,

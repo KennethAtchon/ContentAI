@@ -5,11 +5,7 @@ import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 export type MediaBinPanelProps = {
   generatedContentId: number;
   onAppendVideoClip: (assetId: string, durationMs: number) => void;
-  onInsertVideoClip: (
-    assetId: string,
-    durationMs: number,
-    insertAtIndex: number,
-  ) => void;
+  onInsertVideoClip: (assetId: string, durationMs: number, insertAtIndex: number) => void;
 };
 
 export function MediaBinPanel({
@@ -21,7 +17,9 @@ export function MediaBinPanel({
   const { data, isLoading } = useContentAssets(generatedContentId);
   const assets = data?.assets ?? [];
   const videoAssets = assets.filter((asset) => asset.type === "video_clip");
-  const audioAssets = assets.filter((asset) => asset.type === "voiceover" || asset.type === "music");
+  const audioAssets = assets.filter(
+    (asset) => asset.type === "voiceover" || asset.type === "music",
+  );
 
   const groupedVideoAssets = {
     phase4Shots: videoAssets.filter((asset) => {
@@ -34,7 +32,11 @@ export function MediaBinPanel({
     }),
     other: videoAssets.filter((asset) => {
       const sourceType = String((asset.metadata?.sourceType as string) ?? "");
-      return !sourceType.includes("phase4") && !sourceType.includes("shot") && !sourceType.includes("upload");
+      return (
+        !sourceType.includes("phase4") &&
+        !sourceType.includes("shot") &&
+        !sourceType.includes("upload")
+      );
     }),
   };
 
@@ -45,10 +47,7 @@ export function MediaBinPanel({
   ) => {
     event.dataTransfer.setData(
       "application/x-contentai-video-asset",
-      JSON.stringify({
-        assetId,
-        durationMs,
-      }),
+      JSON.stringify({ assetId, durationMs }),
     );
     event.dataTransfer.effectAllowed = "copyMove";
   };
@@ -60,43 +59,52 @@ export function MediaBinPanel({
   ) => {
     if (!groupAssets.length) return null;
     return (
-      <div className="space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+      <div className="space-y-px">
+        <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-200/22">
           {title}
         </p>
         {groupAssets.slice(0, 12).map((asset) => (
           <div
             key={asset.id}
-            className="rounded border border-border/60 bg-muted/20 p-2"
+            className="group flex items-center gap-2 px-3 py-2 cursor-grab hover:bg-white/[0.04] transition-colors border-l-2 border-transparent hover:border-blue-400/40"
             draggable
             onDragStart={(event) =>
               handleDragStart(event, asset.id, asset.durationMs ?? 2000)
             }
           >
-            <p className="truncate text-[11px] text-foreground/85">{asset.id}</p>
-            <p className="text-[10px] text-muted-foreground">
-              {t("phase5_editor_media_duration", {
-                seconds: Math.max(1, Math.floor((asset.durationMs ?? 1000) / 1000)),
-              })}
-            </p>
-            <div className="mt-1 flex flex-wrap gap-1">
+            {/* Thumbnail placeholder */}
+            <div className="w-9 h-6 rounded bg-blue-500/15 border border-white/[0.08] shrink-0 flex items-center justify-center">
+              <span className="text-[8px] text-blue-300/40">▶</span>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="truncate text-[10px] text-slate-200/65 font-medium leading-tight">
+                {asset.id.slice(-8)}
+              </p>
+              <p className="text-[9px] text-slate-200/28">
+                {t("phase5_editor_media_duration", {
+                  seconds: Math.max(1, Math.floor((asset.durationMs ?? 1000) / 1000)),
+                })}
+              </p>
+            </div>
+
+            {/* Action buttons — revealed on hover */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <button
                 onClick={() => onAppendVideoClip(asset.id, asset.durationMs ?? 2000)}
-                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:bg-muted"
+                className="px-1.5 py-0.5 rounded text-[8px] font-semibold text-blue-300/70 hover:text-blue-200 hover:bg-blue-500/20 transition-colors"
+                title={t("phase5_editor_media_add_to_timeline")}
               >
-                {t("phase5_editor_media_add_to_timeline")}
+                +
               </button>
               <button
                 onClick={() =>
-                  onInsertVideoClip(
-                    asset.id,
-                    asset.durationMs ?? 2000,
-                    defaultInsertIndex,
-                  )
+                  onInsertVideoClip(asset.id, asset.durationMs ?? 2000, defaultInsertIndex)
                 }
-                className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:bg-muted"
+                className="px-1.5 py-0.5 rounded text-[8px] font-semibold text-slate-200/40 hover:text-slate-200/80 hover:bg-white/[0.06] transition-colors"
+                title={t("phase5_editor_media_insert_to_timeline")}
               >
-                {t("phase5_editor_media_insert_to_timeline")}
+                ↤
               </button>
             </div>
           </div>
@@ -106,20 +114,31 @@ export function MediaBinPanel({
   };
 
   return (
-    <section className="rounded-lg border border-border/60 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-        {t("phase5_editor_media_bin")}
-      </p>
+    // No outer border box — the left column border in EditorShell provides the separation
+    <div className="flex flex-col h-full">
+      {/* Panel header */}
+      <div className="px-3 py-2.5 border-b border-white/[0.06] shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/35">
+          {t("phase5_editor_media_bin")}
+        </p>
+      </div>
+
+      {/* Content */}
       {isLoading ? (
-        <p className="mt-2 text-xs text-muted-foreground">{t("studio_loading")}</p>
+        <div className="px-3 py-4 space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-9 rounded bg-white/[0.04] animate-pulse" />
+          ))}
+        </div>
       ) : (
-        <>
-          <div className="mt-2 space-y-1.5">
-            <p className="text-[11px] font-medium text-foreground/80">
+        <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Video section */}
+          <div className="py-1">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-200/45">
               {t("phase5_editor_media_video")}
             </p>
             {videoAssets.length > 0 ? (
-              <div className="space-y-2">
+              <div>
                 {renderVideoGroup(
                   t("phase5_editor_media_group_phase4"),
                   groupedVideoAssets.phase4Shots,
@@ -137,46 +156,56 @@ export function MediaBinPanel({
                 )}
               </div>
             ) : (
-              <div className="rounded border border-dashed border-border/60 bg-muted/20 p-2">
-                <p className="text-[11px] text-muted-foreground">
+              <div className="px-3 py-4 space-y-2">
+                <p className="text-[10px] text-slate-200/30">
                   {t("phase5_editor_media_empty_video")}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="flex flex-col gap-1.5">
                   <a
                     href="/studio/generate"
-                    className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:bg-muted"
+                    className="text-[10px] text-blue-400/70 hover:text-blue-300 transition-colors"
                   >
-                    {t("phase5_editor_media_cta_generate")}
+                    → {t("phase5_editor_media_cta_generate")}
                   </a>
                   <a
                     href="/studio"
-                    className="rounded border border-border/60 px-2 py-0.5 text-[10px] hover:bg-muted"
+                    className="text-[10px] text-slate-200/40 hover:text-slate-200/70 transition-colors"
                   >
-                    {t("phase5_editor_media_cta_upload")}
+                    → {t("phase5_editor_media_cta_upload")}
                   </a>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="mt-3 space-y-1.5">
-            <p className="text-[11px] font-medium text-foreground/80">
+          {/* Divider */}
+          <div className="h-px bg-white/[0.05] mx-3 my-1" />
+
+          {/* Audio section */}
+          <div className="py-1">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-200/45">
               {t("phase5_editor_media_audio")}
             </p>
             {audioAssets.length > 0 ? (
               audioAssets.slice(0, 8).map((asset) => (
-                <p key={asset.id} className="truncate text-[11px] text-muted-foreground">
-                  {asset.id}
-                </p>
+                <div
+                  key={asset.id}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-white/[0.03] transition-colors"
+                >
+                  <div className="w-9 h-6 rounded bg-purple-500/15 border border-white/[0.08] shrink-0 flex items-center justify-center">
+                    <span className="text-[8px] text-purple-300/40">♫</span>
+                  </div>
+                  <p className="truncate text-[10px] text-slate-200/50">{asset.id.slice(-8)}</p>
+                </div>
               ))
             ) : (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="px-3 py-2 text-[10px] text-slate-200/25">
                 {t("phase5_editor_media_empty_audio")}
               </p>
             )}
           </div>
-        </>
+        </div>
       )}
-    </section>
+    </div>
   );
 }

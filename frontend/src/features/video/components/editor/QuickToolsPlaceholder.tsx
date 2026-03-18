@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useMemo, useState } from "react";
+import { cn } from "@/shared/utils/helpers/utils";
 import type { CompositionMode, Timeline } from "../../types/composition.types";
 import {
   clampDuration,
@@ -33,6 +34,7 @@ export function QuickToolsPlaceholder({
     outMs: null,
   });
   const [transportSpeed, setTransportSpeed] = useState<0 | 1 | 2 | 4>(0);
+
   const videoItems = timeline.tracks.video;
   const selectedClipIndex = Math.max(
     0,
@@ -58,21 +60,20 @@ export function QuickToolsPlaceholder({
 
   const addTextOverlay = () => {
     const overlayId = `text-${Date.now()}`;
-    const nextText = [
-      ...timeline.tracks.text,
-      {
-        id: overlayId,
-        content: t("phase5_editor_text_default"),
-        startMs: 0,
-        endMs: Math.min(2000, timeline.durationMs),
-        position: "center",
-      },
-    ];
     onChange({
       ...timeline,
       tracks: {
         ...timeline.tracks,
-        text: nextText,
+        text: [
+          ...timeline.tracks.text,
+          {
+            id: overlayId,
+            content: t("phase5_editor_text_default"),
+            startMs: 0,
+            endMs: Math.min(2000, timeline.durationMs),
+            position: "center",
+          },
+        ],
       },
     });
     onSelectTextOverlay(overlayId);
@@ -83,26 +84,16 @@ export function QuickToolsPlaceholder({
     field: "content" | "startMs" | "endMs",
     value: string | number,
   ) => {
-    const nextText = timeline.tracks.text.map((overlay) => {
-      const row = overlay as Record<string, unknown>;
-      if (String(row.id ?? "") !== overlayId) return overlay;
-      if (field === "content") {
-        return {
-          ...row,
-          content: String(value),
-        };
-      }
-      return {
-        ...row,
-        [field]: Number(value),
-      };
-    });
-
     onChange({
       ...timeline,
       tracks: {
         ...timeline.tracks,
-        text: nextText,
+        text: timeline.tracks.text.map((overlay) => {
+          const row = overlay as Record<string, unknown>;
+          if (String(row.id ?? "") !== overlayId) return overlay;
+          if (field === "content") return { ...row, content: String(value) };
+          return { ...row, [field]: Number(value) };
+        }),
       },
     });
   };
@@ -118,54 +109,47 @@ export function QuickToolsPlaceholder({
         }),
       },
     });
-    if (overlayId === selectedTextOverlayId) {
-      onSelectTextOverlay(null);
-    }
+    if (overlayId === selectedTextOverlayId) onSelectTextOverlay(null);
   };
 
   const toggleCaptions = () => {
-    const currentTrack = timeline.tracks.captions[0] as
-      | Record<string, unknown>
-      | undefined;
+    const currentTrack = timeline.tracks.captions[0] as Record<string, unknown> | undefined;
     const enabled = Boolean(currentTrack?.enabled);
-    const nextTrack = {
-      id: "caption-track-main",
-      enabled: !enabled,
-      stylePreset: "default",
-      segments: [],
-    };
     onChange({
       ...timeline,
       tracks: {
         ...timeline.tracks,
-        captions: [nextTrack],
+        captions: [
+          {
+            id: "caption-track-main",
+            enabled: !enabled,
+            stylePreset: "default",
+            segments: [],
+          },
+        ],
       },
     });
   };
 
   const cycleCaptionStyle = () => {
-    const currentTrack = timeline.tracks.captions[0] as
-      | Record<string, unknown>
-      | undefined;
+    const currentTrack = timeline.tracks.captions[0] as Record<string, unknown> | undefined;
     const styles = ["default", "tiktok-highlight", "bold-impact"] as const;
     const currentStyle =
-      typeof currentTrack?.stylePreset === "string"
-        ? currentTrack.stylePreset
-        : "default";
-    const idx = styles.findIndex((style) => style === currentStyle);
+      typeof currentTrack?.stylePreset === "string" ? currentTrack.stylePreset : "default";
+    const idx = styles.findIndex((s) => s === currentStyle);
     const nextStyle = styles[(idx + 1) % styles.length];
-    const nextTrack = {
-      id: String(currentTrack?.id ?? "caption-track-main"),
-      enabled: Boolean(currentTrack?.enabled),
-      stylePreset: nextStyle,
-      segments: Array.isArray(currentTrack?.segments) ? currentTrack?.segments : [],
-    };
-
     onChange({
       ...timeline,
       tracks: {
         ...timeline.tracks,
-        captions: [nextTrack],
+        captions: [
+          {
+            id: String(currentTrack?.id ?? "caption-track-main"),
+            enabled: Boolean(currentTrack?.enabled),
+            stylePreset: nextStyle,
+            segments: Array.isArray(currentTrack?.segments) ? currentTrack.segments : [],
+          },
+        ],
       },
     });
   };
@@ -176,43 +160,18 @@ export function QuickToolsPlaceholder({
       if (item.id !== clipId) return item;
       const row = item as Record<string, unknown>;
       const currentType =
-        typeof (row.transitionOut as Record<string, unknown> | undefined)?.type ===
-        "string"
+        typeof (row.transitionOut as Record<string, unknown> | undefined)?.type === "string"
           ? String((row.transitionOut as Record<string, unknown>).type)
           : "cut";
-      const idx = types.findIndex((value) => value === currentType);
+      const idx = types.findIndex((v) => v === currentType);
       const nextType = types[(idx + 1) % types.length];
       return {
         ...item,
-        transitionOut: {
-          type: nextType,
-          durationMs: nextType === "cut" ? 0 : 250,
-        },
+        transitionOut: { type: nextType, durationMs: nextType === "cut" ? 0 : 250 },
       };
     });
-
-    onChange({
-      ...timeline,
-      tracks: {
-        ...timeline.tracks,
-        video: nextVideo,
-      },
-    });
+    onChange({ ...timeline, tracks: { ...timeline.tracks, video: nextVideo } });
   };
-
-  const timelineRows = useMemo(
-    () => [
-      { id: "video", label: t("phase5_editor_precision_lane_video"), count: timeline.tracks.video.length },
-      { id: "audio", label: t("phase5_editor_precision_lane_audio"), count: timeline.tracks.audio.length },
-      { id: "text", label: t("phase5_editor_precision_lane_text"), count: timeline.tracks.text.length },
-      {
-        id: "captions",
-        label: t("phase5_editor_precision_lane_captions"),
-        count: timeline.tracks.captions.length,
-      },
-    ],
-    [t, timeline.tracks.audio.length, timeline.tracks.captions.length, timeline.tracks.text.length, timeline.tracks.video.length],
-  );
 
   const formatTimecode = (ms: number) => {
     const totalFrames = Math.floor((ms / 1000) * timeline.fps);
@@ -221,74 +180,87 @@ export function QuickToolsPlaceholder({
     const seconds = totalSeconds % 60;
     const minutes = Math.floor(totalSeconds / 60) % 60;
     const hours = Math.floor(totalSeconds / 3600);
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}:${frame
-      .toString()
-      .padStart(2, "0")}`;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}:${frame.toString().padStart(2, "0")}`;
   };
 
+  const timelineRows = useMemo(
+    () => [
+      { id: "video", label: t("phase5_editor_precision_lane_video"), count: timeline.tracks.video.length },
+      { id: "audio", label: t("phase5_editor_precision_lane_audio"), count: timeline.tracks.audio.length },
+      { id: "text", label: t("phase5_editor_precision_lane_text"), count: timeline.tracks.text.length },
+      { id: "captions", label: t("phase5_editor_precision_lane_captions"), count: timeline.tracks.captions.length },
+    ],
+    [t, timeline.tracks.audio.length, timeline.tracks.captions.length, timeline.tracks.text.length, timeline.tracks.video.length],
+  );
+
+  const selectedClip = videoItems[selectedClipIndex];
+  const selectedClipDuration = selectedClip
+    ? selectedClip.endMs - selectedClip.startMs
+    : 0;
+  const captionTrack = timeline.tracks.captions[0] as Record<string, unknown> | undefined;
+  const captionsEnabled = Boolean(captionTrack?.enabled);
+  const captionStyle = String(captionTrack?.stylePreset ?? "default");
+
+  const panelBtn =
+    "px-2.5 py-1.5 rounded text-[10px] font-medium text-slate-200/55 hover:text-slate-200/90 hover:bg-white/[0.06] transition-colors border border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed";
+
   return (
-    <section className="rounded-lg border border-border/60 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-        {t("phase5_editor_tools")}
-      </p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {t("phase5_editor_tools_help")}
-      </p>
-      {editMode === "precision" ? (
-        <div className="mt-3 space-y-2 rounded border border-border/60 bg-muted/20 p-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-medium text-foreground/90">
-              {t("phase5_editor_precision_title")}
-            </p>
-            <span className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+    // No outer border — the right column border in EditorShell provides separation
+    <div className="flex flex-col">
+      {/* Panel header */}
+      <div className="px-3 py-2.5 border-b border-white/[0.06] shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-200/35">
+          {t("phase5_editor_tools")}
+        </p>
+      </div>
+
+      {/* Precision mode controls */}
+      {editMode === "precision" && (
+        <div className="border-b border-white/[0.06] px-3 py-3 space-y-3">
+          <p className="text-[10px] font-semibold text-slate-200/50">
+            {t("phase5_editor_precision_title")}
+          </p>
+
+          {/* Timecode + transport */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-[10px] text-slate-200/40 tabular-nums bg-white/[0.05] px-2 py-1 rounded">
               {formatTimecode(precisionPlayheadMs)}
             </span>
             <button
               onClick={() => setTransportSpeed(transportSpeed === 0 ? 1 : 0)}
-              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+              className={panelBtn}
             >
               {transportSpeed === 0 ? "L" : "K"}
             </button>
-            <button
-              onClick={() => setTransportSpeed(2)}
-              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
-            >
+            <button onClick={() => setTransportSpeed(2)} className={panelBtn}>
               J
             </button>
             <button
-              onClick={() =>
-                setIoMarkers((prev) => ({
-                  ...prev,
-                  inMs: precisionPlayheadMs,
-                }))
-              }
-              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+              onClick={() => setIoMarkers((prev) => ({ ...prev, inMs: precisionPlayheadMs }))}
+              className={panelBtn}
             >
               I
             </button>
             <button
-              onClick={() =>
-                setIoMarkers((prev) => ({
-                  ...prev,
-                  outMs: precisionPlayheadMs,
-                }))
-              }
-              className="rounded border border-border/60 px-2 py-1 text-[10px] hover:bg-muted"
+              onClick={() => setIoMarkers((prev) => ({ ...prev, outMs: precisionPlayheadMs }))}
+              className={panelBtn}
             >
               O
             </button>
           </div>
+
+          {/* Playhead slider */}
           <input
             type="range"
             min={0}
             max={Math.max(timeline.durationMs, 1)}
             value={Math.min(precisionPlayheadMs, timeline.durationMs)}
-            onChange={(event) => setPrecisionPlayheadMs(Number(event.currentTarget.value))}
-            className="w-full"
+            onChange={(e) => setPrecisionPlayheadMs(Number(e.currentTarget.value))}
+            className="w-full accent-blue-400"
           />
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+
+          {/* Zoom */}
+          <div className="flex items-center gap-2 text-[9px] text-slate-200/35">
             <span>{t("phase5_editor_precision_zoom")}</span>
             <input
               type="range"
@@ -296,194 +268,198 @@ export function QuickToolsPlaceholder({
               max={8}
               step={0.5}
               value={precisionZoom}
-              onChange={(event) => setPrecisionZoom(Number(event.currentTarget.value))}
-              className="w-32"
+              onChange={(e) => setPrecisionZoom(Number(e.currentTarget.value))}
+              className="flex-1 accent-blue-400"
             />
-            <span>x{precisionZoom.toFixed(1)}</span>
-            <span>{t("phase5_editor_precision_snapping")}</span>
+            <span className="tabular-nums font-mono">×{precisionZoom.toFixed(1)}</span>
           </div>
-          <div className="max-h-44 space-y-1 overflow-auto rounded border border-border/60 bg-background/40 p-2">
+
+          {/* Lane overview */}
+          <div className="space-y-1">
             {timelineRows.map((row) => (
               <div
                 key={row.id}
-                className="flex items-center justify-between rounded border border-border/50 px-2 py-1 text-[10px]"
+                className="flex items-center justify-between text-[9px] text-slate-200/40 py-0.5"
               >
                 <span>{row.label}</span>
-                <span>{t("phase5_editor_precision_items", { count: row.count })}</span>
+                <span className="tabular-nums text-slate-200/25">
+                  {t("phase5_editor_precision_items", { count: row.count })}
+                </span>
               </div>
             ))}
-            <div
-              className="rounded border border-dashed border-border/60 px-2 py-1 text-[10px] text-muted-foreground"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const payload = event.dataTransfer.getData(
-                  "application/x-contentai-video-asset",
+          </div>
+
+          {/* Drop zone */}
+          <div
+            className="rounded border border-dashed border-white/[0.12] px-2 py-2 text-[9px] text-slate-200/25 text-center hover:border-blue-400/30 hover:bg-blue-400/5 transition-colors"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const payload = e.dataTransfer.getData("application/x-contentai-video-asset");
+              if (!payload) return;
+              try {
+                const parsed = JSON.parse(payload) as { assetId?: string; durationMs?: number };
+                if (!parsed.assetId) return;
+                onChange(
+                  insertVideoItemAt(timeline, {
+                    assetId: parsed.assetId,
+                    durationMs: parsed.durationMs ?? 2000,
+                    insertAtIndex: videoItems.length,
+                  }),
                 );
-                if (!payload) return;
-                try {
-                  const parsed = JSON.parse(payload) as {
-                    assetId?: string;
-                    durationMs?: number;
-                  };
-                  if (!parsed.assetId) return;
-                  onChange(
-                    insertVideoItemAt(timeline, {
-                      assetId: parsed.assetId,
-                      durationMs: parsed.durationMs ?? 2000,
-                      insertAtIndex: videoItems.length,
-                    }),
-                  );
-                } catch {
-                  // Ignore invalid payload.
-                }
-              }}
-            >
-              {t("phase5_editor_precision_bring_in")}
-            </div>
-            <div className="rounded border border-border/50 px-2 py-1 text-[10px] text-muted-foreground">
-              {t("phase5_editor_precision_keyframes")}
-            </div>
-            <div className="rounded border border-border/50 px-2 py-1 text-[10px] text-muted-foreground">
-              {t("phase5_editor_precision_split_marker", {
-                from: ioMarkers.inMs ?? "-",
-                to: ioMarkers.outMs ?? "-",
-              })}
-            </div>
+              } catch {
+                // ignore
+              }
+            }}
+          >
+            {t("phase5_editor_precision_bring_in")}
           </div>
         </div>
-      ) : null}
-      <div className="mt-3 space-y-2">
-        {videoItems.length > 0 && (
-          <div className="rounded border border-border/60 bg-muted/20 p-2">
-            <p className="text-[11px] text-foreground/80">
-              {t("phase5_editor_selected_clip", {
-                index: selectedClipIndex + 1,
-              })}
+      )}
+
+      {/* Selected clip controls */}
+      {videoItems.length > 0 && (
+        <div className="border-b border-white/[0.06] px-3 py-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold text-slate-200/50">
+              {t("phase5_editor_selected_clip", { index: selectedClipIndex + 1 })}
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="range"
-                min={0}
-                max={Math.max(videoItems.length - 1, 0)}
-                step={1}
-                value={Math.min(selectedClipIndex, videoItems.length - 1)}
-                onChange={(event) => {
-                  const idx = Number(event.currentTarget.value);
-                  const clip = videoItems[idx];
-                  if (clip) onSelectVideoClip(clip.id);
-                }}
-                className="flex-1"
-              />
-              <input
-                type="number"
-                min={500}
-                step={100}
-                value={
-                  (videoItems[Math.min(selectedClipIndex, videoItems.length - 1)]
-                    ?.endMs ?? 1000) -
-                  (videoItems[Math.min(selectedClipIndex, videoItems.length - 1)]
-                    ?.startMs ?? 0)
-                }
-                onChange={(event) =>
-                  setClipDuration(
-                    Math.min(selectedClipIndex, videoItems.length - 1),
-                    Number(event.currentTarget.value),
-                  )
-                }
-                className="w-24 rounded border border-border/60 bg-background px-2 py-1 text-[11px]"
-              />
-            </div>
+            {/* Duration input */}
+            <input
+              type="number"
+              min={500}
+              step={100}
+              value={selectedClipDuration}
+              onChange={(e) =>
+                setClipDuration(
+                  Math.min(selectedClipIndex, videoItems.length - 1),
+                  Number(e.currentTarget.value),
+                )
+              }
+              className="w-20 rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[10px] text-slate-200/70 font-mono tabular-nums text-right focus:outline-none focus:border-blue-400/50"
+            />
           </div>
-        )}
-        {videoItems.map((item, index) => (
-          <div
-            key={item.id}
-            className={`rounded border p-2 ${
-              selectedVideoClipId === item.id
-                ? "border-blue-400/60 bg-blue-500/10"
-                : "border-border/60 bg-muted/20"
-            }`}
-            onClick={() => onSelectVideoClip(item.id)}
-          >
-            <p className="text-[11px] text-foreground/80">
-              {t("phase5_editor_clip_label", { index: index + 1 })}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {t("phase5_editor_clip_duration", {
-                ms: item.endMs - item.startMs,
-              })}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <button
-                onClick={() => moveClip(index, -1)}
-                disabled={index === 0}
-                aria-disabled={index === 0}
-                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-              >
-                {t("phase5_editor_move_up")}
-              </button>
-              <button
-                onClick={() => moveClip(index, 1)}
-                disabled={index === videoItems.length - 1}
-                aria-disabled={index === videoItems.length - 1}
-                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-              >
-                {t("phase5_editor_move_down")}
-              </button>
-              <button
-                onClick={() => trimClipBy(index, -500)}
-                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-              >
-                {t("phase5_editor_trim_shorter")}
-              </button>
-              <button
-                onClick={() => trimClipBy(index, 500)}
-                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-              >
-                {t("phase5_editor_trim_longer")}
-              </button>
-              <button
-                onClick={() => cycleClipTransition(item.id)}
-                className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-              >
-                {t("phase5_editor_transition_cycle")}
-              </button>
-            </div>
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              {t("phase5_editor_transition_current", {
-                value: String(
-                  ((item as Record<string, unknown>).transitionOut as
-                    | Record<string, unknown>
-                    | undefined)?.type ?? "cut",
-                ),
-              })}
-            </p>
+
+          {/* Clip navigator slider */}
+          <input
+            type="range"
+            min={0}
+            max={Math.max(videoItems.length - 1, 0)}
+            step={1}
+            value={Math.min(selectedClipIndex, videoItems.length - 1)}
+            onChange={(e) => {
+              const idx = Number(e.currentTarget.value);
+              const clip = videoItems[idx];
+              if (clip) onSelectVideoClip(clip.id);
+            }}
+            className="w-full accent-blue-400"
+          />
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => moveClip(selectedClipIndex, -1)}
+              disabled={selectedClipIndex === 0}
+              className={panelBtn}
+            >
+              {t("phase5_editor_move_up")}
+            </button>
+            <button
+              onClick={() => moveClip(selectedClipIndex, 1)}
+              disabled={selectedClipIndex === videoItems.length - 1}
+              className={panelBtn}
+            >
+              {t("phase5_editor_move_down")}
+            </button>
+            <button
+              onClick={() => trimClipBy(selectedClipIndex, -500)}
+              className={panelBtn}
+            >
+              {t("phase5_editor_trim_shorter")}
+            </button>
+            <button
+              onClick={() => trimClipBy(selectedClipIndex, 500)}
+              className={panelBtn}
+            >
+              {t("phase5_editor_trim_longer")}
+            </button>
           </div>
-        ))}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={addTextOverlay}
-            className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-          >
+        </div>
+      )}
+
+      {/* Clip list */}
+      {videoItems.length > 0 && (
+        <div className="border-b border-white/[0.06] px-3 py-2 space-y-1 max-h-48 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {videoItems.map((item, index) => {
+            const isSelected = selectedVideoClipId === item.id;
+            const transition = String(
+              ((item as Record<string, unknown>).transitionOut as Record<string, unknown> | undefined)?.type ?? "cut",
+            );
+            return (
+              <div
+                key={item.id}
+                onClick={() => onSelectVideoClip(item.id)}
+                className={cn(
+                  "flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors",
+                  isSelected
+                    ? "bg-blue-500/15 text-slate-100"
+                    : "hover:bg-white/[0.04] text-slate-200/55",
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={cn(
+                      "text-[9px] font-bold shrink-0",
+                      isSelected ? "text-blue-300" : "text-slate-200/30",
+                    )}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="text-[10px] truncate">
+                    {t("phase5_editor_clip_duration", { ms: item.endMs - item.startMs })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      cycleClipTransition(item.id);
+                    }}
+                    className="text-[8px] px-1.5 py-0.5 rounded text-slate-200/30 hover:text-slate-200/70 hover:bg-white/[0.06] transition-colors"
+                    title={t("phase5_editor_transition_cycle")}
+                  >
+                    {transition === "cut" ? "CUT" : transition.slice(0, 3).toUpperCase()}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Text & captions tools */}
+      <div className="px-3 py-3 space-y-3">
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={addTextOverlay} className={panelBtn}>
             {t("phase5_editor_add_text")}
           </button>
           <button
             onClick={toggleCaptions}
-            className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
+            className={cn(panelBtn, captionsEnabled && "border-amber-400/30 text-amber-300/70")}
           >
             {t("phase5_editor_toggle_captions")}
           </button>
-          <button
-            onClick={cycleCaptionStyle}
-            className="min-h-9 rounded border border-border/60 px-2.5 py-1 text-[11px] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"
-          >
-            {t("phase5_editor_cycle_caption_style")}
-          </button>
+          {captionsEnabled && (
+            <button onClick={cycleCaptionStyle} className={panelBtn}>
+              {captionStyle}
+            </button>
+          )}
         </div>
+
+        {/* Text overlays */}
         {timeline.tracks.text.length > 0 && (
-          <div className="space-y-2 rounded border border-border/60 bg-muted/20 p-2">
-            <p className="text-[11px] font-medium text-foreground/80">
+          <div className="space-y-1.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-200/22">
               {t("phase5_editor_text_overlays")}
             </p>
             {timeline.tracks.text.map((overlay) => {
@@ -491,58 +467,52 @@ export function QuickToolsPlaceholder({
               const overlayId = String(row.id ?? "");
               const startMs = Number(row.startMs ?? 0);
               const endMs = Number(row.endMs ?? Math.min(2000, timeline.durationMs));
+              const isSelected = selectedTextOverlayId === overlayId;
               return (
                 <div
                   key={overlayId}
-                  className={`rounded border p-2 ${
-                    selectedTextOverlayId === overlayId
-                      ? "border-blue-400/60 bg-blue-500/10"
-                      : "border-border/60 bg-background/40"
-                  }`}
                   onClick={() => onSelectTextOverlay(overlayId)}
+                  className={cn(
+                    "rounded px-2 py-2 space-y-2 cursor-pointer border transition-colors",
+                    isSelected
+                      ? "border-blue-400/30 bg-blue-500/10"
+                      : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]",
+                  )}
                 >
                   <input
                     value={String(row.content ?? "")}
-                    onChange={(event) =>
-                      updateTextOverlay(
-                        overlayId,
-                        "content",
-                        event.currentTarget.value,
-                      )
-                    }
-                    className="w-full rounded border border-border/60 bg-background px-2 py-1 text-[11px]"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => updateTextOverlay(overlayId, "content", e.currentTarget.value)}
+                    className="w-full rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[10px] text-slate-200/80 focus:outline-none focus:border-blue-400/50"
                   />
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <input
                       type="number"
                       min={0}
                       value={startMs}
-                      onChange={(event) =>
-                        updateTextOverlay(
-                          overlayId,
-                          "startMs",
-                          Number(event.currentTarget.value),
-                        )
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        updateTextOverlay(overlayId, "startMs", Number(e.currentTarget.value))
                       }
-                      className="rounded border border-border/60 bg-background px-2 py-1 text-[11px]"
+                      className="rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[9px] text-slate-200/60 font-mono focus:outline-none focus:border-blue-400/50"
                     />
                     <input
                       type="number"
                       min={0}
                       value={endMs}
-                      onChange={(event) =>
-                        updateTextOverlay(
-                          overlayId,
-                          "endMs",
-                          Number(event.currentTarget.value),
-                        )
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        updateTextOverlay(overlayId, "endMs", Number(e.currentTarget.value))
                       }
-                      className="rounded border border-border/60 bg-background px-2 py-1 text-[11px]"
+                      className="rounded bg-white/[0.06] border border-white/[0.10] px-2 py-1 text-[9px] text-slate-200/60 font-mono focus:outline-none focus:border-blue-400/50"
                     />
                   </div>
                   <button
-                    onClick={() => removeTextOverlay(overlayId)}
-                    className="mt-2 rounded border border-red-300/40 bg-red-500/10 px-2.5 py-1 text-[11px] text-red-300 hover:bg-red-500/20"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTextOverlay(overlayId);
+                    }}
+                    className="text-[9px] text-red-400/50 hover:text-red-400 transition-colors"
                   >
                     {t("phase5_editor_remove_text")}
                   </button>
@@ -552,6 +522,6 @@ export function QuickToolsPlaceholder({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
