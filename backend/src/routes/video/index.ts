@@ -49,7 +49,7 @@ const createReelSchema = z.object({
 
 const regenerateShotSchema = z.object({
   generatedContentId: z.number().int().positive(),
-  shotIndex: z.number().int().min(0),
+  shotIndex: z.number().int().min(0).max(99),
   prompt: z.string().min(1).max(1000),
   durationSeconds: z.number().int().min(3).max(10).optional(),
   aspectRatio: aspectRatioSchema.optional(),
@@ -136,6 +136,7 @@ function getAssetTypeForTrack(
   track: "video" | "audio",
   role?: string,
 ): string[] {
+  if (track === "video") return ["video_clip"];
   if (role === "voiceover") return ["voiceover"];
   if (role === "music") return ["music"];
   return ["voiceover", "music"];
@@ -453,21 +454,27 @@ async function _buildInitialTimeline(input: {
   const audio: Array<z.infer<typeof timelineItemSchema>> = [];
 
   if (auxAudio.voiceover) {
+    const voiceoverDurationMs = auxAudio.voiceover.durationMs
+      ? Math.min(auxAudio.voiceover.durationMs, durationMs)
+      : durationMs;
     audio.push({
       id: "voiceover-main",
       assetId: auxAudio.voiceover.id,
       role: "voiceover",
       startMs: 0,
-      endMs: durationMs,
+      endMs: voiceoverDurationMs,
     });
   }
   if (auxAudio.music) {
+    const musicDurationMs = auxAudio.music.durationMs
+      ? Math.min(auxAudio.music.durationMs, durationMs)
+      : durationMs;
     audio.push({
       id: "music-main",
       assetId: auxAudio.music.id,
       role: "music",
       startMs: 0,
-      endMs: durationMs,
+      endMs: musicDurationMs,
     });
   }
 
@@ -657,7 +664,11 @@ async function ffmpegConcatClips(input: {
 }
 
 function escapeAssText(text: string): string {
-  return text.replace(/[{}]/g, "").replace(/\\/g, "\\\\");
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}")
+    .replace(/\n/g, "\\N");
 }
 
 async function createAssCaptions(input: {
@@ -882,6 +893,7 @@ async function fetchOwnedContent(
   generatedHook: string | null;
   generatedScript: string | null;
   cleanScriptForAudio: string | null;
+  sceneDescription: string | null;
   generatedMetadata: Record<string, unknown> | null;
 } | null> {
   const [content] = await db
@@ -891,6 +903,7 @@ async function fetchOwnedContent(
       generatedHook: generatedContent.generatedHook,
       generatedScript: generatedContent.generatedScript,
       cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+      sceneDescription: generatedContent.sceneDescription,
       generatedMetadata: generatedContent.generatedMetadata,
     })
     .from(generatedContent)
@@ -918,6 +931,15 @@ async function upsertAssembledAsset(input: {
   durationMs: number;
   metadata: Record<string, unknown>;
 }): Promise<string> {
+  // Delete any previously assembled assets to avoid stale row accumulation.
+  await db.delete(reelAssets).where(
+    and(
+      eq(reelAssets.generatedContentId, input.generatedContentId),
+      eq(reelAssets.userId, input.userId),
+      eq(reelAssets.type, "assembled_video"),
+    ),
+  );
+
   const [assembled] = await db
     .insert(reelAssets)
     .values({
@@ -1250,9 +1272,11 @@ async function runAssembleFromExistingClips({
       completedAt: new Date().toISOString(),
       error: errorMessage,
     });
+    // Refetch current metadata so we don't wipe previously written shot data.
+    const currentContent = await fetchOwnedContent(job.userId, job.generatedContentId).catch(() => null);
     await updatePhase4Metadata({
       generatedContentId: job.generatedContentId,
-      existingGeneratedMetadata: null,
+      existingGeneratedMetadata: currentContent?.generatedMetadata ?? null,
       jobId: job.id,
       status: "failed",
     }).catch(() => {});
@@ -1307,9 +1331,7 @@ async function runReelGeneration(input: {
             },
           ];
 
-    const sceneDescription = content.generatedMetadata?.sceneDescription as
-      | string
-      | undefined;
+    const sceneDescription = content.sceneDescription ?? undefined;
 
     debugLog.info("[runReelGeneration] Starting clip generation", {
       service: "video-route",
@@ -1399,11 +1421,17 @@ async function runReelGeneration(input: {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    await videoJobService.updateJob(job.id, {
-      status: "failed",
-      completedAt: new Date().toISOString(),
-      error: errorMessage,
-    });
+
+    // Only update the job status if runAssembleFromExistingClips hasn't already
+    // set it to failed (it owns the terminal state for assembly errors).
+    const current = await videoJobService.getJob(job.id);
+    if (current && current.status !== "failed" && current.status !== "completed") {
+      await videoJobService.updateJob(job.id, {
+        status: "failed",
+        completedAt: new Date().toISOString(),
+        error: errorMessage,
+      });
+    }
 
     debugLog.error("Video reel job failed", {
       service: "video-route",
@@ -1442,6 +1470,25 @@ async function runShotRegenerate(input: {
         shotIndex: input.shotIndex,
       },
     });
+
+    // Remove the existing clip(s) for this shot index before inserting the new one
+    // to prevent duplicate shots accumulating for the same index.
+    const allExistingClips = await db
+      .select()
+      .from(reelAssets)
+      .where(
+        and(
+          eq(reelAssets.generatedContentId, job.generatedContentId),
+          eq(reelAssets.userId, job.userId),
+          eq(reelAssets.type, "video_clip"),
+        ),
+      );
+    const staleIds = allExistingClips
+      .filter((a) => Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) === input.shotIndex)
+      .map((a) => a.id);
+    if (staleIds.length > 0) {
+      await db.delete(reelAssets).where(inArray(reelAssets.id, staleIds));
+    }
 
     const [clipAsset] = await db
       .insert(reelAssets)
@@ -1519,6 +1566,14 @@ function getRetryRunner(
   switch (job.kind) {
     case "assemble":
       return () => runAssembleFromExistingClips({ job: retryJob });
+    case "shot_regenerate":
+      return () =>
+        runShotRegenerate({
+          job: retryJob,
+          shotIndex: Number(req.shotIndex ?? 0),
+          prompt: String(req.prompt ?? ""),
+          ...opts,
+        });
     default:
       return () =>
         runReelGeneration({
@@ -1547,6 +1602,18 @@ app.post(
       );
       if (!content) {
         return c.json({ error: "Content not found" }, 404);
+      }
+
+      // Require at least a hook or a script before generating video — prevents
+      // silent single-shot fallbacks on content that hasn't been written yet.
+      if (!content.generatedHook && !content.generatedScript && !payload.prompt) {
+        return c.json(
+          {
+            error: "Content must have a generated hook or script before video generation",
+            code: "PHASE4_CONTENT_NOT_READY",
+          },
+          422,
+        );
       }
 
       const resolvedPrompt =

@@ -313,6 +313,22 @@ queueRouter.post(
 
       if (!content) return c.json({ error: "Content not found" }, 404);
 
+      // Check for an existing queue item to prevent duplicates.
+      const [existing] = await db
+        .select({ id: queueItems.id })
+        .from(queueItems)
+        .where(
+          and(
+            eq(queueItems.generatedContentId, generatedContentId),
+            eq(queueItems.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        return c.json({ error: "Content is already in the queue" }, 409);
+      }
+
       const [queueItem] = await db
         .insert(queueItems)
         .values({
@@ -558,7 +574,7 @@ queueRouter.patch(
       const [updated] = await db
         .update(queueItems)
         .set(updateData)
-        .where(eq(queueItems.id, id))
+        .where(and(eq(queueItems.id, id), eq(queueItems.userId, auth.user.id)))
         .returning();
 
       return c.json({ queueItem: updated });
@@ -597,12 +613,18 @@ queueRouter.delete(
 
       await db.delete(queueItems).where(eq(queueItems.id, id));
 
-      // Reset the generated content status to draft
+      // Reset the generated content status to draft — only if it hasn't moved past queued.
+      // Preserves "published" and other terminal states.
       if (item.generatedContentId) {
         await db
           .update(generatedContent)
           .set({ status: "draft" })
-          .where(eq(generatedContent.id, item.generatedContentId));
+          .where(
+            and(
+              eq(generatedContent.id, item.generatedContentId),
+              eq(generatedContent.status, "queued"),
+            ),
+          );
       }
 
       return c.json({ message: "Queue item deleted" });

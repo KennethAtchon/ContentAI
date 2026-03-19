@@ -100,7 +100,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       );
       return {
         ...state,
-        past: [...state.past, state.tracks],
+        past: [...state.past, state.tracks].slice(-50),
         future: [],
         tracks: newTracks,
         durationMs: computeDuration(newTracks),
@@ -111,7 +111,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       const newTracks = updateClipInTracks(state.tracks, action.clipId, action.patch);
       return {
         ...state,
-        past: [...state.past, state.tracks],
+        past: [...state.past, state.tracks].slice(-50),
         future: [],
         tracks: newTracks,
         durationMs: computeDuration(newTracks),
@@ -122,7 +122,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       const newTracks = removeClipFromTracks(state.tracks, action.clipId);
       return {
         ...state,
-        past: [...state.past, state.tracks],
+        past: [...state.past, state.tracks].slice(-50),
         future: [],
         tracks: newTracks,
         selectedClipId: state.selectedClipId === action.clipId ? null : state.selectedClipId,

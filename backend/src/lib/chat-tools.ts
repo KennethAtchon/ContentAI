@@ -300,7 +300,10 @@ export function createIterateContentTool(context: ToolContext) {
         // Resolve to the tip of the chain to prevent branching.
         // If the AI passes an outdated parentId, walk forward to the latest version.
         let effectiveParent = parent;
-        while (true) {
+        const visitedIds = new Set<number>([parent.id]);
+        const MAX_CHAIN_DEPTH = 50;
+        let depth = 0;
+        while (depth < MAX_CHAIN_DEPTH) {
           const [child] = await db
             .select()
             .from(generatedContent)
@@ -312,7 +315,17 @@ export function createIterateContentTool(context: ToolContext) {
             )
             .limit(1);
           if (!child) break;
+          if (visitedIds.has(child.id)) {
+            debugLog.warn("[tool:iterate_content] Circular parentId chain detected", {
+              service: "chat-tools",
+              operation: "iterate_content",
+              cycleAtId: child.id,
+            });
+            break;
+          }
+          visitedIds.add(child.id);
           effectiveParent = child;
+          depth++;
         }
 
         debugLog.info(
@@ -332,6 +345,7 @@ export function createIterateContentTool(context: ToolContext) {
           .values({
             userId: context.auth.user.id,
             prompt: context.content,
+            sourceReelId: effectiveParent.sourceReelId,
             generatedHook: hook ?? effectiveParent.generatedHook,
             generatedCaption: caption ?? effectiveParent.generatedCaption,
             generatedScript: script ?? effectiveParent.generatedScript,
@@ -354,6 +368,22 @@ export function createIterateContentTool(context: ToolContext) {
           .returning();
 
         context.savedContentId = row.id;
+
+        // Auto-enroll iterated version in the pipeline queue (matching save_content behavior).
+        await db
+          .insert(queueItems)
+          .values({
+            userId: context.auth.user.id,
+            generatedContentId: row.id,
+            status: "draft",
+          })
+          .onConflictDoNothing();
+
+        await db
+          .update(generatedContent)
+          .set({ status: "queued" })
+          .where(eq(generatedContent.id, row.id));
+
         debugLog.info("[tool:iterate_content] New version saved to DB", {
           service: "chat-tools",
           operation: "iterate_content",

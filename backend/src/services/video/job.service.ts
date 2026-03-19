@@ -113,8 +113,8 @@ class VideoJobService {
   }
 
   private async persistJob(job: VideoRenderJob): Promise<void> {
+    const redis = getRedisConnection();
     try {
-      const redis = getRedisConnection();
       await redis.set(
         JOB_KEY(job.id),
         JSON.stringify(job),
@@ -128,6 +128,7 @@ class VideoJobService {
         jobId: job.id,
         error: err instanceof Error ? err.message : String(err),
       });
+      throw err;
     }
   }
 }

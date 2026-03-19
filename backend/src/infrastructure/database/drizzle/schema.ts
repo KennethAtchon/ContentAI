@@ -511,6 +511,18 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
   }),
 }));
 
+export const editProjectsRelations = relations(editProjects, ({ one, many }) => ({
+  user: one(users, { fields: [editProjects.userId], references: [users.id] }),
+  exportJobs: many(exportJobs),
+}));
+
+export const exportJobsRelations = relations(exportJobs, ({ one }) => ({
+  project: one(editProjects, {
+    fields: [exportJobs.editProjectId],
+    references: [editProjects.id],
+  }),
+}));
+
 // ─── AI Cost Ledger ────────────────────────────────────────────────────────────
 
 export const aiCostLedger = pgTable(

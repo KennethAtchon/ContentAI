@@ -139,5 +139,11 @@ Generate an original variation following the same viral structure.`;
     })
     .onConflictDoNothing();
 
+  // Keep generatedContent.status in sync with the queue.
+  await db
+    .update(generatedContent)
+    .set({ status: "queued" })
+    .where(eq(generatedContent.id, content.id));
+
   return content;
 }

@@ -11,8 +11,9 @@ import {
   editProjects,
   exportJobs,
   reelAssets,
+  generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { tmpdir } from "os";
@@ -23,9 +24,35 @@ const app = new Hono<HonoEnv>();
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
+const clipDataSchema = z.object({
+  id: z.string().min(1),
+  assetId: z.string().nullable().optional(),
+  r2Key: z.string().optional(),
+  startMs: z.number().int().min(0),
+  durationMs: z.number().int().min(0),
+  trimStartMs: z.number().int().min(0).optional(),
+  trimEndMs: z.number().int().min(0).optional(),
+  speed: z.number().min(0.1).max(10).optional(),
+  volume: z.number().min(0).max(2).optional(),
+  muted: z.boolean().optional(),
+  textContent: z.string().max(2000).optional(),
+  positionX: z.number().optional(),
+  positionY: z.number().optional(),
+  scale: z.number().optional(),
+});
+
+const trackDataSchema = z.object({
+  id: z.string().min(1).optional(),
+  type: z.enum(["video", "audio", "music", "text"]),
+  muted: z.boolean(),
+  locked: z.boolean().optional(),
+  name: z.string().optional(),
+  clips: z.array(clipDataSchema),
+});
+
 const patchProjectSchema = z.object({
   title: z.string().min(1).max(200).optional(),
-  tracks: z.array(z.unknown()).optional(),
+  tracks: z.array(trackDataSchema).optional(),
   durationMs: z.number().int().min(0).optional(),
   fps: z.number().int().min(1).max(120).optional(),
   resolution: z.enum(["720p", "1080p", "4k"]).optional(),
@@ -78,6 +105,24 @@ app.post(
       const parsed = createProjectSchema.safeParse(body);
       if (!parsed.success) {
         return c.json({ error: "Invalid request body" }, 400);
+      }
+
+      // If a generatedContentId is provided, verify the user owns it.
+      if (parsed.data.generatedContentId) {
+        const [ownedContent] = await db
+          .select({ id: generatedContent.id })
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, parsed.data.generatedContentId),
+              eq(generatedContent.userId, auth.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (!ownedContent) {
+          return c.json({ error: "Content not found" }, 403);
+        }
       }
 
       const [project] = await db
@@ -177,7 +222,7 @@ app.patch(
       const [updated] = await db
         .update(editProjects)
         .set(updateData)
-        .where(eq(editProjects.id, id))
+        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
         .returning({ id: editProjects.id, updatedAt: editProjects.updatedAt });
 
       return c.json({ id: updated.id, updatedAt: updated.updatedAt });
@@ -216,7 +261,7 @@ app.delete(
         return c.json({ error: "Edit project not found" }, 404);
       }
 
-      await db.delete(editProjects).where(eq(editProjects.id, id));
+      await db.delete(editProjects).where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)));
 
       return c.body(null, 204);
     } catch (error) {
@@ -257,6 +302,16 @@ app.post(
 
       if (!project) {
         return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      // Enforce per-user concurrency limit — prevent unbounded background ffmpeg processes.
+      const [{ activeJobs }] = await db
+        .select({ activeJobs: count() })
+        .from(exportJobs)
+        .where(and(eq(exportJobs.userId, auth.user.id), eq(exportJobs.status, "rendering")));
+
+      if (activeJobs >= 2) {
+        return c.json({ error: "Too many active export jobs. Please wait for a current export to finish." }, 429);
       }
 
       const [job] = await db
@@ -301,6 +356,17 @@ app.get(
     try {
       const auth = c.get("auth");
       const { id } = c.req.param();
+
+      // Verify project exists and is owned by user before exposing any export data.
+      const [project] = await db
+        .select({ id: editProjects.id })
+        .from(editProjects)
+        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .limit(1);
+
+      if (!project) {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
 
       // Return most recent export job for this project
       const [job] = await db
@@ -367,10 +433,10 @@ interface TrackData {
   clips: ClipData[];
 }
 
-async function setJobProgress(jobId: string, progress: number) {
+async function setJobProgress(jobId: string, progress: number, status = "rendering") {
   await db
     .update(exportJobs)
-    .set({ progress, status: "rendering" })
+    .set({ progress, status })
     .where(eq(exportJobs.id, jobId));
 }
 
@@ -412,7 +478,6 @@ async function runExportJob(
 
     let assetsMap: Record<string, { r2Key: string; type: string }> = {};
     if (assetIds.length > 0) {
-      const { inArray } = await import("drizzle-orm");
       const assets = await db
         .select({
           id: reelAssets.id,
@@ -537,9 +602,12 @@ async function runExportJob(
       const y = clip.positionY ?? 0;
       const label = `vtxt${i}`;
       const prevLabel = i === 0 ? latestVideoLabel : `vtxt${i - 1}`;
-      const safeText = clip.textContent.replace(/[':]/g, " ");
+      // Write text to a temp file to avoid ffmpeg drawtext injection via special characters.
+      const textFilePath = join(tmpdir(), `export-${jobId}-text-${i}.txt`);
+      writeFileSync(textFilePath, clip.textContent);
+      tmpFiles.push(textFilePath);
       filterParts.push(
-        `[${prevLabel}]drawtext=text='${safeText}':fontsize=48:fontcolor=white:` +
+        `[${prevLabel}]drawtext=textfile='${textFilePath}':fontsize=48:fontcolor=white:` +
           `x=${x}:y=${y}:enable='between(t,${startSec},${endSec})'[${label}]`,
       );
       latestVideoLabel = label;

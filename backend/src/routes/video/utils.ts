@@ -53,7 +53,7 @@ export function parseScriptShots(script: string | null): ShotInput[] {
     .slice(0, 20);
 
   if (lines.length === 0) {
-    throw new Error("Script is empty or contains only whitespace");
+    return [];
   }
 
   const shots: ShotInput[] = [];
