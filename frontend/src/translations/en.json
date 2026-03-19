@@ -1269,6 +1269,8 @@
   "workspace_storyboard_uploading": "Uploading...",
   "workspace_storyboard_apply_changes": "Apply changes & re-assemble",
   "workspace_storyboard_empty": "No shot clips yet. Generate a reel first.",
+  "workspace_storyboard_clip_audio_use": "Use clip audio",
+  "workspace_storyboard_clip_audio_voiceover_only": "Voiceover only",
   "workspace_video_region_generate": "Generate",
   "workspace_video_region_storyboard": "Storyboard",
   "workspace_video_region_preview": "Final preview",

@@ -33,6 +33,7 @@ import audioRoutes from "./routes/audio/index";
 import assetsRoutes from "./routes/assets/index";
 import musicRoutes from "./routes/music/index";
 import editorRoutes from "./routes/editor/index";
+import videoRoutes from "./routes/video/index";
 import { startDailyScan } from "./jobs/daily-scan";
 
 const app = new Hono();
@@ -93,6 +94,7 @@ app.route("/api/audio", audioRoutes);
 app.route("/api/assets", assetsRoutes);
 app.route("/api/music", musicRoutes);
 app.route("/api/editor", editorRoutes);
+app.route("/api/video", videoRoutes);
 
 // Standalone routes
 app.get("/api/live", (c) => c.json({ status: "ok" }));

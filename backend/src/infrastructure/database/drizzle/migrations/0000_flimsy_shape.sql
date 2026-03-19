@@ -43,6 +43,32 @@ CREATE TABLE "contact_message" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "edit_project" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"title" text DEFAULT 'Untitled Edit' NOT NULL,
+	"generated_content_id" integer,
+	"tracks" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"duration_ms" integer DEFAULT 0 NOT NULL,
+	"fps" integer DEFAULT 30 NOT NULL,
+	"resolution" text DEFAULT '1080p' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "export_job" (
+	"id" text PRIMARY KEY NOT NULL,
+	"edit_project_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"status" text DEFAULT 'queued' NOT NULL,
+	"progress" integer DEFAULT 0 NOT NULL,
+	"r2_key" text,
+	"r2_url" text,
+	"error" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "feature_usage" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -251,6 +277,10 @@ CREATE TABLE "user" (
 --> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_session_id_chat_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."chat_session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "edit_project" ADD CONSTRAINT "edit_project_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "edit_project" ADD CONSTRAINT "edit_project_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "export_job" ADD CONSTRAINT "export_job_edit_project_id_edit_project_id_fk" FOREIGN KEY ("edit_project_id") REFERENCES "public"."edit_project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "export_job" ADD CONSTRAINT "export_job_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reel_asset" ADD CONSTRAINT "reel_asset_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reel" ADD CONSTRAINT "reel_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "ai_cost_ledger_created_at_idx" ON "ai_cost_ledger" USING btree ("created_at");--> statement-breakpoint
@@ -259,6 +289,10 @@ CREATE INDEX "ai_cost_ledger_feature_type_idx" ON "ai_cost_ledger" USING btree (
 CREATE INDEX "chat_messages_session_id_idx" ON "chat_message" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_user_id_idx" ON "chat_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_project_id_idx" ON "chat_session" USING btree ("project_id");--> statement-breakpoint
+CREATE INDEX "edit_projects_user_idx" ON "edit_project" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "edit_projects_content_idx" ON "edit_project" USING btree ("generated_content_id");--> statement-breakpoint
+CREATE INDEX "export_jobs_project_idx" ON "export_job" USING btree ("edit_project_id");--> statement-breakpoint
+CREATE INDEX "export_jobs_user_idx" ON "export_job" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "feature_usages_user_id_idx" ON "feature_usage" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_user_id_idx" ON "generated_content" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_source_reel_idx" ON "generated_content" USING btree ("source_reel_id");--> statement-breakpoint
