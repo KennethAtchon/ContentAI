@@ -32,7 +32,7 @@ function StudioOverview() {
     <div className="space-y-6">
       <Card className="border-2">
         <CardHeader>
-          <CardTitle className="text-3xl">
+          <CardTitle className="text-xl">
             {t("account_overview_title")}
           </CardTitle>
           <CardDescription>{t("account_overview_subtitle")}</CardDescription>
@@ -135,7 +135,7 @@ export function AccountInteractive() {
       <TabsContent value="orders" className="space-y-6 mt-6">
         <Card className="border-2">
           <CardHeader>
-            <CardTitle className="text-3xl">
+            <CardTitle className="text-xl">
               {t("account_orders_history")}
             </CardTitle>
             <CardDescription>

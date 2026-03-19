@@ -8,6 +8,7 @@
 
 import { debugLog } from "@/shared/utils/debug";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Button } from "@/shared/components/ui/button";
 import { usePortalLink } from "@/shared/hooks/use-portal-link";
 import type { ButtonProps } from "@/shared/components/ui/button";
@@ -44,7 +45,7 @@ export function ManageSubscriptionButton({
         },
         error
       );
-      alert(t("subscription_manage_failed"));
+      toast.error(t("subscription_manage_failed"));
       return;
     }
 

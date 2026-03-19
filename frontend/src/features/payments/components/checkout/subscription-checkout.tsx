@@ -225,10 +225,10 @@ export function SubscriptionCheckout({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-3xl mb-2">
+                  <CardTitle className="text-xl mb-1">
                     {tierConfig.name} {t("account_tabs_subscription_short")}
                   </CardTitle>
-                  <CardDescription className="text-lg">
+                  <CardDescription>
                     {tierConfig.billingCycle === "monthly"
                       ? t("checkout_billed_monthly")
                       : t("checkout_billed_annually")}

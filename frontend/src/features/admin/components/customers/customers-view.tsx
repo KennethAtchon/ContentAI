@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -39,19 +39,6 @@ export function CustomersView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-5xl font-bold tracking-tight flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <Users className="h-6 w-6 text-primary" />
-          </div>
-          {t("metadata_admin_customers_title")}
-        </h1>
-        <p className="text-muted-foreground text-xl">
-          {t("admin_customers_manage_track")}
-        </p>
-      </div>
-
       {/* Search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className={`relative flex-1 ${MAX_SEARCH_WIDTH}`}>

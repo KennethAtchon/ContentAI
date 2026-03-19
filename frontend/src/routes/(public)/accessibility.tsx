@@ -56,28 +56,28 @@ function AccessibilityPage() {
         <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("accessibility_commitment_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t("accessibility_commitment_text")}
               </p>
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("accessibility_standard_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t("accessibility_standard_text")}
               </p>
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("accessibility_measures_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed mb-4">
+              <p className="text-base text-dim-2 leading-relaxed mb-4">
                 {t("accessibility_measures_text")}
               </p>
               <ul className="space-y-2 text-dim-2">
@@ -91,10 +91,10 @@ function AccessibilityPage() {
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("accessibility_known_issues_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed mb-4">
+              <p className="text-base text-dim-2 leading-relaxed mb-4">
                 {t("accessibility_known_issues_text")}
               </p>
               <ul className="space-y-2 text-dim-2">
@@ -108,13 +108,13 @@ function AccessibilityPage() {
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("accessibility_feedback_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed mb-2">
+              <p className="text-base text-dim-2 leading-relaxed mb-2">
                 {t("accessibility_feedback_text")}
               </p>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
                   className="text-studio-accent hover:underline"

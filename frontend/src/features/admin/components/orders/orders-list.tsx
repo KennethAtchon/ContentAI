@@ -120,22 +120,28 @@ function getCustomerInitials(name: string): string {
 /**
  * Status badge component for displaying order status
  */
-function StatusBadge({ status }: { status: OrderStatus | string }) {
+function StatusBadge({
+  status,
+  t,
+}: {
+  status: OrderStatus | string;
+  t: (key: string) => string;
+}) {
   const normalizedStatus = status.toLowerCase() as OrderStatus;
 
   switch (normalizedStatus) {
     case ORDER_STATUS.PAID:
       return (
-        <Badge className="bg-success hover:bg-success">Paid</Badge>
+        <Badge className="bg-success hover:bg-success">{t("admin_orders_paid")}</Badge>
       );
     case ORDER_STATUS.PENDING:
       return (
         <Badge variant="outline" className="text-warning border-warning">
-          Pending
+          {t("admin_orders_pending")}
         </Badge>
       );
     case ORDER_STATUS.CANCELLED:
-      return <Badge variant="destructive">Cancelled</Badge>;
+      return <Badge variant="destructive">{t("admin_orders_cancelled")}</Badge>;
     default:
       return (
         <Badge variant="secondary">
@@ -293,18 +299,18 @@ export function OrdersList({
     <>
       <Card key={refreshKey}>
         <CardHeader className="px-6">
-          <CardTitle>Orders</CardTitle>
+          <CardTitle>{t("admin_orders_title")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="w-[100px]">{t("admin_orders_col_id")}</TableHead>
+                <TableHead>{t("admin_orders_col_customer")}</TableHead>
+                <TableHead>{t("admin_orders_col_date")}</TableHead>
+                <TableHead>{t("admin_orders_col_type")}</TableHead>
+                <TableHead>{t("admin_orders_col_status")}</TableHead>
+                <TableHead className="text-right">{t("admin_orders_col_total")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -317,7 +323,7 @@ export function OrdersList({
                   >
                     <div className="flex flex-col items-center justify-center gap-1 text-muted-foreground">
                       <Package className="h-6 w-6 animate-pulse" />
-                      <span>Loading orders...</span>
+                      <span>{t("admin_orders_loading")}</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -341,7 +347,7 @@ export function OrdersList({
                         {order.id}
                         {(order as any).isDeleted && (
                           <Badge variant="destructive" className="text-sm">
-                            DELETED
+                            {t("common_deleted")}
                           </Badge>
                         )}
                       </div>
@@ -382,6 +388,7 @@ export function OrdersList({
                     <TableCell>
                       <StatusBadge
                         status={order.status || ORDER_STATUS.PENDING}
+                        t={t}
                       />
                     </TableCell>
                     <TableCell className="text-right">
@@ -396,15 +403,15 @@ export function OrdersList({
                             className="h-8 w-8"
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Actions</span>
+                            <span className="sr-only">{t("admin_contact_messages_actions")}</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuLabel>{t("admin_contact_messages_actions")}</DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => handleEditOrder(order)}
                           >
-                            Edit order
+                            {t("admin_orders_edit")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -436,8 +443,12 @@ export function OrdersList({
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t">
             <div className="text-base text-muted-foreground">
-              Showing page {pagination.page} of {pagination.totalPages} (
-              {pagination.total} total orders)
+              {t("common_pagination_showing", {
+                page: pagination.page,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+                item: t("admin_orders_title"),
+              })}
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -447,7 +458,7 @@ export function OrdersList({
                 disabled={pagination.page <= 1}
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                {t("common_pagination_previous")}
               </Button>
               <div className="flex items-center space-x-1">
                 {Array.from(
@@ -480,7 +491,7 @@ export function OrdersList({
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={!pagination.hasMore}
               >
-                Next
+                {t("common_pagination_next")}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

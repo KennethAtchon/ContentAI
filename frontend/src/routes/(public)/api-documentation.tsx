@@ -157,7 +157,7 @@ function ApiDocumentationPage() {
         <div className="space-y-8">
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-3xl flex items-center gap-2">
+              <CardTitle className="text-xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <Code className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -177,7 +177,7 @@ function ApiDocumentationPage() {
               className="bg-overlay-xs border border-overlay-sm rounded-[14px]"
             >
               <CardHeader>
-                <CardTitle className="text-3xl">{group.title}</CardTitle>
+                <CardTitle className="text-xl">{group.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="divide-y">
@@ -209,7 +209,7 @@ function ApiDocumentationPage() {
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-3xl">
+              <CardTitle className="text-xl">
                 {t("api_error_codes_title")}
               </CardTitle>
             </CardHeader>

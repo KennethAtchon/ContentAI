@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -211,7 +212,7 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
         error
       );
 
-      alert(t("admin_order_form_error_save"));
+      toast.error(t("admin_order_form_error_save"));
     }
   };
 

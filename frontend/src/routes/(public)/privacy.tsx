@@ -47,19 +47,19 @@ function PrivacyPage() {
         <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
           <CardContent className="p-8 md:p-12 space-y-8">
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("privacy_introduction")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t("privacy_introduction_text")}
               </p>
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("common_information_we_collect")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed mb-4">
+              <p className="text-base text-dim-2 leading-relaxed mb-4">
                 {t("privacy_information_collect_text")}
               </p>
               <ul className="space-y-2 text-dim-2">
@@ -83,10 +83,10 @@ function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("common_how_we_use_your_information")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t(
                   "common_your_information_is_used_to_provide_and_improve_our_services"
                 )}
@@ -94,19 +94,19 @@ function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("privacy_data_security")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t("privacy_data_security_text")}
               </p>
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("privacy_your_rights")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed mb-4">
+              <p className="text-base text-dim-2 leading-relaxed mb-4">
                 {t(
                   "common_you_have_the_right_to_access_correct_or_delete_your_personal"
                 )}
@@ -132,10 +132,10 @@ function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-4xl font-bold mb-4">
+              <h2 className="text-xl font-semibold mb-3">
                 {t("contact_metadata_title")}
               </h2>
-              <p className="text-xl text-dim-2 leading-relaxed">
+              <p className="text-base text-dim-2 leading-relaxed">
                 {t("privacy_contact_text")}{" "}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}

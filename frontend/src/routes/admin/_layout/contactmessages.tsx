@@ -132,7 +132,7 @@ function ContactMessagesPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-4xl font-bold">
+        <h1 className="text-xl font-semibold">
           {t("admin_contact_messages_all_messages")}
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -173,7 +173,7 @@ function ContactMessagesPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-3xl">
+                <CardTitle className="text-xl">
                   {t("admin_contact_messages_all_messages")}
                 </CardTitle>
                 <CardDescription className="mt-1">

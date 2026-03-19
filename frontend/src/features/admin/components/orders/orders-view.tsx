@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, ShoppingCart } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -61,21 +61,8 @@ export function OrdersView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <h1 className="text-5xl font-bold tracking-tight flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <ShoppingCart className="h-6 w-6 text-primary" />
-            </div>
-            {t("metadata_admin_orders_title")}
-          </h1>
-          <p className="text-muted-foreground text-xl">
-            {t(
-              "common_manage_and_track_all_customer_orders_payments_and_transactio"
-            )}
-          </p>
-        </div>
+      {/* Toolbar */}
+      <div className="flex justify-end">
         <Button onClick={handleAddOrderOpen} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           {t("admin_orders_add_order")}

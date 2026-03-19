@@ -319,12 +319,12 @@ export function CheckoutInteractive() {
           </Link>
         </Button>
         <div className="space-y-2">
-          <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
+          <h1 className="text-2xl font-bold tracking-tight">
             {checkoutType === "subscription"
               ? t("checkout_complete_subscription")
               : t("checkout_order_checkout")}
           </h1>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {checkoutType === "subscription"
               ? t("checkout_subscription_description")
               : t("checkout_order_description")}

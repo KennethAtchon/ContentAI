@@ -125,7 +125,7 @@ function SupportPage() {
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-3xl flex items-center gap-2">
+              <CardTitle className="text-xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <Rocket className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -164,7 +164,7 @@ function SupportPage() {
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-3xl flex items-center gap-2">
+              <CardTitle className="text-xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <CreditCard className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -196,10 +196,10 @@ function SupportPage() {
               <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-studio-accent/15">
                 <HelpCircle className="h-8 w-8 text-studio-accent" />
               </div>
-              <h2 className="mb-4 text-4xl font-bold tracking-tight">
+              <h2 className="mb-4 text-2xl font-bold tracking-tight">
                 {t("support_still_need_help")}
               </h2>
-              <p className="mb-6 text-xl text-dim-2">
+              <p className="mb-6 text-base text-dim-2">
                 {t("support_reach_out")}
               </p>
               <a

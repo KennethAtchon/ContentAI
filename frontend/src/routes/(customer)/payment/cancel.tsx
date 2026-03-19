@@ -20,10 +20,10 @@ function PaymentCancelPage() {
                 <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-warning/10">
                   <XCircle className="h-12 w-12 text-warning" />
                 </div>
-                <h1 className="mb-4 text-5xl font-bold tracking-tight md:text-6xl">
+                <h1 className="mb-4 text-2xl font-bold tracking-tight">
                   {t("metadata_payment_cancel_title")}
                 </h1>
-                <p className="mb-8 text-xl text-dim-2">
+                <p className="mb-8 text-sm text-dim-2">
                   {t(
                     "common_no_charges_were_made_your_subscription_was_not_activated"
                   )}

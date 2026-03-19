@@ -42,10 +42,10 @@ function PaymentPage() {
               <Lock className="w-4 h-4 mr-2" />
               {t("payment_secure_payment")}
             </Badge>
-            <h1 className="mb-4 text-5xl font-bold tracking-tight md:text-6xl">
+            <h1 className="mb-4 text-2xl font-bold tracking-tight">
               {t("payment_complete_your_payment")}
             </h1>
-            <p className="text-xl text-dim-2">
+            <p className="text-sm text-dim-2">
               {t("common_secure_payment_processing_powered_by_stripe")}
             </p>
           </div>

@@ -172,7 +172,7 @@ export function ProfileEditor() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-3xl flex items-center gap-2">
+              <CardTitle className="text-xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                   <User className="h-5 w-5 text-primary" />
                 </div>

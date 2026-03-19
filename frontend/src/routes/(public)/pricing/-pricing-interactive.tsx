@@ -145,10 +145,10 @@ export function PricingFeatureComparison() {
       <div className="container">
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+            <h2 className="mb-4 text-2xl font-bold tracking-tight md:text-3xl">
               Compare Plans
             </h2>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               See what's included in each plan
             </p>
           </div>

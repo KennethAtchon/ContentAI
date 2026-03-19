@@ -220,18 +220,6 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-5xl font-bold tracking-tight">
-          {t("common_dashboard_overview")}
-        </h1>
-        <p className="text-muted-foreground text-xl">
-          {t(
-            "common_monitor_your_business_performance_and_track_key_metrics_at_a"
-          )}
-        </p>
-      </div>
-
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard

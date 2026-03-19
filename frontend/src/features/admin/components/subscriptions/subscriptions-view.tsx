@@ -13,7 +13,7 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
 import { useApp } from "@/shared/contexts/app-context";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { SubscriptionsList } from "./subscriptions-list";
 import { SubscriptionAnalytics } from "./subscription-analytics";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
@@ -64,19 +64,6 @@ export function SubscriptionsView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-5xl font-bold tracking-tight flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-            <CreditCard className="h-6 w-6 text-primary" />
-          </div>
-          Subscriptions
-        </h1>
-        <p className="text-muted-foreground text-xl">
-          Manage subscriptions and view subscription analytics
-        </p>
-      </div>
-
       {error && (
         <Alert variant="destructive" className="border-2">
           <AlertCircle className="h-4 w-4" />

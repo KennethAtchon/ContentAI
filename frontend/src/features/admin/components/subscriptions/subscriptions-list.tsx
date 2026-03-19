@@ -189,7 +189,7 @@ export function SubscriptionsList() {
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-3xl">
+            <CardTitle className="text-xl">
               {t("metadata_admin_subscriptions_title")}
             </CardTitle>
             <CardDescription className="mt-1">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -36,7 +37,7 @@ interface ScrapeJob {
 }
 
 export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
-  const { t: _ } = useTranslation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -89,7 +90,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
       );
 
       if (response.ok) {
-        // Config saved successfully
+        toast.success(t("admin_niche_scrape_config_saved"));
+      } else {
+        toast.error(t("admin_niche_scrape_config_save_error"));
       }
     } catch (error) {
       debugLog.error("Failed to save niche config", {
@@ -97,6 +100,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         operation: "handleSaveConfig",
         error: error instanceof Error ? error.message : String(error),
       });
+      toast.error(t("admin_niche_scrape_config_save_error"));
     } finally {
       setSaving(false);
     }
@@ -120,6 +124,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
       if (response.ok) {
         const job = await response.json();
         setLastJob(job);
+        toast.success(t("admin_niche_scrape_job_started"));
+      } else {
+        toast.error(t("admin_niche_scrape_job_start_error"));
       }
     } catch (error) {
       debugLog.error("Failed to start scraping job", {
@@ -127,6 +134,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         operation: "handleStartScraping",
         error: error instanceof Error ? error.message : String(error),
       });
+      toast.error(t("admin_niche_scrape_job_start_error"));
     } finally {
       setScanning(false);
     }
@@ -151,13 +159,13 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Scraping Configuration
+            {t("admin_niche_scraping_configuration")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="limit">Max Reels per Scan</Label>
+              <Label htmlFor="limit">{t("admin_niche_scrape_limit_label")}</Label>
               <Input
                 id="limit"
                 type="number"
@@ -173,12 +181,12 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 className="mt-1"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Maximum number of reels to scrape (1-10000)
+                {t("admin_niche_scrape_limit_hint")}
               </p>
             </div>
 
             <div>
-              <Label htmlFor="minViews">Minimum Views</Label>
+              <Label htmlFor="minViews">{t("admin_niche_scrape_min_views_label")}</Label>
               <Input
                 id="minViews"
                 type="number"
@@ -193,12 +201,12 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 className="mt-1"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Only scrape reels with at least this many views
+                {t("admin_niche_scrape_min_views_hint")}
               </p>
             </div>
 
             <div>
-              <Label htmlFor="maxDaysOld">Maximum Age (days)</Label>
+              <Label htmlFor="maxDaysOld">{t("admin_niche_scrape_max_days_label")}</Label>
               <Input
                 id="maxDaysOld"
                 type="number"
@@ -214,7 +222,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 className="mt-1"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                Only scrape reels posted within this many days (1-365)
+                {t("admin_niche_scrape_max_days_hint")}
               </p>
             </div>
 
@@ -226,14 +234,14 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                   setConfig({ ...config, viralOnly: checked })
                 }
               />
-              <Label htmlFor="viralOnly">Viral Content Only</Label>
+              <Label htmlFor="viralOnly">{t("admin_niche_scrape_viral_only_label")}</Label>
             </div>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button onClick={handleSaveConfig} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Configuration
+              {t("admin_niche_scrape_save_config")}
             </Button>
           </div>
         </CardContent>
@@ -244,28 +252,28 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Play className="h-5 w-5" />
-            Start Scraping
+            {t("admin_niche_scrape_start_scraping")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Current Configuration:</h4>
+            <h4 className="font-medium mb-2">{t("admin_niche_scrape_current_config")}:</h4>
             <ul className="text-base space-y-1">
-              <li>• Max reels: {config.limit}</li>
-              <li>• Minimum views: {config.minViews.toLocaleString()}</li>
-              <li>• Maximum age: {config.maxDaysOld} days</li>
-              <li>• Viral only: {config.viralOnly ? "Yes" : "No"}</li>
+              <li>• {t("admin_niche_scrape_limit_label")}: {config.limit}</li>
+              <li>• {t("admin_niche_scrape_min_views_label")}: {config.minViews.toLocaleString()}</li>
+              <li>• {t("admin_niche_scrape_max_days_label")}: {config.maxDaysOld}</li>
+              <li>• {t("admin_niche_scrape_viral_only_label")}: {config.viralOnly ? t("common_yes") : t("common_no")}</li>
             </ul>
           </div>
 
           <Button onClick={handleStartScraping} disabled={scanning}>
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Start Scraping Job
+            {t("admin_niche_scrape_start_job")}
           </Button>
 
           {lastJob && (
             <div className="bg-muted p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Last Job:</h4>
+              <h4 className="font-medium mb-2">{t("admin_niche_scrape_last_job")}:</h4>
               <p className="text-base">Job ID: {lastJob.jobId}</p>
               <p className="text-base">Status: {lastJob.status}</p>
               <p className="text-base">Niche: {lastJob.nicheName}</p>

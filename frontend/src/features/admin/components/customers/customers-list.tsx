@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { MoreHorizontal, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -329,18 +330,13 @@ export function CustomersList({
         { customerId: editCustomer.id }
       );
     } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "An error occurred while updating the customer";
-
       debugLog.error(
         "Failed to update customer",
         { component: COMPONENT_NAME },
         err
       );
 
-      alert(errorMessage);
+      toast.error(t("admin_customers_update_error"));
     } finally {
       setIsSaving(false);
     }
@@ -350,18 +346,18 @@ export function CustomersList({
     <>
       <Card>
         <CardHeader className="px-6">
-          <CardTitle>Customers</CardTitle>
+          <CardTitle>{t("admin_customers_title")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead className="w-[100px]">{t("admin_customers_col_id")}</TableHead>
+                <TableHead>{t("admin_customers_col_customer")}</TableHead>
+                <TableHead>{t("admin_customers_col_phone")}</TableHead>
+                <TableHead>{t("admin_customers_col_status")}</TableHead>
+                <TableHead>{t("admin_customers_col_address")}</TableHead>
+                <TableHead>{t("admin_customers_col_role")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -374,7 +370,7 @@ export function CustomersList({
                   >
                     <div className="flex flex-col items-center justify-center gap-1 text-muted-foreground">
                       <Users className="h-6 w-6" />
-                      <span>Loading customers...</span>
+                      <span>{t("admin_customers_loading")}</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -398,7 +394,7 @@ export function CustomersList({
                         {customer.id}
                         {(customer as any).isDeleted && (
                           <Badge variant="destructive" className="text-sm">
-                            DELETED
+                            {t("common_deleted")}
                           </Badge>
                         )}
                       </div>
