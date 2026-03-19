@@ -12,7 +12,6 @@ import type { ShellVariant } from "@/shared/components/layout/studio-shell";
 const STUDIO_TABS = [
   { key: "discover", path: "/studio/discover" },
   { key: "generate", path: "/studio/generate" },
-  { key: "editor", path: "/studio/editor" },
   { key: "queue", path: "/studio/queue" },
 ] as const;
 
@@ -40,7 +39,6 @@ const ADMIN_TABS = [
 const TAB_LABELS: Record<string, string> = {
   discover: "studio_tabs_discover",
   generate: "studio_tabs_generate",
-  editor: "studio_tabs_editor",
   queue: "studio_tabs_queue",
   home: "navigation_home",
   features: "navigation_features",

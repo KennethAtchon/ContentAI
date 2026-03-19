@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import type { QueueItem, PipelineStage } from "@/features/reels/types/reel.types";
-import { Scissors, Check, X, Loader2, Copy, ExternalLink } from "lucide-react";
+import { Check, X, Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 interface Project {
@@ -82,12 +82,6 @@ interface QueueDetail {
     metadata: Record<string, unknown> | null;
     createdAt: string;
   }>;
-  composition: {
-    id: string;
-    version: number;
-    editMode: string;
-    updatedAt: string;
-  } | null;
   sessionId: string | null;
 }
 
@@ -572,7 +566,7 @@ function DetailPanel({
   isDuplicating: boolean;
 }) {
   const { t } = useTranslation();
-  const { content, assets, composition, sessionId, queueItem } = detail;
+  const { content, assets, sessionId, queueItem } = detail;
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const voiceover = assets.find((a) => a.type === "voiceover");
@@ -755,16 +749,6 @@ function DetailPanel({
             {t("studio_queue_detail_actions")}
           </p>
           <div className="flex flex-wrap gap-2">
-            {content && (
-              <Link
-                to="/studio/editor/$generatedContentId"
-                params={{ generatedContentId: String(content.id) }}
-                className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-sm font-semibold text-studio-accent hover:bg-studio-accent/15 transition-colors"
-              >
-                <Scissors className="h-3.5 w-3.5" />
-                {t("studio_queue_detail_open_editor")}
-              </Link>
-            )}
             {sessionId && (
               <Link
                 to="/studio/generate"
@@ -830,14 +814,6 @@ function DetailPanel({
             </div>
           )}
 
-          {composition && (
-            <p className="text-sm text-dim-3 pt-1">
-              {t("studio_queue_detail_composition", {
-                version: composition.version,
-                mode: composition.editMode,
-              })}
-            </p>
-          )}
         </div>
       </div>
     </div>

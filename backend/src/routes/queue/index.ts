@@ -10,7 +10,6 @@ import {
   queueItems,
   generatedContent,
   reelAssets,
-  reelCompositions,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, asc, and, sql, ilike, or, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
@@ -34,7 +33,6 @@ function deriveStages(
     status: string;
   },
   assetTypeCounts: Record<string, number>,
-  hasComposition: boolean,
 ): PipelineStage[] {
   const meta = (row.generatedMetadata ?? {}) as Record<string, unknown>;
   const phase4 = (meta.phase4 ?? {}) as Record<string, unknown>;
@@ -84,14 +82,6 @@ function deriveStages(
       status: hasAssembled ? "ok" : hasVideoClips ? "pending" : "pending",
     },
   ];
-
-  if (hasComposition) {
-    stages.push({
-      id: "editor",
-      label: "Manual edit",
-      status: "ok",
-    });
-  }
 
   return stages;
 }
@@ -227,7 +217,7 @@ queueRouter.get(
         .map((r) => r.generatedContentId)
         .filter((id): id is number => id !== null);
 
-      const [assetCounts, compositionRows] = await Promise.all([
+      const assetCounts = await (
         contentIds.length > 0
           ? db
               .select({
@@ -238,14 +228,8 @@ queueRouter.get(
               .from(reelAssets)
               .where(inArray(reelAssets.generatedContentId, contentIds))
               .groupBy(reelAssets.generatedContentId, reelAssets.type)
-          : Promise.resolve([]),
-        contentIds.length > 0
-          ? db
-              .select({ generatedContentId: reelCompositions.generatedContentId })
-              .from(reelCompositions)
-              .where(inArray(reelCompositions.generatedContentId, contentIds))
-          : Promise.resolve([]),
-      ]);
+          : Promise.resolve([])
+      );
 
       // Build lookup maps.
       const assetCountMap: Record<number, Record<string, number>> = {};
@@ -254,11 +238,9 @@ queueRouter.get(
         assetCountMap[row.generatedContentId] ??= {};
         assetCountMap[row.generatedContentId][row.type] = row.count;
       }
-      const compositionSet = new Set(compositionRows.map((r) => r.generatedContentId));
 
       const items = rows.map((row) => {
         const typeCounts = assetCountMap[row.generatedContentId ?? -1] ?? {};
-        const hasComposition = compositionSet.has(row.generatedContentId);
         const stages = deriveStages(
           {
             generatedHook: row.generatedHook,
@@ -269,7 +251,6 @@ queueRouter.get(
             status: row.contentStatus ?? "draft",
           },
           typeCounts,
-          hasComposition,
         );
         return {
           id: row.id,
@@ -388,7 +369,6 @@ queueRouter.get(
 
       let content = null;
       let assets: typeof reelAssets.$inferSelect[] = [];
-      let composition = null;
 
       if (item.generatedContentId) {
         const [contentRow] = await db
@@ -398,30 +378,11 @@ queueRouter.get(
           .limit(1);
         content = contentRow ?? null;
 
-        [assets] = await Promise.all([
-          db
-            .select()
-            .from(reelAssets)
-            .where(eq(reelAssets.generatedContentId, item.generatedContentId))
-            .orderBy(asc(reelAssets.createdAt)),
-        ]);
-
-        const [compositionRow] = await db
-          .select({
-            id: reelCompositions.id,
-            version: reelCompositions.version,
-            editMode: reelCompositions.editMode,
-            updatedAt: reelCompositions.updatedAt,
-          })
-          .from(reelCompositions)
-          .where(
-            and(
-              eq(reelCompositions.generatedContentId, item.generatedContentId),
-              eq(reelCompositions.userId, auth.user.id),
-            ),
-          )
-          .limit(1);
-        composition = compositionRow ?? null;
+        assets = await db
+          .select()
+          .from(reelAssets)
+          .where(eq(reelAssets.generatedContentId, item.generatedContentId))
+          .orderBy(asc(reelAssets.createdAt));
       }
 
       const sessionId = await db
@@ -434,7 +395,6 @@ queueRouter.get(
         queueItem: item,
         content,
         assets,
-        composition,
         sessionId,
       });
     } catch (error) {
