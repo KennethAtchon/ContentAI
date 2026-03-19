@@ -55,7 +55,7 @@ export function EditorHeader({
       </Link>
 
       {/* Title + save */}
-      <span className="text-[12px] font-semibold text-primary truncate max-w-[140px] shrink-0">
+      <span className="text-sm font-semibold text-primary truncate max-w-[140px] shrink-0">
         {t("phase5_editor_title", { id: generatedContentId })}
       </span>
       <SaveStatusBadge saveState={saveState} saveError={saveError} />
@@ -83,14 +83,14 @@ export function EditorHeader({
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
         {/* Version badge */}
-        <span className="text-[9px] font-mono text-dim-3 tabular-nums">
+        <span className="text-sm font-mono text-dim-3 tabular-nums">
           {t("phase5_editor_version", { version: composition.version })}
         </span>
 
         <div className="w-px h-4 bg-overlay-md shrink-0" />
 
         {/* Mode toggle */}
-        <div className="flex items-center rounded border border-overlay-md overflow-hidden text-[10px] font-medium">
+        <div className="flex items-center rounded border border-overlay-md overflow-hidden text-sm font-medium">
           <button
             onClick={() => onEditModeChange("quick")}
             className={cn(

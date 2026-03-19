@@ -236,10 +236,10 @@ export function VideoWorkspacePanel({
         ref={storyboardSectionRef}
         className="rounded-lg border border-border/60 p-3"
       >
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("workspace_video_region_generate")}
         </p>
-        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
           {videoRunning ? (
             <>
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -257,7 +257,7 @@ export function VideoWorkspacePanel({
           <button
             onClick={() => void handleGenerateReel()}
             disabled={generateReel.isPending || videoRunning}
-            className="inline-flex items-center gap-1.5 rounded-md border border-success/50 bg-success/10 px-2.5 py-1.5 text-[11px] text-success hover:bg-success/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-success"
+            className="inline-flex items-center gap-1.5 rounded-md border border-success/50 bg-success/10 px-2.5 py-1.5 text-sm text-success hover:bg-success/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-success"
           >
             {generateReel.isPending || videoRunning ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -272,7 +272,7 @@ export function VideoWorkspacePanel({
             <button
               onClick={() => void handleReassemble()}
               disabled={assembleReel.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-foreground/80 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {assembleReel.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -288,7 +288,7 @@ export function VideoWorkspacePanel({
             <Link
               to="/studio/editor/$generatedContentId"
               params={{ generatedContentId: String(draft.id) }}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-[11px] text-foreground/80 hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted"
             >
               {t("phase5_editor_open")}
             </Link>
@@ -297,7 +297,7 @@ export function VideoWorkspacePanel({
             <button
               onClick={() => void handleRetryVideo()}
               disabled={retryVideoJob.isPending || !videoJobId}
-              className="inline-flex items-center gap-1 rounded-md border border-error/50 bg-error/5 px-2.5 py-1.5 text-[11px] text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
+              className="inline-flex items-center gap-1 rounded-md border border-error/50 bg-error/5 px-2.5 py-1.5 text-sm text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
             >
               {retryVideoJob.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -310,7 +310,7 @@ export function VideoWorkspacePanel({
             </button>
           )}
         </div>
-        <label className="mt-2 inline-flex items-center gap-2 text-[11px] text-foreground/80">
+        <label className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/80">
           <input
             type="checkbox"
             checked={includeCaptions}
@@ -321,7 +321,7 @@ export function VideoWorkspacePanel({
           />
           {t("workspace_video_include_captions")}
         </label>
-        <label className="mt-2 inline-flex items-center gap-2 text-[11px] text-foreground/80">
+        <label className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/80">
           <input
             type="checkbox"
             checked={includeClipAudioInMix}
@@ -332,7 +332,7 @@ export function VideoWorkspacePanel({
           />
           {t("workspace_video_include_clip_audio")}
         </label>
-        <div className="mt-2 grid grid-cols-1 gap-2 text-[11px]">
+        <div className="mt-2 grid grid-cols-1 gap-2 text-sm">
           <label className="flex items-center gap-2">
             <span className="w-28 text-muted-foreground">
               {t("workspace_video_mix_voiceover")}
@@ -393,12 +393,12 @@ export function VideoWorkspacePanel({
       </section>
 
       <section className="rounded-lg border border-border/60 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("workspace_video_region_storyboard")}
         </p>
         <div className="mt-2 space-y-2">
           {shotClips.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {t("workspace_storyboard_empty")}
             </p>
           ) : (
@@ -408,16 +408,16 @@ export function VideoWorkspacePanel({
                 className="rounded-md border border-border/50 bg-muted/20 p-2.5"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-xs font-medium">
+                  <div className="text-sm font-medium">
                     {t("workspace_storyboard_shot", {
                       index: clip.shotIndex + 1,
                     })}
                   </div>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-sm text-muted-foreground">
                     {clip.sourceType}
                   </span>
                 </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">
+                <div className="mt-1 text-sm text-muted-foreground">
                   {t("workspace_storyboard_duration", {
                     seconds: Math.max(
                       1,
@@ -437,7 +437,7 @@ export function VideoWorkspacePanel({
                   <button
                     onClick={() => void handleRegenerateShot(clip)}
                     disabled={mutatingStoryboard}
-                    className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {regenerateShot.isPending &&
                     pendingRegenerateShotIndex === clip.shotIndex ? (
@@ -450,7 +450,7 @@ export function VideoWorkspacePanel({
                       ? t("workspace_storyboard_regenerating")
                       : t("workspace_storyboard_regenerate")}
                   </button>
-                  <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted">
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted">
                     <Film className="h-3 w-3" />
                     {uploadShotAsset.isPending &&
                     pendingUploadShotIndex === clip.shotIndex
@@ -471,7 +471,7 @@ export function VideoWorkspacePanel({
                 </div>
                 {clip.hasEmbeddedAudio && (
                   <div className="mt-2 flex items-center justify-between rounded border border-border/50 px-2 py-1.5">
-                    <span className="text-[11px] text-foreground/80">
+                    <span className="text-sm text-foreground/80">
                       {t("workspace_storyboard_clip_audio")}
                     </span>
                     <button
@@ -479,7 +479,7 @@ export function VideoWorkspacePanel({
                         void handleSetUseClipAudio(clip, !clip.useClipAudio)
                       }
                       disabled={mutatingStoryboard}
-                      className="rounded border border-border/60 px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded border border-border/60 px-2 py-0.5 text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {clip.useClipAudio
                         ? t("phase4.storyboard.clipAudio.use")
@@ -495,7 +495,7 @@ export function VideoWorkspacePanel({
           <button
             onClick={() => void handleReassemble()}
             disabled={mutatingStoryboard}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-[11px] text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-sm text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
           >
             {assembleReel.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -510,7 +510,7 @@ export function VideoWorkspacePanel({
       </section>
 
       <section className="rounded-lg border border-border/60 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("workspace_video_region_preview")}
         </p>
         {previewVideoUrl ? (
@@ -524,7 +524,7 @@ export function VideoWorkspacePanel({
             <a
               href={previewVideoUrl}
               download
-              className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted"
+              className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
             >
               {t("workspace_video_download")}
             </a>
@@ -535,13 +535,13 @@ export function VideoWorkspacePanel({
                   block: "start",
                 })
               }
-              className="mt-2 ml-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted"
+              className="mt-2 ml-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
             >
               {t("workspace_video_back_to_storyboard")}
             </button>
           </>
         ) : (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             {t("workspace_video_preview_empty")}
           </p>
         )}
@@ -550,23 +550,23 @@ export function VideoWorkspacePanel({
       {showFailureModal && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="w-[320px] rounded-lg border border-error/50 bg-background p-4 shadow-lg">
-            <h3 className="text-sm font-semibold text-error dark:text-error">
+            <h3 className="text-base font-semibold text-error dark:text-error">
               {t("workspace_video_failed")}
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               {videoJobData?.job.error || t("workspace_video_failed_details")}
             </p>
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 onClick={onBackToDrafts}
-                className="rounded border border-border/60 px-2.5 py-1.5 text-[11px] hover:bg-muted"
+                className="rounded border border-border/60 px-2.5 py-1.5 text-sm hover:bg-muted"
               >
                 {t("workspace_video_back_to_drafts")}
               </button>
               <button
                 onClick={() => void handleRetryVideo()}
                 disabled={retryVideoJob.isPending || !videoJobId}
-                className="inline-flex items-center gap-1 rounded border border-error/50 bg-error/5 px-2.5 py-1.5 text-[11px] text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
+                className="inline-flex items-center gap-1 rounded border border-error/50 bg-error/5 px-2.5 py-1.5 text-sm text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
               >
                 {retryVideoJob.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />

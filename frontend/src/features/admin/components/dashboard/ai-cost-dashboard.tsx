@@ -140,30 +140,30 @@ export function AiCostDashboard() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">
+          <h2 className="text-2xl font-bold tracking-tight">
             {t("admin_ai_cost_title")}
           </h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-base">
             {t("admin_ai_cost_description")}
           </p>
         </div>
-        <div className="text-xs text-muted-foreground uppercase tracking-wide">
+        <div className="text-sm text-muted-foreground uppercase tracking-wide">
           {t("admin_ai_cost_period_label")}
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-base text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("admin_ai_cost_loading")}
         </div>
       ) : error ? (
-        <div className="flex items-center gap-2 text-sm text-destructive">
+        <div className="flex items-center gap-2 text-base text-destructive">
           <AlertCircle className="h-4 w-4" />
           {error instanceof Error ? error.message : String(error)}
         </div>
       ) : !totals ? (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-base text-muted-foreground">
           {t("admin_ai_cost_no_data")}
         </div>
       ) : (
@@ -171,12 +171,12 @@ export function AiCostDashboard() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-base font-medium text-muted-foreground">
                   {t("admin_ai_cost_total_spend")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold">
                   {parseCost(totals?.totalCost).toLocaleString(
                     "en-US",
                     CURRENCY_FORMAT
@@ -187,12 +187,12 @@ export function AiCostDashboard() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-base font-medium text-muted-foreground">
                   {t("admin_ai_cost_total_calls")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold">
                   {totals?.callCount?.toLocaleString() || "0"}
                 </div>
               </CardContent>
@@ -200,12 +200,12 @@ export function AiCostDashboard() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-base font-medium text-muted-foreground">
                   {t("admin_ai_cost_input_tokens")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold">
                   {totals?.totalInputTokens?.toLocaleString() || "0"}
                 </div>
               </CardContent>
@@ -213,12 +213,12 @@ export function AiCostDashboard() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-base font-medium text-muted-foreground">
                   {t("admin_ai_cost_output_tokens")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold">
                   {totals?.totalOutputTokens?.toLocaleString() || "0"}
                 </div>
               </CardContent>
@@ -300,7 +300,7 @@ export function AiCostDashboard() {
                       <TableRow>
                         <TableCell
                           colSpan={6}
-                          className="text-sm text-muted-foreground"
+                          className="text-base text-muted-foreground"
                         >
                           {t("admin_ai_cost_no_data")}
                         </TableCell>
@@ -308,7 +308,7 @@ export function AiCostDashboard() {
                     ) : (
                       breakdownRows.map((row, index) => (
                         <TableRow key={`${row.type}-${row.label}-${index}`}>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-base text-muted-foreground">
                             {row.type}
                           </TableCell>
                           <TableCell className="font-medium">

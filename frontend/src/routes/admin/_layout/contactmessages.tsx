@@ -132,7 +132,7 @@ function ContactMessagesPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-4xl font-bold">
           {t("admin_contact_messages_all_messages")}
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -173,7 +173,7 @@ function ContactMessagesPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl">
+                <CardTitle className="text-3xl">
                   {t("admin_contact_messages_all_messages")}
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -186,7 +186,7 @@ function ContactMessagesPage() {
                   })}
                 </CardDescription>
               </div>
-              <Badge variant="secondary" className="text-sm">
+              <Badge variant="secondary" className="text-base">
                 <Mail className="h-3 w-3 mr-1" />
                 {pagination.total} {t("admin_contact_messages_total")}
               </Badge>
@@ -240,7 +240,7 @@ function ContactMessagesPage() {
             </div>
             {pagination.totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t">
-                <div className="text-sm text-muted-foreground">
+                <div className="text-base text-muted-foreground">
                   {t("common_pagination_showing", {
                     page: pagination.page,
                     totalPages: pagination.totalPages,
@@ -329,9 +329,9 @@ const ContactMessageRow = React.memo(function ContactMessageRow({
         </Badge>
       </TableCell>
       <TableCell className="max-w-md">
-        <p className="text-sm line-clamp-2">{message.message}</p>
+        <p className="text-base line-clamp-2">{message.message}</p>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
+      <TableCell className="text-base text-muted-foreground">
         {message.formattedDate}
       </TableCell>
       <TableCell>

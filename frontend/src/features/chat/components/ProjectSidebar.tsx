@@ -67,7 +67,7 @@ function UsageBar({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-[10px]">
+      <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground truncate">{label}</span>
         <span
           className={
@@ -276,7 +276,7 @@ export function ProjectSidebar({
   return (
     <div className="w-72 h-full border-r bg-background flex flex-col shrink-0">
       <div className="p-4 border-b flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{t("studio_chat_projects")}</h2>
+        <h2 className="text-base font-semibold">{t("studio_chat_projects")}</h2>
         <Button
           size="sm"
           variant="ghost"
@@ -301,17 +301,17 @@ export function ProjectSidebar({
 
       <div className="flex-1 overflow-y-auto py-2">
         {projectsLoading ? (
-          <div className="px-4 py-3 text-xs text-muted-foreground">
+          <div className="px-4 py-3 text-sm text-muted-foreground">
             {t("studio_chat_loadingProjects")}
           </div>
         ) : !projects?.length ? (
           <div className="flex flex-col items-center justify-center h-full px-4 py-8 text-center gap-3">
             <FolderOpen className="h-8 w-8 text-muted-foreground/40" />
             <div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-base font-medium text-muted-foreground">
                 {t("studio_chat_noProjects")}
               </p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
+              <p className="text-sm text-muted-foreground/60 mt-1">
                 {t("studio_chat_noProjectsDescription")}
               </p>
             </div>
@@ -355,7 +355,7 @@ export function ProjectSidebar({
                               handleCancelEditingProject();
                             }
                           }}
-                          className="flex-1 text-sm bg-transparent border-b border-primary outline-none"
+                          className="flex-1 text-base bg-transparent border-b border-primary outline-none"
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
                         />
@@ -384,11 +384,11 @@ export function ProjectSidebar({
                       </div>
                     ) : (
                       <>
-                        <p className="text-sm font-medium truncate">
+                        <p className="text-base font-medium truncate">
                           {project.name}
                         </p>
                         {project.description && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          <p className="text-sm text-muted-foreground truncate mt-0.5">
                             {project.description}
                           </p>
                         )}
@@ -440,7 +440,7 @@ export function ProjectSidebar({
                 {selectedProjectId === project.id && (
                   <div className="ml-3 pl-3 border-l mt-1 mb-1 space-y-0.5">
                     {sessionsLoading ? (
-                      <div className="text-xs text-muted-foreground px-2 py-1">
+                      <div className="text-sm text-muted-foreground px-2 py-1">
                         {t("studio_chat_loadingSessions")}
                       </div>
                     ) : sessions?.length ? (
@@ -472,7 +472,7 @@ export function ProjectSidebar({
                                     handleCancelEditingSession();
                                   }
                                 }}
-                                className="flex-1 text-xs bg-transparent border-b border-primary outline-none"
+                                className="flex-1 text-sm bg-transparent border-b border-primary outline-none"
                                 autoFocus
                                 onClick={(e) => e.stopPropagation()}
                               />
@@ -501,7 +501,7 @@ export function ProjectSidebar({
                             </div>
                           ) : (
                             <>
-                              <span className="flex-1 text-xs truncate">
+                              <span className="flex-1 text-sm truncate">
                                 {session.title}
                               </span>
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -561,7 +561,7 @@ export function ProjectSidebar({
             !hasEnterpriseAccess && (
               <a
                 href="/pricing"
-                className="block w-full text-center text-[11px] font-semibold py-1.5 rounded-md bg-warning/15 text-warning hover:bg-warning/25 transition-colors"
+                className="block w-full text-center text-sm font-semibold py-1.5 rounded-md bg-warning/15 text-warning hover:bg-warning/25 transition-colors"
               >
                 {t("studio_generate_upgrade")}
               </a>

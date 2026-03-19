@@ -247,15 +247,15 @@ export function UsageDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
               <Eye className="h-4 w-4" />
               {t("studio_usage_reels_analyzed")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
+            <div className="text-3xl font-bold">{usageStats.reelsAnalyzed}</div>
             {usageStats?.reelsAnalyzedLimit !== null && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t("account_usage_of_limit", {
                   limit: usageStats.reelsAnalyzedLimit,
                 })}
@@ -267,15 +267,15 @@ export function UsageDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
               <Brain className="h-4 w-4" />
               {t("studio_usage_analyses")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageStats.reelsAnalyzed}</div>
+            <div className="text-3xl font-bold">{usageStats.reelsAnalyzed}</div>
             {usageStats?.reelsAnalyzedLimit !== null && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t("studio_usage_daily_limit", {
                   limit: usageStats.reelsAnalyzedLimit,
                 })}
@@ -286,17 +286,17 @@ export function UsageDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
               {t("studio_usage_content_generated")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               {usageStats.contentGenerated}
             </div>
             {usageStats?.contentGeneratedLimit !== null && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t("account_usage_of_limit", {
                   limit: usageStats.contentGeneratedLimit,
                 })}
@@ -308,15 +308,15 @@ export function UsageDashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               {t("studio_usage_queue_size")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageStats.queueSize}</div>
+            <div className="text-3xl font-bold">{usageStats.queueSize}</div>
             {usageStats?.queueLimit !== null && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t("account_usage_of_limit", { limit: usageStats.queueLimit })}
               </p>
             )}
@@ -393,10 +393,10 @@ export function UsageDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="max-w-xs">
-                          <div className="font-medium text-sm">
+                          <div className="font-medium text-base">
                             @{generation.sourceReel.username}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
+                          <div className="text-sm text-muted-foreground truncate">
                             {generation.sourceReel.hook}
                           </div>
                         </div>
@@ -422,7 +422,7 @@ export function UsageDashboard() {
               </Table>
               {historyPagination && historyPagination.totalPages > 1 && (
                 <div className="flex items-center justify-between px-0 py-4 border-t mt-4">
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-base text-muted-foreground">
                     {t("common_pagination_showing", {
                       page: historyPagination.page,
                       totalPages: historyPagination.totalPages,
@@ -498,7 +498,7 @@ export function UsageDashboard() {
         <CardHeader>
           <CardTitle>{t("account_usage_tips")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
+        <CardContent className="space-y-2 text-base text-muted-foreground">
           <p>• {t("studio_usage_tip_analysis")}</p>
           <p>• {t("studio_usage_tip_generation")}</p>
           <p>• {t("studio_usage_tip_queue")}</p>

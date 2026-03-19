@@ -237,7 +237,7 @@ export function AuthGuard({
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-teal-600" />
-          <p className="text-sm text-muted-foreground">{loadingMessage}</p>
+          <p className="text-base text-muted-foreground">{loadingMessage}</p>
         </div>
       </div>
     );

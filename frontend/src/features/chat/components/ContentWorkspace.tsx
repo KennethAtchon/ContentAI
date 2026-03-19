@@ -147,7 +147,7 @@ export function ContentWorkspace({
           <button
             onClick={() => setActiveTab("drafts")}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
               activeTab === "drafts"
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -156,7 +156,7 @@ export function ContentWorkspace({
             <FileText className="w-3.5 h-3.5" />
             {t("workspace_tab_drafts")}
             {draftCount > 0 && (
-              <span className="ml-0.5 text-[10px] text-muted-foreground/70">
+              <span className="ml-0.5 text-sm text-muted-foreground/70">
                 {draftCount}
               </span>
             )}
@@ -164,7 +164,7 @@ export function ContentWorkspace({
           <button
             onClick={() => setActiveTab("audio")}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
               activeTab === "audio"
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -176,7 +176,7 @@ export function ContentWorkspace({
           <button
             onClick={() => setActiveTab("video")}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
               activeTab === "video"
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -231,7 +231,7 @@ export function ContentWorkspace({
               }
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
+            <div className="flex-1 flex items-center justify-center text-base text-muted-foreground px-6 text-center">
               {t("workspace_audio_no_content")}
             </div>
           )}
@@ -245,7 +245,7 @@ export function ContentWorkspace({
           videoJobData={videoJobData}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
+        <div className="flex-1 flex items-center justify-center text-base text-muted-foreground px-6 text-center">
           {t("workspace_video_no_content")}
         </div>
       )}

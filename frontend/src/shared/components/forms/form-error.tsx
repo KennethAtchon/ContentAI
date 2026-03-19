@@ -29,7 +29,7 @@ export function FormError({ error, message, className }: FormErrorProps) {
   }
 
   return (
-    <p className={`text-sm text-destructive mt-1 ${className || ""}`}>
+    <p className={`text-base text-destructive mt-1 ${className || ""}`}>
       {displayMessage}
     </p>
   );

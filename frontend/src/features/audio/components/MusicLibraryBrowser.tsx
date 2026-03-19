@@ -56,7 +56,7 @@ export function MusicLibraryBrowser({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="sm:max-w-[480px] flex flex-col p-0">
         <SheetHeader className="px-4 py-3 border-b shrink-0">
-          <SheetTitle className="text-sm">
+          <SheetTitle className="text-base">
             {t("audio_music_libraryTitle")}
           </SheetTitle>
         </SheetHeader>
@@ -73,7 +73,7 @@ export function MusicLibraryBrowser({
                   search: e.target.value || undefined,
                 }))
               }
-              className="pl-8 h-8 text-xs"
+              className="pl-8 h-8 text-sm"
             />
           </div>
 
@@ -87,7 +87,7 @@ export function MusicLibraryBrowser({
                     mood: f.mood === mood ? undefined : mood,
                   }))
                 }
-                className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors capitalize ${
+                className={`text-sm px-2 py-0.5 rounded-full border transition-colors capitalize ${
                   filters.mood === mood
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border text-muted-foreground hover:border-primary/50"
@@ -106,7 +106,7 @@ export function MusicLibraryBrowser({
                       f.durationBucket === value ? undefined : value,
                   }))
                 }
-                className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                className={`text-sm px-2 py-0.5 rounded-full border transition-colors ${
                   filters.durationBucket === value
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border text-muted-foreground hover:border-primary/50"
@@ -129,12 +129,12 @@ export function MusicLibraryBrowser({
             </div>
           ) : isError ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 {t("audio_music_loadError")}
               </p>
               <button
                 onClick={() => void refetch()}
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
+                className="flex items-center gap-1 text-sm text-primary hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />
                 {t("audio_voices_retry")}
@@ -145,22 +145,22 @@ export function MusicLibraryBrowser({
               <Music className="w-12 h-12 text-muted-foreground/30" />
               {hasFilters ? (
                 <>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {t("audio_music_noResults")}
                   </p>
                   <button
                     onClick={clearFilters}
-                    className="text-xs text-primary hover:underline"
+                    className="text-sm text-primary hover:underline"
                   >
                     {t("audio_music_clearFilters")}
                   </button>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-medium">
+                  <p className="text-base font-medium">
                     {t("audio_music_emptyTitle")}
                   </p>
-                  <p className="text-xs text-muted-foreground max-w-[200px]">
+                  <p className="text-sm text-muted-foreground max-w-[200px]">
                     {t("audio_music_emptySubtitle")}
                   </p>
                 </>

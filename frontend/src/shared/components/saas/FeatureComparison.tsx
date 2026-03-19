@@ -106,7 +106,7 @@ export function FeatureComparison({ currentTier }: FeatureComparisonProps) {
         <X className="h-5 w-5 text-muted-foreground" />
       );
     }
-    return <span className="text-sm">{value}</span>;
+    return <span className="text-base">{value}</span>;
   };
 
   return (

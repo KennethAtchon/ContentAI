@@ -174,7 +174,7 @@ export function ChatInput({
         {slashMenuOpen && filteredCommands.length > 0 && (
           <div className="absolute bottom-full left-0 mb-1.5 w-72 rounded-xl border border-border bg-popover shadow-lg overflow-hidden z-50">
             <div className="px-3 py-1.5 border-b border-border/60">
-              <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+              <span className="text-sm font-semibold text-muted-foreground/60 uppercase tracking-wider">
                 {t("studio_chat_slash_label")}
               </span>
             </div>
@@ -193,10 +193,10 @@ export function ChatInput({
                     : "text-muted-foreground hover:bg-muted/60"
                 }`}
               >
-                <span className="text-[11px] font-mono font-semibold text-primary/70 shrink-0">
+                <span className="text-sm font-mono font-semibold text-primary/70 shrink-0">
                   {cmd.trigger}
                 </span>
-                <span className="text-xs truncate">{t(cmd.labelKey)}</span>
+                <span className="text-sm truncate">{t(cmd.labelKey)}</span>
               </button>
             ))}
           </div>

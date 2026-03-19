@@ -20,13 +20,13 @@ const markdownComponents: Components = {
     <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
   ),
   h1: ({ children }) => (
-    <h1 className="text-base font-bold mb-2 mt-3 first:mt-0">{children}</h1>
+    <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-sm font-bold mb-1.5 mt-3 first:mt-0">{children}</h2>
+    <h2 className="text-base font-bold mb-1.5 mt-3 first:mt-0">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h3>
+    <h3 className="text-base font-semibold mb-1 mt-2 first:mt-0">{children}</h3>
   ),
   ul: ({ children }) => (
     <ul className="list-disc list-outside pl-4 mb-2 space-y-0.5">{children}</ul>
@@ -40,11 +40,11 @@ const markdownComponents: Components = {
   code: ({ children, className }) => {
     const isBlock = className?.includes("language-");
     return isBlock ? (
-      <code className="block bg-black/20 rounded-md px-3 py-2 text-xs font-mono whitespace-pre overflow-x-auto my-2">
+      <code className="block bg-black/20 rounded-md px-3 py-2 text-sm font-mono whitespace-pre overflow-x-auto my-2">
         {children}
       </code>
     ) : (
-      <code className="bg-black/20 rounded px-1 py-0.5 text-xs font-mono">
+      <code className="bg-black/20 rounded px-1 py-0.5 text-sm font-mono">
         {children}
       </code>
     );
@@ -72,7 +72,7 @@ const markdownComponents: Components = {
   ),
   table: ({ children }) => (
     <div className="overflow-x-auto my-2">
-      <table className="text-xs border-collapse w-full">{children}</table>
+      <table className="text-sm border-collapse w-full">{children}</table>
     </div>
   ),
   th: ({ children }) => (
@@ -137,7 +137,7 @@ function MessageChips({
         <button
           key={label}
           onClick={onClick}
-          className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 px-2.5 py-1 rounded-full border border-border/50 hover:border-border hover:text-foreground hover:bg-muted/40 transition-all"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground/70 px-2.5 py-1 rounded-full border border-border/50 hover:border-border hover:text-foreground hover:bg-muted/40 transition-all"
         >
           <Icon className="w-2.5 h-2.5" />
           {label}
@@ -208,7 +208,7 @@ export function ChatMessage({
         }`}
       >
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm break-words ${
+          className={`rounded-2xl px-4 py-2.5 text-base break-words ${
             isUser
               ? "bg-primary text-primary-foreground rounded-tr-sm whitespace-pre-wrap"
               : "bg-muted rounded-tl-sm"
@@ -229,7 +229,7 @@ export function ChatMessage({
           )}
 
           {isSavingContent && (
-            <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground/60">
+            <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground/60">
               <Loader2 className="w-3 h-3 animate-spin" />
               <span>{t("studio_chat_savingContent")}</span>
             </div>
@@ -246,7 +246,7 @@ export function ChatMessage({
 
         {/* Action row */}
         <div className="flex items-center gap-2 px-1">
-          <span className="text-[10px] text-muted-foreground/60">
+          <span className="text-sm text-muted-foreground/60">
             {new Date(message.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",

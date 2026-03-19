@@ -29,7 +29,7 @@ export function GenerateFromReelButton({ reel }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-studio-accent/[0.12] border border-studio-accent/40 rounded-[10px] text-studio-accent text-[12px] font-semibold py-3.5 flex items-center justify-center gap-1.5 cursor-pointer font-studio transition-all duration-150 hover:bg-studio-accent/[0.20] hover:border-studio-accent/60"
+        className="w-full bg-studio-accent/[0.12] border border-studio-accent/40 rounded-[10px] text-studio-accent text-sm font-semibold py-3.5 flex items-center justify-center gap-1.5 cursor-pointer font-studio transition-all duration-150 hover:bg-studio-accent/[0.20] hover:border-studio-accent/60"
       >
         ✦ {t("studio_panel_generateFromReel")}
       </button>
@@ -43,7 +43,7 @@ export function GenerateFromReelButton({ reel }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          {error && <p className="text-sm text-destructive px-1">{error}</p>}
+          {error && <p className="text-base text-destructive px-1">{error}</p>}
 
           <DialogFooter>
             <Button

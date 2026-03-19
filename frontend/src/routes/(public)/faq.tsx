@@ -130,7 +130,7 @@ function FaqPage() {
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-studio-accent/15">
                   <HelpCircle className="h-4.5 w-4.5 text-studio-accent" />
                 </div>
-                <h2 className="text-[16px] font-bold text-studio-fg">
+                <h2 className="text-lg font-bold text-studio-fg">
                   {category.title}
                 </h2>
               </div>
@@ -142,10 +142,10 @@ function FaqPage() {
                       value={`c${ci}-i${ii}`}
                       className="border-b border-overlay-sm last:border-b-0"
                     >
-                      <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline py-3.5">
+                      <AccordionTrigger className="text-left text-base font-semibold text-studio-fg hover:no-underline py-3.5">
                         {item.question}
                       </AccordionTrigger>
-                      <AccordionContent className="text-[12px] text-dim-2 leading-[1.7] pb-3.5">
+                      <AccordionContent className="text-sm text-dim-2 leading-[1.7] pb-3.5">
                         {item.answer}
                       </AccordionContent>
                     </AccordionItem>
@@ -163,15 +163,15 @@ function FaqPage() {
           <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-studio-accent/15">
             <Sparkles className="h-7 w-7 text-studio-accent" />
           </div>
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("faq_still_have_questions")}
           </h2>
-          <p className="mb-6 text-[13px] text-dim-2">
+          <p className="mb-6 text-base text-dim-2">
             {t("faq_cant_find")}
           </p>
           <Link
             to="/contact"
-            className="inline-flex items-center gap-2 text-[13px] text-studio-accent font-semibold no-underline hover:underline"
+            className="inline-flex items-center gap-2 text-base text-studio-accent font-semibold no-underline hover:underline"
           >
             {t("common_contact_support")} <ArrowRight className="h-4 w-4" />
           </Link>

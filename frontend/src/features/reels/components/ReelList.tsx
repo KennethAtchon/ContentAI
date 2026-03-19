@@ -16,10 +16,10 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
     <>
       {/* Header */}
       <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
-        <span className="text-[10px] font-semibold tracking-[1.5px] uppercase text-dim-3">
+        <span className="text-sm font-semibold tracking-[1.5px] uppercase text-dim-3">
           {t("studio_sidebar_sourceReels")}
         </span>
-        <span className="bg-studio-accent/15 text-studio-accent text-[9px] font-bold px-1.5 py-px rounded-full">
+        <span className="bg-studio-accent/15 text-studio-accent text-sm font-bold px-1.5 py-px rounded-full">
           {reels.length}
         </span>
       </div>
@@ -54,7 +54,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
               ) : (
                 <div
                   className={cn(
-                    "w-[38px] h-[50px] rounded-[6px] flex items-center justify-center text-base shrink-0",
+                    "w-[38px] h-[50px] rounded-[6px] flex items-center justify-center text-lg shrink-0",
                     isActive ? "bg-studio-accent/15" : "bg-overlay-sm"
                   )}
                 >
@@ -62,14 +62,14 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-studio-fg truncate">
+                <p className="text-sm font-semibold text-studio-fg truncate">
                   {reel.username}
                 </p>
-                <p className="text-[10px] text-dim-3 mt-px">
+                <p className="text-sm text-dim-3 mt-px">
                   {fmtNum(reel.views)} · {reel.engagementRate ?? "0"}%
                 </p>
                 {reel.videoR2Url ? (
-                  <span className="inline-block mt-0.5 text-[8px] font-semibold text-green-400/70 bg-green-400/10 px-1 py-px rounded">
+                  <span className="inline-block mt-0.5 text-sm font-semibold text-green-400/70 bg-green-400/10 px-1 py-px rounded">
                     ▶ VIDEO
                   </span>
                 ) : null}
@@ -80,7 +80,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
 
         {reels.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 px-3.5 py-8 text-center">
-            <p className="text-[11px] font-semibold text-dim-2">
+            <p className="text-sm font-semibold text-dim-2">
               {t("studio_sidebar_noReels")}
             </p>
           </div>

@@ -75,10 +75,10 @@ export function ChatPanel({
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-primary/60" />
               </div>
-              <h3 className="text-base font-medium">
+              <h3 className="text-lg font-medium">
                 {t("studio_chat_startConversation")}
               </h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
+              <p className="text-base text-muted-foreground max-w-xs">
                 {t("studio_chat_startConversationDescription")}
               </p>
             </div>
@@ -112,14 +112,14 @@ export function ChatPanel({
                   className="flex items-start gap-2.5 p-3 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 hover:border-border transition-colors text-left group"
                 >
                   <Icon className="w-3.5 h-3.5 text-muted-foreground/60 group-hover:text-primary/60 mt-0.5 shrink-0 transition-colors" />
-                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors leading-snug">
+                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-snug">
                     {label}
                   </span>
                 </button>
               ))}
             </div>
 
-            <p className="text-[11px] text-muted-foreground/40 text-center">
+            <p className="text-sm text-muted-foreground/40 text-center">
               {t("studio_chat_hint")}
             </p>
           </div>
@@ -150,14 +150,14 @@ export function ChatPanel({
               <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:150ms]" />
               <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:300ms]" />
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {t("studio_chat_aiThinking")}
             </span>
           </div>
         )}
 
         {streamError && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-sm">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-base">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{streamError}</span>
           </div>
@@ -170,18 +170,18 @@ export function ChatPanel({
         {!isLimitReached && <UsageWarningBanner />}
         <div className="p-4">
           {isLimitReached ? (
-            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-sm">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-base">
               <span className="text-warning font-medium">
                 {t("studio_chat_limit_reached")}
               </span>
               {isMaxPlan ? (
-                <span className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning">
+                <span className="shrink-0 text-sm font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning">
                   {t("studio_chat_limit_maxPlan")}
                 </span>
               ) : (
                 <a
                   href="/pricing"
-                  className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
+                  className="shrink-0 text-sm font-semibold px-3 py-1.5 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
                 >
                   {t("studio_chat_limit_upgrade")}
                 </a>

@@ -32,17 +32,17 @@ export function MusicTrackRow({
       />
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{track.name}</p>
+        <p className="text-base font-medium truncate">{track.name}</p>
         <div className="flex items-center gap-2 mt-0.5">
           {track.artistName && (
-            <span className="text-[11px] text-muted-foreground truncate">
+            <span className="text-sm text-muted-foreground truncate">
               {track.artistName}
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground/60">
+          <span className="text-sm text-muted-foreground/60">
             {formatDuration(track.durationSeconds)}
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
+          <span className="text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">
             {track.mood}
           </span>
         </div>
@@ -55,7 +55,7 @@ export function MusicTrackRow({
       ) : (
         <button
           onClick={onSelect}
-          className="shrink-0 text-xs font-medium px-2.5 py-1 rounded border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+          className="shrink-0 text-sm font-medium px-2.5 py-1 rounded border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
         >
           {t("audio_music_select")}
         </button>

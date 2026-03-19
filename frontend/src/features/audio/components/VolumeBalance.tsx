@@ -93,7 +93,7 @@ export function VolumeBalance({
     <div className="flex flex-col gap-2.5">
       {/* Section header */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("audio_mix_sectionTitle")}
         </span>
         <div className="flex items-center gap-1.5">
@@ -103,7 +103,7 @@ export function VolumeBalance({
           {canPreview && (
             <button
               onClick={mixPlaying ? handleMixStop : () => void handleMixPlay()}
-              className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border border-border hover:bg-muted transition-colors"
+              className="flex items-center gap-1 text-sm font-medium px-2 py-0.5 rounded border border-border hover:bg-muted transition-colors"
             >
               {mixPlaying ? (
                 <>
@@ -143,7 +143,7 @@ export function VolumeBalance({
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-md bg-primary/8 border border-primary/15">
           <Mic className="w-3 h-3 text-primary/70" />
-          <span className="text-[11px] font-semibold tabular-nums text-primary/80 min-w-[22px] text-right">
+          <span className="text-sm font-semibold tabular-nums text-primary/80 min-w-[22px] text-right">
             {voicePct}%
           </span>
         </div>
@@ -157,7 +157,7 @@ export function VolumeBalance({
           className="flex-1"
         />
         <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-md bg-violet-500/8 border border-violet-500/15">
-          <span className="text-[11px] font-semibold tabular-nums text-violet-500/80 min-w-[22px] text-left">
+          <span className="text-sm font-semibold tabular-nums text-violet-500/80 min-w-[22px] text-left">
             {musicPct}%
           </span>
           <Music className="w-3 h-3 text-violet-500/70" />
@@ -166,10 +166,10 @@ export function VolumeBalance({
 
       {/* Labels */}
       <div className="flex justify-between px-[2px]">
-        <span className="text-[10px] text-muted-foreground/50">
+        <span className="text-sm text-muted-foreground/50">
           {t("audio_volume_voice")}
         </span>
-        <span className="text-[10px] text-muted-foreground/50">
+        <span className="text-sm text-muted-foreground/50">
           {t("audio_volume_music")}
         </span>
       </div>

@@ -32,7 +32,7 @@ function StudioOverview() {
     <div className="space-y-6">
       <Card className="border-2">
         <CardHeader>
-          <CardTitle className="text-2xl">
+          <CardTitle className="text-3xl">
             {t("account_overview_title")}
           </CardTitle>
           <CardDescription>{t("account_overview_subtitle")}</CardDescription>
@@ -40,20 +40,20 @@ function StudioOverview() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3 mb-6">
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
-              <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-4xl font-bold text-foreground">—</p>
+              <p className="text-base text-muted-foreground mt-1">
                 {t("account_overview_reels_analyzed")}
               </p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
-              <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-4xl font-bold text-foreground">—</p>
+              <p className="text-base text-muted-foreground mt-1">
                 {t("account_overview_content_generated")}
               </p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
-              <p className="text-3xl font-bold text-foreground">—</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-4xl font-bold text-foreground">—</p>
+              <p className="text-base text-muted-foreground mt-1">
                 {t("account_overview_queue_items")}
               </p>
             </div>
@@ -135,7 +135,7 @@ export function AccountInteractive() {
       <TabsContent value="orders" className="space-y-6 mt-6">
         <Card className="border-2">
           <CardHeader>
-            <CardTitle className="text-2xl">
+            <CardTitle className="text-3xl">
               {t("account_orders_history")}
             </CardTitle>
             <CardDescription>
@@ -145,7 +145,7 @@ export function AccountInteractive() {
           <CardContent>
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium text-foreground mb-2">
+              <p className="text-xl font-medium text-foreground mb-2">
                 {t("account_orders_no_orders")}
               </p>
               <p className="text-muted-foreground">

@@ -118,10 +118,10 @@ function SignInPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-studio-accent/15">
                 <LogIn className="h-6 w-6 text-studio-accent" />
               </div>
-              <h1 className="text-[22px] font-bold text-primary">
+              <h1 className="text-2xl font-bold text-primary">
                 {t("common_welcome_back")}
               </h1>
-              <p className="text-[13px] text-dim-2">
+              <p className="text-base text-dim-2">
                 {t("common_sign_in_to_your_reelstudio_account")}
               </p>
             </div>
@@ -136,7 +136,7 @@ function SignInPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("admin_settings_placeholder_email")}
                   </label>
@@ -151,7 +151,7 @@ function SignInPage() {
                     data-testid="email-input"
                     className={cn(
                       "w-full h-11 bg-overlay-sm border border-overlay-md rounded-lg",
-                      "text-studio-fg text-[13px] px-3 outline-none font-studio",
+                      "text-studio-fg text-base px-3 outline-none font-studio",
                       "placeholder:text-dim-3 transition-colors",
                       "focus:border-studio-ring/50 disabled:opacity-50"
                     )}
@@ -161,7 +161,7 @@ function SignInPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="password"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("common_password")}
                   </label>
@@ -177,7 +177,7 @@ function SignInPage() {
                       data-testid="password-input"
                       className={cn(
                         "w-full h-11 bg-overlay-sm border border-overlay-md rounded-lg",
-                        "text-studio-fg text-[13px] px-3 pr-10 outline-none font-studio",
+                        "text-studio-fg text-base px-3 pr-10 outline-none font-studio",
                         "placeholder:text-dim-3 transition-colors",
                         "focus:border-studio-ring/50 disabled:opacity-50"
                       )}
@@ -199,7 +199,7 @@ function SignInPage() {
 
                 {error && (
                   <div className="bg-error/[0.08] border border-error/20 rounded-lg px-3 py-2.5">
-                    <p className="text-[12px] font-medium text-error">
+                    <p className="text-sm font-medium text-error">
                       {error}
                     </p>
                   </div>
@@ -211,7 +211,7 @@ function SignInPage() {
                   data-testid="sign-in-button"
                   className={cn(
                     "w-full h-11 bg-gradient-to-br from-studio-accent to-studio-purple",
-                    "text-white text-[13px] font-bold rounded-lg border-0 cursor-pointer",
+                    "text-white text-base font-bold rounded-lg border-0 cursor-pointer",
                     "transition-opacity hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed font-studio"
                   )}
                 >
@@ -224,7 +224,7 @@ function SignInPage() {
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-overlay-sm" />
                 </div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-[1px]">
+                <div className="relative flex justify-center text-sm uppercase tracking-[1px]">
                   <span className="bg-studio-surface px-3 text-dim-3">
                     {t("common_or_continue_with")}
                   </span>
@@ -238,7 +238,7 @@ function SignInPage() {
                 disabled={loading}
                 className={cn(
                   "w-full h-11 bg-overlay-sm border border-overlay-md",
-                  "text-dim-1 text-[13px] font-medium rounded-lg",
+                  "text-dim-1 text-base font-medium rounded-lg",
                   "cursor-pointer transition-all hover:bg-overlay-md hover:text-studio-fg",
                   "disabled:opacity-50 disabled:cursor-not-allowed font-studio",
                   "flex items-center justify-center gap-2"
@@ -266,7 +266,7 @@ function SignInPage() {
               </button>
 
               {/* Sign up link */}
-              <div className="text-center text-[12px] pt-1">
+              <div className="text-center text-sm pt-1">
                 <span className="text-dim-3">
                   {t("auth_no_account")}{" "}
                 </span>
@@ -281,7 +281,7 @@ function SignInPage() {
           </div>
 
           {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-[10px] text-dim-3">
+          <div className="flex items-center justify-center gap-6 text-sm text-dim-3">
             <div className="flex items-center gap-1.5">
               <Sparkles className="h-3 w-3 text-studio-accent" />
               <span>{t("common_14_day_free_trial")}</span>

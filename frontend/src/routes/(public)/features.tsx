@@ -166,10 +166,10 @@ function FeaturesPage() {
       {/* Studio Features */}
       <StudioSection>
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("studio_features_pillars")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
+          <p className="mx-auto max-w-[500px] text-base text-dim-2">
             {t("studio_features_pillars_description")}
           </p>
         </div>
@@ -190,17 +190,17 @@ function FeaturesPage() {
                       {feature.availableIn.map((tier) => (
                         <span
                           key={tier}
-                          className="text-[9px] font-semibold uppercase tracking-[0.5px] text-dim-3 border border-overlay-md rounded px-1.5 py-0.5"
+                          className="text-sm font-semibold uppercase tracking-[0.5px] text-dim-3 border border-overlay-md rounded px-1.5 py-0.5"
                         >
                           {tier}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <h3 className="text-[15px] font-bold text-studio-fg mb-1.5">
+                  <h3 className="text-base font-bold text-studio-fg mb-1.5">
                     {feature.title}
                   </h3>
-                  <p className="text-[12px] text-dim-2 leading-[1.6] mb-4">
+                  <p className="text-sm text-dim-2 leading-[1.6] mb-4">
                     {feature.description}
                   </p>
                 </div>
@@ -209,7 +209,7 @@ function FeaturesPage() {
                     {feature.features.map((item, idx) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 text-[11px] text-dim-2"
+                        className="flex items-start gap-2 text-sm text-dim-2"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5 text-green-400/70 flex-shrink-0 mt-0.5" />
                         <span>{item}</span>
@@ -226,10 +226,10 @@ function FeaturesPage() {
       {/* Platform Features */}
       <StudioSection variant="muted">
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("common_platform_features")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
+          <p className="mx-auto max-w-[500px] text-base text-dim-2">
             {t("features_platform_description")}
           </p>
         </div>
@@ -244,29 +244,29 @@ function FeaturesPage() {
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-studio-accent/15">
                   <Icon className="h-5 w-5 text-studio-accent" />
                 </div>
-                <h3 className="text-[14px] font-bold text-studio-fg mb-1">
+                <h3 className="text-base font-bold text-studio-fg mb-1">
                   {feature.title}
                 </h3>
-                <p className="text-[11px] text-dim-2 leading-[1.6] mb-3">
+                <p className="text-sm text-dim-2 leading-[1.6] mb-3">
                   {feature.description}
                 </p>
                 <div className="space-y-1 pt-3 border-t border-overlay-sm">
-                  <p className="text-[9px] font-semibold text-dim-3 uppercase tracking-[1px]">
+                  <p className="text-sm font-semibold text-dim-3 uppercase tracking-[1px]">
                     {t("features_available_in")}
                   </p>
-                  <p className="text-[11px] text-dim-2">
+                  <p className="text-sm text-dim-2">
                     <span className="font-medium text-studio-fg">
                       {t("subscription_basic")}:
                     </span>{" "}
                     {feature.tiers.basic}
                   </p>
-                  <p className="text-[11px] text-dim-2">
+                  <p className="text-sm text-dim-2">
                     <span className="font-medium text-studio-fg">
                       {t("subscription_pro")}:
                     </span>{" "}
                     {feature.tiers.pro}
                   </p>
-                  <p className="text-[11px] text-dim-2">
+                  <p className="text-sm text-dim-2">
                     <span className="font-medium text-studio-fg">
                       {t("subscription_enterprise")}:
                     </span>{" "}
@@ -282,10 +282,10 @@ function FeaturesPage() {
       {/* Use Cases */}
       <StudioSection>
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("studio_usecase_perfect_for")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
+          <p className="mx-auto max-w-[500px] text-base text-dim-2">
             {t("studio_usecase_perfect_for_description")}
           </p>
         </div>
@@ -305,23 +305,23 @@ function FeaturesPage() {
       {/* CTA */}
       <StudioSection variant="gradient" maxWidth="3xl">
         <div className="text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("features_ready_to_start")}
           </h2>
-          <p className="mb-7 text-[13px] text-dim-2">
+          <p className="mb-7 text-base text-dim-2">
             {t("features_ready_description")}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to="/pricing"
-              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[13px] font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
+              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-base font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
             >
               {t("common_view_pricing_plans")}{" "}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/sign-up"
-              className="bg-overlay-sm border border-overlay-md text-dim-1 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
+              className="bg-overlay-sm border border-overlay-md text-dim-1 text-base font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
             >
               {t("home_hero_cta_start_trial")}
             </Link>

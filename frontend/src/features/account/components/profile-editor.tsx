@@ -141,7 +141,7 @@ export function ProfileEditor() {
       <Card className="border-2">
         <CardContent className="py-16 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 text-base text-muted-foreground">
             {t("account_profile_loading")}
           </p>
         </CardContent>
@@ -172,7 +172,7 @@ export function ProfileEditor() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-3xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                   <User className="h-5 w-5 text-primary" />
                 </div>
@@ -208,18 +208,18 @@ export function ProfileEditor() {
           {/* Basic Information Section */}
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-1 flex items-center gap-2">
+              <h3 className="text-xl font-semibold mb-1 flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
                 {t("account_profile_basic_information")}
               </h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-base text-muted-foreground mb-4">
                 {t("common_your_primary_account_details")}
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">
+                <Label htmlFor="name" className="text-base font-medium">
                   {t("account_profile_full_name")}
                 </Label>
                 <Input
@@ -232,7 +232,7 @@ export function ProfileEditor() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
+                <Label htmlFor="email" className="text-base font-medium">
                   {t("account_profile_email_address")}
                 </Label>
                 <Input
@@ -244,7 +244,7 @@ export function ProfileEditor() {
                   disabled={isOAuthUser}
                   className="h-11"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {isOAuthUser
                     ? t("account_profile_oauth_email_note")
                     : t("account_profile_email_change_note")}
@@ -256,18 +256,18 @@ export function ProfileEditor() {
           {/* Contact Information Section */}
           <div className="space-y-6 border-t pt-6">
             <div>
-              <h3 className="text-lg font-semibold mb-1 flex items-center gap-2">
+              <h3 className="text-xl font-semibold mb-1 flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
                 {t("account_profile_contact_information")}
               </h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-base text-muted-foreground mb-4">
                 {t("account_profile_how_to_reach")}
               </p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-medium">
+                <Label htmlFor="phone" className="text-base font-medium">
                   {t("account_profile_phone_number")}
                 </Label>
                 <Input
@@ -283,7 +283,7 @@ export function ProfileEditor() {
               <div className="space-y-2">
                 <Label
                   htmlFor="address"
-                  className="text-sm font-medium flex items-center gap-2"
+                  className="text-base font-medium flex items-center gap-2"
                 >
                   <MapPin className="h-3 w-3" />
                   {t("account_profile_address")}
@@ -302,7 +302,7 @@ export function ProfileEditor() {
 
           {/* Action Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-6">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-base text-muted-foreground">
               {profile && (
                 <span>
                   {t("account_profile_last_updated")}{" "}
@@ -345,7 +345,7 @@ export function ProfileEditor() {
               <h4 className="font-semibold mb-2">
                 {t("account_profile_privacy_security")}
               </h4>
-              <ul className="text-sm text-muted-foreground space-y-1.5">
+              <ul className="text-base text-muted-foreground space-y-1.5">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600 mt-0.5 flex-shrink-0" />
                   <span>

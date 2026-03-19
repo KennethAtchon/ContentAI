@@ -45,14 +45,14 @@ export function VoiceCard({
       } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
     >
       <div
-        className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-sm shrink-0`}
+        className={`w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-base shrink-0`}
       >
         {initials}
       </div>
-      <span className="text-[13px] font-semibold leading-tight text-center">
+      <span className="text-base font-semibold leading-tight text-center">
         {voice.name}
       </span>
-      <span className="text-[11px] text-muted-foreground leading-tight text-center line-clamp-2">
+      <span className="text-sm text-muted-foreground leading-tight text-center line-clamp-2">
         {voice.description}
       </span>
 

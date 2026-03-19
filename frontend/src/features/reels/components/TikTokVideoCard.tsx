@@ -95,7 +95,7 @@ export function TikTokVideoCard({
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A2E] to-[#16213E] flex items-center justify-center">
-          <span className="text-[80px]">{reel.thumbnailEmoji ?? "🎬"}</span>
+          <span className="text-8xl">{reel.thumbnailEmoji ?? "🎬"}</span>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export function TikTokVideoCard({
 
       {/* No video badge */}
       {!hasVideo && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-sm text-white/70 text-[11px] font-medium px-3 py-1.5 rounded-full">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/60 backdrop-blur-sm text-white/70 text-sm font-medium px-3 py-1.5 rounded-full">
           {t("studio_feed_noVideo")}
         </div>
       )}
@@ -136,13 +136,13 @@ export function TikTokVideoCard({
 
       {/* Bottom-left info overlay */}
       <div className="absolute bottom-4 left-3 right-16 z-10">
-        <p className="text-[14px] font-bold text-white drop-shadow-lg mb-1">
+        <p className="text-base font-bold text-white drop-shadow-lg mb-1">
           @{reel.username}
         </p>
         {reel.hook && (
           <p
             className={cn(
-              "text-[13px] text-white/90 leading-[1.45] drop-shadow-md cursor-pointer",
+              "text-base text-white/90 leading-[1.45] drop-shadow-md cursor-pointer",
               !captionExpanded && "line-clamp-2"
             )}
             onClick={(e) => {
@@ -154,8 +154,8 @@ export function TikTokVideoCard({
           </p>
         )}
         {reel.audioName && (
-          <div className="flex items-center gap-1.5 mt-2 text-[12px] text-white/60">
-            <span className="inline-block w-3.5 h-3.5 rounded-full bg-white/20 text-center text-[10px] leading-[14px]">
+          <div className="flex items-center gap-1.5 mt-2 text-sm text-white/60">
+            <span className="inline-block w-3.5 h-3.5 rounded-full bg-white/20 text-center text-sm leading-[14px]">
               ♪
             </span>
             <span className="truncate max-w-[180px]">{reel.audioName}</span>
@@ -194,18 +194,18 @@ export function TikTokVideoCard({
 
       {/* Top-right: engagement badge */}
       <div className="absolute top-3 right-3 z-10 bg-black/50 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-center">
-        <p className="text-[10px] text-white/50">
+        <p className="text-sm text-white/50">
           {t("studio_panel_engagement")}
         </p>
-        <p className="text-[14px] font-bold text-studio-accent">
+        <p className="text-base font-bold text-studio-accent">
           {reel.engagementRate ?? "0"}%
         </p>
       </div>
 
       {/* Top-left: views badge */}
       <div className="absolute top-3 left-3 z-10 bg-black/50 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-        <span className="text-[10px] text-white/50">▶</span>
-        <span className="text-[13px] font-bold text-white">
+        <span className="text-sm text-white/50">▶</span>
+        <span className="text-base font-bold text-white">
           {fmtNum(reel.views)}
         </span>
       </div>
@@ -237,11 +237,11 @@ function ActionButton({
       onClick={onClick}
       className="flex flex-col items-center gap-1 bg-transparent border-0 cursor-pointer group"
     >
-      <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-lg transition-transform group-hover:scale-110 group-active:scale-95">
+      <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-xl transition-transform group-hover:scale-110 group-active:scale-95">
         {icon}
       </div>
       {label && (
-        <span className="text-[11px] text-white font-semibold drop-shadow-md">
+        <span className="text-sm text-white font-semibold drop-shadow-md">
           {label}
         </span>
       )}

@@ -334,7 +334,7 @@ function DeveloperPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Developer</h1>
+        <h1 className="text-3xl font-bold">Developer</h1>
         <p className="text-muted-foreground">
           Database tools and schema browser
         </p>
@@ -388,7 +388,7 @@ function DeveloperPage() {
               />
               <Label
                 htmlFor="includeDeleted"
-                className="text-sm font-medium cursor-pointer"
+                className="text-base font-medium cursor-pointer"
               >
                 {t("admin_developer_include_deleted_label")}
               </Label>
@@ -416,23 +416,23 @@ function DeveloperPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-sm font-semibold mb-2 block">
+                <Label className="text-base font-semibold mb-2 block">
                   {t("admin_developer_expected_post_parameters")}
                 </Label>
-                <pre className="bg-muted p-4 rounded-lg overflow-auto text-xs font-mono border">
+                <pre className="bg-muted p-4 rounded-lg overflow-auto text-sm font-mono border">
                   {JSON.stringify(expectedParams, null, 2)}
                 </pre>
               </div>
               <div>
                 <Label
                   htmlFor="json-input"
-                  className="text-sm font-semibold mb-2 block"
+                  className="text-base font-semibold mb-2 block"
                 >
                   JSON Input:
                 </Label>
                 <Textarea
                   id="json-input"
-                  className="font-mono text-sm min-h-[200px]"
+                  className="font-mono text-base min-h-[200px]"
                   value={jsonInput}
                   onChange={(e) => setJsonInput(e.target.value)}
                   placeholder={t("admin_developer_json_input_placeholder", {
@@ -483,14 +483,14 @@ function DeveloperPage() {
               ) : tableData && tableData.length > 0 ? (
                 <div className="space-y-4">
                   <div className="overflow-x-auto border rounded-lg">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-base">
                       <thead className="bg-muted">
                         <tr>
                           {selectedTable.keyFields.length > 0
                             ? selectedTable.keyFields.map((field) => (
                                 <th
                                   key={field}
-                                  className="px-3 py-2 text-left font-semibold text-xs"
+                                  className="px-3 py-2 text-left font-semibold text-sm"
                                 >
                                   {field}
                                 </th>
@@ -500,7 +500,7 @@ function DeveloperPage() {
                               Object.keys(tableData[0]).map((field) => (
                                 <th
                                   key={field}
-                                  className="px-3 py-2 text-left font-semibold text-xs"
+                                  className="px-3 py-2 text-left font-semibold text-sm"
                                 >
                                   {field}
                                 </th>
@@ -522,7 +522,7 @@ function DeveloperPage() {
                               ? selectedTable.keyFields
                               : Object.keys(row)
                             ).map((field) => (
-                              <td key={field} className="px-3 py-2 text-xs">
+                              <td key={field} className="px-3 py-2 text-sm">
                                 {typeof row[field] === "object" &&
                                 row[field] !== null
                                   ? JSON.stringify(row[field])
@@ -537,7 +537,7 @@ function DeveloperPage() {
 
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between border-t pt-4">
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-base text-muted-foreground">
                         Page {currentPage} of {totalPages}
                       </div>
                       <div className="flex items-center gap-2">

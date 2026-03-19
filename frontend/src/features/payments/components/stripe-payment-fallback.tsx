@@ -556,14 +556,14 @@ export default function StripePaymentFallback() {
         <div className="container">
           <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="mb-4">{getErrorIcon()}</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
               {getErrorTitle()}
             </h2>
             <p className="text-gray-600 mb-4">{error.message}</p>
 
             {/* Show retry count if retrying */}
             {retryCount > 0 && (
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-base text-gray-500 mb-4">
                 {t("payment_fallback_validation_attempted")} {retryCount}{" "}
                 {retryCount !== 1
                   ? t("payment_fallback_validation_times")
@@ -574,10 +574,10 @@ export default function StripePaymentFallback() {
             {/* Error details for debugging (only in development) */}
             {IS_DEVELOPMENT && error.details && (
               <details className="mb-4 text-left">
-                <summary className="text-sm text-gray-500 cursor-pointer">
+                <summary className="text-base text-gray-500 cursor-pointer">
                   {t("payment_fallback_validation_debug_details")}
                 </summary>
-                <pre className="text-xs text-gray-400 mt-2 bg-gray-100 p-2 rounded overflow-auto max-h-32">
+                <pre className="text-sm text-gray-400 mt-2 bg-gray-100 p-2 rounded overflow-auto max-h-32">
                   {error.details}
                 </pre>
               </details>
@@ -643,7 +643,7 @@ export default function StripePaymentFallback() {
             )}
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
             {isRetrying
               ? t("payment_fallback_retrying_payment")
               : t("payment_fallback_setting_up_payment")}
@@ -651,11 +651,11 @@ export default function StripePaymentFallback() {
 
           {/* Progress indicator */}
           <div className="mb-4">
-            <div className="text-sm text-gray-600 mb-2">{processingStage}</div>
+            <div className="text-base text-gray-600 mb-2">{processingStage}</div>
 
             {/* Show retry count if applicable */}
             {isRetrying && retryCount > 0 && (
-              <div className="text-xs text-blue-600">
+              <div className="text-sm text-blue-600">
                 {t("payment_fallback_validation_attempt")} {retryCount + 1}{" "}
                 {t("payment_fallback_validation_of")} {RETRY_CONFIG.maxAttempts}
               </div>
@@ -673,14 +673,14 @@ export default function StripePaymentFallback() {
           </div>
 
           {/* Status messages */}
-          <div className="text-sm text-gray-500 space-y-1">
+          <div className="text-base text-gray-500 space-y-1">
             {isProcessing && <p>{t("payment_fallback_securing_payment")}</p>}
             {isRetrying && <p>{t("payment_fallback_reconnecting")}</p>}
           </div>
 
           {/* Safety notice */}
           <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500">
+            <p className="text-sm text-gray-500">
               {t("payment_fallback_security_notice")}
             </p>
           </div>

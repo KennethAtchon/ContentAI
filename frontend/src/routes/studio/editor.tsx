@@ -26,8 +26,8 @@ function EditorPage() {
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <span className="text-[36px] opacity-40">✦</span>
-                <p className="text-[13px] font-semibold text-dim-2 mt-3">
+                <span className="text-5xl opacity-40">✦</span>
+                <p className="text-base font-semibold text-dim-2 mt-3">
                   {t("studio_loading")}
                 </p>
               </div>
@@ -37,11 +37,11 @@ function EditorPage() {
               <div className="rounded-xl border border-overlay-md bg-overlay-xs p-4 md:p-5">
                 <div className="flex items-center gap-2 text-primary">
                   <Film className="h-4 w-4 text-studio-accent" />
-                  <h1 className="text-sm md:text-base font-semibold tracking-wide">
+                  <h1 className="text-base md:text-lg font-semibold tracking-wide">
                     {t("studio_editor_title")}
                   </h1>
                 </div>
-                <p className="mt-1 text-xs text-dim-1">
+                <p className="mt-1 text-sm text-dim-1">
                   {t("studio_editor_subtitle")}
                 </p>
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -51,27 +51,27 @@ function EditorPage() {
                       className="rounded-lg border border-overlay-md bg-black/20 p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-primary">
+                        <p className="text-sm font-semibold text-primary">
                           {t("studio_editor_card_title", { id: item.id })}
                         </p>
-                        <span className="rounded border border-overlay-md px-2 py-0.5 text-[10px] text-dim-1">
+                        <span className="rounded border border-overlay-md px-2 py-0.5 text-sm text-dim-1">
                           {item.outputType}
                         </span>
                       </div>
-                      <p className="mt-2 line-clamp-2 text-[11px] text-dim-1">
+                      <p className="mt-2 line-clamp-2 text-sm text-dim-1">
                         {item.generatedHook ??
                           item.generatedCaption ??
                           t("studio_editor_card_fallback")}
                       </p>
                       <div className="mt-3 flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 text-[10px] text-dim-2">
+                        <span className="inline-flex items-center gap-1 text-sm text-dim-2">
                           <Sparkles className="h-3 w-3" />
                           {t("studio_editor_status", { status: item.status })}
                         </span>
                         <Link
                           to="/studio/editor/$generatedContentId"
                           params={{ generatedContentId: String(item.id) }}
-                          className="inline-flex items-center gap-1 rounded-md border border-studio-accent/40 bg-studio-accent/10 px-2.5 py-1 text-[11px] font-medium text-studio-accent hover:bg-studio-accent/15"
+                          className="inline-flex items-center gap-1 rounded-md border border-studio-accent/40 bg-studio-accent/10 px-2.5 py-1 text-sm font-medium text-studio-accent hover:bg-studio-accent/15"
                         >
                           <Scissors className="h-3 w-3" />
                           {t("studio_editor_open_action")}
@@ -85,15 +85,15 @@ function EditorPage() {
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="rounded-lg border border-overlay-md bg-overlay-xs p-6 text-center">
-                <p className="text-sm font-semibold text-primary">
+                <p className="text-base font-semibold text-primary">
                   {t("studio_editor_empty_title")}
                 </p>
-                <p className="mt-1 text-xs text-dim-1">
+                <p className="mt-1 text-sm text-dim-1">
                   {t("studio_editor_empty_subtitle")}
                 </p>
                 <Link
                   to="/studio/generate"
-                  className="mt-3 inline-flex rounded-md border border-overlay-lg px-3 py-1.5 text-xs text-dim-1 hover:bg-overlay-sm"
+                  className="mt-3 inline-flex rounded-md border border-overlay-lg px-3 py-1.5 text-sm text-dim-1 hover:bg-overlay-sm"
                 >
                   {t("studio_editor_go_generate")}
                 </Link>

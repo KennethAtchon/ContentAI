@@ -34,9 +34,9 @@ export function StudioFeatureCard({
       <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-studio-accent/15 transition-transform group-hover:scale-110">
         <Icon className="h-5 w-5 text-studio-accent" />
       </div>
-      <h3 className="mb-1.5 text-[14px] font-bold text-studio-fg">{title}</h3>
+      <h3 className="mb-1.5 text-base font-bold text-studio-fg">{title}</h3>
       {description && (
-        <p className="text-[12px] text-dim-2 leading-[1.6]">
+        <p className="text-sm text-dim-2 leading-[1.6]">
           {description}
         </p>
       )}

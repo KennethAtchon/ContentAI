@@ -26,7 +26,7 @@ export function AudioStatusBadge({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1 text-[10px] text-success dark:text-success hover:underline"
+      className="flex items-center gap-1 text-sm text-success dark:text-success hover:underline"
     >
       <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
       {label}

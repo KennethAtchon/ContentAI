@@ -94,12 +94,12 @@ export function SubscriptionAnalytics() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               Monthly Recurring Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               $
               {analytics.mrr.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -110,12 +110,12 @@ export function SubscriptionAnalytics() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               Annual Recurring Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               $
               {analytics.arr.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -126,12 +126,12 @@ export function SubscriptionAnalytics() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               Churn Rate
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               {analytics.churnRate.toFixed(2)}%
             </div>
           </CardContent>
@@ -139,18 +139,18 @@ export function SubscriptionAnalytics() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               ARPU
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               $
               {analytics.arpu.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
               })}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Average Revenue Per User
             </p>
           </CardContent>

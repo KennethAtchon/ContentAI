@@ -58,7 +58,7 @@ export function ReelPickerModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[80vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-4 pt-4 pb-3 border-b">
-          <DialogTitle className="text-sm">
+          <DialogTitle className="text-base">
             {t("studio_chat_reelPicker_title")}
           </DialogTitle>
         </DialogHeader>
@@ -68,7 +68,7 @@ export function ReelPickerModal({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("studio_chat_reelPicker_search")}
-            className="h-8 text-sm"
+            className="h-8 text-base"
             autoFocus
           />
 
@@ -76,7 +76,7 @@ export function ReelPickerModal({
             <div className="flex gap-1.5 flex-wrap">
               <button
                 onClick={() => setSelectedNicheId(null)}
-                className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                className={`text-sm font-medium px-2.5 py-1 rounded-full border transition-colors ${
                   !selectedNicheId
                     ? "bg-primary/15 text-primary border-primary/30"
                     : "bg-overlay-xs text-muted-foreground border-overlay-md hover:text-foreground"
@@ -90,7 +90,7 @@ export function ReelPickerModal({
                   onClick={() =>
                     setSelectedNicheId(selectedNicheId === n.id ? null : n.id)
                   }
-                  className={`text-[10px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  className={`text-sm font-medium px-2.5 py-1 rounded-full border transition-colors ${
                     selectedNicheId === n.id
                       ? "bg-primary/15 text-primary border-primary/30"
                       : "bg-overlay-xs text-muted-foreground border-overlay-md hover:text-foreground"
@@ -114,7 +114,7 @@ export function ReelPickerModal({
               ))}
             </div>
           ) : reels.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
+            <p className="text-base text-muted-foreground text-center py-8">
               {t("studio_chat_reelPicker_empty")}
             </p>
           ) : (
@@ -129,24 +129,24 @@ export function ReelPickerModal({
                     isSelected ? "opacity-40 cursor-default" : "cursor-pointer"
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-overlay-sm flex items-center justify-center text-base shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-overlay-sm flex items-center justify-center text-lg shrink-0">
                     {reel.thumbnailEmoji ?? "🎬"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold truncate">
+                    <p className="text-sm font-semibold truncate">
                       @{reel.username}
                     </p>
                     {reel.hook && (
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {reel.hook.slice(0, 60)}
                       </p>
                     )}
-                    <p className="text-[10px] text-muted-foreground/60">
+                    <p className="text-sm text-muted-foreground/60">
                       {fmtNum(reel.views)} views · {reel.niche}
                     </p>
                   </div>
                   {isSelected && (
-                    <span className="text-[10px] text-primary font-semibold shrink-0">
+                    <span className="text-sm text-primary font-semibold shrink-0">
                       ✓
                     </span>
                   )}

@@ -29,7 +29,7 @@ export function OrderProductsModal({
         </DialogHeader>
         {order && (
           <div className="space-y-2">
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               Order details feature removed - SaaS model.
             </span>
           </div>

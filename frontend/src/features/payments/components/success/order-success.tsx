@@ -26,27 +26,27 @@ export function OrderSuccess({ sessionId, orderId }: OrderSuccessProps) {
           <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
             <CheckCircle2 className="h-12 w-12 text-green-600" />
           </div>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mb-4 text-5xl font-bold tracking-tight md:text-6xl">
             Payment Successful!
           </h1>
-          <p className="mb-8 text-lg text-muted-foreground">
+          <p className="mb-8 text-xl text-muted-foreground">
             Your order has been processed successfully. Thank you for your
             purchase!
           </p>
 
           {/* Success Details */}
           <div className="mb-8 space-y-3 rounded-lg border bg-background/50 p-6">
-            <div className="flex items-center justify-center gap-2 text-sm">
+            <div className="flex items-center justify-center gap-2 text-base">
               <ShoppingCart className="h-4 w-4 text-primary" />
               <span className="font-medium">Order Confirmed</span>
             </div>
             {sessionId && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Session ID: {sessionId.substring(0, 20)}...
               </p>
             )}
             {orderId && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Order ID: {orderId.substring(0, 20)}...
               </p>
             )}

@@ -142,7 +142,7 @@ export default function AdminVerifyPage() {
             <div className="mx-auto w-12 h-12 bg-studio-accent/20 rounded-full flex items-center justify-center mb-4">
               <Shield className="h-6 w-6 text-studio-accent" />
             </div>
-            <CardTitle className="text-white text-xl">
+            <CardTitle className="text-white text-2xl">
               {t("admin_verify_title")}
             </CardTitle>
             <CardDescription className="text-dim-2">
@@ -187,7 +187,7 @@ export default function AdminVerifyPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-xs text-dim-2">
+              <p className="text-sm text-dim-2">
                 {t("admin_verify_footer_note")}
               </p>
             </div>

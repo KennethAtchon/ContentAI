@@ -5,10 +5,10 @@ export function RenderPanelPlaceholder() {
 
   return (
     <section className="rounded-lg border border-border/60 p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+      <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
         {t("phase5_editor_render")}
       </p>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         {t("phase5_editor_render_placeholder")}
       </p>
     </section>

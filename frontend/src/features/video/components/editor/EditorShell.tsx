@@ -129,7 +129,7 @@ export function EditorShell({
         {/* Left: Media library */}
         <div className="border-r border-overlay-sm overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col">
           {isMobile && editMode === "precision" ? (
-            <p className="mx-3 mt-3 rounded border border-overlay-md bg-overlay-xs px-2 py-1 text-[10px] text-dim-2">
+            <p className="mx-3 mt-3 rounded border border-overlay-md bg-overlay-xs px-2 py-1 text-sm text-dim-2">
               {t("phase5_editor_mobile_precision_fallback")}
             </p>
           ) : null}

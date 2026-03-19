@@ -133,13 +133,13 @@ function DiscoverPage() {
                   value={activeNicheValue ?? undefined}
                   onValueChange={(val) => handleNicheChange(val)}
                 >
-                  <SelectTrigger className="w-full h-8 bg-overlay-sm border-overlay-md text-[12px] text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
+                  <SelectTrigger className="w-full h-8 bg-overlay-sm border-overlay-md text-sm text-studio-fg rounded-lg focus:ring-studio-accent/50 focus:ring-offset-0">
                     <SelectValue placeholder={t("studio_search_placeholder")} />
                   </SelectTrigger>
                   <SelectContent className="bg-studio-surface border-overlay-md text-studio-fg">
                     <SelectItem
                       value="trending"
-                      className="text-[12px] text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
+                      className="text-sm text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
                     >
                       🔥 {t("studio_discover_trending")}
                     </SelectItem>
@@ -147,7 +147,7 @@ function DiscoverPage() {
                       <SelectItem
                         key={n.id}
                         value={String(n.id)}
-                        className="text-[12px] text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
+                        className="text-sm text-studio-fg focus:bg-studio-accent/[0.12] focus:text-studio-fg"
                       >
                         {n.name}
                       </SelectItem>
@@ -174,7 +174,7 @@ function DiscoverPage() {
                     <button
                       onClick={loadMore}
                       disabled={isFetching}
-                      className="mx-3 mb-2 py-1.5 text-[11px] text-dim-2 hover:text-studio-accent border border-overlay-sm rounded-lg transition-colors disabled:opacity-40"
+                      className="mx-3 mb-2 py-1.5 text-sm text-dim-2 hover:text-studio-accent border border-overlay-sm rounded-lg transition-colors disabled:opacity-40"
                     >
                       {isFetching
                         ? "Loading…"
@@ -244,9 +244,9 @@ function EmptyCanvas({
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12 text-center">
-      <span className="text-[40px] opacity-50">{icon}</span>
-      <p className="text-[14px] font-semibold text-dim-2">{label}</p>
-      {sub && <p className="text-[12px] text-dim-3">{sub}</p>}
+      <span className="text-5xl opacity-50">{icon}</span>
+      <p className="text-base font-semibold text-dim-2">{label}</p>
+      {sub && <p className="text-sm text-dim-3">{sub}</p>}
     </div>
   );
 }

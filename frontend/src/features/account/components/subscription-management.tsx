@@ -114,19 +114,19 @@ export function SubscriptionManagement() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 {t("account_subscription_billing_cycle")}
               </p>
-              <p className="text-lg font-semibold capitalize">
+              <p className="text-xl font-semibold capitalize">
                 {tierConfig.billingCycle}
               </p>
             </div>
             {usageStats?.resetDate && (
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   {t("account_subscription_next_billing_date")}
                 </p>
-                <p className="text-lg font-semibold">
+                <p className="text-xl font-semibold">
                   {new Date(usageStats.resetDate).toLocaleDateString()}
                 </p>
               </div>
@@ -156,7 +156,7 @@ export function SubscriptionManagement() {
             {usageStats.usageLimit !== null && (
               <>
                 <Progress value={usageStats.percentageUsed} className="h-2" />
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-base">
                   <span className="text-muted-foreground">
                     {t("account_subscription_percent_used", {
                       percentage: usageStats.percentageUsed,
@@ -195,7 +195,7 @@ export function SubscriptionManagement() {
           <ul className="space-y-2">
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm">
+              <span className="text-base">
                 {tierConfig.features.maxReelsPerMonth === -1
                   ? t("account_subscription_unlimited_calculations_feature")
                   : t("account_subscription_reels_per_month", {
@@ -205,13 +205,13 @@ export function SubscriptionManagement() {
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm">
+              <span className="text-base">
                 {t("account_subscription_content_types")}
               </span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm">
+              <span className="text-base">
                 {tierConfig.features.instagramPublishing
                   ? "Instagram publishing"
                   : "Export & save content"}
@@ -219,7 +219,7 @@ export function SubscriptionManagement() {
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              <span className="text-sm">
+              <span className="text-base">
                 {t("account_subscription_support_level", {
                   level: tierConfig.features.supportLevel,
                 })}
@@ -228,7 +228,7 @@ export function SubscriptionManagement() {
             {tierConfig.features.apiAccess && (
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
-                <span className="text-sm">
+                <span className="text-base">
                   {t("account_subscription_api_access")}
                 </span>
               </li>
@@ -248,7 +248,7 @@ export function SubscriptionManagement() {
           <ManageSubscriptionButton className="w-full">
             {t("account_subscription_manage_subscription")}
           </ManageSubscriptionButton>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {t("account_subscription_manage_stripe_portal")}
           </p>
         </CardContent>

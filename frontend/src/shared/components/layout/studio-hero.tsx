@@ -32,18 +32,18 @@ export function StudioHero({
 
       <div className="max-w-[900px] mx-auto relative py-14 md:py-20 px-6 text-center">
         {badge && (
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-overlay-md bg-overlay-xs px-3.5 py-1.5 text-[11px] font-studio backdrop-blur-sm">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-overlay-md bg-overlay-xs px-3.5 py-1.5 text-sm font-studio backdrop-blur-sm">
             {BadgeIcon && (
               <BadgeIcon className="h-3.5 w-3.5 text-studio-accent" />
             )}
             <span className="text-dim-2">{badge.text}</span>
           </div>
         )}
-        <h1 className="mb-5 text-[32px] md:text-[42px] font-bold text-primary tracking-tight leading-[1.12]">
+        <h1 className="mb-5 text-4xl md:text-5xl font-bold text-primary tracking-tight leading-[1.12]">
           {title}
         </h1>
         {description && (
-          <p className="text-[15px] text-dim-2 max-w-[600px] mx-auto leading-[1.65]">
+          <p className="text-base text-dim-2 max-w-[600px] mx-auto leading-[1.65]">
             {description}
           </p>
         )}

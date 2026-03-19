@@ -26,7 +26,7 @@ export function UsageMeter({
 }: UsageMeterProps) {
   if (usageLimit === null) {
     return (
-      <div className={cn("text-sm text-muted-foreground", className)}>
+      <div className={cn("text-base text-muted-foreground", className)}>
         Unlimited usage
       </div>
     );
@@ -39,7 +39,7 @@ export function UsageMeter({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-base">
         <span className="text-muted-foreground">
           {currentUsage} / {usageLimit} calculations
         </span>
@@ -62,7 +62,7 @@ export function UsageMeter({
         )}
       />
       {resetDate && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Resets on {resetDate.toLocaleDateString()}
         </p>
       )}

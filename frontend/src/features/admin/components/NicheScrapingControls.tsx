@@ -172,7 +172,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 }
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Maximum number of reels to scrape (1-10000)
               </p>
             </div>
@@ -192,7 +192,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 }
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Only scrape reels with at least this many views
               </p>
             </div>
@@ -213,7 +213,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                 }
                 className="mt-1"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Only scrape reels posted within this many days (1-365)
               </p>
             </div>
@@ -250,7 +250,7 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         <CardContent className="space-y-4">
           <div className="bg-muted p-4 rounded-lg">
             <h4 className="font-medium mb-2">Current Configuration:</h4>
-            <ul className="text-sm space-y-1">
+            <ul className="text-base space-y-1">
               <li>• Max reels: {config.limit}</li>
               <li>• Minimum views: {config.minViews.toLocaleString()}</li>
               <li>• Maximum age: {config.maxDaysOld} days</li>
@@ -266,9 +266,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
           {lastJob && (
             <div className="bg-muted p-4 rounded-lg">
               <h4 className="font-medium mb-2">Last Job:</h4>
-              <p className="text-sm">Job ID: {lastJob.jobId}</p>
-              <p className="text-sm">Status: {lastJob.status}</p>
-              <p className="text-sm">Niche: {lastJob.nicheName}</p>
+              <p className="text-base">Job ID: {lastJob.jobId}</p>
+              <p className="text-base">Status: {lastJob.status}</p>
+              <p className="text-base">Niche: {lastJob.nicheName}</p>
             </div>
           )}
         </CardContent>

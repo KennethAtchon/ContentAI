@@ -69,10 +69,10 @@ function PricingPage() {
       {/* FAQ */}
       <StudioSection maxWidth="3xl">
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("common_frequently_asked_questions")}
           </h2>
-          <p className="text-[13px] text-dim-2">
+          <p className="text-base text-dim-2">
             {t("common_everything_you_need_to_know_about_our_pricing")}
           </p>
         </div>
@@ -84,10 +84,10 @@ function PricingPage() {
                 value={`item-${index}`}
                 className="border-b border-overlay-sm"
               >
-                <AccordionTrigger className="text-left text-[13px] font-semibold text-studio-fg hover:no-underline">
+                <AccordionTrigger className="text-left text-base font-semibold text-studio-fg hover:no-underline">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-[12px] text-dim-2 leading-[1.7]">
+                <AccordionContent className="text-sm text-dim-2 leading-[1.7]">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -99,10 +99,10 @@ function PricingPage() {
       {/* CTA */}
       <StudioSection variant="gradient" maxWidth="3xl">
         <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("pricing_ready_title")}
           </h2>
-          <p className="mb-7 text-[13px] text-dim-2">
+          <p className="mb-7 text-base text-dim-2">
             {t(
               "common_start_your_14_day_free_trial_today_no_credit_card_required"
             )}
@@ -113,14 +113,14 @@ function PricingPage() {
               search={
                 { tier: SUBSCRIPTION_TIERS.PRO, billing: "monthly" } as any
               }
-              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[13px] font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
+              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-base font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
             >
               {t("home_hero_cta_start_trial")}{" "}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/contact"
-              className="bg-overlay-sm border border-overlay-md text-dim-1 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
+              className="bg-overlay-sm border border-overlay-md text-dim-1 text-base font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
             >
               {t("home_cta_contact_sales")}
             </Link>

@@ -127,28 +127,28 @@ function ErrorBoundaryContent({
           {IS_DEVELOPMENT && error && (
             <div className="space-y-3">
               <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
-                <p className="text-sm font-semibold text-destructive mb-2">
+                <p className="text-base font-semibold text-destructive mb-2">
                   Error Message:
                 </p>
-                <p className="text-sm font-mono text-destructive">
+                <p className="text-base font-mono text-destructive">
                   {error.message}
                 </p>
               </div>
 
               {error.stack && (
                 <div className="rounded-md bg-muted p-3 max-h-32 overflow-y-auto">
-                  <p className="text-sm font-semibold mb-2">Stack Trace:</p>
-                  <pre className="text-xs font-mono whitespace-pre-wrap">
+                  <p className="text-base font-semibold mb-2">Stack Trace:</p>
+                  <pre className="text-sm font-mono whitespace-pre-wrap">
                     {error.stack}
                   </pre>
                 </div>
               )}
 
               <div className="rounded-md bg-info/10 border border-info/20 p-3">
-                <p className="text-sm font-semibold text-info mb-1">
+                <p className="text-base font-semibold text-info mb-1">
                   Debug Info:
                 </p>
-                <div className="text-xs text-info/80 space-y-1">
+                <div className="text-sm text-info/80 space-y-1">
                   <p>
                     <strong>Location:</strong> {window.location.href}
                   </p>
@@ -166,8 +166,8 @@ function ErrorBoundaryContent({
 
           {!IS_DEVELOPMENT && (
             <div className="text-center space-y-3">
-              <div className="text-4xl">🐕‍🦺</div>
-              <p className="text-sm text-muted-italic">{randomDogMessage}</p>
+              <div className="text-5xl">🐕‍🦺</div>
+              <p className="text-base text-muted-italic">{randomDogMessage}</p>
             </div>
           )}
 

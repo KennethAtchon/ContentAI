@@ -70,11 +70,11 @@ function UploadModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-md shadow-2xl">
         <div className="p-6 border-b border-overlay-sm">
-          <h2 className="text-lg font-semibold text-studio-fg">Upload Track</h2>
+          <h2 className="text-xl font-semibold text-studio-fg">Upload Track</h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+            <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
               MP3 File <span className="text-error">*</span>
             </label>
             <div
@@ -84,14 +84,14 @@ function UploadModal({ onClose }: { onClose: () => void }) {
               {file ? (
                 <>
                   <Upload className="h-4 w-4 text-studio-accent" />
-                  <span className="text-[12px] text-studio-fg truncate max-w-[280px] px-4">
+                  <span className="text-sm text-studio-fg truncate max-w-[280px] px-4">
                     {file.name}
                   </span>
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4 text-dim-3" />
-                  <span className="text-[12px] text-dim-2">
+                  <span className="text-sm text-dim-2">
                     Click to select MP3 (max 10MB)
                   </span>
                 </>
@@ -107,7 +107,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+            <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
               Track Name <span className="text-error">*</span>
             </label>
             <input
@@ -115,25 +115,25 @@ function UploadModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="e.g. Sunset Drive"
-              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+            <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
               Artist Name
             </label>
             <input
               value={artistName}
               onChange={(e) => setArtistName(e.target.value)}
               placeholder="e.g. Audio Library"
-              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+              <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
                 Mood <span className="text-error">*</span>
               </label>
               <select
@@ -141,7 +141,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) =>
                   setMood(e.target.value as (typeof MOODS)[number])
                 }
-                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-3 text-[13px] text-studio-fg outline-none focus:border-studio-accent/50 transition-colors"
+                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-3 text-base text-studio-fg outline-none focus:border-studio-accent/50 transition-colors"
               >
                 {MOODS.map((m) => (
                   <option key={m} value={m} className="bg-gray-900 capitalize">
@@ -152,20 +152,20 @@ function UploadModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+              <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
                 Genre
               </label>
               <input
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 placeholder="e.g. lo-fi"
-                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+                className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
               />
             </div>
           </div>
 
           {error && (
-            <p className="text-[12px] text-error bg-error/10 rounded-lg px-3 py-2">
+            <p className="text-sm text-error bg-error/10 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -219,10 +219,10 @@ function DeleteConfirm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-        <h3 className="text-base font-semibold text-studio-fg">
+        <h3 className="text-lg font-semibold text-studio-fg">
           Delete Track?
         </h3>
-        <p className="text-[13px] text-dim-2">
+        <p className="text-base text-dim-2">
           This will permanently remove{" "}
           <strong className="text-studio-fg">{track.name}</strong> from the
           library. Existing user attachments will show "track unavailable".
@@ -292,10 +292,10 @@ function MusicPage() {
               <Music className="h-5 w-5 text-studio-accent" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-studio-fg">
+              <h2 className="text-2xl font-bold text-studio-fg">
                 Music Library
               </h2>
-              <p className="text-[12px] text-dim-2">
+              <p className="text-sm text-dim-2">
                 Upload and manage background music tracks for users
               </p>
             </div>
@@ -322,12 +322,12 @@ function MusicPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tracks…"
-            className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 pl-9 pr-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+            className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 pl-9 pr-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
           />
         </div>
 
         <div className="rounded-2xl border border-overlay-sm overflow-hidden">
-          <div className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] text-[11px] font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
+          <div className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] text-sm font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
             <span>Track</span>
             <span>Mood</span>
             <span>Genre</span>
@@ -355,13 +355,13 @@ function MusicPage() {
           ) : tracks.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <Music className="h-10 w-10 text-dim-3" />
-              <p className="text-[14px] font-medium text-dim-3">
+              <p className="text-base font-medium text-dim-3">
                 {search ? "No tracks match your search" : "No music tracks yet"}
               </p>
               {!search && (
                 <button
                   onClick={() => setUploading(true)}
-                  className="text-[12px] text-studio-accent hover:underline"
+                  className="text-sm text-studio-accent hover:underline"
                 >
                   Upload your first track
                 </button>
@@ -375,25 +375,25 @@ function MusicPage() {
                   className="grid grid-cols-[1fr_120px_80px_80px_120px_100px] items-center px-4 py-3.5 hover:bg-overlay-xs transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-studio-fg truncate">
+                    <p className="text-base font-medium text-studio-fg truncate">
                       {track.name}
                     </p>
                     {track.artistName && (
-                      <p className="text-[11px] text-dim-2 truncate mt-0.5">
+                      <p className="text-sm text-dim-2 truncate mt-0.5">
                         {track.artistName}
                       </p>
                     )}
                   </div>
 
-                  <span className="text-[12px] text-dim-1 capitalize">
+                  <span className="text-sm text-dim-1 capitalize">
                     {track.mood}
                   </span>
 
-                  <span className="text-[12px] text-dim-2">
+                  <span className="text-sm text-dim-2">
                     {track.genre || "—"}
                   </span>
 
-                  <span className="text-[12px] text-dim-1 tabular-nums">
+                  <span className="text-sm text-dim-1 tabular-nums">
                     {formatDuration(track.durationSeconds)}
                   </span>
 
@@ -402,7 +402,7 @@ function MusicPage() {
                       onClick={() => handleToggle(track)}
                       disabled={toggleTrack.isPending}
                       className={cn(
-                        "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors",
+                        "inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded-full transition-colors",
                         track.isActive
                           ? "bg-success/10 text-success hover:bg-success/20"
                           : "bg-overlay-sm text-dim-3 hover:bg-overlay-md"
@@ -435,7 +435,7 @@ function MusicPage() {
         </div>
 
         {tracks.length > 0 && (
-          <p className="text-[12px] text-dim-3 text-right">
+          <p className="text-sm text-dim-3 text-right">
             {tracks.length} track{tracks.length !== 1 ? "s" : ""} total
           </p>
         )}

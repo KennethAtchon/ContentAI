@@ -19,21 +19,21 @@ export function MusicAttachment({
     <div className="flex flex-col gap-3">
       {/* Section header */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("audio_music_sectionTitle")}
         </span>
         {currentTrack && (
           <div className="flex items-center gap-1">
             <button
               onClick={onBrowse}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               {t("audio_music_change")}
             </button>
             <span className="text-muted-foreground/30">·</span>
             <button
               onClick={onRemove}
-              className="text-[10px] text-destructive/70 hover:text-destructive transition-colors"
+              className="text-sm text-destructive/70 hover:text-destructive transition-colors"
             >
               {t("audio_music_remove")}
             </button>
@@ -50,9 +50,9 @@ export function MusicAttachment({
             variant="compact"
           />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate">{currentTrack.name}</p>
+            <p className="text-sm font-medium truncate">{currentTrack.name}</p>
             {currentTrack.artistName && (
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-sm text-muted-foreground truncate">
                 {currentTrack.artistName}
               </p>
             )}
@@ -61,12 +61,12 @@ export function MusicAttachment({
       ) : (
         /* Empty state */
         <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {t("audio_music_addPrompt")}
           </p>
           <button
             onClick={onBrowse}
-            className="text-[10px] font-medium px-2.5 py-1 rounded border border-border hover:bg-muted transition-colors shrink-0"
+            className="text-sm font-medium px-2.5 py-1 rounded border border-border hover:bg-muted transition-colors shrink-0"
           >
             {t("audio_music_browse")}
           </button>

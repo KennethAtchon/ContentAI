@@ -40,8 +40,8 @@ function HelpListItem({ section, description, icon: Icon }: HelpItem) {
         <Icon className="h-4 w-4 text-primary" />
       </div>
       <div className="flex-1">
-        <h3 className="font-semibold text-sm mb-1">{section}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <h3 className="font-semibold text-base mb-1">{section}</h3>
+        <p className="text-base text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -91,13 +91,13 @@ export function HelpModal() {
   return (
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle className="text-2xl flex items-center gap-2">
+        <DialogTitle className="text-3xl flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <HelpCircle className="h-5 w-5 text-primary" />
           </div>
           {t("common_dashboard_help")}
         </DialogTitle>
-        <DialogDescription className="text-base pt-2">
+        <DialogDescription className="text-lg pt-2">
           {t(
             "common_quick_guide_on_how_to_use_each_section_of_the_admin_dashboard"
           )}
@@ -111,7 +111,7 @@ export function HelpModal() {
       </div>
 
       <div className="pt-4 border-t">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           {t(
             "common_if_you_need_further_assistance_please_contact_support_or_ref"
           )}

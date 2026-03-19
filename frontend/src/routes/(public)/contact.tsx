@@ -35,11 +35,11 @@ function ContactPage() {
             <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-6">
               <div className="flex items-center gap-2 mb-2">
                 <MessageSquare className="h-5 w-5 text-studio-accent" />
-                <h2 className="text-[16px] font-bold text-studio-fg">
+                <h2 className="text-lg font-bold text-studio-fg">
                   {t("common_send_us_a_message")}
                 </h2>
               </div>
-              <p className="text-[12px] text-dim-2 mb-5">
+              <p className="text-sm text-dim-2 mb-5">
                 {t("contact_form_description")}
               </p>
               <ContactPageClient />
@@ -50,7 +50,7 @@ function ContactPage() {
           <div className="space-y-5">
             {/* Contact Info Card */}
             <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-5">
-              <h3 className="text-[14px] font-bold text-studio-fg mb-4">
+              <h3 className="text-base font-bold text-studio-fg mb-4">
                 {t("account_profile_contact_information")}
               </h3>
               <div className="space-y-4">
@@ -61,7 +61,7 @@ function ContactPage() {
                 >
                   <a
                     href={`mailto:${SUPPORT_EMAIL}`}
-                    className="text-[11px] text-studio-accent hover:underline flex items-center gap-1 mt-2 no-underline"
+                    className="text-sm text-studio-accent hover:underline flex items-center gap-1 mt-2 no-underline"
                   >
                     {t("contact_send_email")} <ArrowRight className="h-3 w-3" />
                   </a>
@@ -71,7 +71,7 @@ function ContactPage() {
                   title={t("admin_contact_messages_phone")}
                   description={t("account_profile_placeholder_phone")}
                 >
-                  <p className="text-[10px] text-dim-3 mt-2">
+                  <p className="text-sm text-dim-3 mt-2">
                     {t("common_mon_fri_9am_5pm_est")}
                   </p>
                 </StudioFeatureCard>
@@ -80,7 +80,7 @@ function ContactPage() {
                   title={t("metadata_support_title")}
                   description={t("contact_support_description")}
                 >
-                  <p className="text-[10px] text-dim-3 mt-2">
+                  <p className="text-sm text-dim-3 mt-2">
                     {t("contact_support_priority")}
                   </p>
                 </StudioFeatureCard>
@@ -89,20 +89,20 @@ function ContactPage() {
 
             {/* Help Links */}
             <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] p-5">
-              <h3 className="text-[14px] font-bold text-studio-fg mb-3">
+              <h3 className="text-base font-bold text-studio-fg mb-3">
                 {t("payment_cancel_need_help")}
               </h3>
               <div className="space-y-2">
                 <a
                   href="/faq"
-                  className="flex items-center gap-2 text-[12px] text-dim-2 hover:text-studio-accent transition-colors no-underline"
+                  className="flex items-center gap-2 text-sm text-dim-2 hover:text-studio-accent transition-colors no-underline"
                 >
                   <ArrowRight className="h-3.5 w-3.5" />{" "}
                   {t("common_visit_our_faq_page")}
                 </a>
                 <a
                   href="/pricing"
-                  className="flex items-center gap-2 text-[12px] text-dim-2 hover:text-studio-accent transition-colors no-underline"
+                  className="flex items-center gap-2 text-sm text-dim-2 hover:text-studio-accent transition-colors no-underline"
                 >
                   <ArrowRight className="h-3.5 w-3.5" />{" "}
                   {t("contact_view_pricing")}

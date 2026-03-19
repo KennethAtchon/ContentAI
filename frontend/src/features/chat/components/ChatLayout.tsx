@@ -205,7 +205,7 @@ export function ChatLayout({
 
   const workspaceToggleClass = useMemo(() => {
     const base =
-      "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-all duration-150";
+      "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm font-medium transition-all duration-150";
     return workspaceOpen
       ? `${base} border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] hover:border-primary/40`
       : `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
@@ -260,11 +260,11 @@ export function ChatLayout({
           <>
             <div className="border-b px-5 py-3 shrink-0 flex items-center justify-between gap-3 min-w-0">
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-semibold truncate">
+                <h2 className="text-base font-semibold truncate">
                   {selectedSession.title}
                 </h2>
                 {selectedProject && (
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-sm text-muted-foreground truncate">
                     {selectedProject.name}
                   </p>
                 )}
@@ -300,12 +300,12 @@ export function ChatLayout({
               <MessageSquarePlus className="w-6 h-6 text-muted-foreground/60" />
             </div>
             <div>
-              <h2 className="text-base font-semibold mb-1">
+              <h2 className="text-lg font-semibold mb-1">
                 {selectedProject
                   ? selectedProject.name
                   : t("studio_chat_selectProject")}
               </h2>
-              <p className="text-sm text-muted-foreground max-w-xs">
+              <p className="text-base text-muted-foreground max-w-xs">
                 {selectedProject
                   ? t("studio_chat_projectSelected")
                   : t("studio_chat_selectProjectDescription")}

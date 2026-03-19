@@ -180,7 +180,7 @@ export function SubscriptionCheckout({
           <Card className="border-2">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium">
+                <span className="text-base font-medium">
                   {t("account_subscription_billing_cycle")}
                 </span>
                 <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export function SubscriptionCheckout({
                 </div>
               </div>
               {billingCycle === "annual" && savingsPercentage > 0 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   {t("checkout_save_amount", {
                     amount: annualSavings.toFixed(2),
                   })}
@@ -225,16 +225,16 @@ export function SubscriptionCheckout({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl mb-2">
+                  <CardTitle className="text-3xl mb-2">
                     {tierConfig.name} {t("account_tabs_subscription_short")}
                   </CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-lg">
                     {tierConfig.billingCycle === "monthly"
                       ? t("checkout_billed_monthly")
                       : t("checkout_billed_annually")}
                   </CardDescription>
                 </div>
-                <Badge className="bg-primary text-primary-foreground px-4 py-1.5 text-sm">
+                <Badge className="bg-primary text-primary-foreground px-4 py-1.5 text-base">
                   {t("checkout_selected")}
                 </Badge>
               </div>
@@ -242,16 +242,16 @@ export function SubscriptionCheckout({
             <CardContent className="space-y-6">
               {/* Price Display */}
               <div className="flex items-baseline gap-3">
-                <span className="text-5xl font-bold">
+                <span className="text-6xl font-bold">
                   ${tierConfig.price.toFixed(2)}
                 </span>
-                <span className="text-xl text-muted-foreground">
+                <span className="text-2xl text-muted-foreground">
                   {billingCycle === "monthly"
                     ? t("checkout_per_month")
                     : t("checkout_per_year")}
                 </span>
                 {billingCycle === "annual" && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-base text-muted-foreground">
                     {t("checkout_monthly_equivalent", {
                       amount: (tierConfig.price / 12).toFixed(2),
                     })}
@@ -267,7 +267,7 @@ export function SubscriptionCheckout({
 
               {/* Features List */}
               <div className="space-y-3 pt-4 border-t">
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                <p className="text-base font-semibold text-muted-foreground uppercase tracking-wide">
                   {t("checkout_whats_included")}
                 </p>
                 <ul className="space-y-3">
@@ -275,7 +275,7 @@ export function SubscriptionCheckout({
                     <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-sm">
+                    <span className="text-base">
                       <span className="font-semibold">
                         {tierConfig.features.maxReelsPerMonth === -1
                           ? t("studio_unlimited")
@@ -288,7 +288,7 @@ export function SubscriptionCheckout({
                     <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-sm">
+                    <span className="text-base">
                       AI-powered content generation
                     </span>
                   </li>
@@ -296,7 +296,7 @@ export function SubscriptionCheckout({
                     <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-sm">
+                    <span className="text-base">
                       {tierConfig.features.instagramPublishing
                         ? "Instagram publishing"
                         : "Export & save content"}
@@ -306,7 +306,7 @@ export function SubscriptionCheckout({
                     <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <span className="text-sm">
+                    <span className="text-base">
                       {t("account_subscription_support_level", {
                         level:
                           tierConfig.features.supportLevel
@@ -321,7 +321,7 @@ export function SubscriptionCheckout({
                       <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                         <Check className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <span className="text-sm">
+                      <span className="text-base">
                         {t("checkout_api_access_included")}
                       </span>
                     </li>
@@ -331,7 +331,7 @@ export function SubscriptionCheckout({
                       <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                         <Check className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <span className="text-sm">
+                      <span className="text-base">
                         {t("checkout_custom_branding_available")}
                       </span>
                     </li>
@@ -352,7 +352,7 @@ export function SubscriptionCheckout({
                   <p className="font-semibold">
                     {t("checkout_secure_payment_processing")}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {t("checkout_payment_processed_securely")}
                   </p>
                 </div>
@@ -370,20 +370,20 @@ export function SubscriptionCheckout({
             <CardContent className="space-y-6">
               {/* Pricing Breakdown */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-base">
                   <span className="text-muted-foreground">
                     {t("account_tabs_subscription_short")}
                   </span>
                   <span className="font-medium">{tierConfig.name}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-base">
                   <span className="text-muted-foreground">
                     {t("checkout_billing")}
                   </span>
                   <span className="font-medium capitalize">{billingCycle}</span>
                 </div>
                 {billingCycle === "annual" && savingsPercentage > 0 && (
-                  <div className="flex items-center justify-between text-sm pt-2 border-t">
+                  <div className="flex items-center justify-between text-base pt-2 border-t">
                     <span className="text-muted-foreground">
                       {t("checkout_annual_savings")}
                     </span>
@@ -397,7 +397,7 @@ export function SubscriptionCheckout({
                   </div>
                 )}
                 {showTrial && (
-                  <div className="flex items-center justify-between text-sm pt-2 border-t">
+                  <div className="flex items-center justify-between text-base pt-2 border-t">
                     <span className="text-muted-foreground">
                       {t("checkout_trial_period")}
                     </span>
@@ -416,29 +416,29 @@ export function SubscriptionCheckout({
               {/* Total */}
               <div className="space-y-2 border-t pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">
+                  <span className="text-xl font-semibold">
                     {t("admin_contact_messages_total")}
                   </span>
                   <div className="text-right">
                     {showTrial ? (
                       <div className="space-y-1">
-                        <div className="text-2xl font-bold">$0.00</div>
-                        <div className="text-sm text-muted-foreground line-through">
+                        <div className="text-3xl font-bold">$0.00</div>
+                        <div className="text-base text-muted-foreground line-through">
                           ${tierConfig.price.toFixed(2)}
                           {billingCycle === "monthly"
                             ? t("checkout_per_month")
                             : t("checkout_per_year")}
                         </div>
-                        <div className="text-xs text-green-600 font-medium">
+                        <div className="text-sm text-green-600 font-medium">
                           {t("checkout_first_days_free", {
                             days: SUBSCRIPTION_TRIAL_DAYS,
                           })}
                         </div>
                       </div>
                     ) : (
-                      <div className="text-2xl font-bold">
+                      <div className="text-3xl font-bold">
                         ${tierConfig.price.toFixed(2)}
-                        <span className="text-sm text-muted-foreground font-normal">
+                        <span className="text-base text-muted-foreground font-normal">
                           {billingCycle === "monthly"
                             ? t("checkout_per_month")
                             : t("checkout_per_year")}
@@ -448,7 +448,7 @@ export function SubscriptionCheckout({
                   </div>
                 </div>
                 {showTrial && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     After trial: ${tierConfig.price.toFixed(2)}
                     {billingCycle === "monthly"
                       ? t("checkout_per_month")
@@ -459,7 +459,7 @@ export function SubscriptionCheckout({
 
               {/* CTA Button */}
               <Button
-                className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="w-full h-12 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                 onClick={handleCheckout}
                 disabled={isProcessing}
                 size="lg"
@@ -486,15 +486,15 @@ export function SubscriptionCheckout({
 
               {/* Trust Indicators */}
               <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="h-4 w-4 text-green-600" />
                   <span>{t("checkout_cancel_anytime")}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="h-4 w-4 text-green-600" />
                   <span>{t("common_14_day_money_back_guarantee")}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="h-4 w-4 text-green-600" />
                   <span>{t("checkout_no_hidden_fees")}</span>
                 </div>
@@ -502,20 +502,20 @@ export function SubscriptionCheckout({
 
               {/* Payment Methods */}
               <div className="pt-4 border-t">
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="text-sm text-muted-foreground mb-2">
                   {t("checkout_accepted_payment_methods")}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     Visa
                   </Badge>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     Mastercard
                   </Badge>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     Amex
                   </Badge>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-sm">
                     Stripe
                   </Badge>
                 </div>

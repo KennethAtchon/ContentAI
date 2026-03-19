@@ -78,13 +78,13 @@ function AboutPage() {
           <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-studio-accent/15">
             <Target className="h-7 w-7 text-studio-accent" />
           </div>
-          <h2 className="mb-4 text-[22px] font-bold text-primary">
+          <h2 className="mb-4 text-2xl font-bold text-primary">
             {t("common_our_mission")}
           </h2>
-          <p className="mb-3 text-[13px] text-dim-2 leading-[1.7]">
+          <p className="mb-3 text-base text-dim-2 leading-[1.7]">
             {t("about_mission_paragraph_1")}
           </p>
-          <p className="text-[13px] text-dim-2 leading-[1.7]">
+          <p className="text-base text-dim-2 leading-[1.7]">
             {t("about_mission_paragraph_2")}
           </p>
         </div>
@@ -93,10 +93,10 @@ function AboutPage() {
       {/* Values */}
       <StudioSection variant="muted">
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("common_our_values")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
+          <p className="mx-auto max-w-[500px] text-base text-dim-2">
             {t("common_the_principles_that_guide_everything_we_do")}
           </p>
         </div>
@@ -116,10 +116,10 @@ function AboutPage() {
       {/* Team */}
       <StudioSection>
         <div className="mb-10 text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("about_why_choose_reelstudio")}
           </h2>
-          <p className="mx-auto max-w-[500px] text-[13px] text-dim-2">
+          <p className="mx-auto max-w-[500px] text-base text-dim-2">
             {t("common_built_by_experts_trusted_by_professionals")}
           </p>
         </div>
@@ -144,15 +144,15 @@ function AboutPage() {
               <Sparkles className="h-7 w-7 text-studio-accent" />
             </div>
             <div>
-              <h2 className="text-[22px] font-bold text-primary">
+              <h2 className="text-2xl font-bold text-primary">
                 {t("about_content_intelligence")}
               </h2>
-              <p className="text-[12px] text-dim-2">
+              <p className="text-sm text-dim-2">
                 AI-powered insights from millions of viral reels
               </p>
             </div>
           </div>
-          <div className="space-y-3 text-[13px] text-dim-2 leading-[1.7]">
+          <div className="space-y-3 text-base text-dim-2 leading-[1.7]">
             <p>{t("about_content_intelligence_description_1")}</p>
             <p>{t("about_content_intelligence_description_2")}</p>
             <p>{t("about_content_intelligence_description_3")}</p>
@@ -163,23 +163,23 @@ function AboutPage() {
       {/* CTA */}
       <StudioSection maxWidth="3xl">
         <div className="text-center">
-          <h2 className="mb-3 text-[22px] font-bold text-primary">
+          <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("about_ready_to_experience")}
           </h2>
-          <p className="mb-7 text-[13px] text-dim-2">
+          <p className="mb-7 text-base text-dim-2">
             {t("about_join_thousands")}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               to="/pricing"
-              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[13px] font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
+              className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-base font-bold px-6 py-2.5 rounded-lg no-underline hover:opacity-85 transition-opacity flex items-center justify-center gap-2"
             >
               {t("common_view_pricing_plans")}{" "}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/contact"
-              className="bg-overlay-sm border border-overlay-md text-dim-1 text-[13px] font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
+              className="bg-overlay-sm border border-overlay-md text-dim-1 text-base font-semibold px-6 py-2.5 rounded-lg no-underline hover:bg-overlay-md hover:text-studio-fg transition-all"
             >
               {t("contact_metadata_title")}
             </Link>

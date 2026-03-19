@@ -58,7 +58,7 @@ function DraftCard({
       {isActive && (
         <div className="flex items-center gap-1 mb-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+          <span className="text-sm font-semibold text-primary uppercase tracking-wide">
             {t("workspace_draft_active")}
           </span>
         </div>
@@ -66,7 +66,7 @@ function DraftCard({
 
       <p
         className={cn(
-          "text-xs leading-relaxed mb-2",
+          "text-sm leading-relaxed mb-2",
           isActive ? "text-foreground font-medium" : "text-foreground/80"
         )}
       >
@@ -75,22 +75,22 @@ function DraftCard({
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded">
+          <span className="text-sm text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded">
             v{draft.version}
           </span>
-          <span className="text-[10px] text-muted-foreground/60">
+          <span className="text-sm text-muted-foreground/60">
             {outputTypeLabel}
           </span>
         </div>
 
         <div className="flex items-center gap-1">
           {hasVoiceover && (
-            <span className="flex items-center gap-0.5 text-[10px] text-success dark:text-success">
+            <span className="flex items-center gap-0.5 text-sm text-success dark:text-success">
               <Mic className="w-3 h-3" />
             </span>
           )}
           {hasMusic && (
-            <span className="flex items-center gap-0.5 text-[10px] text-blue-500">
+            <span className="flex items-center gap-0.5 text-sm text-blue-500">
               <Music className="w-3 h-3" />
             </span>
           )}
@@ -111,7 +111,7 @@ function DraftCard({
               onSetActive(draft.id);
             }
           }}
-          className="mt-2 text-[10px] text-muted-foreground/50 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+          className="mt-2 text-sm text-muted-foreground/50 hover:text-primary transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
         >
           {t("workspace_draft_set_active")}
         </div>
@@ -135,10 +135,10 @@ export function DraftsList({
           <FileText className="w-5 h-5 text-muted-foreground/40" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground/70">
+          <p className="text-base font-medium text-foreground/70">
             {t("workspace_empty_title")}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {t("workspace_empty_description")}
           </p>
         </div>

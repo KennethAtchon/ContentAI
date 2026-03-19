@@ -40,13 +40,13 @@ export function VoiceSelector({
   if (error) {
     return (
       <div className="flex flex-col items-center gap-2 py-4 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           {t("audio_voices_loadError")}
         </p>
         {onRetry && (
           <button
             onClick={onRetry}
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
           >
             <RefreshCw className="w-3 h-3" />
             {t("audio_voices_retry")}

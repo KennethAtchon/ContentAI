@@ -163,7 +163,7 @@ function SettingsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground">
           Application settings and configuration
         </p>
@@ -183,8 +183,8 @@ function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Name</p>
-              <p className="text-base font-semibold">
+              <p className="text-base font-medium text-muted-foreground">Name</p>
+              <p className="text-lg font-semibold">
                 {userInfo.name !== t("common_unavailable") ? (
                   userInfo.name
                 ) : (
@@ -195,8 +195,8 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Email</p>
-              <p className="text-base font-semibold">
+              <p className="text-base font-medium text-muted-foreground">Email</p>
+              <p className="text-lg font-semibold">
                 {userInfo.email !== t("common_unavailable") ? (
                   userInfo.email
                 ) : (
@@ -207,8 +207,8 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">Phone</p>
-              <p className="text-base font-semibold">
+              <p className="text-base font-medium text-muted-foreground">Phone</p>
+              <p className="text-lg font-semibold">
                 {userInfo.phone !== t("common_unavailable") ? (
                   userInfo.phone
                 ) : (
@@ -219,10 +219,10 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-base font-medium text-muted-foreground">
                 Address
               </p>
-              <p className="text-base font-semibold">
+              <p className="text-lg font-semibold">
                 {userInfo.address !== t("common_unavailable") ? (
                   userInfo.address
                 ) : (
@@ -233,8 +233,8 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1 pt-2 border-t">
-              <p className="text-sm font-medium text-muted-foreground">Role</p>
-              <p className="text-base font-semibold">
+              <p className="text-base font-medium text-muted-foreground">Role</p>
+              <p className="text-lg font-semibold">
                 {userInfo.role !== t("common_unavailable") ? (
                   userInfo.role
                 ) : (
@@ -287,7 +287,7 @@ function SettingsPage() {
                     autoComplete="email"
                     className="h-11 bg-muted"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {t("common_email_cannot_be_changed")}
                   </p>
                 </div>
@@ -323,7 +323,7 @@ function SettingsPage() {
               </div>
 
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-xl font-semibold">
                   {t("common_change_password")}
                 </h3>
                 <div className="space-y-4">

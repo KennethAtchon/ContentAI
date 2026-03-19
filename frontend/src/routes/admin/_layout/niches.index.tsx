@@ -65,13 +65,13 @@ function NicheFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-md shadow-2xl">
         <div className="p-6 border-b border-overlay-sm">
-          <h2 className="text-lg font-semibold text-studio-fg">
+          <h2 className="text-xl font-semibold text-studio-fg">
             {initial ? "Edit Niche" : "Create Niche"}
           </h2>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+            <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
               Name
             </label>
             <input
@@ -79,11 +79,11 @@ function NicheFormModal({
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="e.g. Personal Finance"
-              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 px-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-dim-1 uppercase tracking-wider">
+            <label className="text-sm font-medium text-dim-1 uppercase tracking-wider">
               Description
             </label>
             <textarea
@@ -91,7 +91,7 @@ function NicheFormModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Optional description..."
-              className="w-full bg-overlay-sm border border-overlay-md rounded-xl px-4 py-2.5 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors resize-none"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl px-4 py-2.5 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors resize-none"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -112,12 +112,12 @@ function NicheFormModal({
                 )}
               />
             </button>
-            <span className="text-[13px] text-dim-1">
+            <span className="text-base text-dim-1">
               {isActive ? "Active" : "Inactive"}
             </span>
           </div>
           {error && (
-            <p className="text-[12px] text-error bg-error/10 rounded-lg px-3 py-2">
+            <p className="text-sm text-error bg-error/10 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -178,10 +178,10 @@ function NichesPage() {
       {deletingId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-semibold text-studio-fg">
+            <h3 className="text-lg font-semibold text-studio-fg">
               Delete Niche?
             </h3>
-            <p className="text-[13px] text-dim-2">
+            <p className="text-base text-dim-2">
               This will permanently remove the niche. Niches with associated
               reels cannot be deleted until all reels are removed.
             </p>
@@ -213,10 +213,10 @@ function NichesPage() {
               <Database className="h-5 w-5 text-studio-accent" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-studio-fg">
+              <h2 className="text-2xl font-bold text-studio-fg">
                 Niches Orchestration
               </h2>
-              <p className="text-[12px] text-dim-2">
+              <p className="text-sm text-dim-2">
                 Manage curated content categories and scrape jobs
               </p>
             </div>
@@ -244,13 +244,13 @@ function NichesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search niches…"
-              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 pl-9 pr-4 text-[13px] text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
+              className="w-full bg-overlay-sm border border-overlay-md rounded-xl h-10 pl-9 pr-4 text-base text-studio-fg placeholder:text-dim-3 outline-none focus:border-studio-accent/50 transition-colors"
             />
           </div>
           <button
             onClick={() => setActiveOnly(!activeOnly)}
             className={cn(
-              "h-10 px-4 rounded-xl text-[13px] font-medium border transition-all",
+              "h-10 px-4 rounded-xl text-base font-medium border transition-all",
               activeOnly
                 ? "bg-studio-accent/10 border-studio-accent/40 text-studio-accent"
                 : "bg-overlay-sm border-overlay-md text-dim-2 hover:border-overlay-lg"
@@ -261,7 +261,7 @@ function NichesPage() {
         </div>
 
         <div className="rounded-2xl border border-overlay-sm overflow-hidden">
-          <div className="grid grid-cols-[48px_1fr_100px_100px_160px] text-[11px] font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
+          <div className="grid grid-cols-[48px_1fr_100px_100px_160px] text-sm font-semibold uppercase tracking-wider text-dim-3 bg-overlay-xs px-4 py-3 border-b border-overlay-sm">
             <span>#</span>
             <span>Name</span>
             <span>Status</span>
@@ -287,12 +287,12 @@ function NichesPage() {
           ) : niches.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <Database className="h-10 w-10 text-dim-3" />
-              <p className="text-[14px] font-medium text-dim-3">
+              <p className="text-base font-medium text-dim-3">
                 No niches yet
               </p>
               <button
                 onClick={() => setCreating(true)}
-                className="text-[12px] text-studio-accent hover:underline"
+                className="text-sm text-studio-accent hover:underline"
               >
                 Create your first niche
               </button>
@@ -304,19 +304,19 @@ function NichesPage() {
                   key={niche.id}
                   className="grid grid-cols-[48px_1fr_100px_100px_160px] items-center px-4 py-3.5 hover:bg-overlay-xs transition-colors"
                 >
-                  <span className="text-[12px] text-dim-3 font-mono">
+                  <span className="text-sm text-dim-3 font-mono">
                     {niche.id}
                   </span>
                   <div>
                     <Link
                       to="/admin/niches/$nicheId"
                       params={{ nicheId: String(niche.id) }}
-                      className="text-[13px] font-medium text-studio-fg hover:text-studio-accent transition-colors truncate block"
+                      className="text-base font-medium text-studio-fg hover:text-studio-accent transition-colors truncate block"
                     >
                       {niche.name}
                     </Link>
                     {niche.description && (
-                      <p className="text-[11px] text-dim-3 truncate mt-0.5">
+                      <p className="text-sm text-dim-3 truncate mt-0.5">
                         {niche.description}
                       </p>
                     )}
@@ -324,7 +324,7 @@ function NichesPage() {
                   <div>
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full",
+                        "inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded-full",
                         niche.isActive
                           ? "bg-success/10 text-success"
                           : "bg-overlay-sm text-dim-3"
@@ -339,14 +339,14 @@ function NichesPage() {
                       {niche.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
-                  <span className="text-[13px] text-dim-1 tabular-nums">
+                  <span className="text-base text-dim-1 tabular-nums">
                     {niche.reelCount.toLocaleString()}
                   </span>
                   <div className="flex items-center justify-end gap-1.5">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 gap-1.5 text-[11px]"
+                      className="h-7 gap-1.5 text-sm"
                       onClick={() => setEditing(niche)}
                     >
                       <Pencil className="h-3 w-3" />
@@ -355,7 +355,7 @@ function NichesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 gap-1 text-[11px] text-error hover:text-error hover:bg-error/10"
+                      className="h-7 gap-1 text-sm text-error hover:text-error hover:bg-error/10"
                       onClick={() => setDeletingId(niche.id)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -368,7 +368,7 @@ function NichesPage() {
         </div>
 
         {niches.length > 0 && (
-          <p className="text-[12px] text-dim-3 text-right">
+          <p className="text-sm text-dim-3 text-right">
             {niches.length} niche{niches.length !== 1 ? "s" : ""} total
           </p>
         )}

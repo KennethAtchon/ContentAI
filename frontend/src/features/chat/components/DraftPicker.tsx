@@ -47,7 +47,7 @@ function DraftItemRow({
     >
       <span
         className={cn(
-          "flex-none w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold tabular-nums transition-colors",
+          "flex-none w-5 h-5 rounded-full flex items-center justify-center text-sm font-semibold tabular-nums transition-colors",
           isActive
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-muted-foreground group-hover:bg-muted/80"
@@ -58,7 +58,7 @@ function DraftItemRow({
 
       <span
         className={cn(
-          "flex-1 text-xs truncate transition-colors",
+          "flex-1 text-sm truncate transition-colors",
           isActive
             ? "text-foreground font-medium"
             : "text-muted-foreground group-hover:text-foreground"
@@ -71,7 +71,7 @@ function DraftItemRow({
         {hasVoiceover && (
           <span
             className={cn(
-              "flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors",
+              "flex items-center gap-0.5 text-sm font-medium px-1.5 py-0.5 rounded transition-colors",
               isActive
                 ? "bg-success/15 text-success dark:text-success"
                 : "bg-muted text-muted-foreground/60"
@@ -107,7 +107,7 @@ export function DraftPicker({
           className={cn(
             "group flex items-center gap-1.5 max-w-[160px]",
             "px-2.5 py-1 rounded-md border transition-all duration-150",
-            "text-xs font-medium",
+            "text-sm font-medium",
             "outline-none focus-visible:ring-2 focus-visible:ring-ring",
             activeDraft
               ? "border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] hover:border-primary/40"
@@ -121,7 +121,7 @@ export function DraftPicker({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" sideOffset={6} className="w-64 p-1.5">
-        <DropdownMenuLabel className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <DropdownMenuLabel className="px-3 py-1.5 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">
           {t("studio_chat_content_picker_label")} · {drafts.length}
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="my-1" />

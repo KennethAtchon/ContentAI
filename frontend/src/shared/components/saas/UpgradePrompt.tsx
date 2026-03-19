@@ -55,7 +55,7 @@ export function UpgradePrompt({
       </CardHeader>
       <CardContent className="space-y-4">
         {currentTier && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Your current plan:{" "}
             <span className="font-medium capitalize">{currentTier}</span>
           </p>
@@ -72,7 +72,7 @@ export function UpgradePrompt({
             </Link>
           </Button>
         )}
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-sm text-center text-muted-foreground">
           All plans include a 14-day free trial
         </p>
       </CardContent>

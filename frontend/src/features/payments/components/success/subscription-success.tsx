@@ -129,22 +129,22 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
           <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
             <CheckCircle2 className="h-12 w-12 text-green-600" />
           </div>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+          <h1 className="mb-4 text-5xl font-bold tracking-tight md:text-6xl">
             Welcome to {APP_NAME}!
           </h1>
-          <p className="mb-8 text-lg text-muted-foreground">
+          <p className="mb-8 text-xl text-muted-foreground">
             Your subscription has been activated successfully. You now have full
             access to all features.
           </p>
 
           {/* Success Details */}
           <div className="mb-8 space-y-3 rounded-lg border bg-background/50 p-6">
-            <div className="flex items-center justify-center gap-2 text-sm">
+            <div className="flex items-center justify-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="font-medium">Subscription Active</span>
             </div>
             {sessionId && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Session ID: {sessionId.substring(0, 20)}...
               </p>
             )}
@@ -177,37 +177,37 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
       {/* Next Steps */}
       <Card className="mt-6 border-2">
         <CardContent className="p-6">
-          <h2 className="mb-4 text-xl font-semibold">What's Next?</h2>
+          <h2 className="mb-4 text-2xl font-semibold">What's Next?</h2>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-sm font-semibold text-primary">1</span>
+                <span className="text-base font-semibold text-primary">1</span>
               </div>
               <div>
                 <p className="font-medium">Explore Studio</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Discover trending hooks, captions, and content inspiration
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-sm font-semibold text-primary">2</span>
+                <span className="text-base font-semibold text-primary">2</span>
               </div>
               <div>
                 <p className="font-medium">Export Your Content</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Save your generated reels and export them for publishing
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-sm font-semibold text-primary">3</span>
+                <span className="text-base font-semibold text-primary">3</span>
               </div>
               <div>
                 <p className="font-medium">Manage Your Subscription</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   View usage, update billing, or change your plan anytime
                 </p>
               </div>

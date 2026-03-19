@@ -118,7 +118,7 @@ function SignUpPage() {
 
   const inputCn = cn(
     "w-full h-11 bg-overlay-sm border border-overlay-md rounded-lg",
-    "text-studio-fg text-[13px] px-3 outline-none font-studio",
+    "text-studio-fg text-base px-3 outline-none font-studio",
     "placeholder:text-dim-3 transition-colors",
     "focus:border-studio-ring/50 disabled:opacity-50"
   );
@@ -133,10 +133,10 @@ function SignUpPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-studio-accent/15">
                 <UserPlus className="h-6 w-6 text-studio-accent" />
               </div>
-              <h1 className="text-[22px] font-bold text-primary">
+              <h1 className="text-2xl font-bold text-primary">
                 {t("common_create_an_account")}
               </h1>
-              <p className="text-[13px] text-dim-2">
+              <p className="text-base text-dim-2">
                 {t("auth_sign_up_description")}
               </p>
             </div>
@@ -147,7 +147,7 @@ function SignUpPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="name"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("account_profile_full_name")}
                   </label>
@@ -166,7 +166,7 @@ function SignUpPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("admin_settings_placeholder_email")}
                   </label>
@@ -185,7 +185,7 @@ function SignUpPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="password"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("common_password")}
                   </label>
@@ -220,7 +220,7 @@ function SignUpPage() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="confirmPassword"
-                    className="text-[11px] font-semibold text-dim-2"
+                    className="text-sm font-semibold text-dim-2"
                   >
                     {t("common_confirm_password")}
                   </label>
@@ -253,7 +253,7 @@ function SignUpPage() {
 
                 {error && (
                   <div className="bg-error/[0.08] border border-error/20 rounded-lg px-3 py-2.5">
-                    <p className="text-[12px] font-medium text-error">
+                    <p className="text-sm font-medium text-error">
                       {error}
                     </p>
                   </div>
@@ -264,7 +264,7 @@ function SignUpPage() {
                   disabled={loading}
                   className={cn(
                     "w-full h-11 bg-gradient-to-br from-studio-accent to-studio-purple",
-                    "text-white text-[13px] font-bold rounded-lg border-0 cursor-pointer",
+                    "text-white text-base font-bold rounded-lg border-0 cursor-pointer",
                     "transition-opacity hover:opacity-85 disabled:opacity-50 disabled:cursor-not-allowed font-studio"
                   )}
                 >
@@ -279,7 +279,7 @@ function SignUpPage() {
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-overlay-sm" />
                 </div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-[1px]">
+                <div className="relative flex justify-center text-sm uppercase tracking-[1px]">
                   <span className="bg-studio-surface px-3 text-dim-3">
                     {t("common_or_continue_with")}
                   </span>
@@ -293,7 +293,7 @@ function SignUpPage() {
                 disabled={loading}
                 className={cn(
                   "w-full h-11 bg-overlay-sm border border-overlay-md",
-                  "text-dim-1 text-[13px] font-medium rounded-lg",
+                  "text-dim-1 text-base font-medium rounded-lg",
                   "cursor-pointer transition-all hover:bg-overlay-md hover:text-studio-fg",
                   "disabled:opacity-50 disabled:cursor-not-allowed font-studio flex items-center justify-center gap-2"
                 )}
@@ -320,7 +320,7 @@ function SignUpPage() {
               </button>
 
               {/* Sign in link */}
-              <div className="text-center text-[12px] pt-1">
+              <div className="text-center text-sm pt-1">
                 <span className="text-dim-3">
                   {t("auth_have_account")}{" "}
                 </span>
@@ -335,7 +335,7 @@ function SignUpPage() {
           </div>
 
           {/* Trust Indicators */}
-          <div className="flex items-center justify-center gap-6 text-[10px] text-dim-3">
+          <div className="flex items-center justify-center gap-6 text-sm text-dim-3">
             <div className="flex items-center gap-1.5">
               <Sparkles className="h-3 w-3 text-studio-accent" />
               <span>{t("common_14_day_free_trial")}</span>

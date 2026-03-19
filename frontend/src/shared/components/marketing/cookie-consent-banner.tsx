@@ -54,7 +54,7 @@ export function CookieConsentBanner() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-base text-muted-foreground leading-relaxed">
               {t("cookies_consent_message")}{" "}
               <Link
                 to="/cookies"

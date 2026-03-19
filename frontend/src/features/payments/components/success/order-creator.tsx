@@ -153,7 +153,7 @@ export function OrderCreator({ sessionId }: OrderCreatorProps) {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-error mb-2">
+            <h3 className="text-xl font-semibold text-error mb-2">
               Order Creation Failed
             </h3>
             <p className="text-error mb-4">{error}</p>
@@ -177,7 +177,7 @@ export function OrderCreator({ sessionId }: OrderCreatorProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Creating your order...</p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-base text-gray-500 mt-2">
             Please wait while we process your payment
           </p>
         </div>

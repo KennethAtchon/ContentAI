@@ -165,7 +165,7 @@ function BrandHeader({ onClose }: { onClose?: () => void }) {
     <div className="flex h-16 items-center justify-between border-b border-overlay-sm bg-studio-surface px-6">
       <Link
         to="/admin/dashboard"
-        className="flex items-center gap-3 font-bold text-lg"
+        className="flex items-center gap-3 font-bold text-xl"
       >
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-studio-accent/15">
           <BRAND_ICON className="h-5 w-5 text-studio-accent" />
@@ -196,7 +196,7 @@ function NavigationLink({
     <Link
       to={item.href}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all",
         isActive
           ? "bg-studio-accent/[0.12] text-studio-accent"
           : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
@@ -263,7 +263,7 @@ function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all",
                   pathname === item.href
                     ? "bg-studio-accent/[0.12] text-studio-accent"
                     : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
@@ -337,7 +337,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </span>
           </Button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight">
               {getPageTitle(pathname, adminNavItems, t)}
             </h1>
           </div>

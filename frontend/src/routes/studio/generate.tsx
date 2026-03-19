@@ -24,8 +24,8 @@ function GeneratePage() {
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <span className="text-[36px] opacity-40">✦</span>
-                <p className="text-[13px] font-semibold text-dim-2 mt-3">
+                <span className="text-5xl opacity-40">✦</span>
+                <p className="text-base font-semibold text-dim-2 mt-3">
                   {t("studio_loading")}
                 </p>
               </div>
@@ -40,11 +40,11 @@ function GeneratePage() {
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <span className="text-[36px] opacity-40">✦</span>
-                <p className="text-[13px] font-semibold text-dim-2 mt-3">
+                <span className="text-5xl opacity-40">✦</span>
+                <p className="text-base font-semibold text-dim-2 mt-3">
                   {t("studio_projects_empty")}
                 </p>
-                <p className="text-[11px] text-dim-3 mt-1">
+                <p className="text-sm text-dim-3 mt-1">
                   {t("studio_projects_emptyDescription")}
                 </p>
               </div>

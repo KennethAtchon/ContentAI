@@ -64,7 +64,7 @@ function UserIdCell({ userId }: { userId: string }) {
         <TooltipTrigger asChild>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors group"
+            className="flex items-center gap-1 font-mono text-sm text-muted-foreground hover:text-foreground transition-colors group"
           >
             <span>{userId.substring(0, 8)}...</span>
             {copied ? (
@@ -74,7 +74,7 @@ function UserIdCell({ userId }: { userId: string }) {
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="font-mono text-xs">
+        <TooltipContent side="top" className="font-mono text-sm">
           {userId}
         </TooltipContent>
       </Tooltip>
@@ -189,7 +189,7 @@ export function SubscriptionsList() {
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-2xl">
+            <CardTitle className="text-3xl">
               {t("metadata_admin_subscriptions_title")}
             </CardTitle>
             <CardDescription className="mt-1">
@@ -213,7 +213,7 @@ export function SubscriptionsList() {
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
           <div className="space-y-2 min-w-[150px]">
-            <label className="text-sm font-medium">Status</label>
+            <label className="text-base font-medium">Status</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-10">
                 <SelectValue />
@@ -228,7 +228,7 @@ export function SubscriptionsList() {
             </Select>
           </div>
           <div className="space-y-2 min-w-[150px]">
-            <label className="text-sm font-medium">Tier</label>
+            <label className="text-base font-medium">Tier</label>
             <Select value={tierFilter} onValueChange={setTierFilter}>
               <SelectTrigger className="h-10">
                 <SelectValue />
@@ -288,14 +288,14 @@ export function SubscriptionsList() {
                         {sub.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-base">
                       {sub.usageLimit === null ? (
                         <span className="text-muted-foreground">Unlimited</span>
                       ) : (
                         `${sub.usageCount} / ${sub.usageLimit}`
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-base text-muted-foreground">
                       {sub.currentPeriodStart && sub.currentPeriodEnd
                         ? `${new Date(sub.currentPeriodStart).toLocaleDateString()} - ${new Date(sub.currentPeriodEnd).toLocaleDateString()}`
                         : "N/A"}
@@ -320,7 +320,7 @@ export function SubscriptionsList() {
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-base text-muted-foreground">
               Showing page {pagination.page} of {pagination.totalPages} (
               {pagination.total} total)
             </div>

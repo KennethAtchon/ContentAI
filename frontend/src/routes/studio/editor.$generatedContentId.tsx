@@ -280,15 +280,15 @@ function ReelEditorRoute() {
   if (isLoading) {
     content = (
       <div className="flex h-full items-center justify-center">
-        <p className="text-xs text-muted-foreground">{t("phase5_editor_loading")}</p>
+        <p className="text-sm text-muted-foreground">{t("phase5_editor_loading")}</p>
       </div>
     );
   } else if (errorMessage) {
     content = (
       <div className="flex h-full items-center justify-center px-4">
         <div className="max-w-md rounded-lg border border-error/40 bg-error/10 p-4 text-center">
-          <p className="text-sm text-error">{errorMessage}</p>
-          <p className="mt-2 text-xs text-error/80">
+          <p className="text-base text-error">{errorMessage}</p>
+          <p className="mt-2 text-sm text-error/80">
             {t("phase5_editor_guardrail_missing_composition")}
           </p>
           <button
@@ -298,7 +298,7 @@ function ReelEditorRoute() {
               setEditableComposition(null);
               void runInit();
             }}
-            className="mt-3 rounded border border-error/50 px-3 py-1.5 text-xs text-error hover:bg-error/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+            className="mt-3 rounded border border-error/50 px-3 py-1.5 text-sm text-error hover:bg-error/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
           >
             {t("phase5_editor_retry_init")}
           </button>

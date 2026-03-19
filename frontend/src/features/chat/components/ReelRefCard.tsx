@@ -13,7 +13,7 @@ export function ReelRefCard({ reelId, onRemove }: Props) {
 
   if (isLoading) {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-xs animate-pulse">
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-sm animate-pulse">
         <span className="w-16 h-3 bg-current/20 rounded" />
       </div>
     );
@@ -24,16 +24,16 @@ export function ReelRefCard({ reelId, onRemove }: Props) {
   const { reel } = data;
 
   return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-xs max-w-[220px]">
+    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-sm max-w-[220px]">
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[11px] truncate">@{reel.username}</p>
+        <p className="font-semibold text-sm truncate">@{reel.username}</p>
         {reel.hook && (
-          <p className="text-[10px] truncate">
+          <p className="text-sm truncate">
             {reel.hook.slice(0, 50)}
             {reel.hook.length > 50 ? "…" : ""}
           </p>
         )}
-        <p className="text-[10px]">
+        <p className="text-sm">
           {fmtNum(reel.views)} {t("studio_chat_reelCard_views")} · {reel.niche}
         </p>
       </div>

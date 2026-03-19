@@ -158,7 +158,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-error mb-2">
+            <h3 className="text-xl font-semibold text-error mb-2">
               Failed to Load Order
             </h3>
             <p className="text-error mb-4">{error}</p>
@@ -191,10 +191,10 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
         <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <h1 className="text-5xl font-bold text-gray-900 mb-2">
           Payment Successful!
         </h1>
-        <p className="text-xl text-gray-600">
+        <p className="text-2xl text-gray-600">
           Your order has been processed successfully.
         </p>
       </div>
@@ -215,7 +215,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
               >
                 {orderDetails.status}
               </Badge>
-              <span className="text-sm text-gray-500">
+              <span className="text-base text-gray-500">
                 #{orderDetails.id.slice(-8)}
               </span>
             </div>
@@ -229,11 +229,11 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
                 >
                   <div className="flex-1">
                     <h4 className="font-medium">{therapy.name}</h4>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-base text-gray-500">
                       Quantity: {therapy.quantity}
                     </p>
                     {therapy.duration && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-base text-gray-500">
                         {therapy.duration} minutes
                       </p>
                     )}
@@ -249,7 +249,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
                 </div>
               ))}
               <Separator />
-              <div className="flex justify-between items-center font-bold text-lg">
+              <div className="flex justify-between items-center font-bold text-xl">
                 <span>Total:</span>
                 <span className="text-teal-600">
                   ${parseFloat(orderDetails.totalAmount).toFixed(2)}
@@ -290,7 +290,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
               {orderDetails.customer.address && (
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
-                  <span className="text-sm">
+                  <span className="text-base">
                     {orderDetails.customer.address}
                   </span>
                 </div>
@@ -298,7 +298,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
               {orderDetails.customer.medicalInfo && (
                 <div className="flex items-start gap-2">
                   <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
-                  <span className="text-sm">Medical Information Available</span>
+                  <span className="text-base">Medical Information Available</span>
                 </div>
               )}
             </div>

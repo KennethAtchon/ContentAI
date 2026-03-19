@@ -256,7 +256,7 @@ export function TimelineStrip({
       <div className="w-[52px] shrink-0 flex flex-col border-r border-overlay-sm overflow-hidden">
         {/* Ruler stub — aligns with ruler */}
         <div className="h-6 shrink-0 border-b border-overlay-sm flex items-end pb-0.5 px-1.5">
-          <span className="text-[8px] font-mono tabular-nums text-white/40 leading-none">
+          <span className="text-sm font-mono tabular-nums text-white/40 leading-none">
             {formatMsFull(currentTimeMs)}
           </span>
         </div>
@@ -266,10 +266,10 @@ export function TimelineStrip({
           className="flex-1 flex flex-col items-center justify-center gap-0.5 border-b border-overlay-sm"
           style={{ minHeight: 60 }}
         >
-          <span className="text-[7px] font-black uppercase tracking-[0.15em] text-blue-300/50">
+          <span className="text-sm font-black uppercase tracking-[0.15em] text-blue-300/50">
             VIDEO
           </span>
-          <span className="text-[7px] text-white/20 tabular-nums">
+          <span className="text-sm text-white/20 tabular-nums">
             {segments.length}
           </span>
         </div>
@@ -277,7 +277,7 @@ export function TimelineStrip({
         {/* Audio label */}
         {audioItems.length > 0 && (
           <div className="h-7 shrink-0 flex items-center justify-center border-b border-overlay-sm">
-            <span className="text-[7px] font-black uppercase tracking-[0.15em] text-purple-300/40">
+            <span className="text-sm font-black uppercase tracking-[0.15em] text-purple-300/40">
               AUDIO
             </span>
           </div>
@@ -286,7 +286,7 @@ export function TimelineStrip({
         {/* Text/Caption label */}
         {hasTextTrack && (
           <div className="h-6 shrink-0 flex items-center justify-center">
-            <span className="text-[7px] font-black uppercase tracking-[0.15em] text-success/40">
+            <span className="text-sm font-black uppercase tracking-[0.15em] text-success/40">
               TEXT
             </span>
           </div>
@@ -324,7 +324,7 @@ export function TimelineStrip({
                   )}
                 />
                 {isMajor && (
-                  <span className="text-[7.5px] font-mono tabular-nums text-white/30 mt-0.5 leading-none whitespace-nowrap">
+                  <span className="text-sm font-mono tabular-nums text-white/30 mt-0.5 leading-none whitespace-nowrap">
                     {formatMsLabel(ms)}
                   </span>
                 )}
@@ -374,10 +374,10 @@ export function TimelineStrip({
                     : "border-overlay-md text-white/20",
                 )}
               >
-                <p className="text-[11px] font-medium">
+                <p className="text-sm font-medium">
                   {t("phase5_editor_timeline")}
                 </p>
-                <p className="text-[9px] mt-0.5 opacity-60">
+                <p className="text-sm mt-0.5 opacity-60">
                   Drag clips here
                 </p>
               </div>
@@ -447,7 +447,7 @@ export function TimelineStrip({
                       {/* Clip label — top left */}
                       <span
                         className={cn(
-                          "absolute top-1 left-1.5 text-[8px] font-bold leading-none pointer-events-none",
+                          "absolute top-1 left-1.5 text-sm font-bold leading-none pointer-events-none",
                           isSelected ? "text-white/90" : "text-blue-100/60",
                         )}
                       >
@@ -457,7 +457,7 @@ export function TimelineStrip({
                       {/* Duration — bottom right */}
                       <span
                         className={cn(
-                          "absolute bottom-1 right-1.5 text-[7px] font-mono tabular-nums leading-none pointer-events-none",
+                          "absolute bottom-1 right-1.5 text-sm font-mono tabular-nums leading-none pointer-events-none",
                           isSelected ? "text-white/70" : "text-blue-200/40",
                         )}
                       >
@@ -466,7 +466,7 @@ export function TimelineStrip({
 
                       {/* Transition badge */}
                       {segment.transitionType !== "cut" && (
-                        <span className="absolute top-1 right-1.5 text-[7px] text-blue-200/50 pointer-events-none">
+                        <span className="absolute top-1 right-1.5 text-sm text-blue-200/50 pointer-events-none">
                           {segment.transitionType.slice(0, 3).toUpperCase()}
                         </span>
                       )}
@@ -589,7 +589,7 @@ export function TimelineStrip({
                   }}
                 >
                   <div className="absolute top-px left-0 right-0 h-px bg-success/30" />
-                  <span className="absolute inset-x-1 top-0 bottom-0 flex items-center text-[7px] text-success/60 truncate leading-none">
+                  <span className="absolute inset-x-1 top-0 bottom-0 flex items-center text-sm text-success/60 truncate leading-none">
                     {String(row.content ?? "T")}
                   </span>
                 </div>

@@ -20,10 +20,10 @@ function PaymentCancelPage() {
                 <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-warning/10">
                   <XCircle className="h-12 w-12 text-warning" />
                 </div>
-                <h1 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
+                <h1 className="mb-4 text-5xl font-bold tracking-tight md:text-6xl">
                   {t("metadata_payment_cancel_title")}
                 </h1>
-                <p className="mb-8 text-lg text-dim-2">
+                <p className="mb-8 text-xl text-dim-2">
                   {t(
                     "common_no_charges_were_made_your_subscription_was_not_activated"
                   )}
@@ -53,7 +53,7 @@ function PaymentCancelPage() {
 
             <Card className="mt-6 border-2">
               <CardContent className="p-6">
-                <h2 className="mb-4 text-xl font-semibold">
+                <h2 className="mb-4 text-2xl font-semibold">
                   {t("payment_cancel_have_questions")}
                 </h2>
                 <div className="space-y-4">
@@ -61,7 +61,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_free_trial_title")}
                     </p>
-                    <p className="text-sm text-dim-2">
+                    <p className="text-base text-dim-2">
                       {t("payment_cancel_free_trial_description")}
                     </p>
                   </div>
@@ -69,7 +69,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_cancel_anytime_title")}
                     </p>
-                    <p className="text-sm text-dim-2">
+                    <p className="text-base text-dim-2">
                       {t("payment_cancel_cancel_anytime_description")}
                     </p>
                   </div>
@@ -77,7 +77,7 @@ function PaymentCancelPage() {
                     <p className="mb-2 font-medium">
                       {t("payment_cancel_guarantee_title")}
                     </p>
-                    <p className="text-sm text-dim-2">
+                    <p className="text-base text-dim-2">
                       {t("payment_cancel_guarantee_description")}
                     </p>
                   </div>

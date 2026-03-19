@@ -106,10 +106,10 @@ export function StudioTopBar({
           to={variant === "studio" ? "/studio/discover" : "/"}
           className="flex items-center gap-2 pr-5 border-r border-overlay-sm mr-4 no-underline hover:opacity-90 transition-opacity"
         >
-          <div className="w-6 h-6 bg-gradient-to-br from-studio-accent to-studio-purple rounded-[7px] flex items-center justify-center text-[11px] shrink-0">
+          <div className="w-6 h-6 bg-gradient-to-br from-studio-accent to-studio-purple rounded-[7px] flex items-center justify-center text-sm shrink-0">
             ✦
           </div>
-          <span className="text-[14px] font-bold text-primary tracking-[-0.3px] hidden sm:inline">
+          <span className="text-base font-bold text-primary tracking-[-0.3px] hidden sm:inline">
             {APP_NAME}
           </span>
         </Link>
@@ -118,7 +118,7 @@ export function StudioTopBar({
         {variant === "auth" && (
           <Link
             to="/"
-            className="flex items-center gap-1.5 text-[12px] text-dim-2 hover:text-dim-1 transition-colors no-underline font-studio"
+            className="flex items-center gap-1.5 text-sm text-dim-2 hover:text-dim-1 transition-colors no-underline font-studio"
           >
             ← {t("common_back_to_home")}
           </Link>
@@ -132,7 +132,7 @@ export function StudioTopBar({
                 key={tab.key}
                 onClick={() => navigate({ to: tab.path })}
                 className={cn(
-                  "h-full px-4 flex items-center gap-1.5 text-[13px] font-medium transition-all duration-150",
+                  "h-full px-4 flex items-center gap-1.5 text-base font-medium transition-all duration-150",
                   "bg-transparent border-0 border-b-2 cursor-pointer font-studio",
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-studio-ring",
                   isActive(tab.key, tab.path)
@@ -158,13 +158,13 @@ export function StudioTopBar({
             <div className="hidden md:flex items-center gap-2">
               <Link
                 to="/sign-in"
-                className="text-[12px] font-medium text-dim-2 hover:text-studio-fg transition-colors px-3 py-1.5 no-underline"
+                className="text-sm font-medium text-dim-2 hover:text-studio-fg transition-colors px-3 py-1.5 no-underline"
               >
                 {t("navigation_signIn")}
               </Link>
               <Link
                 to="/sign-up"
-                className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[12px] font-semibold px-3.5 py-1.5 rounded-lg no-underline hover:opacity-85 transition-opacity"
+                className="bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-3.5 py-1.5 rounded-lg no-underline hover:opacity-85 transition-opacity"
               >
                 {t("navigation_signUp")}
               </Link>
@@ -199,7 +199,7 @@ export function StudioTopBar({
                   setMobileMenuOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-4 py-3 text-[13px] font-medium rounded-lg",
+                  "w-full text-left px-4 py-3 text-base font-medium rounded-lg",
                   "bg-transparent border-0 cursor-pointer font-studio transition-all",
                   isActive(tab.key, tab.path)
                     ? "bg-studio-accent/[0.08] text-studio-accent"
@@ -214,14 +214,14 @@ export function StudioTopBar({
                 <Link
                   to="/sign-in"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-center text-[12px] font-medium text-dim-2 py-2.5 rounded-lg border border-overlay-md no-underline hover:bg-overlay-xs"
+                  className="text-center text-sm font-medium text-dim-2 py-2.5 rounded-lg border border-overlay-md no-underline hover:bg-overlay-xs"
                 >
                   {t("navigation_signIn")}
                 </Link>
                 <Link
                   to="/sign-up"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-center bg-gradient-to-br from-studio-accent to-studio-purple text-white text-[12px] font-semibold py-2.5 rounded-lg no-underline hover:opacity-85"
+                  className="text-center bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold py-2.5 rounded-lg no-underline hover:opacity-85"
                 >
                   {t("navigation_signUp")}
                 </Link>

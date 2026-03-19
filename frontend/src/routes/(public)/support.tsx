@@ -118,14 +118,14 @@ function SupportPage() {
                   <Icon className="h-5 w-5 text-studio-accent" />
                 </div>
                 <h3 className="mb-1 font-semibold">{title}</h3>
-                <p className="text-sm text-dim-2">{description}</p>
+                <p className="text-base text-dim-2">{description}</p>
               </div>
             ))}
           </div>
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-3xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <Rocket className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -136,7 +136,7 @@ function SupportPage() {
               <ol className="space-y-3">
                 {gettingStartedSteps.map((step, i) => (
                   <li key={step} className="flex items-start gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-studio-accent/15 text-xs font-bold text-studio-accent">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-studio-accent/15 text-sm font-bold text-studio-accent">
                       {i + 1}
                     </span>
                     <span className="text-dim-2 pt-0.5">{step}</span>
@@ -146,14 +146,14 @@ function SupportPage() {
               <div className="pt-2 flex flex-col gap-2 sm:flex-row sm:gap-4">
                 <Link
                   to="/faq"
-                  className="inline-flex items-center gap-1 text-sm text-studio-accent hover:underline font-medium"
+                  className="inline-flex items-center gap-1 text-base text-studio-accent hover:underline font-medium"
                 >
                   {t("support_faq_link")}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   to="/contact"
-                  className="inline-flex items-center gap-1 text-sm text-studio-accent hover:underline font-medium"
+                  className="inline-flex items-center gap-1 text-base text-studio-accent hover:underline font-medium"
                 >
                   {t("support_contact_link")}
                   <ArrowRight className="h-4 w-4" />
@@ -164,7 +164,7 @@ function SupportPage() {
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-3xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <CreditCard className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -196,15 +196,15 @@ function SupportPage() {
               <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-studio-accent/15">
                 <HelpCircle className="h-8 w-8 text-studio-accent" />
               </div>
-              <h2 className="mb-4 text-3xl font-bold tracking-tight">
+              <h2 className="mb-4 text-4xl font-bold tracking-tight">
                 {t("support_still_need_help")}
               </h2>
-              <p className="mb-6 text-lg text-dim-2">
+              <p className="mb-6 text-xl text-dim-2">
                 {t("support_reach_out")}
               </p>
               <a
                 href={`mailto:${SUPPORT_EMAIL}`}
-                className="inline-flex items-center gap-2 text-studio-accent hover:underline font-semibold text-lg"
+                className="inline-flex items-center gap-2 text-studio-accent hover:underline font-semibold text-xl"
               >
                 {SUPPORT_EMAIL}
                 <ArrowRight className="h-5 w-5" />

@@ -58,7 +58,7 @@ export function PricingToggle({
   return (
     <div className="flex items-center justify-center gap-4 mt-8">
       <span
-        className={`text-sm font-medium ${billingCycle === "monthly" ? "text-foreground" : "text-muted-foreground"}`}
+        className={`text-base font-medium ${billingCycle === "monthly" ? "text-foreground" : "text-muted-foreground"}`}
       >
         Monthly
       </span>
@@ -83,7 +83,7 @@ export function PricingToggle({
       </Button>
       <div className="flex items-center gap-2">
         <span
-          className={`text-sm font-medium ${billingCycle === "annual" ? "text-foreground" : "text-muted-foreground"}`}
+          className={`text-base font-medium ${billingCycle === "annual" ? "text-foreground" : "text-muted-foreground"}`}
         >
           Annual
         </span>
@@ -145,10 +145,10 @@ export function PricingFeatureComparison() {
       <div className="container">
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+            <h2 className="mb-4 text-4xl font-bold tracking-tight md:text-5xl">
               Compare Plans
             </h2>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-xl text-muted-foreground">
               See what's included in each plan
             </p>
           </div>
@@ -191,14 +191,14 @@ export function PricingInteractive({
             <Sparkles className="h-5 w-5 text-green-600" />
             <AlertDescription className="flex items-center gap-3">
               <div className="flex-1">
-                <p className="font-semibold text-base text-foreground mb-1">
+                <p className="font-semibold text-lg text-foreground mb-1">
                   {t("common_all_plans_include_a_14_day_free_trial")}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   {t("common_try_reelstudio_risk_free")}
                 </p>
               </div>
-              <Badge className="bg-green-600 text-white px-4 py-1.5 text-sm font-semibold">
+              <Badge className="bg-green-600 text-white px-4 py-1.5 text-base font-semibold">
                 {t("checkout_days_free", { days: SUBSCRIPTION_TRIAL_DAYS })}
               </Badge>
             </AlertDescription>

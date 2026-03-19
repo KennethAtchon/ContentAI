@@ -137,7 +137,7 @@ function ApiDocumentationPage() {
         description={t("api_documentation_description")}
         showGradient
       >
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-dim-2">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-base text-dim-2">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-studio-accent" />
             <span>{t("api_authentication_title")}</span>
@@ -157,7 +157,7 @@ function ApiDocumentationPage() {
         <div className="space-y-8">
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
+              <CardTitle className="text-3xl flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-studio-accent/15">
                   <Code className="h-5 w-5 text-studio-accent" />
                 </div>
@@ -165,7 +165,7 @@ function ApiDocumentationPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <code className="block rounded-lg bg-muted px-4 py-3 text-sm font-mono text-foreground">
+              <code className="block rounded-lg bg-muted px-4 py-3 text-base font-mono text-foreground">
                 https://reelstudio.ai
               </code>
             </CardContent>
@@ -177,7 +177,7 @@ function ApiDocumentationPage() {
               className="bg-overlay-xs border border-overlay-sm rounded-[14px]"
             >
               <CardHeader>
-                <CardTitle className="text-2xl">{group.title}</CardTitle>
+                <CardTitle className="text-3xl">{group.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="divide-y">
@@ -187,16 +187,16 @@ function ApiDocumentationPage() {
                       className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-start gap-3"
                     >
                       <Badge
-                        className={`shrink-0 font-mono text-xs ${methodColors[ep.method] ?? "bg-muted text-dim-2"}`}
+                        className={`shrink-0 font-mono text-sm ${methodColors[ep.method] ?? "bg-muted text-dim-2"}`}
                         variant="secondary"
                       >
                         {ep.method}
                       </Badge>
                       <div className="min-w-0 flex-1">
-                        <code className="text-sm font-mono text-foreground break-all">
+                        <code className="text-base font-mono text-foreground break-all">
                           {ep.path.replace(`${ep.method} `, "")}
                         </code>
-                        <p className="mt-1 text-sm text-dim-2">
+                        <p className="mt-1 text-base text-dim-2">
                           {ep.description}
                         </p>
                       </div>
@@ -209,7 +209,7 @@ function ApiDocumentationPage() {
 
           <Card className="bg-overlay-xs border border-overlay-sm rounded-[14px]">
             <CardHeader>
-              <CardTitle className="text-2xl">
+              <CardTitle className="text-3xl">
                 {t("api_error_codes_title")}
               </CardTitle>
             </CardHeader>

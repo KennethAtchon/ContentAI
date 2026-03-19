@@ -16,7 +16,7 @@ export function SpeedToggle({ value, onChange, disabled }: SpeedToggleProps) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground">
+      <label className="text-sm font-medium text-muted-foreground">
         {t("audio_speed_label")}
       </label>
       <ToggleGroup
@@ -26,13 +26,13 @@ export function SpeedToggle({ value, onChange, disabled }: SpeedToggleProps) {
         disabled={disabled}
         className="justify-start"
       >
-        <ToggleGroupItem value="slow" className="text-xs px-3">
+        <ToggleGroupItem value="slow" className="text-sm px-3">
           {t("audio_speed_slow")}
         </ToggleGroupItem>
-        <ToggleGroupItem value="normal" className="text-xs px-3">
+        <ToggleGroupItem value="normal" className="text-sm px-3">
           {t("audio_speed_normal")}
         </ToggleGroupItem>
-        <ToggleGroupItem value="fast" className="text-xs px-3">
+        <ToggleGroupItem value="fast" className="text-sm px-3">
           {t("audio_speed_fast")}
         </ToggleGroupItem>
       </ToggleGroup>

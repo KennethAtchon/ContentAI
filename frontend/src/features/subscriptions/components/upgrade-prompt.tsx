@@ -78,7 +78,7 @@ export function UpgradePrompt({
       </CardHeader>
       <CardContent className="space-y-4">
         {featureDescription && (
-          <p className="text-sm text-muted-foreground">{featureDescription}</p>
+          <p className="text-base text-muted-foreground">{featureDescription}</p>
         )}
         {hasSubscription ? (
           <ManageSubscriptionButton className="w-full sm:w-auto">

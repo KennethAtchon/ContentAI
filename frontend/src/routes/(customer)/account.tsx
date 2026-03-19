@@ -13,10 +13,10 @@ function AccountPage() {
       <StudioShell variant="customer">
         <StudioSection maxWidth="7xl" padding="sm">
           <div className="mb-8 space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
+            <h1 className="text-5xl font-bold tracking-tight md:text-6xl">
               {t("common_account_dashboard")}
             </h1>
-            <p className="text-lg text-dim-2">
+            <p className="text-xl text-dim-2">
               {t(
                 "common_manage_your_subscription_view_usage_and_access_studio"
               )}

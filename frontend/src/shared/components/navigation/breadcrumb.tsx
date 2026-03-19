@@ -84,7 +84,7 @@ export function Breadcrumb({ items, className = "" }: BreadcrumbProps) {
         aria-label={t("navigation_breadcrumb")}
       >
         <div className="container py-4">
-          <ol className="flex items-center space-x-2 text-sm">
+          <ol className="flex items-center space-x-2 text-base">
             {breadcrumbs.map((breadcrumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
 

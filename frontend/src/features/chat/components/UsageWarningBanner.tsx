@@ -48,19 +48,19 @@ export function UsageWarningBanner() {
   }
 
   return (
-    <div className="mx-4 mb-2 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-sm">
-      <span className="text-warning text-xs font-medium">
+    <div className="mx-4 mb-2 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-base">
+      <span className="text-warning text-sm font-medium">
         {t("studio_chat_usageWarning_body", { pct: pctDisplay })}
       </span>
       <div className="flex items-center gap-2 shrink-0">
         {hasEnterpriseAccess ? (
-          <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning">
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning">
             {t("studio_chat_usageWarning_contactSupport")}
           </span>
         ) : (
           <a
             href="/pricing"
-            className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
+            className="text-sm font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
           >
             {t("studio_chat_usageWarning_upgrade")}
           </a>

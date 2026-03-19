@@ -108,7 +108,7 @@ export function VoiceoverGenerator({
         <button
           onClick={onCancel}
           disabled={isGenerating}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors self-start disabled:opacity-50"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors self-start disabled:opacity-50"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("audio_generate_back")}
@@ -119,8 +119,8 @@ export function VoiceoverGenerator({
           <Mic className="w-6 h-6 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold">{t("audio_generate_title")}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <h3 className="text-base font-semibold">{t("audio_generate_title")}</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {t("audio_generate_subtitle")}
           </p>
         </div>
@@ -130,14 +130,14 @@ export function VoiceoverGenerator({
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-sm font-medium text-muted-foreground">
               {t("audio_generate_script_label")}
             </label>
             {showModeToggle && (
               <div className="flex items-center rounded-md border border-border/50 overflow-hidden">
                 <button
                   onClick={() => setMode("script")}
-                  className={`text-[10px] px-2 py-0.5 transition-colors ${
+                  className={`text-sm px-2 py-0.5 transition-colors ${
                     mode === "script"
                       ? "bg-primary/10 text-primary font-medium"
                       : "text-muted-foreground hover:text-foreground"
@@ -147,7 +147,7 @@ export function VoiceoverGenerator({
                 </button>
                 <button
                   onClick={() => setMode("hook")}
-                  className={`text-[10px] px-2 py-0.5 transition-colors border-l border-border/50 ${
+                  className={`text-sm px-2 py-0.5 transition-colors border-l border-border/50 ${
                     mode === "hook"
                       ? "bg-primary/10 text-primary font-medium"
                       : "text-muted-foreground hover:text-foreground"
@@ -173,7 +173,7 @@ export function VoiceoverGenerator({
         </div>
 
         {usingHookFallback && (
-          <p className="text-[11px] text-warning dark:text-warning">
+          <p className="text-sm text-warning dark:text-warning">
             {t("audio_generate_hook_fallback")}
           </p>
         )}
@@ -184,14 +184,14 @@ export function VoiceoverGenerator({
           placeholder={t("audio_generate_script_placeholder")}
           spellCheck
           disabled={isGenerating}
-          className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed min-h-32 max-h-64 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-base leading-relaxed min-h-32 max-h-64 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
         />
 
         <div className="flex items-center justify-between">
           {isModified ? (
             <button
               onClick={() => setScriptValue(canonical)}
-              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
             >
               {t("audio_generate_reset_script")}
             </button>
@@ -199,7 +199,7 @@ export function VoiceoverGenerator({
             <span />
           )}
           {wordCount > 0 && (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {t("audio_generate_word_count", {
                 words: wordCount,
                 seconds: estimatedSeconds,
@@ -210,7 +210,7 @@ export function VoiceoverGenerator({
       </div>
 
       <div className="flex flex-col gap-3">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label className="text-sm font-medium text-muted-foreground">
           {t("audio_voices_label")}
         </label>
         <VoiceSelector
@@ -227,14 +227,14 @@ export function VoiceoverGenerator({
       <SpeedToggle value={speed} onChange={setSpeed} disabled={isGenerating} />
 
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p>{error}</p>
             <button
               onClick={() => void handleGenerate()}
               disabled={isGenerating || !selectedVoiceId}
-              className="mt-1.5 flex items-center gap-1 text-xs font-medium hover:underline"
+              className="mt-1.5 flex items-center gap-1 text-sm font-medium hover:underline"
             >
               <RefreshCw className="w-3 h-3" />
               {t("audio_generate_tryAgain")}
@@ -246,7 +246,7 @@ export function VoiceoverGenerator({
       <button
         onClick={() => void handleGenerate()}
         disabled={isGenerating || !selectedVoiceId || !scriptValue.trim()}
-        className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-base font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isGenerating ? (
           <>

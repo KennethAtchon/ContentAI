@@ -204,7 +204,7 @@ export function PricingCard({
     >
       {isPopular && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-          <Badge className="bg-gradient-to-r from-primary to-purple-600 text-white px-4 py-1.5 text-sm font-semibold shadow-lg">
+          <Badge className="bg-gradient-to-r from-primary to-purple-600 text-white px-4 py-1.5 text-base font-semibold shadow-lg">
             <Sparkles className="h-3 w-3 mr-1.5" />
             {t("common_most_popular")}
           </Badge>
@@ -212,20 +212,20 @@ export function PricingCard({
       )}
 
       <CardHeader className="pb-6">
-        <CardTitle className="text-2xl font-bold mb-2">{tier.name}</CardTitle>
+        <CardTitle className="text-3xl font-bold mb-2">{tier.name}</CardTitle>
         <CardDescription className="space-y-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-5xl font-bold text-foreground">
+            <span className="text-6xl font-bold text-foreground">
               ${tier.price.toFixed(2)}
             </span>
-            <span className="text-muted-foreground text-lg">
+            <span className="text-muted-foreground text-xl">
               {tier.billingCycle === "monthly"
                 ? t("checkout_per_month")
                 : t("checkout_per_year")}
             </span>
           </div>
           {tier.billingCycle === "annual" && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               (${(tier.price / 12).toFixed(2)}/month)
             </p>
           )}
@@ -233,17 +233,17 @@ export function PricingCard({
             <div className="flex items-center gap-2 pt-2">
               <Badge
                 variant="secondary"
-                className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-2 border-green-500/30 px-4 py-1.5 text-sm font-semibold shadow-sm"
+                className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-2 border-green-500/30 px-4 py-1.5 text-base font-semibold shadow-sm"
               >
                 <Sparkles className="h-4 w-4 mr-1.5" />
                 {t("checkout_day_trial", { days: SUBSCRIPTION_TRIAL_DAYS })}
               </Badge>
-              <p className="text-xs text-green-700 font-medium">
+              <p className="text-sm text-green-700 font-medium">
                 {t("common_no_credit_card_required")}
               </p>
             </div>
           ) : !hasActiveSubscription ? (
-            <p className="text-sm text-muted-foreground pt-1">
+            <p className="text-base text-muted-foreground pt-1">
               {t("common_no_credit_card_required")}
             </p>
           ) : null}
@@ -256,7 +256,7 @@ export function PricingCard({
             <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
-            <span className="text-sm leading-relaxed">
+            <span className="text-base leading-relaxed">
               {tier.features.maxReelsPerMonth === -1 ? (
                 <>
                   <span className="font-semibold">{t("studio_unlimited")}</span>{" "}
@@ -276,7 +276,7 @@ export function PricingCard({
             <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
-            <span className="text-sm leading-relaxed">
+            <span className="text-base leading-relaxed">
               {tier.features.maxGenerationsPerMonth === -1 ? (
                 <>
                   <span className="font-semibold">{t("studio_unlimited")}</span>{" "}
@@ -296,7 +296,7 @@ export function PricingCard({
             <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
-            <span className="text-sm leading-relaxed">
+            <span className="text-base leading-relaxed">
               {tier.features.instagramPublishing
                 ? "Instagram publishing"
                 : "Content queue (no publishing)"}
@@ -306,7 +306,7 @@ export function PricingCard({
             <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-3.5 w-3.5 text-primary" />
             </div>
-            <span className="text-sm leading-relaxed">
+            <span className="text-base leading-relaxed">
               {t("account_subscription_support_level", {
                 level:
                   tier.features.supportLevel.charAt(0).toUpperCase() +
@@ -319,7 +319,7 @@ export function PricingCard({
               <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                 <Check className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-sm leading-relaxed">
+              <span className="text-base leading-relaxed">
                 {t("checkout_api_access_included")}
               </span>
             </li>
@@ -329,7 +329,7 @@ export function PricingCard({
               <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
                 <Check className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="text-sm leading-relaxed">
+              <span className="text-base leading-relaxed">
                 {t("checkout_custom_branding_available")}
               </span>
             </li>
@@ -340,7 +340,7 @@ export function PricingCard({
       <CardFooter className="pt-6">
         <Button
           className={cn(
-            "w-full h-12 text-base font-semibold transition-all hover:scale-105",
+            "w-full h-12 text-lg font-semibold transition-all hover:scale-105",
             isPopular &&
               !hasActiveSubscription &&
               "bg-gradient-to-r from-primary to-purple-600 hover:shadow-lg"

@@ -124,11 +124,11 @@ export function PreviewPanel({
             <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3">
               {/* Top: clip indicator */}
               <div className="flex items-start gap-2">
-                <span className="rounded bg-black/60 px-2 py-0.5 text-[10px] text-white/80">
+                <span className="rounded bg-black/60 px-2 py-0.5 text-sm text-white/80">
                   {t("phase5_editor_active_clip_overlay", { index: activeClipIndex })}
                 </span>
                 {activeClip?.id === selectedVideoClipId && (
-                  <span className="rounded bg-blue-500/70 px-2 py-0.5 text-[10px] text-white">
+                  <span className="rounded bg-blue-500/70 px-2 py-0.5 text-sm text-white">
                     {t("phase5_editor_selected_clip_overlay")}
                   </span>
                 )}
@@ -142,7 +142,7 @@ export function PreviewPanel({
                   return (
                     <p
                       key={id}
-                      className={`rounded px-2 py-1 text-center text-xs text-white shadow ${
+                      className={`rounded px-2 py-1 text-center text-sm text-white shadow ${
                         id === selectedTextOverlayId
                           ? "border border-blue-300 bg-blue-500/60"
                           : "bg-black/60"
@@ -153,7 +153,7 @@ export function PreviewPanel({
                   );
                 })}
                 {captionTrack?.enabled && activeCaptionSegment ? (
-                  <p className="rounded bg-warning/80 px-2 py-1 text-center text-xs font-semibold text-black">
+                  <p className="rounded bg-warning/80 px-2 py-1 text-center text-sm font-semibold text-black">
                     {String(activeCaptionSegment.text ?? "")}
                   </p>
                 ) : null}
@@ -178,7 +178,7 @@ export function PreviewPanel({
               }}
               className="flex-1 accent-blue-400"
             />
-            <span className="text-[10px] text-dim-2 font-mono tabular-nums shrink-0">
+            <span className="text-sm text-dim-2 font-mono tabular-nums shrink-0">
               {t("phase5_editor_playhead", {
                 current: Math.floor(currentTimeMs / 1000),
                 total: Math.floor(composition.timeline.durationMs / 1000),
@@ -188,8 +188,8 @@ export function PreviewPanel({
         </>
       ) : (
         <div className="text-center space-y-2">
-          <p className="text-[13px] text-dim-3">{t("phase5_editor_preview_unavailable")}</p>
-          <p className="text-[10px] text-dim-3">{t("phase5_editor_duration", { ms: composition.timeline.durationMs })}</p>
+          <p className="text-base text-dim-3">{t("phase5_editor_preview_unavailable")}</p>
+          <p className="text-sm text-dim-3">{t("phase5_editor_duration", { ms: composition.timeline.durationMs })}</p>
         </div>
       )}
     </div>

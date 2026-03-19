@@ -57,7 +57,7 @@ export function EmptyState({
     return (
       <div className="py-8 text-center">
         <Icon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium text-foreground mb-2">{title}</p>
+        <p className="text-xl font-medium text-foreground mb-2">{title}</p>
         {description && (
           <p className="text-muted-foreground mb-4">{description}</p>
         )}
@@ -83,7 +83,7 @@ export function EmptyState({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
             <Icon className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+          <h3 className="mb-2 text-xl font-semibold">{title}</h3>
           {description && (
             <p className="mb-6 max-w-md text-muted-foreground">{description}</p>
           )}

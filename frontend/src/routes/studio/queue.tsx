@@ -193,11 +193,11 @@ function QueuePage() {
             {/* Panel header */}
             <div className="px-4 pt-4 pb-3 shrink-0 space-y-2.5">
               <div className="flex items-center gap-2">
-                <h1 className="text-[13px] font-bold text-primary tracking-tight">
+                <h1 className="text-base font-bold text-primary tracking-tight">
                   {t("studio_queue_title")}
                 </h1>
                 {data && (
-                  <span className="text-[9px] font-bold px-1.5 py-[2px] rounded-full bg-studio-accent/15 text-studio-accent tabular-nums">
+                  <span className="text-sm font-bold px-1.5 py-[2px] rounded-full bg-studio-accent/15 text-studio-accent tabular-nums">
                     {data.total}
                   </span>
                 )}
@@ -207,7 +207,7 @@ function QueuePage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder={t("studio_queue_search_placeholder")}
-                className="w-full text-[11px] px-3 py-1.5 rounded-lg border bg-overlay-xs text-dim-1 border-overlay-md placeholder:text-dim-3 focus:outline-none focus:border-studio-accent/30 transition-colors"
+                className="w-full text-sm px-3 py-1.5 rounded-lg border bg-overlay-xs text-dim-1 border-overlay-md placeholder:text-dim-3 focus:outline-none focus:border-studio-accent/30 transition-colors"
               />
 
               {/* Status filter pills */}
@@ -217,7 +217,7 @@ function QueuePage() {
                     key={f}
                     onClick={() => setStatusFilter(f)}
                     className={cn(
-                      "text-[9px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap shrink-0 cursor-pointer transition-all duration-150 capitalize",
+                      "text-sm font-bold px-2.5 py-1 rounded-full border whitespace-nowrap shrink-0 cursor-pointer transition-all duration-150 capitalize",
                       statusFilter === f
                         ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30"
                         : "bg-transparent text-dim-3 border-overlay-md hover:text-dim-2 hover:border-overlay-lg",
@@ -230,7 +230,7 @@ function QueuePage() {
 
               {projects.length > 0 && (
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="h-7 text-[10px] font-medium border bg-overlay-xs text-dim-2 border-overlay-md focus:outline-none focus:border-studio-accent/30 transition-colors rounded-lg [&>svg]:h-3 [&>svg]:w-3">
+                  <SelectTrigger className="h-7 text-sm font-medium border bg-overlay-xs text-dim-2 border-overlay-md focus:outline-none focus:border-studio-accent/30 transition-colors rounded-lg [&>svg]:h-3 [&>svg]:w-3">
                     <SelectValue placeholder={t("studio_queue_filter_all_projects")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -255,11 +255,11 @@ function QueuePage() {
                 ))
               ) : items.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-16 text-center px-4">
-                  <span className="text-3xl opacity-25">📅</span>
-                  <p className="text-[11px] font-medium text-dim-3">
+                  <span className="text-4xl opacity-25">📅</span>
+                  <p className="text-sm font-medium text-dim-3">
                     {t("studio_queue_empty")}
                   </p>
-                  <p className="text-[10px] text-dim-3">{t("studio_queue_emptySub")}</p>
+                  <p className="text-sm text-dim-3">{t("studio_queue_emptySub")}</p>
                 </div>
               ) : (
                 items.map((item) => (
@@ -283,9 +283,9 @@ function QueuePage() {
             {!detailItemId ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-center select-none">
                 <div className="w-10 h-10 rounded-full border border-overlay-md bg-overlay-xs flex items-center justify-center">
-                  <span className="text-lg opacity-30">↖</span>
+                  <span className="text-xl opacity-30">↖</span>
                 </div>
-                <p className="text-[12px] text-dim-3">{t("studio_queue_select_prompt")}</p>
+                <p className="text-sm text-dim-3">{t("studio_queue_select_prompt")}</p>
               </div>
             ) : detailLoading ? (
               <div className="flex items-center justify-center h-full">
@@ -365,13 +365,13 @@ function QueueListItem({
       {/* Status badge + version — top-right */}
       <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
         {item.version != null && item.version > 1 && (
-          <span className="text-[7px] font-bold uppercase tracking-wide text-dim-3">
+          <span className="text-sm font-bold uppercase tracking-wide text-dim-3">
             v{item.version}
           </span>
         )}
         <span
           className={cn(
-            "text-[8px] font-bold px-1.5 py-[2px] rounded-full uppercase tracking-[0.4px]",
+            "text-sm font-bold px-1.5 py-[2px] rounded-full uppercase tracking-[0.4px]",
             STATUS_STYLES[item.status] ?? STATUS_STYLES.draft,
           )}
         >
@@ -382,7 +382,7 @@ function QueueListItem({
       {/* Hook text */}
       <p
         className={cn(
-          "text-[11.5px] font-medium leading-[1.45] line-clamp-2 pr-20 mb-1.5",
+          "text-sm font-medium leading-[1.45] line-clamp-2 pr-20 mb-1.5",
           selected ? "text-primary" : "text-dim-1",
         )}
       >
@@ -403,7 +403,7 @@ function QueueListItem({
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 text-[9.5px] text-dim-3 ml-auto truncate">
+        <div className="flex items-center gap-1.5 text-sm text-dim-3 ml-auto truncate">
           {item.projectName && (
             <span className="text-violet-400/45 truncate max-w-[80px]">
               ◆ {item.projectName}
@@ -421,12 +421,12 @@ function QueueListItem({
 
       {/* Inline alerts */}
       {failedStages.length > 0 && (
-        <p className="text-[9px] text-error mt-1">
+        <p className="text-sm text-error mt-1">
           {failedStages.map((s) => s.label).join(", ")} {t("studio_queue_stage_failed")}
         </p>
       )}
       {failedStages.length === 0 && runningStages.length > 0 && (
-        <p className="text-[9px] text-warning mt-1">
+        <p className="text-sm text-warning mt-1">
           {runningStages.map((s) => s.label).join(", ")}…
         </p>
       )}
@@ -442,7 +442,7 @@ function QueueListItem({
         >
           {confirmDelete ? (
             <>
-              <span className="text-[8px] text-dim-3 mr-0.5">
+              <span className="text-sm text-dim-3 mr-0.5">
                 {t("studio_queue_delete_prompt")}
               </span>
               <button
@@ -524,14 +524,14 @@ function PipelineTrack({ stages }: { stages: PipelineStage[] }) {
             />
             <span
               className={cn(
-                "text-[9px] font-medium mt-1.5 text-center leading-tight whitespace-nowrap px-1",
+                "text-sm font-medium mt-1.5 text-center leading-tight whitespace-nowrap px-1",
                 STAGE_LABEL[stage.status],
               )}
             >
               {stage.label}
             </span>
             {stage.error && (
-              <span className="text-[8px] text-error/65 text-center mt-0.5 leading-tight max-w-[56px] line-clamp-2">
+              <span className="text-sm text-error/65 text-center mt-0.5 leading-tight max-w-[56px] line-clamp-2">
                 {stage.error}
               </span>
             )}
@@ -608,19 +608,19 @@ function DetailPanel({
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className={cn(
-                "text-[9px] font-bold px-2 py-[3px] rounded-full uppercase tracking-[0.5px]",
+                "text-sm font-bold px-2 py-[3px] rounded-full uppercase tracking-[0.5px]",
                 STATUS_STYLES[queueItem.status] ?? STATUS_STYLES.draft,
               )}
             >
               {queueItem.status}
             </span>
             {content?.version != null && content.version > 1 && (
-              <span className="text-[8px] font-bold px-1.5 py-[2px] rounded-full bg-overlay-md text-dim-2 uppercase tracking-wide">
+              <span className="text-sm font-bold px-1.5 py-[2px] rounded-full bg-overlay-md text-dim-2 uppercase tracking-wide">
                 v{content.version}
               </span>
             )}
             {content?.outputType && (
-              <span className="text-[9px] font-medium text-dim-3 uppercase tracking-wide">
+              <span className="text-sm font-medium text-dim-3 uppercase tracking-wide">
                 {content.outputType}
               </span>
             )}
@@ -633,11 +633,11 @@ function DetailPanel({
           </button>
         </div>
 
-        <h2 className="text-[16px] font-semibold text-primary leading-[1.5] mb-4">
+        <h2 className="text-lg font-semibold text-primary leading-[1.5] mb-4">
           {content?.generatedHook ?? `${t("studio_queue_itemLabel")} #${queueItem.id}`}
         </h2>
 
-        <div className="flex items-center gap-4 text-[10px] text-dim-3 flex-wrap">
+        <div className="flex items-center gap-4 text-sm text-dim-3 flex-wrap">
           {queueItem.scheduledFor ? (
             <span>📅 {new Date(queueItem.scheduledFor).toLocaleString()}</span>
           ) : (
@@ -653,7 +653,7 @@ function DetailPanel({
       {/* ── Pipeline track ── */}
       {stages.length > 0 && (
         <div className="px-8 py-5 border-b border-overlay-sm">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-dim-3 mb-4">
+          <p className="text-sm font-bold uppercase tracking-wider text-dim-3 mb-4">
             {t("studio_queue_pipeline_label")}
           </p>
           <PipelineTrack stages={stages} />
@@ -665,7 +665,7 @@ function DetailPanel({
         {/* Copy section */}
         {hasCopyContent && (
           <div className="space-y-4">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-dim-3">
+            <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
               {t("studio_queue_detail_copy")}
             </p>
             <div className="space-y-4">
@@ -700,7 +700,7 @@ function DetailPanel({
         >
           {/* Audio */}
           <div className="space-y-3">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-dim-3">
+            <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
               {t("studio_queue_detail_audio")}
             </p>
             <div className="space-y-2.5">
@@ -721,12 +721,12 @@ function DetailPanel({
 
           {/* Video */}
           <div className="space-y-3">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-dim-3">
+            <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
               {t("studio_queue_detail_video")}
             </p>
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-dim-2">
+                <span className="text-sm text-dim-2">
                   {t("studio_queue_detail_clips", { count: videoClips.length })}
                 </span>
               </div>
@@ -735,13 +735,13 @@ function DetailPanel({
                   href={(assembled?.r2Url ?? content?.videoR2Url)!}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-[10px] text-studio-accent hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm text-studio-accent hover:underline"
                 >
                   <ExternalLink className="h-3 w-3" />
                   {t("studio_queue_detail_view_assembled")}
                 </a>
               ) : (
-                <span className="text-[10px] text-dim-3">
+                <span className="text-sm text-dim-3">
                   {t("studio_queue_detail_no_video")}
                 </span>
               )}
@@ -751,7 +751,7 @@ function DetailPanel({
 
         {/* Actions */}
         <div className="space-y-3 pt-1">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-dim-3">
+          <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
             {t("studio_queue_detail_actions")}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -759,7 +759,7 @@ function DetailPanel({
               <Link
                 to="/studio/editor/$generatedContentId"
                 params={{ generatedContentId: String(content.id) }}
-                className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-[11px] font-semibold text-studio-accent hover:bg-studio-accent/15 transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-sm font-semibold text-studio-accent hover:bg-studio-accent/15 transition-colors"
               >
                 <Scissors className="h-3.5 w-3.5" />
                 {t("studio_queue_detail_open_editor")}
@@ -769,7 +769,7 @@ function DetailPanel({
               <Link
                 to="/studio/generate"
                 search={{ session: sessionId } as Record<string, string>}
-                className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-[11px] font-semibold text-dim-2 hover:text-studio-fg hover:border-overlay-lg transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-sm font-semibold text-dim-2 hover:text-studio-fg hover:border-overlay-lg transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 {t("studio_queue_detail_open_chat")}
@@ -779,7 +779,7 @@ function DetailPanel({
               <button
                 onClick={onDuplicate}
                 disabled={isDuplicating}
-                className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-[11px] font-semibold text-dim-2 hover:text-dim-1 hover:border-overlay-lg transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-sm font-semibold text-dim-2 hover:text-dim-1 hover:border-overlay-lg transition-colors disabled:opacity-40"
               >
                 {isDuplicating ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -796,12 +796,12 @@ function DetailPanel({
             <div className="flex items-center gap-2 pt-1">
               {confirmDelete ? (
                 <>
-                  <span className="text-[10px] text-dim-3">
+                  <span className="text-sm text-dim-3">
                     {t("studio_queue_delete_prompt")}
                   </span>
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-overlay-md bg-overlay-xs px-3 py-1.5 text-[10px] font-medium text-dim-2 hover:text-dim-1 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-overlay-md bg-overlay-xs px-3 py-1.5 text-sm font-medium text-dim-2 hover:text-dim-1 transition-colors"
                   >
                     <X className="h-3 w-3" />
                     {t("studio_queue_delete_cancel")}
@@ -809,7 +809,7 @@ function DetailPanel({
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 bg-error/10 px-3 py-1.5 text-[10px] font-semibold text-error hover:bg-error/20 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-error/30 bg-error/10 px-3 py-1.5 text-sm font-semibold text-error hover:bg-error/20 transition-colors disabled:opacity-50"
                   >
                     {isDeleting ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -822,7 +822,7 @@ function DetailPanel({
               ) : (
                 <button
                   onClick={handleDelete}
-                  className="text-[10px] font-medium text-error/50 hover:text-error transition-colors"
+                  className="text-sm font-medium text-error/50 hover:text-error transition-colors"
                 >
                   {t("studio_queue_delete")}
                 </button>
@@ -831,7 +831,7 @@ function DetailPanel({
           )}
 
           {composition && (
-            <p className="text-[9px] text-dim-3 pt-1">
+            <p className="text-sm text-dim-3 pt-1">
               {t("studio_queue_detail_composition", {
                 version: composition.version,
                 mode: composition.editMode,
@@ -849,8 +849,8 @@ function DetailPanel({
 function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-[9px] text-dim-3">{label}</p>
-      <p className="text-[12px] text-dim-1 leading-relaxed whitespace-pre-line">{value}</p>
+      <p className="text-sm text-dim-3">{label}</p>
+      <p className="text-sm text-dim-1 leading-relaxed whitespace-pre-line">{value}</p>
     </div>
   );
 }
@@ -868,19 +868,19 @@ function AssetRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[11px] text-dim-2">{label}</span>
+      <span className="text-sm text-dim-2">{label}</span>
       {url ? (
         <a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-[10px] text-studio-accent hover:underline"
+          className="inline-flex items-center gap-1 text-sm text-studio-accent hover:underline"
         >
           <ExternalLink className="h-2.5 w-2.5" />
           {listenLabel}
         </a>
       ) : (
-        <span className="text-[10px] text-dim-3">{noneLabel}</span>
+        <span className="text-sm text-dim-3">{noneLabel}</span>
       )}
     </div>
   );

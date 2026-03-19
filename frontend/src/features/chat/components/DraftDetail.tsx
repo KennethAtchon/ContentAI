@@ -69,7 +69,7 @@ function Section({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+      <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
         {label}
       </span>
       {children}
@@ -226,17 +226,17 @@ export function DraftDetail({
       <div className="flex items-center justify-between px-4 py-2.5 border-b shrink-0">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("workspace_back_to_drafts")}
         </button>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded">
+          <span className="text-sm text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded">
             v{draft.version}
           </span>
           {isActive && (
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-primary">
+            <span className="flex items-center gap-1 text-sm font-semibold text-primary">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               {t("workspace_draft_active")}
             </span>
@@ -253,7 +253,7 @@ export function DraftDetail({
         {!isActive && (
           <button
             onClick={() => onSetActive(draft.id)}
-            className="w-full py-1.5 text-xs text-muted-foreground border border-dashed border-border/60 rounded-lg hover:border-primary/40 hover:text-primary transition-colors"
+            className="w-full py-1.5 text-sm text-muted-foreground border border-dashed border-border/60 rounded-lg hover:border-primary/40 hover:text-primary transition-colors"
           >
             {t("workspace_set_active_for_ai")}
           </button>
@@ -261,7 +261,7 @@ export function DraftDetail({
 
         {draft.generatedHook && (
           <Section label={t("workspace_section_hook")}>
-            <p className="text-sm leading-relaxed text-foreground">
+            <p className="text-base leading-relaxed text-foreground">
               {draft.generatedHook}
             </p>
           </Section>
@@ -269,7 +269,7 @@ export function DraftDetail({
 
         {draft.generatedScript && (
           <Section label={t("workspace_section_script")}>
-            <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-line">
+            <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-line">
               {draft.generatedScript}
             </p>
           </Section>
@@ -277,7 +277,7 @@ export function DraftDetail({
 
         {draft.generatedCaption && (
           <Section label={t("workspace_section_caption")}>
-            <p className="text-xs leading-relaxed text-foreground/80">
+            <p className="text-sm leading-relaxed text-foreground/80">
               {draft.generatedCaption}
             </p>
           </Section>
@@ -289,7 +289,7 @@ export function DraftDetail({
               {metadata.hashtags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-[11px] text-primary/70 bg-primary/[0.07] px-2 py-0.5 rounded-full"
+                  className="text-sm text-primary/70 bg-primary/[0.07] px-2 py-0.5 rounded-full"
                 >
                   #{tag}
                 </span>
@@ -300,7 +300,7 @@ export function DraftDetail({
 
         {metadata?.cta && (
           <Section label={t("workspace_section_cta")}>
-            <p className="text-xs text-foreground/80 italic">
+            <p className="text-sm text-foreground/80 italic">
               "{metadata.cta}"
             </p>
           </Section>
@@ -308,14 +308,14 @@ export function DraftDetail({
 
         {metadata?.changeDescription && (
           <Section label={t("workspace_section_changes")}>
-            <p className="text-xs text-muted-foreground italic">
+            <p className="text-sm text-muted-foreground italic">
               {metadata.changeDescription}
             </p>
           </Section>
         )}
 
         <Section label={t("workspace_section_video")}>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {videoRunning ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -332,14 +332,14 @@ export function DraftDetail({
             )}
           </div>
           {videoFailed && (
-            <div className="mt-2 flex items-center justify-between rounded-md border border-error/50 bg-error/5 px-2.5 py-2 text-[11px]">
+            <div className="mt-2 flex items-center justify-between rounded-md border border-error/50 bg-error/5 px-2.5 py-2 text-sm">
               <span className="text-error dark:text-error">
                 {videoJobData?.job.error || t("workspace_video_failed_details")}
               </span>
               <button
                 onClick={() => void handleRetryVideo()}
                 disabled={retryVideoJob.isPending || !videoJobId}
-                className="ml-2 inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
+                className="ml-2 inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-error hover:bg-error/10 disabled:opacity-50 disabled:cursor-not-allowed dark:text-error"
               >
                 {retryVideoJob.isPending ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -356,7 +356,7 @@ export function DraftDetail({
             <button
               onClick={() => void handleReassemble()}
               disabled={assembleReel.isPending}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-[11px] text-foreground/80 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {assembleReel.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -379,7 +379,7 @@ export function DraftDetail({
               <a
                 href={previewVideoUrl}
                 download
-                className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted"
+                className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
               >
                 {t("workspace_video_download")}
               </a>
@@ -396,16 +396,16 @@ export function DraftDetail({
                   className="rounded-lg border border-border/60 bg-muted/20 p-2.5"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-medium">
+                    <div className="text-sm font-medium">
                       {t("workspace_storyboard_shot", {
                         index: clip.shotIndex + 1,
                       })}
                     </div>
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-sm text-muted-foreground">
                       {clip.sourceType}
                     </span>
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-sm text-muted-foreground">
                     {t("workspace_storyboard_duration", {
                       seconds: Math.max(
                         1,
@@ -423,7 +423,7 @@ export function DraftDetail({
                   )}
                   {clip.hasEmbeddedAudio && (
                     <div className="mt-2 flex items-center justify-between rounded border border-border/50 px-2 py-1.5">
-                      <span className="text-[11px] text-foreground/80">
+                      <span className="text-sm text-foreground/80">
                         {t("workspace_storyboard_clip_audio")}
                       </span>
                       <button
@@ -431,7 +431,7 @@ export function DraftDetail({
                           void handleSetUseClipAudio(clip, !clip.useClipAudio)
                         }
                         disabled={updateAssetMetadata.isPending}
-                        className="rounded border border-border/60 px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded border border-border/60 px-2 py-0.5 text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {clip.useClipAudio
                           ? t("phase4.storyboard.clipAudio.use")
@@ -443,13 +443,13 @@ export function DraftDetail({
                     <button
                       onClick={() => void handleRegenerateShot(clip)}
                       disabled={regenerateShot.isPending || videoRunning}
-                      className="mr-1 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mr-1 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {regenerateShot.isPending
                         ? t("workspace_storyboard_regenerating")
                         : t("workspace_storyboard_regenerate")}
                     </button>
-                    <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-border/60 px-2 py-1 text-[11px] hover:bg-muted">
+                    <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted">
                       <Film className="h-3 w-3" />
                       {uploadShotAsset.isPending
                         ? t("workspace_storyboard_uploading")
@@ -474,7 +474,7 @@ export function DraftDetail({
               <button
                 onClick={() => void handleReassemble()}
                 disabled={assembleReel.isPending || videoRunning}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-[11px] text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-sm text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
               >
                 {assembleReel.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -494,7 +494,7 @@ export function DraftDetail({
       <div className="shrink-0 border-t px-4 py-3 flex items-center gap-2">
         <button
           onClick={onOpenAudio}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
         >
           <Mic className="w-3.5 h-3.5" />
           {hasAudio ? t("workspace_edit_audio") : t("workspace_add_audio")}
@@ -502,14 +502,14 @@ export function DraftDetail({
         <Link
           to="/studio/editor/$generatedContentId"
           params={{ generatedContentId: String(draft.id) }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-border/60 bg-muted/30 text-foreground/80 hover:bg-muted transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-border/60 bg-muted/30 text-foreground/80 hover:bg-muted transition-colors"
         >
           {t("phase5_editor_open")}
         </Link>
         <button
           onClick={() => void handleGenerateReel()}
           disabled={generateReel.isPending || videoRunning}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border border-success/50 bg-success/10 text-success dark:text-success hover:bg-success/15 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-success/50 bg-success/10 text-success dark:text-success hover:bg-success/15 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {generateReel.isPending || videoRunning ? (
             <>

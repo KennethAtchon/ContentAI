@@ -88,7 +88,7 @@ function MetricCard({
   return (
     <Card className="border-2 hover:shadow-lg transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="text-base font-medium text-muted-foreground">
           {title}
         </CardTitle>
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -97,21 +97,21 @@ function MetricCard({
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center gap-2 text-2xl font-bold text-muted-foreground">
+          <div className="flex items-center gap-2 text-3xl font-bold text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
             {loadingText || "Loading..."}
           </div>
         ) : error ? (
-          <div className="flex items-center gap-2 text-sm text-destructive">
+          <div className="flex items-center gap-2 text-base text-destructive">
             <AlertCircle className="h-4 w-4" />
             {error}
           </div>
         ) : (
           <>
-            <div className="text-3xl font-bold tracking-tight">
+            <div className="text-4xl font-bold tracking-tight">
               {displayValue}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{change}</p>
+            <p className="text-sm text-muted-foreground mt-1">{change}</p>
           </>
         )}
       </CardContent>
@@ -140,11 +140,11 @@ function TabSection({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Icon className="h-5 w-5 text-primary" />
             {title}
           </h2>
-          <p className="text-muted-foreground text-sm mt-1">{description}</p>
+          <p className="text-muted-foreground text-base mt-1">{description}</p>
         </div>
         <Button asChild variant="outline" className="shadow-sm">
           <Link to={linkHref}>{linkText}</Link>
@@ -222,10 +222,10 @@ export function DashboardView() {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">
+        <h1 className="text-5xl font-bold tracking-tight">
           {t("common_dashboard_overview")}
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-xl">
           {t(
             "common_monitor_your_business_performance_and_track_key_metrics_at_a"
           )}
@@ -381,7 +381,7 @@ export function DashboardView() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : subscriptionsError ? (
-                  <div className="flex items-center gap-2 text-sm text-destructive py-8">
+                  <div className="flex items-center gap-2 text-base text-destructive py-8">
                     <AlertCircle className="h-4 w-4" />
                     {subscriptionsError instanceof Error
                       ? subscriptionsError.message
@@ -390,18 +390,18 @@ export function DashboardView() {
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-base text-muted-foreground">
                         {t("admin_dashboard_active_subscriptions_label")}
                       </span>
-                      <span className="text-2xl font-bold">
+                      <span className="text-3xl font-bold">
                         {subscriptionsData?.activeSubscriptions ?? 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-base text-muted-foreground">
                         {t("admin_dashboard_monthly_recurring_revenue_label")}
                       </span>
-                      <span className="text-lg font-semibold">
+                      <span className="text-xl font-semibold">
                         {subscriptionsData?.mrr?.toLocaleString(
                           "en-US",
                           CURRENCY_FORMAT_OPTIONS
@@ -409,10 +409,10 @@ export function DashboardView() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-base text-muted-foreground">
                         {t("admin_dashboard_churn_rate")}
                       </span>
-                      <span className="text-lg font-semibold">
+                      <span className="text-xl font-semibold">
                         {subscriptionsData?.churnRate?.toFixed(2) ?? 0}%
                       </span>
                     </div>

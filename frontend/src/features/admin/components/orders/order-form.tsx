@@ -277,20 +277,20 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
                       </div>
                       <div className="max-h-60 overflow-auto">
                         {users.length === 0 && customerSearchTerm ? (
-                          <div className="p-3 text-sm text-muted-foreground">
+                          <div className="p-3 text-base text-muted-foreground">
                             {t(
                               "common_no_customers_match_your_search_criteria"
                             )}
                           </div>
                         ) : users.length === 0 ? (
-                          <div className="p-3 text-sm text-muted-foreground">
+                          <div className="p-3 text-base text-muted-foreground">
                             {t("admin_order_form_start_typing")}
                           </div>
                         ) : (
                           users.map((user) => (
                             <div
                               key={user.id}
-                              className={`flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground ${
+                              className={`flex items-center px-3 py-2 text-base cursor-pointer hover:bg-accent hover:text-accent-foreground ${
                                 field.value === user.id
                                   ? "bg-accent text-accent-foreground"
                                   : ""
@@ -310,7 +310,7 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
                               />
                               <div className="flex flex-col">
                                 <span className="font-medium">{user.name}</span>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-sm text-muted-foreground">
                                   {user.email}
                                 </span>
                               </div>

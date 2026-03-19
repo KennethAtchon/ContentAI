@@ -179,7 +179,7 @@ export function OrderCheckout({
       {/* Quick Add Products */}
       <Card className="mb-6 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
         <CardHeader>
-          <CardTitle className="text-lg">
+          <CardTitle className="text-xl">
             {t("checkout_quick_add_products")}
           </CardTitle>
           <CardDescription>
@@ -195,11 +195,11 @@ export function OrderCheckout({
                 className="h-auto flex-col items-start p-3 text-left"
                 onClick={() => addProduct(product)}
               >
-                <div className="font-semibold text-sm mb-1">{product.name}</div>
-                <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                <div className="font-semibold text-base mb-1">{product.name}</div>
+                <div className="text-sm text-muted-foreground mb-2 line-clamp-2">
                   {product.description}
                 </div>
-                <div className="text-sm font-bold text-primary">
+                <div className="text-base font-bold text-primary">
                   ${product.price.toFixed(2)}
                 </div>
               </Button>
@@ -254,7 +254,7 @@ export function OrderCheckout({
                         updateItems(newItems);
                       }}
                       placeholder={t("checkout_description_placeholder")}
-                      className="text-sm"
+                      className="text-base"
                     />
                     <div className="flex gap-2">
                       <div className="flex-1">
@@ -326,7 +326,7 @@ export function OrderCheckout({
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 {items.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
+                  <div key={index} className="flex justify-between text-base">
                     <span className="text-muted-foreground">
                       {item.name} × {item.quantity}
                     </span>
@@ -338,10 +338,10 @@ export function OrderCheckout({
               </div>
               <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">
+                  <span className="text-xl font-semibold">
                     {t("admin_contact_messages_total")}
                   </span>
-                  <span className="text-2xl font-bold">
+                  <span className="text-3xl font-bold">
                     <DollarSign className="inline h-5 w-5" />
                     {subtotal.toFixed(2)}
                   </span>
@@ -350,7 +350,7 @@ export function OrderCheckout({
               <Button
                 onClick={handleCheckout}
                 disabled={isProcessing || subtotal <= 0}
-                className="w-full h-12 text-base font-semibold"
+                className="w-full h-12 text-lg font-semibold"
                 size="lg"
               >
                 {isProcessing ? (
@@ -365,7 +365,7 @@ export function OrderCheckout({
                   </>
                 )}
               </Button>
-              <p className="text-xs text-center text-muted-foreground">
+              <p className="text-sm text-center text-muted-foreground">
                 {t("checkout_redirected_to_stripe")}
               </p>
             </CardContent>
@@ -384,7 +384,7 @@ export function OrderCheckout({
               <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
                 {t("checkout_one_time_purchase")}
               </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
+              <p className="text-base text-blue-700 dark:text-blue-300">
                 {t("checkout_one_time_purchase_description")}{" "}
                 <Link
                   to="/pricing"

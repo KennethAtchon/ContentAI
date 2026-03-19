@@ -206,7 +206,7 @@ export function AudioPlayer({
 
         <div className="flex-1 flex flex-col gap-1">
           {state === "error" ? (
-            <span className="text-xs text-destructive">
+            <span className="text-sm text-destructive">
               {t("audio_player_playbackFailed")}
             </span>
           ) : (
@@ -221,13 +221,13 @@ export function AudioPlayer({
             />
           )}
           <div className="flex justify-between items-center">
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {formatTime(currentTime)} / {formatTime(totalDuration)}
             </span>
             {downloadFilename && (
               <button
                 onClick={handleDownload}
-                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
                 aria-label={t("audio_player_download")}
               >
                 <Download className="w-3 h-3" />
