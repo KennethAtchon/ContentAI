@@ -13,6 +13,7 @@ const STUDIO_TABS = [
   { key: "discover", path: "/studio/discover" },
   { key: "generate", path: "/studio/generate" },
   { key: "queue", path: "/studio/queue" },
+  { key: "editor", path: "/studio/editor" },
 ] as const;
 
 const PUBLIC_TABS = [
@@ -40,6 +41,7 @@ const TAB_LABELS: Record<string, string> = {
   discover: "studio_tabs_discover",
   generate: "studio_tabs_generate",
   queue: "studio_tabs_queue",
+  editor: "studio_tabs_editor",
   home: "navigation_home",
   features: "navigation_features",
   pricing: "metadata_pricing_title",

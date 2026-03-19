@@ -247,3 +247,35 @@
     to { height: 0; }
   }
 }
+
+/* ── Editor utility classes ──────────────────────────────────────────────── */
+
+.transport-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-dim-2);
+  transition: color 0.15s, background 0.15s;
+}
+.transport-btn:hover {
+  color: var(--studio-fg);
+  background: var(--overlay-sm);
+}
+
+/* Film-sprocket repeating background used in timeline clips and preview edges */
+.bg-repeating-sprocket {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 6px,
+    rgba(0,0,0,0.4) 6px,
+    rgba(0,0,0,0.4) 10px
+  );
+}

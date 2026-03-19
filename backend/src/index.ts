@@ -32,6 +32,7 @@ import chatRoutes from "./routes/chat/index";
 import audioRoutes from "./routes/audio/index";
 import assetsRoutes from "./routes/assets/index";
 import musicRoutes from "./routes/music/index";
+import editorRoutes from "./routes/editor/index";
 import { startDailyScan } from "./jobs/daily-scan";
 
 const app = new Hono();
@@ -91,6 +92,7 @@ app.route("/api/chat", chatRoutes);
 app.route("/api/audio", audioRoutes);
 app.route("/api/assets", assetsRoutes);
 app.route("/api/music", musicRoutes);
+app.route("/api/editor", editorRoutes);
 
 // Standalone routes
 app.get("/api/live", (c) => c.json({ status: "ok" }));

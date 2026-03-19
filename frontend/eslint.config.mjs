@@ -69,6 +69,9 @@ export default [
         HTMLAudioElement: "readonly",
         cancelAnimationFrame: "readonly",
         requestAnimationFrame: "readonly",
+        MouseEvent: "readonly",
+        HTMLElement: "readonly",
+        confirm: "readonly",
       },
     },
     plugins: {

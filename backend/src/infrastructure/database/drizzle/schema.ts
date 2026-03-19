@@ -395,6 +395,69 @@ export const musicTracks = pgTable(
   ],
 );
 
+// ─── Edit Projects ────────────────────────────────────────────────────────────
+
+export const editProjects = pgTable(
+  "edit_project",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("Untitled Edit"),
+    generatedContentId: integer("generated_content_id").references(
+      () => generatedContent.id,
+      { onDelete: "set null" },
+    ),
+    // Serialized timeline state
+    tracks: jsonb("tracks").notNull().default([]),
+    durationMs: integer("duration_ms").notNull().default(0),
+    fps: integer("fps").notNull().default(30),
+    resolution: text("resolution").notNull().default("1080p"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("edit_projects_user_idx").on(t.userId),
+    index("edit_projects_content_idx").on(t.generatedContentId),
+  ],
+);
+
+export const exportJobs = pgTable(
+  "export_job",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    editProjectId: text("edit_project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "queued" | "rendering" | "done" | "failed"
+    status: text("status").notNull().default("queued"),
+    progress: integer("progress").notNull().default(0),
+    r2Key: text("r2_key"),
+    r2Url: text("r2_url"),
+    error: text("error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("export_jobs_project_idx").on(t.editProjectId),
+    index("export_jobs_user_idx").on(t.userId),
+  ],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -515,3 +578,7 @@ export type ReelAsset = typeof reelAssets.$inferSelect;
 export type NewReelAsset = typeof reelAssets.$inferInsert;
 export type MusicTrack = typeof musicTracks.$inferSelect;
 export type NewMusicTrack = typeof musicTracks.$inferInsert;
+export type EditProject = typeof editProjects.$inferSelect;
+export type NewEditProject = typeof editProjects.$inferInsert;
+export type ExportJob = typeof exportJobs.$inferSelect;
+export type NewExportJob = typeof exportJobs.$inferInsert;

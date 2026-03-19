@@ -86,6 +86,12 @@ export const queryKeys = {
     sessionDrafts: (sessionId: string) =>
       ["api", "session-drafts", sessionId] as const,
 
+    // ── Editor ──────────────────────────────────────────────────────
+    editorProjects: () => ["api", "editor", "projects"] as const,
+    editorProject: (id: string) => ["api", "editor", "project", id] as const,
+    editorExportStatus: (projectId: string) =>
+      ["api", "editor", "export-status", projectId] as const,
+
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>
       ["api", "paginated", resource, params] as const,
