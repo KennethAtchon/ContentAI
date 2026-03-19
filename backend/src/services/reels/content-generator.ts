@@ -130,11 +130,14 @@ Generate an original variation following the same viral structure.`;
     .returning();
 
   // Auto-enroll every generated draft in the pipeline queue.
-  await db.insert(queueItems).values({
-    userId,
-    generatedContentId: content.id,
-    status: "draft",
-  }).onConflictDoNothing();
+  await db
+    .insert(queueItems)
+    .values({
+      userId,
+      generatedContentId: content.id,
+      status: "draft",
+    })
+    .onConflictDoNothing();
 
   return content;
 }

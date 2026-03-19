@@ -20,7 +20,13 @@ export interface VideoJobResult {
 }
 
 export type VideoJobProgress = {
-  phase: "queued" | "decode" | "graph-build" | "encode" | "finalize" | "completed";
+  phase:
+    | "queued"
+    | "decode"
+    | "graph-build"
+    | "encode"
+    | "finalize"
+    | "completed";
   percent: number;
   message?: string;
 };

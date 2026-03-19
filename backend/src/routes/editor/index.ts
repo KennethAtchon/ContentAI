@@ -115,7 +115,9 @@ app.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
     const [project] = await db
       .select()
       .from(editProjects)
-      .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+      .where(
+        and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+      )
       .limit(1);
 
     if (!project) {
@@ -153,7 +155,9 @@ app.patch(
       const [existing] = await db
         .select({ id: editProjects.id })
         .from(editProjects)
-        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .limit(1);
 
       if (!existing) {
@@ -162,10 +166,13 @@ app.patch(
 
       const updateData: Record<string, unknown> = {};
       if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
-      if (parsed.data.tracks !== undefined) updateData.tracks = parsed.data.tracks;
-      if (parsed.data.durationMs !== undefined) updateData.durationMs = parsed.data.durationMs;
+      if (parsed.data.tracks !== undefined)
+        updateData.tracks = parsed.data.tracks;
+      if (parsed.data.durationMs !== undefined)
+        updateData.durationMs = parsed.data.durationMs;
       if (parsed.data.fps !== undefined) updateData.fps = parsed.data.fps;
-      if (parsed.data.resolution !== undefined) updateData.resolution = parsed.data.resolution;
+      if (parsed.data.resolution !== undefined)
+        updateData.resolution = parsed.data.resolution;
 
       const [updated] = await db
         .update(editProjects)
@@ -200,7 +207,9 @@ app.delete(
       const [existing] = await db
         .select({ id: editProjects.id })
         .from(editProjects)
-        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .limit(1);
 
       if (!existing) {
@@ -241,7 +250,9 @@ app.post(
       const [project] = await db
         .select()
         .from(editProjects)
-        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .limit(1);
 
       if (!project) {
@@ -310,7 +321,9 @@ app.get(
 
       let r2Url: string | undefined;
       if (job.status === "done" && job.r2Key) {
-        r2Url = await getFileUrl(job.r2Key, 3600 * 6).catch(() => job.r2Url ?? undefined);
+        r2Url = await getFileUrl(job.r2Key, 3600 * 6).catch(
+          () => job.r2Url ?? undefined,
+        );
       }
 
       return c.json({
@@ -363,7 +376,13 @@ async function setJobProgress(jobId: string, progress: number) {
 
 async function runExportJob(
   jobId: string,
-  project: { id: string; tracks: unknown; durationMs: number; fps: number; resolution: string },
+  project: {
+    id: string;
+    tracks: unknown;
+    durationMs: number;
+    fps: number;
+    resolution: string;
+  },
   userId: string,
   opts: { resolution?: string; fps?: number },
 ) {
@@ -395,10 +414,18 @@ async function runExportJob(
     if (assetIds.length > 0) {
       const { inArray } = await import("drizzle-orm");
       const assets = await db
-        .select({ id: reelAssets.id, r2Key: reelAssets.r2Key, type: reelAssets.type })
+        .select({
+          id: reelAssets.id,
+          r2Key: reelAssets.r2Key,
+          type: reelAssets.type,
+        })
         .from(reelAssets)
-        .where(and(inArray(reelAssets.id, assetIds), eq(reelAssets.userId, userId)));
-      assetsMap = Object.fromEntries(assets.map((a) => [a.id, { r2Key: a.r2Key, type: a.type }]));
+        .where(
+          and(inArray(reelAssets.id, assetIds), eq(reelAssets.userId, userId)),
+        );
+      assetsMap = Object.fromEntries(
+        assets.map((a) => [a.id, { r2Key: a.r2Key, type: a.type }]),
+      );
     }
 
     await setJobProgress(jobId, 20);
@@ -409,9 +436,15 @@ async function runExportJob(
     const musicTrack = tracks.find((t) => t.type === "music" && !t.muted);
     const textTrack = tracks.find((t) => t.type === "text");
 
-    const videoClips = (videoTrack?.clips ?? []).filter((c) => c.assetId && assetsMap[c.assetId]);
-    const audioClips = (audioTrack?.clips ?? []).filter((c) => c.assetId && assetsMap[c.assetId]);
-    const musicClips = (musicTrack?.clips ?? []).filter((c) => c.assetId && assetsMap[c.assetId]);
+    const videoClips = (videoTrack?.clips ?? []).filter(
+      (c) => c.assetId && assetsMap[c.assetId],
+    );
+    const audioClips = (audioTrack?.clips ?? []).filter(
+      (c) => c.assetId && assetsMap[c.assetId],
+    );
+    const musicClips = (musicTrack?.clips ?? []).filter(
+      (c) => c.assetId && assetsMap[c.assetId],
+    );
 
     if (videoClips.length === 0) {
       await db
@@ -422,12 +455,19 @@ async function runExportJob(
     }
 
     // Download all needed files to temp
-    const downloadToTmp = async (r2Key: string, ext: string): Promise<string> => {
+    const downloadToTmp = async (
+      r2Key: string,
+      ext: string,
+    ): Promise<string> => {
       const signedUrl = await getFileUrl(r2Key, 3600);
       const res = await fetch(signedUrl);
-      if (!res.ok) throw new Error(`Failed to download ${r2Key}: ${res.status}`);
+      if (!res.ok)
+        throw new Error(`Failed to download ${r2Key}: ${res.status}`);
       const buf = Buffer.from(await res.arrayBuffer());
-      const path = join(tmpdir(), `export-${jobId}-${crypto.randomUUID()}.${ext}`);
+      const path = join(
+        tmpdir(),
+        `export-${jobId}-${crypto.randomUUID()}.${ext}`,
+      );
       writeFileSync(path, buf);
       tmpFiles.push(path);
       return path;
@@ -463,8 +503,10 @@ async function runExportJob(
     // Trim and scale each video clip
     videoClips.forEach((clip, i) => {
       const trimStart = (clip.trimStartMs ?? 0) / 1000;
-      const trimDuration = clip.durationMs / 1000 / (clip.speed || 1);
-      const pts = clip.speed && clip.speed !== 1 ? `setpts=${(1 / clip.speed).toFixed(4)}*PTS,` : "";
+      const pts =
+        clip.speed && clip.speed !== 1
+          ? `setpts=${(1 / clip.speed).toFixed(4)}*PTS,`
+          : "";
       filterParts.push(
         `[${i}:v]trim=start=${trimStart}:duration=${clip.durationMs / 1000},` +
           `${pts}scale=${outW}:${outH}:force_original_aspect_ratio=decrease,` +
@@ -478,7 +520,9 @@ async function runExportJob(
 
     if (videoInputCount > 1) {
       const concatInputs = videoClips.map((_, i) => `[v${i}]`).join("");
-      filterParts.push(`${concatInputs}concat=n=${videoInputCount}:v=1:a=0[vconcat]`);
+      filterParts.push(
+        `${concatInputs}concat=n=${videoInputCount}:v=1:a=0[vconcat]`,
+      );
       latestVideoLabel = "vconcat";
     } else {
       latestVideoLabel = "v0";
@@ -507,12 +551,14 @@ async function runExportJob(
     if (allAudioClips.length > 0) {
       allAudioClips.forEach((clip, i) => {
         const inputIdx = videoInputCount + i;
-        const vol = (clip.muted ? 0 : clip.volume ?? 1).toFixed(2);
+        const vol = (clip.muted ? 0 : (clip.volume ?? 1)).toFixed(2);
         filterParts.push(`[${inputIdx}:a]volume=${vol}[a${i}]`);
       });
       if (allAudioClips.length > 1) {
         const amixInputs = allAudioClips.map((_, i) => `[a${i}]`).join("");
-        filterParts.push(`${amixInputs}amix=inputs=${allAudioClips.length}[amix]`);
+        filterParts.push(
+          `${amixInputs}amix=inputs=${allAudioClips.length}[amix]`,
+        );
         finalAudioLabel = "amix";
       } else {
         finalAudioLabel = "a0";
@@ -535,11 +581,16 @@ async function runExportJob(
     }
 
     ffmpegArgs.push(
-      "-c:v", "libx264",
-      "-crf", "18",
-      "-preset", "fast",
-      "-pix_fmt", "yuv420p",
-      "-r", String(fps),
+      "-c:v",
+      "libx264",
+      "-crf",
+      "18",
+      "-preset",
+      "fast",
+      "-pix_fmt",
+      "yuv420p",
+      "-r",
+      String(fps),
     );
 
     if (finalAudioLabel) {
@@ -559,7 +610,9 @@ async function runExportJob(
 
     if (proc.exitCode !== 0) {
       const stderr = await new Response(proc.stderr).text();
-      throw new Error(`FFmpeg failed (exit ${proc.exitCode}): ${stderr.slice(-800)}`);
+      throw new Error(
+        `FFmpeg failed (exit ${proc.exitCode}): ${stderr.slice(-800)}`,
+      );
     }
 
     await setJobProgress(jobId, 85);

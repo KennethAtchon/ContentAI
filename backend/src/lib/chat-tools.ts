@@ -106,11 +106,14 @@ export function createSaveContentTool(context: ToolContext) {
         context.savedContentId = row.id;
 
         // Auto-enroll in queue — every saved draft is immediately visible in the pipeline.
-        await db.insert(queueItems).values({
-          userId: context.auth.user.id,
-          generatedContentId: row.id,
-          status: "draft",
-        }).onConflictDoNothing();
+        await db
+          .insert(queueItems)
+          .values({
+            userId: context.auth.user.id,
+            generatedContentId: row.id,
+            status: "draft",
+          })
+          .onConflictDoNothing();
 
         debugLog.info("[tool:save_content] Content saved to DB", {
           service: "chat-tools",

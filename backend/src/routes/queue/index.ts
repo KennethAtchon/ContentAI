@@ -45,10 +45,9 @@ function deriveStages(
   );
   const hasVideoClips = (assetTypeCounts["video_clip"] ?? 0) > 0;
   const hasAssembled =
-    !!(row.videoR2Url) || (assetTypeCounts["assembled_video"] ?? 0) > 0;
+    !!row.videoR2Url || (assetTypeCounts["assembled_video"] ?? 0) > 0;
 
-  const videoRunning =
-    phase4Status === "running" || phase4Status === "pending";
+  const videoRunning = phase4Status === "running" || phase4Status === "pending";
   const videoFailed = phase4Status === "failed" || contentFailed;
 
   const stages: PipelineStage[] = [
@@ -72,9 +71,7 @@ function deriveStages(
           : hasVideoClips
             ? "ok"
             : "pending",
-      error: videoFailed
-        ? (phase4.error as string | undefined)
-        : undefined,
+      error: videoFailed ? (phase4.error as string | undefined) : undefined,
     },
     {
       id: "assembled",
@@ -217,19 +214,17 @@ queueRouter.get(
         .map((r) => r.generatedContentId)
         .filter((id): id is number => id !== null);
 
-      const assetCounts = await (
-        contentIds.length > 0
-          ? db
-              .select({
-                generatedContentId: reelAssets.generatedContentId,
-                type: reelAssets.type,
-                count: sql<number>`count(*)::int`,
-              })
-              .from(reelAssets)
-              .where(inArray(reelAssets.generatedContentId, contentIds))
-              .groupBy(reelAssets.generatedContentId, reelAssets.type)
-          : Promise.resolve([])
-      );
+      const assetCounts = await (contentIds.length > 0
+        ? db
+            .select({
+              generatedContentId: reelAssets.generatedContentId,
+              type: reelAssets.type,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(reelAssets)
+            .where(inArray(reelAssets.generatedContentId, contentIds))
+            .groupBy(reelAssets.generatedContentId, reelAssets.type)
+        : Promise.resolve([]));
 
       // Build lookup maps.
       const assetCountMap: Record<number, Record<string, number>> = {};
@@ -368,7 +363,7 @@ queueRouter.get(
       if (!item) return c.json({ error: "Queue item not found" }, 404);
 
       let content = null;
-      let assets: typeof reelAssets.$inferSelect[] = [];
+      let assets: (typeof reelAssets.$inferSelect)[] = [];
 
       if (item.generatedContentId) {
         const [contentRow] = await db
@@ -389,7 +384,10 @@ queueRouter.get(
         .execute(
           sql`SELECT cm.session_id FROM chat_message cm WHERE cm.generated_content_id = ${item.generatedContentId} LIMIT 1`,
         )
-        .then((r) => (r[0] as { session_id: string } | undefined)?.session_id ?? null);
+        .then(
+          (r) =>
+            (r[0] as { session_id: string } | undefined)?.session_id ?? null,
+        );
 
       return c.json({
         queueItem: item,
@@ -476,10 +474,13 @@ queueRouter.post(
         })
         .returning();
 
-      return c.json({
-        queueItem: newItem,
-        newGeneratedContentId,
-      }, 201);
+      return c.json(
+        {
+          queueItem: newItem,
+          newGeneratedContentId,
+        },
+        201,
+      );
     } catch (error) {
       debugLog.error("Failed to duplicate queue item", {
         service: "queue-route",
