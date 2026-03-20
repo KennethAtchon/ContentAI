@@ -1,502 +1,124 @@
-# Account Management - Domain Architecture
+# Account Management — Domain Architecture
 
 ## Overview
 
-YourApp's account management system provides users with comprehensive control over their profile, subscription, usage statistics, generator access, and order history. The account page is the central hub for all user-facing features.
+The account page (`/(customer)/account`) is the customer-facing hub for managing profile, subscription, and usage. It runs as a single TanStack Router route that mounts `AccountInteractive` — a client component handling all tabs.
 
-**Key Features:**
-- **Profile Management:** Edit name, email, phone, address, notes
-- **Subscription Management:** View current plan, upgrade/downgrade, billing portal
-- **Usage Dashboard:** Real-time generator usage and limits
-- **Generator Interface:** Access to AI content generators
-- **Order History:** View past one-time purchases
-
----
-
-## Table of Contents
-
-1. [Account Page Structure](#account-page-structure)
-2. [Profile Editor](#profile-editor)
-3. [Subscription Management](#subscription-management)
-4. [Usage Dashboard](#usage-dashboard)
-5. [Generator Interface](#generator-interface)
-6. [Best Practices](#best-practices)
+**Features:**
+- Profile editor (name, email, phone, address)
+- Subscription management (view plan, access Stripe Customer Portal)
+- Usage dashboard (daily/monthly generation counts vs tier limits)
+- Order history
 
 ---
 
-## Account Page Structure
+## Route Structure
 
-### Main Account Page
-
-**Location:** `app/(customer)/(main)/account/page.tsx`
-
-```typescript
-'use client';
-
-import { useApp } from '@/shared/contexts/app-context';
-import { AuthGuard } from '@/features/auth/components/auth-guard';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { ProfileEditor } from '@/features/account/components/profile-editor';
-import { SubscriptionManagement } from '@/features/account/components/subscription-management';
-import { UsageDashboard } from '@/features/account/components/usage-dashboard';
-import { GeneratorInterface } from '@/features/account/components/generator-interface';
-
-export default function AccountPage() {
-  const { user } = useApp();
-
-  return (
-    <AuthGuard requireAuth>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">My Account</h1>
-        
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
-            <TabsTrigger value="usage">Usage</TabsTrigger>
-            <TabsTrigger value="generator">Generator</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="profile">
-            <ProfileEditor />
-          </TabsContent>
-
-          <TabsContent value="subscription">
-            <SubscriptionManagement />
-          </TabsContent>
-
-          <TabsContent value="usage">
-            <UsageDashboard />
-          </TabsContent>
-
-          <TabsContent value="generator">
-            <GeneratorInterface />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </AuthGuard>
-  );
-}
 ```
+frontend/src/routes/(customer)/
+├── account.tsx           → route shell (AuthGuard + AccountInteractive)
+└── account/
+    └── -account-interactive.tsx  → tab shell + state
+
+frontend/src/features/account/components/
+├── profile-editor.tsx           → Profile tab content
+├── subscription-management.tsx  → Subscription tab content
+├── usage-dashboard.tsx          → Usage tab content
+└── order-detail-modal.tsx       → Order detail drawer
+```
+
+**Auth:** `<AuthGuard authType="user">` — redirects to `/sign-in` if unauthenticated.
 
 ---
 
 ## Profile Editor
 
-### Overview
+**Component:** `features/account/components/profile-editor.tsx`
 
-The Profile Editor allows users to update their personal information, including name, email, phone, address, and notes.
+Allows the user to update their profile fields. Uses `useApp().updateProfile` which calls `PATCH /api/users/profile`.
 
-**Location:** `features/account/components/profile-editor.tsx`
+**Fields:**
+- Name, email, phone, address, notes
 
-### Key Features
-
-- **OAuth Detection:** Email field is disabled for Google/OAuth users
-- **Real-time Validation:** Form validation on input
-- **Optimistic Updates:** Immediate feedback on save
-- **Privacy Notice:** Clear information about data security
-
-### API Integration
-
-**GET /api/customer/profile:**
-
-```typescript
-const fetchProfile = async () => {
-  const data = await authenticatedFetchJson('/api/customer/profile');
-  // Response: { profile: Profile, isOAuthUser: boolean }
-  setProfile(data.profile);
-  setIsOAuthUser(data.isOAuthUser);
-};
+**Backend endpoint:**
 ```
-
-**PUT /api/customer/profile:**
-
-```typescript
-const handleSave = async () => {
-  const requestData: any = {
-    name: formData.name,
-    phone: formData.phone,
-    address: formData.address,
-    notes: formData.notes || null,
-  };
-
-  // Only include email for non-OAuth users
-  if (!isOAuthUser) {
-    requestData.email = formData.email;
-  }
-
-  const data = await authenticatedFetchJson('/api/customer/profile', {
-    method: 'PUT',
-    body: JSON.stringify(requestData),
-  });
-
-  toast.success('Profile updated successfully!');
-};
-```
-
-### Form Fields
-
-```typescript
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+PATCH /api/users/profile
+Auth: user
+Body: { name?, email?, phone?, address?, notes? }
+Response: { user: UserProfile }
 ```
 
 ---
 
 ## Subscription Management
 
-### Overview
+**Component:** `features/account/components/subscription-management.tsx`
 
-The Subscription Management component displays the user's current subscription tier, usage statistics, plan features, and billing actions.
+Displays the current subscription tier (read from `stripeRole` custom claim on the Firebase token). The actual plan change UI is Stripe's hosted Customer Portal — the component shows a "Manage Billing" button that redirects to the portal.
 
-**Location:** `features/account/components/subscription-management.tsx`
+**Data source:** Firebase custom claim `stripeRole` (fast, no API call needed).
 
-### Key Features
+**Backend endpoints:**
+```
+POST /api/subscriptions/portal
+Auth: user, CSRF
+Response: { url: string }  → redirect user to Stripe Customer Portal
 
-- **Current Plan Display:** Tier, price, billing cycle
-- **Usage Meter:** Visual progress bar for generator usage
-- **Plan Features:** List of features included in current tier
-- **Upgrade/Downgrade:** Links to pricing page
-- **Stripe Portal:** Manage subscription via Stripe Customer Portal
-
-### Current Plan Card
-
-```typescript
-<Card>
-  <CardHeader>
-    <div className="flex items-center justify-between">
-      <div>
-        <CardTitle className="flex items-center gap-2">
-          Current Plan
-          <Badge variant="default">Active</Badge>
-        </CardTitle>
-        <CardDescription>
-          {tierConfig.name} Plan - ${tierConfig.price}/{tierConfig.billingCycle}
-        </CardDescription>
-      </div>
-      <Button variant="outline" asChild>
-        <Link href="/pricing">Change Plan</Link>
-      </Button>
-    </div>
-  </CardHeader>
-  <CardContent>
-    <div className="grid gap-4 md:grid-cols-2">
-      <div>
-        <p className="text-sm text-muted-foreground">Billing Cycle</p>
-        <p className="text-lg font-semibold capitalize">{tierConfig.billingCycle}</p>
-      </div>
-      {usageStats?.resetDate && (
-        <div>
-          <p className="text-sm text-muted-foreground">Next Billing Date</p>
-          <p className="text-lg font-semibold">
-            {new Date(usageStats.resetDate).toLocaleDateString()}
-          </p>
-        </div>
-      )}
-    </div>
-  </CardContent>
-</Card>
+GET /api/subscriptions/current
+Auth: user
+Response: { subscription: { tier, status, currentPeriodEnd } | null }
 ```
 
-### Usage Statistics
-
-```typescript
-const [usageStats, setUsageStats] = useState<{
-  currentUsage: number;
-  usageLimit: number | null;
-  percentageUsed: number;
-  limitReached?: boolean;
-  resetDate?: string;
-} | null>(null);
-
-useEffect(() => {
-  const loadUsageData = async () => {
-    const usage = await authenticatedFetchJson('/api/generator/usage');
-    setUsageStats(usage);
-  };
-  loadUsageData();
-}, [user]);
-
-// Display usage
-{usageStats.usageLimit !== null && (
-  <>
-    <Progress value={usageStats.percentageUsed} className="h-2" />
-    <div className="flex items-center justify-between text-sm">
-      <span>{usageStats.percentageUsed}% used</span>
-      <span>Resets on {new Date(usageStats.resetDate).toLocaleDateString()}</span>
-    </div>
-  </>
-)}
-```
-
-### Stripe Customer Portal
-
-```typescript
-<ManageSubscriptionButton className="flex-1">
-  Manage Subscription
-</ManageSubscriptionButton>
-
-// ManageSubscriptionButton creates portal session and redirects
-```
+See [Subscription System](./subscription-system.md) for the full lifecycle.
 
 ---
 
 ## Usage Dashboard
 
-### Overview
+**Component:** `features/account/components/usage-dashboard.tsx`
 
-The Usage Dashboard shows detailed generator usage history and statistics.
+Shows the user's AI generation usage relative to their tier limits. Limits are enforced server-side; this component is for visibility only.
 
-**Location:** `features/account/components/usage-dashboard.tsx`
-
-### Key Features
-
-- **Usage Summary:** Total generations this month
-- **History Table:** Past generations with timestamps
-- **Export Options:** Download usage data (tier-dependent)
-- **Visual Analytics:** Charts and graphs for usage trends
-
-### Usage History Table
-
-```typescript
-interface GeneratorUsageRecord {
-  id: string;
-  featureType: 'hook generator' | 'caption generator' | 'script generator' | 'hashtag generator';
-  createdAt: Date;
-  generationTime: number; // milliseconds
-}
-
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>Type</TableHead>
-      <TableHead>Date</TableHead>
-      <TableHead>Time</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {history.map(record => (
-      <TableRow key={record.id}>
-        <TableCell className="capitalize">{record.featureType}</TableCell>
-        <TableCell>{new Date(record.createdAt).toLocaleDateString()}</TableCell>
-        <TableCell>{record.generationTime}ms</TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
+**Backend endpoint:**
 ```
+GET /api/users/usage
+Auth: user
+Response: {
+  tier: "free" | "basic" | "pro" | "enterprise",
+  daily: { used: number, limit: number | null },
+  monthly: { used: number, limit: number | null }
+}
+```
+
+**Tier limits** (from [Business Model](./business-model.md)):
+
+| Tier | Daily Generations | Daily Analyses |
+|------|------------------|---------------|
+| Free | 1 | 2 |
+| Basic | 10 | 10 |
+| Pro | 50 | Unlimited |
+| Enterprise | Unlimited | Unlimited |
 
 ---
 
-## Generator Interface
+## Order History
 
-### Overview
+Fetched alongside the profile data. Users can click an order to open `OrderDetailModal`.
 
-The Generator Interface provides direct access to AI content generators from the account page, with feature gating based on subscription tier.
-
-**Location:** `features/account/components/generator-interface.tsx`
-
-### Generator Selection
-
-```typescript
-const generators = [
-  { type: 'hook generator', name: 'Hook Generator Generator', tier: 'basic' },
-  { type: 'caption generator', name: 'Caption Generator Generator', tier: 'basic' },
-  { type: 'script generator', name: 'Script Generator Generator', tier: 'pro' },
-  { type: 'hashtag generator', name: 'Hashtag Generator Generator', tier: 'enterprise' },
-];
-
-<div className="grid gap-6 md:grid-cols-2">
-  {generators.map(calc => (
-    <FeatureGate
-      key={calc.type}
-      requiredTier={calc.tier}
-      fallback={
-        <Card className="opacity-50">
-          <CardHeader>
-            <CardTitle>{calc.name}</CardTitle>
-            <CardDescription>
-              Requires {calc.tier} plan or higher
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/pricing">Upgrade to Unlock</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      }
-    >
-      <GeneratorCard type={calc.type} name={calc.name} />
-    </FeatureGate>
-  ))}
-</div>
+**Backend endpoint:**
 ```
-
-### Generator Component
-
-```typescript
-function GeneratorCard({ type, name }: { type: string; name: string }) {
-  const [inputs, setInputs] = useState({});
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleCalculate = async () => {
-    setLoading(true);
-    
-    const response = await authenticatedFetchJson('/api/generator/calculate', {
-      method: 'POST',
-      body: JSON.stringify({ type, inputs }),
-    });
-
-    setResults(response.results);
-    setLoading(false);
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{name}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Input fields based on generator type */}
-        <Button onClick={handleCalculate} disabled={loading}>
-          {loading ? 'Calculating...' : 'Calculate'}
-        </Button>
-        
-        {results && <ResultsDisplay results={results} />}
-      </CardContent>
-    </Card>
-  );
-}
-```
-
----
-
-## Best Practices
-
-### 1. Always Use AuthGuard
-
-```typescript
-// ✅ CORRECT: Wrap account pages with AuthGuard
-export default function AccountPage() {
-  return (
-    <AuthGuard requireAuth>
-      <AccountContent />
-    </AuthGuard>
-  );
-}
-
-// ❌ WRONG: No authentication check
-export default function AccountPage() {
-  return <AccountContent />;
-}
-```
-
-### 2. Handle OAuth Users Differently
-
-```typescript
-// ✅ CORRECT: Disable email for OAuth users
-<Input
-  id="email"
-  value={formData.email}
-  onChange={(e) => handleInputChange("email", e.target.value)}
-  disabled={isOAuthUser}
-/>
-<p className="text-xs text-muted-foreground">
-  {isOAuthUser 
-    ? "Email cannot be changed for Google/OAuth accounts"
-    : "Changing your email will update your login credentials"
-  }
-</p>
-
-// ❌ WRONG: Allow email change for OAuth users
-<Input id="email" value={formData.email} onChange={...} />
-```
-
-### 3. Show Loading States
-
-```typescript
-// ✅ CORRECT: Show loading skeleton
-if (loading) {
-  return (
-    <Card>
-      <CardContent className="py-16 text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-        <p className="mt-4">Loading profile...</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ❌ WRONG: Blank screen while loading
-if (loading) return null;
-```
-
-### 4. Provide Clear Feedback
-
-```typescript
-// ✅ CORRECT: Toast notifications + inline success
-await authenticatedFetchJson('/api/customer/profile', {
-  method: 'PUT',
-  body: JSON.stringify(requestData),
-});
-
-setSuccess(true);
-toast.success('Profile updated successfully!');
-
-// Clear success after 3 seconds
-setTimeout(() => setSuccess(false), 3000);
-
-// ❌ WRONG: Silent update
-await authenticatedFetchJson('/api/customer/profile', { method: 'PUT', body });
-```
-
-### 5. Use Feature Gating for Generators
-
-```typescript
-// ✅ CORRECT: Feature gate with upgrade path
-<FeatureGate
-  requiredTier="pro"
-  fallback={
-    <Card className="opacity-50">
-      <CardHeader>
-        <CardTitle>Script Generator Generator</CardTitle>
-        <CardDescription>Requires Pro plan or higher</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button asChild>
-          <Link href="/pricing">Upgrade to Pro</Link>
-        </Button>
-      </CardContent>
-    </Card>
-  }
->
-  <InvestmentGenerator />
-</FeatureGate>
-
-// ❌ WRONG: Hide feature without explanation
-{hasProAccess && <InvestmentGenerator />}
+GET /api/users/orders
+Auth: user
+Response: { orders: Order[] }
 ```
 
 ---
 
 ## Related Documentation
 
-- [Profile Management](../core/authentication-system.md)
-- [Subscription Management](./subscription-architecture.md)
-- [Generator Interface](./generator-system.md)
-- [Usage Tracking](./usage-tracking.md)
+- [Business Model](./business-model.md) — Tier limits and pricing details
+- [Subscription System](./subscription-system.md) — How subscriptions are stored and updated
 
 ---
 
-*Last Updated: December 2025*
-
+*Last updated: March 2026*
