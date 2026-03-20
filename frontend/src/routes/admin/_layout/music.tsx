@@ -219,9 +219,7 @@ function DeleteConfirm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-studio-surface border border-overlay-md rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-studio-fg">
-          Delete Track?
-        </h3>
+        <h3 className="text-lg font-semibold text-studio-fg">Delete Track?</h3>
         <p className="text-base text-dim-2">
           This will permanently remove{" "}
           <strong className="text-studio-fg">{track.name}</strong> from the

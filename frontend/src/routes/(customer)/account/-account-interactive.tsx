@@ -94,15 +94,13 @@ function getTierDisplay(role: string | null | undefined) {
     case "agency":
       return {
         label: "Agency",
-        badgeClass:
-          "text-amber-300 bg-amber-500/10 border border-amber-500/20",
+        badgeClass: "text-amber-300 bg-amber-500/10 border border-amber-500/20",
         dotClass: "bg-amber-400",
       };
     default:
       return {
         label: "Free",
-        badgeClass:
-          "text-dim-2 bg-overlay-xs border border-border",
+        badgeClass: "text-dim-2 bg-overlay-xs border border-border",
         dotClass: "bg-foreground/25",
       };
   }
@@ -117,24 +115,18 @@ function isUnlimited(limit: number | null | undefined): boolean {
 
 // ─── Usage bar ───────────────────────────────────────────────────────────────
 
-function UsageBar({
-  value,
-  max,
-}: {
-  value: number;
-  max: number | null;
-}) {
+function UsageBar({ value, max }: { value: number; max: number | null }) {
   const effectiveMax = isUnlimited(max) ? null : max;
-  const pct = effectiveMax ? Math.min(100, Math.round((value / effectiveMax) * 100)) : 0;
+  const pct = effectiveMax
+    ? Math.min(100, Math.round((value / effectiveMax) * 100))
+    : 0;
   const isHigh = pct >= 80;
   return (
     <div className="h-[3px] w-full rounded-full bg-overlay-sm overflow-hidden">
       <div
         className={cn(
           "h-full rounded-full transition-all duration-500",
-          isHigh
-            ? "bg-red-400/70"
-            : "bg-[hsl(234_89%_74%/0.6)]",
+          isHigh ? "bg-red-400/70" : "bg-[hsl(234_89%_74%/0.6)]"
         )}
         style={{ width: effectiveMax ? `${pct}%` : "0%" }}
       />
@@ -165,29 +157,45 @@ function SidebarPanel({
 
   const name = profile?.name || user?.displayName || "—";
   const email = profile?.email || user?.email || "—";
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "?";
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "?";
 
   const tier = getTierDisplay(role);
 
-  const navItems: { id: Section; icon: React.FC<{ className?: string }>; label: string }[] = [
-    { id: "overview", icon: LayoutDashboard, label: t("account_tabs_overview") },
-    { id: "subscription", icon: CreditCard, label: t("account_tabs_subscription") },
+  const navItems: {
+    id: Section;
+    icon: React.FC<{ className?: string }>;
+    label: string;
+  }[] = [
+    {
+      id: "overview",
+      icon: LayoutDashboard,
+      label: t("account_tabs_overview"),
+    },
+    {
+      id: "subscription",
+      icon: CreditCard,
+      label: t("account_tabs_subscription"),
+    },
     { id: "usage", icon: TrendingUp, label: t("account_tabs_usage") },
     { id: "orders", icon: Package, label: t("metadata_admin_orders_title") },
-    { id: "preferences", icon: SlidersHorizontal, label: t("account_tabs_preferences") },
+    {
+      id: "preferences",
+      icon: SlidersHorizontal,
+      label: t("account_tabs_preferences"),
+    },
     { id: "profile", icon: User, label: t("account_tabs_profile") },
   ];
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border">
       <div className="flex flex-col gap-6 p-5 h-full">
-
         {/* Identity */}
         <div className="space-y-3">
           <div className="flex items-start gap-3">
@@ -200,9 +208,7 @@ function SidebarPanel({
               <p className="font-semibold text-sm leading-tight truncate text-foreground">
                 {name}
               </p>
-              <p className="text-[11px] text-dim-2 truncate mt-0.5">
-                {email}
-              </p>
+              <p className="text-[11px] text-dim-2 truncate mt-0.5">{email}</p>
             </div>
             <ThemeToggle />
           </div>
@@ -210,7 +216,7 @@ function SidebarPanel({
           <div
             className={cn(
               "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium",
-              tier.badgeClass,
+              tier.badgeClass
             )}
           >
             <div className={cn("w-1.5 h-1.5 rounded-full", tier.dotClass)} />
@@ -236,12 +242,18 @@ function SidebarPanel({
                   <span className="text-[11px] text-dim-1 tabular-nums">
                     {usage.reelsAnalyzed}
                     <span className="text-dim-3">
-                      /{isUnlimited(usage.reelsAnalyzedLimit) ? "∞" : usage.reelsAnalyzedLimit}
+                      /
+                      {isUnlimited(usage.reelsAnalyzedLimit)
+                        ? "∞"
+                        : usage.reelsAnalyzedLimit}
                     </span>
                   </span>
                 </div>
                 {!isUnlimited(usage.reelsAnalyzedLimit) && (
-                  <UsageBar value={usage.reelsAnalyzed} max={usage.reelsAnalyzedLimit} />
+                  <UsageBar
+                    value={usage.reelsAnalyzed}
+                    max={usage.reelsAnalyzedLimit}
+                  />
                 )}
               </div>
 
@@ -253,12 +265,18 @@ function SidebarPanel({
                   <span className="text-[11px] text-dim-1 tabular-nums">
                     {usage.contentGenerated}
                     <span className="text-dim-3">
-                      /{isUnlimited(usage.contentGeneratedLimit) ? "∞" : usage.contentGeneratedLimit}
+                      /
+                      {isUnlimited(usage.contentGeneratedLimit)
+                        ? "∞"
+                        : usage.contentGeneratedLimit}
                     </span>
                   </span>
                 </div>
                 {!isUnlimited(usage.contentGeneratedLimit) && (
-                  <UsageBar value={usage.contentGenerated} max={usage.contentGeneratedLimit} />
+                  <UsageBar
+                    value={usage.contentGenerated}
+                    max={usage.contentGeneratedLimit}
+                  />
                 )}
               </div>
             </div>
@@ -279,16 +297,18 @@ function SidebarPanel({
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                   active
                     ? "bg-overlay-sm text-foreground"
-                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs",
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs"
                 )}
               >
                 <Icon
                   className={cn(
                     "h-4 w-4 shrink-0 transition-colors",
-                    active ? "text-[hsl(234_89%_74%)]" : "",
+                    active ? "text-[hsl(234_89%_74%)]" : ""
                   )}
                 />
-                <span className={cn("font-medium", active ? "text-foreground" : "")}>
+                <span
+                  className={cn("font-medium", active ? "text-foreground" : "")}
+                >
                   {label}
                 </span>
               </button>
@@ -343,22 +363,39 @@ function MobileNav({
   const { role } = useSubscription();
 
   const name = profile?.name || user?.displayName || "—";
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "?";
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "?";
 
   const tier = getTierDisplay(role);
 
-  const navItems: { id: Section; icon: React.FC<{ className?: string }>; label: string }[] = [
-    { id: "overview", icon: LayoutDashboard, label: t("account_tabs_overview_short") },
-    { id: "subscription", icon: CreditCard, label: t("account_tabs_subscription_short") },
+  const navItems: {
+    id: Section;
+    icon: React.FC<{ className?: string }>;
+    label: string;
+  }[] = [
+    {
+      id: "overview",
+      icon: LayoutDashboard,
+      label: t("account_tabs_overview_short"),
+    },
+    {
+      id: "subscription",
+      icon: CreditCard,
+      label: t("account_tabs_subscription_short"),
+    },
     { id: "usage", icon: TrendingUp, label: t("account_tabs_usage") },
     { id: "orders", icon: Package, label: "Orders" },
-    { id: "preferences", icon: SlidersHorizontal, label: t("account_tabs_preferences_short") },
+    {
+      id: "preferences",
+      icon: SlidersHorizontal,
+      label: t("account_tabs_preferences_short"),
+    },
     { id: "profile", icon: User, label: t("account_tabs_profile") },
   ];
 
@@ -367,13 +404,15 @@ function MobileNav({
       {/* Mobile identity strip */}
       <div className="flex items-center gap-2.5 mb-3">
         <div className="w-8 h-8 rounded-lg bg-[hsl(234_89%_74%/0.08)] border border-[hsl(234_89%_74%/0.15)] flex items-center justify-center">
-          <span className="text-xs font-bold text-[hsl(234_89%_74%)]">{initials}</span>
+          <span className="text-xs font-bold text-[hsl(234_89%_74%)]">
+            {initials}
+          </span>
         </div>
         <p className="text-sm font-semibold truncate">{name}</p>
         <div
           className={cn(
             "ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium",
-            tier.badgeClass,
+            tier.badgeClass
           )}
         >
           <div className={cn("w-1 h-1 rounded-full", tier.dotClass)} />
@@ -393,10 +432,15 @@ function MobileNav({
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0 transition-colors font-medium",
                 active
                   ? "bg-overlay-sm text-foreground"
-                  : "text-dim-2 hover:text-dim-1",
+                  : "text-dim-2 hover:text-dim-1"
               )}
             >
-              <Icon className={cn("h-3.5 w-3.5", active ? "text-[hsl(234_89%_74%)]" : "")} />
+              <Icon
+                className={cn(
+                  "h-3.5 w-3.5",
+                  active ? "text-[hsl(234_89%_74%)]" : ""
+                )}
+              />
               {label}
             </button>
           );
@@ -438,7 +482,10 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
       {isLoading ? (
         <div className="flex gap-1">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse" />
+            <div
+              key={i}
+              className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse"
+            />
           ))}
         </div>
       ) : usage ? (
@@ -460,17 +507,16 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
               label: t("account_overview_queue_items"),
             },
           ].map((stat, i) => (
-            <div
-              key={i}
-              className="flex-1 bg-overlay-xs px-5 py-4 space-y-0.5"
-            >
+            <div key={i} className="flex-1 bg-overlay-xs px-5 py-4 space-y-0.5">
               <p className="text-2xl font-bold tracking-tight text-foreground">
                 {stat.value}
                 <span className="text-base font-normal text-dim-3">
                   /{isUnlimited(stat.limit) ? "∞" : stat.limit}
                 </span>
               </p>
-              <p className="text-[11px] text-dim-2 leading-tight">{stat.label}</p>
+              <p className="text-[11px] text-dim-2 leading-tight">
+                {stat.label}
+              </p>
             </div>
           ))}
         </div>
@@ -510,9 +556,24 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {(
             [
-              { id: "subscription" as Section, icon: CreditCard, label: t("account_tabs_subscription"), desc: "Manage your plan" },
-              { id: "preferences" as Section, icon: SlidersHorizontal, label: t("account_tabs_preferences"), desc: "AI & video settings" },
-              { id: "profile" as Section, icon: User, label: t("account_tabs_profile"), desc: "Name, email, contact" },
+              {
+                id: "subscription" as Section,
+                icon: CreditCard,
+                label: t("account_tabs_subscription"),
+                desc: "Manage your plan",
+              },
+              {
+                id: "preferences" as Section,
+                icon: SlidersHorizontal,
+                label: t("account_tabs_preferences"),
+                desc: "AI & video settings",
+              },
+              {
+                id: "profile" as Section,
+                icon: User,
+                label: t("account_tabs_profile"),
+                desc: "Name, email, contact",
+              },
             ] as const
           ).map(({ id, icon: Icon, label, desc }) => (
             <button
@@ -544,7 +605,9 @@ function OrdersSection() {
       <Package className="h-9 w-9 text-dim-3" />
       <p className="font-medium text-dim-1">{t("account_orders_no_orders")}</p>
       <p className="text-sm text-dim-3 max-w-xs">
-        {t("common_your_order_history_will_appear_here_once_you_make_a_purchase")}
+        {t(
+          "common_your_order_history_will_appear_here_once_you_make_a_purchase"
+        )}
       </p>
     </div>
   );
@@ -572,7 +635,9 @@ function PreferenceSelect({
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium text-dim-1">{label}</Label>
         {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-dim-3" />}
-        {saved && !saving && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+        {saved && !saving && (
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+        )}
       </div>
       <Select value={value ?? "system_default"} onValueChange={onChange}>
         <SelectTrigger className="w-full">
@@ -609,9 +674,9 @@ function UserPreferences() {
   const { data: voices, isLoading: voicesLoading } = useQuery<Voice[]>({
     queryKey: [...queryKeys.api.userSettings(), "voices"],
     queryFn: () =>
-      (
-        fetcher("/api/audio/voices") as Promise<{ voices: Voice[] }>
-      ).then((r) => r.voices),
+      (fetcher("/api/audio/voices") as Promise<{ voices: Voice[] }>).then(
+        (r) => r.voices
+      ),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -797,7 +862,7 @@ function UserPreferences() {
                   "flex items-center gap-2.5 cursor-pointer rounded-lg border px-4 py-2.5 transition-colors",
                   active
                     ? "border-[hsl(234_89%_74%/0.4)] bg-[hsl(234_89%_74%/0.06)]"
-                    : "border-border hover:border-overlay-md bg-overlay-xs",
+                    : "border-border hover:border-overlay-md bg-overlay-xs"
                 )}
               >
                 <RadioGroupItem
@@ -824,7 +889,10 @@ function UserPreferences() {
 
 const SECTION_META: Record<Section, { title: string; desc: string }> = {
   overview: { title: "Overview", desc: "" },
-  subscription: { title: "Subscription", desc: "Your current plan and billing" },
+  subscription: {
+    title: "Subscription",
+    desc: "Your current plan and billing",
+  },
   usage: { title: "Usage", desc: "Generation history and limits" },
   orders: { title: "Orders", desc: "Purchase history" },
   preferences: { title: "Preferences", desc: "Customize your AI defaults" },
@@ -841,17 +909,25 @@ export function AccountInteractive() {
   return (
     <div className="flex h-full">
       {/* Desktop sidebar */}
-      <SidebarPanel activeSection={activeSection} onNavigate={setActiveSection} />
+      <SidebarPanel
+        activeSection={activeSection}
+        onNavigate={setActiveSection}
+      />
 
       {/* Right panel */}
       <div className="flex-1 min-w-0 flex flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Mobile nav */}
-        <MobileNav activeSection={activeSection} onNavigate={setActiveSection} />
+        <MobileNav
+          activeSection={activeSection}
+          onNavigate={setActiveSection}
+        />
 
         {/* Section header (desktop only, overview skips it) */}
         {activeSection !== "overview" && (
           <div className="hidden md:block px-8 pt-7 pb-0">
-            <h2 className="text-base font-semibold text-foreground">{meta.title}</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              {meta.title}
+            </h2>
             {meta.desc && (
               <p className="text-xs text-dim-2 mt-0.5">{meta.desc}</p>
             )}

@@ -23,7 +23,10 @@ class UserSettingsService {
     return row ?? null;
   }
 
-  async upsert(userId: string, input: UserSettingsInput): Promise<UserSettings> {
+  async upsert(
+    userId: string,
+    input: UserSettingsInput,
+  ): Promise<UserSettings> {
     const [row] = await db
       .insert(userSettings)
       .values({ userId, ...input })

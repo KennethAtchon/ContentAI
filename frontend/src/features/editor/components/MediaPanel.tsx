@@ -32,9 +32,27 @@ const EFFECTS = [
 ];
 
 const TEXT_PRESETS = [
-  { id: "title", label: "Title", content: "Title Text", fontSize: 64, fontWeight: "bold" },
-  { id: "subtitle", label: "Subtitle", content: "Subtitle", fontSize: 40, fontWeight: "normal" },
-  { id: "caption", label: "Caption", content: "Caption here", fontSize: 28, fontWeight: "normal" },
+  {
+    id: "title",
+    label: "Title",
+    content: "Title Text",
+    fontSize: 64,
+    fontWeight: "bold",
+  },
+  {
+    id: "subtitle",
+    label: "Subtitle",
+    content: "Subtitle",
+    fontSize: 40,
+    fontWeight: "normal",
+  },
+  {
+    id: "caption",
+    label: "Caption",
+    content: "Caption here",
+    fontSize: 28,
+    fontWeight: "normal",
+  },
 ];
 
 function makeClip(overrides: Partial<Clip>): Clip {
@@ -61,7 +79,11 @@ function makeClip(overrides: Partial<Clip>): Clip {
   };
 }
 
-export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Props) {
+export function MediaPanel({
+  generatedContentId,
+  currentTimeMs,
+  onAddClip,
+}: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [activeTab, setActiveTab] = useState<TabKey>("media");
@@ -76,10 +98,10 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
 
   const allAssets = assetsData?.assets ?? [];
   const videoAssets = allAssets.filter(
-    (a) => a.type === "video_clip" || a.type === "assembled_video",
+    (a) => a.type === "video_clip" || a.type === "assembled_video"
   );
   const audioAssets = allAssets.filter(
-    (a) => a.type === "voiceover" || a.type === "music",
+    (a) => a.type === "voiceover" || a.type === "music"
   );
 
   const TABS: { key: TabKey; label: string }[] = [
@@ -138,7 +160,10 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
   };
 
   return (
-    <div className="flex flex-col h-full border-r border-overlay-sm bg-studio-surface" style={{ width: 220 }}>
+    <div
+      className="flex flex-col h-full border-r border-overlay-sm bg-studio-surface"
+      style={{ width: 220 }}
+    >
       {/* Tabs */}
       <div className="flex border-b border-overlay-sm shrink-0">
         {TABS.map((tab) => (
@@ -190,7 +215,7 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
                     !search ||
                     String(a.metadata?.originalName ?? a.type)
                       .toLowerCase()
-                      .includes(search.toLowerCase()),
+                      .includes(search.toLowerCase())
                 )
                 .map((asset) => (
                   <button
@@ -245,7 +270,9 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
         {activeTab === "audio" && (
           <>
             {audioAssets.length === 0 && (
-              <p className="text-xs italic text-dim-3 text-center mt-4">No audio assets</p>
+              <p className="text-xs italic text-dim-3 text-center mt-4">
+                No audio assets
+              </p>
             )}
             <div className="flex flex-col gap-1.5">
               {audioAssets
@@ -254,7 +281,7 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
                     !search ||
                     String(a.metadata?.originalName ?? a.type)
                       .toLowerCase()
-                      .includes(search.toLowerCase()),
+                      .includes(search.toLowerCase())
                 )
                 .map((asset) => (
                   <button
@@ -262,7 +289,9 @@ export function MediaPanel({ generatedContentId, currentTimeMs, onAddClip }: Pro
                     onClick={() => addAudioClip(asset)}
                     className="flex items-center gap-2 px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors text-left"
                   >
-                    <span className="text-lg">{asset.type === "music" ? "🎵" : "🎤"}</span>
+                    <span className="text-lg">
+                      {asset.type === "music" ? "🎵" : "🎤"}
+                    </span>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-dim-1 truncate">
                         {String(asset.metadata?.originalName ?? asset.type)}

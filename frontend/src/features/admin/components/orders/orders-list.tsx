@@ -132,7 +132,9 @@ function StatusBadge({
   switch (normalizedStatus) {
     case ORDER_STATUS.PAID:
       return (
-        <Badge className="bg-success hover:bg-success">{t("admin_orders_paid")}</Badge>
+        <Badge className="bg-success hover:bg-success">
+          {t("admin_orders_paid")}
+        </Badge>
       );
     case ORDER_STATUS.PENDING:
       return (
@@ -305,12 +307,16 @@ export function OrdersList({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">{t("admin_orders_col_id")}</TableHead>
+                <TableHead className="w-[100px]">
+                  {t("admin_orders_col_id")}
+                </TableHead>
                 <TableHead>{t("admin_orders_col_customer")}</TableHead>
                 <TableHead>{t("admin_orders_col_date")}</TableHead>
                 <TableHead>{t("admin_orders_col_type")}</TableHead>
                 <TableHead>{t("admin_orders_col_status")}</TableHead>
-                <TableHead className="text-right">{t("admin_orders_col_total")}</TableHead>
+                <TableHead className="text-right">
+                  {t("admin_orders_col_total")}
+                </TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -403,11 +409,15 @@ export function OrdersList({
                             className="h-8 w-8"
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">{t("admin_contact_messages_actions")}</span>
+                            <span className="sr-only">
+                              {t("admin_contact_messages_actions")}
+                            </span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>{t("admin_contact_messages_actions")}</DropdownMenuLabel>
+                          <DropdownMenuLabel>
+                            {t("admin_contact_messages_actions")}
+                          </DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => handleEditOrder(order)}
                           >

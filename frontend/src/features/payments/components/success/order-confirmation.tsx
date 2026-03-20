@@ -298,7 +298,9 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
               {orderDetails.customer.medicalInfo && (
                 <div className="flex items-start gap-2">
                   <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
-                  <span className="text-base">Medical Information Available</span>
+                  <span className="text-base">
+                    Medical Information Available
+                  </span>
                 </div>
               )}
             </div>

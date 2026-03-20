@@ -183,7 +183,9 @@ function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <p className="text-base font-medium text-muted-foreground">Name</p>
+              <p className="text-base font-medium text-muted-foreground">
+                Name
+              </p>
               <p className="text-lg font-semibold">
                 {userInfo.name !== t("common_unavailable") ? (
                   userInfo.name
@@ -195,7 +197,9 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-base font-medium text-muted-foreground">Email</p>
+              <p className="text-base font-medium text-muted-foreground">
+                Email
+              </p>
               <p className="text-lg font-semibold">
                 {userInfo.email !== t("common_unavailable") ? (
                   userInfo.email
@@ -207,7 +211,9 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-base font-medium text-muted-foreground">Phone</p>
+              <p className="text-base font-medium text-muted-foreground">
+                Phone
+              </p>
               <p className="text-lg font-semibold">
                 {userInfo.phone !== t("common_unavailable") ? (
                   userInfo.phone
@@ -233,7 +239,9 @@ function SettingsPage() {
               </p>
             </div>
             <div className="space-y-1 pt-2 border-t">
-              <p className="text-base font-medium text-muted-foreground">Role</p>
+              <p className="text-base font-medium text-muted-foreground">
+                Role
+              </p>
               <p className="text-lg font-semibold">
                 {userInfo.role !== t("common_unavailable") ? (
                   userInfo.role

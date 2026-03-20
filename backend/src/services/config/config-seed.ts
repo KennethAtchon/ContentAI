@@ -66,7 +66,8 @@ function buildSeedEntries(): SeedEntry[] {
       key: "provider_priority",
       value: JSON.stringify(["openai", "claude", "openrouter"]),
       valueType: "json",
-      description: "Ordered list of AI providers to try. First available is used.",
+      description:
+        "Ordered list of AI providers to try. First available is used.",
     },
     {
       category: "ai",
@@ -311,17 +312,67 @@ function buildSeedEntries(): SeedEntry[] {
     },
 
     // ── API Keys (secrets) ─────────────────────────────────────────────────────
-    secretEntry("api_keys", "anthropic_api_key", ANTHROPIC_API_KEY, "Anthropic Claude API key"),
+    secretEntry(
+      "api_keys",
+      "anthropic_api_key",
+      ANTHROPIC_API_KEY,
+      "Anthropic Claude API key",
+    ),
     secretEntry("api_keys", "openai_api_key", OPENAI_API_KEY, "OpenAI API key"),
-    secretEntry("api_keys", "openrouter_api_key", OPEN_ROUTER_KEY, "OpenRouter API key"),
-    secretEntry("api_keys", "fal_api_key", FAL_API_KEY, "Fal.ai API key (Kling + FLUX)"),
-    secretEntry("api_keys", "runway_api_key", RUNWAY_API_KEY, "Runway ML API key"),
-    secretEntry("api_keys", "elevenlabs_api_key", ELEVENLABS_API_KEY, "ElevenLabs TTS API key"),
-    secretEntry("api_keys", "resend_api_key", RESEND_API_KEY, "Resend email API key"),
-    secretEntry("api_keys", "stripe_secret_key", STRIPE_SECRET_KEY, "Stripe secret key"),
-    secretEntry("api_keys", "stripe_webhook_secret", STRIPE_WEBHOOK_SECRET, "Stripe webhook signing secret"),
-    secretEntry("api_keys", "instagram_api_token", INSTAGRAM_API_TOKEN, "Instagram scraping API token"),
-    secretEntry("api_keys", "social_api_key", SOCIAL_API_KEY, "Social media API key"),
+    secretEntry(
+      "api_keys",
+      "openrouter_api_key",
+      OPEN_ROUTER_KEY,
+      "OpenRouter API key",
+    ),
+    secretEntry(
+      "api_keys",
+      "fal_api_key",
+      FAL_API_KEY,
+      "Fal.ai API key (Kling + FLUX)",
+    ),
+    secretEntry(
+      "api_keys",
+      "runway_api_key",
+      RUNWAY_API_KEY,
+      "Runway ML API key",
+    ),
+    secretEntry(
+      "api_keys",
+      "elevenlabs_api_key",
+      ELEVENLABS_API_KEY,
+      "ElevenLabs TTS API key",
+    ),
+    secretEntry(
+      "api_keys",
+      "resend_api_key",
+      RESEND_API_KEY,
+      "Resend email API key",
+    ),
+    secretEntry(
+      "api_keys",
+      "stripe_secret_key",
+      STRIPE_SECRET_KEY,
+      "Stripe secret key",
+    ),
+    secretEntry(
+      "api_keys",
+      "stripe_webhook_secret",
+      STRIPE_WEBHOOK_SECRET,
+      "Stripe webhook signing secret",
+    ),
+    secretEntry(
+      "api_keys",
+      "instagram_api_token",
+      INSTAGRAM_API_TOKEN,
+      "Instagram scraping API token",
+    ),
+    secretEntry(
+      "api_keys",
+      "social_api_key",
+      SOCIAL_API_KEY,
+      "Social media API key",
+    ),
   ];
 }
 

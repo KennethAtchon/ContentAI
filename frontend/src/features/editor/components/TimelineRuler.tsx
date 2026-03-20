@@ -27,7 +27,8 @@ export function TimelineRuler({ durationMs, zoom, onSeek }: Props) {
   let t = 0;
   while (t <= totalSec + majorIntervalSec) {
     const x = t * zoom;
-    const isMajor = Math.round(t * 1000) % Math.round(majorIntervalSec * 1000) < 1;
+    const isMajor =
+      Math.round(t * 1000) % Math.round(majorIntervalSec * 1000) < 1;
     ticks.push({ x, label: isMajor ? formatTimecode(t * 1000) : undefined });
     t = Math.round((t + minorIntervalSec) * 1000) / 1000;
   }
@@ -54,10 +55,9 @@ export function TimelineRuler({ durationMs, zoom, onSeek }: Props) {
           style={{ left: tick.x }}
         >
           <div
-            className={[
-              "bg-dim-3",
-              tick.label ? "h-4 w-px" : "h-2 w-px",
-            ].join(" ")}
+            className={["bg-dim-3", tick.label ? "h-4 w-px" : "h-2 w-px"].join(
+              " "
+            )}
           />
           {tick.label && (
             <span className="text-[9px] italic text-dim-3 mt-0.5 whitespace-nowrap select-none">

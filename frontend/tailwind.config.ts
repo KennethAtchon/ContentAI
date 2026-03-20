@@ -82,9 +82,9 @@ const config: Config = {
           ring: "var(--studio-ring)",
         },
         // Surface scale
-        "surface-0":   "hsl(var(--surface-0))",
-        "surface-1":   "hsl(var(--surface-1))",
-        "surface-2":   "hsl(var(--surface-2))",
+        "surface-0": "hsl(var(--surface-0))",
+        "surface-1": "hsl(var(--surface-1))",
+        "surface-2": "hsl(var(--surface-2))",
         "surface-top": "hsl(var(--surface-top))",
         // Text dim scale (full CSS values with alpha)
         "dim-1": "var(--text-dim-1)",
@@ -93,8 +93,8 @@ const config: Config = {
         // Status colors
         success: "hsl(var(--color-success))",
         warning: "hsl(var(--color-warning))",
-        error:   "hsl(var(--color-error))",
-        info:    "hsl(var(--color-info))",
+        error: "hsl(var(--color-error))",
+        info: "hsl(var(--color-info))",
         // Overlay scale (white glass layers)
         "overlay-xs": "var(--overlay-xs)",
         "overlay-sm": "var(--overlay-sm)",

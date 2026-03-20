@@ -166,9 +166,7 @@ function FaqPage() {
           <h2 className="mb-3 text-2xl font-bold text-primary">
             {t("faq_still_have_questions")}
           </h2>
-          <p className="mb-6 text-base text-dim-2">
-            {t("faq_cant_find")}
-          </p>
+          <p className="mb-6 text-base text-dim-2">{t("faq_cant_find")}</p>
           <Link
             to="/contact"
             className="inline-flex items-center gap-2 text-base text-studio-accent font-semibold no-underline hover:underline"

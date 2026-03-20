@@ -287,9 +287,7 @@ function NichesPage() {
           ) : niches.length === 0 ? (
             <div className="py-16 flex flex-col items-center gap-3 text-center">
               <Database className="h-10 w-10 text-dim-3" />
-              <p className="text-base font-medium text-dim-3">
-                No niches yet
-              </p>
+              <p className="text-base font-medium text-dim-3">No niches yet</p>
               <button
                 onClick={() => setCreating(true)}
                 className="text-sm text-studio-accent hover:underline"

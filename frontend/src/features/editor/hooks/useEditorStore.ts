@@ -9,10 +9,38 @@ import type {
 } from "../types/editor";
 
 const DEFAULT_TRACKS: Track[] = [
-  { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: [] },
-  { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [] },
-  { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [] },
-  { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [] },
+  {
+    id: "video",
+    type: "video",
+    name: "Video",
+    muted: false,
+    locked: false,
+    clips: [],
+  },
+  {
+    id: "audio",
+    type: "audio",
+    name: "Audio",
+    muted: false,
+    locked: false,
+    clips: [],
+  },
+  {
+    id: "music",
+    type: "music",
+    name: "Music",
+    muted: false,
+    locked: false,
+    clips: [],
+  },
+  {
+    id: "text",
+    type: "text",
+    name: "Text",
+    muted: false,
+    locked: false,
+    clips: [],
+  },
 ];
 
 export const INITIAL_EDITOR_STATE: EditorState = {
@@ -43,7 +71,11 @@ function computeDuration(tracks: Track[]): number {
   return max;
 }
 
-function updateClipInTracks(tracks: Track[], clipId: string, patch: Partial<Clip>): Track[] {
+function updateClipInTracks(
+  tracks: Track[],
+  clipId: string,
+  patch: Partial<Clip>
+): Track[] {
   return tracks.map((track) => ({
     ...track,
     clips: track.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
@@ -96,7 +128,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
     case "ADD_CLIP": {
       const newTracks = state.tracks.map((t) =>
-        t.id === action.trackId ? { ...t, clips: [...t.clips, action.clip] } : t,
+        t.id === action.trackId ? { ...t, clips: [...t.clips, action.clip] } : t
       );
       return {
         ...state,
@@ -108,7 +140,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
 
     case "UPDATE_CLIP": {
-      const newTracks = updateClipInTracks(state.tracks, action.clipId, action.patch);
+      const newTracks = updateClipInTracks(
+        state.tracks,
+        action.clipId,
+        action.patch
+      );
       return {
         ...state,
         past: [...state.past, state.tracks].slice(-50),
@@ -125,7 +161,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         past: [...state.past, state.tracks].slice(-50),
         future: [],
         tracks: newTracks,
-        selectedClipId: state.selectedClipId === action.clipId ? null : state.selectedClipId,
+        selectedClipId:
+          state.selectedClipId === action.clipId ? null : state.selectedClipId,
         durationMs: computeDuration(newTracks),
       };
     }
@@ -134,7 +171,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return {
         ...state,
         tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, muted: !t.muted } : t,
+          t.id === action.trackId ? { ...t, muted: !t.muted } : t
         ),
       };
 
@@ -142,7 +179,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return {
         ...state,
         tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, locked: !t.locked } : t,
+          t.id === action.trackId ? { ...t, locked: !t.locked } : t
         ),
       };
 
@@ -186,58 +223,60 @@ export function useEditorReducer() {
 
   const loadProject = useCallback(
     (project: EditProject) => dispatch({ type: "LOAD_PROJECT", project }),
-    [],
+    []
   );
   const setTitle = useCallback(
     (title: string) => dispatch({ type: "SET_TITLE", title }),
-    [],
+    []
   );
   const setCurrentTime = useCallback(
     (ms: number) => dispatch({ type: "SET_CURRENT_TIME", ms }),
-    [],
+    []
   );
   const setPlaying = useCallback(
     (playing: boolean) => dispatch({ type: "SET_PLAYING", playing }),
-    [],
+    []
   );
   const setZoom = useCallback(
     (zoom: number) => dispatch({ type: "SET_ZOOM", zoom }),
-    [],
+    []
   );
   const selectClip = useCallback(
     (clipId: string | null) => dispatch({ type: "SELECT_CLIP", clipId }),
-    [],
+    []
   );
   const addClip = useCallback(
-    (trackId: string, clip: Clip) => dispatch({ type: "ADD_CLIP", trackId, clip }),
-    [],
+    (trackId: string, clip: Clip) =>
+      dispatch({ type: "ADD_CLIP", trackId, clip }),
+    []
   );
   const updateClip = useCallback(
     (clipId: string, patch: Partial<Clip>) =>
       dispatch({ type: "UPDATE_CLIP", clipId, patch }),
-    [],
+    []
   );
   const removeClip = useCallback(
     (clipId: string) => dispatch({ type: "REMOVE_CLIP", clipId }),
-    [],
+    []
   );
   const toggleTrackMute = useCallback(
     (trackId: string) => dispatch({ type: "TOGGLE_TRACK_MUTE", trackId }),
-    [],
+    []
   );
   const toggleTrackLock = useCallback(
     (trackId: string) => dispatch({ type: "TOGGLE_TRACK_LOCK", trackId }),
-    [],
+    []
   );
   const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
   const redo = useCallback(() => dispatch({ type: "REDO" }), []);
   const setExportJob = useCallback(
     (jobId: string | null) => dispatch({ type: "SET_EXPORT_JOB", jobId }),
-    [],
+    []
   );
   const setExportStatus = useCallback(
-    (status: ExportJobStatus | null) => dispatch({ type: "SET_EXPORT_STATUS", status }),
-    [],
+    (status: ExportJobStatus | null) =>
+      dispatch({ type: "SET_EXPORT_STATUS", status }),
+    []
   );
 
   return {

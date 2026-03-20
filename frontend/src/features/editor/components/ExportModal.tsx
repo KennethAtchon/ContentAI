@@ -15,17 +15,22 @@ export function ExportModal({ projectId, onClose }: Props) {
   const { t } = useTranslation();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const fetcher = useQueryFetcher<ExportJobStatus>();
-  const [resolution, setResolution] = useState<"720p" | "1080p" | "4k">("1080p");
+  const [resolution, setResolution] = useState<"720p" | "1080p" | "4k">(
+    "1080p"
+  );
   const [fps, setFps] = useState<24 | 30 | 60>(30);
   const [jobId, setJobId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const { mutate: enqueue, isPending } = useMutation({
     mutationFn: () =>
-      authenticatedFetchJson<{ exportJobId: string }>(`/api/editor/${projectId}/export`, {
-        method: "POST",
-        body: JSON.stringify({ resolution, fps }),
-      }),
+      authenticatedFetchJson<{ exportJobId: string }>(
+        `/api/editor/${projectId}/export`,
+        {
+          method: "POST",
+          body: JSON.stringify({ resolution, fps }),
+        }
+      ),
     onSuccess: (data) => setJobId(data.exportJobId),
   });
 
@@ -82,7 +87,9 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Export options */}
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs text-dim-2 mb-1.5">Resolution</label>
+                <label className="block text-xs text-dim-2 mb-1.5">
+                  Resolution
+                </label>
                 <div className="flex gap-2">
                   {(["720p", "1080p", "4k"] as const).map((r) => (
                     <button
@@ -102,7 +109,9 @@ export function ExportModal({ projectId, onClose }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs text-dim-2 mb-1.5">Frame Rate</label>
+                <label className="block text-xs text-dim-2 mb-1.5">
+                  Frame Rate
+                </label>
                 <div className="flex gap-2">
                   {([24, 30, 60] as const).map((f) => (
                     <button
@@ -139,7 +148,9 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Render progress */}
             {isRendering && (
               <div className="space-y-3">
-                <p className="text-sm text-dim-2">{t("editor_export_rendering")}</p>
+                <p className="text-sm text-dim-2">
+                  {t("editor_export_rendering")}
+                </p>
                 <div className="w-full h-2 bg-overlay-sm rounded-full overflow-hidden">
                   <div
                     className="h-full bg-studio-accent transition-all duration-500 rounded-full"
@@ -153,7 +164,9 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Done */}
             {isDone && r2Url && (
               <div className="space-y-3">
-                <p className="text-sm text-green-400">{t("editor_export_done")}</p>
+                <p className="text-sm text-green-400">
+                  {t("editor_export_done")}
+                </p>
                 <div className="flex gap-2">
                   <a
                     href={r2Url}
@@ -175,7 +188,9 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Failed */}
             {isFailed && (
               <div className="space-y-3">
-                <p className="text-sm text-red-400">{t("editor_export_failed")}</p>
+                <p className="text-sm text-red-400">
+                  {t("editor_export_failed")}
+                </p>
                 {exportError && (
                   <p className="text-xs text-dim-3 font-mono bg-overlay-sm p-2 rounded">
                     {exportError}

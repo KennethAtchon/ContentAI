@@ -651,7 +651,9 @@ export default function StripePaymentFallback() {
 
           {/* Progress indicator */}
           <div className="mb-4">
-            <div className="text-base text-gray-600 mb-2">{processingStage}</div>
+            <div className="text-base text-gray-600 mb-2">
+              {processingStage}
+            </div>
 
             {/* Show retry count if applicable */}
             {isRetrying && retryCount > 0 && (

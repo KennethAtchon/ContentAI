@@ -85,11 +85,7 @@ function UsageBar({
         <div className="h-1 rounded-full bg-muted overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-300 ${
-              isAtLimit
-                ? "bg-error"
-                : isNearLimit
-                  ? "bg-warning"
-                  : "bg-primary"
+              isAtLimit ? "bg-error" : isNearLimit ? "bg-warning" : "bg-primary"
             }`}
             style={{ width: `${pct}%` }}
           />

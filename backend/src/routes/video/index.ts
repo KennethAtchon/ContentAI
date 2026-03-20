@@ -932,13 +932,15 @@ async function upsertAssembledAsset(input: {
   metadata: Record<string, unknown>;
 }): Promise<string> {
   // Delete any previously assembled assets to avoid stale row accumulation.
-  await db.delete(reelAssets).where(
-    and(
-      eq(reelAssets.generatedContentId, input.generatedContentId),
-      eq(reelAssets.userId, input.userId),
-      eq(reelAssets.type, "assembled_video"),
-    ),
-  );
+  await db
+    .delete(reelAssets)
+    .where(
+      and(
+        eq(reelAssets.generatedContentId, input.generatedContentId),
+        eq(reelAssets.userId, input.userId),
+        eq(reelAssets.type, "assembled_video"),
+      ),
+    );
 
   const [assembled] = await db
     .insert(reelAssets)
@@ -1273,7 +1275,10 @@ async function runAssembleFromExistingClips({
       error: errorMessage,
     });
     // Refetch current metadata so we don't wipe previously written shot data.
-    const currentContent = await fetchOwnedContent(job.userId, job.generatedContentId).catch(() => null);
+    const currentContent = await fetchOwnedContent(
+      job.userId,
+      job.generatedContentId,
+    ).catch(() => null);
     await updatePhase4Metadata({
       generatedContentId: job.generatedContentId,
       existingGeneratedMetadata: currentContent?.generatedMetadata ?? null,
@@ -1425,7 +1430,11 @@ async function runReelGeneration(input: {
     // Only update the job status if runAssembleFromExistingClips hasn't already
     // set it to failed (it owns the terminal state for assembly errors).
     const current = await videoJobService.getJob(job.id);
-    if (current && current.status !== "failed" && current.status !== "completed") {
+    if (
+      current &&
+      current.status !== "failed" &&
+      current.status !== "completed"
+    ) {
       await videoJobService.updateJob(job.id, {
         status: "failed",
         completedAt: new Date().toISOString(),
@@ -1484,7 +1493,11 @@ async function runShotRegenerate(input: {
         ),
       );
     const staleIds = allExistingClips
-      .filter((a) => Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) === input.shotIndex)
+      .filter(
+        (a) =>
+          Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) ===
+          input.shotIndex,
+      )
       .map((a) => a.id);
     if (staleIds.length > 0) {
       await db.delete(reelAssets).where(inArray(reelAssets.id, staleIds));
@@ -1606,10 +1619,15 @@ app.post(
 
       // Require at least a hook or a script before generating video — prevents
       // silent single-shot fallbacks on content that hasn't been written yet.
-      if (!content.generatedHook && !content.generatedScript && !payload.prompt) {
+      if (
+        !content.generatedHook &&
+        !content.generatedScript &&
+        !payload.prompt
+      ) {
         return c.json(
           {
-            error: "Content must have a generated hook or script before video generation",
+            error:
+              "Content must have a generated hook or script before video generation",
             code: "PHASE4_CONTENT_NOT_READY",
           },
           422,

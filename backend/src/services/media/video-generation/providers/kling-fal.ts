@@ -242,7 +242,8 @@ export const klingFalProvider: VideoGenerationProvider = {
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
     const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
-    const model = (await systemConfigService.get("video", "kling_model")) ?? KLING_MODEL;
+    const model =
+      (await systemConfigService.get("video", "kling_model")) ?? KLING_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
 
     if (!apiKey) throw new Error("FAL_API_KEY is not configured");
@@ -257,11 +258,15 @@ export const klingFalProvider: VideoGenerationProvider = {
       userId: params.userId,
     });
 
-    const job = await submitJob(model, {
-      prompt: params.prompt,
-      duration,
-      aspect_ratio: params.aspectRatio ?? "9:16",
-    }, apiKey);
+    const job = await submitJob(
+      model,
+      {
+        prompt: params.prompt,
+        duration,
+        aspect_ratio: params.aspectRatio ?? "9:16",
+      },
+      apiKey,
+    );
 
     const result = await pollUntilComplete(model, job, apiKey);
 

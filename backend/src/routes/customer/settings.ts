@@ -63,7 +63,10 @@ userSettingsRouter.put(
       const parsed = updateSchema.safeParse(body);
 
       if (!parsed.success) {
-        return c.json({ error: "Invalid request body", issues: parsed.error.issues }, 400);
+        return c.json(
+          { error: "Invalid request body", issues: parsed.error.issues },
+          400,
+        );
       }
 
       // Map system_default sentinel values back to null

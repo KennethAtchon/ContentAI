@@ -29,9 +29,7 @@ function NotFoundBoundary() {
       <div className="text-center space-y-3">
         <span className="text-6xl opacity-40">🔍</span>
         <p className="text-4xl font-bold text-primary">404</p>
-        <p className="text-base text-dim-2">
-          {t("common_page_not_found")}
-        </p>
+        <p className="text-base text-dim-2">{t("common_page_not_found")}</p>
       </div>
     </div>
   );

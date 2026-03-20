@@ -171,7 +171,10 @@ export function TimelineClip({
       </span>
 
       {/* Duration */}
-      <span className="text-[9px] px-1.5 pb-0.5 opacity-50 pointer-events-none" style={{ color }}>
+      <span
+        className="text-[9px] px-1.5 pb-0.5 opacity-50 pointer-events-none"
+        style={{ color }}
+      >
         {(clip.durationMs / 1000).toFixed(1)}s
       </span>
 

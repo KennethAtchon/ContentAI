@@ -23,7 +23,8 @@ class SystemConfigService {
   private getRedis() {
     try {
       // Lazy import to avoid crash if Redis is not available
-      const getRedisConnection = require("@/services/db/redis").default as () => import("ioredis").default;
+      const getRedisConnection = require("@/services/db/redis")
+        .default as () => import("ioredis").default;
       return getRedisConnection();
     } catch {
       return null;
@@ -46,11 +47,19 @@ class SystemConfigService {
     }
   }
 
-  private async writeCache(category: string, rows: SystemConfig[]): Promise<void> {
+  private async writeCache(
+    category: string,
+    rows: SystemConfig[],
+  ): Promise<void> {
     try {
       const redis = this.getRedis();
       if (!redis) return;
-      await redis.set(this.cacheKey(category), JSON.stringify(rows), "EX", CACHE_TTL_SECONDS);
+      await redis.set(
+        this.cacheKey(category),
+        JSON.stringify(rows),
+        "EX",
+        CACHE_TTL_SECONDS,
+      );
     } catch {
       // Cache failures are non-fatal
     }
@@ -79,7 +88,10 @@ class SystemConfigService {
       .select()
       .from(systemConfig)
       .where(
-        and(eq(systemConfig.category, category), eq(systemConfig.isActive, true)),
+        and(
+          eq(systemConfig.category, category),
+          eq(systemConfig.isActive, true),
+        ),
       );
 
     await this.writeCache(category, rows);
@@ -107,14 +119,22 @@ class SystemConfigService {
     return this.resolveValue(row);
   }
 
-  async getNumber(category: string, key: string, fallback: number): Promise<number> {
+  async getNumber(
+    category: string,
+    key: string,
+    fallback: number,
+  ): Promise<number> {
     const val = await this.get(category, key);
     if (val === null) return fallback;
     const num = Number(val);
     return isNaN(num) ? fallback : num;
   }
 
-  async getBoolean(category: string, key: string, fallback: boolean): Promise<boolean> {
+  async getBoolean(
+    category: string,
+    key: string,
+    fallback: boolean,
+  ): Promise<boolean> {
     const val = await this.get(category, key);
     if (val === null) return fallback;
     return val === "true" || val === "1";

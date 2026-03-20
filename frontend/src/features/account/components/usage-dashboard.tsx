@@ -235,12 +235,17 @@ export function UsageDashboard() {
 
   const reelsPercentage =
     !isUnlimited(usageStats.reelsAnalyzedLimit) && usageStats.reelsAnalyzedLimit
-      ? Math.round((usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100)
+      ? Math.round(
+          (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100
+        )
       : 0;
 
   const generationPercentage =
-    !isUnlimited(usageStats.contentGeneratedLimit) && usageStats.contentGeneratedLimit
-      ? Math.round((usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100)
+    !isUnlimited(usageStats.contentGeneratedLimit) &&
+    usageStats.contentGeneratedLimit
+      ? Math.round(
+          (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100
+        )
       : 0;
 
   return (
@@ -261,7 +266,9 @@ export function UsageDashboard() {
             <p className="text-sm text-muted-foreground">
               {isUnlimited(usageStats.reelsAnalyzedLimit)
                 ? t("account_subscription_unlimited_calculations_feature")
-                : t("account_usage_of_limit", { limit: usageStats.reelsAnalyzedLimit })}
+                : t("account_usage_of_limit", {
+                    limit: usageStats.reelsAnalyzedLimit,
+                  })}
             </p>
             {!isUnlimited(usageStats.reelsAnalyzedLimit) && (
               <Progress value={reelsPercentage} className="mt-2 h-2" />
@@ -277,11 +284,15 @@ export function UsageDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{usageStats.contentGenerated}</div>
+            <div className="text-3xl font-bold">
+              {usageStats.contentGenerated}
+            </div>
             <p className="text-sm text-muted-foreground">
               {isUnlimited(usageStats.contentGeneratedLimit)
                 ? t("account_subscription_unlimited_calculations_feature")
-                : t("account_usage_of_limit", { limit: usageStats.contentGeneratedLimit })}
+                : t("account_usage_of_limit", {
+                    limit: usageStats.contentGeneratedLimit,
+                  })}
             </p>
             {!isUnlimited(usageStats.contentGeneratedLimit) && (
               <Progress value={generationPercentage} className="mt-2 h-2" />
@@ -475,7 +486,6 @@ export function UsageDashboard() {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }

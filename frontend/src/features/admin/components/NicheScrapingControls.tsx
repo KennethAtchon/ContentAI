@@ -165,7 +165,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="limit">{t("admin_niche_scrape_limit_label")}</Label>
+              <Label htmlFor="limit">
+                {t("admin_niche_scrape_limit_label")}
+              </Label>
               <Input
                 id="limit"
                 type="number"
@@ -186,7 +188,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
             </div>
 
             <div>
-              <Label htmlFor="minViews">{t("admin_niche_scrape_min_views_label")}</Label>
+              <Label htmlFor="minViews">
+                {t("admin_niche_scrape_min_views_label")}
+              </Label>
               <Input
                 id="minViews"
                 type="number"
@@ -206,7 +210,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
             </div>
 
             <div>
-              <Label htmlFor="maxDaysOld">{t("admin_niche_scrape_max_days_label")}</Label>
+              <Label htmlFor="maxDaysOld">
+                {t("admin_niche_scrape_max_days_label")}
+              </Label>
               <Input
                 id="maxDaysOld"
                 type="number"
@@ -234,7 +240,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
                   setConfig({ ...config, viralOnly: checked })
                 }
               />
-              <Label htmlFor="viralOnly">{t("admin_niche_scrape_viral_only_label")}</Label>
+              <Label htmlFor="viralOnly">
+                {t("admin_niche_scrape_viral_only_label")}
+              </Label>
             </div>
           </div>
 
@@ -257,12 +265,24 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted p-4 rounded-lg">
-            <h4 className="font-medium mb-2">{t("admin_niche_scrape_current_config")}:</h4>
+            <h4 className="font-medium mb-2">
+              {t("admin_niche_scrape_current_config")}:
+            </h4>
             <ul className="text-base space-y-1">
-              <li>• {t("admin_niche_scrape_limit_label")}: {config.limit}</li>
-              <li>• {t("admin_niche_scrape_min_views_label")}: {config.minViews.toLocaleString()}</li>
-              <li>• {t("admin_niche_scrape_max_days_label")}: {config.maxDaysOld}</li>
-              <li>• {t("admin_niche_scrape_viral_only_label")}: {config.viralOnly ? t("common_yes") : t("common_no")}</li>
+              <li>
+                • {t("admin_niche_scrape_limit_label")}: {config.limit}
+              </li>
+              <li>
+                • {t("admin_niche_scrape_min_views_label")}:{" "}
+                {config.minViews.toLocaleString()}
+              </li>
+              <li>
+                • {t("admin_niche_scrape_max_days_label")}: {config.maxDaysOld}
+              </li>
+              <li>
+                • {t("admin_niche_scrape_viral_only_label")}:{" "}
+                {config.viralOnly ? t("common_yes") : t("common_no")}
+              </li>
             </ul>
           </div>
 
@@ -273,7 +293,9 @@ export function NicheScrapingControls({ nicheId }: { nicheId: number }) {
 
           {lastJob && (
             <div className="bg-muted p-4 rounded-lg">
-              <h4 className="font-medium mb-2">{t("admin_niche_scrape_last_job")}:</h4>
+              <h4 className="font-medium mb-2">
+                {t("admin_niche_scrape_last_job")}:
+              </h4>
               <p className="text-base">Job ID: {lastJob.jobId}</p>
               <p className="text-base">Status: {lastJob.status}</p>
               <p className="text-base">Niche: {lastJob.nicheName}</p>

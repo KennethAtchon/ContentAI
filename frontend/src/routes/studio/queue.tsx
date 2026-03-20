@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import type { QueueItem, PipelineStage } from "@/features/reels/types/reel.types";
+import type {
+  QueueItem,
+  PipelineStage,
+} from "@/features/reels/types/reel.types";
 import { Check, X, Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,7 +28,13 @@ interface Project {
   name: string;
 }
 
-type StatusFilter = "all" | "draft" | "ready" | "scheduled" | "posted" | "failed";
+type StatusFilter =
+  | "all"
+  | "draft"
+  | "ready"
+  | "scheduled"
+  | "posted"
+  | "failed";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-overlay-sm text-dim-2",
@@ -128,7 +137,9 @@ function QueuePage() {
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const hasActive = items.some((item) =>
-        item.stages?.some((s) => s.status === "running" || s.status === "pending"),
+        item.stages?.some(
+          (s) => s.status === "running" || s.status === "pending"
+        )
       );
       return hasActive ? 6000 : false;
     },
@@ -158,9 +169,14 @@ function QueuePage() {
 
   const duplicateItem = useMutation({
     mutationFn: async (id: number) => {
-      const res = await authenticatedFetch(`/api/queue/${id}/duplicate`, { method: "POST" });
+      const res = await authenticatedFetch(`/api/queue/${id}/duplicate`, {
+        method: "POST",
+      });
       if (!res.ok) throw new Error("Failed to duplicate");
-      return res.json() as Promise<{ queueItem: QueueItem; newGeneratedContentId: number }>;
+      return res.json() as Promise<{
+        queueItem: QueueItem;
+        newGeneratedContentId: number;
+      }>;
     },
     onSuccess: () => {
       toast.success(t("studio_queue_duplicated"));
@@ -171,7 +187,14 @@ function QueuePage() {
 
   const items = data?.items ?? [];
   const projects = projectsData?.projects ?? [];
-  const filters: StatusFilter[] = ["all", "draft", "ready", "scheduled", "posted", "failed"];
+  const filters: StatusFilter[] = [
+    "all",
+    "draft",
+    "ready",
+    "scheduled",
+    "posted",
+    "failed",
+  ];
 
   // Stages come from the list item (detail API doesn't compute them)
   const selectedItem = items.find((item) => item.id === detailItemId) ?? null;
@@ -214,7 +237,7 @@ function QueuePage() {
                       "text-sm font-bold px-2.5 py-1 rounded-full border whitespace-nowrap shrink-0 cursor-pointer transition-all duration-150 capitalize",
                       statusFilter === f
                         ? "bg-studio-accent/15 text-studio-accent border-studio-accent/30"
-                        : "bg-transparent text-dim-3 border-overlay-md hover:text-dim-2 hover:border-overlay-lg",
+                        : "bg-transparent text-dim-3 border-overlay-md hover:text-dim-2 hover:border-overlay-lg"
                     )}
                   >
                     {t(`studio_queue_filter_${f}`)}
@@ -225,10 +248,14 @@ function QueuePage() {
               {projects.length > 0 && (
                 <Select value={projectFilter} onValueChange={setProjectFilter}>
                   <SelectTrigger className="h-7 text-sm font-medium border bg-overlay-xs text-dim-2 border-overlay-md focus:outline-none focus:border-studio-accent/30 transition-colors rounded-lg [&>svg]:h-3 [&>svg]:w-3">
-                    <SelectValue placeholder={t("studio_queue_filter_all_projects")} />
+                    <SelectValue
+                      placeholder={t("studio_queue_filter_all_projects")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{t("studio_queue_filter_all_projects")}</SelectItem>
+                    <SelectItem value="all">
+                      {t("studio_queue_filter_all_projects")}
+                    </SelectItem>
                     {projects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -245,7 +272,10 @@ function QueuePage() {
             <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1.5 px-1.5 space-y-0.5">
               {isLoading ? (
                 [1, 2, 3, 4].map((i) => (
-                  <div key={i} className="studio-skeleton h-[76px] rounded-xl" />
+                  <div
+                    key={i}
+                    className="studio-skeleton h-[76px] rounded-xl"
+                  />
                 ))
               ) : items.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-16 text-center px-4">
@@ -253,7 +283,9 @@ function QueuePage() {
                   <p className="text-sm font-medium text-dim-3">
                     {t("studio_queue_empty")}
                   </p>
-                  <p className="text-sm text-dim-3">{t("studio_queue_emptySub")}</p>
+                  <p className="text-sm text-dim-3">
+                    {t("studio_queue_emptySub")}
+                  </p>
                 </div>
               ) : (
                 items.map((item) => (
@@ -264,8 +296,13 @@ function QueuePage() {
                     onClick={() => setDetailItemId(item.id)}
                     onDelete={() => deleteItem.mutate(item.id)}
                     onDuplicate={() => duplicateItem.mutate(item.id)}
-                    isDeleting={deleteItem.isPending && deleteItem.variables === item.id}
-                    isDuplicating={duplicateItem.isPending && duplicateItem.variables === item.id}
+                    isDeleting={
+                      deleteItem.isPending && deleteItem.variables === item.id
+                    }
+                    isDuplicating={
+                      duplicateItem.isPending &&
+                      duplicateItem.variables === item.id
+                    }
                   />
                 ))
               )}
@@ -279,7 +316,9 @@ function QueuePage() {
                 <div className="w-10 h-10 rounded-full border border-overlay-md bg-overlay-xs flex items-center justify-center">
                   <span className="text-xl opacity-30">↖</span>
                 </div>
-                <p className="text-sm text-dim-3">{t("studio_queue_select_prompt")}</p>
+                <p className="text-sm text-dim-3">
+                  {t("studio_queue_select_prompt")}
+                </p>
               </div>
             ) : detailLoading ? (
               <div className="flex items-center justify-center h-full">
@@ -291,12 +330,16 @@ function QueuePage() {
                 stages={selectedItem?.stages ?? []}
                 onClose={() => setDetailItemId(null)}
                 onDelete={() => deleteItem.mutate(detailData.queueItem.id)}
-                onDuplicate={() => duplicateItem.mutate(detailData.queueItem.id)}
+                onDuplicate={() =>
+                  duplicateItem.mutate(detailData.queueItem.id)
+                }
                 isDeleting={
-                  deleteItem.isPending && deleteItem.variables === detailData.queueItem.id
+                  deleteItem.isPending &&
+                  deleteItem.variables === detailData.queueItem.id
                 }
                 isDuplicating={
-                  duplicateItem.isPending && duplicateItem.variables === detailData.queueItem.id
+                  duplicateItem.isPending &&
+                  duplicateItem.variables === detailData.queueItem.id
                 }
               />
             ) : null}
@@ -330,11 +373,14 @@ function QueueListItem({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const hookPreview = item.generatedHook
-    ? item.generatedHook.slice(0, 85) + (item.generatedHook.length > 85 ? "…" : "")
+    ? item.generatedHook.slice(0, 85) +
+      (item.generatedHook.length > 85 ? "…" : "")
     : null;
 
   const failedStages = (item.stages ?? []).filter((s) => s.status === "failed");
-  const runningStages = (item.stages ?? []).filter((s) => s.status === "running");
+  const runningStages = (item.stages ?? []).filter(
+    (s) => s.status === "running"
+  );
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -353,7 +399,7 @@ function QueueListItem({
         "group relative rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-150 border",
         selected
           ? "bg-studio-accent/[0.07] border-studio-accent/25"
-          : "bg-transparent border-transparent hover:bg-overlay-xs hover:border-overlay-sm",
+          : "bg-transparent border-transparent hover:bg-overlay-xs hover:border-overlay-sm"
       )}
     >
       {/* Status badge + version — top-right */}
@@ -366,7 +412,7 @@ function QueueListItem({
         <span
           className={cn(
             "text-sm font-bold px-1.5 py-[2px] rounded-full uppercase tracking-[0.4px]",
-            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft,
+            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
           )}
         >
           {item.status}
@@ -377,7 +423,7 @@ function QueueListItem({
       <p
         className={cn(
           "text-sm font-medium leading-[1.45] line-clamp-2 pr-20 mb-1.5",
-          selected ? "text-primary" : "text-dim-1",
+          selected ? "text-primary" : "text-dim-1"
         )}
       >
         {hookPreview ?? `${t("studio_queue_itemLabel")} #${item.id}`}
@@ -391,7 +437,10 @@ function QueueListItem({
               <span
                 key={stage.id}
                 title={`${stage.label}: ${stage.status}`}
-                className={cn("w-[5px] h-[5px] rounded-full flex-shrink-0", STAGE_DOT[stage.status])}
+                className={cn(
+                  "w-[5px] h-[5px] rounded-full flex-shrink-0",
+                  STAGE_DOT[stage.status]
+                )}
               />
             ))}
           </div>
@@ -408,7 +457,9 @@ function QueueListItem({
               {new Date(item.scheduledFor).toLocaleDateString()}
             </span>
           ) : (
-            <span className="shrink-0 text-dim-3">{t("studio_queue_unscheduled")}</span>
+            <span className="shrink-0 text-dim-3">
+              {t("studio_queue_unscheduled")}
+            </span>
           )}
         </div>
       </div>
@@ -416,7 +467,8 @@ function QueueListItem({
       {/* Inline alerts */}
       {failedStages.length > 0 && (
         <p className="text-sm text-error mt-1">
-          {failedStages.map((s) => s.label).join(", ")} {t("studio_queue_stage_failed")}
+          {failedStages.map((s) => s.label).join(", ")}{" "}
+          {t("studio_queue_stage_failed")}
         </p>
       )}
       {failedStages.length === 0 && runningStages.length > 0 && (
@@ -430,7 +482,7 @@ function QueueListItem({
         <div
           className={cn(
             "absolute bottom-2 right-2 flex items-center gap-1 transition-all duration-150",
-            confirmDelete ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            confirmDelete ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -502,7 +554,7 @@ function PipelineTrack({ stages }: { stages: PipelineStage[] }) {
             <div
               className={cn(
                 "h-px flex-1 mt-[5px] transition-colors",
-                STAGE_LINE[stage.status],
+                STAGE_LINE[stage.status]
               )}
             />
           )}
@@ -512,14 +564,14 @@ function PipelineTrack({ stages }: { stages: PipelineStage[] }) {
             <div
               className={cn(
                 "w-2.5 h-2.5 rounded-full flex-shrink-0",
-                STAGE_DOT[stage.status],
+                STAGE_DOT[stage.status]
               )}
               title={stage.error}
             />
             <span
               className={cn(
                 "text-sm font-medium mt-1.5 text-center leading-tight whitespace-nowrap px-1",
-                STAGE_LABEL[stage.status],
+                STAGE_LABEL[stage.status]
               )}
             >
               {stage.label}
@@ -536,7 +588,7 @@ function PipelineTrack({ stages }: { stages: PipelineStage[] }) {
             <div
               className={cn(
                 "h-px flex-1 mt-[5px] transition-colors",
-                STAGE_LINE[stages[i + 1]?.status ?? "pending"],
+                STAGE_LINE[stages[i + 1]?.status ?? "pending"]
               )}
             />
           )}
@@ -603,7 +655,7 @@ function DetailPanel({
             <span
               className={cn(
                 "text-sm font-bold px-2 py-[3px] rounded-full uppercase tracking-[0.5px]",
-                STATUS_STYLES[queueItem.status] ?? STATUS_STYLES.draft,
+                STATUS_STYLES[queueItem.status] ?? STATUS_STYLES.draft
               )}
             >
               {queueItem.status}
@@ -628,7 +680,8 @@ function DetailPanel({
         </div>
 
         <h2 className="text-lg font-semibold text-primary leading-[1.5] mb-4">
-          {content?.generatedHook ?? `${t("studio_queue_itemLabel")} #${queueItem.id}`}
+          {content?.generatedHook ??
+            `${t("studio_queue_itemLabel")} #${queueItem.id}`}
         </h2>
 
         <div className="flex items-center gap-4 text-sm text-dim-3 flex-wrap">
@@ -637,7 +690,9 @@ function DetailPanel({
           ) : (
             <span>{t("studio_queue_unscheduled")}</span>
           )}
-          {queueItem.instagramPageId && <span>📱 {queueItem.instagramPageId}</span>}
+          {queueItem.instagramPageId && (
+            <span>📱 {queueItem.instagramPageId}</span>
+          )}
           {queueItem.errorMessage && (
             <span className="text-error">⚠ {queueItem.errorMessage}</span>
           )}
@@ -689,7 +744,7 @@ function DetailPanel({
         <div
           className={cn(
             "grid gap-6",
-            hasAudioContent && hasVideoContent ? "grid-cols-2" : "grid-cols-1",
+            hasAudioContent && hasVideoContent ? "grid-cols-2" : "grid-cols-1"
           )}
         >
           {/* Audio */}
@@ -813,7 +868,6 @@ function DetailPanel({
               )}
             </div>
           )}
-
         </div>
       </div>
     </div>
@@ -826,7 +880,9 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
       <p className="text-sm text-dim-3">{label}</p>
-      <p className="text-sm text-dim-1 leading-relaxed whitespace-pre-line">{value}</p>
+      <p className="text-sm text-dim-1 leading-relaxed whitespace-pre-line">
+        {value}
+      </p>
     </div>
   );
 }

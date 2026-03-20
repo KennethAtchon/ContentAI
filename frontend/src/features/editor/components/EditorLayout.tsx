@@ -54,7 +54,9 @@ export function EditorLayout({ project, onBack }: Props) {
         body: JSON.stringify(patch),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.editorProjects() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
     },
   });
 
@@ -64,7 +66,7 @@ export function EditorLayout({ project, onBack }: Props) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => save(patch), 2000);
     },
-    [save],
+    [save]
   );
 
   // Cleanup on unmount
@@ -77,7 +79,7 @@ export function EditorLayout({ project, onBack }: Props) {
   // Playback engine
   const onTick = useCallback(
     (ms: number) => store.setCurrentTime(ms),
-    [store.setCurrentTime],
+    [store.setCurrentTime]
   );
   const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
   usePlayback({
@@ -94,21 +96,21 @@ export function EditorLayout({ project, onBack }: Props) {
       store.addClip(trackId, clip);
       // Save is triggered after state update via effect below
     },
-    [store.addClip],
+    [store.addClip]
   );
 
   const handleUpdateClip = useCallback(
     (clipId: string, patch: Partial<Clip>) => {
       store.updateClip(clipId, patch);
     },
-    [store.updateClip],
+    [store.updateClip]
   );
 
   const handleRemoveClip = useCallback(
     (clipId: string) => {
       store.removeClip(clipId);
     },
-    [store.removeClip],
+    [store.removeClip]
   );
 
   // Save whenever tracks change
@@ -135,17 +137,24 @@ export function EditorLayout({ project, onBack }: Props) {
       }
       if (e.code === "ArrowLeft") {
         e.preventDefault();
-        store.setCurrentTime(store.state.currentTimeMs - 1000 / store.state.fps);
+        store.setCurrentTime(
+          store.state.currentTimeMs - 1000 / store.state.fps
+        );
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
-        store.setCurrentTime(store.state.currentTimeMs + 1000 / store.state.fps);
+        store.setCurrentTime(
+          store.state.currentTimeMs + 1000 / store.state.fps
+        );
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         store.undo();
       }
-      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        (e.key === "y" || (e.key === "z" && e.shiftKey))
+      ) {
         e.preventDefault();
         store.redo();
       }
@@ -173,16 +182,20 @@ export function EditorLayout({ project, onBack }: Props) {
     store.setCurrentTime(state.durationMs);
     store.setPlaying(false);
   };
-  const rewind = () => store.setCurrentTime(Math.max(0, state.currentTimeMs - 5000));
+  const rewind = () =>
+    store.setCurrentTime(Math.max(0, state.currentTimeMs - 5000));
   const fastForward = () =>
-    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
+    store.setCurrentTime(
+      Math.min(state.durationMs, state.currentTimeMs + 5000)
+    );
 
   // Zoom
   const zoomIn = () => store.setZoom(state.zoom * 1.25);
   const zoomOut = () => store.setZoom(state.zoom / 1.25);
   const zoomFit = () => {
     const containerW = 800; // approximate
-    const newZoom = state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
+    const newZoom =
+      state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
     store.setZoom(newZoom);
   };
 
@@ -236,8 +249,16 @@ export function EditorLayout({ project, onBack }: Props) {
 
         {/* Transport controls */}
         <div className="flex items-center gap-0.5">
-          <button onClick={jumpToStart} title="Jump to start" className="transport-btn">⏮</button>
-          <button onClick={rewind} title="Rewind 5s" className="transport-btn">⏪</button>
+          <button
+            onClick={jumpToStart}
+            title="Jump to start"
+            className="transport-btn"
+          >
+            ⏮
+          </button>
+          <button onClick={rewind} title="Rewind 5s" className="transport-btn">
+            ⏪
+          </button>
           <button
             onClick={() => store.setPlaying(!state.isPlaying)}
             title={state.isPlaying ? "Pause (Space)" : "Play (Space)"}
@@ -245,8 +266,20 @@ export function EditorLayout({ project, onBack }: Props) {
           >
             {state.isPlaying ? "⏸" : "▶"}
           </button>
-          <button onClick={fastForward} title="Forward 5s" className="transport-btn">⏩</button>
-          <button onClick={jumpToEnd} title="Jump to end" className="transport-btn">⏭</button>
+          <button
+            onClick={fastForward}
+            title="Forward 5s"
+            className="transport-btn"
+          >
+            ⏩
+          </button>
+          <button
+            onClick={jumpToEnd}
+            title="Jump to end"
+            className="transport-btn"
+          >
+            ⏭
+          </button>
         </div>
 
         {/* Timecode */}
@@ -257,11 +290,15 @@ export function EditorLayout({ project, onBack }: Props) {
 
         {/* Zoom */}
         <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-        <button onClick={zoomOut} className="transport-btn">−</button>
+        <button onClick={zoomOut} className="transport-btn">
+          −
+        </button>
         <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
           {Math.round(state.zoom)}px/s
         </span>
-        <button onClick={zoomIn} className="transport-btn">+</button>
+        <button onClick={zoomIn} className="transport-btn">
+          +
+        </button>
         <button
           onClick={zoomFit}
           className="text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5"
@@ -310,10 +347,14 @@ export function EditorLayout({ project, onBack }: Props) {
       {/* ── Timeline (296px) ────────────────────────────────────────────── */}
       <div style={{ height: 296 }} className="flex flex-col shrink-0">
         {/* Timeline toolbar */}
-        <div className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0" style={{ height: 32 }}>
+        <div
+          className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0"
+          style={{ height: 32 }}
+        >
           <span className="text-xs font-bold text-dim-1">Timeline</span>
           <span className="text-xs italic text-dim-3">
-            {Math.round(state.zoom)} px/s · {(state.durationMs / 60000).toFixed(1)} min
+            {Math.round(state.zoom)} px/s ·{" "}
+            {(state.durationMs / 60000).toFixed(1)} min
           </span>
         </div>
 

@@ -570,10 +570,13 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
   }),
 }));
 
-export const editProjectsRelations = relations(editProjects, ({ one, many }) => ({
-  user: one(users, { fields: [editProjects.userId], references: [users.id] }),
-  exportJobs: many(exportJobs),
-}));
+export const editProjectsRelations = relations(
+  editProjects,
+  ({ one, many }) => ({
+    user: one(users, { fields: [editProjects.userId], references: [users.id] }),
+    exportJobs: many(exportJobs),
+  }),
+);
 
 export const exportJobsRelations = relations(exportJobs, ({ one }) => ({
   project: one(editProjects, {

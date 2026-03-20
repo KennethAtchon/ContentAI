@@ -26,7 +26,9 @@ export function useEditorProject() {
         body: JSON.stringify(patch),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.editorProjects() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
     },
   });
 
@@ -38,7 +40,7 @@ export function useEditorProject() {
         save({ id, patch });
       }, 2000);
     },
-    [save],
+    [save]
   );
 
   // Cleanup on unmount

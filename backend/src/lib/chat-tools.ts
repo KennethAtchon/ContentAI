@@ -316,11 +316,14 @@ export function createIterateContentTool(context: ToolContext) {
             .limit(1);
           if (!child) break;
           if (visitedIds.has(child.id)) {
-            debugLog.warn("[tool:iterate_content] Circular parentId chain detected", {
-              service: "chat-tools",
-              operation: "iterate_content",
-              cycleAtId: child.id,
-            });
+            debugLog.warn(
+              "[tool:iterate_content] Circular parentId chain detected",
+              {
+                service: "chat-tools",
+                operation: "iterate_content",
+                cycleAtId: child.id,
+              },
+            );
             break;
           }
           visitedIds.add(child.id);

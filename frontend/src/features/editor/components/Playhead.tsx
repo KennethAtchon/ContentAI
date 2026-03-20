@@ -1,4 +1,3 @@
-
 interface Props {
   currentTimeMs: number;
   zoom: number; // px/s

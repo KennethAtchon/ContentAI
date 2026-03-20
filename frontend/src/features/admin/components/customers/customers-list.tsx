@@ -352,7 +352,9 @@ export function CustomersList({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">{t("admin_customers_col_id")}</TableHead>
+                <TableHead className="w-[100px]">
+                  {t("admin_customers_col_id")}
+                </TableHead>
                 <TableHead>{t("admin_customers_col_customer")}</TableHead>
                 <TableHead>{t("admin_customers_col_phone")}</TableHead>
                 <TableHead>{t("admin_customers_col_status")}</TableHead>

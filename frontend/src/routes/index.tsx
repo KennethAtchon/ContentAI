@@ -66,9 +66,7 @@ function HomePage() {
             {t("home_hero_cta_view_pricing")}
           </Link>
         </div>
-        <p className="mt-5 text-sm text-dim-3">
-          {t("home_hero_footer")}
-        </p>
+        <p className="mt-5 text-sm text-dim-3">{t("home_hero_footer")}</p>
       </StudioHero>
 
       {/* Social proof bar */}

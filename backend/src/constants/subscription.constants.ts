@@ -22,8 +22,13 @@ export const SUBSCRIPTION_TRIAL_DAYS = 14;
 /** Async version that reads from DB config with ENV/code fallback. */
 export async function getSubscriptionTrialDays(): Promise<number> {
   try {
-    const { systemConfigService } = await import("@/services/config/system-config.service");
-    return await systemConfigService.getNumber("subscription", "trial_days", SUBSCRIPTION_TRIAL_DAYS);
+    const { systemConfigService } =
+      await import("@/services/config/system-config.service");
+    return await systemConfigService.getNumber(
+      "subscription",
+      "trial_days",
+      SUBSCRIPTION_TRIAL_DAYS,
+    );
   } catch {
     return SUBSCRIPTION_TRIAL_DAYS;
   }
@@ -160,12 +165,15 @@ export function getFeatureLimitsForStripeRole(stripeRole?: string): {
  * Async version that reads limits from DB config.
  * Falls back to static hardcoded values if DB is unavailable.
  */
-export async function getFeatureLimitsForStripeRoleAsync(stripeRole?: string): Promise<{
+export async function getFeatureLimitsForStripeRoleAsync(
+  stripeRole?: string,
+): Promise<{
   generation: number;
   analysis: number;
 }> {
   try {
-    const { systemConfigService } = await import("@/services/config/system-config.service");
+    const { systemConfigService } =
+      await import("@/services/config/system-config.service");
     const tier = stripeRole as SubscriptionTier | undefined;
 
     if (tier === SUBSCRIPTION_TIERS.ENTERPRISE) {
@@ -173,20 +181,44 @@ export async function getFeatureLimitsForStripeRoleAsync(stripeRole?: string): P
     }
     if (tier === SUBSCRIPTION_TIERS.PRO) {
       return {
-        generation: await systemConfigService.getNumber("subscription", "pro_generations_per_month", 500),
-        analysis: await systemConfigService.getNumber("subscription", "pro_analyses_per_month", 200),
+        generation: await systemConfigService.getNumber(
+          "subscription",
+          "pro_generations_per_month",
+          500,
+        ),
+        analysis: await systemConfigService.getNumber(
+          "subscription",
+          "pro_analyses_per_month",
+          200,
+        ),
       };
     }
     if (tier === SUBSCRIPTION_TIERS.BASIC) {
       return {
-        generation: await systemConfigService.getNumber("subscription", "basic_generations_per_month", 100),
-        analysis: await systemConfigService.getNumber("subscription", "basic_analyses_per_month", 50),
+        generation: await systemConfigService.getNumber(
+          "subscription",
+          "basic_generations_per_month",
+          100,
+        ),
+        analysis: await systemConfigService.getNumber(
+          "subscription",
+          "basic_analyses_per_month",
+          50,
+        ),
       };
     }
     // Free tier
     return {
-      generation: await systemConfigService.getNumber("subscription", "free_generations_per_month", FREE_TIER_LIMITS.maxGenerationsPerMonth),
-      analysis: await systemConfigService.getNumber("subscription", "free_analyses_per_month", FREE_TIER_LIMITS.maxAnalysesPerMonth),
+      generation: await systemConfigService.getNumber(
+        "subscription",
+        "free_generations_per_month",
+        FREE_TIER_LIMITS.maxGenerationsPerMonth,
+      ),
+      analysis: await systemConfigService.getNumber(
+        "subscription",
+        "free_analyses_per_month",
+        FREE_TIER_LIMITS.maxAnalysesPerMonth,
+      ),
     };
   } catch {
     return getFeatureLimitsForStripeRole(stripeRole);

@@ -33,14 +33,24 @@ function formatMMSS(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function PreviewArea({ tracks, currentTimeMs, isPlaying, durationMs, fps, resolution }: Props) {
+export function PreviewArea({
+  tracks,
+  currentTimeMs,
+  isPlaying,
+  durationMs,
+  fps,
+  resolution,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   // Video track clips that are currently active at currentTimeMs
   const videoTrack = tracks.find((t) => t.type === "video");
   const activeVideoClips = (videoTrack?.clips ?? []).filter(
-    (c) => c.r2Url && currentTimeMs >= c.startMs && currentTimeMs < c.startMs + c.durationMs,
+    (c) =>
+      c.r2Url &&
+      currentTimeMs >= c.startMs &&
+      currentTimeMs < c.startMs + c.durationMs
   );
 
   // Sync all video elements to current playhead time
@@ -50,10 +60,12 @@ export function PreviewArea({ tracks, currentTimeMs, isPlaying, durationMs, fps,
       if (!el) continue;
 
       const isActive =
-        currentTimeMs >= clip.startMs && currentTimeMs < clip.startMs + clip.durationMs;
+        currentTimeMs >= clip.startMs &&
+        currentTimeMs < clip.startMs + clip.durationMs;
 
       if (isActive) {
-        const targetTime = (currentTimeMs - clip.startMs) / 1000 + clip.trimStartMs / 1000;
+        const targetTime =
+          (currentTimeMs - clip.startMs) / 1000 + clip.trimStartMs / 1000;
         if (Math.abs(el.currentTime - targetTime) > 0.1) {
           el.currentTime = targetTime;
         }
@@ -73,10 +85,15 @@ export function PreviewArea({ tracks, currentTimeMs, isPlaying, durationMs, fps,
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-4 py-3 min-w-0">
-      <p className="text-[10px] italic text-dim-3 mb-2 tracking-widest">— preview monitor —</p>
+      <p className="text-[10px] italic text-dim-3 mb-2 tracking-widest">
+        — preview monitor —
+      </p>
 
       {/* 16:9 preview screen */}
-      <div className="relative w-full max-w-[620px]" style={{ aspectRatio: "16/9" }}>
+      <div
+        className="relative w-full max-w-[620px]"
+        style={{ aspectRatio: "16/9" }}
+      >
         {/* Film-strip edges */}
         <div className="absolute left-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
         <div className="absolute right-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
@@ -97,17 +114,17 @@ export function PreviewArea({ tracks, currentTimeMs, isPlaying, durationMs, fps,
               src={clip.r2Url}
               className="absolute inset-0 w-full h-full object-contain"
               style={{
-                opacity:
-                  activeVideoClips.some((c) => c.id === clip.id)
-                    ? clip.opacity ?? 1
-                    : 0,
-                filter: [
-                  clip.contrast !== undefined && clip.contrast !== 0
-                    ? `contrast(${1 + clip.contrast / 100})`
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ") || undefined,
+                opacity: activeVideoClips.some((c) => c.id === clip.id)
+                  ? (clip.opacity ?? 1)
+                  : 0,
+                filter:
+                  [
+                    clip.contrast !== undefined && clip.contrast !== 0
+                      ? `contrast(${1 + clip.contrast / 100})`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined,
                 transform: `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`,
               }}
               muted={false}
@@ -142,7 +159,12 @@ export function PreviewArea({ tracks, currentTimeMs, isPlaying, durationMs, fps,
           {position} / {total}
         </span>
         <span className="text-xs text-dim-3">
-          {resolution === "4k" ? "3840 × 2160" : resolution === "720p" ? "1280 × 720" : "1920 × 1080"} · {fps} fps
+          {resolution === "4k"
+            ? "3840 × 2160"
+            : resolution === "720p"
+              ? "1280 × 720"
+              : "1920 × 1080"}{" "}
+          · {fps} fps
         </span>
       </div>
     </div>

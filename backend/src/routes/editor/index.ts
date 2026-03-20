@@ -222,7 +222,9 @@ app.patch(
       const [updated] = await db
         .update(editProjects)
         .set(updateData)
-        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .returning({ id: editProjects.id, updatedAt: editProjects.updatedAt });
 
       return c.json({ id: updated.id, updatedAt: updated.updatedAt });
@@ -261,7 +263,11 @@ app.delete(
         return c.json({ error: "Edit project not found" }, 404);
       }
 
-      await db.delete(editProjects).where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)));
+      await db
+        .delete(editProjects)
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        );
 
       return c.body(null, 204);
     } catch (error) {
@@ -308,10 +314,21 @@ app.post(
       const [{ activeJobs }] = await db
         .select({ activeJobs: count() })
         .from(exportJobs)
-        .where(and(eq(exportJobs.userId, auth.user.id), eq(exportJobs.status, "rendering")));
+        .where(
+          and(
+            eq(exportJobs.userId, auth.user.id),
+            eq(exportJobs.status, "rendering"),
+          ),
+        );
 
       if (activeJobs >= 2) {
-        return c.json({ error: "Too many active export jobs. Please wait for a current export to finish." }, 429);
+        return c.json(
+          {
+            error:
+              "Too many active export jobs. Please wait for a current export to finish.",
+          },
+          429,
+        );
       }
 
       const [job] = await db
@@ -361,7 +378,9 @@ app.get(
       const [project] = await db
         .select({ id: editProjects.id })
         .from(editProjects)
-        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .limit(1);
 
       if (!project) {
@@ -433,7 +452,11 @@ interface TrackData {
   clips: ClipData[];
 }
 
-async function setJobProgress(jobId: string, progress: number, status = "rendering") {
+async function setJobProgress(
+  jobId: string,
+  progress: number,
+  status = "rendering",
+) {
   await db
     .update(exportJobs)
     .set({ progress, status })

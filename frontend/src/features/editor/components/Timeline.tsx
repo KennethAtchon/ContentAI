@@ -66,8 +66,17 @@ export function Timeline({
       </div>
 
       {/* Scrollable track area */}
-      <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-hidden relative">
-        <div style={{ width: totalWidthPx, height: contentHeight, position: "relative" }}>
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden relative"
+      >
+        <div
+          style={{
+            width: totalWidthPx,
+            height: contentHeight,
+            position: "relative",
+          }}
+        >
           {/* Ruler */}
           <TimelineRuler durationMs={durationMs} zoom={zoom} onSeek={onSeek} />
 
@@ -92,11 +101,14 @@ export function Timeline({
                   isSelected={selectedClipId === clip.id}
                   isLocked={track.locked}
                   onSelect={() => onSelectClip(clip.id)}
-                  onMove={(newStartMs) => onUpdateClip(clip.id, { startMs: newStartMs })}
+                  onMove={(newStartMs) =>
+                    onUpdateClip(clip.id, { startMs: newStartMs })
+                  }
                   onTrimStart={(newTrimStartMs, newDurationMs) =>
                     onUpdateClip(clip.id, {
                       trimStartMs: newTrimStartMs,
-                      startMs: clip.startMs + (newTrimStartMs - clip.trimStartMs),
+                      startMs:
+                        clip.startMs + (newTrimStartMs - clip.trimStartMs),
                       durationMs: newDurationMs,
                     })
                   }

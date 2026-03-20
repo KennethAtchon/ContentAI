@@ -194,9 +194,7 @@ export function TikTokVideoCard({
 
       {/* Top-right: engagement badge */}
       <div className="absolute top-3 right-3 z-10 bg-black/50 backdrop-blur-sm rounded-lg px-2.5 py-1.5 text-center">
-        <p className="text-sm text-white/50">
-          {t("studio_panel_engagement")}
-        </p>
+        <p className="text-sm text-white/50">{t("studio_panel_engagement")}</p>
         <p className="text-base font-bold text-studio-accent">
           {reel.engagementRate ?? "0"}%
         </p>

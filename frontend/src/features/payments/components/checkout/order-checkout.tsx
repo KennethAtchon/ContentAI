@@ -195,7 +195,9 @@ export function OrderCheckout({
                 className="h-auto flex-col items-start p-3 text-left"
                 onClick={() => addProduct(product)}
               >
-                <div className="font-semibold text-base mb-1">{product.name}</div>
+                <div className="font-semibold text-base mb-1">
+                  {product.name}
+                </div>
                 <div className="text-sm text-muted-foreground mb-2 line-clamp-2">
                   {product.description}
                 </div>

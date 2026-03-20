@@ -1,12 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  User,
-  Bot,
-  Loader2,
-  Mic,
-  Music,
-  Wand2,
-} from "lucide-react";
+import { User, Bot, Loader2, Mic, Music, Wand2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";

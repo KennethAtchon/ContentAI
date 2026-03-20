@@ -84,7 +84,9 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
 
 // ─── Helper Functions for Streaming ──────────────────────────────────────────
 
-export async function getModel(modelTier: "analysis" | "generation" = "generation") {
+export async function getModel(
+  modelTier: "analysis" | "generation" = "generation",
+) {
   const { instance, provider, model } = await getModelInstance(modelTier);
   // Use Chat Completions API for openai/openrouter to avoid Responses API format mismatch
   if (provider !== "claude" && typeof (instance as any).chat === "function") {

@@ -21,7 +21,11 @@ interface FluxResult {
   images: Array<{ url: string; content_type: string }>;
 }
 
-async function generateImage(prompt: string, apiKey: string, fluxModel: string): Promise<Buffer> {
+async function generateImage(
+  prompt: string,
+  apiKey: string,
+  fluxModel: string,
+): Promise<Buffer> {
   const res = await safeFetch(`${FAL_BASE}/${fluxModel}`, {
     method: "POST",
     headers: {
@@ -146,7 +150,8 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
     const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
-    const fluxModel = (await systemConfigService.get("video", "flux_model")) ?? FLUX_MODEL;
+    const fluxModel =
+      (await systemConfigService.get("video", "flux_model")) ?? FLUX_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
     const aspectRatio = params.aspectRatio ?? "9:16";
 

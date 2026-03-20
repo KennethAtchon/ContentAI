@@ -36,9 +36,7 @@ export function StudioFeatureCard({
       </div>
       <h3 className="mb-1.5 text-base font-bold text-studio-fg">{title}</h3>
       {description && (
-        <p className="text-sm text-dim-2 leading-[1.6]">
-          {description}
-        </p>
+        <p className="text-sm text-dim-2 leading-[1.6]">{description}</p>
       )}
       {children}
     </div>

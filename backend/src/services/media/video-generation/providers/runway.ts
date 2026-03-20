@@ -69,8 +69,12 @@ export const runwayProvider: VideoGenerationProvider = {
 
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
-    const apiKey = await systemConfigService.getApiKey("runway", RUNWAY_API_KEY);
-    const model = (await systemConfigService.get("video", "runway_model")) ?? RUNWAY_MODEL;
+    const apiKey = await systemConfigService.getApiKey(
+      "runway",
+      RUNWAY_API_KEY,
+    );
+    const model =
+      (await systemConfigService.get("video", "runway_model")) ?? RUNWAY_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
 
     if (!apiKey) throw new Error("RUNWAY_API_KEY is not configured");

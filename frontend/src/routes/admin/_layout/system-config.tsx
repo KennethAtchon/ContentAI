@@ -112,7 +112,7 @@ function useSystemConfig(category: string) {
       });
       await queryClient.invalidateQueries({ queryKey });
     },
-    [category, authenticatedFetchJson, queryClient],
+    [category, authenticatedFetchJson, queryClient]
   );
 
   return { entries, isLoading, updateEntry };
@@ -139,7 +139,7 @@ function SaveButton({
       disabled={saving || disabled}
       className={cn(
         "min-w-[80px] shrink-0 transition-all",
-        saved && "bg-green-500/20 text-green-400 border-green-500/30",
+        saved && "bg-green-500/20 text-green-400 border-green-500/30"
       )}
       variant={saved ? "outline" : "default"}
     >
@@ -401,9 +401,7 @@ function ConfigSwitchField({
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {saving && (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-dim-3" />
-        )}
+        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-dim-3" />}
         <Switch
           checked={value}
           onCheckedChange={handleChange}
@@ -868,12 +866,7 @@ function SubscriptionTab() {
         description="All limits are -1 (unlimited) by design."
       >
         <div className="flex flex-wrap gap-2">
-          {[
-            "Generations",
-            "Analyses",
-            "Queue Items",
-            "Reels",
-          ].map((name) => (
+          {["Generations", "Analyses", "Queue Items", "Reels"].map((name) => (
             <div
               key={name}
               className="flex items-center gap-2 rounded-lg border border-overlay-sm bg-overlay-xs px-3 py-2"
@@ -1187,7 +1180,7 @@ function TtsTab() {
                           voice.gender === "male" &&
                             "bg-blue-500/10 text-blue-400 border-blue-500/20",
                           voice.gender === "neutral" &&
-                            "bg-purple-500/10 text-purple-400 border-purple-500/20",
+                            "bg-purple-500/10 text-purple-400 border-purple-500/20"
                         )}
                       >
                         {voice.gender}
@@ -1371,8 +1364,7 @@ function ApiKeyField({
           onClick={handleSave}
           className={cn(
             "shrink-0 min-w-[64px]",
-            saved &&
-              "bg-green-500/20 text-green-400 border-green-500/30",
+            saved && "bg-green-500/20 text-green-400 border-green-500/30"
           )}
         >
           {saving ? (
@@ -1398,7 +1390,9 @@ function ApiKeysTab() {
 
   if (isLoading) return <TabSkeleton />;
 
-  const configuredCount = API_KEY_ROWS.filter((r) => isConfigured(r.key)).length;
+  const configuredCount = API_KEY_ROWS.filter((r) =>
+    isConfigured(r.key)
+  ).length;
 
   return (
     <div className="space-y-5">
@@ -1494,9 +1488,7 @@ function SystemConfigPage() {
           onClick={handleCacheInvalidate}
           disabled={refreshing}
         >
-          <RefreshCw
-            className={cn("h-4 w-4", refreshing && "animate-spin")}
-          />
+          <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           Invalidate Cache
         </Button>
       </div>

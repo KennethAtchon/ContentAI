@@ -34,9 +34,15 @@ export async function getVideoGenerationProvider(
     providerName = override;
   } else {
     try {
-      const { systemConfigService } = await import("@/services/config/system-config.service");
-      const dbProvider = await systemConfigService.get("video", "default_provider");
-      providerName = (dbProvider as VideoProvider) ?? (VIDEO_GENERATION_PROVIDER as VideoProvider);
+      const { systemConfigService } =
+        await import("@/services/config/system-config.service");
+      const dbProvider = await systemConfigService.get(
+        "video",
+        "default_provider",
+      );
+      providerName =
+        (dbProvider as VideoProvider) ??
+        (VIDEO_GENERATION_PROVIDER as VideoProvider);
     } catch {
       providerName = VIDEO_GENERATION_PROVIDER as VideoProvider;
     }
@@ -52,9 +58,14 @@ export async function getVideoGenerationProvider(
 
   if (!(await provider.isAvailable())) {
     // Read fallback order from DB config
-    let fallbackOrder: VideoProvider[] = ["kling-fal", "image-ken-burns", "runway"];
+    let fallbackOrder: VideoProvider[] = [
+      "kling-fal",
+      "image-ken-burns",
+      "runway",
+    ];
     try {
-      const { systemConfigService } = await import("@/services/config/system-config.service");
+      const { systemConfigService } =
+        await import("@/services/config/system-config.service");
       fallbackOrder = await systemConfigService.getJson<VideoProvider[]>(
         "video",
         "fallback_order",
@@ -65,7 +76,10 @@ export async function getVideoGenerationProvider(
     }
 
     for (const fallbackName of fallbackOrder) {
-      if (fallbackName !== providerName && (await PROVIDERS[fallbackName].isAvailable())) {
+      if (
+        fallbackName !== providerName &&
+        (await PROVIDERS[fallbackName].isAvailable())
+      ) {
         debugLog.warn(
           `Provider "${providerName}" not available (missing API key). Falling back to "${fallbackName}".`,
           {

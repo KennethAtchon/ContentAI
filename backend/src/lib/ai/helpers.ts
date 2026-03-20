@@ -9,10 +9,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
-import {
-  getModelForProviderAsync,
-  getEnabledProvidersAsync,
-} from "./config";
+import { getModelForProviderAsync, getEnabledProvidersAsync } from "./config";
 import {
   ANTHROPIC_API_KEY as ENV_ANTHROPIC,
   OPENAI_API_KEY as ENV_OPENAI,
@@ -27,13 +24,20 @@ import {
  * so changes made via the admin panel take effect within one cache TTL (~60s).
  */
 export async function getProviderInstanceAsync(provider: string) {
-  const { systemConfigService } = await import("../../services/config/system-config.service");
+  const { systemConfigService } =
+    await import("../../services/config/system-config.service");
 
   switch (provider) {
     case "openrouter": {
-      const key = await systemConfigService.getApiKey("openrouter", ENV_OPENROUTER);
+      const key = await systemConfigService.getApiKey(
+        "openrouter",
+        ENV_OPENROUTER,
+      );
       if (!key) return null;
-      return createOpenAI({ apiKey: key, baseURL: "https://openrouter.ai/api/v1" });
+      return createOpenAI({
+        apiKey: key,
+        baseURL: "https://openrouter.ai/api/v1",
+      });
     }
     case "openai": {
       const key = await systemConfigService.getApiKey("openai", ENV_OPENAI);
@@ -41,7 +45,10 @@ export async function getProviderInstanceAsync(provider: string) {
       return createOpenAI({ apiKey: key });
     }
     case "claude": {
-      const key = await systemConfigService.getApiKey("anthropic", ENV_ANTHROPIC);
+      const key = await systemConfigService.getApiKey(
+        "anthropic",
+        ENV_ANTHROPIC,
+      );
       if (!key) return null;
       return createAnthropic({ apiKey: key });
     }
@@ -158,7 +165,10 @@ export async function attemptAiCall(
     throw new Error(`Provider ${provider} is not available`);
   }
 
-  const model = await getModelForProviderAsync(provider, params.modelTier || "analysis");
+  const model = await getModelForProviderAsync(
+    provider,
+    params.modelTier || "analysis",
+  );
   const startMs = Date.now();
 
   const resolvedModel =

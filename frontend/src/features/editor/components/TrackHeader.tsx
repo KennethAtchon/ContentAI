@@ -16,16 +16,16 @@ export function TrackHeader({ track, onToggleMute, onToggleLock }: Props) {
         className="w-2 h-7 rounded-full shrink-0"
         style={{ backgroundColor: color }}
       />
-      <span className="flex-1 text-sm font-medium text-dim-1 truncate">{track.name}</span>
+      <span className="flex-1 text-sm font-medium text-dim-1 truncate">
+        {track.name}
+      </span>
       <button
         onClick={onToggleMute}
         title={track.muted ? "Unmute" : "Mute"}
         className={[
           "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
           "border-0 cursor-pointer transition-colors",
-          track.muted
-            ? "text-studio-accent"
-            : "text-dim-3 hover:text-dim-1",
+          track.muted ? "text-studio-accent" : "text-dim-3 hover:text-dim-1",
           "bg-transparent",
         ].join(" ")}
       >
@@ -37,9 +37,7 @@ export function TrackHeader({ track, onToggleMute, onToggleLock }: Props) {
         className={[
           "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
           "border-0 cursor-pointer transition-colors",
-          track.locked
-            ? "text-studio-accent"
-            : "text-dim-3 hover:text-dim-1",
+          track.locked ? "text-studio-accent" : "text-dim-3 hover:text-dim-1",
           "bg-transparent",
         ].join(" ")}
       >

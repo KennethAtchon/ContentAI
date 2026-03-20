@@ -83,8 +83,7 @@ function Toast({
     <div
       className={cn(
         "fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl text-base font-medium border max-w-xs",
-        type === "success" &&
-          "bg-success/20 border-success/30 text-success",
+        type === "success" && "bg-success/20 border-success/30 text-success",
         type === "error" && "bg-error/20 border-error/30 text-error",
         type === "info" &&
           "bg-studio-accent/20 border-studio-accent/30 text-studio-accent"
@@ -144,11 +143,7 @@ function ReelRow({
         >
           {reel.videoR2Url && (
             <a href={reel.videoR2Url} target="_blank" rel="noopener noreferrer">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-sm"
-              >
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-sm">
                 <Eye className="h-3 w-3" />
               </Button>
             </a>
@@ -184,12 +179,8 @@ function ReelRow({
             [t("admin_niche_row_caption"), reel.caption ?? "—"],
           ].map(([label, value]) => (
             <div key={label} className="flex gap-2 py-1">
-              <span className="text-sm text-dim-3 w-28 shrink-0">
-                {label}
-              </span>
-              <span className="text-sm text-dim-1 truncate">
-                {value}
-              </span>
+              <span className="text-sm text-dim-3 w-28 shrink-0">{label}</span>
+              <span className="text-sm text-dim-1 truncate">{value}</span>
             </div>
           ))}
         </div>
@@ -213,9 +204,7 @@ function JobRow({ job }: { job: ScrapeJob }) {
 
   return (
     <div className="px-4 py-3 grid grid-cols-[140px_90px_100px_80px_80px_1fr] items-center gap-2 border-b border-overlay-xs last:border-0">
-      <span className="text-sm text-dim-2 font-mono truncate">
-        {job.id}
-      </span>
+      <span className="text-sm text-dim-2 font-mono truncate">{job.id}</span>
       <Badge className={cn("text-sm w-fit", STATUS_CLASS[job.status])}>
         {job.status}
       </Badge>
@@ -235,9 +224,7 @@ function JobRow({ job }: { job: ScrapeJob }) {
           {job.error}
         </span>
       ) : job.result ? (
-        <span className="text-sm text-dim-3">
-          {job.result.skipped} skipped
-        </span>
+        <span className="text-sm text-dim-3">{job.result.skipped} skipped</span>
       ) : (
         <span />
       )}
@@ -690,9 +677,7 @@ function NicheDetailPage() {
                 {niche?.name ?? `Niche #${nicheId}`}
               </h2>
               {niche?.description && (
-                <p className="text-base text-dim-2 mt-1">
-                  {niche.description}
-                </p>
+                <p className="text-base text-dim-2 mt-1">{niche.description}</p>
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -753,10 +738,7 @@ function NicheDetailPage() {
             >
               {t("admin_niche_tab_reels")}
               {data && (
-                <Badge
-                  variant="secondary"
-                  className="ml-2 text-sm px-1.5 py-0"
-                >
+                <Badge variant="secondary" className="ml-2 text-sm px-1.5 py-0">
                   {data.total}
                 </Badge>
               )}

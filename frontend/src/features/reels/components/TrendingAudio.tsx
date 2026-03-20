@@ -64,9 +64,7 @@ export function TrendingAudio({ nicheId }: { nicheId: number | null }) {
             <span>🎵</span>
             {t("studio_discover_trendingAudio")}
           </span>
-          <span className="text-sm text-dim-2">
-            {open ? "—" : "+"}
-          </span>
+          <span className="text-sm text-dim-2">{open ? "—" : "+"}</span>
         </CollapsibleTrigger>
         <CollapsibleContent className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isLoading ? (

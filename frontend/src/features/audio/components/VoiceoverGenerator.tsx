@@ -119,7 +119,9 @@ export function VoiceoverGenerator({
           <Mic className="w-6 h-6 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="text-base font-semibold">{t("audio_generate_title")}</h3>
+          <h3 className="text-base font-semibold">
+            {t("audio_generate_title")}
+          </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
             {t("audio_generate_subtitle")}
           </p>

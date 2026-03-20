@@ -36,7 +36,9 @@ function EditorPage() {
         body: JSON.stringify({ title: "Untitled Edit" }),
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.editorProjects() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
       setActiveProject(res.project);
     },
   });
@@ -46,7 +48,9 @@ function EditorPage() {
     mutationFn: (id: string) =>
       authenticatedFetchJson(`/api/editor/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.editorProjects() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
     },
   });
 
@@ -99,13 +103,17 @@ function EditorPage() {
               </div>
 
               {isLoading && (
-                <div className="text-sm text-dim-3 italic">{t("common_loading") ?? "Loading…"}</div>
+                <div className="text-sm text-dim-3 italic">
+                  {t("common_loading") ?? "Loading…"}
+                </div>
               )}
 
               {!isLoading && projects.length === 0 && (
                 <div className="flex flex-col items-center gap-4 mt-24">
                   <span className="text-5xl opacity-20">✂</span>
-                  <p className="text-sm italic text-dim-3">{t("editor_no_projects")}</p>
+                  <p className="text-sm italic text-dim-3">
+                    {t("editor_no_projects")}
+                  </p>
                   <button
                     onClick={() => createProject()}
                     disabled={isCreating}
@@ -129,13 +137,18 @@ function EditorPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-dim-1 truncate">{proj.title}</p>
+                        <p className="text-sm font-medium text-dim-1 truncate">
+                          {proj.title}
+                        </p>
                         <p className="text-xs text-dim-3 mt-0.5">
-                          {new Date(proj.updatedAt).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(proj.updatedAt).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
                           {" · "}
                           {(proj.durationMs / 1000).toFixed(0)}s
                         </p>
@@ -150,7 +163,8 @@ function EditorPage() {
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Delete "${proj.title}"?`)) deleteProject(proj.id);
+                            if (confirm(`Delete "${proj.title}"?`))
+                              deleteProject(proj.id);
                           }}
                           className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
                         >

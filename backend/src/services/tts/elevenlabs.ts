@@ -38,7 +38,10 @@ export async function generateSpeech(
   voice: VoiceConfig,
   speed: TTSSpeed,
 ): Promise<TTSResult> {
-  const apiKey = await systemConfigService.getApiKey("elevenlabs", ELEVENLABS_API_KEY);
+  const apiKey = await systemConfigService.getApiKey(
+    "elevenlabs",
+    ELEVENLABS_API_KEY,
+  );
 
   if (!apiKey) {
     throw new Error("ELEVENLABS_API_KEY is not configured");

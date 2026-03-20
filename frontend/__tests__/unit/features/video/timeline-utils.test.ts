@@ -30,7 +30,9 @@ describe("timeline utils", () => {
     const reordered = reorderVideoItems(makeTimeline(), 2, 0);
     expect(reordered.tracks.video[0]?.id).toBe("clip-3");
     expect(reordered.tracks.video[0]?.startMs).toBe(0);
-    expect(reordered.tracks.video[1]?.startMs).toBe(reordered.tracks.video[0]?.endMs);
+    expect(reordered.tracks.video[1]?.startMs).toBe(
+      reordered.tracks.video[0]?.endMs
+    );
   });
 
   test("resizes clip by id and reflows timeline", () => {
@@ -43,8 +45,12 @@ describe("timeline utils", () => {
   test("splits selected clip at midpoint", () => {
     const split = splitVideoItemAt(makeTimeline(), "clip-2");
     expect(split.tracks.video.length).toBe(4);
-    expect(split.tracks.video.some((clip) => clip.id.includes("clip-2-a-"))).toBe(true);
-    expect(split.tracks.video.some((clip) => clip.id.includes("clip-2-b-"))).toBe(true);
+    expect(
+      split.tracks.video.some((clip) => clip.id.includes("clip-2-a-"))
+    ).toBe(true);
+    expect(
+      split.tracks.video.some((clip) => clip.id.includes("clip-2-b-"))
+    ).toBe(true);
   });
 
   test("inserts media at a specific index", () => {
@@ -57,4 +63,3 @@ describe("timeline utils", () => {
     expect(inserted.tracks.video.length).toBe(4);
   });
 });
-

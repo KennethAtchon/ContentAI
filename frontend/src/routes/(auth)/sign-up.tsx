@@ -253,9 +253,7 @@ function SignUpPage() {
 
                 {error && (
                   <div className="bg-error/[0.08] border border-error/20 rounded-lg px-3 py-2.5">
-                    <p className="text-sm font-medium text-error">
-                      {error}
-                    </p>
+                    <p className="text-sm font-medium text-error">{error}</p>
                   </div>
                 )}
 
@@ -321,9 +319,7 @@ function SignUpPage() {
 
               {/* Sign in link */}
               <div className="text-center text-sm pt-1">
-                <span className="text-dim-3">
-                  {t("auth_have_account")}{" "}
-                </span>
+                <span className="text-dim-3">{t("auth_have_account")} </span>
                 <Link
                   to={REDIRECT_PATHS.SIGN_IN}
                   className="text-studio-accent hover:underline font-semibold no-underline"

@@ -139,7 +139,8 @@ export function getProviderPriority(): string[] {
 /** Returns provider priority from DB config, falls back to static array. */
 export async function getProviderPriorityAsync(): Promise<string[]> {
   try {
-    const { systemConfigService } = await import("../../services/config/system-config.service");
+    const { systemConfigService } =
+      await import("../../services/config/system-config.service");
     return await systemConfigService.getJson<string[]>(
       "ai",
       "provider_priority",
@@ -156,11 +157,18 @@ export async function getModelForProviderAsync(
   modelTier: "analysis" | "generation",
 ): Promise<string> {
   try {
-    const { systemConfigService } = await import("../../services/config/system-config.service");
+    const { systemConfigService } =
+      await import("../../services/config/system-config.service");
     const keyMap: Record<string, Record<string, string>> = {
-      claude: { analysis: "claude_analysis_model", generation: "claude_generation_model" },
+      claude: {
+        analysis: "claude_analysis_model",
+        generation: "claude_generation_model",
+      },
       openai: { analysis: "openai_model", generation: "openai_model" },
-      openrouter: { analysis: "openrouter_model", generation: "openrouter_model" },
+      openrouter: {
+        analysis: "openrouter_model",
+        generation: "openrouter_model",
+      },
     };
     const dbKey = keyMap[provider]?.[modelTier];
     if (dbKey) {
@@ -174,9 +182,12 @@ export async function getModelForProviderAsync(
 }
 
 /** Returns enabled providers using DB-backed priority list and DB-backed API keys. */
-export async function getEnabledProvidersAsync(): Promise<("openrouter" | "openai" | "claude")[]> {
+export async function getEnabledProvidersAsync(): Promise<
+  ("openrouter" | "openai" | "claude")[]
+> {
   const priority = await getProviderPriorityAsync();
-  const { systemConfigService } = await import("../../services/config/system-config.service");
+  const { systemConfigService } =
+    await import("../../services/config/system-config.service");
 
   const keyMap: Record<string, { dbKey: string; envKey: string }> = {
     claude: { dbKey: "anthropic", envKey: ANTHROPIC_API_KEY },
@@ -192,7 +203,11 @@ export async function getEnabledProvidersAsync(): Promise<("openrouter" | "opena
     }),
   );
 
-  return priority.filter((_, i) => results[i]) as ("openrouter" | "openai" | "claude")[];
+  return priority.filter((_, i) => results[i]) as (
+    | "openrouter"
+    | "openai"
+    | "claude"
+  )[];
 }
 
 // Quick presets for common configurations

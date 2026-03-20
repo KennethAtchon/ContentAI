@@ -7,7 +7,13 @@ interface Props {
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="border-b border-dashed border-overlay-sm pb-3 mb-3">
       <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-2">
@@ -18,7 +24,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
+function PropRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-2 py-0.5">
       <span className="text-xs text-dim-2 shrink-0">{label}</span>
@@ -61,7 +73,9 @@ function SliderRow({
 
 function ValuePill({ value }: { value: string | number }) {
   return (
-    <span className="text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded">{value}</span>
+    <span className="text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded">
+      {value}
+    </span>
   );
 }
 
@@ -79,7 +93,10 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full border-l border-overlay-sm bg-studio-surface" style={{ width: 244 }}>
+    <div
+      className="flex flex-col h-full border-l border-overlay-sm bg-studio-surface"
+      style={{ width: 244 }}
+    >
       {/* Header */}
       <div className="px-4 py-2 border-b border-overlay-sm shrink-0">
         <p className="text-xs italic text-dim-2 font-serif">Inspector</p>
@@ -103,17 +120,23 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                 <ValuePill value={selectedClip.label} />
               </PropRow>
               <PropRow label="Start">
-                <ValuePill value={`${(selectedClip.startMs / 1000).toFixed(2)}s`} />
+                <ValuePill
+                  value={`${(selectedClip.startMs / 1000).toFixed(2)}s`}
+                />
               </PropRow>
               <PropRow label="Duration">
-                <ValuePill value={`${(selectedClip.durationMs / 1000).toFixed(2)}s`} />
+                <ValuePill
+                  value={`${(selectedClip.durationMs / 1000).toFixed(2)}s`}
+                />
               </PropRow>
               <PropRow label="Speed">
                 <select
                   className="text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border-0 cursor-pointer"
                   value={selectedClip.speed}
                   onChange={(e) =>
-                    onUpdateClip(selectedClip!.id, { speed: Number(e.target.value) })
+                    onUpdateClip(selectedClip!.id, {
+                      speed: Number(e.target.value),
+                    })
                   }
                 >
                   {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4].map((s) => (
@@ -149,7 +172,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                 min={-100}
                 max={100}
                 step={1}
-                onChange={(v) => onUpdateClip(selectedClip!.id, { contrast: v })}
+                onChange={(v) =>
+                  onUpdateClip(selectedClip!.id, { contrast: v })
+                }
               />
             </Section>
 
@@ -161,7 +186,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                   className="w-16 text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border-0"
                   value={selectedClip.positionX ?? 0}
                   onChange={(e) =>
-                    onUpdateClip(selectedClip!.id, { positionX: Number(e.target.value) })
+                    onUpdateClip(selectedClip!.id, {
+                      positionX: Number(e.target.value),
+                    })
                   }
                 />
               </PropRow>
@@ -171,7 +198,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                   className="w-16 text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border-0"
                   value={selectedClip.positionY ?? 0}
                   onChange={(e) =>
-                    onUpdateClip(selectedClip!.id, { positionY: Number(e.target.value) })
+                    onUpdateClip(selectedClip!.id, {
+                      positionY: Number(e.target.value),
+                    })
                   }
                 />
               </PropRow>
@@ -189,7 +218,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                 min={-180}
                 max={180}
                 step={1}
-                onChange={(v) => onUpdateClip(selectedClip!.id, { rotation: v })}
+                onChange={(v) =>
+                  onUpdateClip(selectedClip!.id, { rotation: v })
+                }
               />
             </Section>
 
@@ -206,7 +237,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
               <PropRow label="Mute">
                 <button
                   onClick={() =>
-                    onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
+                    onUpdateClip(selectedClip!.id, {
+                      muted: !selectedClip!.muted,
+                    })
                   }
                   className={[
                     "relative w-10 h-5 rounded-full border-0 cursor-pointer transition-colors",
@@ -231,7 +264,9 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                     rows={3}
                     value={selectedClip.textContent}
                     onChange={(e) =>
-                      onUpdateClip(selectedClip!.id, { textContent: e.target.value })
+                      onUpdateClip(selectedClip!.id, {
+                        textContent: e.target.value,
+                      })
                     }
                   />
                 </div>
