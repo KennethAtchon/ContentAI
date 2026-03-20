@@ -136,9 +136,9 @@ export function PreviewArea({
 
           {/* Empty state */}
           {!hasContent && (
-            <div className="flex flex-col items-center gap-2 text-dim-3">
-              <Play size={32} className="opacity-20" />
-              <span className="text-xs text-dim-3">Add clips to the timeline</span>
+            <div className="flex flex-col items-center gap-2">
+              <Play size={32} className="text-white/40" />
+              <span className="text-xs text-white/70">Add clips to the timeline</span>
             </div>
           )}
 

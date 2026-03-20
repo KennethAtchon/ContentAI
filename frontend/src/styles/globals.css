@@ -21,9 +21,9 @@
 
   /* 3. Text scale */
   --text-primary: 214 32% 91%;
-  --text-dim-1: hsl(214 32% 91% / 0.7); /* replaces slate-200/60–70 */
-  --text-dim-2: hsl(214 32% 91% / 0.45); /* replaces slate-200/40–55 */
-  --text-dim-3: hsl(214 32% 91% / 0.25); /* replaces slate-200/22–35 */
+  --text-dim-1: hsl(214 32% 91% / 0.85); /* replaces slate-200/60–70 */
+  --text-dim-2: hsl(214 32% 91% / 0.62); /* replaces slate-200/40–55 */
+  --text-dim-3: hsl(214 32% 91% / 0.40); /* replaces slate-200/22–35 */
 
   /* 4. Status colors (raw HSL triplets) */
   --color-success: 160 84% 39%;

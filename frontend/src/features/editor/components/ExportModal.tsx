@@ -166,7 +166,7 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Done */}
             {isDone && r2Url && (
               <div className="space-y-3">
-                <p className="text-sm text-green-400">
+                <p className="text-sm text-success">
                   {t("editor_export_done")}
                 </p>
                 <div className="flex gap-2">
@@ -190,7 +190,7 @@ export function ExportModal({ projectId, onClose }: Props) {
             {/* Failed */}
             {isFailed && (
               <div className="space-y-3">
-                <p className="text-sm text-red-400">
+                <p className="text-sm text-error">
                   {t("editor_export_failed")}
                 </p>
                 {exportError && (

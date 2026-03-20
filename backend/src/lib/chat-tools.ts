@@ -5,10 +5,29 @@ import {
   generatedContent,
   queueItems,
   reelAnalyses,
+  musicTracks,
+  reelAssets,
+  reels,
 } from "../infrastructure/database/drizzle/schema";
-import { eq, and, or, ilike, desc } from "drizzle-orm";
+import { eq, and, or, ilike, desc, gte, isNotNull, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import type { HonoEnv } from "../middleware/protection";
+import {
+  assertNoChainQueueItem,
+  findChainQueueItem,
+} from "./queue-chain-guard";
+import { VOICES, getVoiceById } from "../config/voices";
+import { generateSpeech } from "../services/tts/elevenlabs";
+import { uploadFile, deleteFile } from "../services/storage/r2";
+import { recordAiCost } from "./cost-tracker";
+import { videoJobService } from "../services/video/job.service";
+import {
+  runReelGeneration,
+  runAssembleFromExistingClips,
+  runShotRegenerate,
+  getRetryRunner,
+} from "../routes/video/index";
+import type { VideoProvider } from "../services/media/video-generation";
 
 export interface ToolContext {
   auth: HonoEnv["Variables"]["auth"];
@@ -105,14 +124,14 @@ export function createSaveContentTool(context: ToolContext) {
             })
             .returning();
 
-          await tx
-            .insert(queueItems)
-            .values({
-              userId: context.auth.user.id,
-              generatedContentId: inserted.id,
-              status: "draft",
-            })
-            .onConflictDoNothing();
+          // v1 brand-new content — no chain exists yet, but guard anyway so any
+          // future regression blows up loudly instead of silently duplicating.
+          await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "save_content");
+          await tx.insert(queueItems).values({
+            userId: context.auth.user.id,
+            generatedContentId: inserted.id,
+            status: "draft",
+          });
 
           return inserted;
         });
@@ -405,14 +424,22 @@ export function createEditContentFieldTool(context: ToolContext) {
             })
             .returning();
 
-          await tx
-            .insert(queueItems)
-            .values({
+          // Walk the full chain to find any existing queue item (handles stranded
+          // items at grandparent levels), then move it forward. Never insert new.
+          const existing = await findChainQueueItem(tx, tip.id, context.auth.user.id);
+          if (existing) {
+            await tx
+              .update(queueItems)
+              .set({ generatedContentId: inserted.id })
+              .where(eq(queueItems.id, existing.queueItemId));
+          } else {
+            await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "edit_content_field");
+            await tx.insert(queueItems).values({
               userId: context.auth.user.id,
               generatedContentId: inserted.id,
               status: "draft",
-            })
-            .onConflictDoNothing();
+            });
+          }
 
           return inserted;
         });
@@ -571,14 +598,22 @@ export function createIterateContentTool(context: ToolContext) {
             })
             .returning();
 
-          await tx
-            .insert(queueItems)
-            .values({
+          // Walk the full chain to find any existing queue item (handles stranded
+          // items at grandparent levels), then move it forward. Never insert new.
+          const existing = await findChainQueueItem(tx, effectiveParent.id, context.auth.user.id);
+          if (existing) {
+            await tx
+              .update(queueItems)
+              .set({ generatedContentId: inserted.id })
+              .where(eq(queueItems.id, existing.queueItemId));
+          } else {
+            await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "iterate_content");
+            await tx.insert(queueItems).values({
               userId: context.auth.user.id,
               generatedContentId: inserted.id,
               status: "draft",
-            })
-            .onConflictDoNothing();
+            });
+          }
 
           return inserted;
         });
@@ -759,8 +794,648 @@ export function createSearchContentTool(context: ToolContext) {
   });
 }
 
+export function createListVoicesTool(_context: ToolContext) {
+  return tool({
+    description:
+      "Return all available TTS voices the user can choose from for voiceover generation. Call this before generate_voiceover if you need to recommend a voice, or when the user asks 'what voices do you have?' / 'which voice should I use?'. Do NOT call this unless it is needed.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      return {
+        voices: VOICES.map((v) => ({
+          id: v.id,
+          name: v.name,
+          description: v.description,
+          gender: v.gender,
+        })),
+      };
+    },
+  });
+}
+
+export function createGenerateVoiceoverTool(context: ToolContext) {
+  return tool({
+    description:
+      "Generate a voiceover for an existing draft using text-to-speech. Reads the draft's clean script, sends it to ElevenLabs, and attaches the resulting audio to the content. Call this when the user wants to add a voiceover to their content — after save_content has been called and a contentId exists. You must know the voiceId (call list_voices first if needed). Do NOT call this more than once per user request.",
+    inputSchema: z.object({
+      contentId: z
+        .number()
+        .describe("The generatedContent ID to generate voiceover for"),
+      voiceId: z
+        .string()
+        .describe("The voice ID from list_voices (e.g. 'jessica-v1')"),
+      speed: z
+        .enum(["slow", "normal", "fast"])
+        .default("normal")
+        .describe("Speech speed"),
+    }),
+    execute: async ({ contentId, voiceId, speed }) => {
+      try {
+        const voice = getVoiceById(voiceId);
+        if (!voice) {
+          return { success: false as const, reason: "voice_not_found" };
+        }
+
+        const [content] = await db
+          .select({
+            id: generatedContent.id,
+            cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+          })
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (!content) return { success: false as const, reason: "not_found" };
+
+        const script = content.cleanScriptForAudio?.trim();
+        if (!script) {
+          return { success: false as const, reason: "no_clean_script" };
+        }
+
+        const { audioBuffer, durationMs } = await generateSpeech(
+          script,
+          voice,
+          speed,
+        );
+
+        const r2Key = `voiceovers/${context.auth.user.id}/${contentId}/${Date.now()}.mp3`;
+        const voiceoverUrl = await uploadFile(audioBuffer, r2Key, "audio/mpeg");
+
+        // Delete existing voiceover asset if present
+        await db
+          .delete(reelAssets)
+          .where(
+            and(
+              eq(reelAssets.generatedContentId, contentId),
+              eq(reelAssets.userId, context.auth.user.id),
+              eq(reelAssets.type, "voiceover"),
+            ),
+          );
+
+        const [asset] = await db
+          .insert(reelAssets)
+          .values({
+            generatedContentId: contentId,
+            userId: context.auth.user.id,
+            type: "voiceover",
+            r2Key,
+            r2Url: voiceoverUrl,
+            durationMs,
+            metadata: { voiceId, speed },
+          })
+          .returning({ id: reelAssets.id });
+
+        // Denormalize URL onto content for fast reads
+        await db
+          .update(generatedContent)
+          .set({ voiceoverUrl })
+          .where(eq(generatedContent.id, contentId));
+
+        void recordAiCost({
+          userId: context.auth.user.id,
+          provider: "elevenlabs",
+          model: voice.elevenLabsId,
+          featureType: "tts",
+          inputTokens: 0,
+          outputTokens: 0,
+          durationMs,
+          metadata: { voiceId, scriptLength: script.length },
+        });
+
+        debugLog.info("[tool:generate_voiceover] Voiceover generated", {
+          service: "chat-tools",
+          operation: "generate_voiceover",
+          contentId,
+          voiceId,
+          durationMs,
+        });
+
+        return { success: true as const, assetId: asset.id, durationMs };
+      } catch (err) {
+        debugLog.error("[tool:generate_voiceover] Failed", {
+          service: "chat-tools",
+          operation: "generate_voiceover",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { success: false as const, reason: "tts_error" };
+      }
+    },
+  });
+}
+
+export function createSearchMusicTool(_context: ToolContext) {
+  return tool({
+    description:
+      "Search the music library to find background tracks to recommend to the user. Filter by mood or keyword. Call this when the user asks about music options, or when guiding them through the reel pipeline after voiceover is complete.",
+    inputSchema: z.object({
+      mood: z
+        .enum(["energetic", "calm", "dramatic", "funny", "inspiring"])
+        .optional()
+        .describe("Filter tracks by mood"),
+      search: z
+        .string()
+        .optional()
+        .describe("Keyword search in track name or artist"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(20)
+        .default(5)
+        .describe("Number of results to return"),
+    }),
+    execute: async ({ mood, search, limit }) => {
+      try {
+        const conditions: ReturnType<typeof eq>[] = [
+          eq(musicTracks.isActive, true),
+        ];
+        if (mood) conditions.push(eq(musicTracks.mood, mood));
+        if (search) {
+          conditions.push(
+            or(
+              ilike(musicTracks.name, `%${search}%`),
+              ilike(musicTracks.artistName, `%${search}%`),
+            ) as ReturnType<typeof eq>,
+          );
+        }
+
+        const tracks = await db
+          .select({
+            id: musicTracks.id,
+            name: musicTracks.name,
+            artistName: musicTracks.artistName,
+            durationSeconds: musicTracks.durationSeconds,
+            mood: musicTracks.mood,
+            genre: musicTracks.genre,
+          })
+          .from(musicTracks)
+          .where(and(...conditions))
+          .orderBy(desc(musicTracks.createdAt))
+          .limit(limit);
+
+        return { tracks };
+      } catch (err) {
+        debugLog.error("[tool:search_music] Failed", {
+          service: "chat-tools",
+          operation: "search_music",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { tracks: [] };
+      }
+    },
+  });
+}
+
+export function createAttachMusicTool(context: ToolContext) {
+  return tool({
+    description:
+      "Attach a music track from the library to a draft. Replaces any existing music. Call this after the user has selected or approved a track from search_music results. You must have a valid musicTrackId from search_music before calling this.",
+    inputSchema: z.object({
+      contentId: z
+        .number()
+        .describe("The generatedContent ID to attach music to"),
+      musicTrackId: z
+        .string()
+        .describe("The track ID from search_music results"),
+    }),
+    execute: async ({ contentId, musicTrackId }) => {
+      try {
+        const [content] = await db
+          .select({ id: generatedContent.id })
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (!content) return { success: false as const, reason: "content_not_found" };
+
+        const [track] = await db
+          .select({
+            id: musicTracks.id,
+            name: musicTracks.name,
+            artistName: musicTracks.artistName,
+            r2Key: musicTracks.r2Key,
+          })
+          .from(musicTracks)
+          .where(
+            and(eq(musicTracks.id, musicTrackId), eq(musicTracks.isActive, true)),
+          )
+          .limit(1);
+
+        if (!track) return { success: false as const, reason: "track_not_found" };
+
+        // Delete existing music asset if present
+        await db
+          .delete(reelAssets)
+          .where(
+            and(
+              eq(reelAssets.generatedContentId, contentId),
+              eq(reelAssets.userId, context.auth.user.id),
+              eq(reelAssets.type, "music"),
+            ),
+          );
+
+        await db.insert(reelAssets).values({
+          generatedContentId: contentId,
+          userId: context.auth.user.id,
+          type: "music",
+          r2Key: track.r2Key,
+          r2Url: null,
+          metadata: { musicTrackId: track.id },
+        });
+
+        // Denormalize URL onto content for fast reads
+        await db
+          .update(generatedContent)
+          .set({ backgroundAudioUrl: track.r2Key })
+          .where(eq(generatedContent.id, contentId));
+
+        debugLog.info("[tool:attach_music] Music attached", {
+          service: "chat-tools",
+          operation: "attach_music",
+          contentId,
+          musicTrackId,
+        });
+
+        return {
+          success: true as const,
+          trackName: track.name,
+          artistName: track.artistName ?? null,
+        };
+      } catch (err) {
+        debugLog.error("[tool:attach_music] Failed", {
+          service: "chat-tools",
+          operation: "attach_music",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { success: false as const, reason: "db_error" };
+      }
+    },
+  });
+}
+
+// ─── Video Tools ─────────────────────────────────────────────────────────────
+
+export function createGenerateVideoReelTool(context: ToolContext) {
+  return tool({
+    description:
+      "Kick off full video reel generation from an existing draft. Creates an async job and returns a jobId immediately — use get_video_job_status to poll progress. Call this when the user says 'generate the video', 'create the reel', 'make the video now', etc. Requires the content to already have a hook or script.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID to generate video for"),
+      prompt: z.string().optional().describe("Override prompt for video visuals (uses hook by default)"),
+      durationSeconds: z.number().optional().describe("Target duration in seconds (default: 30)"),
+      aspectRatio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
+      provider: z.enum(["kling-fal", "runway", "image-ken-burns"]).optional(),
+    }),
+    execute: async ({ contentId, prompt, durationSeconds, aspectRatio, provider }) => {
+      try {
+        const [content] = await db
+          .select({ id: generatedContent.id, generatedHook: generatedContent.generatedHook, prompt: generatedContent.prompt })
+          .from(generatedContent)
+          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .limit(1);
+
+        if (!content) return { success: false as const, reason: "not_found" };
+
+        const resolvedPrompt = prompt?.trim() || content.generatedHook?.trim() || content.prompt?.trim();
+        if (!resolvedPrompt) return { success: false as const, reason: "no_prompt" };
+
+        const job = await videoJobService.createJob({
+          userId: context.auth.user.id,
+          generatedContentId: contentId,
+          kind: "reel_generate",
+          request: { prompt: resolvedPrompt, durationSeconds, aspectRatio, provider },
+        });
+
+        setTimeout(() => void runReelGeneration({ job, prompt: resolvedPrompt, durationSeconds, aspectRatio, provider: provider as VideoProvider | undefined }), 0);
+
+        debugLog.info("[tool:generate_video_reel] Job created", { service: "chat-tools", operation: "generate_video_reel", jobId: job.id, contentId });
+        return { success: true as const, jobId: job.id, status: job.status };
+      } catch (err) {
+        debugLog.error("[tool:generate_video_reel] Failed", { service: "chat-tools", operation: "generate_video_reel", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createGetVideoJobStatusTool(context: ToolContext) {
+  return tool({
+    description:
+      "Check the status of a video generation job. Returns status (queued/running/completed/failed), progress (shotsCompleted/totalShots), and result URL if complete. Use this to report progress to the user after calling generate_video_reel, assemble_video, or regenerate_video_shot.",
+    inputSchema: z.object({
+      jobId: z.string().describe("The job ID returned by a video generation tool"),
+    }),
+    execute: async ({ jobId }) => {
+      try {
+        const job = await videoJobService.getJob(jobId);
+        if (!job || job.userId !== context.auth.user.id) {
+          return { success: false as const, reason: "not_found" };
+        }
+        return {
+          success: true as const,
+          status: job.status,
+          progress: job.progress ?? null,
+          result: job.result ?? null,
+          error: job.error ?? null,
+        };
+      } catch {
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createAssembleVideoTool(context: ToolContext) {
+  return tool({
+    description:
+      "Assemble existing video clips into a final reel with voiceover and music mixed in. Call this after the user has approved individual shots and wants to produce the final video. Returns a jobId — poll with get_video_job_status.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID whose clips to assemble"),
+      includeCaptions: z.boolean().default(true),
+      voiceoverVolume: z.number().min(0).max(1).default(1).describe("Voiceover volume 0–1"),
+      musicVolume: z.number().min(0).max(1).default(0.22).describe("Background music volume 0–1"),
+      clipAudioVolume: z.number().min(0).max(1).default(0.35).describe("Clip audio volume 0–1"),
+      includeClipAudio: z.boolean().default(true),
+    }),
+    execute: async ({ contentId, includeCaptions, voiceoverVolume, musicVolume, clipAudioVolume, includeClipAudio }) => {
+      try {
+        const [content] = await db
+          .select({ id: generatedContent.id })
+          .from(generatedContent)
+          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .limit(1);
+
+        if (!content) return { success: false as const, reason: "not_found" };
+
+        const job = await videoJobService.createJob({
+          userId: context.auth.user.id,
+          generatedContentId: contentId,
+          kind: "assemble",
+          request: { includeCaptions, audioMix: { includeClipAudio, clipAudioVolume, voiceoverVolume, musicVolume } },
+        });
+
+        setTimeout(() => void runAssembleFromExistingClips({ job }), 0);
+
+        debugLog.info("[tool:assemble_video] Job created", { service: "chat-tools", operation: "assemble_video", jobId: job.id, contentId });
+        return { success: true as const, jobId: job.id, status: job.status };
+      } catch (err) {
+        debugLog.error("[tool:assemble_video] Failed", { service: "chat-tools", operation: "assemble_video", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createRegenerateVideoShotTool(context: ToolContext) {
+  return tool({
+    description:
+      "Regenerate a single shot/scene in the storyboard. Use this when the user says a specific shot looks wrong, doesn't match the script, or wants a different visual for a particular scene. Returns a jobId.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID"),
+      shotIndex: z.number().int().min(0).describe("Zero-based index of the shot to regenerate"),
+      prompt: z.string().describe("Visual description for the new shot"),
+      durationSeconds: z.number().optional(),
+      aspectRatio: z.enum(["9:16", "16:9", "1:1"]).optional(),
+      provider: z.enum(["kling-fal", "runway", "image-ken-burns"]).optional(),
+    }),
+    execute: async ({ contentId, shotIndex, prompt, durationSeconds, aspectRatio, provider }) => {
+      try {
+        const [content] = await db
+          .select({ id: generatedContent.id })
+          .from(generatedContent)
+          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .limit(1);
+
+        if (!content) return { success: false as const, reason: "not_found" };
+
+        const job = await videoJobService.createJob({
+          userId: context.auth.user.id,
+          generatedContentId: contentId,
+          kind: "shot_regenerate",
+          request: { shotIndex, prompt, durationSeconds, aspectRatio, provider },
+        });
+
+        setTimeout(() => void runShotRegenerate({ job, shotIndex, prompt, durationSeconds, aspectRatio, provider: provider as VideoProvider | undefined }), 0);
+
+        return { success: true as const, jobId: job.id, status: job.status };
+      } catch (err) {
+        debugLog.error("[tool:regenerate_video_shot] Failed", { service: "chat-tools", operation: "regenerate_video_shot", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createRetryVideoJobTool(context: ToolContext) {
+  return tool({
+    description:
+      "Retry a failed video job (generation, shot regeneration, or assembly). Use this when get_video_job_status returns status='failed' and the user wants to try again.",
+    inputSchema: z.object({
+      jobId: z.string().describe("The failed job ID to retry"),
+    }),
+    execute: async ({ jobId }) => {
+      try {
+        const job = await videoJobService.getJob(jobId);
+        if (!job || job.userId !== context.auth.user.id) return { success: false as const, reason: "not_found" };
+        if (job.status !== "failed") return { success: false as const, reason: "job_not_failed" };
+
+        const retryJob = await videoJobService.createJob({
+          userId: job.userId,
+          generatedContentId: job.generatedContentId,
+          kind: job.kind,
+          request: job.request,
+        });
+
+        setTimeout(() => void getRetryRunner(job, retryJob)(), 0);
+
+        return { success: true as const, jobId: retryJob.id, status: retryJob.status };
+      } catch (err) {
+        debugLog.error("[tool:retry_video_job] Failed", { service: "chat-tools", operation: "retry_video_job", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+// ─── Asset Management Tools ──────────────────────────────────────────────────
+
+export function createDeleteVoiceoverTool(context: ToolContext) {
+  return tool({
+    description:
+      "Delete the voiceover audio from a draft. Use when the user says 'remove the voiceover', 'delete the audio', 'start over with the voice'. Also clears the voiceoverUrl field on the content.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID whose voiceover to delete"),
+    }),
+    execute: async ({ contentId }) => {
+      try {
+        const [asset] = await db
+          .select()
+          .from(reelAssets)
+          .where(and(eq(reelAssets.generatedContentId, contentId), eq(reelAssets.userId, context.auth.user.id), eq(reelAssets.type, "voiceover")))
+          .limit(1);
+
+        if (!asset) return { success: false as const, reason: "no_voiceover" };
+
+        if (asset.r2Key) {
+          await deleteFile(asset.r2Key).catch(() => {});
+        }
+
+        await db.delete(reelAssets).where(eq(reelAssets.id, asset.id));
+        await db.update(generatedContent).set({ voiceoverUrl: null }).where(eq(generatedContent.id, contentId));
+
+        return { success: true as const };
+      } catch (err) {
+        debugLog.error("[tool:delete_voiceover] Failed", { service: "chat-tools", operation: "delete_voiceover", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createRemoveMusicTool(context: ToolContext) {
+  return tool({
+    description:
+      "Remove the background music from a draft. Use when the user says 'remove the music', 'no background music', 'change the music' (remove first, then search_music + attach_music).",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID whose music to remove"),
+    }),
+    execute: async ({ contentId }) => {
+      try {
+        const [asset] = await db
+          .select()
+          .from(reelAssets)
+          .where(and(eq(reelAssets.generatedContentId, contentId), eq(reelAssets.userId, context.auth.user.id), eq(reelAssets.type, "music")))
+          .limit(1);
+
+        if (!asset) return { success: false as const, reason: "no_music" };
+
+        await db.delete(reelAssets).where(eq(reelAssets.id, asset.id));
+        await db.update(generatedContent).set({ backgroundAudioUrl: null }).where(eq(generatedContent.id, contentId));
+
+        return { success: true as const };
+      } catch (err) {
+        debugLog.error("[tool:remove_music] Failed", { service: "chat-tools", operation: "remove_music", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+// ─── Queue Management Tools ───────────────────────────────────────────────────
+
+export function createRemoveFromQueueTool(context: ToolContext) {
+  return tool({
+    description:
+      "Remove a content item from the queue entirely. Use when the user says 'delete this from the queue', 'remove this', 'I don't want to post this anymore'. Looks up the queue item by content ID.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID whose queue item to remove"),
+    }),
+    execute: async ({ contentId }) => {
+      try {
+        const [item] = await db
+          .select({ id: queueItems.id })
+          .from(queueItems)
+          .where(and(eq(queueItems.generatedContentId, contentId), eq(queueItems.userId, context.auth.user.id)))
+          .limit(1);
+
+        if (!item) return { success: false as const, reason: "not_in_queue" };
+
+        await db.delete(queueItems).where(eq(queueItems.id, item.id));
+        return { success: true as const };
+      } catch (err) {
+        debugLog.error("[tool:remove_from_queue] Failed", { service: "chat-tools", operation: "remove_from_queue", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+export function createScheduleContentTool(context: ToolContext) {
+  return tool({
+    description:
+      "Schedule a queue item to be posted at a specific date and time, or attach an Instagram page. Use when the user says 'schedule this for Tuesday', 'post this at 9am', 'schedule for next week'. The scheduledFor must be a future ISO 8601 datetime string.",
+    inputSchema: z.object({
+      contentId: z.number().describe("The generatedContent ID to schedule"),
+      scheduledFor: z.string().describe("ISO 8601 datetime string (must be in the future)"),
+      instagramPageId: z.string().optional().describe("Instagram page ID to post to"),
+    }),
+    execute: async ({ contentId, scheduledFor, instagramPageId }) => {
+      try {
+        const date = new Date(scheduledFor);
+        if (isNaN(date.getTime())) return { success: false as const, reason: "invalid_date" };
+        if (date <= new Date()) return { success: false as const, reason: "date_in_past" };
+
+        const [item] = await db
+          .select({ id: queueItems.id, status: queueItems.status })
+          .from(queueItems)
+          .where(and(eq(queueItems.generatedContentId, contentId), eq(queueItems.userId, context.auth.user.id)))
+          .limit(1);
+
+        if (!item) return { success: false as const, reason: "not_in_queue" };
+        if (item.status === "posted") return { success: false as const, reason: "already_posted" };
+
+        const updateData: Record<string, unknown> = { scheduledFor: date };
+        if (instagramPageId) updateData.instagramPageId = instagramPageId;
+        if (item.status === "draft" || item.status === "ready") updateData.status = "scheduled";
+
+        await db.update(queueItems).set(updateData).where(eq(queueItems.id, item.id));
+
+        return { success: true as const, scheduledFor: date.toISOString() };
+      } catch (err) {
+        debugLog.error("[tool:schedule_content] Failed", { service: "chat-tools", operation: "schedule_content", error: err instanceof Error ? err.message : "Unknown" });
+        return { success: false as const, reason: "error" };
+      }
+    },
+  });
+}
+
+// ─── Trending Audio Tool ──────────────────────────────────────────────────────
+
+export function createGetTrendingAudioTool(_context: ToolContext) {
+  return tool({
+    description:
+      "Fetch trending audio tracks currently being used in reels. Use this when the user asks 'what music is trending?', 'what audio should I use?', 'what sounds are popular right now?'. Returns track names, artists, use counts, and trend direction.",
+    inputSchema: z.object({
+      days: z.number().int().min(1).max(90).default(7).describe("Lookback window in days"),
+      limit: z.number().int().min(1).max(20).default(10),
+    }),
+    execute: async ({ days, limit }) => {
+      try {
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        const trending = await db
+          .select({
+            audioName: reels.audioName,
+            artistName: reels.audioArtistName,
+            useCount: sql<number>`count(*)::int`,
+          })
+          .from(reels)
+          .where(and(isNotNull(reels.audioName), gte(reels.scrapedAt, cutoff)))
+          .groupBy(reels.audioName, reels.audioArtistName)
+          .orderBy(desc(sql`count(*)`))
+          .limit(limit);
+
+        return { tracks: trending.map(t => ({ audioName: t.audioName, artistName: t.artistName, useCount: t.useCount })) };
+      } catch (err) {
+        debugLog.error("[tool:get_trending_audio] Failed", { service: "chat-tools", operation: "get_trending_audio", error: err instanceof Error ? err.message : "Unknown" });
+        return { tracks: [] };
+      }
+    },
+  });
+}
+
 export function createChatTools(context: ToolContext) {
   return {
+    // Content
     save_content: createSaveContentTool(context),
     get_reel_analysis: createGetReelAnalysisTool(context),
     get_content: createGetContentTool(context),
@@ -768,6 +1443,24 @@ export function createChatTools(context: ToolContext) {
     iterate_content: createIterateContentTool(context),
     update_content_status: createUpdateContentStatusTool(context),
     search_content: createSearchContentTool(context),
+    // Voiceover
+    list_voices: createListVoicesTool(context),
+    generate_voiceover: createGenerateVoiceoverTool(context),
+    delete_voiceover: createDeleteVoiceoverTool(context),
+    // Music
+    search_music: createSearchMusicTool(context),
+    attach_music: createAttachMusicTool(context),
+    remove_music: createRemoveMusicTool(context),
+    get_trending_audio: createGetTrendingAudioTool(context),
+    // Video
+    generate_video_reel: createGenerateVideoReelTool(context),
+    get_video_job_status: createGetVideoJobStatusTool(context),
+    assemble_video: createAssembleVideoTool(context),
+    regenerate_video_shot: createRegenerateVideoShotTool(context),
+    retry_video_job: createRetryVideoJobTool(context),
+    // Queue
+    remove_from_queue: createRemoveFromQueueTool(context),
+    schedule_content: createScheduleContentTool(context),
   };
 }
 

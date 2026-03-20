@@ -13,6 +13,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, asc, and, sql, ilike, or, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
+import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 
 type PipelineStageStatus = "pending" | "running" | "ok" | "failed";
 
@@ -436,6 +437,7 @@ queueRouter.post(
         return c.json({ error: "Content is already in the queue" }, 409);
       }
 
+      await assertNoChainQueueItem(db, generatedContentId, auth.user.id, "add_to_queue_endpoint");
       const [queueItem] = await db
         .insert(queueItems)
         .values({

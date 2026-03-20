@@ -14,9 +14,9 @@
 
   /* 3. Text scale — dark ink on white */
   --text-primary: 222 47% 11%;
-  --text-dim-1: hsl(222 47% 11% / 0.7);
-  --text-dim-2: hsl(222 47% 11% / 0.45);
-  --text-dim-3: hsl(222 47% 11% / 0.22);
+  --text-dim-1: hsl(222 47% 11% / 0.85);
+  --text-dim-2: hsl(222 47% 11% / 0.62);
+  --text-dim-3: hsl(222 47% 11% / 0.40);
 
   /* 4. Status colors — same as dark; they work on both backgrounds */
   --color-success: 160 84% 33%;

@@ -12,6 +12,7 @@ import {
   reels,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
+import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { generateContent } from "../../services/reels/content-generator";
 import type { OutputType } from "../../services/reels/content-generator";
 import { debugLog } from "../../utils/debug/debug";
@@ -257,6 +258,7 @@ generationRouter.post(
         return c.json({ error: "scheduledFor must be in the future" }, 400);
       }
 
+      await assertNoChainQueueItem(db, id, auth.user.id, "generation_schedule_endpoint");
       const [queueItem] = await db
         .insert(queueItems)
         .values({

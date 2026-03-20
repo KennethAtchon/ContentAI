@@ -7,6 +7,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { GeneratedContent } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
+import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
 
@@ -130,14 +131,14 @@ Generate an original variation following the same viral structure.`;
     .returning();
 
   // Auto-enroll every generated draft in the pipeline queue.
+  await assertNoChainQueueItem(db, content.id, userId, "reel_content_generator");
   await db
     .insert(queueItems)
     .values({
       userId,
       generatedContentId: content.id,
       status: "draft",
-    })
-    .onConflictDoNothing();
+    });
 
   // Keep generatedContent.status in sync with the queue.
   await db

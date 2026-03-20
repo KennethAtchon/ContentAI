@@ -1015,7 +1015,7 @@ async function updatePhase4Metadata(input: {
     .where(eq(generatedContent.id, input.generatedContentId));
 }
 
-async function runAssembleFromExistingClips({
+export async function runAssembleFromExistingClips({
   job,
 }: {
   job: VideoRenderJob;
@@ -1296,7 +1296,7 @@ async function runAssembleFromExistingClips({
   }
 }
 
-async function runReelGeneration(input: {
+export async function runReelGeneration(input: {
   job: VideoRenderJob;
   prompt?: string;
   durationSeconds?: number;
@@ -1471,7 +1471,7 @@ async function runReelGeneration(input: {
   }
 }
 
-async function runShotRegenerate(input: {
+export async function runShotRegenerate(input: {
   job: VideoRenderJob;
   shotIndex: number;
   prompt: string;
@@ -1583,7 +1583,7 @@ function enqueue(kind: VideoJobKind, fn: () => Promise<void>): void {
   });
 }
 
-function getRetryRunner(
+export function getRetryRunner(
   job: VideoRenderJob,
   retryJob: VideoRenderJob,
 ): () => Promise<void> {

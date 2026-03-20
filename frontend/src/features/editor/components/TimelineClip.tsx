@@ -114,7 +114,7 @@ export function TimelineClip({
       className={[
         "absolute top-[7px] rounded select-none cursor-grab active:cursor-grabbing",
         "overflow-hidden flex flex-col justify-between",
-        isSelected ? "ring-2 ring-white/80" : "",
+        isSelected ? "ring-2 ring-studio-accent" : "",
       ].join(" ")}
       style={{
         left,
@@ -184,7 +184,7 @@ export function TimelineClip({
         style={{ backgroundColor: color + "66" }}
         onMouseDown={handleTrimLeft}
       >
-        <div className="w-px h-4 bg-white/70 rounded" />
+        <div className="w-px h-4 bg-studio-fg/70 rounded" />
       </div>
 
       {/* Trim handle right */}
@@ -193,7 +193,7 @@ export function TimelineClip({
         style={{ backgroundColor: color + "66" }}
         onMouseDown={handleTrimRight}
       >
-        <div className="w-px h-4 bg-white/70 rounded" />
+        <div className="w-px h-4 bg-studio-fg/70 rounded" />
       </div>
     </div>
   );
