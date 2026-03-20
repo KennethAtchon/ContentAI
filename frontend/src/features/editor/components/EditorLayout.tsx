@@ -1,6 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Undo2,
+  Redo2,
+  SkipBack,
+  Rewind,
+  Play,
+  Pause,
+  FastForward,
+  SkipForward,
+  ZoomIn,
+  ZoomOut,
+  Upload,
+} from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useEditorReducer } from "../hooks/useEditorStore";
@@ -212,9 +227,10 @@ export function EditorLayout({ project, onBack }: Props) {
         {/* Back */}
         <button
           onClick={onBack}
-          className="text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer text-sm mr-2"
+          title="Back"
+          className="transport-btn mr-2"
         >
-          ←
+          <ArrowLeft size={15} />
         </button>
 
         {/* Project title */}
@@ -232,76 +248,67 @@ export function EditorLayout({ project, onBack }: Props) {
           onClick={store.undo}
           disabled={state.past.length === 0}
           title="Undo (Cmd+Z)"
-          className="text-dim-3 hover:text-dim-1 disabled:opacity-30 bg-transparent border-0 cursor-pointer text-sm px-1.5"
+          className="transport-btn disabled:opacity-30"
         >
-          ↩
+          <Undo2 size={14} />
         </button>
         <button
           onClick={store.redo}
           disabled={state.future.length === 0}
           title="Redo (Cmd+Shift+Z)"
-          className="text-dim-3 hover:text-dim-1 disabled:opacity-30 bg-transparent border-0 cursor-pointer text-sm px-1.5"
+          className="transport-btn disabled:opacity-30"
         >
-          ↪
+          <Redo2 size={14} />
         </button>
 
         <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
 
         {/* Transport controls */}
         <div className="flex items-center gap-0.5">
-          <button
-            onClick={jumpToStart}
-            title="Jump to start"
-            className="transport-btn"
-          >
-            ⏮
+          <button onClick={jumpToStart} title="Jump to start" className="transport-btn">
+            <SkipBack size={14} />
           </button>
           <button onClick={rewind} title="Rewind 5s" className="transport-btn">
-            ⏪
+            <Rewind size={14} />
           </button>
           <button
             onClick={() => store.setPlaying(!state.isPlaying)}
             title={state.isPlaying ? "Pause (Space)" : "Play (Space)"}
-            className="transport-btn text-studio-accent font-bold"
+            className="transport-btn text-studio-accent"
           >
-            {state.isPlaying ? "⏸" : "▶"}
+            {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
           </button>
-          <button
-            onClick={fastForward}
-            title="Forward 5s"
-            className="transport-btn"
-          >
-            ⏩
+          <button onClick={fastForward} title="Forward 5s" className="transport-btn">
+            <FastForward size={14} />
           </button>
-          <button
-            onClick={jumpToEnd}
-            title="Jump to end"
-            className="transport-btn"
-          >
-            ⏭
+          <button onClick={jumpToEnd} title="Jump to end" className="transport-btn">
+            <SkipForward size={14} />
           </button>
         </div>
 
         {/* Timecode */}
         <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-        <span className="font-mono italic text-sm text-dim-1 min-w-[120px] text-center select-none">
+        <span className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums">
           {timecode}
         </span>
 
         {/* Zoom */}
         <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-        <button onClick={zoomOut} className="transport-btn">
-          −
+        <button onClick={zoomOut} title="Zoom out" className="transport-btn">
+          <ZoomOut size={14} />
         </button>
         <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
           {Math.round(state.zoom)}px/s
         </span>
-        <button onClick={zoomIn} className="transport-btn">
-          +
+        <button onClick={zoomIn} title="Zoom in" className="transport-btn">
+          <ZoomIn size={14} />
         </button>
         <button
           onClick={zoomFit}
-          className="text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5"
+          className={cn(
+            "text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5",
+            "h-7 rounded transition-colors hover:bg-overlay-sm"
+          )}
         >
           Fit
         </button>
@@ -313,7 +320,8 @@ export function EditorLayout({ project, onBack }: Props) {
           onClick={() => setShowExport(true)}
           className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity"
         >
-          ↑ {t("editor_export_button")}
+          <Upload size={14} />
+          {t("editor_export_button")}
         </button>
       </div>
 

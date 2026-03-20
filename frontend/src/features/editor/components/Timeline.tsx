@@ -72,7 +72,8 @@ export function Timeline({
       >
         <div
           style={{
-            width: totalWidthPx,
+            minWidth: totalWidthPx,
+            width: "100%",
             height: contentHeight,
             position: "relative",
           }}
@@ -88,7 +89,7 @@ export function Timeline({
               style={{
                 top: RULER_HEIGHT + trackIndex * TRACK_HEIGHT,
                 left: 0,
-                width: totalWidthPx,
+                width: "100%",
                 height: TRACK_HEIGHT,
               }}
             >

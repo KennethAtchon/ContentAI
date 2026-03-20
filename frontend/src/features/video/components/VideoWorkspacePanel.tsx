@@ -58,7 +58,7 @@ export function VideoWorkspacePanel({
   draft: SessionDraft;
   onBackToDrafts: () => void;
   videoJobId: string | null;
-  onJobStarted: (jobId: string) => void;
+  onJobStarted: (jobId: string, contentId: number) => void;
   videoJobData: VideoJobResponse | undefined;
 }) {
   const { t } = useTranslation();
@@ -83,7 +83,10 @@ export function VideoWorkspacePanel({
     number | null
   >(null);
   const storyboardSectionRef = useRef<HTMLElement>(null);
-  const { data: assetsData } = useContentAssets(draft.id);
+  const isJobActive =
+    videoJobData?.job.status === "queued" ||
+    videoJobData?.job.status === "running";
+  const { data: assetsData } = useContentAssets(draft.id, undefined, isJobActive ? 4000 : false);
 
   const assembledAsset =
     assetsData?.assets.find((asset) => asset.type === "assembled_video") ??
@@ -121,7 +124,7 @@ export function VideoWorkspacePanel({
       const res = await generateReel.mutateAsync({
         generatedContentId: draft.id,
       });
-      onJobStarted(res.jobId);
+      onJobStarted(res.jobId, draft.id);
       setStoryboardDirty(false);
     } catch {
       toast.error(t("workspace_video_action_generate_failed"));
@@ -132,7 +135,7 @@ export function VideoWorkspacePanel({
     if (!videoJobId) return;
     try {
       const res = await retryVideoJob.mutateAsync(videoJobId);
-      onJobStarted(res.jobId);
+      onJobStarted(res.jobId, draft.id);
       setShowFailureModal(false);
     } catch {
       toast.error(t("workspace_video_action_retry_failed"));
@@ -151,9 +154,8 @@ export function VideoWorkspacePanel({
           musicVolume,
         },
       });
-      onJobStarted(res.jobId);
+      onJobStarted(res.jobId, draft.id);
       setStoryboardDirty(false);
-      toast.success(t("workspace_video_action_reassemble_started"));
     } catch {
       toast.error(t("workspace_video_action_reassemble_failed"));
     }
@@ -219,9 +221,8 @@ export function VideoWorkspacePanel({
         shotIndex: clip.shotIndex,
         prompt: prompt.trim(),
       });
-      onJobStarted(res.jobId);
+      onJobStarted(res.jobId, draft.id);
       setStoryboardDirty(false);
-      toast.success(t("workspace_video_action_regenerate_started"));
     } catch {
       toast.error(t("workspace_video_action_regenerate_failed"));
     } finally {

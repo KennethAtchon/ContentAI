@@ -233,16 +233,12 @@ export const VIDEO_GENERATION_PROVIDER = getEnvVar(
 export const FAL_API_KEY = getEnvVar("FAL_API_KEY", false);
 /** Runway API key — used by runway provider */
 export const RUNWAY_API_KEY = getEnvVar("RUNWAY_API_KEY", false);
-/** Runway model: gen3a_turbo (cheaper) or gen3a (higher quality) */
-export const RUNWAY_MODEL = getEnvVar("RUNWAY_MODEL", false, "gen3a_turbo");
-/** Kling model endpoint on fal.ai */
-export const KLING_MODEL = getEnvVar(
-  "KLING_MODEL",
-  false,
-  "fal-ai/kling-video/v2.1/standard/text-to-video",
-);
-/** FLUX model on fal.ai for image+ken-burns mode */
-export const FLUX_MODEL = getEnvVar("FLUX_MODEL", false, "fal-ai/flux/schnell");
+/** Runway model: gen3a_turbo (cheaper) or gen3a (higher quality). If set, takes priority over DB config. */
+export const RUNWAY_MODEL = getEnvVar("RUNWAY_MODEL", false);
+/** Kling model endpoint on fal.ai. If set, takes priority over DB config. */
+export const KLING_MODEL = getEnvVar("KLING_MODEL", false);
+/** FLUX model on fal.ai for image+ken-burns mode. If set, takes priority over DB config. */
+export const FLUX_MODEL = getEnvVar("FLUX_MODEL", false);
 
 // ============================================================================
 // Text-to-Speech (ElevenLabs)

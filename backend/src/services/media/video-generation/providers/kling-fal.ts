@@ -243,7 +243,9 @@ export const klingFalProvider: VideoGenerationProvider = {
     const startMs = Date.now();
     const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
     const model =
-      (await systemConfigService.get("video", "kling_model")) ?? KLING_MODEL;
+      KLING_MODEL ||
+      (await systemConfigService.get("video", "kling_model")) ||
+      "fal-ai/kling-video/v2.1/standard/text-to-video";
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
 
     if (!apiKey) throw new Error("FAL_API_KEY is not configured");

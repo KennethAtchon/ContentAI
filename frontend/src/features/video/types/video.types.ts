@@ -1,5 +1,13 @@
 export type VideoJobStatus = "queued" | "running" | "completed" | "failed";
 
+export interface VideoJobProgress {
+  phase: "queued" | "decode" | "graph-build" | "encode" | "finalize" | "completed";
+  percent: number;
+  message?: string;
+  shotsCompleted?: number;
+  totalShots?: number;
+}
+
 export interface VideoJobResult {
   clipAssetId?: string;
   assembledAssetId?: string;
@@ -21,6 +29,7 @@ export interface VideoRenderJob {
   request?: Record<string, unknown>;
   error?: string;
   result?: VideoJobResult;
+  progress?: VideoJobProgress;
 }
 
 export interface CreateReelRequest {

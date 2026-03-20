@@ -38,23 +38,39 @@ export function ContentWorkspace({
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
   const storageKey = `video_job_${sessionId}`;
+  const contentIdKey = `video_job_${sessionId}_contentId`;
   const [videoJobId, setVideoJobId] = useState<string | null>(() =>
     localStorage.getItem(storageKey)
   );
+  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
+    () => {
+      const stored = localStorage.getItem(contentIdKey);
+      return stored ? Number(stored) : null;
+    }
+  );
   const { data: videoJobData } = useVideoJob(videoJobId);
   const prevVideoStatusRef = useRef<string | null>(null);
+  const toastIdRef = useRef<string | number | null>(null);
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
 
-  const startVideoJob = (jobId: string) => {
+  const startVideoJob = (jobId: string, contentId: number) => {
     localStorage.setItem(storageKey, jobId);
+    localStorage.setItem(contentIdKey, String(contentId));
     setVideoJobId(jobId);
+    setVideoJobContentId(contentId);
+    toastIdRef.current = toast.loading(t("workspace_video_generating"), {
+      description: t("workspace_video_generating_toast_description"),
+      duration: Infinity,
+    });
   };
 
   const clearVideoJob = () => {
     localStorage.removeItem(storageKey);
+    localStorage.removeItem(contentIdKey);
     setVideoJobId(null);
+    setVideoJobContentId(null);
   };
 
   const resolvedVideoDraft =
@@ -86,7 +102,57 @@ export function ContentWorkspace({
     }
   }, [requestAudioForContentId]);
 
-  // Toast + cleanup when video job completes or fails (including after page refresh)
+  // Auto-activate latest draft when none is active
+  useEffect(() => {
+    if (!isLoading && !activeContentId && drafts.length > 0) {
+      onActiveContentChange(drafts[drafts.length - 1].id);
+    }
+  }, [isLoading, drafts.length, activeContentId, onActiveContentChange]);
+
+  // Restore persistent loading toast if a job was already running when the page loaded
+  useEffect(() => {
+    const status = videoJobData?.job.status;
+    if (
+      (status === "queued" || status === "running") &&
+      toastIdRef.current === null &&
+      videoJobId !== null
+    ) {
+      toastIdRef.current = toast.loading(t("workspace_video_generating"), {
+        description: t("workspace_video_generating_toast_description"),
+        duration: Infinity,
+      });
+    }
+  }, [videoJobData?.job.status, videoJobId, t]);
+
+  // Keep toast description in sync with shot-by-shot progress
+  useEffect(() => {
+    if (!toastIdRef.current) return;
+    const progress = videoJobData?.job.progress;
+    const status = videoJobData?.job.status;
+    if (status !== "queued" && status !== "running") return;
+
+    const { shotsCompleted, totalShots } = progress ?? {};
+    const description =
+      shotsCompleted !== undefined && totalShots !== undefined && totalShots > 0
+        ? t("workspace_video_generating_toast_shot_progress", {
+            completed: shotsCompleted,
+            total: totalShots,
+          })
+        : t("workspace_video_generating_toast_description");
+
+    toast.loading(t("workspace_video_generating"), {
+      id: toastIdRef.current,
+      description,
+      duration: Infinity,
+    });
+  }, [
+    videoJobData?.job.progress?.shotsCompleted,
+    videoJobData?.job.progress?.totalShots,
+    videoJobData?.job.status,
+    t,
+  ]);
+
+  // Persistent toast lifecycle: update to success/error when job finishes
   useEffect(() => {
     const status = videoJobData?.job.status ?? null;
     const prev = prevVideoStatusRef.current;
@@ -95,17 +161,22 @@ export function ContentWorkspace({
     if (status === "completed") {
       clearVideoJob();
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(resolvedVideoDraft?.id ?? 0),
+        queryKey: queryKeys.api.contentAssets(videoJobContentId ?? 0),
       });
       if (prev !== "completed") {
-        toast.success(t("workspace_video_ready"));
+        toast.success(t("workspace_video_ready"), {
+          id: toastIdRef.current ?? undefined,
+        });
+        toastIdRef.current = null;
       }
     } else if (status === "failed") {
       clearVideoJob();
       if (prev !== "failed") {
         toast.error(t("workspace_video_failed"), {
+          id: toastIdRef.current ?? undefined,
           description: videoJobData?.job.error ?? undefined,
         });
+        toastIdRef.current = null;
       }
     }
   }, [
@@ -113,7 +184,7 @@ export function ContentWorkspace({
     videoJobData?.job.error,
     t,
     queryClient,
-    resolvedVideoDraft?.id,
+    videoJobContentId,
   ]);
 
   const handleSelectDraft = (draft: SessionDraft) => {

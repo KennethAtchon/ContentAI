@@ -29,6 +29,8 @@ export type VideoJobProgress = {
     | "completed";
   percent: number;
   message?: string;
+  shotsCompleted?: number;
+  totalShots?: number;
 };
 
 export interface VideoRenderJob {

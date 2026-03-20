@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Music, Mic } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { Clip } from "../types/editor";
@@ -170,13 +172,12 @@ export function MediaPanel({
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={[
-              "flex-1 py-2 text-[11px] font-medium border-0 cursor-pointer transition-colors bg-transparent",
-              "border-b-2",
+            className={cn(
+              "flex-1 py-2 text-[11px] font-medium border-0 cursor-pointer transition-colors bg-transparent border-b-2",
               activeTab === tab.key
                 ? "text-studio-accent border-b-studio-accent"
-                : "text-dim-3 border-b-transparent hover:text-dim-1",
-            ].join(" ")}
+                : "text-dim-3 border-b-transparent hover:text-dim-1"
+            )}
           >
             {tab.label}
           </button>
@@ -289,8 +290,8 @@ export function MediaPanel({
                     onClick={() => addAudioClip(asset)}
                     className="flex items-center gap-2 px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors text-left"
                   >
-                    <span className="text-lg">
-                      {asset.type === "music" ? "🎵" : "🎤"}
+                    <span className="text-dim-3 shrink-0">
+                      {asset.type === "music" ? <Music size={14} /> : <Mic size={14} />}
                     </span>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-dim-1 truncate">

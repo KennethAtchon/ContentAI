@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
@@ -76,9 +78,9 @@ export function ExportModal({ projectId, onClose }: Props) {
           </h2>
           <button
             onClick={onClose}
-            className="text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer text-lg leading-none"
+            className="transport-btn"
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -95,12 +97,12 @@ export function ExportModal({ projectId, onClose }: Props) {
                     <button
                       key={r}
                       onClick={() => setResolution(r)}
-                      className={[
+                      className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
                         resolution === r
                           ? "border-studio-accent bg-studio-accent/10 text-studio-accent"
-                          : "border-overlay-md bg-overlay-sm text-dim-2 hover:text-dim-1",
-                      ].join(" ")}
+                          : "border-overlay-md bg-overlay-sm text-dim-2 hover:text-dim-1"
+                      )}
                     >
                       {r}
                     </button>
@@ -117,12 +119,12 @@ export function ExportModal({ projectId, onClose }: Props) {
                     <button
                       key={f}
                       onClick={() => setFps(f)}
-                      className={[
+                      className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
                         fps === f
                           ? "border-studio-accent bg-studio-accent/10 text-studio-accent"
-                          : "border-overlay-md bg-overlay-sm text-dim-2 hover:text-dim-1",
-                      ].join(" ")}
+                          : "border-overlay-md bg-overlay-sm text-dim-2 hover:text-dim-1"
+                      )}
                     >
                       {f} fps
                     </button>
@@ -134,11 +136,11 @@ export function ExportModal({ projectId, onClose }: Props) {
             <button
               onClick={() => enqueue()}
               disabled={isPending}
-              className={[
+              className={cn(
                 "w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity",
                 "bg-gradient-to-br from-studio-accent to-studio-purple text-white border-0 cursor-pointer",
-                isPending ? "opacity-60" : "hover:opacity-90",
-              ].join(" ")}
+                isPending ? "opacity-60" : "hover:opacity-90"
+              )}
             >
               {isPending ? "Starting…" : t("editor_export_button")}
             </button>

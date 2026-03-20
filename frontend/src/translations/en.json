@@ -1229,6 +1229,8 @@
   "studio_chat_slash_remix": "Remix with a different angle",
   "workspace_section_video": "Video",
   "workspace_video_generating": "Generating reel...",
+  "workspace_video_generating_toast_description": "This can take a few minutes. You can navigate away — we'll notify you when it's done.",
+  "workspace_video_generating_toast_shot_progress": "Shot {{completed}} of {{total}} done — you can navigate away, we'll notify you when it's ready.",
   "workspace_video_ready": "Reel ready",
   "workspace_video_include_captions": "Include auto-captions in assembly",
   "workspace_video_include_clip_audio": "Include original clip audio in mix",

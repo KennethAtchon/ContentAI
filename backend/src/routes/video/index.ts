@@ -1352,6 +1352,16 @@ async function runReelGeneration(input: {
       })),
     });
 
+    // Publish total shot count so the frontend can show X/Y progress
+    await videoJobService.updateJob(job.id, {
+      progress: {
+        phase: "decode",
+        percent: 0,
+        shotsCompleted: 0,
+        totalShots: shots.length,
+      },
+    });
+
     const createdShots: Array<{
       shotIndex: number;
       description: string;
@@ -1410,6 +1420,15 @@ async function runReelGeneration(input: {
         durationMs: clip.durationSeconds * 1000,
         assetId: clipAsset.id,
         useClipAudio: false,
+      });
+
+      await videoJobService.updateJob(job.id, {
+        progress: {
+          phase: "decode",
+          percent: Math.round((createdShots.length / shots.length) * 100),
+          shotsCompleted: createdShots.length,
+          totalShots: shots.length,
+        },
       });
     }
 

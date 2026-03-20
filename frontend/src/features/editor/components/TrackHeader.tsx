@@ -1,3 +1,5 @@
+import { Volume2, VolumeX, Lock, Unlock } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Track } from "../types/editor";
 
@@ -22,26 +24,24 @@ export function TrackHeader({ track, onToggleMute, onToggleLock }: Props) {
       <button
         onClick={onToggleMute}
         title={track.muted ? "Unmute" : "Mute"}
-        className={[
-          "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-          "border-0 cursor-pointer transition-colors",
-          track.muted ? "text-studio-accent" : "text-dim-3 hover:text-dim-1",
-          "bg-transparent",
-        ].join(" ")}
+        className={cn(
+          "w-6 h-6 rounded flex items-center justify-center",
+          "border-0 cursor-pointer transition-colors bg-transparent",
+          track.muted ? "text-studio-accent" : "text-dim-3 hover:text-dim-1"
+        )}
       >
-        M
+        {track.muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
       </button>
       <button
         onClick={onToggleLock}
         title={track.locked ? "Unlock" : "Lock"}
-        className={[
-          "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center",
-          "border-0 cursor-pointer transition-colors",
-          track.locked ? "text-studio-accent" : "text-dim-3 hover:text-dim-1",
-          "bg-transparent",
-        ].join(" ")}
+        className={cn(
+          "w-6 h-6 rounded flex items-center justify-center",
+          "border-0 cursor-pointer transition-colors bg-transparent",
+          track.locked ? "text-studio-accent" : "text-dim-3 hover:text-dim-1"
+        )}
       >
-        L
+        {track.locked ? <Lock size={12} /> : <Unlock size={12} />}
       </button>
     </div>
   );

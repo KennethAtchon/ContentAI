@@ -151,7 +151,9 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
     const startMs = Date.now();
     const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
     const fluxModel =
-      (await systemConfigService.get("video", "flux_model")) ?? FLUX_MODEL;
+      FLUX_MODEL ||
+      (await systemConfigService.get("video", "flux_model")) ||
+      "fal-ai/flux/schnell";
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
     const aspectRatio = params.aspectRatio ?? "9:16";
 

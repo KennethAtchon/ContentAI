@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { Play } from "lucide-react";
 import type { Track } from "../types/editor";
 
 interface Props {
@@ -84,15 +85,15 @@ export function PreviewArea({
   const total = formatMMSS(durationMs);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-4 py-3 min-w-0">
-      <p className="text-[10px] italic text-dim-3 mb-2 tracking-widest">
-        — preview monitor —
+    <div className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0">
+      <p className="text-[10px] font-semibold text-dim-3 mb-2 tracking-widest uppercase">
+        Preview
       </p>
 
       {/* 16:9 preview screen */}
       <div
-        className="relative w-full max-w-[620px]"
-        style={{ aspectRatio: "16/9" }}
+        className="relative w-full"
+        style={{ aspectRatio: "16/9", maxHeight: "calc(100% - 40px)" }}
       >
         {/* Film-strip edges */}
         <div className="absolute left-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
@@ -136,8 +137,8 @@ export function PreviewArea({
           {/* Empty state */}
           {!hasContent && (
             <div className="flex flex-col items-center gap-2 text-dim-3">
-              <span className="text-4xl opacity-30">▶</span>
-              <span className="text-sm italic">Add clips to the timeline</span>
+              <Play size={32} className="opacity-20" />
+              <span className="text-xs text-dim-3">Add clips to the timeline</span>
             </div>
           )}
 
@@ -154,7 +155,7 @@ export function PreviewArea({
       </div>
 
       {/* Meta row */}
-      <div className="w-full max-w-[620px] flex justify-between mt-1.5 px-3">
+      <div className="w-full flex justify-between mt-1 px-3">
         <span className="text-xs text-dim-3">
           {position} / {total}
         </span>

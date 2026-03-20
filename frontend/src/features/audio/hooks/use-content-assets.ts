@@ -5,7 +5,8 @@ import type { AssetsResponse } from "../types/audio.types";
 
 export function useContentAssets(
   generatedContentId: number | null,
-  type?: string
+  type?: string,
+  refetchInterval?: number | false
 ) {
   const fetcher = useQueryFetcher<AssetsResponse>();
 
@@ -18,5 +19,6 @@ export function useContentAssets(
     queryKey: queryKeys.api.contentAssets(generatedContentId ?? 0, type),
     queryFn: () => fetcher(`/api/assets?${params.toString()}`),
     enabled: !!generatedContentId,
+    refetchInterval,
   });
 }

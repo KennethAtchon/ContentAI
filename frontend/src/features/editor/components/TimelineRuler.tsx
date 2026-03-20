@@ -45,7 +45,7 @@ export function TimelineRuler({ durationMs, zoom, onSeek }: Props) {
     <div
       ref={ref}
       className="relative h-8 bg-studio-surface border-b border-overlay-sm cursor-pointer shrink-0"
-      style={{ width: totalWidthPx }}
+      style={{ minWidth: totalWidthPx, width: "100%" }}
       onClick={handleClick}
     >
       {ticks.map((tick, i) => (

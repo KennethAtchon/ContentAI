@@ -12,12 +12,15 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer | null {
-  if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) return null;
-  return Buffer.from(ENCRYPTION_KEY.slice(0, 64), "hex").subarray(0, 32);
+  if (!ENCRYPTION_KEY) return null;
+  const key = Buffer.from(ENCRYPTION_KEY.slice(0, 64), "hex").subarray(0, 32);
+  // Require exactly 32 bytes — ENCRYPTION_KEY must be a 64-char hex string
+  if (key.length < 32) return null;
+  return key;
 }
 
 export function isEncryptionConfigured(): boolean {
-  return !!ENCRYPTION_KEY && ENCRYPTION_KEY.length >= 32;
+  return getKey() !== null;
 }
 
 /**

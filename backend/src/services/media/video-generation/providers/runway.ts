@@ -63,7 +63,7 @@ export const runwayProvider: VideoGenerationProvider = {
   },
 
   estimateCost(durationSeconds: number) {
-    const costPerSec = COST_PER_SECOND[RUNWAY_MODEL] ?? 0.05;
+    const costPerSec = COST_PER_SECOND[RUNWAY_MODEL ?? "gen3a_turbo"] ?? 0.05;
     return durationSeconds * costPerSec;
   },
 
@@ -74,7 +74,9 @@ export const runwayProvider: VideoGenerationProvider = {
       RUNWAY_API_KEY,
     );
     const model =
-      (await systemConfigService.get("video", "runway_model")) ?? RUNWAY_MODEL;
+      RUNWAY_MODEL ||
+      (await systemConfigService.get("video", "runway_model")) ||
+      "gen3a_turbo";
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
 
     if (!apiKey) throw new Error("RUNWAY_API_KEY is not configured");
