@@ -90,6 +90,95 @@ userSettingsRouter.put(
   },
 );
 
+// ─── GET /api/customer/settings/ai-defaults ───────────────────────────────────
+
+userSettingsRouter.get(
+  "/ai-defaults",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { getEnabledProvidersAsync, getModelForProviderAsync } =
+        await import("../../lib/ai/config");
+      const { PROVIDER_REGISTRY } = await import("../../lib/ai/providers");
+
+      const enabled = await getEnabledProvidersAsync();
+      const defaultProvider = enabled[0] ?? null;
+
+      if (!defaultProvider) {
+        return c.json({ defaultProvider: null, defaultProviderLabel: null, analysisModel: null, generationModel: null });
+      }
+
+      const def = PROVIDER_REGISTRY[defaultProvider];
+      const [analysisModel, generationModel] = await Promise.all([
+        getModelForProviderAsync(defaultProvider, "analysis"),
+        getModelForProviderAsync(defaultProvider, "generation"),
+      ]);
+
+      return c.json({
+        defaultProvider,
+        defaultProviderLabel: def.label,
+        analysisModel,
+        generationModel,
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch AI defaults", {
+        service: "user-settings",
+        operation: "getAiDefaults",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return c.json({ error: "Failed to fetch AI defaults" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/customer/settings/video-defaults ────────────────────────────────
+
+userSettingsRouter.get(
+  "/video-defaults",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { klingFalProvider } = await import("../../services/media/video-generation/providers/kling-fal");
+      const { runwayProvider } = await import("../../services/media/video-generation/providers/runway");
+      const { imageKenBurnsProvider } = await import("../../services/media/video-generation/providers/image-ken-burns");
+      const { systemConfigService } = await import("../../services/config/system-config.service");
+
+      const PROVIDERS = [
+        { id: "kling-fal", label: "Kling (via Fal.ai)", provider: klingFalProvider },
+        { id: "runway", label: "Runway", provider: runwayProvider },
+        { id: "image-ken-burns", label: "Image + Ken Burns", provider: imageKenBurnsProvider },
+      ] as const;
+
+      const [dbDefault, availabilities] = await Promise.all([
+        systemConfigService.get("video", "default_provider"),
+        Promise.all(PROVIDERS.map((p) => p.provider.isAvailable())),
+      ]);
+
+      const configuredDefault = dbDefault ?? "kling-fal";
+      const preferred = PROVIDERS.find((p) => p.id === configuredDefault);
+      const preferredActive = preferred && availabilities[PROVIDERS.indexOf(preferred)];
+
+      const effectiveDefault = preferredActive
+        ? preferred
+        : PROVIDERS.find((_, i) => availabilities[i]) ?? null;
+
+      return c.json({
+        defaultProvider: effectiveDefault?.id ?? null,
+        defaultProviderLabel: effectiveDefault?.label ?? null,
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch video defaults", {
+        service: "user-settings",
+        operation: "getVideoDefaults",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return c.json({ error: "Failed to fetch video defaults" }, 500);
+    }
+  },
+);
+
 // ─── DELETE /api/customer/settings ────────────────────────────────────────────
 
 userSettingsRouter.delete(

@@ -1,6 +1,7 @@
 /**
  * Centralized query keys for React Query.
  * Use for consistent cache keys and invalidation (e.g. by prefix or predicate).
+ * Keys: profile, reels, subscriptions, usage, settings, admin (config, status), studio.
  */
 
 export const queryKeys = {
@@ -44,7 +45,15 @@ export const queryKeys = {
         ["api", "admin", "niche-jobs", nicheId] as const,
       systemConfig: (category?: string) =>
         ["api", "admin", "system-config", category] as const,
+      aiProvidersStatus: () =>
+        ["api", "admin", "ai-providers-status"] as const,
+      videoProvidersStatus: () =>
+        ["api", "admin", "video-providers-status"] as const,
+      apiKeysStatus: () =>
+        ["api", "admin", "api-keys-status"] as const,
     },
+    aiDefaults: () => ["api", "customer", "ai-defaults"] as const,
+    videoDefaults: () => ["api", "customer", "video-defaults"] as const,
     // ── Studio / Reels ──────────────────────────────────────────────
     reelNiches: () => ["api", "reels", "niches"] as const,
     reels: (niche: string, params?: Record<string, unknown>) =>
@@ -66,6 +75,7 @@ export const queryKeys = {
       limit?: number;
       offset?: number;
     }) => ["api", "queue", params] as const,
+    queueDetail: (id: number) => ["api", "queue-detail", id] as const,
     projects: () => ["api", "projects"] as const,
     audioVoices: () => ["api", "audio", "voices"] as const,
     musicLibrary: (filters?: {

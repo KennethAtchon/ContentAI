@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Circle,
 } from "lucide-react";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -418,12 +419,14 @@ function ProviderPriorityList({
   items: initialItems,
   onSave,
   displayNames,
+  providerStatus,
 }: {
   label: string;
   description?: string;
   items: string[];
   onSave: (items: string[]) => Promise<void>;
   displayNames?: Record<string, string>;
+  providerStatus?: Record<string, boolean>;
 }) {
   const [items, setItems] = useState(initialItems);
   const [saving, setSaving] = useState(false);
@@ -464,39 +467,58 @@ function ProviderPriorityList({
       <Label className="text-sm font-medium text-studio-fg">{label}</Label>
       {description && <p className="text-xs text-dim-3">{description}</p>}
       <div className="space-y-1.5">
-        {items.map((item, idx) => (
-          <div
-            key={item}
-            className="flex items-center gap-3 rounded-lg border border-overlay-sm bg-overlay-xs px-3 py-2.5"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-studio-accent/20 text-xs font-bold text-studio-accent shrink-0">
-              {idx + 1}
-            </span>
-            <span className="flex-1 text-sm font-medium text-studio-fg">
-              {displayNames?.[item] ?? item}
-            </span>
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-dim-3 hover:text-studio-fg"
-                onClick={() => move(idx, -1)}
-                disabled={idx === 0}
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-dim-3 hover:text-studio-fg"
-                onClick={() => move(idx, 1)}
-                disabled={idx === items.length - 1}
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
+        {items.map((item, idx) => {
+          const isActive = providerStatus ? (providerStatus[item] ?? false) : undefined;
+          return (
+            <div
+              key={item}
+              className="flex items-center gap-3 rounded-lg border border-overlay-sm bg-overlay-xs px-3 py-2.5"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-studio-accent/20 text-xs font-bold text-studio-accent shrink-0">
+                {idx + 1}
+              </span>
+              <span className="flex-1 text-sm font-medium text-studio-fg">
+                {displayNames?.[item] ?? item}
+              </span>
+              {isActive !== undefined && (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 text-xs font-medium shrink-0",
+                    isActive ? "text-green-400" : "text-dim-3"
+                  )}
+                >
+                  <Circle
+                    className={cn(
+                      "h-2 w-2",
+                      isActive ? "fill-green-400 text-green-400" : "fill-dim-3 text-dim-3"
+                    )}
+                  />
+                  {isActive ? "Active" : "No key"}
+                </span>
+              )}
+              <div className="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-dim-3 hover:text-studio-fg"
+                  onClick={() => move(idx, -1)}
+                  disabled={idx === 0}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-dim-3 hover:text-studio-fg"
+                  onClick={() => move(idx, 1)}
+                  disabled={idx === items.length - 1}
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="flex justify-end pt-1">
         <SaveButton saving={saving} saved={saved} onClick={handleSave} />
@@ -509,17 +531,22 @@ function Section({
   title,
   description,
   children,
+  headerRight,
 }: {
   title: string;
   description?: string;
   children: React.ReactNode;
+  headerRight?: React.ReactNode;
 }) {
   return (
     <Card className="border-overlay-sm bg-studio-surface">
       <CardHeader className="pb-4">
-        <CardTitle className="text-base font-semibold text-studio-fg">
-          {title}
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base font-semibold text-studio-fg">
+            {title}
+          </CardTitle>
+          {headerRight}
+        </div>
         {description && (
           <CardDescription className="text-sm text-dim-2">
             {description}
@@ -550,6 +577,137 @@ function TabSkeleton() {
 
 // ── AI Tab ────────────────────────────────────────────────────────────────────
 
+// ── AI Provider Status ────────────────────────────────────────────────────────
+
+interface AiProviderStatusEntry {
+  id: string;
+  label: string;
+  active: boolean;
+  analysisModel: string;
+  generationModel: string;
+}
+
+interface AiProvidersStatusResponse {
+  providers: AiProviderStatusEntry[];
+  defaultProvider: string | null;
+}
+
+function ProviderStatusBadge({ active }: { active: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium border",
+        active
+          ? "bg-green-500/10 text-green-400 border-green-500/20"
+          : "bg-overlay-sm text-dim-3 border-overlay-md"
+      )}
+    >
+      <Circle
+        className={cn(
+          "h-1.5 w-1.5",
+          active ? "fill-green-400 text-green-400" : "fill-current text-dim-3"
+        )}
+      />
+      {active ? "Active" : "No API key"}
+    </span>
+  );
+}
+
+function AiProviderOverview() {
+  const fetcher = useQueryFetcher<AiProvidersStatusResponse>();
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.api.admin.aiProvidersStatus(),
+    queryFn: () => fetcher("/api/admin/config/ai-providers/status"),
+    staleTime: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden animate-pulse">
+        <div className="px-4 py-3 border-b border-overlay-sm h-11 bg-overlay-xs" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0">
+            <div className="h-4 w-32 bg-overlay-sm rounded mb-2" />
+            <div className="h-3 w-48 bg-overlay-xs rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { providers, defaultProvider } = data;
+  const activeCount = providers.filter((p) => p.active).length;
+  const singleModelProviders = new Set(["openai", "openrouter"]);
+
+  return (
+    <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-overlay-sm">
+        <p className="text-sm font-semibold text-studio-fg">Provider Status</p>
+        <span className="text-xs text-dim-3">
+          {activeCount} of {providers.length} active
+        </span>
+      </div>
+      <div className="divide-y divide-overlay-sm">
+        {providers.map((provider, idx) => (
+          <div
+            key={provider.id}
+            className={cn(
+              "flex items-start gap-3 px-4 py-3",
+              !provider.active && "opacity-50"
+            )}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-studio-accent/20 text-xs font-bold text-studio-accent shrink-0 mt-0.5">
+              {idx + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-studio-fg">
+                  {provider.label}
+                </span>
+                <ProviderStatusBadge active={provider.active} />
+                {provider.id === defaultProvider && provider.active && (
+                  <span className="text-xs text-studio-accent font-medium">
+                    default
+                  </span>
+                )}
+              </div>
+              {provider.active && (
+                <div className="mt-1.5 space-y-0.5">
+                  {singleModelProviders.has(provider.id) ? (
+                    <p className="text-xs text-dim-2">
+                      <span className="text-dim-3">Model —</span>{" "}
+                      <span className="font-mono">{provider.analysisModel}</span>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-dim-2">
+                        <span className="text-dim-3">Analysis —</span>{" "}
+                        <span className="font-mono">{provider.analysisModel}</span>
+                      </p>
+                      <p className="text-xs text-dim-2">
+                        <span className="text-dim-3">Generation —</span>{" "}
+                        <span className="font-mono">{provider.generationModel}</span>
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+              {!provider.active && (
+                <p className="text-xs text-dim-3 mt-1">
+                  Configure an API key in the{" "}
+                  <span className="font-medium">API Keys</span> tab to activate
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AiTab() {
   const { entries, isLoading, updateEntry } = useSystemConfig("ai");
 
@@ -568,29 +726,70 @@ function AiTab() {
 
   if (isLoading) return <TabSkeleton />;
 
+  const priorityOrder = getJson<string[]>("provider_priority", [
+    "openai",
+    "claude",
+    "openrouter",
+  ]);
+
+  return (
+    <AiTabContent
+      priorityOrder={priorityOrder}
+      getStr={getStr}
+      getNum={getNum}
+      updateEntry={updateEntry}
+    />
+  );
+}
+
+function AiTabContent({
+  priorityOrder,
+  getStr,
+  getNum,
+  updateEntry,
+}: {
+  priorityOrder: string[];
+  getStr: (key: string) => string;
+  getNum: (key: string) => number;
+  updateEntry: (key: string, value: unknown) => Promise<void>;
+}) {
+  const fetcher = useQueryFetcher<AiProvidersStatusResponse>();
+  const { data: statusData } = useQuery({
+    queryKey: queryKeys.api.admin.aiProvidersStatus(),
+    queryFn: () => fetcher("/api/admin/config/ai-providers/status"),
+    staleTime: 30_000,
+  });
+
+  const providerStatus: Record<string, boolean> = React.useMemo(() => {
+    if (!statusData) return {};
+    return Object.fromEntries(statusData.providers.map((p) => [p.id, p.active]));
+  }, [statusData]);
+
   return (
     <div className="space-y-5">
+      <AiProviderOverview />
+
       <Section
         title="Provider Priority"
         description="First available provider is used. Use arrows to reorder."
       >
         <ProviderPriorityList
           label="Provider Order"
-          items={getJson<string[]>("provider_priority", [
-            "openai",
-            "claude",
-            "openrouter",
-          ])}
+          items={priorityOrder}
           displayNames={{
             openai: "OpenAI",
             claude: "Claude (Anthropic)",
             openrouter: "OpenRouter",
           }}
+          providerStatus={statusData ? providerStatus : undefined}
           onSave={(items) => updateEntry("provider_priority", items)}
         />
       </Section>
 
-      <Section title="Claude Models">
+      <Section
+        title="Claude Models"
+        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.claude ?? false} /> : undefined}
+      >
         <ConfigTextField
           label="Analysis Model"
           description="Fast/cheap model for reel analysis tasks"
@@ -607,7 +806,10 @@ function AiTab() {
         />
       </Section>
 
-      <Section title="OpenAI">
+      <Section
+        title="OpenAI"
+        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.openai ?? false} /> : undefined}
+      >
         <ConfigTextField
           label="Model"
           value={getStr("openai_model")}
@@ -616,7 +818,10 @@ function AiTab() {
         />
       </Section>
 
-      <Section title="OpenRouter">
+      <Section
+        title="OpenRouter"
+        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.openrouter ?? false} /> : undefined}
+      >
         <ConfigTextField
           label="Model"
           value={getStr("openrouter_model")}
@@ -641,8 +846,115 @@ function AiTab() {
 
 // ── Video Tab ─────────────────────────────────────────────────────────────────
 
+interface VideoProviderStatusEntry {
+  id: string;
+  label: string;
+  active: boolean;
+  model: string;
+}
+
+interface VideoProvidersStatusResponse {
+  providers: VideoProviderStatusEntry[];
+  defaultProvider: string | null;
+  configuredDefault: string;
+}
+
+interface ApiKeyStatusEntry {
+  active: boolean;
+  source: "db" | "env" | "none";
+}
+
+interface ApiKeysStatusResponse {
+  keys: Record<string, ApiKeyStatusEntry>;
+}
+
+function VideoProviderOverview() {
+  const fetcher = useQueryFetcher<VideoProvidersStatusResponse>();
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.api.admin.videoProvidersStatus(),
+    queryFn: () => fetcher("/api/admin/config/video-providers/status"),
+    staleTime: 30_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden animate-pulse">
+        <div className="px-4 py-3 border-b border-overlay-sm h-11 bg-overlay-xs" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0">
+            <div className="h-4 w-32 bg-overlay-sm rounded mb-2" />
+            <div className="h-3 w-48 bg-overlay-xs rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { providers, defaultProvider, configuredDefault } = data;
+  const activeCount = providers.filter((p) => p.active).length;
+
+  return (
+    <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-overlay-sm">
+        <p className="text-sm font-semibold text-studio-fg">Provider Status</p>
+        <span className="text-xs text-dim-3">
+          {activeCount} of {providers.length} active
+        </span>
+      </div>
+      <div className="divide-y divide-overlay-sm">
+        {providers.map((provider) => (
+          <div
+            key={provider.id}
+            className={cn(
+              "flex items-start gap-3 px-4 py-3",
+              !provider.active && "opacity-50"
+            )}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-studio-fg">
+                  {provider.label}
+                </span>
+                <ProviderStatusBadge active={provider.active} />
+                {provider.id === configuredDefault && (
+                  <span className={cn(
+                    "text-xs font-medium",
+                    provider.id === defaultProvider ? "text-studio-accent" : "text-dim-3"
+                  )}>
+                    {provider.id === defaultProvider ? "default" : "configured default — unavailable"}
+                  </span>
+                )}
+              </div>
+              {provider.active && (
+                <p className="text-xs text-dim-2 mt-1">
+                  <span className="text-dim-3">Model —</span>{" "}
+                  <span className="font-mono">{provider.model}</span>
+                </p>
+              )}
+              {!provider.active && (
+                <p className="text-xs text-dim-3 mt-1">
+                  Configure an API key in the{" "}
+                  <span className="font-medium">API Keys</span> tab to activate
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VideoTab() {
   const { entries, isLoading, updateEntry } = useSystemConfig("video");
+  const fetcher2 = useQueryFetcher<VideoProvidersStatusResponse>();
+  const { data: statusData } = useQuery({
+    queryKey: queryKeys.api.admin.videoProvidersStatus(),
+    queryFn: () => fetcher2("/api/admin/config/video-providers/status"),
+    staleTime: 30_000,
+  });
 
   const getStr = (key: string) => entries[key]?.value ?? "";
   const getNum = (key: string) =>
@@ -659,8 +971,14 @@ function VideoTab() {
 
   if (isLoading) return <TabSkeleton />;
 
+  const providerStatus = statusData
+    ? Object.fromEntries(statusData.providers.map((p) => [p.id, p.active]))
+    : undefined;
+
   return (
     <div className="space-y-5">
+      <VideoProviderOverview />
+
       <Section title="Provider Settings">
         <ConfigSelectField
           label="Default Provider"
@@ -685,6 +1003,7 @@ function VideoTab() {
             runway: "Runway",
             "image-ken-burns": "Image + Ken Burns",
           }}
+          providerStatus={providerStatus}
           onSave={(items) => updateEntry("fallback_order", items)}
         />
       </Section>
@@ -734,7 +1053,10 @@ function VideoTab() {
         </div>
       </Section>
 
-      <Section title="Model Configuration">
+      <Section
+        title="Model Configuration"
+        description="Models used by each provider when generating video."
+      >
         <ConfigSelectField
           label="Runway Model"
           value={getStr("runway_model") || "gen3a_turbo"}
@@ -1284,10 +1606,12 @@ const API_KEY_ROWS: { label: string; key: string }[] = [
 function ApiKeyField({
   label,
   isConfigured,
+  source,
   onSave,
 }: {
   label: string;
   isConfigured: boolean;
+  source?: "db" | "env" | "none";
   onSave: (value: string) => Promise<void>;
 }) {
   const [value, setValue] = useState("");
@@ -1315,12 +1639,22 @@ function ApiKeyField({
       <div className="w-44 shrink-0">
         <p className="text-sm font-medium text-studio-fg">{label}</p>
         {isConfigured ? (
-          <Badge
-            variant="outline"
-            className="text-xs mt-1 bg-green-500/10 text-green-400 border-green-500/20"
-          >
-            Configured
-          </Badge>
+          <div className="flex items-center gap-1.5 mt-1">
+            <Badge
+              variant="outline"
+              className="text-xs bg-green-500/10 text-green-400 border-green-500/20"
+            >
+              Configured
+            </Badge>
+            {source === "env" && (
+              <Badge
+                variant="outline"
+                className="text-xs bg-overlay-xs text-dim-3 border-overlay-sm"
+              >
+                via env
+              </Badge>
+            )}
+          </div>
         ) : (
           <Badge
             variant="outline"
@@ -1382,17 +1716,27 @@ function ApiKeyField({
 
 function ApiKeysTab() {
   const { entries, isLoading, updateEntry } = useSystemConfig("api_keys");
+  const fetcher = useQueryFetcher<ApiKeysStatusResponse>();
+  const queryClient = useQueryClient();
+  const { data: statusData, isLoading: statusLoading } = useQuery({
+    queryKey: queryKeys.api.admin.apiKeysStatus(),
+    queryFn: () => fetcher("/api/admin/config/api-keys/status"),
+    staleTime: 30_000,
+  });
 
-  const isConfigured = (key: string) => {
+  // Use real status from the endpoint (checks env + DB); fall back to DB-only check while loading
+  const isConfigured = (key: string): boolean => {
+    if (statusData) return statusData.keys[key]?.active ?? false;
     const v = entries[key]?.value;
     return v != null && v !== "" && v !== "null";
   };
 
-  if (isLoading) return <TabSkeleton />;
+  const getSource = (key: string): "db" | "env" | "none" | undefined =>
+    statusData?.keys[key]?.source;
 
-  const configuredCount = API_KEY_ROWS.filter((r) =>
-    isConfigured(r.key)
-  ).length;
+  if (isLoading || statusLoading) return <TabSkeleton />;
+
+  const configuredCount = API_KEY_ROWS.filter((r) => isConfigured(r.key)).length;
 
   return (
     <div className="space-y-5">
@@ -1425,7 +1769,11 @@ function ApiKeysTab() {
               key={row.key}
               label={row.label}
               isConfigured={isConfigured(row.key)}
-              onSave={(value) => updateEntry(row.key, value)}
+              source={getSource(row.key)}
+              onSave={async (value) => {
+                await updateEntry(row.key, value);
+                await queryClient.invalidateQueries({ queryKey: queryKeys.api.admin.apiKeysStatus() });
+              }}
             />
           ))}
         </CardContent>

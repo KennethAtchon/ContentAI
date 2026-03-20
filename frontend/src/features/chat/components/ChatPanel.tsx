@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sparkles,
   AlertCircle,
@@ -12,6 +13,9 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { UsageWarningBanner } from "./UsageWarningBanner";
 import { LimitHitModal } from "./LimitHitModal";
+import { queryKeys } from "@/shared/lib/query-keys";
+import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import { useApp } from "@/shared/contexts/app-context";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
 
@@ -46,6 +50,26 @@ export function ChatPanel({
   onOpenAudio,
 }: ChatPanelProps) {
   const { t } = useTranslation();
+  const { user } = useApp();
+  const fetcher = useQueryFetcher<{
+    defaultProvider: string | null;
+    defaultProviderLabel: string | null;
+    analysisModel: string | null;
+    generationModel: string | null;
+  }>();
+  const { data: aiDefaults } = useQuery({
+    queryKey: queryKeys.api.aiDefaults(),
+    queryFn: () => fetcher("/api/customer/settings/ai-defaults"),
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const aiModelLabel = aiDefaults?.defaultProviderLabel
+    ? aiDefaults.generationModel
+      ? `${aiDefaults.defaultProviderLabel} · ${aiDefaults.generationModel}`
+      : aiDefaults.defaultProviderLabel
+    : null;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
 
@@ -139,6 +163,7 @@ export function ChatPanel({
               }
               onOpenAudio={onOpenAudio}
               onSendMessage={onSendMessage}
+              aiModelLabel={aiModelLabel}
             />
           ))
         )}

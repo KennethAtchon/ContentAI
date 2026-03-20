@@ -83,6 +83,75 @@ function deriveStages(
   return stages;
 }
 
+/**
+ * Walk the parentId chain to find the latest descendant (chain tip).
+ * Used to determine the correct next version number.
+ */
+async function resolveChainTip(startId: number, userId: string) {
+  const MAX_CHAIN_DEPTH = 50;
+  const visitedIds = new Set<number>();
+  let current = await db
+    .select()
+    .from(generatedContent)
+    .where(
+      and(eq(generatedContent.id, startId), eq(generatedContent.userId, userId)),
+    )
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!current) throw new Error("Content not found");
+
+  visitedIds.add(current.id);
+  let depth = 0;
+
+  while (depth < MAX_CHAIN_DEPTH) {
+    const [child] = await db
+      .select()
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.parentId, current.id),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .orderBy(desc(generatedContent.createdAt))
+      .limit(1);
+
+    if (!child || visitedIds.has(child.id)) break;
+    visitedIds.add(child.id);
+    current = child;
+    depth++;
+  }
+
+  return current;
+}
+
+/**
+ * Walk up the parentId chain to find the root content ID (the v1 ancestor).
+ */
+async function resolveChainRoot(contentId: number, userId: string): Promise<number> {
+  const MAX_CHAIN_DEPTH = 50;
+  const visitedIds = new Set<number>();
+  let currentId = contentId;
+  visitedIds.add(currentId);
+
+  for (let depth = 0; depth < MAX_CHAIN_DEPTH; depth++) {
+    const [row] = await db
+      .select({ id: generatedContent.id, parentId: generatedContent.parentId })
+      .from(generatedContent)
+      .where(
+        and(eq(generatedContent.id, currentId), eq(generatedContent.userId, userId)),
+      )
+      .limit(1);
+
+    if (!row || !row.parentId || visitedIds.has(row.parentId)) break;
+    visitedIds.add(row.parentId);
+    currentId = row.parentId;
+  }
+
+  return currentId;
+}
+
 const queueRouter = new Hono<HonoEnv>();
 
 // Valid status transitions: Draft → Ready → Scheduled → Posted (Failed from any)
@@ -234,6 +303,39 @@ queueRouter.get(
         assetCountMap[row.generatedContentId][row.type] = row.count;
       }
 
+      // Resolve root content IDs for version chain grouping.
+      const rootContentIds: Record<number, number> = {};
+      for (const row of rows) {
+        if (row.generatedContentId) {
+          rootContentIds[row.generatedContentId] = await resolveChainRoot(
+            row.generatedContentId,
+            auth.user.id,
+          );
+        }
+      }
+
+      // Count total versions per root chain.
+      const uniqueRoots = [...new Set(Object.values(rootContentIds))];
+      const versionCounts: Record<number, number> = {};
+      for (const rootId of uniqueRoots) {
+        // Count all descendants of this root (including the root itself).
+        const [{ count }] = await db
+          .execute(
+            sql`
+              WITH RECURSIVE chain AS (
+                SELECT id FROM generated_content WHERE id = ${rootId} AND user_id = ${auth.user.id}
+                UNION ALL
+                SELECT gc.id FROM generated_content gc
+                JOIN chain c ON gc.parent_id = c.id
+                WHERE gc.user_id = ${auth.user.id}
+              )
+              SELECT count(*)::int AS count FROM chain
+            `,
+          )
+          .then((r) => r as unknown as { count: number }[]);
+        versionCounts[rootId] = count;
+      }
+
       const items = rows.map((row) => {
         const typeCounts = assetCountMap[row.generatedContentId ?? -1] ?? {};
         const stages = deriveStages(
@@ -247,6 +349,9 @@ queueRouter.get(
           },
           typeCounts,
         );
+        const rootId = row.generatedContentId
+          ? rootContentIds[row.generatedContentId] ?? null
+          : null;
         return {
           id: row.id,
           userId: row.userId,
@@ -265,6 +370,8 @@ queueRouter.get(
           projectName: row.projectName,
           sessionId: row.sessionId,
           stages,
+          rootContentId: rootId,
+          versionCount: rootId ? (versionCounts[rootId] ?? 1) : 1,
         };
       });
 
@@ -455,6 +562,10 @@ queueRouter.post(
           .limit(1);
 
         if (originalContent) {
+          // Resolve chain tip to get the correct next version number,
+          // preventing duplicate versions when the chain has been extended via chat.
+          const tip = await resolveChainTip(originalContent.id, auth.user.id);
+
           const [newContent] = await db
             .insert(generatedContent)
             .values({
@@ -473,8 +584,8 @@ queueRouter.post(
               voiceoverUrl: null,
               backgroundAudioUrl: null,
               status: "draft",
-              version: (originalContent.version ?? 1) + 1,
-              parentId: originalContent.id,
+              version: tip.version + 1,
+              parentId: tip.id,
             })
             .returning();
           newGeneratedContentId = newContent.id;

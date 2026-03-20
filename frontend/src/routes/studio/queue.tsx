@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,8 +20,22 @@ import type {
   QueueItem,
   PipelineStage,
 } from "@/features/reels/types/reel.types";
-import { Check, X, Loader2, Copy, ExternalLink } from "lucide-react";
+import {
+  Check,
+  X,
+  Loader2,
+  Copy,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
+
+/** A group of queue items that belong to the same version chain. */
+interface VersionGroup {
+  rootContentId: number | null;
+  items: QueueItem[];
+}
 
 interface Project {
   id: string;
@@ -152,7 +166,7 @@ function QueuePage() {
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ["api", "queue-detail", detailItemId],
+    queryKey: queryKeys.api.queueDetail(detailItemId!),
     queryFn: () => detailFetcher(`/api/queue/${detailItemId}/detail`),
     enabled: !!detailItemId,
   });
@@ -195,6 +209,29 @@ function QueuePage() {
     "posted",
     "failed",
   ];
+
+  // Group items by version chain (rootContentId). Items with the same root
+  // are grouped together and displayed as a stacked card with navigation.
+  const versionGroups = useMemo(() => {
+    const groups: VersionGroup[] = [];
+    const seen = new Set<number | null>();
+
+    for (const item of items) {
+      const key = item.rootContentId;
+      if (key != null && seen.has(key)) continue;
+      if (key != null) seen.add(key);
+
+      const siblings =
+        key != null
+          ? items
+              .filter((i) => i.rootContentId === key)
+              .sort((a, b) => (a.version ?? 1) - (b.version ?? 1))
+          : [item];
+
+      groups.push({ rootContentId: key, items: siblings });
+    }
+    return groups;
+  }, [items]);
 
   // Stages come from the list item (detail API doesn't compute them)
   const selectedItem = items.find((item) => item.id === detailItemId) ?? null;
@@ -288,23 +325,45 @@ function QueuePage() {
                   </p>
                 </div>
               ) : (
-                items.map((item) => (
-                  <QueueListItem
-                    key={item.id}
-                    item={item}
-                    selected={detailItemId === item.id}
-                    onClick={() => setDetailItemId(item.id)}
-                    onDelete={() => deleteItem.mutate(item.id)}
-                    onDuplicate={() => duplicateItem.mutate(item.id)}
-                    isDeleting={
-                      deleteItem.isPending && deleteItem.variables === item.id
-                    }
-                    isDuplicating={
-                      duplicateItem.isPending &&
-                      duplicateItem.variables === item.id
-                    }
-                  />
-                ))
+                versionGroups.map((group) =>
+                  group.items.length > 1 ? (
+                    <StackedQueueCard
+                      key={`group-${group.rootContentId}`}
+                      group={group}
+                      selectedItemId={detailItemId}
+                      onSelectItem={setDetailItemId}
+                      onDelete={(id) => deleteItem.mutate(id)}
+                      onDuplicate={(id) => duplicateItem.mutate(id)}
+                      deletingId={
+                        deleteItem.isPending ? deleteItem.variables : null
+                      }
+                      duplicatingId={
+                        duplicateItem.isPending
+                          ? duplicateItem.variables
+                          : null
+                      }
+                    />
+                  ) : (
+                    <QueueListItem
+                      key={group.items[0].id}
+                      item={group.items[0]}
+                      selected={detailItemId === group.items[0].id}
+                      onClick={() => setDetailItemId(group.items[0].id)}
+                      onDelete={() => deleteItem.mutate(group.items[0].id)}
+                      onDuplicate={() =>
+                        duplicateItem.mutate(group.items[0].id)
+                      }
+                      isDeleting={
+                        deleteItem.isPending &&
+                        deleteItem.variables === group.items[0].id
+                      }
+                      isDuplicating={
+                        duplicateItem.isPending &&
+                        duplicateItem.variables === group.items[0].id
+                      }
+                    />
+                  )
+                )
               )}
             </div>
           </div>
@@ -535,6 +594,237 @@ function QueueListItem({
               </button>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Version group card (multi-version with left/right nav) ───────────────────
+
+function StackedQueueCard({
+  group,
+  selectedItemId,
+  onSelectItem,
+  onDelete,
+  onDuplicate,
+  deletingId,
+  duplicatingId,
+}: {
+  group: VersionGroup;
+  selectedItemId: number | null;
+  onSelectItem: (id: number) => void;
+  onDelete: (id: number) => void;
+  onDuplicate: (id: number) => void;
+  deletingId: number | null;
+  duplicatingId: number | null;
+}) {
+  const { t } = useTranslation();
+  const sortedItems = group.items;
+  const [activeIdx, setActiveIdx] = useState(sortedItems.length - 1);
+  const item = sortedItems[activeIdx];
+  const isSelected = selectedItemId === item.id;
+
+  const canGoLeft = activeIdx > 0;
+  const canGoRight = activeIdx < sortedItems.length - 1;
+
+  const hookPreview = item.generatedHook
+    ? item.generatedHook.slice(0, 85) +
+      (item.generatedHook.length > 85 ? "…" : "")
+    : null;
+
+  const failedStages = (item.stages ?? []).filter((s) => s.status === "failed");
+  const runningStages = (item.stages ?? []).filter(
+    (s) => s.status === "running"
+  );
+
+  return (
+    <div
+      onClick={() => onSelectItem(item.id)}
+      className={cn(
+        "group relative rounded-xl px-3 pt-2.5 pb-1.5 cursor-pointer transition-all duration-150 border",
+        isSelected
+          ? "bg-studio-accent/[0.07] border-studio-accent/25"
+          : "bg-transparent border-transparent hover:bg-overlay-xs hover:border-overlay-sm"
+      )}
+    >
+      {/* Status badge + version — top-right */}
+      <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
+        {item.version != null && item.version > 1 && (
+          <span className="text-sm font-bold uppercase tracking-wide text-dim-3">
+            v{item.version}
+          </span>
+        )}
+        <span
+          className={cn(
+            "text-sm font-bold px-1.5 py-[2px] rounded-full uppercase tracking-[0.4px]",
+            STATUS_STYLES[item.status] ?? STATUS_STYLES.draft
+          )}
+        >
+          {item.status}
+        </span>
+      </div>
+
+      {/* Hook text */}
+      <p
+        className={cn(
+          "text-sm font-medium leading-[1.45] line-clamp-2 pr-20 mb-1.5",
+          isSelected ? "text-primary" : "text-dim-1"
+        )}
+      >
+        {hookPreview ?? `${t("studio_queue_itemLabel")} #${item.id}`}
+      </p>
+
+      {/* Pipeline dots + meta row */}
+      <div className="flex items-center gap-2">
+        {(item.stages ?? []).length > 0 && (
+          <div className="flex items-center gap-[5px]">
+            {item.stages.map((stage) => (
+              <span
+                key={stage.id}
+                title={`${stage.label}: ${stage.status}`}
+                className={cn(
+                  "w-[5px] h-[5px] rounded-full flex-shrink-0",
+                  STAGE_DOT[stage.status]
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 text-sm text-dim-3 ml-auto truncate">
+          {item.projectName && (
+            <span className="text-violet-400/45 truncate max-w-[80px]">
+              ◆ {item.projectName}
+            </span>
+          )}
+          {item.scheduledFor ? (
+            <span className="shrink-0">
+              {new Date(item.scheduledFor).toLocaleDateString()}
+            </span>
+          ) : (
+            <span className="shrink-0 text-dim-3">
+              {t("studio_queue_unscheduled")}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Inline alerts */}
+      {failedStages.length > 0 && (
+        <p className="text-sm text-error mt-1">
+          {failedStages.map((s) => s.label).join(", ")}{" "}
+          {t("studio_queue_stage_failed")}
+        </p>
+      )}
+      {failedStages.length === 0 && runningStages.length > 0 && (
+        <p className="text-sm text-warning mt-1">
+          {runningStages.map((s) => s.label).join(", ")}…
+        </p>
+      )}
+
+      {/* Version navigation — inside the card */}
+      <div
+        className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-overlay-sm/60"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (canGoLeft) setActiveIdx(activeIdx - 1);
+          }}
+          disabled={!canGoLeft}
+          className={cn(
+            "p-0.5 rounded transition-colors",
+            canGoLeft
+              ? "text-dim-2 hover:text-primary hover:bg-overlay-sm cursor-pointer"
+              : "text-dim-3/30 cursor-default"
+          )}
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          {sortedItems.map((v, i) => (
+            <button
+              key={v.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveIdx(i);
+              }}
+              className={cn(
+                "w-1.5 h-1.5 rounded-full transition-all cursor-pointer",
+                i === activeIdx
+                  ? "bg-studio-accent scale-125"
+                  : "bg-overlay-lg hover:bg-dim-3"
+              )}
+              title={`v${v.version ?? i + 1}`}
+            />
+          ))}
+          <span className="text-[10px] font-bold text-dim-3 ml-1 tabular-nums uppercase tracking-wide">
+            {t("studio_queue_version_of", {
+              version: item.version ?? activeIdx + 1,
+              total: sortedItems.length,
+            })}
+          </span>
+        </div>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (canGoRight) setActiveIdx(activeIdx + 1);
+          }}
+          disabled={!canGoRight}
+          className={cn(
+            "p-0.5 rounded transition-colors",
+            canGoRight
+              ? "text-dim-2 hover:text-primary hover:bg-overlay-sm cursor-pointer"
+              : "text-dim-3/30 cursor-default"
+          )}
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Hover actions */}
+      {item.status !== "posted" && (
+        <div
+          className={cn(
+            "absolute top-2 right-2 flex items-center gap-1 transition-all duration-150",
+            "opacity-0 group-hover:opacity-100"
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(item.id);
+            }}
+            disabled={duplicatingId === item.id}
+            title={t("studio_queue_duplicate")}
+            className="p-1.5 rounded-md bg-studio-surface text-studio-fg hover:bg-overlay-lg transition-colors disabled:opacity-50"
+          >
+            {duplicatingId === item.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item.id);
+            }}
+            disabled={deletingId === item.id}
+            title={t("studio_queue_delete")}
+            className="p-1.5 rounded-md bg-studio-surface text-error hover:bg-error/20 transition-colors disabled:opacity-50"
+          >
+            {deletingId === item.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <X className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
       )}
     </div>

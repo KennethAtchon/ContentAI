@@ -149,6 +149,7 @@ interface ChatMessageProps {
   streamingContentId?: number | null;
   onOpenAudio?: (contentId: number) => void;
   onSendMessage?: (content: string) => void;
+  aiModelLabel?: string | null;
 }
 
 export function ChatMessage({
@@ -158,6 +159,7 @@ export function ChatMessage({
   streamingContentId,
   onOpenAudio,
   onSendMessage,
+  aiModelLabel,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
@@ -245,6 +247,11 @@ export function ChatMessage({
               minute: "2-digit",
             })}
           </span>
+          {!isUser && aiModelLabel && (
+            <span className="text-[11px] text-muted-foreground/40 font-medium">
+              {aiModelLabel}
+            </span>
+          )}
         </div>
 
         {/* Audio status badge */}

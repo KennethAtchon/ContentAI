@@ -80,4 +80,8 @@ export interface QueueItem {
   sessionId: string | null;
   // Pipeline stages derived server-side
   stages: PipelineStage[];
+  // Version chain grouping — root content ID shared by all versions in the chain
+  rootContentId: number | null;
+  // Total number of versions in this content's chain
+  versionCount: number;
 }

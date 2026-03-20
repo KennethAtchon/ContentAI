@@ -65,6 +65,18 @@ type UserSettingsData = {
   preferredAspectRatio?: string | null;
 };
 
+type AiDefaultsData = {
+  defaultProvider: string | null;
+  defaultProviderLabel: string | null;
+  analysisModel: string | null;
+  generationModel: string | null;
+};
+
+type VideoDefaultsData = {
+  defaultProvider: string | null;
+  defaultProviderLabel: string | null;
+};
+
 type Voice = {
   id: string;
   name: string;
@@ -680,6 +692,18 @@ function UserPreferences() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: aiDefaults } = useQuery<AiDefaultsData>({
+    queryKey: queryKeys.api.aiDefaults(),
+    queryFn: () => fetcher("/api/customer/settings/ai-defaults") as Promise<AiDefaultsData>,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: videoDefaults } = useQuery<VideoDefaultsData>({
+    queryKey: queryKeys.api.videoDefaults(),
+    queryFn: () => fetcher("/api/customer/settings/video-defaults") as Promise<VideoDefaultsData>,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const mutation = useMutation({
     mutationFn: (data: Partial<UserSettingsData>) =>
       authenticatedFetchJson<UserSettingsData>("/api/customer/settings", {
@@ -709,15 +733,23 @@ function UserPreferences() {
 
   const systemDefault = t("user_settings_system_default");
 
+  const systemDefaultLabel = aiDefaults?.defaultProviderLabel
+    ? `${systemDefault} — ${aiDefaults.defaultProviderLabel}`
+    : systemDefault;
+
   const aiProviderOptions = [
-    { value: "system_default", label: systemDefault },
+    { value: "system_default", label: systemDefaultLabel },
     { value: "claude", label: "Claude (Anthropic)" },
     { value: "openai", label: "OpenAI GPT" },
     { value: "openrouter", label: "OpenRouter" },
   ];
 
+  const videoSystemDefaultLabel = videoDefaults?.defaultProviderLabel
+    ? `${systemDefault} — ${videoDefaults.defaultProviderLabel}`
+    : systemDefault;
+
   const videoProviderOptions = [
-    { value: "system_default", label: systemDefault },
+    { value: "system_default", label: videoSystemDefaultLabel },
     { value: "kling-fal", label: "Kling (Fal)" },
     { value: "runway", label: "Runway ML" },
     { value: "image-ken-burns", label: "Image + Ken Burns" },
@@ -776,22 +808,54 @@ function UserPreferences() {
           AI & Generation
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
-          <PreferenceSelect
-            label={t("user_settings_ai_provider")}
-            value={settings?.preferredAiProvider ?? "system_default"}
-            onChange={(v) => handleChange("preferredAiProvider", v)}
-            options={aiProviderOptions}
-            saving={savingField === "preferredAiProvider"}
-            saved={savedField === "preferredAiProvider"}
-          />
-          <PreferenceSelect
-            label={t("user_settings_video_provider")}
-            value={settings?.preferredVideoProvider ?? "system_default"}
-            onChange={(v) => handleChange("preferredVideoProvider", v)}
-            options={videoProviderOptions}
-            saving={savingField === "preferredVideoProvider"}
-            saved={savedField === "preferredVideoProvider"}
-          />
+          <div className="space-y-1.5">
+            <PreferenceSelect
+              label={t("user_settings_ai_provider")}
+              value={settings?.preferredAiProvider ?? "system_default"}
+              onChange={(v) => handleChange("preferredAiProvider", v)}
+              options={aiProviderOptions}
+              saving={savingField === "preferredAiProvider"}
+              saved={savedField === "preferredAiProvider"}
+            />
+            {aiDefaults?.defaultProvider &&
+              (!settings?.preferredAiProvider ||
+                settings.preferredAiProvider === "system_default") && (
+                <p className="text-[11px] text-dim-3 leading-relaxed">
+                  Currently using{" "}
+                  <span className="text-dim-2 font-medium">
+                    {aiDefaults.defaultProviderLabel}
+                  </span>
+                  {aiDefaults.generationModel && (
+                    <>
+                      {" "}
+                      <span className="font-mono text-dim-3">
+                        ({aiDefaults.generationModel})
+                      </span>
+                    </>
+                  )}
+                </p>
+              )}
+          </div>
+          <div className="space-y-1.5">
+            <PreferenceSelect
+              label={t("user_settings_video_provider")}
+              value={settings?.preferredVideoProvider ?? "system_default"}
+              onChange={(v) => handleChange("preferredVideoProvider", v)}
+              options={videoProviderOptions}
+              saving={savingField === "preferredVideoProvider"}
+              saved={savedField === "preferredVideoProvider"}
+            />
+            {videoDefaults?.defaultProvider &&
+              (!settings?.preferredVideoProvider ||
+                settings.preferredVideoProvider === "system_default") && (
+                <p className="text-[11px] text-dim-3 leading-relaxed">
+                  Currently using{" "}
+                  <span className="text-dim-2 font-medium">
+                    {videoDefaults.defaultProviderLabel}
+                  </span>
+                </p>
+              )}
+          </div>
         </div>
       </div>
 
