@@ -5,8 +5,6 @@
  * and usage trends over time.
  */
 
-"use client";
-
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,12 +25,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Brain,
   Sparkles,
   Calendar,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useTranslation } from "react-i18next";
+
 import { Progress } from "@/shared/components/ui/progress";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
@@ -47,6 +45,14 @@ import {
 } from "@/shared/components/ui/table";
 type ContentType = string;
 const getContentShortName = (t: ContentType) => t;
+
+function isUnlimited(limit: number | null | undefined): boolean {
+  return limit === null || limit === -1;
+}
+
+function formatGenTime(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+}
 
 interface UsageStats {
   reelsAnalyzed: number;
@@ -86,7 +92,7 @@ interface GenerationHistoryResponse {
 const HISTORY_PAGE_LIMIT = 10;
 
 export function UsageDashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useApp();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
@@ -227,24 +233,22 @@ export function UsageDashboard() {
     );
   }
 
-  const reelsPercentage = usageStats.reelsAnalyzedLimit
-    ? Math.round(
-        (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100
-      )
-    : 0;
+  const reelsPercentage =
+    !isUnlimited(usageStats.reelsAnalyzedLimit) && usageStats.reelsAnalyzedLimit
+      ? Math.round((usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100)
+      : 0;
 
-  const generationPercentage = usageStats.contentGeneratedLimit
-    ? Math.round(
-        (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100
-      )
-    : 0;
+  const generationPercentage =
+    !isUnlimited(usageStats.contentGeneratedLimit) && usageStats.contentGeneratedLimit
+      ? Math.round((usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
       <ErrorAlert error={error} />
 
       {/* Usage Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
@@ -254,32 +258,13 @@ export function UsageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{usageStats.reelsAnalyzed}</div>
-            {usageStats?.reelsAnalyzedLimit !== null && (
-              <p className="text-sm text-muted-foreground">
-                {t("account_usage_of_limit", {
-                  limit: usageStats.reelsAnalyzedLimit,
-                })}
-              </p>
-            )}
-            <Progress value={reelsPercentage} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium text-muted-foreground flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              {t("studio_usage_analyses")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{usageStats.reelsAnalyzed}</div>
-            {usageStats?.reelsAnalyzedLimit !== null && (
-              <p className="text-sm text-muted-foreground">
-                {t("studio_usage_daily_limit", {
-                  limit: usageStats.reelsAnalyzedLimit,
-                })}
-              </p>
+            <p className="text-sm text-muted-foreground">
+              {isUnlimited(usageStats.reelsAnalyzedLimit)
+                ? t("account_subscription_unlimited_calculations_feature")
+                : t("account_usage_of_limit", { limit: usageStats.reelsAnalyzedLimit })}
+            </p>
+            {!isUnlimited(usageStats.reelsAnalyzedLimit) && (
+              <Progress value={reelsPercentage} className="mt-2 h-2" />
             )}
           </CardContent>
         </Card>
@@ -292,17 +277,15 @@ export function UsageDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {usageStats.contentGenerated}
-            </div>
-            {usageStats?.contentGeneratedLimit !== null && (
-              <p className="text-sm text-muted-foreground">
-                {t("account_usage_of_limit", {
-                  limit: usageStats.contentGeneratedLimit,
-                })}
-              </p>
+            <div className="text-3xl font-bold">{usageStats.contentGenerated}</div>
+            <p className="text-sm text-muted-foreground">
+              {isUnlimited(usageStats.contentGeneratedLimit)
+                ? t("account_subscription_unlimited_calculations_feature")
+                : t("account_usage_of_limit", { limit: usageStats.contentGeneratedLimit })}
+            </p>
+            {!isUnlimited(usageStats.contentGeneratedLimit) && (
+              <Progress value={generationPercentage} className="mt-2 h-2" />
             )}
-            <Progress value={generationPercentage} className="mt-2 h-2" />
           </CardContent>
         </Card>
 
@@ -315,18 +298,18 @@ export function UsageDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{usageStats.queueSize}</div>
-            {usageStats?.queueLimit !== null && (
-              <p className="text-sm text-muted-foreground">
-                {t("account_usage_of_limit", { limit: usageStats.queueLimit })}
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {isUnlimited(usageStats.queueLimit)
+                ? t("account_subscription_unlimited_calculations_feature")
+                : t("account_usage_of_limit", { limit: usageStats.queueLimit })}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Usage Limit Warning */}
       {usageStats &&
-        usageStats.contentGeneratedLimit !== null &&
+        !isUnlimited(usageStats.contentGeneratedLimit) &&
         generationPercentage >= 100 && (
           <Alert variant="destructive">
             <AlertDescription>
@@ -403,7 +386,7 @@ export function UsageDashboard() {
                       </TableCell>
                       <TableCell>
                         {new Date(generation.createdAt).toLocaleDateString(
-                          "en-US",
+                          i18n.language,
                           {
                             month: "short",
                             day: "numeric",
@@ -414,7 +397,7 @@ export function UsageDashboard() {
                         )}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {generation.generationTime}ms
+                        {formatGenTime(generation.generationTime)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -493,18 +476,6 @@ export function UsageDashboard() {
         </CardContent>
       </Card>
 
-      {/* Usage Tips */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("account_usage_tips")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-base text-muted-foreground">
-          <p>• {t("studio_usage_tip_analysis")}</p>
-          <p>• {t("studio_usage_tip_generation")}</p>
-          <p>• {t("studio_usage_tip_queue")}</p>
-          <p>• {t("studio_usage_tip_upgrade")}</p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

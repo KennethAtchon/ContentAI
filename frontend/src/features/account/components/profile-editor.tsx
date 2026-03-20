@@ -4,8 +4,6 @@
  * Modern profile editing component with improved UX and SaaS styling.
  */
 
-"use client";
-
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useApp } from "@/shared/contexts/app-context";

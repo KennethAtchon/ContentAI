@@ -5,8 +5,6 @@
  * usage statistics, and cancellation. Plan changes are handled via Stripe Customer Portal.
  */
 
-"use client";
-
 import {
   Card,
   CardContent,
@@ -155,7 +153,10 @@ export function SubscriptionManagement() {
           <CardContent className="space-y-4">
             {usageStats.usageLimit !== null && (
               <>
-                <Progress value={usageStats.percentageUsed} className="h-2" />
+                <Progress
+                  value={usageStats.percentageUsed}
+                  className={`h-2 ${usageStats.percentageUsed >= 100 ? "[&>div]:bg-destructive" : usageStats.percentageUsed >= 80 ? "[&>div]:bg-amber-500" : ""}`}
+                />
                 <div className="flex items-center justify-between text-base">
                   <span className="text-muted-foreground">
                     {t("account_subscription_percent_used", {
@@ -213,8 +214,8 @@ export function SubscriptionManagement() {
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-base">
                 {tierConfig.features.instagramPublishing
-                  ? "Instagram publishing"
-                  : "Export & save content"}
+                  ? t("account_subscription_feature_instagram_publishing")
+                  : t("account_subscription_feature_export_save")}
               </span>
             </li>
             <li className="flex items-center gap-2">

@@ -1342,5 +1342,7 @@
   "user_settings_speed_fast": "Fast",
   "user_settings_aspect_portrait": "Portrait",
   "user_settings_aspect_landscape": "Landscape",
-  "user_settings_aspect_square": "Square"
+  "user_settings_aspect_square": "Square",
+  "account_subscription_feature_instagram_publishing": "Instagram publishing",
+  "account_subscription_feature_export_save": "Export & save content"
 }

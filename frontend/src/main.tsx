@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HelmetProvider } from "react-helmet-async";
 import { RouterProvider } from "@tanstack/react-router";
 import { I18nextProvider } from "react-i18next";
@@ -43,12 +42,6 @@ root.render(
           <ThemeProvider storageKey="ui-theme">
             <AppProvider>
               <RouterProvider router={router} />
-              {false && import.meta.env.DEV && (
-                <ReactQueryDevtools
-                  initialIsOpen={false}
-                  buttonPosition="bottom-left"
-                />
-              )}
             </AppProvider>
           </ThemeProvider>
         </QueryClientProvider>
