@@ -35,7 +35,7 @@ generationRouter.post(
       const {
         sourceReelId,
         prompt,
-        outputType = "full",
+        outputType = "full_script",
       } = body as {
         sourceReelId: number;
         prompt: string;

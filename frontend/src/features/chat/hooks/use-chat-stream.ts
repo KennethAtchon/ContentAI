@@ -158,7 +158,8 @@ export function useChatStream(sessionId: string) {
               if (
                 accumulated.includes("<tool_call>") &&
                 (accumulated.includes("save_content") ||
-                  accumulated.includes("iterate_content"))
+                  accumulated.includes("iterate_content") ||
+                  accumulated.includes("edit_content_field"))
               ) {
                 setIsSavingContent(true);
               }
@@ -174,7 +175,8 @@ export function useChatStream(sessionId: string) {
               });
               if (
                 chunk.toolName === "save_content" ||
-                chunk.toolName === "iterate_content"
+                chunk.toolName === "iterate_content" ||
+                chunk.toolName === "edit_content_field"
               ) {
                 setIsSavingContent(true);
               }

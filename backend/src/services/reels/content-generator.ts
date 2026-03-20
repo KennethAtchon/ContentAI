@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
 
-export type OutputType = "hook" | "caption" | "full";
+export type OutputType = "hook_only" | "caption_only" | "full_script";
 
 interface GenerateParams {
   reelId: number;
@@ -41,7 +41,7 @@ export async function generateContent(
   let parsed: GenerationResult;
   let usedModel: string;
 
-  if (outputType === "hook") {
+  if (outputType === "hook_only") {
     const system = loadPrompt("hook-writer");
     const userContent = `Niche ID: ${reel.nicheId}
 Hook Pattern: ${analysis?.hookPattern ?? "Unknown"} (${analysis?.hookCategory ?? "Unknown"})

@@ -6,7 +6,7 @@ import {
   queueItems,
   reelAnalyses,
 } from "../infrastructure/database/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, ilike, desc } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import type { HonoEnv } from "../middleware/protection";
 
@@ -87,33 +87,37 @@ export function createSaveContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const [row] = await db
-          .insert(generatedContent)
-          .values({
-            userId: context.auth.user.id,
-            prompt: context.content,
-            generatedHook: hook,
-            generatedCaption: caption,
-            generatedScript: script,
-            cleanScriptForAudio: cleanScript,
-            sceneDescription,
-            generatedMetadata: { hashtags, cta, contentType },
-            outputType: contentType,
-            status: "draft",
-            version: 1,
-          })
-          .returning();
-        context.savedContentId = row.id;
+        const row = await db.transaction(async (tx) => {
+          const [inserted] = await tx
+            .insert(generatedContent)
+            .values({
+              userId: context.auth.user.id,
+              prompt: context.content,
+              generatedHook: hook,
+              generatedCaption: caption,
+              generatedScript: script,
+              cleanScriptForAudio: cleanScript,
+              sceneDescription,
+              generatedMetadata: { hashtags, cta, contentType },
+              outputType: contentType,
+              status: "draft",
+              version: 1,
+            })
+            .returning();
 
-        // Auto-enroll in queue — every saved draft is immediately visible in the pipeline.
-        await db
-          .insert(queueItems)
-          .values({
-            userId: context.auth.user.id,
-            generatedContentId: row.id,
-            status: "draft",
-          })
-          .onConflictDoNothing();
+          await tx
+            .insert(queueItems)
+            .values({
+              userId: context.auth.user.id,
+              generatedContentId: inserted.id,
+              status: "draft",
+            })
+            .onConflictDoNothing();
+
+          return inserted;
+        });
+
+        context.savedContentId = row.id;
 
         debugLog.info("[tool:save_content] Content saved to DB", {
           service: "chat-tools",
@@ -212,10 +216,233 @@ export function createGetReelAnalysisTool(context: ToolContext) {
   });
 }
 
+export function createGetContentTool(context: ToolContext) {
+  return tool({
+    description:
+      "Retrieve the full current content for a given content ID. Call this before making targeted edits so you can read all existing fields and understand what to preserve vs change. Also use when the user asks what you previously wrote ('what hashtags did you pick?', 'show me my current caption', etc.).",
+    inputSchema: z.object({
+      contentId: z
+        .number()
+        .describe("The ID of the content piece to retrieve"),
+    }),
+    execute: async ({ contentId }: { contentId: number }) => {
+      debugLog.info("[tool:get_content] Tool invoked", {
+        service: "chat-tools",
+        operation: "get_content",
+        contentId,
+        userId: context.auth.user.id,
+      });
+      try {
+        const [row] = await db
+          .select({
+            id: generatedContent.id,
+            version: generatedContent.version,
+            outputType: generatedContent.outputType,
+            status: generatedContent.status,
+            generatedHook: generatedContent.generatedHook,
+            generatedCaption: generatedContent.generatedCaption,
+            generatedScript: generatedContent.generatedScript,
+            cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+            sceneDescription: generatedContent.sceneDescription,
+            generatedMetadata: generatedContent.generatedMetadata,
+            parentId: generatedContent.parentId,
+            createdAt: generatedContent.createdAt,
+          })
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (!row) {
+          return { error: "not_found" };
+        }
+
+        const meta = row.generatedMetadata as Record<string, unknown> | null;
+
+        debugLog.info("[tool:get_content] Content returned", {
+          service: "chat-tools",
+          operation: "get_content",
+          contentId,
+          version: row.version,
+        });
+
+        return {
+          id: row.id,
+          version: row.version,
+          outputType: row.outputType,
+          status: row.status,
+          hook: row.generatedHook,
+          caption: row.generatedCaption,
+          script: row.generatedScript,
+          cleanScript: row.cleanScriptForAudio,
+          sceneDescription: row.sceneDescription,
+          hashtags: meta?.hashtags ?? [],
+          cta: meta?.cta ?? null,
+          parentId: row.parentId,
+          createdAt: row.createdAt,
+        };
+      } catch (err) {
+        debugLog.error("[tool:get_content] Tool failed", {
+          service: "chat-tools",
+          operation: "get_content",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { error: "db_error" };
+      }
+    },
+  });
+}
+
+export function createEditContentFieldTool(context: ToolContext) {
+  return tool({
+    description:
+      "Edit one or more specific fields of existing generated content without changing the others. Use this instead of iterate_content when the user wants to change just a caption, hook, hashtags, CTA, or any single field. Always prefer this over iterate_content when only 1–3 fields are being changed. Call get_content first if you need to read the current values before editing.",
+    inputSchema: z.object({
+      contentId: z
+        .number()
+        .describe("ID of the content piece to edit"),
+      edits: z
+        .object({
+          hook: z.string().max(200).optional(),
+          caption: z.string().optional(),
+          hashtags: z.array(z.string()).min(3).max(15).optional(),
+          cta: z.string().optional(),
+          script: z.string().optional(),
+          cleanScript: z.string().optional(),
+          sceneDescription: z.string().optional(),
+        })
+        .describe("Only include the fields being changed"),
+      changeDescription: z
+        .string()
+        .describe(
+          'Brief description of what changed, e.g. "shortened caption and made CTA more direct"',
+        ),
+    }),
+    execute: async ({
+      contentId,
+      edits,
+      changeDescription,
+    }: {
+      contentId: number;
+      edits: {
+        hook?: string;
+        caption?: string;
+        hashtags?: string[];
+        cta?: string;
+        script?: string;
+        cleanScript?: string;
+        sceneDescription?: string;
+      };
+      changeDescription: string;
+    }) => {
+      debugLog.info("[tool:edit_content_field] Tool invoked", {
+        service: "chat-tools",
+        operation: "edit_content_field",
+        contentId,
+        changeDescription,
+        fieldsEdited: Object.keys(edits).filter(
+          (k) => edits[k as keyof typeof edits] !== undefined,
+        ),
+        userId: context.auth.user.id,
+      });
+      try {
+        // Ownership check
+        const [parent] = await db
+          .select()
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
+          .limit(1);
+
+        if (!parent) {
+          return { error: "not_found" };
+        }
+
+        // Resolve to the chain tip with a single recursive-style query
+        const tip = await resolveChainTip(
+          parent.id,
+          context.auth.user.id,
+        );
+
+        const parentMeta = tip.generatedMetadata as
+          | Record<string, unknown>
+          | null;
+
+        // Merge: only override fields that are explicitly provided
+        const newMetadata = {
+          hashtags: edits.hashtags ?? parentMeta?.hashtags,
+          cta: edits.cta ?? parentMeta?.cta,
+          changeDescription,
+        };
+
+        const row = await db.transaction(async (tx) => {
+          const [inserted] = await tx
+            .insert(generatedContent)
+            .values({
+              userId: context.auth.user.id,
+              prompt: context.content,
+              sourceReelId: tip.sourceReelId,
+              generatedHook: edits.hook ?? tip.generatedHook,
+              generatedCaption: edits.caption ?? tip.generatedCaption,
+              generatedScript: edits.script ?? tip.generatedScript,
+              cleanScriptForAudio:
+                edits.cleanScript ?? tip.cleanScriptForAudio,
+              sceneDescription:
+                edits.sceneDescription ?? tip.sceneDescription,
+              generatedMetadata: newMetadata,
+              outputType: tip.outputType,
+              status: "draft",
+              version: tip.version + 1,
+              parentId: tip.id,
+            })
+            .returning();
+
+          await tx
+            .insert(queueItems)
+            .values({
+              userId: context.auth.user.id,
+              generatedContentId: inserted.id,
+              status: "draft",
+            })
+            .onConflictDoNothing();
+
+          return inserted;
+        });
+
+        context.savedContentId = row.id;
+
+        debugLog.info("[tool:edit_content_field] Edit saved", {
+          service: "chat-tools",
+          operation: "edit_content_field",
+          newContentId: row.id,
+          parentId: tip.id,
+          version: row.version,
+        });
+        return { success: true as const, contentId: row.id };
+      } catch (err) {
+        debugLog.error("[tool:edit_content_field] Tool failed", {
+          service: "chat-tools",
+          operation: "edit_content_field",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { success: false as const, reason: "db_error" };
+      }
+    },
+  });
+}
+
 export function createIterateContentTool(context: ToolContext) {
   return tool({
     description:
-      "Create a new version of an existing piece of generated content. Call this when the user asks to modify, shorten, rewrite, or change a specific piece. Provide all fields you want to keep or change. If modifying the script, provide both script (with timestamps for video) and cleanScript (without timestamps for audio) if applicable.",
+      "Create a new version of an existing piece of generated content. Call this when the user asks to rewrite, heavily rework, or regenerate a full content piece from scratch. For targeted single-field changes (caption only, hashtags only, hook only, CTA only), use edit_content_field instead — it's faster and more precise.",
     inputSchema: z.object({
       parentContentId: z
         .number()
@@ -283,7 +510,6 @@ export function createIterateContentTool(context: ToolContext) {
           )
           .limit(1);
 
-        // Return not_found regardless of whether ID exists (don't leak existence)
         if (!parent) {
           debugLog.warn(
             "[tool:iterate_content] Parent content not found or unauthorized",
@@ -297,39 +523,11 @@ export function createIterateContentTool(context: ToolContext) {
           return { error: "not_found" };
         }
 
-        // Resolve to the tip of the chain to prevent branching.
-        // If the AI passes an outdated parentId, walk forward to the latest version.
-        let effectiveParent = parent;
-        const visitedIds = new Set<number>([parent.id]);
-        const MAX_CHAIN_DEPTH = 50;
-        let depth = 0;
-        while (depth < MAX_CHAIN_DEPTH) {
-          const [child] = await db
-            .select()
-            .from(generatedContent)
-            .where(
-              and(
-                eq(generatedContent.parentId, effectiveParent.id),
-                eq(generatedContent.userId, context.auth.user.id),
-              ),
-            )
-            .limit(1);
-          if (!child) break;
-          if (visitedIds.has(child.id)) {
-            debugLog.warn(
-              "[tool:iterate_content] Circular parentId chain detected",
-              {
-                service: "chat-tools",
-                operation: "iterate_content",
-                cycleAtId: child.id,
-              },
-            );
-            break;
-          }
-          visitedIds.add(child.id);
-          effectiveParent = child;
-          depth++;
-        }
+        // Resolve to the chain tip in a single DB round trip
+        const effectiveParent = await resolveChainTip(
+          parent.id,
+          context.auth.user.id,
+        );
 
         debugLog.info(
           "[tool:iterate_content] Parent content found, creating new version",
@@ -343,49 +541,49 @@ export function createIterateContentTool(context: ToolContext) {
           },
         );
 
-        const [row] = await db
-          .insert(generatedContent)
-          .values({
-            userId: context.auth.user.id,
-            prompt: context.content,
-            sourceReelId: effectiveParent.sourceReelId,
-            generatedHook: hook ?? effectiveParent.generatedHook,
-            generatedCaption: caption ?? effectiveParent.generatedCaption,
-            generatedScript: script ?? effectiveParent.generatedScript,
-            cleanScriptForAudio:
-              cleanScript ?? effectiveParent.cleanScriptForAudio,
-            sceneDescription:
-              sceneDescription ?? effectiveParent.sceneDescription,
-            generatedMetadata: {
-              hashtags:
-                hashtags ??
-                (effectiveParent.generatedMetadata as any)?.hashtags,
-              cta: cta ?? (effectiveParent.generatedMetadata as any)?.cta,
-              changeDescription,
-            },
-            outputType: effectiveParent.outputType,
-            status: "draft",
-            version: effectiveParent.version + 1,
-            parentId: effectiveParent.id,
-          })
-          .returning();
+        const parentMeta = effectiveParent.generatedMetadata as
+          | Record<string, unknown>
+          | null;
+
+        const row = await db.transaction(async (tx) => {
+          const [inserted] = await tx
+            .insert(generatedContent)
+            .values({
+              userId: context.auth.user.id,
+              prompt: context.content,
+              sourceReelId: effectiveParent.sourceReelId,
+              generatedHook: hook ?? effectiveParent.generatedHook,
+              generatedCaption: caption ?? effectiveParent.generatedCaption,
+              generatedScript: script ?? effectiveParent.generatedScript,
+              cleanScriptForAudio:
+                cleanScript ?? effectiveParent.cleanScriptForAudio,
+              sceneDescription:
+                sceneDescription ?? effectiveParent.sceneDescription,
+              generatedMetadata: {
+                hashtags: hashtags ?? parentMeta?.hashtags,
+                cta: cta ?? parentMeta?.cta,
+                changeDescription,
+              },
+              outputType: effectiveParent.outputType,
+              status: "draft",
+              version: effectiveParent.version + 1,
+              parentId: effectiveParent.id,
+            })
+            .returning();
+
+          await tx
+            .insert(queueItems)
+            .values({
+              userId: context.auth.user.id,
+              generatedContentId: inserted.id,
+              status: "draft",
+            })
+            .onConflictDoNothing();
+
+          return inserted;
+        });
 
         context.savedContentId = row.id;
-
-        // Auto-enroll iterated version in the pipeline queue (matching save_content behavior).
-        await db
-          .insert(queueItems)
-          .values({
-            userId: context.auth.user.id,
-            generatedContentId: row.id,
-            status: "draft",
-          })
-          .onConflictDoNothing();
-
-        await db
-          .update(generatedContent)
-          .set({ status: "queued" })
-          .where(eq(generatedContent.id, row.id));
 
         debugLog.info("[tool:iterate_content] New version saved to DB", {
           service: "chat-tools",
@@ -407,10 +605,223 @@ export function createIterateContentTool(context: ToolContext) {
   });
 }
 
+export function createUpdateContentStatusTool(context: ToolContext) {
+  return tool({
+    description:
+      "Update the status of a piece of generated content. Use when the user says things like 'move this to the queue', 'mark it as ready', 'archive this draft', 'put it back to draft', etc.",
+    inputSchema: z.object({
+      contentId: z.number().describe("ID of the content to update"),
+      status: z
+        .enum(["draft", "queued", "archived"])
+        .describe("The new status to set"),
+    }),
+    execute: async ({
+      contentId,
+      status,
+    }: {
+      contentId: number;
+      status: "draft" | "queued" | "archived";
+    }) => {
+      debugLog.info("[tool:update_content_status] Tool invoked", {
+        service: "chat-tools",
+        operation: "update_content_status",
+        contentId,
+        status,
+        userId: context.auth.user.id,
+      });
+      try {
+        const [updated] = await db
+          .update(generatedContent)
+          .set({ status })
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
+          .returning({ id: generatedContent.id });
+
+        if (!updated) {
+          return { error: "not_found" };
+        }
+
+        // Sync queue item status for draft/queued transitions
+        if (status === "queued" || status === "draft") {
+          await db
+            .update(queueItems)
+            .set({ status })
+            .where(eq(queueItems.generatedContentId, contentId));
+        }
+
+        debugLog.info("[tool:update_content_status] Status updated", {
+          service: "chat-tools",
+          operation: "update_content_status",
+          contentId,
+          status,
+        });
+        return { success: true as const, contentId, status };
+      } catch (err) {
+        debugLog.error("[tool:update_content_status] Tool failed", {
+          service: "chat-tools",
+          operation: "update_content_status",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { success: false as const, reason: "db_error" };
+      }
+    },
+  });
+}
+
+export function createSearchContentTool(context: ToolContext) {
+  return tool({
+    description:
+      "Search through the user's previously generated content. Use when the user references past content they want to find, compare, or build on — e.g. 'find the reel about fitness I made last week', 'show me my published captions', 'what content do I have for this reel?'.",
+    inputSchema: z.object({
+      query: z
+        .string()
+        .optional()
+        .describe("Text to search within hooks and captions"),
+      status: z
+        .enum(["draft", "queued", "processing", "published", "failed"])
+        .optional()
+        .describe("Filter by content status"),
+      limit: z
+        .number()
+        .min(1)
+        .max(10)
+        .default(5)
+        .describe("Number of results to return (max 10)"),
+    }),
+    execute: async ({
+      query,
+      status,
+      limit,
+    }: {
+      query?: string;
+      status?: "draft" | "queued" | "processing" | "published" | "failed";
+      limit: number;
+    }) => {
+      debugLog.info("[tool:search_content] Tool invoked", {
+        service: "chat-tools",
+        operation: "search_content",
+        query,
+        status,
+        limit,
+        userId: context.auth.user.id,
+      });
+      try {
+        const conditions = [eq(generatedContent.userId, context.auth.user.id)];
+
+        if (status) {
+          conditions.push(eq(generatedContent.status, status));
+        }
+
+        if (query) {
+          conditions.push(
+            or(
+              ilike(generatedContent.generatedHook, `%${query}%`),
+              ilike(generatedContent.generatedCaption, `%${query}%`),
+            )!,
+          );
+        }
+
+        const rows = await db
+          .select({
+            id: generatedContent.id,
+            version: generatedContent.version,
+            outputType: generatedContent.outputType,
+            status: generatedContent.status,
+            hook: generatedContent.generatedHook,
+            caption: generatedContent.generatedCaption,
+            createdAt: generatedContent.createdAt,
+          })
+          .from(generatedContent)
+          .where(and(...conditions))
+          .orderBy(desc(generatedContent.createdAt))
+          .limit(limit);
+
+        debugLog.info("[tool:search_content] Results returned", {
+          service: "chat-tools",
+          operation: "search_content",
+          resultCount: rows.length,
+        });
+
+        return { results: rows, total: rows.length };
+      } catch (err) {
+        debugLog.error("[tool:search_content] Tool failed", {
+          service: "chat-tools",
+          operation: "search_content",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { error: "db_error" };
+      }
+    },
+  });
+}
+
 export function createChatTools(context: ToolContext) {
   return {
     save_content: createSaveContentTool(context),
     get_reel_analysis: createGetReelAnalysisTool(context),
+    get_content: createGetContentTool(context),
+    edit_content_field: createEditContentFieldTool(context),
     iterate_content: createIterateContentTool(context),
+    update_content_status: createUpdateContentStatusTool(context),
+    search_content: createSearchContentTool(context),
   };
+}
+
+// ─── Chain Tip Resolution ────────────────────────────────────────────────────
+
+/**
+ * Resolves the latest version in a content chain from any node.
+ * Finds the tip (the node with no children) in a single DB query
+ * instead of an iterative loop.
+ */
+async function resolveChainTip(
+  startId: number,
+  userId: string,
+) {
+  // Find the tip: the content row with startId as an ancestor (or itself)
+  // that has no child pointing to it.
+  // Strategy: fetch all descendants in one shot, then return the tail.
+  const MAX_CHAIN_DEPTH = 50;
+  const visitedIds = new Set<number>();
+  let current = await db
+    .select()
+    .from(generatedContent)
+    .where(
+      and(
+        eq(generatedContent.id, startId),
+        eq(generatedContent.userId, userId),
+      ),
+    )
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!current) throw new Error("Content not found");
+
+  let depth = 0;
+  visitedIds.add(current.id);
+
+  while (depth < MAX_CHAIN_DEPTH) {
+    const [child] = await db
+      .select()
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.parentId, current.id),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .orderBy(desc(generatedContent.createdAt))
+      .limit(1);
+
+    if (!child || visitedIds.has(child.id)) break;
+    visitedIds.add(child.id);
+    current = child;
+    depth++;
+  }
+
+  return current;
 }

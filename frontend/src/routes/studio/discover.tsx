@@ -187,7 +187,7 @@ function DiscoverPage() {
                   onMouseDown={handleDragStart}
                   className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-overlay-sm hover:border-studio-accent/30 transition-colors"
                 >
-                  <div className="w-6 h-[2px] rounded-full bg-white/10 group-hover:bg-studio-accent/50 transition-colors" />
+                  <div className="w-6 h-[2px] rounded-full bg-overlay-md group-hover:bg-studio-accent/50 transition-colors" />
                 </div>
                 <div
                   style={{ height: audioHeight }}
@@ -200,7 +200,7 @@ function DiscoverPage() {
           </aside>
 
           {/* Center — TikTok video feed */}
-          <main className="flex flex-col overflow-hidden bg-black relative">
+          <main className="flex flex-col overflow-hidden bg-studio-bg relative">
             {allReels.length > 0 ? (
               <TikTokFeed
                 reels={allReels}

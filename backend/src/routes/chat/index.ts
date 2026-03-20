@@ -22,32 +22,8 @@ import { loadPrompt, getModel } from "../../lib/aiClient";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { recordAiCost } from "../../lib/cost-tracker";
 import { getModelInfo } from "../../lib/aiClient";
+import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "../../lib/chat-tools";
-
-function extractUsageTokens(usage: unknown): {
-  inputTokens: number;
-  outputTokens: number;
-} {
-  if (!usage || typeof usage !== "object") {
-    return { inputTokens: 0, outputTokens: 0 };
-  }
-
-  const record = usage as Record<string, unknown>;
-  const inputTokens =
-    typeof record.inputTokens === "number"
-      ? record.inputTokens
-      : typeof record.promptTokens === "number"
-        ? record.promptTokens
-        : 0;
-  const outputTokens =
-    typeof record.outputTokens === "number"
-      ? record.outputTokens
-      : typeof record.completionTokens === "number"
-        ? record.completionTokens
-        : 0;
-
-  return { inputTokens, outputTokens };
-}
 
 const app = new Hono<HonoEnv>();
 
@@ -794,8 +770,13 @@ async function buildChatContext(
           id: generatedContent.id,
           version: generatedContent.version,
           outputType: generatedContent.outputType,
+          status: generatedContent.status,
           generatedHook: generatedContent.generatedHook,
+          generatedCaption: generatedContent.generatedCaption,
           generatedScript: generatedContent.generatedScript,
+          cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+          sceneDescription: generatedContent.sceneDescription,
+          generatedMetadata: generatedContent.generatedMetadata,
         })
         .from(generatedContent)
         .where(
@@ -807,12 +788,23 @@ async function buildChatContext(
         .limit(1);
 
       if (active) {
-        context += `\n\nActive Draft (ID: ${active.id}, v${active.version}):
+        const meta = active.generatedMetadata as Record<string, unknown> | null;
+        const hashtags = Array.isArray(meta?.hashtags)
+          ? (meta.hashtags as string[]).join(", ")
+          : "none";
+        const cta = (meta?.cta as string) ?? "none";
+
+        context += `\n\nActive Draft (ID: ${active.id}, v${active.version}, status: ${active.status}):
 Hook: "${active.generatedHook ?? "none"}"
-Script: "${(active.generatedScript ?? "none").slice(0, 300)}..."
+Caption: "${active.generatedCaption ?? "none"}"
+Hashtags: ${hashtags}
+CTA: ${cta}
+Script (first 300 chars): "${(active.generatedScript ?? "none").slice(0, 300)}..."
+Scene Description: "${active.sceneDescription ?? "none"}"
 Type: ${active.outputType}
 
-When the user asks to edit, refine, or change this content, call iterate_content with parentContentId: ${active.id}.`;
+For targeted field edits (caption, hook, hashtags, CTA only), call edit_content_field with contentId: ${active.id}.
+For full rewrites or multi-field changes, call iterate_content with parentContentId: ${active.id}.`;
       }
     }
 
