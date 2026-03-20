@@ -548,7 +548,7 @@ app.post(
         systemPromptLength: systemPrompt.length,
       });
 
-      const modelInfo = getModelInfo("generation");
+      const modelInfo = await getModelInfo("generation");
       const streamStartMs = Date.now();
 
       debugLog.info("[chat:sendMessage] Starting AI stream", {
@@ -579,7 +579,7 @@ app.post(
       };
 
       const result = streamText({
-        model: getModel("generation"),
+        model: await getModel("generation"),
         system: systemPrompt,
         messages: [
           ...history.map((m) => ({

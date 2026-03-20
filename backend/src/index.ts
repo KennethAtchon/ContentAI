@@ -128,28 +128,33 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   port,
 });
 
-// Seed system config defaults (idempotent — ON CONFLICT DO NOTHING)
-seedSystemConfig().catch((err) => {
-  debugLog.error("Config seed failed (non-fatal)", {
-    service: "index",
-    operation: "seed",
-    error: String(err),
+// Seed system config defaults, then start cron jobs based on DB flag
+seedSystemConfig()
+  .then(async () => {
+    const { systemConfigService } = await import("./services/config/system-config.service");
+    const cronEnabled = await systemConfigService.getBoolean(
+      "feature_flags",
+      "cron_jobs_enabled",
+      CRON_JOBS_ENABLED,
+    );
+    if (cronEnabled) {
+      startDailyScan();
+      debugLog.info("Cron jobs enabled", { service: "index", operation: "cron-init" });
+    } else {
+      debugLog.info("Cron jobs disabled", { service: "index", operation: "cron-init" });
+    }
+  })
+  .catch((err) => {
+    debugLog.error("Config seed failed — falling back to ENV for cron flag", {
+      service: "index",
+      operation: "seed",
+      error: String(err),
+    });
+    if (CRON_JOBS_ENABLED) {
+      startDailyScan();
+      debugLog.info("Cron jobs enabled (ENV fallback)", { service: "index", operation: "cron-init" });
+    }
   });
-});
-
-// Start cron jobs if enabled
-if (CRON_JOBS_ENABLED) {
-  startDailyScan();
-  debugLog.info("Cron jobs enabled", {
-    service: "index",
-    operation: "cron-init",
-  });
-} else {
-  debugLog.info("Cron jobs disabled", {
-    service: "index",
-    operation: "cron-init",
-  });
-}
 
 export default {
   port,

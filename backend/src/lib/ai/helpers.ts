@@ -10,47 +10,65 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
 import {
-  getModelForProvider,
-  getProviderInfo,
-  getEnabledProviders,
+  getModelForProviderAsync,
+  getEnabledProvidersAsync,
 } from "./config";
+import {
+  ANTHROPIC_API_KEY as ENV_ANTHROPIC,
+  OPENAI_API_KEY as ENV_OPENAI,
+  OPEN_ROUTER_KEY as ENV_OPENROUTER,
+} from "../../utils/config/envUtil";
 
-// ─── Provider Instances ───────────────────────────────────────────────────────────
+// ─── Provider Instances (async, DB-backed) ────────────────────────────────────────
 
-const providerInstances: Record<string, any> = {};
+/**
+ * Builds a fresh provider instance using the resolved API key.
+ * Keys are read from DB (api_keys category) with ENV fallback on every call,
+ * so changes made via the admin panel take effect within one cache TTL (~60s).
+ */
+export async function getProviderInstanceAsync(provider: string) {
+  const { systemConfigService } = await import("../../services/config/system-config.service");
 
-export function getProviderInstance(provider: string) {
-  if (providerInstances[provider]) {
-    return providerInstances[provider];
+  switch (provider) {
+    case "openrouter": {
+      const key = await systemConfigService.getApiKey("openrouter", ENV_OPENROUTER);
+      if (!key) return null;
+      return createOpenAI({ apiKey: key, baseURL: "https://openrouter.ai/api/v1" });
+    }
+    case "openai": {
+      const key = await systemConfigService.getApiKey("openai", ENV_OPENAI);
+      if (!key) return null;
+      return createOpenAI({ apiKey: key });
+    }
+    case "claude": {
+      const key = await systemConfigService.getApiKey("anthropic", ENV_ANTHROPIC);
+      if (!key) return null;
+      return createAnthropic({ apiKey: key });
+    }
+    default:
+      throw new Error(`Unknown provider: ${provider}`);
   }
+}
 
-  const config = getProviderInfo(provider);
+/** Sync fallback — uses ENV-loaded keys. Used for streaming until refactored. */
+export function getProviderInstance(provider: string) {
+  const { AI_PROVIDERS } = require("./config") as typeof import("./config");
+  const config = AI_PROVIDERS[provider];
+  if (!config) throw new Error(`Unknown provider: ${provider}`);
 
   switch (provider) {
     case "openrouter":
       if (!config.enabled) return null;
-      providerInstances[provider] = createOpenAI({
-        apiKey: config.apiKey,
-        baseURL: config.baseURL,
-      });
-      break;
+      return createOpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
     case "openai":
       if (!config.enabled) return null;
-      providerInstances[provider] = createOpenAI({
-        apiKey: config.apiKey,
-      });
-      break;
+      return createOpenAI({ apiKey: config.apiKey });
     case "claude":
       if (!config.enabled) return null;
-      providerInstances[provider] = createAnthropic({
-        apiKey: config.apiKey,
-      });
-      break;
+      return createAnthropic({ apiKey: config.apiKey });
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
-
-  return providerInstances[provider];
 }
 
 // ─── Token Extraction ─────────────────────────────────────────────────────────────
@@ -135,12 +153,12 @@ export async function attemptAiCall(
   provider: "openrouter" | "openai" | "claude",
   params: AiCallParams,
 ): Promise<AiCallResult> {
-  const instance = getProviderInstance(provider);
+  const instance = await getProviderInstanceAsync(provider);
   if (!instance) {
     throw new Error(`Provider ${provider} is not available`);
   }
 
-  const model = getModelForProvider(provider, params.modelTier || "analysis");
+  const model = await getModelForProviderAsync(provider, params.modelTier || "analysis");
   const startMs = Date.now();
 
   const resolvedModel =
@@ -189,7 +207,7 @@ export async function attemptAiCall(
 export async function callAiWithFallback(
   params: AiCallParams,
 ): Promise<AiCallResult> {
-  const enabledProviders = getEnabledProviders();
+  const enabledProviders = await getEnabledProvidersAsync();
 
   if (enabledProviders.length === 0) {
     throw new Error("No AI providers are enabled");
@@ -214,15 +232,15 @@ export async function callAiWithFallback(
 
 // ─── Streaming Helper ────────────────────────────────────────────────────────────
 
-export function getModelInstance(
+export async function getModelInstance(
   modelTier: "analysis" | "generation" = "generation",
 ) {
-  const enabledProviders = getEnabledProviders();
+  const enabledProviders = await getEnabledProvidersAsync();
 
   for (const provider of enabledProviders) {
-    const instance = getProviderInstance(provider);
+    const instance = await getProviderInstanceAsync(provider);
     if (instance) {
-      const model = getModelForProvider(provider, modelTier);
+      const model = await getModelForProviderAsync(provider, modelTier);
       return {
         instance,
         provider,

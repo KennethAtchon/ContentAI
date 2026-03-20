@@ -23,7 +23,6 @@ class SystemConfigService {
   private getRedis() {
     try {
       // Lazy import to avoid crash if Redis is not available
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const getRedisConnection = require("@/services/db/redis").default as () => import("ioredis").default;
       return getRedisConnection();
     } catch {
@@ -209,6 +208,23 @@ class SystemConfigService {
           }
         : r,
     );
+  }
+
+  /** Gets an API key from the api_keys category, decrypts it, falls back to the given ENV value. */
+  async getApiKey(key: string, envFallback: string): Promise<string> {
+    try {
+      const val = await this.get("api_keys", key);
+      if (val && val.trim()) return val.trim();
+    } catch {
+      // fall through
+    }
+    return envFallback;
+  }
+
+  /** Returns true if a non-empty API key exists in DB or ENV for the given api_keys entry. */
+  async hasApiKey(key: string, envFallback: string): Promise<boolean> {
+    const val = await this.getApiKey(key, envFallback);
+    return !!val;
   }
 }
 

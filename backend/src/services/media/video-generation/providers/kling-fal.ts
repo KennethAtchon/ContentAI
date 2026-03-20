@@ -2,6 +2,7 @@ import { safeFetch } from "@/services/api/safe-fetch";
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, KLING_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
+import { systemConfigService } from "@/services/config/system-config.service";
 import type {
   GenerateVideoClipParams,
   VideoClipResult,
@@ -34,6 +35,7 @@ interface FalResultResponse {
 async function submitJob(
   model: string,
   payload: Record<string, unknown>,
+  apiKey: string,
 ): Promise<FalQueueResponse> {
   const url = `${FAL_BASE}/${model}`;
 
@@ -42,14 +44,14 @@ async function submitJob(
     operation: "submitJob",
     url,
     payload,
-    hasApiKey: !!FAL_API_KEY,
-    apiKeyPrefix: FAL_API_KEY ? FAL_API_KEY.slice(0, 8) + "..." : "MISSING",
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? apiKey.slice(0, 8) + "..." : "MISSING",
   });
 
   const res = await safeFetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Key ${FAL_API_KEY}`,
+      Authorization: `Key ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
@@ -96,6 +98,7 @@ async function submitJob(
 async function pollUntilComplete(
   model: string,
   job: FalQueueResponse,
+  apiKey: string,
 ): Promise<FalResultResponse> {
   const { request_id: requestId } = job;
   const statusUrl = `${FAL_BASE}/${model}/requests/${requestId}/status`;
@@ -128,7 +131,7 @@ async function pollUntilComplete(
     });
 
     const statusRes = await safeFetch(statusUrl, {
-      headers: { Authorization: `Key ${FAL_API_KEY}` },
+      headers: { Authorization: `Key ${apiKey}` },
       timeout: 15_000,
       validateResponse: () => true,
     });
@@ -188,7 +191,7 @@ async function pollUntilComplete(
       });
 
       const resultRes = await safeFetch(fetchUrl, {
-        headers: { Authorization: `Key ${FAL_API_KEY}` },
+        headers: { Authorization: `Key ${apiKey}` },
         timeout: 15_000,
         validateResponse: () => true,
       });
@@ -227,15 +230,8 @@ async function pollUntilComplete(
 export const klingFalProvider: VideoGenerationProvider = {
   name: "kling-fal",
 
-  isAvailable() {
-    const available = !!FAL_API_KEY;
-    debugLog.info("[kling-fal] isAvailable check", {
-      service: "kling-fal",
-      operation: "isAvailable",
-      available,
-      model: KLING_MODEL,
-    });
-    return available;
+  async isAvailable() {
+    return systemConfigService.hasApiKey("fal", FAL_API_KEY);
   },
 
   estimateCost(durationSeconds: number) {
@@ -245,8 +241,11 @@ export const klingFalProvider: VideoGenerationProvider = {
 
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
-    const model = KLING_MODEL;
+    const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
+    const model = (await systemConfigService.get("video", "kling_model")) ?? KLING_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
+
+    if (!apiKey) throw new Error("FAL_API_KEY is not configured");
 
     debugLog.info("[kling-fal] Starting clip generation", {
       service: "kling-fal",
@@ -262,9 +261,9 @@ export const klingFalProvider: VideoGenerationProvider = {
       prompt: params.prompt,
       duration,
       aspect_ratio: params.aspectRatio ?? "9:16",
-    });
+    }, apiKey);
 
-    const result = await pollUntilComplete(model, job);
+    const result = await pollUntilComplete(model, job, apiKey);
 
     debugLog.info("[kling-fal] Generation complete, uploading to R2", {
       service: "kling-fal",

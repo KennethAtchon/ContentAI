@@ -2,6 +2,7 @@ import { safeFetch } from "@/services/api/safe-fetch";
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, FLUX_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
+import { systemConfigService } from "@/services/config/system-config.service";
 import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync, existsSync } from "fs";
@@ -20,11 +21,11 @@ interface FluxResult {
   images: Array<{ url: string; content_type: string }>;
 }
 
-async function generateImage(prompt: string): Promise<Buffer> {
-  const res = await safeFetch(`${FAL_BASE}/${FLUX_MODEL}`, {
+async function generateImage(prompt: string, apiKey: string, fluxModel: string): Promise<Buffer> {
+  const res = await safeFetch(`${FAL_BASE}/${fluxModel}`, {
     method: "POST",
     headers: {
-      Authorization: `Key ${FAL_API_KEY}`,
+      Authorization: `Key ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -134,8 +135,8 @@ async function applyKenBurns(
 export const imageKenBurnsProvider: VideoGenerationProvider = {
   name: "image-ken-burns",
 
-  isAvailable() {
-    return !!FAL_API_KEY;
+  async isAvailable() {
+    return systemConfigService.hasApiKey("fal", FAL_API_KEY);
   },
 
   estimateCost(_durationSeconds: number) {
@@ -144,8 +145,12 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
 
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
+    const apiKey = await systemConfigService.getApiKey("fal", FAL_API_KEY);
+    const fluxModel = (await systemConfigService.get("video", "flux_model")) ?? FLUX_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
     const aspectRatio = params.aspectRatio ?? "9:16";
+
+    if (!apiKey) throw new Error("FAL_API_KEY is not configured");
 
     debugLog.info("Generating video clip via Image+KenBurns", {
       service: "image-ken-burns",
@@ -154,7 +159,7 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
       duration,
     });
 
-    const imageBuffer = await generateImage(params.prompt);
+    const imageBuffer = await generateImage(params.prompt, apiKey, fluxModel);
     const videoBuffer = await applyKenBurns(imageBuffer, duration, aspectRatio);
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-kb.mp4`;

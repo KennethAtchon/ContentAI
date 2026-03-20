@@ -84,8 +84,8 @@ export async function callAi(params: AiMessage): Promise<AiResponse> {
 
 // ─── Helper Functions for Streaming ──────────────────────────────────────────
 
-export function getModel(modelTier: "analysis" | "generation" = "generation") {
-  const { instance, provider, model } = getModelInstance(modelTier);
+export async function getModel(modelTier: "analysis" | "generation" = "generation") {
+  const { instance, provider, model } = await getModelInstance(modelTier);
   // Use Chat Completions API for openai/openrouter to avoid Responses API format mismatch
   if (provider !== "claude" && typeof (instance as any).chat === "function") {
     return (instance as any).chat(model);
@@ -93,10 +93,10 @@ export function getModel(modelTier: "analysis" | "generation" = "generation") {
   return instance(model);
 }
 
-export function getModelInfo(
+export async function getModelInfo(
   modelTier: "analysis" | "generation" = "generation",
-): { provider: "openrouter" | "openai" | "claude"; model: string } {
-  const { provider, model } = getModelInstance(modelTier);
+): Promise<{ provider: "openrouter" | "openai" | "claude"; model: string }> {
+  const { provider, model } = await getModelInstance(modelTier);
   return { provider, model };
 }
 
@@ -111,7 +111,7 @@ export async function streamAi(params: AiMessage): Promise<any> {
     metadata,
   } = params;
 
-  const { instance, provider, model } = getModelInstance(modelTier);
+  const { instance, provider, model } = await getModelInstance(modelTier);
   const startMs = Date.now();
   const resolvedModel =
     provider !== "claude" && typeof (instance as any).chat === "function"

@@ -112,7 +112,6 @@ function useSystemConfig(category: string) {
       });
       await queryClient.invalidateQueries({ queryKey });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [category, authenticatedFetchJson, queryClient],
   );
 

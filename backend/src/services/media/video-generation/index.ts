@@ -50,7 +50,7 @@ export async function getVideoGenerationProvider(
     );
   }
 
-  if (!provider.isAvailable()) {
+  if (!(await provider.isAvailable())) {
     // Read fallback order from DB config
     let fallbackOrder: VideoProvider[] = ["kling-fal", "image-ken-burns", "runway"];
     try {
@@ -65,7 +65,7 @@ export async function getVideoGenerationProvider(
     }
 
     for (const fallbackName of fallbackOrder) {
-      if (fallbackName !== providerName && PROVIDERS[fallbackName].isAvailable()) {
+      if (fallbackName !== providerName && (await PROVIDERS[fallbackName].isAvailable())) {
         debugLog.warn(
           `Provider "${providerName}" not available (missing API key). Falling back to "${fallbackName}".`,
           {

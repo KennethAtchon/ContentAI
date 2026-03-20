@@ -115,8 +115,8 @@ Views: ${reel.views} | Engagement: ${reel.engagementRate ?? "unknown"}%
 
 Analyze this viral reel and call the analyze_reel tool with your findings.`;
 
-  const { provider, model } = getModelInfo("analysis");
-  const resolvedModel = getModel("analysis");
+  const { provider, model } = await getModelInfo("analysis");
+  const resolvedModel = await getModel("analysis");
   const startMs = Date.now();
 
   let savedAnalysis: ReelAnalysis | null = null;

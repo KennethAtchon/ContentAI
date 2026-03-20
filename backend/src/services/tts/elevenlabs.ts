@@ -1,4 +1,5 @@
 import { ELEVENLABS_API_KEY } from "../../utils/config/envUtil";
+import { systemConfigService } from "../../services/config/system-config.service";
 import { debugLog } from "../../utils/debug/debug";
 import type { VoiceConfig } from "../../config/voices";
 
@@ -37,7 +38,9 @@ export async function generateSpeech(
   voice: VoiceConfig,
   speed: TTSSpeed,
 ): Promise<TTSResult> {
-  if (!ELEVENLABS_API_KEY) {
+  const apiKey = await systemConfigService.getApiKey("elevenlabs", ELEVENLABS_API_KEY);
+
+  if (!apiKey) {
     throw new Error("ELEVENLABS_API_KEY is not configured");
   }
 
@@ -49,7 +52,7 @@ export async function generateSpeech(
     {
       method: "POST",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
+        "xi-api-key": apiKey,
         "Content-Type": "application/json",
         Accept: "audio/mpeg",
       },

@@ -173,12 +173,26 @@ export async function getModelForProviderAsync(
   return getModelForProvider(provider, modelTier);
 }
 
-/** Returns enabled providers using DB-backed priority list. */
+/** Returns enabled providers using DB-backed priority list and DB-backed API keys. */
 export async function getEnabledProvidersAsync(): Promise<("openrouter" | "openai" | "claude")[]> {
   const priority = await getProviderPriorityAsync();
-  return priority.filter(
-    (p) => AI_PROVIDERS[p]?.enabled,
-  ) as ("openrouter" | "openai" | "claude")[];
+  const { systemConfigService } = await import("../../services/config/system-config.service");
+
+  const keyMap: Record<string, { dbKey: string; envKey: string }> = {
+    claude: { dbKey: "anthropic", envKey: ANTHROPIC_API_KEY },
+    openai: { dbKey: "openai", envKey: OPENAI_API_KEY },
+    openrouter: { dbKey: "openrouter", envKey: OPEN_ROUTER_KEY },
+  };
+
+  const results = await Promise.all(
+    priority.map(async (p) => {
+      const mapping = keyMap[p];
+      if (!mapping) return false;
+      return systemConfigService.hasApiKey(mapping.dbKey, mapping.envKey);
+    }),
+  );
+
+  return priority.filter((_, i) => results[i]) as ("openrouter" | "openai" | "claude")[];
 }
 
 // Quick presets for common configurations

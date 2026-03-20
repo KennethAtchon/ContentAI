@@ -2,6 +2,7 @@ import { safeFetch } from "@/services/api/safe-fetch";
 import { storage } from "@/services/storage";
 import { RUNWAY_API_KEY, RUNWAY_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
+import { systemConfigService } from "@/services/config/system-config.service";
 import type {
   GenerateVideoClipParams,
   VideoClipResult,
@@ -25,7 +26,7 @@ interface RunwayTask {
   failure?: string;
 }
 
-async function pollTask(taskId: string): Promise<RunwayTask> {
+async function pollTask(taskId: string, apiKey: string): Promise<RunwayTask> {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
 
   while (Date.now() < deadline) {
@@ -33,7 +34,7 @@ async function pollTask(taskId: string): Promise<RunwayTask> {
 
     const res = await safeFetch(`${RUNWAY_BASE}/tasks/${taskId}`, {
       headers: {
-        Authorization: `Bearer ${RUNWAY_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "X-Runway-Version": "2024-11-06",
       },
       timeout: 15_000,
@@ -57,8 +58,8 @@ async function pollTask(taskId: string): Promise<RunwayTask> {
 export const runwayProvider: VideoGenerationProvider = {
   name: "runway",
 
-  isAvailable() {
-    return !!RUNWAY_API_KEY;
+  async isAvailable() {
+    return systemConfigService.hasApiKey("runway", RUNWAY_API_KEY);
   },
 
   estimateCost(durationSeconds: number) {
@@ -68,12 +69,16 @@ export const runwayProvider: VideoGenerationProvider = {
 
   async generate(params: GenerateVideoClipParams): Promise<VideoClipResult> {
     const startMs = Date.now();
+    const apiKey = await systemConfigService.getApiKey("runway", RUNWAY_API_KEY);
+    const model = (await systemConfigService.get("video", "runway_model")) ?? RUNWAY_MODEL;
     const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
+
+    if (!apiKey) throw new Error("RUNWAY_API_KEY is not configured");
 
     debugLog.info("Generating video clip via Runway", {
       service: "runway",
       operation: "generate",
-      model: RUNWAY_MODEL,
+      model,
       prompt: params.prompt.slice(0, 80),
       duration,
     });
@@ -81,13 +86,13 @@ export const runwayProvider: VideoGenerationProvider = {
     const res = await safeFetch(`${RUNWAY_BASE}/text_to_video`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${RUNWAY_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "X-Runway-Version": "2024-11-06",
       },
       body: JSON.stringify({
         promptText: params.prompt,
-        model: RUNWAY_MODEL,
+        model,
         ratio: params.aspectRatio === "16:9" ? "1280:768" : "768:1280",
         duration,
       }),
@@ -100,7 +105,7 @@ export const runwayProvider: VideoGenerationProvider = {
     }
 
     const { id: taskId } = (await res.json()) as { id: string };
-    const task = await pollTask(taskId);
+    const task = await pollTask(taskId, apiKey);
 
     const videoUrl = task.output?.[0];
     if (!videoUrl) throw new Error("Runway returned no video URL");

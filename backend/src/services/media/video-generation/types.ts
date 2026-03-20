@@ -19,7 +19,7 @@ export interface VideoClipResult {
 
 export interface VideoGenerationProvider {
   readonly name: VideoProvider;
-  isAvailable(): boolean;
+  isAvailable(): Promise<boolean>;
   estimateCost(durationSeconds: number): number;
   generate(params: GenerateVideoClipParams): Promise<VideoClipResult>;
 }
