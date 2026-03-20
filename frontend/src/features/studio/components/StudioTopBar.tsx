@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useApp } from "@/shared/contexts/app-context";
 import UserButton from "@/features/auth/components/user-button";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { APP_NAME } from "@/shared/constants/app.constants";
 import type { ShellVariant } from "@/shared/components/layout/studio-shell";
 
@@ -170,6 +171,8 @@ export function StudioTopBar({
               </Link>
             </div>
           )}
+
+          <ThemeToggle />
 
           {/* User button for authenticated states */}
           {user && variant !== "auth" && <UserButton />}

@@ -441,19 +441,19 @@ function QueueListItem({
               </span>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="p-[3px] rounded bg-overlay-sm text-dim-2 hover:text-dim-1 transition-colors"
+                className="p-1.5 rounded-md bg-studio-surface text-studio-fg hover:bg-overlay-lg transition-colors"
               >
-                <X className="w-2.5 h-2.5" />
+                <X className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="p-[3px] rounded bg-error/15 text-error hover:bg-error/25 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-md bg-error/25 text-error hover:bg-error/35 transition-colors disabled:opacity-50"
               >
                 {isDeleting ? (
-                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Check className="w-2.5 h-2.5" />
+                  <Check className="w-3.5 h-3.5" />
                 )}
               </button>
             </>
@@ -466,20 +466,20 @@ function QueueListItem({
                 }}
                 disabled={isDuplicating}
                 title={t("studio_queue_duplicate")}
-                className="p-[3px] rounded bg-overlay-sm text-dim-3 hover:text-dim-1 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-md bg-studio-surface text-studio-fg hover:bg-overlay-lg transition-colors disabled:opacity-50"
               >
                 {isDuplicating ? (
-                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Copy className="w-2.5 h-2.5" />
+                  <Copy className="w-3.5 h-3.5" />
                 )}
               </button>
               <button
                 onClick={handleDelete}
                 title={t("studio_queue_delete")}
-                className="p-[3px] rounded bg-overlay-sm text-error/50 hover:text-error transition-colors"
+                className="p-1.5 rounded-md bg-studio-surface text-error hover:bg-error/20 transition-colors"
               >
-                <X className="w-2.5 h-2.5" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </>
           )}

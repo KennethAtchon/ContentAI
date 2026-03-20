@@ -1344,5 +1344,9 @@
   "user_settings_aspect_landscape": "Landscape",
   "user_settings_aspect_square": "Square",
   "account_subscription_feature_instagram_publishing": "Instagram publishing",
-  "account_subscription_feature_export_save": "Export & save content"
+  "account_subscription_feature_export_save": "Export & save content",
+  "theme_dark": "Dark",
+  "theme_light": "Light",
+  "theme_system": "System",
+  "theme_toggle": "Toggle theme"
 }

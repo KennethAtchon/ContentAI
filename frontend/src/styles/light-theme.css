@@ -1,0 +1,108 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT THEME — overrides applied when .light class is on <html>
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.light {
+  /* 1. Brand palette — slightly deeper blue for contrast on white */
+  --color-accent: 234 89% 58%;
+
+  /* 2. Surface scale — white → near-white grays */
+  --surface-0:   0 0% 100%;        /* main background: pure white        */
+  --surface-1:   210 20% 97%;      /* card / sidebar: off-white          */
+  --surface-2:   210 20% 93%;      /* elevated card: light gray          */
+  --surface-top: 0 0% 100%;        /* topbar: white                      */
+
+  /* 3. Text scale — dark ink on white */
+  --text-primary: 222 47% 11%;
+  --text-dim-1: hsl(222 47% 11% / 0.7);
+  --text-dim-2: hsl(222 47% 11% / 0.45);
+  --text-dim-3: hsl(222 47% 11% / 0.22);
+
+  /* 4. Status colors — same as dark; they work on both backgrounds */
+  --color-success: 160 84% 33%;
+  --color-warning:  38 92% 42%;
+  --color-error:     0 84% 54%;
+  --color-info:    217 91% 52%;
+
+  /* 5. Overlay scale — use black-tint overlays instead of white-tint */
+  --overlay-xs: rgb(0 0 0 / 0.03);
+  --overlay-sm: rgb(0 0 0 / 0.06);
+  --overlay-md: rgb(0 0 0 / 0.10);
+  --overlay-lg: rgb(0 0 0 / 0.16);
+
+  /* ── Studio aliases ── */
+  --studio-bg:       hsl(var(--surface-0));
+  --studio-surface:  hsl(var(--surface-1));
+  --studio-topbar:   hsl(var(--surface-top));
+  --studio-accent:   hsl(var(--color-accent));
+  --studio-purple:   hsl(270 75% 60%);
+  --studio-fg:       hsl(var(--text-primary));
+  --studio-fg-dim:   var(--text-dim-2);
+  --studio-border:   var(--overlay-sm);
+  --studio-ring:     hsl(var(--color-accent) / 0.4);
+
+  /* ── Sidebar ── */
+  --sidebar:                    hsl(var(--surface-1));
+  --sidebar-foreground:         hsl(var(--text-primary));
+  --sidebar-primary:            hsl(var(--color-accent));
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent:             hsl(210 20% 91%);
+  --sidebar-accent-foreground:  hsl(var(--text-primary));
+  --sidebar-border:             hsl(210 20% 86%);
+  --sidebar-ring:               hsl(var(--color-accent));
+}
+
+/* ── Shadcn/ui semantic tokens for .light ───────────────────────────────── */
+
+@layer base {
+  .light {
+    --background:              var(--surface-0);
+    --foreground:              var(--text-primary);
+    --card:                    var(--surface-1);
+    --card-foreground:         var(--text-primary);
+    --popover:                 var(--surface-0);
+    --popover-foreground:      var(--text-primary);
+    --primary:                 var(--color-accent);
+    --primary-foreground:      0 0% 100%;
+    --purple:                  270 75% 60%;
+    --purple-foreground:       0 0% 100%;
+    --gradient-from:           var(--color-accent);
+    --gradient-via:            260 80% 65%;
+    --gradient-to:             270 75% 60%;
+    --secondary:               210 20% 91%;
+    --secondary-foreground:    var(--text-primary);
+    --muted:                   210 20% 93%;
+    --muted-foreground:        215 16% 47%;
+    --accent:                  var(--color-accent);
+    --accent-foreground:       0 0% 100%;
+    --destructive:             var(--color-error);
+    --destructive-foreground:  0 0% 100%;
+    --border:                  210 20% 86%;
+    --input:                   210 20% 90%;
+    --ring:                    var(--color-accent);
+    --chart-1:                 var(--color-accent);
+    --chart-2:                 270 75% 60%;
+    --chart-3:                 190 70% 42%;
+    --chart-4:                 var(--color-success);
+    --chart-5:                 var(--color-warning);
+    --sidebar-background:      var(--surface-1);
+    --sidebar-foreground:      var(--text-primary);
+    --sidebar-primary:         var(--color-accent);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:          210 20% 91%;
+    --sidebar-accent-foreground: var(--text-primary);
+    --sidebar-border:          210 20% 86%;
+    --sidebar-ring:            var(--color-accent);
+  }
+}
+
+/* ── Light theme component overrides ────────────────────────────────────── */
+
+@layer components {
+  .light .studio-phone-shadow {
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.06),
+      0 40px 80px rgb(0 0 0 / 0.12),
+      0 0 60px hsl(var(--color-accent) / 0.08);
+  }
+}

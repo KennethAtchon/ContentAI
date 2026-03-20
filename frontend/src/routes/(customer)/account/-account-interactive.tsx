@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import { SubscriptionManagement } from "@/features/account/components/subscription-management";
 import { UsageDashboard } from "@/features/account/components/usage-dashboard";
 import { ProfileEditor } from "@/features/account/components/profile-editor";
@@ -101,8 +102,8 @@ function getTierDisplay(role: string | null | undefined) {
       return {
         label: "Free",
         badgeClass:
-          "text-white/40 bg-white/[0.04] border border-white/[0.08]",
-        dotClass: "bg-white/25",
+          "text-dim-2 bg-overlay-xs border border-border",
+        dotClass: "bg-foreground/25",
       };
   }
 }
@@ -127,7 +128,7 @@ function UsageBar({
   const pct = effectiveMax ? Math.min(100, Math.round((value / effectiveMax) * 100)) : 0;
   const isHigh = pct >= 80;
   return (
-    <div className="h-[3px] w-full rounded-full bg-white/[0.06] overflow-hidden">
+    <div className="h-[3px] w-full rounded-full bg-overlay-sm overflow-hidden">
       <div
         className={cn(
           "h-full rounded-full transition-all duration-500",
@@ -184,7 +185,7 @@ function SidebarPanel({
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-white/[0.05]">
+    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border">
       <div className="flex flex-col gap-6 p-5 h-full">
 
         {/* Identity */}
@@ -195,14 +196,15 @@ function SidebarPanel({
                 {initials}
               </span>
             </div>
-            <div className="min-w-0 pt-0.5">
+            <div className="min-w-0 pt-0.5 flex-1">
               <p className="font-semibold text-sm leading-tight truncate text-foreground">
                 {name}
               </p>
-              <p className="text-[11px] text-white/35 truncate mt-0.5">
+              <p className="text-[11px] text-dim-2 truncate mt-0.5">
                 {email}
               </p>
             </div>
+            <ThemeToggle />
           </div>
 
           <div
@@ -216,24 +218,24 @@ function SidebarPanel({
           </div>
         </div>
 
-        <div className="h-px bg-white/[0.05]" />
+        <div className="h-px bg-border" />
 
         {/* Usage compact */}
         {usage && (
           <>
             <div className="space-y-3">
-              <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">
+              <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
                 {t("account_tabs_usage")}
               </p>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <span className="text-[11px] text-white/40">
+                  <span className="text-[11px] text-dim-2">
                     {t("account_overview_reels_analyzed")}
                   </span>
-                  <span className="text-[11px] text-white/60 tabular-nums">
+                  <span className="text-[11px] text-dim-1 tabular-nums">
                     {usage.reelsAnalyzed}
-                    <span className="text-white/25">
+                    <span className="text-dim-3">
                       /{isUnlimited(usage.reelsAnalyzedLimit) ? "∞" : usage.reelsAnalyzedLimit}
                     </span>
                   </span>
@@ -245,12 +247,12 @@ function SidebarPanel({
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <span className="text-[11px] text-white/40">
+                  <span className="text-[11px] text-dim-2">
                     {t("account_overview_content_generated")}
                   </span>
-                  <span className="text-[11px] text-white/60 tabular-nums">
+                  <span className="text-[11px] text-dim-1 tabular-nums">
                     {usage.contentGenerated}
-                    <span className="text-white/25">
+                    <span className="text-dim-3">
                       /{isUnlimited(usage.contentGeneratedLimit) ? "∞" : usage.contentGeneratedLimit}
                     </span>
                   </span>
@@ -261,7 +263,7 @@ function SidebarPanel({
               </div>
             </div>
 
-            <div className="h-px bg-white/[0.05]" />
+            <div className="h-px bg-border" />
           </>
         )}
 
@@ -276,8 +278,8 @@ function SidebarPanel({
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                   active
-                    ? "bg-white/[0.07] text-foreground"
-                    : "text-white/40 hover:text-white/75 hover:bg-white/[0.04]",
+                    ? "bg-overlay-sm text-foreground"
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs",
                 )}
               >
                 <Icon
@@ -294,13 +296,13 @@ function SidebarPanel({
           })}
         </nav>
 
-        <div className="h-px bg-white/[0.05]" />
+        <div className="h-px bg-border" />
 
         {/* Bottom actions */}
         <div className="space-y-0.5">
           <Link
             to="/studio/discover"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/75 hover:bg-white/[0.04] transition-colors group"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-2 hover:text-dim-1 hover:bg-overlay-xs transition-colors group"
           >
             <ArrowUpRight className="h-4 w-4 shrink-0 group-hover:text-[hsl(234_89%_74%)] transition-colors" />
             <span>{t("navigation_discover")}</span>
@@ -308,7 +310,7 @@ function SidebarPanel({
           {isAdmin && (
             <button
               onClick={() => navigate({ to: "/admin/dashboard" })}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/75 hover:bg-white/[0.04] transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-2 hover:text-dim-1 hover:bg-overlay-xs transition-colors text-left"
             >
               <Shield className="h-4 w-4 shrink-0" />
               <span>{t("navigation_admin")}</span>
@@ -316,7 +318,7 @@ function SidebarPanel({
           )}
           <button
             onClick={() => logout().then(() => navigate({ to: "/" }))}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/30 hover:text-red-400/80 hover:bg-red-500/[0.06] transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-3 hover:text-red-400/80 hover:bg-red-500/[0.06] transition-colors text-left"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>{t("common_sign_out")}</span>
@@ -361,7 +363,7 @@ function MobileNav({
   ];
 
   return (
-    <div className="md:hidden border-b border-white/[0.05] px-4 pt-4 pb-0">
+    <div className="md:hidden border-b border-border px-4 pt-4 pb-0">
       {/* Mobile identity strip */}
       <div className="flex items-center gap-2.5 mb-3">
         <div className="w-8 h-8 rounded-lg bg-[hsl(234_89%_74%/0.08)] border border-[hsl(234_89%_74%/0.15)] flex items-center justify-center">
@@ -390,8 +392,8 @@ function MobileNav({
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0 transition-colors font-medium",
                 active
-                  ? "bg-white/[0.09] text-foreground"
-                  : "text-white/40 hover:text-white/70",
+                  ? "bg-overlay-sm text-foreground"
+                  : "text-dim-2 hover:text-dim-1",
               )}
             >
               <Icon className={cn("h-3.5 w-3.5", active ? "text-[hsl(234_89%_74%)]" : "")} />
@@ -427,7 +429,7 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           Welcome back, {firstName}.
         </h2>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-dim-2 mt-1">
           {t("account_overview_subtitle")}
         </p>
       </div>
@@ -436,11 +438,11 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
       {isLoading ? (
         <div className="flex gap-1">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 flex-1 rounded-lg bg-white/[0.03] animate-pulse" />
+            <div key={i} className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse" />
           ))}
         </div>
       ) : usage ? (
-        <div className="flex gap-px border border-white/[0.06] rounded-xl overflow-hidden">
+        <div className="flex gap-px border border-border rounded-xl overflow-hidden">
           {[
             {
               value: usage.reelsAnalyzed,
@@ -460,15 +462,15 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
           ].map((stat, i) => (
             <div
               key={i}
-              className="flex-1 bg-white/[0.02] px-5 py-4 space-y-0.5"
+              className="flex-1 bg-overlay-xs px-5 py-4 space-y-0.5"
             >
               <p className="text-2xl font-bold tracking-tight text-foreground">
                 {stat.value}
-                <span className="text-base font-normal text-white/25">
+                <span className="text-base font-normal text-dim-3">
                   /{isUnlimited(stat.limit) ? "∞" : stat.limit}
                 </span>
               </p>
-              <p className="text-[11px] text-white/40 leading-tight">{stat.label}</p>
+              <p className="text-[11px] text-dim-2 leading-tight">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -486,7 +488,7 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
           variant="outline"
           size="default"
           onClick={() => onNavigate("subscription")}
-          className="text-white/60 border-white/[0.08] hover:border-white/[0.15]"
+          className="text-dim-1 border-border hover:border-overlay-md"
         >
           {t("account_tabs_subscription")}
         </Button>
@@ -494,7 +496,7 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
           variant="ghost"
           size="default"
           onClick={() => onNavigate("usage")}
-          className="text-white/40 hover:text-white/70"
+          className="text-dim-2 hover:text-dim-1"
         >
           {t("account_tabs_usage")}
         </Button>
@@ -502,7 +504,7 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
 
       {/* Quick nav grid */}
       <div>
-        <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold mb-3">
+        <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-3">
           Quick access
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -516,14 +518,14 @@ function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
             <button
               key={id}
               onClick={() => onNavigate(id)}
-              className="group flex items-start gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] transition-colors text-left"
+              className="group flex items-start gap-3 p-3.5 rounded-xl border border-border bg-overlay-xs hover:bg-border hover:border-border transition-colors text-left"
             >
-              <Icon className="h-4 w-4 text-white/30 group-hover:text-[hsl(234_89%_74%)] transition-colors mt-0.5 shrink-0" />
+              <Icon className="h-4 w-4 text-dim-3 group-hover:text-[hsl(234_89%_74%)] transition-colors mt-0.5 shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-white/70 group-hover:text-foreground transition-colors">
+                <p className="text-xs font-semibold text-dim-1 group-hover:text-foreground transition-colors">
                   {label}
                 </p>
-                <p className="text-[10px] text-white/30 mt-0.5">{desc}</p>
+                <p className="text-[10px] text-dim-3 mt-0.5">{desc}</p>
               </div>
             </button>
           ))}
@@ -539,9 +541,9 @@ function OrdersSection() {
   const { t } = useTranslation();
   return (
     <div className="py-24 flex flex-col items-center justify-center text-center gap-3">
-      <Package className="h-9 w-9 text-white/15" />
-      <p className="font-medium text-white/60">{t("account_orders_no_orders")}</p>
-      <p className="text-sm text-white/30 max-w-xs">
+      <Package className="h-9 w-9 text-dim-3" />
+      <p className="font-medium text-dim-1">{t("account_orders_no_orders")}</p>
+      <p className="text-sm text-dim-3 max-w-xs">
         {t("common_your_order_history_will_appear_here_once_you_make_a_purchase")}
       </p>
     </div>
@@ -568,8 +570,8 @@ function PreferenceSelect({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium text-white/70">{label}</Label>
-        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30" />}
+        <Label className="text-sm font-medium text-dim-1">{label}</Label>
+        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-dim-3" />}
         {saved && !saving && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
       </div>
       <Select value={value ?? "system_default"} onValueChange={onChange}>
@@ -688,7 +690,7 @@ function UserPreferences() {
   if (settingsLoading || voicesLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-7 w-7 animate-spin text-white/20" />
+        <Loader2 className="h-7 w-7 animate-spin text-dim-3" />
       </div>
     );
   }
@@ -699,13 +701,13 @@ function UserPreferences() {
         <h2 className="text-lg font-semibold text-foreground">
           {t("user_settings_preferences")}
         </h2>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-dim-2 mt-1">
           {t("user_settings_preferences_subtitle")}
         </p>
       </div>
 
       <div className="space-y-6">
-        <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">
+        <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
           AI & Generation
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -728,10 +730,10 @@ function UserPreferences() {
         </div>
       </div>
 
-      <div className="h-px bg-white/[0.05]" />
+      <div className="h-px bg-border" />
 
       <div className="space-y-6">
-        <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold">
+        <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
           Voice & Audio
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -754,20 +756,20 @@ function UserPreferences() {
         </div>
       </div>
 
-      <div className="h-px bg-white/[0.05]" />
+      <div className="h-px bg-border" />
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-1">
               Output Format
             </p>
-            <Label className="text-sm font-medium text-white/70">
+            <Label className="text-sm font-medium text-dim-1">
               {t("user_settings_aspect_ratio")}
             </Label>
           </div>
           {savingField === "preferredAspectRatio" && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-dim-3" />
           )}
           {savedField === "preferredAspectRatio" &&
             savingField !== "preferredAspectRatio" && (
@@ -795,7 +797,7 @@ function UserPreferences() {
                   "flex items-center gap-2.5 cursor-pointer rounded-lg border px-4 py-2.5 transition-colors",
                   active
                     ? "border-[hsl(234_89%_74%/0.4)] bg-[hsl(234_89%_74%/0.06)]"
-                    : "border-white/[0.07] hover:border-white/[0.15] bg-white/[0.01]",
+                    : "border-border hover:border-overlay-md bg-overlay-xs",
                 )}
               >
                 <RadioGroupItem
@@ -803,11 +805,11 @@ function UserPreferences() {
                   id={`ar-${ar.value}`}
                   className="sr-only"
                 />
-                <span className="text-sm font-semibold text-white/80">
+                <span className="text-sm font-semibold text-dim-1">
                   {ar.label}
                 </span>
                 {ar.desc && (
-                  <span className="text-xs text-white/30">{ar.desc}</span>
+                  <span className="text-xs text-dim-3">{ar.desc}</span>
                 )}
               </label>
             );
@@ -851,9 +853,9 @@ export function AccountInteractive() {
           <div className="hidden md:block px-8 pt-7 pb-0">
             <h2 className="text-base font-semibold text-foreground">{meta.title}</h2>
             {meta.desc && (
-              <p className="text-xs text-white/35 mt-0.5">{meta.desc}</p>
+              <p className="text-xs text-dim-2 mt-0.5">{meta.desc}</p>
             )}
-            <div className="mt-5 h-px bg-white/[0.05]" />
+            <div className="mt-5 h-px bg-border" />
           </div>
         )}
 
