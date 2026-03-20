@@ -115,7 +115,7 @@ Views: ${reel.views} | Engagement: ${reel.engagementRate ?? "unknown"}%
 
 Analyze this viral reel and call the analyze_reel tool with your findings.`;
 
-  const { provider, model } = await getModelInfo("analysis");
+  const { providerId: provider, model } = await getModelInfo("analysis");
   const resolvedModel = await getModel("analysis");
   const startMs = Date.now();
 
@@ -194,7 +194,7 @@ Analyze this viral reel and call the analyze_reel tool with your findings.`;
 
   await trackAiCall({
     userId,
-    provider,
+    providerId: provider,
     model,
     featureType: "reel_analysis",
     inputTokens: usage?.inputTokens ?? 0,

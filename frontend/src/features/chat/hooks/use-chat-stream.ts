@@ -9,6 +9,16 @@ import type { ChatMessage } from "../types/chat.types";
 export const STREAMING_MESSAGE_ID = "streaming-ai-response";
 
 /**
+ * Tools that write content to the DB — triggers the saving indicator in the UI.
+ * Add a tool name here when it produces persisted content.
+ */
+const CONTENT_WRITING_TOOLS = new Set([
+  "save_content",
+  "iterate_content",
+  "edit_content_field",
+]);
+
+/**
  * Strips <tool_call>...</tool_call> XML blocks from streamed text.
  * Some models (e.g. certain OpenRouter models without native function calling)
  * output tool invocations as raw XML text instead of structured tool calls.
@@ -154,14 +164,12 @@ export function useChatStream(sessionId: string) {
               // instead of structured function calls (e.g. certain OpenRouter models)
               const displayText = filterToolCallXml(accumulated);
               setStreamingContent(displayText || null);
-              // Detect text-based tool calls to show the saving indicator
-              if (
-                accumulated.includes("<tool_call>") &&
-                (accumulated.includes("save_content") ||
-                  accumulated.includes("iterate_content") ||
-                  accumulated.includes("edit_content_field"))
-              ) {
-                setIsSavingContent(true);
+              // Detect text-based tool calls (XML fallback path) to show saving indicator
+              if (accumulated.includes("<tool_call>")) {
+                const isWritingTool = [...CONTENT_WRITING_TOOLS].some((name) =>
+                  accumulated.includes(name)
+                );
+                if (isWritingTool) setIsSavingContent(true);
               }
               if (textDeltaCount % 20 === 0) {
                 debugLog.debug("[ChatStream] text-delta progress", {
@@ -173,11 +181,7 @@ export function useChatStream(sessionId: string) {
               debugLog.info("[ChatStream] tool-input-start received", {
                 toolName: chunk.toolName,
               });
-              if (
-                chunk.toolName === "save_content" ||
-                chunk.toolName === "iterate_content" ||
-                chunk.toolName === "edit_content_field"
-              ) {
+              if (CONTENT_WRITING_TOOLS.has(chunk.toolName as string)) {
                 setIsSavingContent(true);
               }
             } else if (chunk.type === "tool-output-available") {

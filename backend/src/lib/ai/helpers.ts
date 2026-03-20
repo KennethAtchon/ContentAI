@@ -1,85 +1,62 @@
 /**
  * AI Client Helper Functions
  *
- * Common utilities and reusable logic for AI operations.
+ * Provider resolution, token extraction, cost tracking, and the main
+ * fallback orchestration. All provider-specific logic lives in providers.ts.
  */
 
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
-import { getModelForProviderAsync, getEnabledProvidersAsync } from "./config";
-import {
-  ANTHROPIC_API_KEY as ENV_ANTHROPIC,
-  OPENAI_API_KEY as ENV_OPENAI,
-  OPEN_ROUTER_KEY as ENV_OPENROUTER,
-} from "../../utils/config/envUtil";
+import { getEnabledProvidersAsync, getModelForProviderAsync } from "./config";
+import { PROVIDER_REGISTRY, type ProviderId, type ModelTier } from "./providers";
 
-// ─── Provider Instances (async, DB-backed) ────────────────────────────────────────
+// ─── Provider Resolution ──────────────────────────────────────────────────────
 
 /**
- * Builds a fresh provider instance using the resolved API key.
- * Keys are read from DB (api_keys category) with ENV fallback on every call,
- * so changes made via the admin panel take effect within one cache TTL (~60s).
+ * Builds a provider instance using the resolved API key from DB (with ENV fallback).
+ * Returns null if no key is configured for this provider.
+ * Changes made in the admin panel take effect within one cache TTL (~60s).
  */
-export async function getProviderInstanceAsync(provider: string) {
+export async function getProviderInstanceAsync(providerId: ProviderId) {
   const { systemConfigService } =
     await import("../../services/config/system-config.service");
 
-  switch (provider) {
-    case "openrouter": {
-      const key = await systemConfigService.getApiKey(
-        "openrouter",
-        ENV_OPENROUTER,
-      );
-      if (!key) return null;
-      return createOpenAI({
-        apiKey: key,
-        baseURL: "https://openrouter.ai/api/v1",
-      });
-    }
-    case "openai": {
-      const key = await systemConfigService.getApiKey("openai", ENV_OPENAI);
-      if (!key) return null;
-      return createOpenAI({ apiKey: key });
-    }
-    case "claude": {
-      const key = await systemConfigService.getApiKey(
-        "anthropic",
-        ENV_ANTHROPIC,
-      );
-      if (!key) return null;
-      return createAnthropic({ apiKey: key });
-    }
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+  const def = PROVIDER_REGISTRY[providerId];
+  const key = await systemConfigService.getApiKey(def.dbApiKeyName, def.envApiKey);
+  if (!key) return null;
+
+  return def.createInstance(key);
 }
 
-/** Sync fallback — uses ENV-loaded keys. Used for streaming until refactored. */
-export function getProviderInstance(provider: string) {
-  const { AI_PROVIDERS } = require("./config") as typeof import("./config");
-  const config = AI_PROVIDERS[provider];
-  if (!config) throw new Error(`Unknown provider: ${provider}`);
+/**
+ * Resolves the first available provider in priority order and returns
+ * the model instance ready to be passed to streamText / generateText.
+ */
+export async function getModelInstance(tier: ModelTier = "generation") {
+  const enabledProviders = await getEnabledProvidersAsync();
 
-  switch (provider) {
-    case "openrouter":
-      if (!config.enabled) return null;
-      return createOpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
-    case "openai":
-      if (!config.enabled) return null;
-      return createOpenAI({ apiKey: config.apiKey });
-    case "claude":
-      if (!config.enabled) return null;
-      return createAnthropic({ apiKey: config.apiKey });
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
+  for (const providerId of enabledProviders) {
+    const instance = await getProviderInstanceAsync(providerId);
+    if (!instance) continue;
+
+    const model = await getModelForProviderAsync(providerId, tier);
+
+    // OpenAI-compatible providers expose a .chat() method; Anthropic does not
+    const resolvedModel =
+      typeof (instance as any).chat === "function"
+        ? (instance as any).chat(model)
+        : instance(model);
+
+    return { resolvedModel, providerId, model };
   }
+
+  throw new Error("No AI providers are available");
 }
 
-// ─── Token Extraction ─────────────────────────────────────────────────────────────
+// ─── Token Extraction ─────────────────────────────────────────────────────────
 
+/** Normalises token usage across provider response shapes (OpenAI vs Anthropic naming). */
 export function extractUsageTokens(usage: unknown): {
   inputTokens: number;
   outputTokens: number;
@@ -87,29 +64,24 @@ export function extractUsageTokens(usage: unknown): {
   if (!usage || typeof usage !== "object") {
     return { inputTokens: 0, outputTokens: 0 };
   }
-
-  const record = usage as Record<string, unknown>;
-  const inputTokens =
-    typeof record.inputTokens === "number"
-      ? record.inputTokens
-      : typeof record.promptTokens === "number"
-        ? record.promptTokens
-        : 0;
-  const outputTokens =
-    typeof record.outputTokens === "number"
-      ? record.outputTokens
-      : typeof record.completionTokens === "number"
-        ? record.completionTokens
-        : 0;
-
-  return { inputTokens, outputTokens };
+  const u = usage as Record<string, unknown>;
+  return {
+    inputTokens:
+      typeof u.inputTokens === "number" ? u.inputTokens
+      : typeof u.promptTokens === "number" ? u.promptTokens
+      : 0,
+    outputTokens:
+      typeof u.outputTokens === "number" ? u.outputTokens
+      : typeof u.completionTokens === "number" ? u.completionTokens
+      : 0,
+  };
 }
 
-// ─── Cost Tracking & Logging ─────────────────────────────────────────────────────
+// ─── Cost Tracking ────────────────────────────────────────────────────────────
 
 export async function trackAiCall(params: {
   userId?: string;
-  provider: "openrouter" | "openai" | "claude";
+  providerId: ProviderId;
   model: string;
   featureType: string;
   inputTokens: number;
@@ -117,32 +89,25 @@ export async function trackAiCall(params: {
   durationMs: number;
   metadata?: Record<string, unknown>;
 }) {
-  await recordAiCost(params).catch(() => {});
+  await recordAiCost({
+    userId: params.userId,
+    provider: params.providerId,
+    model: params.model,
+    featureType: params.featureType,
+    inputTokens: params.inputTokens,
+    outputTokens: params.outputTokens,
+    durationMs: params.durationMs,
+    metadata: params.metadata,
+  }).catch(() => {});
 }
 
-export function logAiSuccess(provider: string, model: string) {
-  debugLog.info(`AI call succeeded via ${provider}`, {
-    service: "ai-client",
-    operation: "callAi",
-    model,
-  });
-}
-
-export function logAiFailure(provider: string, error: unknown) {
-  debugLog.warn(`${provider} call failed — falling back`, {
-    service: "ai-client",
-    operation: "callAi",
-    error: error instanceof Error ? error.message : String(error),
-  });
-}
-
-// ─── Unified AI Call Logic ───────────────────────────────────────────────────────
+// ─── Fallback Orchestration ───────────────────────────────────────────────────
 
 export interface AiCallParams {
   system: string;
   userContent: string;
   maxTokens?: number;
-  modelTier?: "analysis" | "generation";
+  modelTier?: ModelTier;
   featureType?: string;
   userId?: string;
   metadata?: Record<string, unknown>;
@@ -150,25 +115,22 @@ export interface AiCallParams {
 
 export interface AiCallResult {
   text: string;
-  provider: "openrouter" | "openai" | "claude";
+  providerId: ProviderId;
   model: string;
   inputTokens: number;
   outputTokens: number;
 }
 
-export async function attemptAiCall(
-  provider: "openrouter" | "openai" | "claude",
+/** Attempts a single AI call against the given provider. Throws on failure. */
+async function attemptAiCall(
+  providerId: ProviderId,
   params: AiCallParams,
 ): Promise<AiCallResult> {
-  const instance = await getProviderInstanceAsync(provider);
-  if (!instance) {
-    throw new Error(`Provider ${provider} is not available`);
-  }
+  const instance = await getProviderInstanceAsync(providerId);
+  if (!instance) throw new Error(`Provider ${providerId} is not configured`);
 
-  const model = await getModelForProviderAsync(
-    provider,
-    params.modelTier || "analysis",
-  );
+  const tier = params.modelTier ?? "analysis";
+  const model = await getModelForProviderAsync(providerId, tier);
   const startMs = Date.now();
 
   const resolvedModel =
@@ -179,85 +141,52 @@ export async function attemptAiCall(
   const { text, usage } = await generateText({
     model: resolvedModel,
     system: params.system,
-    messages: [
-      {
-        role: "user",
-        content: params.userContent,
-      },
-    ],
-    maxOutputTokens: params.maxTokens || 1024,
+    messages: [{ role: "user", content: params.userContent }],
+    maxOutputTokens: params.maxTokens ?? 1024,
   });
 
   const { inputTokens, outputTokens } = extractUsageTokens(usage);
 
   await trackAiCall({
     userId: params.userId,
-    provider,
+    providerId,
     model,
-    featureType: params.featureType || "unknown",
+    featureType: params.featureType ?? "unknown",
     inputTokens,
     outputTokens,
     durationMs: Date.now() - startMs,
     metadata: params.metadata,
   });
 
-  logAiSuccess(provider, model);
-
-  return {
-    text,
-    provider,
+  debugLog.info(`AI call succeeded via ${providerId}`, {
+    service: "ai-client",
     model,
-    inputTokens,
-    outputTokens,
-  };
+  });
+
+  return { text, providerId, model, inputTokens, outputTokens };
 }
 
-// ─── Provider Fallback Logic ─────────────────────────────────────────────────────
-
+/** Calls AI with automatic provider fallback in priority order. */
 export async function callAiWithFallback(
   params: AiCallParams,
 ): Promise<AiCallResult> {
   const enabledProviders = await getEnabledProvidersAsync();
+  if (enabledProviders.length === 0) throw new Error("No AI providers are enabled");
 
-  if (enabledProviders.length === 0) {
-    throw new Error("No AI providers are enabled");
-  }
+  const errors: string[] = [];
 
-  const errors: unknown[] = [];
-
-  for (const provider of enabledProviders) {
+  for (const providerId of enabledProviders) {
     try {
-      return await attemptAiCall(provider, params);
-    } catch (error) {
-      errors.push(error);
-      logAiFailure(provider, error);
-      continue;
+      return await attemptAiCall(providerId, params);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${providerId}: ${msg}`);
+      debugLog.warn(`${providerId} call failed — trying next provider`, {
+        service: "ai-client",
+        error: msg,
+      });
     }
   }
 
-  throw new Error(
-    `All AI providers failed. Errors: ${errors.map((e) => (e instanceof Error ? e.message : String(e))).join("; ")}`,
-  );
-}
-
-// ─── Streaming Helper ────────────────────────────────────────────────────────────
-
-export async function getModelInstance(
-  modelTier: "analysis" | "generation" = "generation",
-) {
-  const enabledProviders = await getEnabledProvidersAsync();
-
-  for (const provider of enabledProviders) {
-    const instance = await getProviderInstanceAsync(provider);
-    if (instance) {
-      const model = await getModelForProviderAsync(provider, modelTier);
-      return {
-        instance,
-        provider,
-        model,
-      };
-    }
-  }
-
-  throw new Error("No AI providers are available");
+  throw new Error(`All AI providers failed. ${errors.join("; ")}`);
 }

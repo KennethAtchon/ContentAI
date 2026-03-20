@@ -524,15 +524,15 @@ app.post(
         systemPromptLength: systemPrompt.length,
       });
 
-      const modelInfo = await getModelInfo("generation");
+      const { providerId: modelProvider, model: modelName } = await getModelInfo("generation");
       const streamStartMs = Date.now();
 
       debugLog.info("[chat:sendMessage] Starting AI stream", {
         service: "chat-route",
         operation: "sendMessage",
         sessionId,
-        provider: modelInfo.provider,
-        model: modelInfo.model,
+        provider: modelProvider,
+        model: modelName,
         historyMessages: history.length,
         maxOutputTokens: 2048,
       });
@@ -646,8 +646,8 @@ app.post(
 
             await recordAiCost({
               userId: auth.user.id,
-              provider: modelInfo.provider,
-              model: modelInfo.model,
+              provider: modelProvider,
+              model: modelName,
               featureType: "generation",
               inputTokens,
               outputTokens,
@@ -658,8 +658,8 @@ app.post(
               service: "chat-route",
               operation: "onFinish",
               sessionId,
-              provider: modelInfo.provider,
-              model: modelInfo.model,
+              provider: modelProvider,
+              model: modelName,
               inputTokens,
               outputTokens,
               durationMs,

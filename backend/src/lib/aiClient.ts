@@ -1,20 +1,15 @@
-import { streamText } from "ai";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import {
-  callAiWithFallback,
-  getModelInstance,
-  extractUsageTokens,
-  trackAiCall,
-} from "./ai/helpers";
+import { callAiWithFallback, getModelInstance, extractUsageTokens } from "./ai/helpers";
 import { DEFAULT_SETTINGS } from "./ai/config";
+import type { ProviderId, ModelTier } from "./ai/providers";
 
 // ─── Prompt Loader ────────────────────────────────────────────────────────────
 
 const promptCache: Record<string, string> = {};
 
 /**
- * Load a prompt file by name from src/prompts/.
+ * Loads a prompt file by name from src/prompts/.
  * Results are cached in memory after first read.
  */
 export function loadPrompt(name: string): string {
@@ -30,118 +25,54 @@ export function loadPrompt(name: string): string {
   return content;
 }
 
-// ─── Unified Message Params ───────────────────────────────────────────────────
+// ─── Public Call Interface ────────────────────────────────────────────────────
 
 export interface AiMessage {
   system: string;
   userContent: string;
   maxTokens?: number;
-  /** "analysis" = cheaper/fast model, "generation" = smarter model */
-  modelTier?: "analysis" | "generation";
-  /** Feature identifier for cost tracking */
+  /** "analysis" = cheaper/faster model, "generation" = smarter model */
+  modelTier?: ModelTier;
   featureType?: string;
-  /** Optional user ID for cost tracking */
   userId?: string;
-  /** Extra metadata for cost tracking */
   metadata?: Record<string, unknown>;
 }
 
 export interface AiResponse {
   text: string;
-  provider: "openrouter" | "openai" | "claude";
+  providerId: ProviderId;
   model: string;
   inputTokens: number;
   outputTokens: number;
 }
 
-// ─── callAi: Unified Provider Fallback ────────────────────────────────────
-
-/**
- * Calls AI with automatic provider fallback and error handling.
- * Uses configuration-based provider priority: OpenRouter → OpenAI → Claude.
- */
+/** Calls AI with automatic provider fallback. */
 export async function callAi(params: AiMessage): Promise<AiResponse> {
-  const {
-    system,
-    userContent,
-    maxTokens = DEFAULT_SETTINGS.maxTokens,
-    modelTier = DEFAULT_SETTINGS.modelTier,
-    featureType = DEFAULT_SETTINGS.featureType,
-    userId,
-    metadata,
-  } = params;
-
   return callAiWithFallback({
-    system,
-    userContent,
-    maxTokens,
-    modelTier,
-    featureType,
-    userId,
-    metadata,
+    system: params.system,
+    userContent: params.userContent,
+    maxTokens: params.maxTokens ?? DEFAULT_SETTINGS.maxTokens,
+    modelTier: params.modelTier ?? DEFAULT_SETTINGS.modelTier,
+    featureType: params.featureType ?? DEFAULT_SETTINGS.featureType,
+    userId: params.userId,
+    metadata: params.metadata,
   });
 }
 
-// ─── Helper Functions for Streaming ──────────────────────────────────────────
+// ─── Streaming Helpers ────────────────────────────────────────────────────────
 
-export async function getModel(
-  modelTier: "analysis" | "generation" = "generation",
-) {
-  const { instance, provider, model } = await getModelInstance(modelTier);
-  // Use Chat Completions API for openai/openrouter to avoid Responses API format mismatch
-  if (provider !== "claude" && typeof (instance as any).chat === "function") {
-    return (instance as any).chat(model);
-  }
-  return instance(model);
+/** Returns a resolved model instance ready to be passed to streamText(). */
+export async function getModel(tier: ModelTier = "generation") {
+  const { resolvedModel } = await getModelInstance(tier);
+  return resolvedModel;
 }
 
+/** Returns provider and model name for the resolved tier — used for cost tracking. */
 export async function getModelInfo(
-  modelTier: "analysis" | "generation" = "generation",
-): Promise<{ provider: "openrouter" | "openai" | "claude"; model: string }> {
-  const { provider, model } = await getModelInstance(modelTier);
-  return { provider, model };
+  tier: ModelTier = "generation",
+): Promise<{ providerId: ProviderId; model: string }> {
+  const { providerId, model } = await getModelInstance(tier);
+  return { providerId, model };
 }
 
-export async function streamAi(params: AiMessage): Promise<any> {
-  const {
-    system,
-    userContent,
-    maxTokens = DEFAULT_SETTINGS.maxTokens,
-    modelTier = "generation",
-    featureType = DEFAULT_SETTINGS.featureType,
-    userId,
-    metadata,
-  } = params;
-
-  const { instance, provider, model } = await getModelInstance(modelTier);
-  const startMs = Date.now();
-  const resolvedModel =
-    provider !== "claude" && typeof (instance as any).chat === "function"
-      ? (instance as any).chat(model)
-      : instance(model);
-
-  return streamText({
-    model: resolvedModel,
-    system,
-    messages: [
-      {
-        role: "user",
-        content: userContent,
-      },
-    ],
-    maxOutputTokens: maxTokens,
-    onFinish: async ({ usage }) => {
-      const { inputTokens, outputTokens } = extractUsageTokens(usage);
-      await trackAiCall({
-        userId,
-        provider,
-        model,
-        featureType,
-        inputTokens,
-        outputTokens,
-        durationMs: Date.now() - startMs,
-        metadata,
-      });
-    },
-  });
-}
+export { extractUsageTokens };

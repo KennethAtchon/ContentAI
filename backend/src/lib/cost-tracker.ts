@@ -3,9 +3,11 @@ import { aiCostLedger } from "../infrastructure/database/drizzle/schema";
 import { calculateAiCost } from "../constants/ai-pricing.constants";
 import { debugLog } from "../utils/debug/debug";
 
+import type { ProviderId } from "./ai/providers";
+
 export interface AiCostParams {
   userId?: string;
-  provider: "openrouter" | "openai" | "claude";
+  provider: ProviderId;
   model: string;
   featureType: string;
   inputTokens: number;

@@ -1,87 +1,17 @@
 /**
- * AI Provider Configuration
+ * AI Runtime Configuration
  *
- * Centralized configuration for all AI providers and models.
- * Easy to edit and maintain without touching the core logic.
+ * Manages provider priority and default call settings.
+ * Provider-specific config (models, keys, SDK factories) lives in providers.ts.
  */
 
 import {
-  ANTHROPIC_API_KEY,
-  OPENAI_API_KEY,
-  OPEN_ROUTER_KEY,
-  OPEN_ROUTER_MODEL,
-  ANALYSIS_MODEL,
-  GENERATION_MODEL,
-  OPENAI_MODEL,
-} from "../../utils/config/envUtil";
+  PROVIDER_REGISTRY,
+  DEFAULT_PROVIDER_PRIORITY,
+  type ProviderId,
+} from "./providers";
 
-// ─── Provider Configuration ────────────────────────────────────────────────────────
-
-export interface ProviderConfig {
-  name: string;
-  apiKey?: string;
-  baseURL?: string;
-  compatibility?: string;
-  enabled: boolean;
-}
-
-export interface ModelConfig {
-  analysis: string;
-  generation: string;
-}
-
-export const AI_PROVIDERS: Record<string, ProviderConfig> = {
-  openrouter: {
-    name: "OpenRouter",
-    apiKey: OPEN_ROUTER_KEY,
-    baseURL: "https://openrouter.ai/api/v1",
-    compatibility: "compatible",
-    enabled: !!OPEN_ROUTER_KEY,
-  },
-  openai: {
-    name: "OpenAI",
-    apiKey: OPENAI_API_KEY,
-    enabled: !!OPENAI_API_KEY,
-  },
-  claude: {
-    name: "Claude (Anthropic)",
-    apiKey: ANTHROPIC_API_KEY,
-    enabled: !!ANTHROPIC_API_KEY,
-  },
-};
-
-export const AI_MODELS: Record<string, ModelConfig> = {
-  openrouter: {
-    analysis: OPEN_ROUTER_MODEL,
-    generation: OPEN_ROUTER_MODEL,
-  },
-  openai: {
-    analysis: OPENAI_MODEL,
-    generation: OPENAI_MODEL,
-  },
-  claude: {
-    analysis: ANALYSIS_MODEL,
-    generation: GENERATION_MODEL,
-  },
-};
-
-// ─── Provider Priority ─────────────────────────────────────────────────────────────
-//
-// Change the order here to set which AI provider is tried first.
-// Providers are tried in this order, falling back to the next if one fails.
-// Only enabled providers (those with API keys) will be used.
-//
-// Current order: OpenRouter → OpenAI → Claude
-// To prioritize Claude first: ["claude", "openrouter", "openai"]
-// To prioritize OpenAI first: ["openai", "openrouter", "claude"]
-
-export const PROVIDER_PRIORITY: string[] = [
-  "openai", // 1st priority - OpenAI (reliable, native tool calling)
-  "claude", // 2nd priority - Claude/Anthropic (strong reasoning)
-  "openrouter", // 3rd priority - OpenRouter (good model variety)
-];
-
-// ─── Default Settings ─────────────────────────────────────────────────────────────
+// ─── Default Call Settings ────────────────────────────────────────────────────
 
 export const DEFAULT_SETTINGS = {
   maxTokens: 1024,
@@ -89,137 +19,59 @@ export const DEFAULT_SETTINGS = {
   featureType: "unknown",
 };
 
-// ─── Helper Functions ─────────────────────────────────────────────────────────────
+// ─── Provider Priority — DB-backed, falls back to static default ─────────────
 
-export function getEnabledProviders(): ("openrouter" | "openai" | "claude")[] {
-  return PROVIDER_PRIORITY.filter(
-    (provider) => AI_PROVIDERS[provider]?.enabled,
-  ) as ("openrouter" | "openai" | "claude")[];
-}
-
-export function getModelForProvider(
-  provider: string,
-  modelTier: "analysis" | "generation",
-): string {
-  const models = AI_MODELS[provider];
-  if (!models) {
-    throw new Error(`No models configured for provider: ${provider}`);
-  }
-  return models[modelTier];
-}
-
-export function getProviderInfo(provider: string): ProviderConfig {
-  const config = AI_PROVIDERS[provider];
-  if (!config) {
-    throw new Error(`Unknown provider: ${provider}`);
-  }
-  return config;
-}
-
-// ─── Priority Management ────────────────────────────────────────────────────────────
-
-export function setProviderPriority(priority: string[]): void {
-  // Validate all providers exist
-  const invalidProviders = priority.filter((p) => !AI_PROVIDERS[p]);
-  if (invalidProviders.length > 0) {
-    throw new Error(`Unknown providers: ${invalidProviders.join(", ")}`);
-  }
-
-  // Update the priority array
-  PROVIDER_PRIORITY.length = 0; // Clear existing
-  PROVIDER_PRIORITY.push(...priority);
-}
-
-export function getProviderPriority(): string[] {
-  return [...PROVIDER_PRIORITY]; // Return copy to prevent external modification
-}
-
-// ─── Async DB-backed variants ──────────────────────────────────────────────────
-
-/** Returns provider priority from DB config, falls back to static array. */
-export async function getProviderPriorityAsync(): Promise<string[]> {
+/** Returns the live provider priority from DB config, falls back to the static default. */
+export async function getProviderPriorityAsync(): Promise<ProviderId[]> {
   try {
     const { systemConfigService } =
       await import("../../services/config/system-config.service");
-    return await systemConfigService.getJson<string[]>(
+    return await systemConfigService.getJson<ProviderId[]>(
       "ai",
       "provider_priority",
-      [...PROVIDER_PRIORITY],
+      [...DEFAULT_PROVIDER_PRIORITY],
     );
   } catch {
-    return [...PROVIDER_PRIORITY];
+    return [...DEFAULT_PROVIDER_PRIORITY];
   }
 }
 
-/** Returns model string for a provider+tier from DB config, falls back to static map. */
+/**
+ * Returns providers that are currently enabled (have a configured API key),
+ * in priority order, using DB config with ENV fallback.
+ */
+export async function getEnabledProvidersAsync(): Promise<ProviderId[]> {
+  const { systemConfigService } =
+    await import("../../services/config/system-config.service");
+
+  const priority = await getProviderPriorityAsync();
+
+  const enabled = await Promise.all(
+    priority.map((id) => {
+      const def = PROVIDER_REGISTRY[id];
+      return systemConfigService.hasApiKey(def.dbApiKeyName, def.envApiKey);
+    }),
+  );
+
+  return priority.filter((_, i) => enabled[i]);
+}
+
+/**
+ * Returns the model string for a given provider and tier,
+ * checking DB overrides first then falling back to the registry default.
+ */
 export async function getModelForProviderAsync(
-  provider: string,
-  modelTier: "analysis" | "generation",
+  providerId: ProviderId,
+  tier: "analysis" | "generation",
 ): Promise<string> {
   try {
     const { systemConfigService } =
       await import("../../services/config/system-config.service");
-    const keyMap: Record<string, Record<string, string>> = {
-      claude: {
-        analysis: "claude_analysis_model",
-        generation: "claude_generation_model",
-      },
-      openai: { analysis: "openai_model", generation: "openai_model" },
-      openrouter: {
-        analysis: "openrouter_model",
-        generation: "openrouter_model",
-      },
-    };
-    const dbKey = keyMap[provider]?.[modelTier];
-    if (dbKey) {
-      const dbVal = await systemConfigService.get("ai", dbKey);
-      if (dbVal) return dbVal;
-    }
+    const dbKey = PROVIDER_REGISTRY[providerId].dbModelKeys[tier];
+    const dbVal = await systemConfigService.get("ai", dbKey);
+    if (dbVal) return dbVal;
   } catch {
-    // fall through
+    // fall through to default
   }
-  return getModelForProvider(provider, modelTier);
-}
-
-/** Returns enabled providers using DB-backed priority list and DB-backed API keys. */
-export async function getEnabledProvidersAsync(): Promise<
-  ("openrouter" | "openai" | "claude")[]
-> {
-  const priority = await getProviderPriorityAsync();
-  const { systemConfigService } =
-    await import("../../services/config/system-config.service");
-
-  const keyMap: Record<string, { dbKey: string; envKey: string }> = {
-    claude: { dbKey: "anthropic", envKey: ANTHROPIC_API_KEY },
-    openai: { dbKey: "openai", envKey: OPENAI_API_KEY },
-    openrouter: { dbKey: "openrouter", envKey: OPEN_ROUTER_KEY },
-  };
-
-  const results = await Promise.all(
-    priority.map(async (p) => {
-      const mapping = keyMap[p];
-      if (!mapping) return false;
-      return systemConfigService.hasApiKey(mapping.dbKey, mapping.envKey);
-    }),
-  );
-
-  return priority.filter((_, i) => results[i]) as (
-    | "openrouter"
-    | "openai"
-    | "claude"
-  )[];
-}
-
-// Quick presets for common configurations
-export const PRESETS = {
-  openrouterFirst: ["openrouter", "openai", "claude"],
-  openaiFirst: ["openai", "openrouter", "claude"],
-  claudeFirst: ["claude", "openrouter", "openai"],
-  openaiOnly: ["openai"],
-  claudeOnly: ["claude"],
-  openrouterOnly: ["openrouter"],
-} as const;
-
-export function applyPreset(preset: keyof typeof PRESETS): void {
-  setProviderPriority([...PRESETS[preset]]);
+  return PROVIDER_REGISTRY[providerId].defaultModels[tier];
 }
