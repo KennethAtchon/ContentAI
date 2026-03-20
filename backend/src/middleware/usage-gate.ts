@@ -3,7 +3,7 @@ import type { HonoEnv } from "./protection";
 import { db } from "../services/db/db";
 import { featureUsages } from "../infrastructure/database/drizzle/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
-import { getFeatureLimitsForStripeRole } from "../constants/subscription.constants";
+import { getFeatureLimitsForStripeRoleAsync } from "../constants/subscription.constants";
 import { debugLog } from "../utils/debug/debug";
 
 type GatedFeature = "generation" | "analysis";
@@ -24,7 +24,7 @@ export function usageGate(feature: GatedFeature): MiddlewareHandler<HonoEnv> {
       const userId = auth.user.id;
       const stripeRole = auth.firebaseUser.stripeRole;
 
-      const limits = getFeatureLimitsForStripeRole(stripeRole);
+      const limits = await getFeatureLimitsForStripeRoleAsync(stripeRole);
       const limit =
         feature === "generation" ? limits.generation : limits.analysis;
 

@@ -134,6 +134,53 @@ export function getProviderPriority(): string[] {
   return [...PROVIDER_PRIORITY]; // Return copy to prevent external modification
 }
 
+// ─── Async DB-backed variants ──────────────────────────────────────────────────
+
+/** Returns provider priority from DB config, falls back to static array. */
+export async function getProviderPriorityAsync(): Promise<string[]> {
+  try {
+    const { systemConfigService } = await import("../../services/config/system-config.service");
+    return await systemConfigService.getJson<string[]>(
+      "ai",
+      "provider_priority",
+      [...PROVIDER_PRIORITY],
+    );
+  } catch {
+    return [...PROVIDER_PRIORITY];
+  }
+}
+
+/** Returns model string for a provider+tier from DB config, falls back to static map. */
+export async function getModelForProviderAsync(
+  provider: string,
+  modelTier: "analysis" | "generation",
+): Promise<string> {
+  try {
+    const { systemConfigService } = await import("../../services/config/system-config.service");
+    const keyMap: Record<string, Record<string, string>> = {
+      claude: { analysis: "claude_analysis_model", generation: "claude_generation_model" },
+      openai: { analysis: "openai_model", generation: "openai_model" },
+      openrouter: { analysis: "openrouter_model", generation: "openrouter_model" },
+    };
+    const dbKey = keyMap[provider]?.[modelTier];
+    if (dbKey) {
+      const dbVal = await systemConfigService.get("ai", dbKey);
+      if (dbVal) return dbVal;
+    }
+  } catch {
+    // fall through
+  }
+  return getModelForProvider(provider, modelTier);
+}
+
+/** Returns enabled providers using DB-backed priority list. */
+export async function getEnabledProvidersAsync(): Promise<("openrouter" | "openai" | "claude")[]> {
+  const priority = await getProviderPriorityAsync();
+  return priority.filter(
+    (p) => AI_PROVIDERS[p]?.enabled,
+  ) as ("openrouter" | "openai" | "claude")[];
+}
+
 // Quick presets for common configurations
 export const PRESETS = {
   openrouterFirst: ["openrouter", "openai", "claude"],

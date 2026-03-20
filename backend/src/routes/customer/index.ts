@@ -439,4 +439,8 @@ customer.post(
   },
 );
 
+// Mount user settings sub-router
+import userSettingsRouter from "./settings";
+customer.route("/settings", userSettingsRouter);
+
 export default customer;

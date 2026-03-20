@@ -458,13 +458,72 @@ export const exportJobs = pgTable(
   ],
 );
 
+// ─── System Config ─────────────────────────────────────────────────────────────
+
+export const systemConfig = pgTable(
+  "system_config",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    category: text("category").notNull(),
+    key: text("key").notNull(),
+    value: text("value"),
+    encryptedValue: text("encrypted_value"),
+    valueType: text("value_type").notNull().default("string"),
+    isSecret: boolean("is_secret").notNull().default(false),
+    isActive: boolean("is_active").notNull().default(true),
+    description: text("description"),
+    updatedBy: text("updated_by"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("system_config_category_key_idx").on(t.category, t.key),
+    index("system_config_category_idx").on(t.category),
+  ],
+);
+
+// ─── User Settings ──────────────────────────────────────────────────────────
+
+export const userSettings = pgTable(
+  "user_settings",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    preferredAiProvider: text("preferred_ai_provider"),
+    preferredVideoProvider: text("preferred_video_provider"),
+    preferredVoiceId: text("preferred_voice_id"),
+    preferredTtsSpeed: text("preferred_tts_speed"),
+    preferredAspectRatio: text("preferred_aspect_ratio"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [uniqueIndex("user_settings_user_id_idx").on(t.userId)],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   orders: many(orders),
   featureUsages: many(featureUsages),
   projects: many(projects),
   chatSessions: many(chatSessions),
+  settings: one(userSettings, {
+    fields: [users.id],
+    references: [userSettings.userId],
+  }),
 }));
 
 export const ordersRelations = relations(orders, ({ one }) => ({
@@ -520,6 +579,13 @@ export const exportJobsRelations = relations(exportJobs, ({ one }) => ({
   project: one(editProjects, {
     fields: [exportJobs.editProjectId],
     references: [editProjects.id],
+  }),
+}));
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [userSettings.userId],
+    references: [users.id],
   }),
 }));
 
@@ -594,3 +660,7 @@ export type EditProject = typeof editProjects.$inferSelect;
 export type NewEditProject = typeof editProjects.$inferInsert;
 export type ExportJob = typeof exportJobs.$inferSelect;
 export type NewExportJob = typeof exportJobs.$inferInsert;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type NewSystemConfig = typeof systemConfig.$inferInsert;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type NewUserSettings = typeof userSettings.$inferInsert;

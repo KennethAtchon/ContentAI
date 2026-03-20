@@ -23,6 +23,7 @@ import {
   HelpCircle,
   Database,
   Music,
+  Settings2,
 } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
@@ -75,6 +76,11 @@ function useAdminNavItems(): AdminNavItem[] {
       href: "/admin/contactmessages",
       icon: Mail,
       label: t("admin_nav_messages"),
+    },
+    {
+      href: "/admin/system-config",
+      icon: Settings2,
+      label: t("admin_nav_system_config"),
     },
     {
       href: "/admin/developer",

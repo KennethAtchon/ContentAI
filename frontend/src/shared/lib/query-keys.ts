@@ -14,6 +14,7 @@ export const queryKeys = {
     currentSubscription: () => ["api", "subscriptions", "current"] as const,
     portalLink: () => ["api", "subscriptions", "portal-link"] as const,
     usageStats: () => ["api", "account", "usage"] as const,
+    userSettings: () => ["api", "customer", "settings"] as const,
     admin: {
       orders: (params?: { page?: number; limit?: number }) =>
         ["api", "admin", "orders", params] as const,
@@ -41,6 +42,8 @@ export const queryKeys = {
       ) => ["api", "admin", "niche-reels", nicheId, params] as const,
       nicheJobs: (nicheId: number) =>
         ["api", "admin", "niche-jobs", nicheId] as const,
+      systemConfig: (category?: string) =>
+        ["api", "admin", "system-config", category] as const,
     },
     // ── Studio / Reels ──────────────────────────────────────────────
     reelNiches: () => ["api", "reels", "niches"] as const,

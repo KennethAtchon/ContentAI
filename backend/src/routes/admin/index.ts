@@ -32,6 +32,7 @@ import { getTierConfig } from "../../constants/subscription.constants";
 import { FirebaseUserSync } from "../../services/firebase/sync";
 import nichesRouter from "./niches";
 import musicAdminRouter from "./music";
+import configAdminRouter from "./config";
 
 const admin = new Hono<HonoEnv>();
 
@@ -40,6 +41,9 @@ admin.route("/", nichesRouter);
 
 // Mount music admin sub-router
 admin.route("/", musicAdminRouter);
+
+// Mount system config admin routes
+admin.route("/", configAdminRouter);
 
 // ─── GET /api/admin/verify ────────────────────────────────────────────────────
 

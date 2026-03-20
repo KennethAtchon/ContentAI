@@ -35,6 +35,7 @@ import musicRoutes from "./routes/music/index";
 import editorRoutes from "./routes/editor/index";
 import videoRoutes from "./routes/video/index";
 import { startDailyScan } from "./jobs/daily-scan";
+import { seedSystemConfig } from "./services/config/config-seed";
 
 const app = new Hono();
 
@@ -125,6 +126,15 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   service: "index",
   operation: "server-start",
   port,
+});
+
+// Seed system config defaults (idempotent — ON CONFLICT DO NOTHING)
+seedSystemConfig().catch((err) => {
+  debugLog.error("Config seed failed (non-fatal)", {
+    service: "index",
+    operation: "seed",
+    error: String(err),
+  });
 });
 
 // Start cron jobs if enabled
