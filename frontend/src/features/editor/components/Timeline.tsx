@@ -34,7 +34,8 @@ export function Timeline({
   onToggleLock,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const totalWidthPx = Math.max((durationMs / 1000) * zoom + 200, 800);
+  // Always extend well past content so the timeline feels infinite
+  const totalWidthPx = Math.max((durationMs / 1000) * zoom + 4000, 4000);
   const contentHeight = RULER_HEIGHT + tracks.length * TRACK_HEIGHT;
 
   return (
@@ -72,14 +73,13 @@ export function Timeline({
       >
         <div
           style={{
-            minWidth: totalWidthPx,
-            width: "100%",
+            width: totalWidthPx,
             height: contentHeight,
             position: "relative",
           }}
         >
           {/* Ruler */}
-          <TimelineRuler durationMs={durationMs} zoom={zoom} onSeek={onSeek} />
+          <TimelineRuler totalWidthPx={totalWidthPx} zoom={zoom} onSeek={onSeek} />
 
           {/* Track lanes */}
           {tracks.map((track, trackIndex) => (
@@ -89,7 +89,7 @@ export function Timeline({
               style={{
                 top: RULER_HEIGHT + trackIndex * TRACK_HEIGHT,
                 left: 0,
-                width: "100%",
+                width: totalWidthPx,
                 height: TRACK_HEIGHT,
               }}
             >
