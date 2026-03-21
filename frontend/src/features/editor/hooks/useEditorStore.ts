@@ -7,6 +7,7 @@ import type {
   EditProject,
   ExportJobStatus,
 } from "../types/editor";
+import { splitClip } from "../utils/split-clip";
 
 const DEFAULT_TRACKS: Track[] = [
   {
@@ -48,7 +49,7 @@ export const INITIAL_EDITOR_STATE: EditorState = {
   title: "Untitled Edit",
   durationMs: 0,
   fps: 30,
-  resolution: "1080p",
+  resolution: "1080x1920",
   currentTimeMs: 0,
   isPlaying: false,
   zoom: 40, // px/s
@@ -114,6 +115,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "SET_TITLE":
       return { ...state, title: action.title };
 
+    case "SET_RESOLUTION":
+      return { ...state, resolution: action.resolution };
+
     case "SET_CURRENT_TIME":
       return { ...state, currentTimeMs: Math.max(0, action.ms) };
 
@@ -163,6 +167,72 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         tracks: newTracks,
         selectedClipId:
           state.selectedClipId === action.clipId ? null : state.selectedClipId,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "SPLIT_CLIP": {
+      let newTracks = state.tracks;
+      for (const track of state.tracks) {
+        const idx = track.clips.findIndex((c) => c.id === action.clipId);
+        if (idx === -1) continue;
+        const result = splitClip(track.clips[idx], action.atMs);
+        if (!result) break; // atMs not inside clip — no-op
+        const newClips = [
+          ...track.clips.slice(0, idx),
+          result[0],
+          result[1],
+          ...track.clips.slice(idx + 1),
+        ];
+        newTracks = state.tracks.map((t) =>
+          t.id === track.id ? { ...t, clips: newClips } : t
+        );
+        break;
+      }
+      if (newTracks === state.tracks) return state;
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "DUPLICATE_CLIP": {
+      let newTracks = state.tracks;
+      for (const track of state.tracks) {
+        const clip = track.clips.find((c) => c.id === action.clipId);
+        if (!clip) continue;
+        const copy: Clip = {
+          ...clip,
+          id: crypto.randomUUID(),
+          startMs: clip.startMs + clip.durationMs,
+        };
+        newTracks = state.tracks.map((t) =>
+          t.id === track.id ? { ...t, clips: [...t.clips, copy] } : t
+        );
+        break;
+      }
+      if (newTracks === state.tracks) return state;
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "MOVE_CLIP": {
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, {
+        startMs: action.startMs,
+      });
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
         durationMs: computeDuration(newTracks),
       };
     }
@@ -229,6 +299,10 @@ export function useEditorReducer() {
     (title: string) => dispatch({ type: "SET_TITLE", title }),
     []
   );
+  const setResolution = useCallback(
+    (resolution: string) => dispatch({ type: "SET_RESOLUTION", resolution }),
+    []
+  );
   const setCurrentTime = useCallback(
     (ms: number) => dispatch({ type: "SET_CURRENT_TIME", ms }),
     []
@@ -259,6 +333,20 @@ export function useEditorReducer() {
     (clipId: string) => dispatch({ type: "REMOVE_CLIP", clipId }),
     []
   );
+  const splitClipAction = useCallback(
+    (clipId: string, atMs: number) =>
+      dispatch({ type: "SPLIT_CLIP", clipId, atMs }),
+    []
+  );
+  const duplicateClip = useCallback(
+    (clipId: string) => dispatch({ type: "DUPLICATE_CLIP", clipId }),
+    []
+  );
+  const moveClip = useCallback(
+    (clipId: string, startMs: number) =>
+      dispatch({ type: "MOVE_CLIP", clipId, startMs }),
+    []
+  );
   const toggleTrackMute = useCallback(
     (trackId: string) => dispatch({ type: "TOGGLE_TRACK_MUTE", trackId }),
     []
@@ -284,6 +372,7 @@ export function useEditorReducer() {
     dispatch,
     loadProject,
     setTitle,
+    setResolution,
     setCurrentTime,
     setPlaying,
     setZoom,
@@ -291,6 +380,9 @@ export function useEditorReducer() {
     addClip,
     updateClip,
     removeClip,
+    splitClip: splitClipAction,
+    duplicateClip,
+    moveClip,
     toggleTrackMute,
     toggleTrackLock,
     undo,

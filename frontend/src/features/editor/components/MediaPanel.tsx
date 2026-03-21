@@ -63,7 +63,6 @@ function makeClip(overrides: Partial<Clip>): Clip {
   return {
     id: crypto.randomUUID(),
     assetId: null,
-    r2Url: "",
     label: "Clip",
     startMs: 0,
     durationMs: 5000,
@@ -122,9 +121,7 @@ export function MediaPanel({
 
   const addVideoClip = (asset: Asset) => {
     const clip = makeClip({
-      id: crypto.randomUUID(),
       assetId: asset.id,
-      r2Url: asset.mediaUrl ?? asset.r2Url ?? "",
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: currentTimeMs,
       durationMs: asset.durationMs ?? 5000,
@@ -135,9 +132,7 @@ export function MediaPanel({
   const addAudioClip = (asset: Asset) => {
     const trackId = asset.type === "music" ? "music" : "audio";
     const clip = makeClip({
-      id: crypto.randomUUID(),
       assetId: asset.id,
-      r2Url: asset.audioUrl ?? asset.r2Url ?? "",
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: currentTimeMs,
       durationMs: asset.durationMs ?? 30000,
@@ -151,9 +146,7 @@ export function MediaPanel({
 
   const addTextClip = (preset: (typeof TEXT_PRESETS)[0]) => {
     const clip = makeClip({
-      id: crypto.randomUUID(),
       assetId: null,
-      r2Url: "",
       label: preset.label,
       startMs: currentTimeMs,
       durationMs: 3000,
@@ -228,9 +221,22 @@ export function MediaPanel({
                 .map((asset) => (
                   <button
                     key={asset.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/x-contentai-asset",
+                        JSON.stringify({
+                          assetId: asset.id,
+                          type: asset.type,
+                          durationMs: asset.durationMs,
+                          label: String(asset.metadata?.originalName ?? asset.type),
+                        }),
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
                     onClick={() => addVideoClip(asset)}
                     className="group relative aspect-video rounded overflow-hidden bg-overlay-sm border border-overlay-sm hover:border-studio-accent/50 transition-colors cursor-pointer"
-                    title="Click to add to timeline"
+                    title="Click or drag to timeline"
                   >
                     {/* Film sprocket decoration */}
                     <div className="absolute left-0 top-0 h-full w-1.5 bg-repeating-sprocket opacity-60 z-10" />
@@ -282,7 +288,6 @@ export function MediaPanel({
                             id: item.id,
                             type: "video_clip",
                             mediaUrl: item.mediaUrl,
-                            r2Url: item.r2Url ?? undefined,
                             durationMs: item.durationMs,
                             metadata: { originalName: item.name },
                           })
@@ -350,6 +355,19 @@ export function MediaPanel({
                 .map((asset) => (
                   <button
                     key={asset.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/x-contentai-asset",
+                        JSON.stringify({
+                          assetId: asset.id,
+                          type: asset.type,
+                          durationMs: asset.durationMs,
+                          label: String(asset.metadata?.originalName ?? asset.type),
+                        }),
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
                     onClick={() => addAudioClip(asset)}
                     className="flex items-center gap-2 px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors text-left"
                   >

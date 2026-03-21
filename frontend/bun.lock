@@ -78,6 +78,7 @@
         "tailwindcss-animate": "^1.0.7",
         "use-sync-external-store": "^1.6.0",
         "vaul": "^1.1.2",
+        "wavesurfer.js": "^7.12.4",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -1923,6 +1924,8 @@
     "vite-plugin-sitemap": ["vite-plugin-sitemap@0.5.3", "", {}, "sha512-DSqZLAkXaNgoJLcaxjJHrfWjIIiZRSuZIseE7ihJYUvPFG4OsvXn/+Oujmzbs+6tV7yu1dn7uhWXpV7QuiH/1g=="],
 
     "void-elements": ["void-elements@3.1.0", "", {}, "sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w=="],
+
+    "wavesurfer.js": ["wavesurfer.js@7.12.4", "", {}, "sha512-b/+XnWfJejNdvNUmtm4M5QzQepHhUbTo+62wYybwdV1B/Sn9vHhgb1xckRm0rGY2ZefJwLkE7lYcKnLfIia4cQ=="],
 
     "web-streams-polyfill": ["web-streams-polyfill@3.3.3", "", {}, "sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw=="],
 

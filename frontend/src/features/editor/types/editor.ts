@@ -7,8 +7,7 @@ export interface TextStyle {
 
 export interface Clip {
   id: string;
-  assetId: string | null; // reelAssets.id — null for text clips
-  r2Url: string;
+  assetId: string | null; // assets.id — null for text clips
   label: string;
   startMs: number; // position on timeline
   durationMs: number;
@@ -86,6 +85,7 @@ export interface EditorState {
 export type EditorAction =
   | { type: "LOAD_PROJECT"; project: EditProject }
   | { type: "SET_TITLE"; title: string }
+  | { type: "SET_RESOLUTION"; resolution: string }
   | { type: "SET_CURRENT_TIME"; ms: number }
   | { type: "SET_PLAYING"; playing: boolean }
   | { type: "SET_ZOOM"; zoom: number }
@@ -93,6 +93,9 @@ export type EditorAction =
   | { type: "ADD_CLIP"; trackId: string; clip: Clip }
   | { type: "UPDATE_CLIP"; clipId: string; patch: Partial<Clip> }
   | { type: "REMOVE_CLIP"; clipId: string }
+  | { type: "SPLIT_CLIP"; clipId: string; atMs: number }
+  | { type: "DUPLICATE_CLIP"; clipId: string }
+  | { type: "MOVE_CLIP"; clipId: string; startMs: number }
   | { type: "TOGGLE_TRACK_MUTE"; trackId: string }
   | { type: "TOGGLE_TRACK_LOCK"; trackId: string }
   | { type: "UNDO" }

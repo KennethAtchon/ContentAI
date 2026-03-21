@@ -1,5 +1,5 @@
 {
-  "id": "1cc8365e-87b0-486b-89d7-bb8c76b2ed39",
+  "id": "9ae9a3f2-65f6-4bf3-a582-614546c6d209",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -702,7 +702,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'1080p'"
+          "default": "'1080x1920'"
         },
         "created_at": {
           "name": "created_at",

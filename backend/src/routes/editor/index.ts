@@ -24,29 +24,53 @@ const app = new Hono<HonoEnv>();
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
+const resolutionEnum = z.enum([
+  "1080x1920",
+  "720x1280",
+  "2160x3840",
+  "1920x1080",
+  "1080x1080",
+]);
+
 const clipDataSchema = z.object({
   id: z.string().min(1),
-  assetId: z.string().nullable().optional(),
-  r2Key: z.string().optional(),
+  assetId: z.string().nullable(),
+  label: z.string().max(200),
   startMs: z.number().int().min(0),
   durationMs: z.number().int().min(0),
-  trimStartMs: z.number().int().min(0).optional(),
-  trimEndMs: z.number().int().min(0).optional(),
-  speed: z.number().min(0.1).max(10).optional(),
-  volume: z.number().min(0).max(2).optional(),
-  muted: z.boolean().optional(),
+  trimStartMs: z.number().int().min(0),
+  trimEndMs: z.number().int().min(0),
+  speed: z.number().min(0.1).max(10),
+  // Look
+  opacity: z.number().min(0).max(1),
+  warmth: z.number().min(-1).max(1),
+  contrast: z.number().min(-1).max(1),
+  // Transform
+  positionX: z.number(),
+  positionY: z.number(),
+  scale: z.number().min(0.01).max(10),
+  rotation: z.number().min(-360).max(360),
+  // Sound
+  volume: z.number().min(0).max(2),
+  muted: z.boolean(),
+  // Text-only
   textContent: z.string().max(2000).optional(),
-  positionX: z.number().optional(),
-  positionY: z.number().optional(),
-  scale: z.number().optional(),
+  textStyle: z
+    .object({
+      fontSize: z.number(),
+      fontWeight: z.enum(["normal", "bold"]),
+      color: z.string(),
+      align: z.enum(["left", "center", "right"]),
+    })
+    .optional(),
 });
 
 const trackDataSchema = z.object({
-  id: z.string().min(1).optional(),
+  id: z.string().min(1),
   type: z.enum(["video", "audio", "music", "text"]),
+  name: z.string().min(1),
   muted: z.boolean(),
-  locked: z.boolean().optional(),
-  name: z.string().optional(),
+  locked: z.boolean(),
   clips: z.array(clipDataSchema),
 });
 
@@ -55,7 +79,7 @@ const patchProjectSchema = z.object({
   tracks: z.array(trackDataSchema).optional(),
   durationMs: z.number().int().min(0).optional(),
   fps: z.number().int().min(1).max(120).optional(),
-  resolution: z.enum(["720p", "1080p", "4k"]).optional(),
+  resolution: resolutionEnum.optional(),
 });
 
 const createProjectSchema = z.object({
@@ -64,7 +88,7 @@ const createProjectSchema = z.object({
 });
 
 const exportSchema = z.object({
-  resolution: z.enum(["720p", "1080p", "4k"]).optional(),
+  resolution: resolutionEnum.optional(),
   fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).optional(),
 });
 
@@ -134,7 +158,7 @@ app.post(
           tracks: [],
           durationMs: 0,
           fps: 30,
-          resolution: "1080p",
+          resolution: "1080x1920",
         })
         .returning();
 
@@ -492,13 +516,15 @@ async function runExportJob(
 
     const tracks = (project.tracks as TrackData[]) ?? [];
     const fps = opts.fps ?? project.fps ?? 30;
-    const resolution = opts.resolution ?? project.resolution ?? "1080p";
-    const [outW, outH] =
-      resolution === "4k"
-        ? [3840, 2160]
-        : resolution === "720p"
-          ? [1280, 720]
-          : [1920, 1080];
+    const resolution = opts.resolution ?? project.resolution ?? "1080x1920";
+    const resolutionMap: Record<string, [number, number]> = {
+      "1080x1920": [1080, 1920],
+      "720x1280": [720, 1280],
+      "2160x3840": [2160, 3840],
+      "1920x1080": [1920, 1080],
+      "1080x1080": [1080, 1080],
+    };
+    const [outW, outH] = resolutionMap[resolution] ?? [1080, 1920];
 
     // Collect all asset IDs to resolve R2 keys
     const assetIds = tracks

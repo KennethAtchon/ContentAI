@@ -1,6 +1,13 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { TRACK_COLORS } from "../types/editor";
-import type { Clip, TrackType } from "../types/editor";
+import type { Clip, Track, TrackType } from "../types/editor";
+import { useWaveform } from "../hooks/use-waveform";
+import { useAssetUrlMap } from "../contexts/asset-url-map-context";
+import {
+  collectSnapTargets,
+  findNearestSnap,
+  SNAP_THRESHOLD_PX,
+} from "../utils/snap-targets";
 
 interface Props {
   clip: Clip;
@@ -8,6 +15,8 @@ interface Props {
   zoom: number; // px/s
   isSelected: boolean;
   isLocked: boolean;
+  tracks: Track[];
+  playheadMs: number;
   onSelect: () => void;
   onMove: (newStartMs: number) => void;
   onTrimStart: (newTrimStartMs: number, newDurationMs: number) => void;
@@ -20,6 +29,8 @@ export function TimelineClip({
   zoom,
   isSelected,
   isLocked,
+  tracks,
+  playheadMs,
   onSelect,
   onMove,
   onTrimStart,
@@ -28,28 +39,51 @@ export function TimelineClip({
   const left = (clip.startMs / 1000) * zoom;
   const width = Math.max((clip.durationMs / 1000) * zoom, 4);
   const color = TRACK_COLORS[trackType];
-  const isDragging = useRef(false);
-  const dragStartX = useRef(0);
-  const dragStartMs = useRef(0);
-  const [, forceUpdate] = useState(0);
+  const clipRef = useRef<HTMLDivElement>(null);
+  const dragCurrentMs = useRef(0);
+  const assetUrlMap = useAssetUrlMap();
+  const isAudioTrack = trackType === "audio" || trackType === "music";
+  const waveformContainerRef = useRef<HTMLDivElement>(null);
+
+  useWaveform({
+    audioUrl: isAudioTrack
+      ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
+      : undefined,
+    container: waveformContainerRef.current,
+    waveColor: color,
+    height: 32,
+  });
 
   const handleDragStart = (e: React.MouseEvent) => {
     if (isLocked) return;
     e.stopPropagation();
-    isDragging.current = true;
-    dragStartX.current = e.clientX;
-    dragStartMs.current = clip.startMs;
+    const dragStartX = e.clientX;
+    const dragStartMs = clip.startMs;
+    dragCurrentMs.current = dragStartMs;
+
+    const snapTargets = collectSnapTargets(tracks, clip.id, playheadMs);
 
     const onMove_ = (ev: MouseEvent) => {
-      const dx = ev.clientX - dragStartX.current;
+      const dx = ev.clientX - dragStartX;
       const deltaMs = (dx / zoom) * 1000;
-      const newStart = Math.max(0, dragStartMs.current + deltaMs);
-      onMove(newStart);
+      let newStart = Math.max(0, dragStartMs + deltaMs);
+
+      if (!ev.shiftKey) {
+        const thresholdMs = (SNAP_THRESHOLD_PX / zoom) * 1000;
+        const snapped = findNearestSnap(newStart, snapTargets, thresholdMs);
+        if (snapped !== null) newStart = snapped;
+      }
+
+      dragCurrentMs.current = newStart;
+      // Update DOM directly — no dispatch during drag
+      if (clipRef.current) {
+        clipRef.current.style.left = `${(newStart / 1000) * zoom}px`;
+      }
     };
 
     const onUp = () => {
-      isDragging.current = false;
-      forceUpdate((n) => n + 1);
+      // Commit position to store on mouseUp only
+      onMove(dragCurrentMs.current);
       window.removeEventListener("mousemove", onMove_);
       window.removeEventListener("mouseup", onUp);
     };
@@ -107,10 +141,9 @@ export function TimelineClip({
     window.addEventListener("mouseup", onUp);
   };
 
-  const isAudioTrack = trackType === "audio" || trackType === "music";
-
   return (
     <div
+      ref={clipRef}
       className={[
         "absolute top-[7px] rounded select-none cursor-grab active:cursor-grabbing",
         "overflow-hidden flex flex-col justify-between",
@@ -131,36 +164,30 @@ export function TimelineClip({
         onSelect();
       }}
     >
-      {/* Waveform overlay */}
-      <svg
-        className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
-        preserveAspectRatio="none"
-      >
-        {isAudioTrack
-          ? // Vertical bar waveform
-            Array.from({ length: Math.ceil(width / 4) }).map((_, i) => (
-              <rect
-                key={i}
-                x={i * 4 + 1}
-                y={10 + Math.sin(i * 0.8) * 8}
-                width={2}
-                height={Math.abs(Math.sin(i * 1.3) * 20) + 2}
-                fill={color}
-              />
-            ))
-          : // Horizontal dashed line
-            Array.from({ length: 4 }).map((_, i) => (
-              <line
-                key={i}
-                x1={0}
-                y1={8 + i * 9}
-                x2={width}
-                y2={8 + i * 9}
-                stroke={color}
-                strokeDasharray="4 4"
-              />
-            ))}
-      </svg>
+      {/* Waveform overlay (audio tracks) or dashed pattern (video/text) */}
+      {isAudioTrack ? (
+        <div
+          ref={waveformContainerRef}
+          className="absolute inset-0 opacity-30 pointer-events-none"
+        />
+      ) : (
+        <svg
+          className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"
+          preserveAspectRatio="none"
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <line
+              key={i}
+              x1={0}
+              y1={8 + i * 9}
+              x2={width}
+              y2={8 + i * 9}
+              stroke={color}
+              strokeDasharray="4 4"
+            />
+          ))}
+        </svg>
+      )}
 
       {/* Clip name */}
       <span

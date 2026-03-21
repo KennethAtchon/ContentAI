@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { Play } from "lucide-react";
 import type { Track } from "../types/editor";
+import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 
 interface Props {
   tracks: Track[];
@@ -44,12 +45,14 @@ export function PreviewArea({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const assetUrlMap = useAssetUrlMap();
+
+  const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
 
   // Video track clips that are currently active at currentTimeMs
   const videoTrack = tracks.find((t) => t.type === "video");
   const activeVideoClips = (videoTrack?.clips ?? []).filter(
     (c) =>
-      c.r2Url &&
       currentTimeMs >= c.startMs &&
       currentTimeMs < c.startMs + c.durationMs
   );
@@ -90,10 +93,10 @@ export function PreviewArea({
         Preview
       </p>
 
-      {/* 16:9 preview screen */}
+      {/* Preview screen — aspect ratio derived from resolution string */}
       <div
         className="relative w-full"
-        style={{ aspectRatio: "16/9", maxHeight: "calc(100% - 40px)" }}
+        style={{ aspectRatio: `${resW}/${resH}`, maxHeight: "calc(100% - 40px)" }}
       >
         {/* Film-strip edges */}
         <div className="absolute left-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
@@ -112,7 +115,7 @@ export function PreviewArea({
                 if (el) videoRefs.current.set(clip.id, el);
                 else videoRefs.current.delete(clip.id);
               }}
-              src={clip.r2Url}
+              src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
               className="absolute inset-0 w-full h-full object-contain"
               style={{
                 opacity: activeVideoClips.some((c) => c.id === clip.id)
@@ -160,12 +163,7 @@ export function PreviewArea({
           {position} / {total}
         </span>
         <span className="text-xs text-dim-3">
-          {resolution === "4k"
-            ? "3840 × 2160"
-            : resolution === "720p"
-              ? "1280 × 720"
-              : "1920 × 1080"}{" "}
-          · {fps} fps
+          {resW} × {resH} · {fps} fps
         </span>
       </div>
     </div>

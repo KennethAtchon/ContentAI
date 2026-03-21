@@ -492,7 +492,7 @@ export const editProjects = pgTable(
     tracks: jsonb("tracks").notNull().default([]),
     durationMs: integer("duration_ms").notNull().default(0),
     fps: integer("fps").notNull().default(30),
-    resolution: text("resolution").notNull().default("1080p"),
+    resolution: text("resolution").notNull().default("1080x1920"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()

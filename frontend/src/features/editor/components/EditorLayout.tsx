@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Undo2,
@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { useEditorReducer } from "../hooks/useEditorStore";
 import { usePlayback } from "../hooks/usePlayback";
 import { Timeline } from "./Timeline";
@@ -25,11 +27,22 @@ import { PreviewArea } from "./PreviewArea";
 import { Inspector } from "./Inspector";
 import { MediaPanel } from "./MediaPanel";
 import { ExportModal } from "./ExportModal";
+import { ResolutionPicker } from "./ResolutionPicker";
+import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
 import type { EditProject, Clip } from "../types/editor";
 
 interface Props {
   project: EditProject;
   onBack: () => void;
+}
+
+interface Asset {
+  id: string;
+  type: string;
+  r2Url?: string;
+  mediaUrl?: string;
+  audioUrl?: string;
+  durationMs: number | null;
 }
 
 function formatHHMMSSFF(ms: number, fps: number): string {
@@ -52,6 +65,7 @@ export function EditorLayout({ project, onBack }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
+  const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,7 +75,31 @@ export function EditorLayout({ project, onBack }: Props) {
     store.loadProject(project);
   }, [project.id]);
 
-  // Auto-save mutation
+  // ── Asset URL Map ───────────────────────────────────────────────────────────
+  // Fetch project assets to build assetId → URL map for PreviewArea and waveforms.
+  // Uses the same query key as MediaPanel — TanStack Query serves from cache.
+  const { data: assetsData } = useQuery({
+    queryKey: queryKeys.api.contentAssets(project.generatedContentId ?? 0),
+    queryFn: () =>
+      fetcher(`/api/assets?generatedContentId=${project.generatedContentId}`),
+    enabled: !!project.generatedContentId,
+  });
+  const { data: libraryData } = useMediaLibrary();
+
+  const assetUrlMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of assetsData?.assets ?? []) {
+      const url = a.mediaUrl ?? a.audioUrl ?? a.r2Url ?? "";
+      if (url) map.set(a.id, url);
+    }
+    for (const item of libraryData?.items ?? []) {
+      const url = (item as any).mediaUrl ?? (item as any).r2Url ?? "";
+      if (url) map.set(item.id, url);
+    }
+    return map;
+  }, [assetsData, libraryData]);
+
+  // ── Auto-save ───────────────────────────────────────────────────────────────
   const { mutate: save } = useMutation({
     mutationFn: (patch: object) =>
       authenticatedFetchJson(`/api/editor/${project.id}`, {
@@ -75,26 +113,24 @@ export function EditorLayout({ project, onBack }: Props) {
     },
   });
 
-  // Schedule debounced save whenever tracks change
   const scheduleSave = useCallback(
     (patch: object) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => save(patch), 2000);
     },
-    [save]
+    [save],
   );
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, []);
 
-  // Playback engine
+  // ── Playback ────────────────────────────────────────────────────────────────
   const onTick = useCallback(
     (ms: number) => store.setCurrentTime(ms),
-    [store.setCurrentTime]
+    [store.setCurrentTime],
   );
   const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
   usePlayback({
@@ -105,33 +141,26 @@ export function EditorLayout({ project, onBack }: Props) {
     onEnd,
   });
 
-  // Track + clip actions — trigger auto-save
+  // ── Clip actions (trigger auto-save via tracks effect) ──────────────────────
   const handleAddClip = useCallback(
-    (trackId: string, clip: Clip) => {
-      store.addClip(trackId, clip);
-      // Save is triggered after state update via effect below
-    },
-    [store.addClip]
+    (trackId: string, clip: Clip) => store.addClip(trackId, clip),
+    [store.addClip],
   );
 
   const handleUpdateClip = useCallback(
-    (clipId: string, patch: Partial<Clip>) => {
-      store.updateClip(clipId, patch);
-    },
-    [store.updateClip]
+    (clipId: string, patch: Partial<Clip>) => store.updateClip(clipId, patch),
+    [store.updateClip],
   );
 
   const handleRemoveClip = useCallback(
-    (clipId: string) => {
-      store.removeClip(clipId);
-    },
-    [store.removeClip]
+    (clipId: string) => store.removeClip(clipId),
+    [store.removeClip],
   );
 
-  // Save whenever tracks change
+  // Save whenever tracks or title change
   const tracksRef = useRef(store.state.tracks);
   useEffect(() => {
-    if (tracksRef.current === store.state.tracks) return; // no-op on first mount
+    if (tracksRef.current === store.state.tracks) return;
     tracksRef.current = store.state.tracks;
     scheduleSave({
       tracks: store.state.tracks,
@@ -140,7 +169,15 @@ export function EditorLayout({ project, onBack }: Props) {
     });
   }, [store.state.tracks, store.state.title]);
 
-  // Keyboard shortcuts
+  // Save when resolution changes
+  const resolutionRef = useRef(store.state.resolution);
+  useEffect(() => {
+    if (resolutionRef.current === store.state.resolution) return;
+    resolutionRef.current = store.state.resolution;
+    scheduleSave({ resolution: store.state.resolution });
+  }, [store.state.resolution]);
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -153,13 +190,13 @@ export function EditorLayout({ project, onBack }: Props) {
       if (e.code === "ArrowLeft") {
         e.preventDefault();
         store.setCurrentTime(
-          store.state.currentTimeMs - 1000 / store.state.fps
+          store.state.currentTimeMs - 1000 / store.state.fps,
         );
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
         store.setCurrentTime(
-          store.state.currentTimeMs + 1000 / store.state.fps
+          store.state.currentTimeMs + 1000 / store.state.fps,
         );
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
@@ -179,6 +216,20 @@ export function EditorLayout({ project, onBack }: Props) {
           handleRemoveClip(store.state.selectedClipId);
         }
       }
+      // S — split at playhead
+      if (e.code === "KeyS" && !e.metaKey && !e.ctrlKey) {
+        if (store.state.selectedClipId) {
+          e.preventDefault();
+          store.splitClip(store.state.selectedClipId, store.state.currentTimeMs);
+        }
+      }
+      // Cmd/Ctrl+D — duplicate
+      if ((e.metaKey || e.ctrlKey) && e.key === "d") {
+        if (store.state.selectedClipId) {
+          e.preventDefault();
+          store.duplicateClip(store.state.selectedClipId);
+        }
+      }
     };
 
     window.addEventListener("keydown", handler);
@@ -188,7 +239,6 @@ export function EditorLayout({ project, onBack }: Props) {
   const { state } = store;
   const timecode = formatHHMMSSFF(state.currentTimeMs, state.fps);
 
-  // Transport helpers
   const jumpToStart = () => {
     store.setCurrentTime(0);
     store.setPlaying(false);
@@ -200,196 +250,187 @@ export function EditorLayout({ project, onBack }: Props) {
   const rewind = () =>
     store.setCurrentTime(Math.max(0, state.currentTimeMs - 5000));
   const fastForward = () =>
-    store.setCurrentTime(
-      Math.min(state.durationMs, state.currentTimeMs + 5000)
-    );
+    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
 
-  // Zoom
   const zoomIn = () => store.setZoom(state.zoom * 1.25);
   const zoomOut = () => store.setZoom(state.zoom / 1.25);
   const zoomFit = () => {
-    const containerW = 800; // approximate
+    const containerW = 800;
     const newZoom =
       state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
     store.setZoom(newZoom);
   };
 
   return (
-    <div
-      className="flex flex-col bg-studio-bg overflow-hidden"
-      style={{ height: "100%", minWidth: 1280 }}
-    >
-      {/* ── Toolbar (54px) ─────────────────────────────────────────────── */}
+    <AssetUrlMapContext.Provider value={assetUrlMap}>
       <div
-        className="flex items-center gap-0 px-4 border-b border-overlay-sm bg-studio-surface shrink-0"
-        style={{ height: 54 }}
+        className="flex flex-col bg-studio-bg overflow-hidden"
+        style={{ height: "100%", minWidth: 1280 }}
       >
-        {/* Back */}
-        <button
-          onClick={onBack}
-          title="Back"
-          className="transport-btn mr-2"
+        {/* ── Toolbar (54px) ──────────────────────────────────────────────── */}
+        <div
+          className="flex items-center gap-0 px-4 border-b border-overlay-sm bg-studio-surface shrink-0"
+          style={{ height: 54 }}
         >
-          <ArrowLeft size={15} />
-        </button>
-
-        {/* Project title */}
-        <input
-          type="text"
-          value={state.title}
-          onChange={(e) => store.setTitle(e.target.value)}
-          className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] outline-none focus:border-studio-accent transition-colors px-1"
-        />
-
-        <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-
-        {/* Undo / Redo */}
-        <button
-          onClick={store.undo}
-          disabled={state.past.length === 0}
-          title="Undo (Cmd+Z)"
-          className="transport-btn disabled:opacity-30"
-        >
-          <Undo2 size={14} />
-        </button>
-        <button
-          onClick={store.redo}
-          disabled={state.future.length === 0}
-          title="Redo (Cmd+Shift+Z)"
-          className="transport-btn disabled:opacity-30"
-        >
-          <Redo2 size={14} />
-        </button>
-
-        <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-
-        {/* Transport controls */}
-        <div className="flex items-center gap-0.5">
-          <button onClick={jumpToStart} title="Jump to start" className="transport-btn">
-            <SkipBack size={14} />
+          <button onClick={onBack} title="Back" className="transport-btn mr-2">
+            <ArrowLeft size={15} />
           </button>
-          <button onClick={rewind} title="Rewind 5s" className="transport-btn">
-            <Rewind size={14} />
+
+          <input
+            type="text"
+            value={state.title}
+            onChange={(e) => store.setTitle(e.target.value)}
+            className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] outline-none focus:border-studio-accent transition-colors px-1"
+          />
+
+          <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
+
+          <button
+            onClick={store.undo}
+            disabled={state.past.length === 0}
+            title="Undo (Cmd+Z)"
+            className="transport-btn disabled:opacity-30"
+          >
+            <Undo2 size={14} />
           </button>
           <button
-            onClick={() => store.setPlaying(!state.isPlaying)}
-            title={state.isPlaying ? "Pause (Space)" : "Play (Space)"}
-            className="transport-btn text-studio-accent"
+            onClick={store.redo}
+            disabled={state.future.length === 0}
+            title="Redo (Cmd+Shift+Z)"
+            className="transport-btn disabled:opacity-30"
           >
-            {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
+            <Redo2 size={14} />
           </button>
-          <button onClick={fastForward} title="Forward 5s" className="transport-btn">
-            <FastForward size={14} />
-          </button>
-          <button onClick={jumpToEnd} title="Jump to end" className="transport-btn">
-            <SkipForward size={14} />
-          </button>
-        </div>
 
-        {/* Timecode */}
-        <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-        <span className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums">
-          {timecode}
-        </span>
+          <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
 
-        {/* Zoom */}
-        <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-        <button onClick={zoomOut} title="Zoom out" className="transport-btn">
-          <ZoomOut size={14} />
-        </button>
-        <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
-          {Math.round(state.zoom)}px/s
-        </span>
-        <button onClick={zoomIn} title="Zoom in" className="transport-btn">
-          <ZoomIn size={14} />
-        </button>
-        <button
-          onClick={zoomFit}
-          className={cn(
-            "text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5",
-            "h-7 rounded transition-colors hover:bg-overlay-sm"
-          )}
-        >
-          Fit
-        </button>
+          <div className="flex items-center gap-0.5">
+            <button onClick={jumpToStart} title="Jump to start" className="transport-btn">
+              <SkipBack size={14} />
+            </button>
+            <button onClick={rewind} title="Rewind 5s" className="transport-btn">
+              <Rewind size={14} />
+            </button>
+            <button
+              onClick={() => store.setPlaying(!state.isPlaying)}
+              title={state.isPlaying ? "Pause (Space)" : "Play (Space)"}
+              className="transport-btn text-studio-accent"
+            >
+              {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
+            </button>
+            <button onClick={fastForward} title="Forward 5s" className="transport-btn">
+              <FastForward size={14} />
+            </button>
+            <button onClick={jumpToEnd} title="Jump to end" className="transport-btn">
+              <SkipForward size={14} />
+            </button>
+          </div>
 
-        <div className="flex-1" />
-
-        {/* Export button */}
-        <button
-          onClick={() => setShowExport(true)}
-          className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity"
-        >
-          <Upload size={14} />
-          {t("editor_export_button")}
-        </button>
-      </div>
-
-      {/* ── Workspace (flex:1) ──────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
-        {/* Media Panel (220px) */}
-        <MediaPanel
-          generatedContentId={project.generatedContentId}
-          currentTimeMs={state.currentTimeMs}
-          onAddClip={handleAddClip}
-        />
-
-        {/* Preview Area (flex:1) */}
-        <PreviewArea
-          tracks={state.tracks}
-          currentTimeMs={state.currentTimeMs}
-          isPlaying={state.isPlaying}
-          durationMs={state.durationMs}
-          fps={state.fps}
-          resolution={state.resolution}
-        />
-
-        {/* Inspector (244px) */}
-        <Inspector
-          tracks={state.tracks}
-          selectedClipId={state.selectedClipId}
-          onUpdateClip={handleUpdateClip}
-        />
-      </div>
-
-      {/* ── Timeline (296px) ────────────────────────────────────────────── */}
-      <div style={{ height: 296 }} className="flex flex-col shrink-0">
-        {/* Timeline toolbar */}
-        <div
-          className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0"
-          style={{ height: 32 }}
-        >
-          <span className="text-xs font-bold text-dim-1">Timeline</span>
-          <span className="text-xs italic text-dim-3">
-            {Math.round(state.zoom)} px/s ·{" "}
-            {(state.durationMs / 60000).toFixed(1)} min
+          <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
+          <span className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums">
+            {timecode}
           </span>
+
+          <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
+          <button onClick={zoomOut} title="Zoom out" className="transport-btn">
+            <ZoomOut size={14} />
+          </button>
+          <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
+            {Math.round(state.zoom)}px/s
+          </span>
+          <button onClick={zoomIn} title="Zoom in" className="transport-btn">
+            <ZoomIn size={14} />
+          </button>
+          <button
+            onClick={zoomFit}
+            className={cn(
+              "text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5",
+              "h-7 rounded transition-colors hover:bg-overlay-sm",
+            )}
+          >
+            Fit
+          </button>
+
+          <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
+
+          {/* Resolution picker */}
+          <ResolutionPicker
+            resolution={state.resolution}
+            onChange={store.setResolution}
+          />
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setShowExport(true)}
+            className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            <Upload size={14} />
+            {t("editor_export_button")}
+          </button>
         </div>
 
-        {/* Track area */}
-        <div className="flex-1 overflow-hidden">
-          <Timeline
-            tracks={state.tracks}
-            durationMs={state.durationMs}
+        {/* ── Workspace (flex:1) ─────────────────────────────────────────── */}
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          <MediaPanel
+            generatedContentId={project.generatedContentId}
             currentTimeMs={state.currentTimeMs}
-            zoom={state.zoom}
+            onAddClip={handleAddClip}
+          />
+
+          <PreviewArea
+            tracks={state.tracks}
+            currentTimeMs={state.currentTimeMs}
+            isPlaying={state.isPlaying}
+            durationMs={state.durationMs}
+            fps={state.fps}
+            resolution={state.resolution}
+          />
+
+          <Inspector
+            tracks={state.tracks}
             selectedClipId={state.selectedClipId}
-            onSeek={store.setCurrentTime}
-            onSelectClip={store.selectClip}
             onUpdateClip={handleUpdateClip}
-            onToggleMute={store.toggleTrackMute}
-            onToggleLock={store.toggleTrackLock}
           />
         </div>
-      </div>
 
-      {/* Export modal */}
-      {showExport && state.editProjectId && (
-        <ExportModal
-          projectId={state.editProjectId}
-          onClose={() => setShowExport(false)}
-        />
-      )}
-    </div>
+        {/* ── Timeline (296px) ──────────────────────────────────────────── */}
+        <div style={{ height: 296 }} className="flex flex-col shrink-0">
+          <div
+            className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0"
+            style={{ height: 32 }}
+          >
+            <span className="text-xs font-bold text-dim-1">Timeline</span>
+            <span className="text-xs italic text-dim-3">
+              {Math.round(state.zoom)} px/s ·{" "}
+              {(state.durationMs / 60000).toFixed(1)} min
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            <Timeline
+              tracks={state.tracks}
+              durationMs={state.durationMs}
+              currentTimeMs={state.currentTimeMs}
+              zoom={state.zoom}
+              selectedClipId={state.selectedClipId}
+              onSeek={store.setCurrentTime}
+              onSelectClip={store.selectClip}
+              onUpdateClip={handleUpdateClip}
+              onAddClip={handleAddClip}
+              onToggleMute={store.toggleTrackMute}
+              onToggleLock={store.toggleTrackLock}
+            />
+          </div>
+        </div>
+
+        {showExport && state.editProjectId && (
+          <ExportModal
+            projectId={state.editProjectId}
+            onClose={() => setShowExport(false)}
+          />
+        )}
+      </div>
+    </AssetUrlMapContext.Provider>
   );
 }

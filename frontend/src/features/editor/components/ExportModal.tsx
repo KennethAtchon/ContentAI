@@ -17,9 +17,7 @@ export function ExportModal({ projectId, onClose }: Props) {
   const { t } = useTranslation();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const fetcher = useQueryFetcher<ExportJobStatus>();
-  const [resolution, setResolution] = useState<"720p" | "1080p" | "4k">(
-    "1080p"
-  );
+  const [resolution, setResolution] = useState("1080x1920");
   const [fps, setFps] = useState<24 | 30 | 60>(30);
   const [jobId, setJobId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -93,18 +91,24 @@ export function ExportModal({ projectId, onClose }: Props) {
                   Resolution
                 </label>
                 <div className="flex gap-2">
-                  {(["720p", "1080p", "4k"] as const).map((r) => (
+                  {(
+                    [
+                      { value: "720x1280",  label: "720p Portrait" },
+                      { value: "1080x1920", label: "1080p Portrait" },
+                      { value: "1920x1080", label: "1080p Landscape" },
+                    ] as const
+                  ).map((r) => (
                     <button
-                      key={r}
-                      onClick={() => setResolution(r)}
+                      key={r.value}
+                      onClick={() => setResolution(r.value)}
                       className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
-                        resolution === r
+                        resolution === r.value
                           ? "border-studio-accent bg-studio-accent/10 text-studio-accent"
                           : "border-overlay-md bg-overlay-sm text-dim-2 hover:text-dim-1"
                       )}
                     >
-                      {r}
+                      {r.label}
                     </button>
                   ))}
                 </div>

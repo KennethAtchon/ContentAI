@@ -62,17 +62,34 @@ check_env() {
     return 0
 }
 
+# Postgres + Redis only (local dev with bun dev)
+start_infra_only() {
+    docker compose up -d postgres redis
+    log_info "Postgres: localhost:5432, Redis: localhost:6379"
+}
+
 # Main commands
 case "${1:-help}" in
     "start")
-        log_info "Starting Docker services..."
         check_docker
-        if check_env; then
-            docker compose up -d --build
-            log_info "Services started. Frontend: http://localhost:3000, Backend: http://localhost:3001"
+        if [ "${2:-}" = "--infra" ] || [ "${2:-}" = "infra" ]; then
+            log_info "Starting infrastructure (Postgres, Redis) only..."
+            start_infra_only
         else
-            log_error "Please configure .env file first, then run: ./docker-scripts.sh start"
+            log_info "Starting Docker services..."
+            if check_env; then
+                docker compose up -d --build
+                log_info "Services started. Frontend: http://localhost:3000, Backend: http://localhost:3001"
+            else
+                log_error "Please configure .env file first, then run: ./docker-scripts.sh start"
+            fi
         fi
+        ;;
+
+    "infra")
+        log_info "Starting infrastructure (Postgres, Redis) only..."
+        check_docker
+        start_infra_only
         ;;
     
     "stop")
@@ -180,6 +197,8 @@ case "${1:-help}" in
         echo ""
         echo "Commands:"
         echo "  start          - Start all development services"
+        echo "  start --infra  - Start Postgres and Redis only (same as: infra)"
+        echo "  infra          - Start Postgres and Redis only"
         echo "  stop           - Stop all services"
         echo "  restart        - Restart all services"
         echo "  logs           - Show logs for all services"
@@ -195,6 +214,7 @@ case "${1:-help}" in
         echo ""
         echo "Examples:"
         echo "  $0 start                    # Start development environment"
+        echo "  $0 infra                    # DB + Redis only (run app with bun dev)"
         echo "  $0 migrate                  # Run database migrations"
         echo "  $0 production               # Start production environment"
         ;;

@@ -72,7 +72,7 @@ CREATE TABLE "edit_project" (
 	"tracks" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"duration_ms" integer DEFAULT 0 NOT NULL,
 	"fps" integer DEFAULT 30 NOT NULL,
-	"resolution" text DEFAULT '1080p' NOT NULL,
+	"resolution" text DEFAULT '1080x1920' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
