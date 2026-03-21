@@ -331,7 +331,7 @@ import { sanitizeObject, sanitizeString } from '@/shared/utils/security/pii-sani
 const userData = {
   email: "user@example.com",
   phone: "555-123-4567",
-  password: "secret123",
+  password: "not-a-real-password-example",
   creditCard: "4532-1234-5678-9010"
 };
 

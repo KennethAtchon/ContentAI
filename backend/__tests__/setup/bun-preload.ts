@@ -152,7 +152,7 @@ process.env.FIREBASE_PRIVATE_KEY =
   "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7test\n-----END PRIVATE KEY-----\n";
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ||
-  "postgresql://postgres:password@localhost:5432/template_test?schema=public";
+  "postgresql://postgres:postgres@localhost:5432/template_test?schema=public";
 process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "a".repeat(32);
 process.env.CSRF_SECRET = process.env.CSRF_SECRET || "0".repeat(64);

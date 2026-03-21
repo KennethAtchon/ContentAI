@@ -455,7 +455,7 @@ The logger automatically sanitizes PII from logs (except error logs for debuggin
 ```typescript
 debugLog.info('User logged in', {
   email: 'user@example.com',
-  password: 'secret123',
+  password: 'not-a-real-password-example',
   creditCard: '4532-1234-5678-9010'
 });
 

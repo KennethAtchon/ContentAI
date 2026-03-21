@@ -55,7 +55,7 @@ Minimum required for local development:
 ```
 APP_ENV=development
 NODE_ENV=development
-DATABASE_URL=postgresql://postgres:password@localhost:5432/reelstudio
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/reelstudio
 REDIS_URL=redis://localhost:6379
 NEXT_PUBLIC_FIREBASE_API_KEY=...  (from your Firebase project settings)
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
