@@ -1352,5 +1352,15 @@
   "theme_dark": "Dark",
   "theme_light": "Light",
   "theme_system": "System",
-  "theme_toggle": "Toggle theme"
+  "theme_toggle": "Toggle theme",
+  "media_library_title": "Media Library",
+  "media_library_upload": "Upload",
+  "media_library_upload_video": "Upload Video",
+  "media_library_empty": "No media yet. Upload a video to get started.",
+  "media_library_delete": "Delete",
+  "media_library_uploading": "Uploading…",
+  "media_library_tab": "Library",
+  "chat_attach_video": "Attach video",
+  "editor_media_library_section": "My Library",
+  "editor_media_upload": "Upload to library"
 }

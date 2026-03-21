@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, Video, Loader2 } from "lucide-react";
 import { ReelRefCard } from "./ReelRefCard";
+import { VideoRefCard } from "./VideoRefCard";
 import { ReelPickerModal } from "./ReelPickerModal";
+import { useUploadMedia } from "@/features/media/hooks/use-media-library";
 import type { Reel } from "@/features/reels/types/reel.types";
+import type { MediaItem } from "@/features/media/types/media.types";
 
 interface SlashCommand {
   trigger: string;
@@ -42,7 +45,11 @@ const SLASH_COMMANDS: SlashCommand[] = [
 ];
 
 interface ChatInputProps {
-  onSendMessage: (content: string, reelRefs?: number[]) => void;
+  onSendMessage: (
+    content: string,
+    reelRefs?: number[],
+    mediaRefs?: string[]
+  ) => void;
   disabled?: boolean;
   activeReelRefs?: Reel[];
 }
@@ -55,11 +62,14 @@ export function ChatInput({
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [attachedReels, setAttachedReels] = useState<Reel[]>([]);
+  const [attachedMedia, setAttachedMedia] = useState<MediaItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
   const [slashMenuIndex, setSlashMenuIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const uploadMedia = useUploadMedia();
 
   // Initialize with active reel ref if provided
   useEffect(() => {
@@ -94,7 +104,8 @@ export function ChatInput({
     setSlashMenuOpen(false);
     onSendMessage(
       prompt,
-      attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined
+      attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined,
+      attachedMedia.length > 0 ? attachedMedia.map((m) => m.id) : undefined
     );
   }
 
@@ -103,11 +114,29 @@ export function ChatInput({
     if (message.trim() && !disabled) {
       const reelRefs =
         attachedReels.length > 0 ? attachedReels.map((r) => r.id) : undefined;
-      onSendMessage(message.trim(), reelRefs);
+      const mediaRefs =
+        attachedMedia.length > 0 ? attachedMedia.map((m) => m.id) : undefined;
+      onSendMessage(message.trim(), reelRefs, mediaRefs);
       setMessage("");
+      setAttachedMedia([]);
       setSlashMenuOpen(false);
     }
   };
+
+  async function handleVideoFileChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+    try {
+      const result = await uploadMedia.mutateAsync({ file });
+      setAttachedMedia((prev) => [...prev, result.item]);
+    } catch {
+      // error handled by mutation state
+    }
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (slashMenuOpen && filteredCommands.length > 0) {
@@ -157,13 +186,22 @@ export function ChatInput({
 
   return (
     <div className="space-y-2">
-      {attachedReels.length > 0 && (
+      {(attachedReels.length > 0 || attachedMedia.length > 0) && (
         <div className="flex flex-wrap gap-1.5 px-1">
           {attachedReels.map((reel) => (
             <ReelRefCard
               key={reel.id}
               reelId={reel.id}
               onRemove={handleRemoveReel}
+            />
+          ))}
+          {attachedMedia.map((item) => (
+            <VideoRefCard
+              key={item.id}
+              item={item}
+              onRemove={(id) =>
+                setAttachedMedia((prev) => prev.filter((m) => m.id !== id))
+              }
             />
           ))}
         </div>
@@ -213,6 +251,29 @@ export function ChatInput({
             className="shrink-0 mb-0.5 text-muted-foreground hover:text-foreground"
           >
             <Paperclip className="w-4 h-4" />
+          </Button>
+
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime"
+            className="hidden"
+            onChange={handleVideoFileChange}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => videoInputRef.current?.click()}
+            disabled={disabled || uploadMedia.isPending}
+            aria-label={t("chat_attach_video")}
+            className="shrink-0 mb-0.5 text-muted-foreground hover:text-foreground"
+          >
+            {uploadMedia.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Video className="w-4 h-4" />
+            )}
           </Button>
 
           <Textarea

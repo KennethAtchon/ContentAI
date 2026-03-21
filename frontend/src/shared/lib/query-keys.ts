@@ -105,6 +105,8 @@ export const queryKeys = {
     editorExportStatus: (projectId: string) =>
       ["api", "editor", "export-status", projectId] as const,
 
+    mediaLibrary: () => ["api", "media", "library"] as const,
+
     /** Paginated list key prefix; full key includes url or resource id */
     paginated: (resource: string, params: Record<string, unknown>) =>
       ["api", "paginated", resource, params] as const,

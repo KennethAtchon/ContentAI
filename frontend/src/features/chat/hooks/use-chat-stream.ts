@@ -55,7 +55,12 @@ export function useChatStream(sessionId: string) {
   const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
 
   const sendMessage = useCallback(
-    async (content: string, reelRefs?: number[], activeContentId?: number) => {
+    async (
+      content: string,
+      reelRefs?: number[],
+      activeContentId?: number,
+      mediaRefs?: string[]
+    ) => {
       if (!sessionId || isStreaming) return;
 
       debugLog.info("[ChatStream] sendMessage called", {
@@ -79,6 +84,7 @@ export function useChatStream(sessionId: string) {
         role: "user",
         content,
         reelRefs,
+        mediaRefs,
         createdAt: new Date().toISOString(),
       };
       setOptimisticUserMessage(optimisticMsg);
@@ -99,7 +105,7 @@ export function useChatStream(sessionId: string) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content, reelRefs, activeContentId }),
+            body: JSON.stringify({ content, reelRefs, activeContentId, mediaRefs }),
             signal: controller.signal,
           },
           120_000 // 2-min timeout for streaming

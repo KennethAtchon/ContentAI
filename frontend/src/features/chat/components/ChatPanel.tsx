@@ -21,7 +21,7 @@ import type { Reel } from "@/features/reels/types/reel.types";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
-  onSendMessage: (content: string, reelRefs?: number[]) => void;
+  onSendMessage: (content: string, reelRefs?: number[], mediaRefs?: string[]) => void;
   isStreaming?: boolean;
   streamingMessageId?: string;
   streamError?: string | null;

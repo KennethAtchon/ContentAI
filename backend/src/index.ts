@@ -34,6 +34,7 @@ import assetsRoutes from "./routes/assets/index";
 import musicRoutes from "./routes/music/index";
 import editorRoutes from "./routes/editor/index";
 import videoRoutes from "./routes/video/index";
+import mediaRoutes from "./routes/media/index";
 import { startDailyScan } from "./jobs/daily-scan";
 import { seedSystemConfig } from "./services/config/config-seed";
 
@@ -96,6 +97,7 @@ app.route("/api/assets", assetsRoutes);
 app.route("/api/music", musicRoutes);
 app.route("/api/editor", editorRoutes);
 app.route("/api/video", videoRoutes);
+app.route("/api/media", mediaRoutes);
 
 // Standalone routes
 app.get("/api/live", (c) => c.json({ status: "ok" }));

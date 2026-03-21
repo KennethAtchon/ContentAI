@@ -5,6 +5,8 @@ import { Music, Mic } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
+import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
 import type { Clip } from "../types/editor";
 
 interface Asset {
@@ -98,12 +100,17 @@ export function MediaPanel({
     enabled: !!generatedContentId,
   });
 
+  const { data: libraryData } = useMediaLibrary();
+
   const allAssets = assetsData?.assets ?? [];
   const videoAssets = allAssets.filter(
     (a) => a.type === "video_clip" || a.type === "assembled_video"
   );
   const audioAssets = allAssets.filter(
     (a) => a.type === "voiceover" || a.type === "music"
+  );
+  const libraryVideoItems = (libraryData?.items ?? []).filter(
+    (item) => item.type === "video"
   );
 
   const TABS: { key: TabKey; label: string }[] = [
@@ -242,6 +249,62 @@ export function MediaPanel({
                     </div>
                   </button>
                 ))}
+            </div>
+
+            {/* My Library section */}
+            <div className="mt-3 border-t border-overlay-sm pt-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold text-dim-3 uppercase tracking-wider">
+                  {t("editor_media_library_section")}
+                </span>
+                <MediaUploadZone compact />
+              </div>
+
+              {libraryVideoItems.length === 0 ? (
+                <p className="text-xs italic text-dim-3 text-center mt-2">
+                  {t("media_library_empty")}
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {libraryVideoItems
+                    .filter(
+                      (item) =>
+                        !search ||
+                        item.name
+                          .toLowerCase()
+                          .includes(search.toLowerCase())
+                    )
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() =>
+                          addVideoClip({
+                            id: item.id,
+                            type: "video_clip",
+                            mediaUrl: item.mediaUrl,
+                            r2Url: item.r2Url ?? undefined,
+                            durationMs: item.durationMs,
+                            metadata: { originalName: item.name },
+                          })
+                        }
+                        className="group relative aspect-video rounded overflow-hidden bg-overlay-sm border border-overlay-sm hover:border-studio-accent/50 transition-colors cursor-pointer"
+                        title="Click to add to timeline"
+                      >
+                        <video
+                          src={item.mediaUrl ?? undefined}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 px-1 py-0.5">
+                          <span className="text-[9px] text-white/80 truncate block">
+                            {item.name}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
             </div>
           </>
         )}

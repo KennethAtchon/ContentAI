@@ -25,6 +25,7 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   reelRefs?: number[];
+  mediaRefs?: string[];
   generatedContentId?: number;
   createdAt: string;
 }
@@ -68,6 +69,7 @@ export interface SessionDraft {
 export interface SendMessageRequest {
   content: string;
   reelRefs?: number[];
+  mediaRefs?: string[];
   activeContentId?: number;
 }
 

@@ -341,6 +341,7 @@ export const chatMessages = pgTable(
     role: text("role").notNull(), // "user" | "assistant" | "system"
     content: text("content").notNull(),
     reelRefs: jsonb("reel_refs"), // Array of reel IDs referenced in this message
+    mediaRefs: jsonb("media_refs"), // Array of media_item IDs attached to this message
     generatedContentId: integer("generated_content_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -370,6 +371,30 @@ export const reelAssets = pgTable(
     index("reel_asset_user_idx").on(t.userId),
     index("reel_asset_type_idx").on(t.generatedContentId, t.type),
   ],
+);
+
+// ─── Media Library ────────────────────────────────────────────────────────────
+
+export const mediaItems = pgTable(
+  "media_item",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(), // original filename
+    type: text("type").notNull(), // "video" | "image" | "audio"
+    mimeType: text("mime_type").notNull(),
+    r2Key: text("r2_key").notNull(),
+    r2Url: text("r2_url"),
+    sizeBytes: integer("size_bytes"),
+    durationMs: integer("duration_ms"), // nullable — video/audio only
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("media_item_user_idx").on(t.userId)],
 );
 
 // ─── Music Tracks ─────────────────────────────────────────────────────────────
@@ -667,3 +692,5 @@ export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+export type MediaItem = typeof mediaItems.$inferSelect;
+export type NewMediaItem = typeof mediaItems.$inferInsert;

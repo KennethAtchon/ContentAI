@@ -172,11 +172,20 @@ export function ChatLayout({
     });
   };
 
-  const handleSendMessage = async (content: string, reelRefs?: number[]) => {
+  const handleSendMessage = async (
+    content: string,
+    reelRefs?: number[],
+    mediaRefs?: string[]
+  ) => {
     if (!sessionId) return;
     setPendingReelIds(reelRefs ?? []);
     try {
-      await sendMessage(content, reelRefs, activeContentId ?? undefined);
+      await sendMessage(
+        content,
+        reelRefs,
+        activeContentId ?? undefined,
+        mediaRefs
+      );
     } catch (error) {
       debugLog.error("Failed to send message", {
         service: "chat-layout",

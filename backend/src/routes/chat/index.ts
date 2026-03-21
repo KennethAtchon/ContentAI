@@ -36,6 +36,7 @@ const createSessionSchema = z.object({
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(4000),
   reelRefs: z.array(z.number()).optional(),
+  mediaRefs: z.array(z.string()).optional(),
   activeContentId: z.number().optional(),
 });
 
@@ -185,6 +186,7 @@ app.get(
           role: chatMessages.role,
           content: chatMessages.content,
           reelRefs: chatMessages.reelRefs,
+          mediaRefs: chatMessages.mediaRefs,
           generatedContentId: chatMessages.generatedContentId,
           createdAt: chatMessages.createdAt,
         })
@@ -402,7 +404,7 @@ app.post(
     try {
       const auth = c.get("auth");
       const sessionId = c.req.param("id");
-      const { content, reelRefs, activeContentId } = c.req.valid("json");
+      const { content, reelRefs, mediaRefs, activeContentId } = c.req.valid("json");
 
       debugLog.info("[chat:sendMessage] Request received", {
         service: "chat-route",
@@ -478,6 +480,7 @@ app.post(
         role: "user",
         content,
         reelRefs: reelRefs || null,
+        mediaRefs: mediaRefs || null,
       });
 
       debugLog.info("[chat:sendMessage] User message saved to DB", {
