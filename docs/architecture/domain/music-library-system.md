@@ -1,163 +1,56 @@
-# Music Library System — Domain Architecture
+## Music Library System
 
-## Overview
-
-The Music Library provides a curated collection of background music tracks that users can attach to their assembled videos. Admins upload and manage tracks via the admin panel; users browse and select tracks during video production.
+This document explains how background music works — how it gets into the system, how it gets into videos, and what happens at the audio mixing stage.
 
 ---
 
-## Architecture
+## What the Music Library Is
 
-```
-frontend/src/features/studio/   → Music track picker in video workspace
-frontend/src/routes/admin/_layout/music.tsx → Admin music management page
+The music library is a curated collection of background tracks that admins upload. Users can browse and preview tracks, then attach one to a piece of generated content. During video assembly, that track gets mixed underneath the voiceover.
 
-backend/src/routes/music/index.ts          → User-facing music endpoints
-backend/src/routes/admin/music.ts          → Admin CRUD endpoints
-
-Storage: Cloudflare R2
-  music/tracks/{trackId}.mp3   → Audio files
-```
+Admins own the content. Users only browse and attach.
 
 ---
 
-## Data Model
+## How Tracks Get In
 
-### `music_tracks` table
+Admins upload MP3 files (up to 10MB) through the admin panel. Each upload goes directly to Cloudflare R2 under a `music/tracks/` path. The metadata (name, artist, mood, genre, duration) is stored in PostgreSQL, with the R2 object key as the link to the actual file.
 
-```typescript
-{
-  id: serial PRIMARY KEY,
-  name: text NOT NULL,
-  artistName: text,
-  durationSeconds: integer,
-  mood: text,           // "energetic" | "calm" | "dramatic" | "funny" | "inspiring"
-  genre: text,
-  r2Key: text NOT NULL, // R2 object key for the MP3
-  isActive: boolean DEFAULT true,
-  createdAt: timestamp,
-  updatedAt: timestamp
-}
-```
+Duration isn't decoded from the audio — it's estimated from file size assuming 128kbps encoding (~16,000 bytes/second). Good enough for a duration display; not precise enough for sync work (but this system doesn't do sync work).
 
 ---
 
-## User-Facing Endpoints
+## How Preview URLs Work
 
-### `GET /api/music/library`
+The database stores the R2 object key, not a URL. When the API returns tracks to users, it generates signed R2 URLs on the fly for each track (1-hour TTL). These URLs are included in the response payload as `previewUrl`.
 
-Browse available tracks with search, mood filter, and duration bucket filter.
-
-**Auth:** `authMiddleware("user")`
-
-**Query params:**
-- `search` — text search on name/artist
-- `mood` — filter by mood value
-- `durationBucket` — `"15"` (≤20s), `"30"` (21–45s), `"60"` (46–90s)
-- `page`, `limit` (max 50)
-
-**Response:**
-```json
-{
-  "tracks": [
-    {
-      "id": 1,
-      "name": "Upbeat Summer",
-      "artistName": "Studio Beats",
-      "durationSeconds": 30,
-      "mood": "energetic",
-      "genre": "pop",
-      "previewUrl": "https://signed-r2-url..."
-    }
-  ],
-  "total": 42,
-  "page": 1
-}
-```
-
-Preview URLs are signed R2 URLs (1-hour TTL) generated per request.
+The frontend caches this response, so it doesn't re-fetch preview URLs on every render — but the signed URLs will eventually expire if the user sits on the page for a long time. In practice this isn't a problem because the browsing session for picking music is short.
 
 ---
 
-### `POST /api/music/attach`
+## Attaching Music to Content
 
-Attach a music track to a `generatedContent` item as a `reel_asset`.
+"Attaching" a track to a piece of content creates a `reel_asset` row with `type: "music"`. This row just points to the track's R2 key. The content doesn't download or copy the track — it just records a reference.
 
-**Auth:** `authMiddleware("user")`, `csrfMiddleware()`
-
-**Request body:**
-```json
-{ "generatedContentId": 123, "musicTrackId": 5 }
-```
-
-Creates a `reel_asset` row of type `"music"` pointing to the track's R2 key. This asset is then picked up by the video assembly pipeline when mixing audio.
+There can only be one music track per piece of content at a time (the assembly pipeline uses the first `music` asset it finds).
 
 ---
 
-## Admin Endpoints
+## How Music Gets Into the Final Video
 
-### `GET /api/admin/music`
+During video assembly, the pipeline:
 
-List all tracks including inactive ones (admins can see everything).
+1. Looks up all `reel_asset` rows for the content being assembled
+2. Finds the one with `type: "music"` (if any)
+3. Downloads the MP3 from R2 using a signed URL
+4. Hands it to FFmpeg alongside the concatenated video and voiceover
 
-**Auth:** `authMiddleware("admin")`
+FFmpeg mixes the audio using the amix filter. The voiceover plays at full volume (1.0x). The music plays at 22% volume (0.22x) — audible as a background texture, not dominant. The music plays for the duration of the video content (first audio stream's length), stopping when the content ends rather than looping or fading.
 
----
-
-### `POST /api/admin/music`
-
-Upload a new track via multipart form data.
-
-**Auth:** `authMiddleware("admin")`, `csrfMiddleware()`
-
-**Form fields:**
-- `file` — MP3 file (max 10MB, must be `audio/mpeg`)
-- `name` — track name (required)
-- `artistName` — optional
-- `mood` — required: `energetic` | `calm` | `dramatic` | `funny` | `inspiring`
-- `genre` — optional
-
-Duration is estimated from file size (128kbps: ~16,000 bytes/sec).
+If no music track is attached, the assembly step skips the music input entirely. Audio mixing continues with whatever audio is present (voiceover, clip audio).
 
 ---
 
-### `PUT /api/admin/music/:id`
+## Deleting a Track
 
-Update track metadata or toggle `isActive`.
-
----
-
-### `DELETE /api/admin/music/:id`
-
-Delete the track record and the R2 file.
-
----
-
-## How Music Gets Into Assembled Videos
-
-During video assembly (`POST /api/video/assemble`), the pipeline:
-
-1. Loads all `reel_asset` rows for the `generatedContentId`
-2. Finds the asset with `type = "music"` (if present)
-3. Downloads the music file from R2 using a signed URL
-4. Mixes it at **0.22x volume** under the voiceover and video audio
-
-Audio mixing formula:
-```bash
-[vo]volume=1.0[vo_out]; [music]volume=0.22[music_out];
-[vo_out][music_out]amix=inputs=2:duration=first[mix]
-```
-
-See [Reel Generation System](./reel-generation-system.md) for the full mixing spec.
-
----
-
-## Related Documentation
-
-- [Reel Generation System](./reel-generation-system.md) — Audio mixing pipeline
-- [Audio & TTS System](./audio-tts-system.md) — Voiceover generation
-- [Admin Dashboard](./admin-dashboard.md) — Music admin UI
-
----
-
-*Last updated: March 2026*
+Deleting a track removes both the PostgreSQL record and the R2 file. Any existing `reel_asset` rows that referenced it are left with a dangling key — they won't break assembly (the step logs and continues), but the music won't be included. In practice, tracks shouldn't be deleted once they're in active use.

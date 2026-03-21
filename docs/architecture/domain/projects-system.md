@@ -1,137 +1,48 @@
-# Projects System — Domain Architecture
+## Projects System
 
-## Overview
-
-Projects are named workspaces that group a user's chat sessions. Every chat session belongs to exactly one project. Projects give users a way to organize their creative work — e.g., separate projects per client, campaign, or content vertical.
+This document explains what projects are, why they exist, and what they actually do.
 
 ---
 
-## Architecture
+## What a Project Is
 
-```
-frontend/src/features/
-└── (no dedicated feature dir — projects are managed via chat feature)
+A project is just a named container. It groups chat sessions together so a user can organize their work — separate projects for different clients, campaigns, or content verticals.
 
-backend/src/routes/
-└── projects/index.ts   → CRUD for project records
-
-backend/src/routes/
-└── chat/index.ts       → sessions include projectId FK
-```
+There's nothing technically complex here. A project is a name, an optional description, and a `userId`. Every chat session has a required `projectId` foreign key — you can't create a session without putting it in a project.
 
 ---
 
-## Data Model
+## Why All Chat Sessions Require a Project
 
-### `projects` table
+Requiring a project enforces organization from the start instead of letting users accumulate a pile of ungrouped sessions they'll never find again. There's no "inbox" or "uncategorized" — everything belongs somewhere.
 
-```typescript
-{
-  id: uuid PRIMARY KEY,
-  userId: text NOT NULL,      // Firebase UID
-  name: text NOT NULL,        // max 100 chars
-  description: text,          // max 500 chars
-  createdAt: timestamp,
-  updatedAt: timestamp
-}
-```
-
-### Relationship to chat sessions
-
-`chatSessions` has a `projectId` foreign key. Creating a chat session requires a `projectId`. This means all AI-generated drafts are organized under a project hierarchy:
-
-```
-project → chatSession → chatMessage → generatedContent
-```
+The tradeoff is that users have to create a project before chatting. In practice, this is one extra step on first use.
 
 ---
 
-## API Endpoints
+## How the Project Name Gets Into the AI
 
-### `GET /api/projects`
+The project name isn't just organizational metadata — it's included in the AI's system prompt for every chat message in that session. The context that gets built for each AI request starts with `"Project: <project.name>"`, followed by any reel references or active draft context.
 
-List all projects for the authenticated user, ordered by `updatedAt` descending.
+This means the AI understands what you're working toward. "Project: Fitness Supplement Brand Launch Q2" gives the AI meaningful context that shapes its suggestions without the user having to explain it every time.
 
-**Auth:** `authMiddleware("user")`
+---
 
-**Response:**
-```json
-{
-  "projects": [
-    { "id": "uuid", "name": "My Campaign", "description": "...", "createdAt": "...", "updatedAt": "..." }
-  ]
-}
+## The Content Hierarchy
+
+Projects sit at the top of a hierarchy that spans most of the app's data:
+
+```
+project
+  └── chatSession (many)
+        └── chatMessage (many)
+              └── generatedContent (optional)
 ```
 
----
-
-### `POST /api/projects`
-
-Create a new project.
-
-**Auth:** `authMiddleware("user")`, `csrfMiddleware()`
-
-**Request body:**
-```json
-{ "name": "My New Project", "description": "Optional description" }
-```
-
-**Response 201:**
-```json
-{ "project": { "id": "uuid", "name": "...", ... } }
-```
+Generated content links back up through this chain. The queue item for a piece of content can show which chat session (and therefore which project) it came from.
 
 ---
 
-### `GET /api/projects/:id`
+## Deleting Projects
 
-Fetch a single project (must belong to the authenticated user).
-
-**Response:**
-```json
-{ "project": { "id": "uuid", "name": "...", ... } }
-```
-
-**Errors:** 404 if not found or owned by a different user.
-
----
-
-### `PUT /api/projects/:id`
-
-Update project name or description.
-
-**Auth:** `authMiddleware("user")`, `csrfMiddleware()`
-
-**Request body:** `{ "name"?: string, "description"?: string }`
-
----
-
-### `DELETE /api/projects/:id`
-
-Delete a project. Returns 409 if the project has existing chat sessions (must delete sessions first).
-
-**Auth:** `authMiddleware("user")`, `csrfMiddleware()`
-
----
-
-## Frontend Integration
-
-Projects are created/selected in the chat UI before or during session creation. The chat feature's session creation flow (`POST /api/chat/sessions`) requires a `projectId`.
-
-The AI chat system prompt includes the project name as context so the AI understands the user's working context:
-
-```typescript
-// In buildChatContext() — chat/index.ts
-const context = `Project: ${project.name}`;
-```
-
----
-
-## Related Documentation
-
-- [Chat Streaming System](./chat-streaming-system.md) — How chat sessions use projects
-- [Generation System](./generation-system.md) — How content is generated within a session
-
----
-
-*Last updated: March 2026*
+You can't delete a project that still has chat sessions — the API returns a 409 conflict. Sessions must be cleaned up first. This prevents accidentally orphaning content that's still in the production pipeline.

@@ -1,545 +1,77 @@
-# Studio System Architecture
+## Studio System
 
-## Overview
-
-The ReelStudio workspace is the core product experience. It provides four integrated workflows:
-
-1. **Discover** — Browse viral reels filtered by niche
-2. **Analyze** — AI breakdown of why a reel performs
-3. **Generate** — AI remix of hooks, captions, and scripts
-4. **Queue** — Schedule generated content to Instagram
-5. **Editor** — Manual timeline editor for a draft reel (`/studio/editor/:generatedContentId`); see **[Manual editor system](./manual-editor-system.md)** for composition init, autosave, validate, and render flows.
-
-The Studio runs at `/studio/*` and is a protected (authenticated) workspace with its own dark-theme shell, completely separate from the public/customer route groups.
+This document explains what the Studio workspace actually is — how reels get into the system, how the discover/analyze/generate flow works, and what the queue actually does.
 
 ---
 
-## System Architecture
+## Where the Reels Come From
 
-```
-Frontend: /studio routes (TanStack Router)
-  ├── /studio          → redirect to /studio/discover
-  ├── /studio/discover → 3-panel workspace (ReelList + PhonePreview + AnalysisPanel)
-  ├── /studio/generate → Full-screen generation workspace
-  └── /studio/queue    → Content queue management
+Users don't submit reel URLs. The reels in the Studio are scraped by admins from Instagram using Apify, a web scraping service. Admins configure "niches" (topic categories like "personalfinance" or "fitness"), then trigger a scan. Apify runs an Instagram scraper for that hashtag and returns up to 50 reels.
 
-             ↓ HTTPS + Firebase Auth
+The scraping is async — it can take up to 2 minutes. It runs as a background job that the admin can poll. Once it completes, the reel metadata (username, views, likes, hook text, caption, audio info) is stored in the database. Users then browse this pre-loaded library in the Discover tab.
 
-Backend: Hono API
-  ├── GET  /api/reels                   → Reel discovery
-  ├── GET  /api/reels/:id               → Reel detail + analysis
-  ├── POST /api/reels/:id/analyze       → AI analysis (Claude Haiku)
-  ├── POST /api/generation              → Content generation (Claude Sonnet)
-  ├── GET  /api/generation              → Generation history
-  ├── POST /api/generation/:id/queue    → Add to queue
-  ├── GET  /api/queue                   → Queue list
-  ├── PATCH /api/queue/:id              → Update queue item
-  └── DELETE /api/queue/:id            → Remove from queue
-
-             ↓
-
-PostgreSQL (Drizzle)
-  niche → reel → reel_analysis → generated_content → queue_item
-
-             ↓ AI
-
-Claude Haiku  → reel analysis
-Claude Sonnet → content generation
-```
+Reels are deduplicated by their Instagram-internal ID. Scraping the same niche twice doesn't create duplicates.
 
 ---
 
-## Frontend Components
+## The Discover → Analyze → Generate Flow
 
-### Route Structure
+**Discover:** Users browse reels filtered by niche. They're sorted by view count by default. Selecting a reel shows it in a phone mockup with stats — this is just the reel's stored metadata, no extra API call per selection.
 
-```
-frontend/src/routes/studio/
-├── index.tsx          → redirect to discover
-├── discover.tsx       → 3-panel discovery workspace
-├── generate.tsx       → full-screen generation page
-└── queue.tsx          → queue management page
-```
+**Analyze:** Clicking "Analyze" sends the reel's stored metadata (hook, caption, view count) to Claude Haiku. The AI classifies the reel — what hook pattern it uses, what emotional trigger, what format. The result is stored in the database. Analysis is idempotent — analyzing the same reel twice returns the same stored result.
 
-All studio routes are wrapped with `<AuthGuard authType="user">`.
+**Generate:** With analysis in hand, the user writes a prompt ("make this for the crypto niche, focus on FOMO") and picks an output type. The backend sends the reel's metadata, its analysis, and the user's prompt to Claude Sonnet. The AI generates hooks, captions, and script notes tailored to the user's direction. The output is saved as a draft.
 
-### Feature Structure
-
-```
-frontend/src/features/
-├── reels/
-│   ├── components/
-│   │   ├── ReelList.tsx          → Sidebar: reel cards with metrics
-│   │   ├── PhonePreview.tsx      → Center: phone mockup with stats
-│   │   └── AnalysisPanel.tsx     → Right: Analysis/Generate/History tabs
-│   ├── hooks/
-│   │   ├── use-reels.ts          → Fetch reel list (React Query)
-│   │   └── use-reel-analysis.ts  → Fetch/trigger analysis
-│   └── services/
-│       └── reels.service.ts      → API calls for reel endpoints
-│
-├── generation/
-│   ├── hooks/
-│   │   ├── use-generate-content.ts    → POST /api/generation mutation
-│   │   └── use-generation-history.ts  → GET /api/generation query
-│   └── services/
-│       └── generation.service.ts
-│
-└── studio/
-    ├── components/
-    │   └── StudioTopBar.tsx      → Navigation bar (Discover/Generate/Queue)
-    └── layout.tsx                → Studio shell (dark theme, no PageLayout)
-```
+The three steps build on each other: you can't generate without an analysis, and the analysis is only useful because it distills what made the source reel work.
 
 ---
 
-## Core Components
+## The Queue: Not What It Sounds Like
 
-### 1. Reel Discovery
+The queue is not a manual staging area — it's an automatic content pipeline dashboard.
 
-**Purpose:** Surface top-performing reels for a given niche.
+Every time a new piece of content is created (from the chat, from generation), a queue item is automatically created for it. You don't add things to the queue; the queue just shows you everything you've created and where it is in the production pipeline.
 
-**Layout:** 3-panel interface
-- **Left panel** (`ReelList`): Scrollable list of reel cards showing username, views, engagement rate, and thumbnail emoji
-- **Center panel** (`PhonePreview`): Phone mockup displaying the selected reel with floating stat cards (views, likes, comments)
-- **Right panel** (`AnalysisPanel`): Tabs — Analysis | Generate | History
+The pipeline stages it tracks:
+- **Copy** — does the draft have a hook and script yet?
+- **Voiceover** — has a TTS audio file been generated?
+- **Video clips** — have AI video clips been generated?
+- **Assembly** — has FFmpeg assembled the final video?
+- **Manual edit** — has the user opened the timeline editor?
 
-**Data Flow:**
+The queue auto-refreshes every 6 seconds when any item is still in progress, so you can watch clips and assembly complete in near-real-time.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Studio UI
-    participant React Query
-    participant Backend
+The **Edit** action opens a detail sheet showing everything attached to that piece of content — the copy, audio links, video links, which pipeline stages are done, and deep links to the editor or the chat session that created it.
 
-    User->>Studio UI: Select niche from dropdown (StudioTopBar)
-    Studio UI->>React Query: useReels({ nicheId })
-    React Query->>Backend: GET /api/reels?nicheId=3&sort=views&limit=50
-    Backend-->>React Query: [{ id, username, views, engagementRate, thumbnailEmoji, ... }]
-    React Query-->>Studio UI: Reel list cached
-
-    User->>Studio UI: Click a reel
-    Studio UI->>React Query: useReel(reelId)
-    React Query->>Backend: GET /api/reels/7
-    Backend-->>React Query: { reel, analysis | null }
-    React Query-->>Studio UI: Reel detail in PhonePreview
-    Studio UI->>Studio UI: If analysis exists, show in AnalysisPanel
-```
-
-**Backend endpoint:**
-```
-GET /api/reels
-  Query: nicheId, limit, offset, minViews, sort (views|engagementRate|createdAt)
-  Auth: user
-  Response: { items: Reel[], total: number }
-
-GET /api/reels/:id
-  Auth: user
-  Response: { reel: Reel, analysis: ReelAnalysis | null }
-```
+**Duplicate** copies a piece of content and starts a fresh production run — same copy, but all the audio and video assets are cleared so new ones get generated.
 
 ---
 
-### 2. AI Analysis System
+## How the Scrape Pipeline Works Internally
 
-**Purpose:** Deconstruct why a reel is viral using Claude Haiku.
+When an admin triggers a scan:
 
-**UI:** When user clicks "Analyze this reel" in `AnalysisPanel`, triggers the analysis and shows the results in tag/badge format.
+1. The backend creates a job record and kicks off an async worker (via `setTimeout` to avoid blocking the HTTP response).
+2. The worker calls the Apify API to start the Instagram scraper actor for the niche's hashtag.
+3. Apify starts the actor and returns a run ID. The worker polls every 3 seconds until the run succeeds or times out (~2 minutes).
+4. When Apify reports success, the worker fetches all scraped items from the dataset.
+5. Each item is inserted into the `reel` table using `ON CONFLICT DO NOTHING` — existing reels are skipped.
+6. The job status is updated to "completed" with counts of how many were saved vs skipped.
 
-**Analysis tags displayed:**
-- Hook Pattern (e.g., "Bold claim opener")
-- Emotional Trigger (e.g., "Fear of missing out")
-- Format Pattern (e.g., "Talking head")
-- CTA Type (e.g., "Follow")
-- Caption Framework
-- Curiosity Gap Style
-- Remix Suggestion
+The admin polls a job status endpoint to see progress. Jobs are stored in Redis for 24 hours.
 
-**Data Flow:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant AnalysisPanel
-    participant Backend
-    participant Claude Haiku
-    participant PostgreSQL
-
-    User->>AnalysisPanel: Click "Analyze"
-    AnalysisPanel->>Backend: POST /api/reels/7/analyze
-    Backend->>PostgreSQL: SELECT * FROM reel WHERE id=7
-    PostgreSQL-->>Backend: Reel data
-    Backend->>Claude Haiku: Structured analysis prompt
-    Claude Haiku-->>Backend: JSON { hookPattern, emotionalTrigger, ... }
-    Backend->>PostgreSQL: INSERT INTO reel_analysis ...
-    PostgreSQL-->>Backend: Saved analysis
-    Backend-->>AnalysisPanel: { analysis }
-    AnalysisPanel->>User: Display analysis tags + remixSuggestion
-```
+If the Apify key isn't configured (local dev), the scraper returns 0/0 immediately without erroring. The rest of the platform still works.
 
 ---
 
-### 3. Content Generation System
+## Video Storage for Reels
 
-**Purpose:** Generate original content inspired by a reel's AI analysis.
+After a reel is scraped, the system asynchronously copies its video and audio files to Cloudflare R2 (our own storage). This happens fire-and-forget after the database insert — a reel can appear in Discover before its R2 copy is ready.
 
-**UI:**
-- Quick generation panel within `AnalysisPanel` (Generate tab)
-- Full-screen `/studio/generate` page for detailed work
-
-**Output types:**
-- `"hook"` — 5 hook variations in different styles
-- `"caption"` — Full caption (hook + body + CTA)
-- `"full"` — Hook variations + caption + script notes
-
-**Data Flow:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Studio UI
-    participant Backend
-    participant Claude Sonnet
-    participant PostgreSQL
-
-    User->>Studio UI: Type prompt + select output type + click Generate
-    Studio UI->>Studio UI: Check tier limits (stripeRole from Firebase claim)
-    Studio UI->>Backend: POST /api/generation { sourceReelId, prompt, outputType }
-    Backend->>Backend: Check daily usage limit for tier
-    Backend->>PostgreSQL: SELECT reel + reel_analysis WHERE reelId=7
-    PostgreSQL-->>Backend: Reel + analysis context
-    Backend->>Claude Sonnet: Remix generation prompt
-    Claude Sonnet-->>Backend: { hook, caption, scriptNotes }
-    Backend->>PostgreSQL: INSERT INTO generated_content (status: "draft")
-    Backend-->>Studio UI: { content: GeneratedContent }
-    Studio UI->>User: Display generated content with copy buttons
-```
-
-**Feature gating:**
-
-| Tier | Daily Generations |
-|------|-----------------|
-| Free | 1 |
-| Basic | 10 |
-| Pro | 50 |
-| Enterprise | Unlimited |
-
-Limit enforced server-side. Client shows `UpgradePrompt` component when `429` is returned.
+When a user plays a reel, the backend generates a short-lived signed URL to the R2 file. If the R2 file isn't ready yet, it falls back to the original Instagram CDN URL. See the [Video Playback](./contentai-video-playback-technical-deep-dive.md) doc for details.
 
 ---
 
-### 4. Content Queue System
+## Security
 
-**Purpose:** Pipeline dashboard — every generated draft is **automatically** enrolled. The queue shows the full pipeline status (copy, voiceover, video, assembly, manual edit) and lets users manage scheduling, inspect details, and duplicate.
-
-**UI:** `/studio/queue` page with status pills, project/search filters, and an Edit detail sheet.
-
-**Key behaviours:**
-- New content (chat save, API generation) creates a `queue_item` automatically — no manual "Add to queue" action.
-- Queue list auto-refetches every 6 s when any item has an in-progress stage.
-- **Edit** always opens a full detail sheet (hook, caption, script, audio links, video links, pipeline stage breakdown, and deep links to editor or chat session) — not gated on project/session fields.
-- **Duplicate** copies all fields (`cleanScriptForAudio`, `sceneDescription`, `generatedMetadata`, etc.) and starts a fresh video pipeline (audio URLs cleared).
-
-**Queue States:**
-| State | Meaning |
-|-------|---------|
-| `draft` | Just created / in pipeline |
-| `ready` | Pipeline complete, ready to schedule |
-| `scheduled` | Waiting to be published |
-| `posted` | Successfully published |
-| `failed` | Publishing failed (errorMessage stored) |
-
-**Pipeline stages** (derived server-side per queue item):
-| Stage | Source |
-|-------|--------|
-| Copy | `generatedHook` / `generatedScript` presence |
-| Voiceover | `voiceoverUrl` or `reel_assets.type = "voiceover"` |
-| Video clips | `reel_assets.type = "video_clip"` count + `generatedMetadata.phase4.status` |
-| Assembly | `videoR2Url` or `reel_assets.type = "assembled_video"` |
-| Manual edit | `reel_composition` row exists |
-
-**Data Flow:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Queue UI
-    participant Backend
-    participant PostgreSQL
-
-    User->>Queue UI: Navigate to /studio/queue
-    Queue UI->>Backend: GET /api/queue?status=scheduled
-    Backend->>PostgreSQL: SELECT queue_items WHERE userId=uid AND status=scheduled
-    PostgreSQL-->>Backend: Queue items with generated content
-    Backend-->>Queue UI: { items, total }
-
-    Note over Queue UI: Items auto-enrolled when content is created — no manual add needed
-
-    User->>Queue UI: Click Edit on a queue item
-    Queue UI->>Backend: GET /api/queue/55/detail
-    Backend-->>Queue UI: Full content + assets + composition + sessionId
-    Queue UI->>User: Detail sheet (copy, audio, video, links)
-
-    User->>Queue UI: Edit scheduled time
-    Queue UI->>Backend: PATCH /api/queue/55 { scheduledFor: "2026-03-15T10:00:00Z" }
-    Backend->>PostgreSQL: UPDATE queue_item SET scheduled_for=...
-    Backend-->>Queue UI: Updated item
-
-    User->>Queue UI: Remove from queue
-    Queue UI->>Backend: DELETE /api/queue/55
-    Backend->>PostgreSQL: DELETE queue_item + UPDATE generated_content status="draft"
-    Backend-->>Queue UI: 200 OK
-```
-
----
-
-## Navigation Pattern
-
-```
-StudioTopBar
-├── Logo / Home
-├── [Discover]   ← /studio/discover (default)
-├── [✦ Generate] ← /studio/generate
-├── [Editor]     ← /studio/editor (pick draft → /studio/editor/:id)
-└── [Queue]      ← /studio/queue
-```
-
-The Studio shell does **not** use the global `PageLayout` component. It has its own dark-themed layout with the `StudioTopBar` fixed at the top.
-
----
-
-## Authentication Model
-
-| Route | Guard | Redirect if unauthenticated |
-|-------|-------|----------------------------|
-| `/studio/*` | `AuthGuard authType="user"` | `/sign-in` |
-| `/admin/*` | `AuthGuard authType="admin"` | `/sign-in` |
-
----
-
-## Admin: Niche Management
-
-Niches (the content categories driving discovery) are managed by admins via `GET/POST/PUT/DELETE /api/admin/niches`. Creating a niche and triggering a scrape scan populates the `reel` table with real Instagram content for that niche.
-
-See [Scrape System](#scrape-system) below for the full technical breakdown of how scraping works, including Apify integration, job queue lifecycle, data mapping, and R2 storage fields.
-
----
-
-## Scrape System
-
-The scrape system populates the `reel` table with real Instagram reels for a given niche. It is admin-triggered, Apify-powered, and runs asynchronously via an in-memory/Redis job queue.
-
----
-
-### Components
-
-```
-Admin UI
-  └── POST /api/admin/niches/:id/scan
-        └── QueueService.enqueue(nicheId, nicheName)
-              └── QueueService.drain() [async, single worker]
-                    └── ScrapingService.scrapeNiche(nicheId, nicheName)
-                          ├── Apify Actor (Instagram Reel scraper)
-                          └── ScrapingService.saveReels()  →  PostgreSQL (reel table)
-```
-
-**Files:**
-```
-backend/src/services/
-  ├── scraping.service.ts   → Apify integration + DB persistence
-  └── queue.service.ts      → Job lifecycle, Redis persistence
-backend/src/routes/admin/
-  └── niches.ts             → Admin endpoints for niche + scan management
-```
-
----
-
-### 1. Job Queue
-
-**Architecture:** Single-worker, non-blocking, Redis-backed.
-
-| Detail | Value |
-|---|---|
-| Storage | In-memory array + Redis (TTL 24h) |
-| Concurrency | 1 job at a time (`running` flag) |
-| Dispatch | `setTimeout(() => drain(), 0)` — never blocks HTTP response |
-| Redis key (job) | `scrape_job:{jobId}` |
-| Redis key (index) | `scrape_jobs_by_niche:{nicheId}` (max 100 entries) |
-
-**Job lifecycle:**
-
-```
-enqueue()  →  status: "queued"
-drain()    →  status: "running", startedAt set
-               ↓ success
-           →  status: "completed", completedAt set, result: { saved, skipped, durationMs }
-               ↓ failure
-           →  status: "failed", error message stored
-```
-
-**Job ID format:** `scan_${timestamp}_${random4hex}`
-
-**Polling endpoint:**
-```
-GET /api/admin/niches/jobs/:jobId       → single job status
-GET /api/admin/niches/:id/jobs          → last 50 jobs for a niche
-```
-
----
-
-### 2. Apify Integration
-
-The scraper calls the **Apify Instagram Reel scraper actor** (`APIFY_ACTOR_ID` env var).
-
-**Run flow:**
-
-```mermaid
-sequenceDiagram
-    participant QueueWorker
-    participant Apify API
-    participant PostgreSQL
-
-    QueueWorker->>Apify API: POST /v2/acts/{ACTOR_ID}/runs { hashtags: [nicheName], resultsLimit: 50 }
-    Apify API-->>QueueWorker: { runId, datasetId }
-
-    loop Poll every 3s (max 40 attempts ≈ 2 min)
-        QueueWorker->>Apify API: GET /v2/actor-runs/{runId}
-        Apify API-->>QueueWorker: { status: "RUNNING" | "SUCCEEDED" | "FAILED" | ... }
-    end
-
-    QueueWorker->>Apify API: GET /v2/datasets/{datasetId}/items?format=json&clean=true
-    Apify API-->>QueueWorker: [ReelItem, ...]
-
-    QueueWorker->>PostgreSQL: INSERT INTO reel ON CONFLICT (external_id) DO NOTHING
-    PostgreSQL-->>QueueWorker: { saved, skipped }
-```
-
-**Apify actor input:**
-```json
-{ "hashtags": ["personalfinance"], "resultsLimit": 50 }
-```
-
-**Poll settings:**
-
-| Setting | Value |
-|---|---|
-| Interval | 3 seconds |
-| Max attempts | 40 (~2 min timeout) |
-| Retry attempts | 3 (backoff: 2s → 4s → 8s) |
-| Success statuses | `SUCCEEDED` |
-| Failure statuses | `FAILED`, `ABORTED`, `TIMED-OUT` |
-
-**Fallback:** If `SOCIAL_API_KEY` is not set, `scrapeNiche()` returns `{ saved: 0, skipped: 0 }` immediately — safe for local dev.
-
----
-
-### 3. Data Mapping
-
-Raw fields from Apify are mapped to the `reel` table as follows:
-
-| Apify Field | DB Column | Notes |
-|---|---|---|
-| `id` | `external_id` | Unique — used for dedup |
-| `ownerUsername` | `username` | |
-| `videoViewCount` | `views` | Falls back to `videoPlayCount` |
-| `likesCount` | `likes` | |
-| `commentsCount` | `comments` | |
-| `caption` (first line, 280 chars) | `hook` | Extracted as opening hook |
-| `caption` (full) | `caption` | |
-| `musicInfo.song_name` | `audio_name` | |
-| `musicInfo.audio_id` | `audio_id` | |
-| `thumbnailUrl` / `displayUrl` | `thumbnail_url` | |
-| `videoUrl` | `video_url` | Source URL (not stored in R2 yet) |
-| `takenAt` / `timestamp` | `posted_at` | |
-| computed | `engagement_rate` | `((likes + comments) / views) * 100` |
-| computed | `is_viral` | `views >= VIRAL_VIEWS_THRESHOLD` (default 100k) |
-
-**R2 storage fields** (populated when media is downloaded):
-
-| DB Column | Purpose |
-|---|---|
-| `video_r2_key` | R2 object key for the downloaded video file |
-| `audio_r2_key` | R2 object key for the extracted audio file |
-
-**Video metadata fields** (populated post-processing):
-
-| DB Column | Purpose |
-|---|---|
-| `video_length_seconds` | Duration in seconds |
-| `cut_frequency_seconds` | Average seconds per cut |
-
----
-
-### 4. Deduplication
-
-- **Insert-time:** `ON CONFLICT (external_id) DO NOTHING` — new scrapes skip reels already in the DB
-- **Manual sweep:** `POST /api/admin/niches/:id/dedupe` runs a SQL window function that keeps the lowest `id` per `external_id` and deletes all duplicates
-
----
-
-### 5. Environment Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `SOCIAL_API_KEY` | No (degrades gracefully) | Apify API key |
-| `APIFY_ACTOR_ID` | No (degrades gracefully) | Instagram scraper actor ID |
-| `VIRAL_VIEWS_THRESHOLD` | No (default: 100000) | Min views to flag a reel as viral |
-
----
-
-### 6. Admin Niche Endpoints (full reference)
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/admin/niches` | List all niches with reel counts |
-| `POST` | `/api/admin/niches` | Create niche |
-| `PUT` | `/api/admin/niches/:id` | Update niche name/description |
-| `DELETE` | `/api/admin/niches/:id` | Delete (blocked if reels exist) |
-| `POST` | `/api/admin/niches/:id/scan` | Enqueue scrape job |
-| `GET` | `/api/admin/niches/jobs/:jobId` | Poll job status |
-| `GET` | `/api/admin/niches/:id/jobs` | List last 50 jobs for niche |
-| `GET` | `/api/admin/niches/:id/reels` | Paginated reels for niche |
-| `POST` | `/api/admin/niches/:id/dedupe` | Remove duplicate reels |
-| `DELETE` | `/api/admin/reels/:reelId` | Hard-delete a reel |
-
-All admin endpoints require Firebase Admin JWT + CSRF token and are rate-limited at 30 req/min.
-
----
-
-## Performance Considerations
-
-### Frontend
-- React Query caches reel lists, analyses, and generation history
-- Analysis details lazily loaded only when a reel is selected
-- Niche dropdown list is cached for 5 minutes (`staleTime: 300_000`)
-
-### Backend
-- Database indexes on `reels.nicheId`, `reels.views`, `reel_analyses.reelId`, `generated_content.userId`, `queue_items.userId + status`
-- Redis rate limiting prevents AI endpoint abuse
-- Claude Haiku used for analysis (cheaper, fast) vs Claude Sonnet for generation (higher quality)
-- `scrapedAt` timestamp allows incremental scraping jobs
-
----
-
-## Security Model
-
-- All studio endpoints require Firebase JWT (`authMiddleware("user")`)
-- All mutations require CSRF token (`csrfMiddleware()`)
-- All data queries scoped to `userId` — cross-user access is structurally impossible
-- Rate limiting applied per IP to all endpoints
-- AI prompts include safety guidelines; `ANTHROPIC_API_KEY` absence causes 503 (not 500) to distinguish configuration from runtime errors
-
----
-
-## Related Documentation
-
-- [Generation System](./generation-system.md) — AI analysis and content generation details
-- [API Architecture](../core/api.md) — Middleware patterns
-- [Database](../core/database.md) — Drizzle schema and query patterns
-- [Authentication](../core/authentication.md) — Auth guard and token flow
-- [Admin Dashboard](./admin-dashboard.md) — Niche and reel management
-
----
-
-*Last updated: March 2026*
+All Studio routes require a valid Firebase user token. Every piece of data a user can see is scoped to their `userId` in the database — the API never returns another user's content. Niche and reel management is admin-only.

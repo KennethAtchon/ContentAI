@@ -1,124 +1,39 @@
-# Account Management — Domain Architecture
+## Account Management
 
-## Overview
-
-The account page (`/(customer)/account`) is the customer-facing hub for managing profile, subscription, and usage. It runs as a single TanStack Router route that mounts `AccountInteractive` — a client component handling all tabs.
-
-**Features:**
-- Profile editor (name, email, phone, address)
-- Subscription management (view plan, access Stripe Customer Portal)
-- Usage dashboard (daily/monthly generation counts vs tier limits)
-- Order history
+This document explains what the account page does and the interesting bits about how each section actually works.
 
 ---
 
-## Route Structure
+## What the Account Page Is
 
-```
-frontend/src/routes/(customer)/
-├── account.tsx           → route shell (AuthGuard + AccountInteractive)
-└── account/
-    └── -account-interactive.tsx  → tab shell + state
-
-frontend/src/features/account/components/
-├── profile-editor.tsx           → Profile tab content
-├── subscription-management.tsx  → Subscription tab content
-├── usage-dashboard.tsx          → Usage tab content
-└── order-detail-modal.tsx       → Order detail drawer
-```
-
-**Auth:** `<AuthGuard authType="user">` — redirects to `/sign-in` if unauthenticated.
+The account page is a single route with four tabs: profile, subscription, usage, and order history. It's the customer's self-service hub. Nothing here is admin-level — it only shows and affects the authenticated user's own data.
 
 ---
 
-## Profile Editor
+## Profile
 
-**Component:** `features/account/components/profile-editor.tsx`
-
-Allows the user to update their profile fields. Uses `useApp().updateProfile` which calls `PATCH /api/users/profile`.
-
-**Fields:**
-- Name, email, phone, address, notes
-
-**Backend endpoint:**
-```
-PATCH /api/users/profile
-Auth: user
-Body: { name?, email?, phone?, address?, notes? }
-Response: { user: UserProfile }
-```
+Standard form — name, email, phone, address, notes. Submitting calls `PATCH /api/users/profile`. The profile data lives in PostgreSQL. Nothing fancy here.
 
 ---
 
-## Subscription Management
+## Subscription Display
 
-**Component:** `features/account/components/subscription-management.tsx`
+The subscription tab shows the user's current plan. Notably, it doesn't fetch this from a backend subscription endpoint on load — the tier is read directly from the Firebase JWT custom claim (`stripeRole`) that's already in the user's auth token. No extra API call needed.
 
-Displays the current subscription tier (read from `stripeRole` custom claim on the Firebase token). The actual plan change UI is Stripe's hosted Customer Portal — the component shows a "Manage Billing" button that redirects to the portal.
+This means the subscription display is essentially instant (no loading state), but it shows the tier as of the last token refresh. If a subscription just changed, the user needs to have refreshed their token for the display to update.
 
-**Data source:** Firebase custom claim `stripeRole` (fast, no API call needed).
-
-**Backend endpoints:**
-```
-POST /api/subscriptions/portal
-Auth: user, CSRF
-Response: { url: string }  → redirect user to Stripe Customer Portal
-
-GET /api/subscriptions/current
-Auth: user
-Response: { subscription: { tier, status, currentPeriodEnd } | null }
-```
-
-See [Subscription System](./subscription-system.md) for the full lifecycle.
+The "Manage Billing" button calls our backend to get a Stripe Customer Portal URL, then redirects the user there. All actual plan changes happen on Stripe's side. See [Subscription System](./subscription-system.md) for the full lifecycle.
 
 ---
 
 ## Usage Dashboard
 
-**Component:** `features/account/components/usage-dashboard.tsx`
+Shows generation counts versus tier limits — "you've used 34 of your 500 monthly generations." The data comes from a backend endpoint that queries the `feature_usage` table and joins it against the user's tier limits.
 
-Shows the user's AI generation usage relative to their tier limits. Limits are enforced server-side; this component is for visibility only.
-
-**Backend endpoint:**
-```
-GET /api/users/usage
-Auth: user
-Response: {
-  tier: "free" | "basic" | "pro" | "enterprise",
-  daily: { used: number, limit: number | null },
-  monthly: { used: number, limit: number | null }
-}
-```
-
-**Tier limits** (from [Business Model](./business-model.md)):
-
-| Tier | Daily Generations | Daily Analyses |
-|------|------------------|---------------|
-| Free | 1 | 2 |
-| Basic | 10 | 10 |
-| Pro | 50 | Unlimited |
-| Enterprise | Unlimited | Unlimited |
+This is display-only. The actual enforcement happens on the backend before each AI call — the usage dashboard is just a way for users to see where they stand. The numbers might lag slightly behind the actual enforcement point (the enforcement happens on the server at request time, the dashboard fetches once on page load).
 
 ---
 
 ## Order History
 
-Fetched alongside the profile data. Users can click an order to open `OrderDetailModal`.
-
-**Backend endpoint:**
-```
-GET /api/users/orders
-Auth: user
-Response: { orders: Order[] }
-```
-
----
-
-## Related Documentation
-
-- [Business Model](./business-model.md) — Tier limits and pricing details
-- [Subscription System](./subscription-system.md) — How subscriptions are stored and updated
-
----
-
-*Last updated: March 2026*
+Fetches and displays one-time purchase orders from PostgreSQL. Users can click an order to see details in a drawer. Orders are immutable from the user's side — status changes are admin-only.

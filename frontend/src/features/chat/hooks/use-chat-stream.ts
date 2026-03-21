@@ -99,6 +99,8 @@ function processStreamSseLine(
       [key: string]: unknown;
     };
 
+    debugLog.debug("[ChatStream] Processed chunk", { chunk });
+
     switch (chunk.type) {
       case "text-delta": {
         state.textDeltaCount++;

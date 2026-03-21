@@ -1,161 +1,45 @@
-# Admin Dashboard — Domain Architecture
+## Admin Dashboard
 
-## Overview
-
-The Admin Dashboard (`/admin/*`) provides platform administrators with management capabilities across all key entities: users, subscriptions, orders, niches (content scraping), music library, and AI system configuration.
-
-**Auth:** All admin routes require Firebase Admin JWT (`authMiddleware("admin")`) + CSRF protection. Rate-limited at 30 req/min.
+This document explains what the admin panel does and why certain things work the way they do.
 
 ---
 
-## Admin Route Map
+## What Admins Can Do
 
-```
-frontend/src/routes/admin/_layout/
-├── dashboard.tsx      → MRR, churn, conversion metrics
-├── customers.tsx      → Customer search + profile management
-├── orders.tsx         → Order view, update, delete
-├── subscriptions.tsx  → Subscription analytics
-├── niches.tsx         → Niche + Instagram reel scraping
-├── music.tsx          → Background music library management
-├── developer.tsx      → AI provider config + system settings
-└── settings.tsx       → Admin profile management
-```
+The admin panel is a separate section of the app (`/admin/*`) that requires a Firebase admin-role token. Regular users can't access it. All data in the admin panel is unscoped — admins see all users, all orders, all subscriptions, not just their own.
 
----
+The main sections:
 
-## Dashboard Metrics (`/admin/dashboard`)
+**Dashboard** — Business metrics: MRR, active subscriptions, new users, churn rate. These are computed on request from the database and Firestore.
 
-**Component:** `features/admin/components/dashboard/dashboard-view.tsx`
+**Customers** — Search and view user profiles. Admins can update profile fields (name, email, phone). Subscription details are shown alongside the profile, but subscription changes happen on Stripe — there's no "set this user's tier" button in the app.
 
-Shows business metrics: MRR, active subscriptions, new users, churn rate, ARPU, conversion rate.
+**Subscriptions** — A read-only view of all Firestore subscriptions with analytics (tier distribution, MRR breakdown). Read-only because Stripe is the source of truth. If an admin needs to change a subscription, they do it directly in the Stripe dashboard.
 
-**Backend endpoint:**
-```
-GET /api/admin/metrics
-Auth: admin
-Response: {
-  mrr: number,
-  activeSubscriptions: number,
-  newUsersThisMonth: number,
-  churnRate: number,
-  arpu: number,
-  conversionRate: number
-}
-```
+**Orders** — One-time purchase orders from PostgreSQL. Unlike subscriptions, these are fully managed here: admins can update status and soft-delete orders.
+
+**Niches & Scraping** — Where admins manage the reel content library. Create niches, trigger Instagram scrape jobs, view job status, browse scraped reels, delete bad ones. See [Studio System](./studio-system.md) for how the scraping pipeline works.
+
+**Music** — Upload and manage background music tracks. Tracks go into R2 and are available to users during video production.
+
+**Developer** — Configure AI providers: which providers are active, their API keys, which models to use for each tier. Also a cache invalidation button. Changes take effect within ~60 seconds (Redis TTL). See [AI Provider System](./ai-provider-system.md) for how this works.
+
+**Settings** — Admin's own profile management.
 
 ---
 
-## Customer Management (`/admin/customers`)
+## Why Scraping Is Admin-Only
 
-Search and edit customer profiles. Admins can view subscription status, update profile fields, and access a customer's Stripe customer page.
-
-**Backend endpoints:**
-```
-GET  /api/admin/users           → Paginated customer list (search, filter by tier)
-GET  /api/admin/users/:id       → Single customer with subscription info
-PUT  /api/admin/users/:id       → Update customer profile
-```
+The scraping system costs money (Apify charges per actor run) and takes 1-2 minutes per niche scan. Users shouldn't be able to trigger unlimited scrapes. Admins control when content gets refreshed, at what frequency, and for which niches.
 
 ---
 
-## Order Management (`/admin/orders`)
+## Why Subscriptions Are Read-Only
 
-View and manage one-time purchase orders (stored in PostgreSQL, separate from subscriptions).
-
-**Backend endpoints:**
-```
-GET    /api/admin/orders          → List orders (search, filter by status)
-GET    /api/admin/orders/:id      → Single order detail
-PATCH  /api/admin/orders/:id      → Update order status
-DELETE /api/admin/orders/:id      → Soft delete order
-```
+Stripe is the authoritative record of subscription state. If admins could change subscription tiers directly in the app's database, those changes would be out of sync with Stripe — the billing wouldn't match the access. Admins use the Stripe Dashboard for anything that needs to change on the billing side.
 
 ---
 
-## Subscription Management (`/admin/subscriptions`)
+## Security
 
-View Firestore-backed subscriptions with analytics (tier distribution, MRR breakdown). Subscriptions are read-only here — changes go through Stripe.
-
----
-
-## Niche & Scrape Management (`/admin/niches`)
-
-Manages the content discovery pipeline. Niches are topic categories (e.g., "personalfinance") that drive Instagram reel scraping via Apify.
-
-See the **Scrape System** section in [Studio System](./studio-system.md) for the full technical breakdown.
-
-**Backend endpoints:**
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/admin/niches` | List niches with reel counts |
-| `POST` | `/api/admin/niches` | Create niche |
-| `PUT` | `/api/admin/niches/:id` | Update niche |
-| `DELETE` | `/api/admin/niches/:id` | Delete (blocked if reels exist) |
-| `POST` | `/api/admin/niches/:id/scan` | Enqueue scrape job |
-| `GET` | `/api/admin/niches/jobs/:jobId` | Poll job status |
-| `GET` | `/api/admin/niches/:id/jobs` | Last 50 jobs for niche |
-| `GET` | `/api/admin/niches/:id/reels` | Paginated reels |
-| `POST` | `/api/admin/niches/:id/dedupe` | Remove duplicate reels |
-| `DELETE` | `/api/admin/reels/:reelId` | Hard-delete a reel |
-
----
-
-## Music Library Management (`/admin/music`)
-
-Admins upload and manage background music tracks used during video assembly. See [Music Library System](./music-library-system.md) for the full system.
-
-**Backend endpoints:**
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/admin/music` | List all tracks (including inactive) |
-| `POST` | `/api/admin/music` | Upload track (multipart/form-data) |
-| `PUT` | `/api/admin/music/:id` | Update track metadata |
-| `DELETE` | `/api/admin/music/:id` | Delete track + R2 file |
-
----
-
-## AI Provider & System Config (`/admin/developer`)
-
-Admins can configure which AI providers are active, set API keys, change model names, and adjust provider priority — all without redeploying. Changes take effect within ~60 seconds (Redis cache TTL).
-
-See [AI Provider System](./ai-provider-system.md) for the full system.
-
-**Backend endpoints:**
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/admin/config` | All config rows (secrets redacted) |
-| `GET` | `/api/admin/config/:category` | Config by category |
-| `PUT` | `/api/admin/config/:category/:key` | Update a config value |
-| `POST` | `/api/admin/config/cache/invalidate` | Force-clear Redis cache |
-
----
-
-## Admin Settings (`/admin/settings`)
-
-Admin profile management (name, email, phone, address, password change).
-
----
-
-## Security Model
-
-- All `/api/admin/*` endpoints require Firebase Admin JWT + CSRF token
-- Rate-limited at 30 req/min (stricter than customer limits)
-- All write operations require CSRF token
-- Data access is not scoped to a user — admins see all records
-
----
-
-## Related Documentation
-
-- [Studio System](./studio-system.md) — Scrape system details
-- [AI Provider System](./ai-provider-system.md) — DB-backed AI configuration
-- [Music Library System](./music-library-system.md) — Music track management
-- [Subscription System](./subscription-system.md) — Subscription architecture
-
----
-
-*Last updated: March 2026*
+All admin endpoints require a Firebase Admin JWT (the user's Firebase account must have the admin role set). All write operations also require a CSRF token. Rate limiting is stricter than customer limits (30 req/min). There's no admin-level override of these checks — even the "Invalidate Cache" button goes through the same middleware chain.

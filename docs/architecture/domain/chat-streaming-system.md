@@ -1,467 +1,118 @@
 ## Chat Streaming System
 
-This document describes, in detail, how our **chat streaming** works end‑to‑end across the frontend, API layer, AI SDK, and persistence/usage tracking. It focuses on the `/api/chat/sessions/:id/messages` endpoint and the `useChatStream` hook used by the Studio chat UI.
+This document explains how chat streaming works conceptually — the mechanics, the data flow, and why it's designed the way it is.
 
 ---
 
-## High‑Level Overview
+## The Core Mechanic: Server-Sent Events (SSE)
 
-- **Trigger**: User submits a message from the Studio chat input.
-- **Frontend**:
-  - Immediately shows an **optimistic user message**.
-  - Opens a **long‑lived HTTP POST** to `/api/chat/sessions/:id/messages`.
-  - Consumes a **Server‑Sent Events (SSE)** style stream of JSON `data:` lines.
-  - Builds up the visible assistant message from `text-delta` events.
-- **Backend route** (`backend/src/routes/chat/index.ts`):
-  - Validates **auth**, **rate limits**, **CSRF**, and **usage limits**.
-  - Persists the **user message** to the database.
-  - Builds **prompt context** (project, reels, active draft).
-  - Calls the `ai` SDK’s `streamText` with **tools** (e.g. `save_content`, `iterate_content`).
-  - Wraps the AI stream in a **safe ReadableStream** and returns it via `createUIMessageStreamResponse`.
-  - On finish:
-    - Saves the **assistant message**.
-    - Records **usage** and **AI cost**.
-    - Updates the **session timestamp**.
-- **AI client** (`backend/src/lib/aiClient.ts`):
-  - Resolves the **model instance** with provider‑specific handling.
-  - Exposes `getModel`/`getModelInfo` so routes can use `streamText` consistently.
+When the user sends a chat message, the frontend opens a normal HTTP POST request to the backend. What makes it "streaming" is that the backend **never closes the connection immediately**. Instead, it keeps the connection open and drips data down it piece by piece as the AI generates tokens.
 
----
+This is **one-directional**: the server pushes data to the client, not the other way around. It is **not** a WebSocket — the client can't send anything back over this connection once the request is sent. If the user wants to cancel, the client simply drops the connection (aborts the request).
 
-## Frontend Streaming Flow
+The format over the wire is plain text, one event per line:
 
-### 1. Entry Point: `ChatLayout` and `useChatStream`
+```
+data: {"type":"text-delta","delta":"Hello"}
 
-- `ChatLayout` wires the chat UI:
-  - Reads `sessionId` from the router search params.
-  - Uses `useChatSession(sessionId)` to fetch server messages.
-  - Uses `useChatStream(sessionId)` to **send messages and consume the stream**.
-  - Merges:
-    - **Server messages** from TanStack Query.
-    - **Optimistic user message**.
-    - **Streaming assistant overlay** (current partial text).
-  - Passes the merged list to `ChatPanel` as `messages`.
+data: {"type":"text-delta","delta"," there"}
 
-- `handleSendMessage` in `ChatLayout`:
-  - Stores `pendingReelIds` so the UI knows which reels are attached while the session data has not yet refreshed.
-  - Calls:
-    - `await sendMessage(content, reelRefs, activeContentId ?? undefined);`
-  - Clears `pendingReelIds` afterwards.
+data: {"type":"tool-input-start","toolName":"save_content"}
 
-### 2. `useChatStream` Hook
+data: {"type":"tool-output-available","output":{"contentId":42}}
 
-File: `frontend/src/features/chat/hooks/use-chat-stream.ts`
+data: [DONE]
+```
 
-The hook owns React state and `sendMessage`; **SSE line parsing** (`processStreamSseLine`), **stream draining** (`drainSseStreamIntoIngest`), **403 usage-limit handling**, and **cache patching** (`patchSessionCacheAfterStream`) live as **module-level helpers** next to it for readability.
-
-**Key state:**
-
-- `optimisticUserMessage`: user message shown immediately before server persistence is visible.
-- `streamingContent`: current **partial assistant text** being streamed.
-- `isStreaming`: whether a stream is active.
-- `streamError`: human‑readable error text if something goes wrong mid‑stream.
-- `isLimitReached`: usage‑limit flag driven by a 403 from the backend.
-- `isSavingContent`: whether a `save_content`/`iterate_content` tool appears to be running.
-- `streamingContentId`: ID of generated content saved by tools (e.g. a new draft).
-- `streamingMessageId`: stable ID for the **overlay assistant message** while streaming.
-- `abortRef`: `AbortController` used to cancel an in‑flight stream.
-
-#### 2.1 Starting a Stream (`sendMessage`)
-
-When `sendMessage(content, reelRefs, activeContentId)` is called:
-
-1. **Guard rails**:
-   - If there is no `sessionId` or `isStreaming` is true, it returns early (prevents overlapping streams).
-
-2. **Abort existing stream**:
-   - `abortRef.current?.abort();`
-   - Creates a new `AbortController` for this request.
-
-3. **Pin a streaming message ID**:
-   - `streamingIdRef.current = "streaming-${sessionId}-${Date.now()}"`.
-   - This ID is used as the `id` for the overlay assistant message to keep React keys stable for the entire response.
-
-4. **Create optimistic user message**:
-   - Builds a `ChatMessage` object with a temporary ID and `role: "user"`.
-   - Sets:
-     - `setOptimisticUserMessage(optimisticMsg);`
-     - `setStreamingContent("");`
-     - `setIsStreaming(true);`
-     - Clears previous error/flags.
-
-5. **Issue HTTP POST**:
-   - Uses `authenticatedFetch`:
-     - URL: `/api/chat/sessions/${sessionId}/messages`
-     - Method: `POST`
-     - JSON body: `{ content, reelRefs, activeContentId }`
-     - Timeout: **120 seconds** (`STREAM_REQUEST_TIMEOUT_MS` in the hook file).
-     - `signal: controller.signal` for cancellation.
-
-6. **Handle 403 / usage limit**:
-   - If status is `403`, it tries to parse `{ code }` from JSON body.
-   - If `code === "USAGE_LIMIT_REACHED"`:
-     - Sets `isLimitReached = true`.
-     - Clears optimistic and streaming state.
-     - Invalidates `reelsUsage` and `usageStats` queries so the UI updates limits display.
-     - Returns early without starting SSE parsing.
-
-7. **Validate response**:
-   - If `!response.ok`, throws `Error("HTTP <status>")`.
-   - If `!response.body`, throws `"No response body"` (required for streaming).
-
-#### 2.2 Consuming the SSE Stream
-
-Once the response has a body:
-
-1. **`drainSseStreamIntoIngest`**:
-   - Owns the `ReadableStream` reader, `TextDecoder`, and newline `buffer`.
-   - Loops until `read()` returns `done`, decoding chunks and forwarding **complete lines** to `processStreamSseLine`.
-   - Flushes any trailing buffer after the stream ends.
-
-2. **Ingest state**:
-   - A small mutable object holds **accumulated assistant text** and a **text-delta counter** (for throttled debug logs).
-
-3. **`processStreamSseLine` and JSON events**:
-   - Ignores lines that do not start with `data: ` (via `parseSseDataPayload`).
-   - Strips the prefix and inspects the content:
-     - If equal to `[DONE]`, logs and returns.
-     - Otherwise parses JSON:
-       - `{ type: string, ... }`.
-
-4. **Event types handled on the frontend** (via `switch (chunk.type)`):
-
-   - **`text-delta`**:
-     - Appends `chunk.delta` to `accumulated`.
-     - Runs `filterToolCallXml(accumulated)` to:
-       - Strip `<tool_call>...</tool_call>` blocks.
-       - Also drop partially streamed `<tool_call>` at the tail.
-     - Updates `streamingContent` with the filtered text.
-     - If `accumulated` includes `<tool_call>` and mentions any name in `CONTENT_WRITING_TOOLS` (`save_content`, `iterate_content`, `edit_content_field`, …):
-       - Sets `isSavingContent = true` to show “saving draft” type indicators.
-
-   - **`tool-input-start`**:
-     - Logs `toolName`.
-     - If the tool is in `CONTENT_WRITING_TOOLS`, sets `isSavingContent = true`.
-
-   - **`tool-output-available`**:
-     - Expects `chunk.output` with `{ contentId?: number; success?: boolean }`.
-     - If `contentId` exists:
-       - Calls `setStreamingContentId(contentId)`.
-       - This is used by `ChatLayout` to auto‑open the workspace/preview on first draft.
-     - Always sets `isSavingContent = false` after the tool output resolves.
-
-   - **`error`**:
-     - Expects `errorText` in the chunk.
-     - Logs and sets `streamError` for user‑visible feedback.
-
-   - Any other `type` is logged at debug level and ignored by the UI.
-
-5. **End of stream**:
-   - After `drainSseStreamIntoIngest` returns, the hook logs final counts (`chunkCount`, `textDeltaCount`, accumulated length).
-
-#### 2.3 Syncing With Query Cache
-
-Once streaming completes normally:
-
-- `queryClient.setQueryData(chatSessionDetailQueryKey(sessionId), updater)` (same key shape as `["chat-sessions", sessionId]`)
-  - Injects:
-    - The **optimistic user message**, if it hasn't already been replaced by the server’s version.
-    - A **temporary assistant message** with the fully accumulated text.
-  - Uses a **different temporary assistant ID** (`ai-pending-...`) than the streaming overlay ID to avoid React key collisions during synchronous updates.
-
-- Clears local overlay state:
-  - `setOptimisticUserMessage(null);`
-  - `setStreamingContent(null);`
-
-- Kicks off a background refetch:
-  - `invalidateQueries({ queryKey: chatSessionDetailQueryKey(sessionId) })` (equivalent to `["chat-sessions", sessionId]`).
-  - Replaces optimistic/temporary messages with **real DB‑backed messages** (correct IDs, linked content, timestamps).
-
-#### 2.4 Error and Abort Handling
-
-- **Abort**:
-  - If the `AbortController` is triggered, `authenticatedFetch` / the reader rejects with `AbortError`:
-    - Logs a benign “Stream aborted by user”.
-    - Clears optimistic and streaming overlay state in the `catch` path.
-
-- **Other errors**:
-  - Logs error name/message.
-  - Sets `streamError` with the error message (for inline UI display).
-  - Clears `optimisticUserMessage` and `streamingContent` in the `catch` path.
-  - `finally` always resets `isStreaming` and `isSavingContent` to `false`.
+Each line is a JSON object prefixed with `data: `. The client reads these lines one by one as they arrive, without waiting for the full response.
 
 ---
 
-## Backend Streaming Flow
+## What Actually Happens, Step by Step
 
-### 1. Route Definition and Middleware
+### 1. User sends a message
 
-File: `backend/src/routes/chat/index.ts`
+The frontend makes a POST request with the message content. Before the response even comes back, it immediately renders the user's message in the UI (this is the "optimistic" message — it's fake, local-only, just to avoid the UI feeling laggy). It also sets up an empty box for the assistant's response that will fill in as tokens arrive.
 
-Endpoint: `POST /api/chat/sessions/:id/messages`
+### 2. Backend validates and persists the user message
 
-- Wrapped with:
-  - `rateLimiter("customer")` → request rate protection.
-  - `csrfMiddleware()` → CSRF protection for unsafe methods.
-  - `authMiddleware("user")` → user authentication.
-  - `usageGate("generation")` → checks **usage limits** before starting AI.
-  - `zValidator("json", sendMessageSchema)` → payload validation:
-    - `content: string` (1–4000 chars)
-    - `reelRefs?: number[]`
-    - `activeContentId?: number`
+Before touching the AI, the backend:
+- Checks auth, rate limits, CSRF, and usage quotas
+- Saves the user's message to the database
 
-If any middleware fails, the request is short‑circuited (e.g. 403 for usage limit).
+The user message is saved first so it's durable. If the AI call fails halfway through, the user's message is still there — nothing is lost.
 
-### 2. Session Verification and History Loading
+### 3. Backend starts streaming from the AI
 
-Inside the handler:
+The backend calls the AI provider's API (also over a streaming HTTP connection — same concept, but between the backend and the AI provider). As the AI generates tokens, the backend receives them and immediately forwards them down to the frontend. The backend is a pass-through in this regard: it doesn't wait for the AI to finish before starting to respond to the client.
 
-1. **Auth/context**:
-   - `const auth = c.get("auth");`
-   - Reads `sessionId` from `c.req.param("id")`.
+The connection chain looks like:
 
-2. **Session lookup**:
-   - Ensures the chat session exists and belongs to the current user.
-   - Joins `projects` to also fetch project metadata.
-   - If not found:
-     - Logs a warning.
-     - Returns `404 { error: "Session not found" }`.
+```
+Frontend  ←──── SSE stream ────  Backend  ←──── AI provider stream ────  Claude/GPT/etc.
+```
 
-3. **Conversation history**:
-   - Fetches the **last 20 messages** for this session, ordered oldest→newest.
-   - Only stores `{ role, content }` (no reel refs) for AI context.
+### 4. Frontend reads the stream
 
-### 3. Persisting the User Message
+The frontend reads the response body byte by byte using the browser's streaming APIs. It accumulates bytes until it sees a newline, then parses that line as a JSON event. The two main events it cares about:
 
-- Before calling the AI:
-  - Generates a `userMessageId` (UUID).
-  - Inserts a `chatMessages` row:
-    - `role: "user"`.
-    - `content` from the request.
-    - `reelRefs` stored as array if present.
-- This guarantees:
-  - The user message is durable even if the AI stream later fails.
+- **`text-delta`** — a new chunk of text from the AI. The frontend appends it to the message box in real time. This is what creates the "typing" effect.
+- **`tool-input-start` / `tool-output-available`** — the AI is calling a tool (e.g. saving a draft). The UI shows a "Saving draft…" indicator and hides the tool-call XML that would otherwise appear as garbage in the chat.
 
-### 4. Auto‑Titling the Session
+### 5. AI finishes, backend wraps up
 
-- If the session title is the placeholder `"New Chat Session"`:
-  - Creates an `autoTitle` from the first 50 characters of `content` (with `...` suffix if longer).
-  - Updates the `chatSessions` title in the DB.
+When the AI is done generating, the backend:
+1. Saves the final assistant message to the database (with the full text)
+2. Records token usage and cost
+3. Closes the HTTP connection
 
-### 5. Prompt Context Construction
+### 6. Frontend reconciles
 
-**`buildChatContext(userId, project, reelRefs, activeContentId)`**:
-
-- Base string: `"Project: <project.name>"`.
-- If `reelRefs` provided:
-  - Loads reel rows (id, username, views, niche, hook).
-  - Appends human‑readable lines summarizing each reel, including a hint to the AI:
-    - “use `get_reel_analysis` to fetch deep analysis before generating”.
-- If `activeContentId` provided:
-  - Verifies that the referenced `generatedContent` row belongs to the user.
-  - Appends an “Active Draft” section:
-    - Includes ID, version, truncated script, hook, and type.
-    - Instructs the AI:
-      - “When the user asks to edit/refine this, call `iterate_content` with `parentContentId` equal to this ID.”
-
-**System prompt**:
-
-- `getChatSystemPrompt()` returns:
-  - `loadPrompt("chat-generate")` from `backend/src/prompts/chat-generate.txt` if present.
-  - Otherwise falls back to a generic content‑creation system prompt.
-
-**User prompt**:
-
-- If context present:
-  - `"Context:\n${context}\n\nUser message: ${content}"`
-- Otherwise:
-  - Just the raw `content`.
-
-### 6. Model Selection
-
-The route uses helper functions from `backend/src/lib/aiClient.ts`:
-
-- `getModel("generation")`:
-  - Reads our **provider/model configuration**.
-  - Returns an instance compatible with `ai`’s `streamText`:
-    - For non‑Claude providers that expose `chat`, uses `instance.chat(model)` to align with Chat Completions API.
-    - Otherwise calls the base instance (`instance(model)`).
-
-- `getModelInfo("generation")`:
-  - Returns `{ provider, model }` for logging and cost tracking.
-
-We also capture `streamStartMs = Date.now()` for latency metrics.
-
-### 7. Tool Context and `streamText` Call
-
-Before invoking the AI:
-
-- A closure variable `savedContentId: number | null` is declared.
-- A `ToolContext` is constructed:
-  - `{ auth, content, reelRefs, get savedContentId, set savedContentId }`.
-  - Passed into `createChatTools(toolContext)` which defines tools such as:
-    - `save_content`
-    - `iterate_content`
-  - These tools **mutate `savedContentId`** when they persist or update drafts.
-
-`streamText` is then called with:
-
-- `model`: `getModel("generation")`.
-- `system`: system prompt (chat‑generate or fallback).
-- `messages`:
-  - Previous 20 messages, cast to `"user" | "assistant"` roles.
-  - Final entry: `{ role: "user", content: userPrompt }`.
-- `maxOutputTokens`: 2048.
-- `toolChoice: "auto"` so the model is free to decide when to call tools.
-- `stopWhen: stepCountIs(5)` to cap the number of tool/call iterations (prevents infinite loops).
-- `tools`: created via `createChatTools(toolContext)`.
-
-#### 7.1 Error Handling (`onError`)
-
-- `onError` is invoked if the AI provider emits a stream‑level error.
-- It:
-  - Logs details (session, error message).
-  - Does **not** send anything to the client directly; instead, the outer `ReadableStream` layer handles converting failures into a client‑visible `error` event.
-
-#### 7.2 Completion Handling (`onFinish`)
-
-When the AI finishes producing text:
-
-- Receives:
-  - `rawText`: full AI text including any tool‑call XML that slipped through.
-  - `totalUsage`: provider‑specific usage object.
-
-Steps:
-
-1. **Sanitize text**:
-   - Strips `<tool_call>...</tool_call>` XML blocks from `rawText` (server‑side cleanup).
-   - Trims trailing whitespace → final `text` stored in DB.
-
-2. **Calculate metrics**:
-   - `durationMs = Date.now() - streamStartMs`.
-   - `inputTokens` / `outputTokens` extracted via `extractUsageTokens`.
-
-3. **Record usage (logical feature usage)**:
-   - Calls `recordUsage` with:
-     - `userId`, feature type `"generation"`, and metadata:
-       - `{ sessionId, promptLength: content.length }`
-       - `{ textLength: text.length }`
-   - Any failure here is ignored (logged but does not break chat flow).
-
-4. **Persist assistant message**:
-   - Generates `assistantMessageId`.
-   - Inserts `chatMessages` row with:
-     - `role: "assistant"`.
-     - `content: text` (sanitized).
-     - `generatedContentId: savedContentId` (if tools saved a draft).
-     - `reelRefs` same as user message for symmetry.
-
-5. **Update session timestamp**:
-   - Sets `chatSessions.updatedAt = new Date()`.
-
-6. **Record AI cost (monetary usage)**:
-   - Calls `recordAiCost` with:
-     - `userId`, `provider`, `model`, `featureType: "generation"`.
-     - Token counts and duration.
-   - Failures are caught and ignored (logging only).
-
-If any part of this persistence flow throws, errors are logged but do **not** retroactively break the already‑delivered stream.
+When the connection closes, the frontend:
+1. Patches the local cache to include the real messages (replacing the optimistic fakes)
+2. Fires a background refetch to pull the real DB-backed messages with their correct IDs and timestamps
+3. The optimistic messages disappear and the real ones take their place — seamlessly, because the text is identical
 
 ---
 
-## Streaming Response to Client
+## Why SSE Instead of Polling or WebSockets?
 
-### 1. Base `ai` SDK UI Stream
+**vs. Polling**: If we polled (client repeatedly asks "is it done yet?"), there would be inherent latency between when the AI generates a token and when the user sees it. SSE pushes tokens immediately as they're available.
 
-`streamText` returns an object (`result`) that can be transformed into a **UI message stream**:
-
-- `result.toUIMessageStream()`:
-  - Provides a stream of events already shaped for frontends.
-  - Supports events like:
-    - `text-delta`
-    - `tool-input-start`
-    - `tool-output-available`
-    - `error`
-
-Each event is encoded as an SSE `data:` line by our wrapper.
-
-### 2. Safe Wrapper `ReadableStream`
-
-To prevent **ERR_INCOMPLETE_CHUNKED_ENCODING** and to surface errors cleanly:
-
-- The route constructs:
-
-  - A new `ReadableStream` (`safeStream`).
-  - Inside `start(controller)`:
-    - Obtains a reader from `result.toUIMessageStream()`.
-    - Reads events in a loop, enqueuing them into `controller`.
-    - On normal completion:
-      - Calls `controller.close()`.
-    - On error:
-      - Logs the error (`[chat:stream] Stream terminated with error`).
-      - Attempts to enqueue a final event:
-        - `{ type: "error", errorText: "..." }`.
-      - Closes the controller, swallowing any double‑close issues.
-
-This means that even if the underlying provider fails mid‑stream:
-
-- The HTTP connection still ends gracefully.
-- The frontend sees a **structured `error` SSE event**.
-
-### 3. `createUIMessageStreamResponse`
-
-Finally, the route returns:
-
-- `return createUIMessageStreamResponse({ stream: safeStream });`
-
-This helper from the `ai` SDK:
-
-- Sets the correct **content type** and headers for SSE.
-- Serializes each event from `safeStream` as:
-  - `data: <JSON>\n\n`
-  - Optional `[DONE]` marker at the end depending on configuration.
-- Keeps the connection open until the stream ends or errors.
-
-On the frontend side, this is consumed with:
-
-- `response.body.getReader()` + `TextDecoder` and the `processLine` logic described earlier.
+**vs. WebSockets**: WebSockets are bidirectional and require a persistent connection that lives across multiple messages. SSE is simpler — it's just a regular HTTP request that stays open. One request, one response stream, done. That fits the chat pattern well: each user message starts a new request.
 
 ---
 
-## Usage Limits, Errors, and UX Signals
+## Tool Calls
 
-### Usage Limits
+The AI can decide mid-generation to call a tool (e.g. to save a content draft). When this happens:
 
-- Enforced by `usageGate("generation")` on the route.
-- When limits are exceeded:
-  - Route returns `403` with a `{ code: "USAGE_LIMIT_REACHED" }` body.
-  - `useChatStream` sets `isLimitReached = true`.
-  - Related usage queries are invalidated so the Studio UI can display up‑to‑date quotas.
-  - No streaming is started in this case.
+1. The AI stops generating text and emits a tool call in its output
+2. The backend intercepts this, executes the tool (writes to the database), and gets a result
+3. The backend feeds the tool result back to the AI
+4. The AI resumes generating text
+5. All of this is transparent to the user — they see a "Saving draft…" indicator, then the AI's response continues
 
-### Stream‑Level Errors
-
-- Provider or network errors in the AI stream:
-  - Logged by the backend (`onError` and the safe wrapper).
-  - Converted into a **final SSE event** with `type: "error"` and `errorText`.
-  - Parsed by `useChatStream` and surfaced via `streamError`.
-
-### Tool‑Related UX
-
-- When `save_content` or `iterate_content` begins (tool input):
-  - `isSavingContent` becomes `true`.
-  - The UI can show a “Saving draft…” indicator.
-
-- When tool output is available:
-  - `streamingContentId` is set if the tool returned a `contentId`.
-  - `ChatLayout` auto‑opens the workspace the first time this happens in a session.
+The frontend is notified via `tool-input-start` (tool started) and `tool-output-available` (tool finished, here's what it produced) events over the same SSE stream.
 
 ---
 
-## Summary
+## Error Handling
 
-- Streaming is implemented as a **typed SSE channel** between backend and frontend, powered by the `ai` SDK’s `streamText` and `createUIMessageStreamResponse`.
-- The **frontend** maintains an optimistic UI, parses SSE `data:` JSON events, and merges streamed text into the chat timeline while gracefully handling limits and errors.
-- The **backend** handles authentication, rate/usage gating, prompt construction, tool execution, and persistence, while wrapping the AI stream to guarantee graceful completion.
-- Tool events (`save_content`, `iterate_content`) are surfaced through the same stream to provide rich, real‑time UX around draft creation and iteration.
+**Usage limit hit**: The backend rejects the request immediately with a 403 before any streaming starts. No SSE connection is opened.
 
+**AI provider error mid-stream**: The connection is already open and partially delivered. The backend catches the error and sends a final `{"type":"error","errorText":"..."}` event before closing the connection cleanly. The frontend renders an error message in the chat.
+
+**User cancels**: The frontend aborts the HTTP request. The backend detects the disconnected client and stops streaming.
+
+**Network drop**: The request fails like any other HTTP request. The frontend catches the error and shows an error state. The user message is already saved in the database, so nothing is lost — the user can retry.
+
+---
+
+## The Optimistic UI Pattern
+
+The UI shows the user's message immediately (before the server confirms it) because database writes + network round trips would make the chat feel slow. This "optimistic message" is a fake local object with a temporary ID. Once the stream completes and the real server data is fetched, it's swapped in transparently.
+
+The streaming assistant response works the same way: the text appearing letter-by-letter is local state being built up from `text-delta` events, not actual database content. Only when the stream ends does the assistant message get saved to the database and fetched back.
+
+This means there's a brief window where the chat UI shows data that doesn't exist in the database yet — this is intentional and expected.

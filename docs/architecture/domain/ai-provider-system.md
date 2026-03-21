@@ -1,206 +1,73 @@
-# AI Provider System — Domain Architecture
+## AI Provider System
 
-## Overview
-
-ContentAI uses a registry-based AI provider system. All AI provider configuration — which providers are active, their API keys, and which models to use — is stored in the database and cached in Redis. This means providers and models can be switched in the admin panel without redeploying.
-
-The system supports three providers: **OpenAI**, **Claude (Anthropic)**, and **OpenRouter**. Providers fall back to the next available one in priority order if a call fails or a key isn't configured.
+This document explains how the AI provider configuration works — why it's stored in the database, how the fallback chain works, and what "model tiers" mean.
 
 ---
 
-## Architecture
+## The Core Idea: Config in the Database, Not Hard-Coded
 
-```
-backend/src/lib/
-├── aiClient.ts              → Public API (callAi, getModel, getModelInfo, loadPrompt)
-└── ai/
-    ├── providers.ts         → Provider registry (definitions for all providers)
-    ├── helpers.ts           → Provider resolution, token extraction, cost tracking
-    └── config.ts            → DB-backed priority + enabled provider resolution
+Most apps hard-code AI provider settings in environment variables — one provider, one model, baked in at deploy time. This system does it differently: provider priority, which providers are active, their API keys, and which models to use are all stored in the database, cached in Redis, and editable through the admin panel.
 
-backend/src/services/config/
-└── system-config.service.ts → DB+Redis config store (used by AI config)
-```
+The practical effect: you can switch from Claude to OpenAI, rotate API keys, or change which model gets used for analysis — without touching code or redeploying. Changes propagate within ~60 seconds (the Redis cache TTL). There's a "Invalidate Cache" button in the admin panel if you need changes to take effect immediately.
 
 ---
 
-## Provider Registry
+## The Three Providers
 
-All three providers are defined in `providers.ts` as a single `PROVIDER_REGISTRY` object:
+Three providers are supported: OpenAI, Claude (Anthropic), and OpenRouter. OpenRouter is a meta-provider that routes to many models (including Claude, GPT-4, etc.) through a single API — useful if you want access to many models without managing multiple API keys.
 
-```typescript
-PROVIDER_REGISTRY = {
-  openai:      { label, envApiKey, dbApiKeyName, dbModelKeys, defaultModels, createInstance },
-  claude:      { label, envApiKey, dbApiKeyName, dbModelKeys, defaultModels, createInstance },
-  openrouter:  { label, envApiKey, dbApiKeyName, dbModelKeys, defaultModels, createInstance },
-}
-```
-
-**Adding a new provider = adding one entry to this object.** No other files change.
+All three are configured the same way: an entry in the provider registry defines how to instantiate the SDK client and where to find the API key. Adding a new provider means adding one entry to that registry object — nothing else changes.
 
 ---
 
-## Model Tiers
+## Model Tiers: Analysis vs Generation
 
-Every AI call specifies a `ModelTier`:
+Every AI call specifies a tier — either `"analysis"` or `"generation"`. These map to different models:
 
-| Tier | Purpose | Default model |
-|---|---|---|
-| `"analysis"` | Cheap, fast — used for reel analysis and classification | `claude-haiku-4-5-20251001` |
-| `"generation"` | Higher quality — used for content generation and chat | `claude-sonnet-4-6` |
+**Analysis** — used for reel analysis and classification. Cheap, fast model (defaults to Claude Haiku). The task is mechanical: classify a reel's patterns from a fixed taxonomy and return JSON. No creativity required, so a cheaper model is appropriate.
 
-Each provider has separate model names for each tier, all configurable via the admin panel.
+**Generation** — used for content creation and chat. Higher-quality model (defaults to Claude Sonnet). The task is creative writing where quality directly affects what users see and use.
 
----
-
-## Key Resolution (Fallback Chain)
-
-For each provider, the API key is resolved in this order:
-
-1. **Database** (`system_config` table, `api_keys` category) — set via admin panel
-2. **Environment variable** — fallback if no DB value exists
-
-This means ENV vars work for local dev, but production keys can be rotated in the admin panel without a redeploy.
+Each provider has separate model names configured for each tier. So "use Sonnet for generation and Haiku for analysis" is the default, but an admin could switch generation to GPT-4o while keeping analysis on Haiku — without touching any code.
 
 ---
 
-## Provider Priority & Fallback
+## How the Fallback Chain Works
 
-The ordered list of providers to try is stored in `system_config` (category: `ai`, key: `provider_priority`). Default: `["openai", "claude", "openrouter"]`.
+When code calls the AI, it asks for an `"analysis"` or `"generation"` tier model. The system:
 
-When a call is made:
+1. Fetches the provider priority list from the database (cached in Redis). Default order: OpenAI → Claude → OpenRouter.
+2. Filters to only providers that have a configured API key (either in the DB or as an env var).
+3. Uses the first provider with a key.
 
-1. `getEnabledProvidersAsync()` fetches the priority list from DB/cache, then filters to only providers that have a configured API key.
-2. The first enabled provider is used.
-3. If the provider fails mid-call, the error propagates (there is no mid-call retry to the next provider — fallback is at the configuration level, not per-request).
+**For non-streaming calls** (`callAi`): if the first provider throws an error, the system retries with the next provider in the list. This is a true runtime fallback.
 
-For non-streaming calls (`callAi`), the retry logic in `callAiWithFallback` does attempt the next provider if a call throws.
-
----
-
-## DB-Backed Configuration (`SystemConfigService`)
-
-Configuration is stored in the `system_config` table:
-
-```typescript
-{
-  category: string,  // e.g., "ai", "api_keys"
-  key: string,       // e.g., "provider_priority", "anthropic"
-  value: jsonb,      // actual value
-  isSecret: boolean, // if true, value is encrypted at rest
-  isActive: boolean,
-  updatedBy: string
-}
-```
-
-**Redis caching:** All rows for a category are cached for **60 seconds**. After the TTL, the next read re-fetches from PostgreSQL. The admin panel has a "Invalidate Cache" button that clears all `sys_cfg:*` keys immediately.
-
-**Secrets:** API keys are stored encrypted. `getAll()` redacts encrypted values so they're never sent over the wire.
+**For streaming calls** (`getModel`): there's no mid-call retry. The selected model is returned and used; if it fails during streaming, the error surfaces to the caller. The fallback here is at configuration time — you configure a working provider as primary.
 
 ---
 
-## Prompt Loading
+## How API Keys Are Resolved
 
-System prompts are stored as `.txt` files in `backend/src/prompts/`. They are loaded and cached in memory by `loadPrompt(name)`:
+For each provider, the API key is found in this order:
+1. Check the database `system_config` table (category: `api_keys`)
+2. Fall back to the environment variable (e.g., `ANTHROPIC_API_KEY`)
 
-```typescript
-const systemPrompt = loadPrompt("chat-generate");
-// Reads from backend/src/prompts/chat-generate.txt
-// Cached after first read — no disk I/O on subsequent calls
-```
+This means env vars still work for local development — just set them normally. In production, keys can be rotated through the admin panel without touching env vars or redeploying. DB values take precedence over env vars.
 
----
-
-## Usage in Code
-
-### Non-streaming calls (analysis, classification)
-
-```typescript
-import { callAi } from "@/lib/aiClient";
-
-const { text, model, inputTokens, outputTokens } = await callAi({
-  system: loadPrompt("reel-analysis"),
-  userContent: analysisPrompt,
-  maxTokens: 512,
-  modelTier: "analysis",       // Uses cheaper model
-  featureType: "reel_analysis",
-  userId,
-});
-```
-
-### Streaming calls (chat)
-
-```typescript
-import { getModel, getModelInfo } from "@/lib/aiClient";
-
-const model = await getModel("generation");
-const { providerId, model: modelName } = await getModelInfo("generation");
-
-const result = await streamText({
-  model,
-  messages: [...],
-  tools: createChatTools(ctx),
-});
-```
+Keys stored in the database are encrypted at rest. The admin API redacts them when listing configs — you can update a key but not read it back.
 
 ---
 
-## Admin Configuration
+## The Redis Cache
 
-Via `/admin/developer`, admins can:
+All config reads go through Redis. The first read after a cache miss queries PostgreSQL and stores the result in Redis with a 60-second TTL. Subsequent reads within that window hit Redis only.
 
-- Set/rotate API keys for each provider (stored encrypted)
-- Change analysis/generation model names per provider
-- Reorder provider priority
-- Invalidate the Redis config cache
+This means the DB isn't queried on every AI call. The overhead of a config lookup is a fast Redis read.
 
-Changes take effect within **~60 seconds** (Redis TTL). Force-invalidating the cache makes them immediate.
+When an admin updates config through the panel, the new value is written to the DB. The Redis cache will expire within 60 seconds and pick up the new value. The "Invalidate Cache" button clears all cached config keys immediately, forcing the next reads to go to the DB.
 
 ---
 
-## Cost Tracking
+## System Prompts
 
-After every AI call, `recordAiCost` is called asynchronously:
-
-```typescript
-await recordAiCost({
-  userId,
-  provider: "claude",
-  model: "claude-sonnet-4-6",
-  featureType: "generation",
-  inputTokens: 450,
-  outputTokens: 820,
-  durationMs: 1200,
-});
-```
-
-Costs are stored in the `ai_cost_ledger` table. The `costUsd` is estimated based on published token pricing per provider/model.
-
----
-
-## Environment Variables
-
-The following ENV vars serve as fallbacks when no DB value is configured:
-
-| Variable | Provider | Tier |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Claude | — |
-| `OPENAI_API_KEY` | OpenAI | — |
-| `OPEN_ROUTER_KEY` | OpenRouter | — |
-| `ANALYSIS_MODEL` | Claude | analysis |
-| `GENERATION_MODEL` | Claude | generation |
-| `OPENAI_MODEL` | OpenAI | both tiers |
-| `OPEN_ROUTER_MODEL` | OpenRouter | both tiers |
-
----
-
-## Related Documentation
-
-- [Generation System](./generation-system.md) — Uses `callAi` for reel analysis + content generation
-- [Chat Streaming System](./chat-streaming-system.md) — Uses `getModel` + `streamText`
-- [Reel Generation System](./reel-generation-system.md) — Uses `callAi` for script parsing
-- [Admin Dashboard](./admin-dashboard.md) — Admin UI for provider config
-
----
-
-*Last updated: March 2026*
+Prompts for different AI tasks (chat generation, reel analysis) are `.txt` files on disk in `backend/src/prompts/`. They're read from disk on first use and cached in memory for the lifetime of the process — no disk I/O after the first call. To change a prompt, you update the file and restart the server.

@@ -1,645 +1,97 @@
-# Reel Generation System Technical Specifications
+## Reel Generation System
 
-## Overview
-
-The ContentAI reel generation system operates as a sophisticated two-phase pipeline: **Generation** and **Assembly**. This document details the technical architecture, API endpoints, and implementation specifics.
-
-## Prerequisites
-
-Before reel generation can take place, several prerequisites must be satisfied:
-
-### User Authentication & Authorization
-```typescript
-// Required JWT claims
-interface FirebaseUser {
-  uid: string;
-  email: string;
-  stripeRole: "free" | "basic" | "pro" | "enterprise"; // Subscription tier
-  email_verified: boolean;
-}
-```
-
-### Database Prerequisites
-1. **Generated Content Record**: Must exist in `generated_content` table
-   ```sql
-   SELECT id, generated_hook, generated_script, clean_script_for_audio 
-   FROM generated_content 
-   WHERE id = ? AND user_id = ? AND status = 'draft'
-   ```
-
-2. **Reel Analysis** (optional but recommended): Source reel analysis for better generation
-   ```sql
-   SELECT hook_pattern, emotional_trigger, format_pattern 
-   FROM reel_analyses 
-   WHERE reel_id = ?
-   ```
-
-### Usage Limits & Tier Validation
-```typescript
-const GENERATION_LIMITS = {
-  free: { daily: 1, analyses: 2 },
-  basic: { daily: 10, analyses: 10 },
-  pro: { daily: 50, analyses: Infinity },
-  enterprise: { daily: Infinity, analyses: Infinity }
-};
-
-// Check daily usage
-const todayUsage = await getDailyUsage(userId, "reel_generation");
-if (todayUsage >= limits.daily) {
-  throw new Error("Daily generation limit exceeded");
-}
-```
-
-### Service Availability Checks
-```typescript
-// AI Service Availability (through AI client abstraction)
-function checkAIServiceAvailability(): boolean {
-  const enabledProviders = getEnabledProviders();
-  return enabledProviders.length > 0;
-}
-
-// Video Provider Availability
-function checkVideoProviderAvailability(): boolean {
-  return !!(FAL_API_KEY || RUNWAY_API_KEY);
-}
-
-// Storage Availability
-function checkStorageAvailability(): boolean {
-  return !!(R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY);
-}
-```
-
-### Runtime Binary Requirements
-- `ffmpeg` must be available in the backend runtime `PATH` for assembly jobs.
-- Assembly performs a preflight check and fails fast with an actionable error when `ffmpeg` is missing.
-
-### Required Environment Variables
-```env
-# AI Services (through AI client abstraction)
-# At least one AI provider must be configured:
-OPENAI_API_KEY=optional               # OpenAI models
-OPEN_ROUTER_KEY=optional              # OpenRouter models  
-ANTHROPIC_API_KEY=optional            # Claude models
-
-# AI Model Configuration
-OPENAI_MODEL=gpt-4o-mini              # OpenAI model to use
-OPEN_ROUTER_MODEL=anthropic/claude-3.5-haiku # OpenRouter model
-ANALYSIS_MODEL=claude-haiku-4-5-20251001    # Analysis model
-GENERATION_MODEL=claude-sonnet-4-6            # Generation model
-
-# Video Generation Services (at least one required)
-FAL_API_KEY=optional                 # Kling video generation
-RUNWAY_API_KEY=optional              # Runway video generation
-
-# Storage
-R2_ACCOUNT_ID=required               # Cloudflare R2
-R2_ACCESS_KEY_ID=required           # R2 access key
-R2_SECRET_ACCESS_KEY=required        # R2 secret key
-R2_PUBLIC_URL=optional               # Public CDN URL
-
-# Database
-DATABASE_URL=required                # PostgreSQL connection
-
-# Configuration
-VIDEO_GENERATION_PROVIDER=kling-fal  # Default video provider
-NODE_ENV=production                  # Environment
-```
-
-### Frontend Prerequisites
-```typescript
-// Required React Query data
-const generatedContent = useQuery({
-  queryKey: queryKeys.api.generatedContent(contentId),
-  enabled: !!contentId && isAuthenticated
-});
-
-// Required user context
-const { user } = useAuth();
-const hasValidSubscription = user?.stripeRole !== 'free' || hasRemainingGenerations;
-
-// Required feature flags
-const { videoGenerationEnabled } = useFeatureFlags();
-```
-
-### Content Requirements
-1. **Valid Generated Content**: Must have at least one of:
-   - `generated_hook` (for single-shot videos)
-   - `generated_script` (for multi-shot videos)
-   - `clean_script_for_audio` (for voiceover generation)
-
-2. **Content Validation**:
-   ```typescript
-   function validateContentForGeneration(content: GeneratedContent): boolean {
-     return !!(content.generatedHook?.trim() || 
-              content.generatedScript?.trim() || 
-              content.cleanScriptForAudio?.trim());
-   }
-   ```
-
-### Rate Limiting
-```typescript
-// Applied per user tier
-const rateLimits = {
-  free: { requests: 5, window: '1h' },
-  basic: { requests: 20, window: '1h' },
-  pro: { requests: 100, window: '1h' },
-  enterprise: { requests: 500, window: '1h' }
-};
-```
-
-## System Architecture
-
-```
-Frontend (React Hooks)
-├── useGenerateReel() → POST /api/video/reel
-└── useAssembleReel() → POST /api/video/assemble
-
-        ↓ HTTPS API calls
-
-Backend (Hono Routes)
-├── POST /api/video/reel → runReelGeneration()
-├── POST /api/video/assemble → runAssembleFromExistingClips()
-└── GET /api/video/jobs/:jobId → job status
-
-        ↓
-
-Services
-├── content-generator.ts → Claude AI for text generation
-├── video-generation/ → Kling/Runway providers
-└── video/job.service.ts → Async job management
-
-        ↓
-
-Storage & Database
-├── PostgreSQL (Drizzle) → jobs, assets, metadata
-└── Cloudflare R2 → video files, audio assets
-```
-
-## Phase 1: Generation
-
-### Content Analysis & Generation
-
-**AI Models (through AI client abstraction):**
-- **Provider Priority**: OpenAI → Claude/Anthropic → OpenRouter (with automatic fallback)
-- **Analysis Tier**: Uses configured analysis model (default: Claude Haiku)
-- **Generation Tier**: Uses configured generation model (default: Claude Sonnet)
-
-**AI Client Usage:**
-```typescript
-// All AI calls go through the unified client
-const { text: rawText, model } = await callAi({
-  system: loadPrompt("reel-analysis"),
-  userContent: analysisPrompt,
-  maxTokens: 512,
-  modelTier: "analysis",        // Uses cheaper/fast model
-  featureType: "reel_analysis",
-  userId,
-  metadata: { reelId }
-});
-
-// Provider fallback is automatic based on enabled providers
-// Priority: OpenAI → Claude → OpenRouter
-```
-
-**Analysis Extraction:**
-```typescript
-interface ReelAnalysis {
-  hookPattern: string;        // "Bold claim opener"
-  hookCategory: string;       // "Curiosity | Controversy | How-to | Storytime"
-  emotionalTrigger: string;   // "Fear of missing out | Inspiration | Shock"
-  formatPattern: string;      // "Talking head | B-roll | Text overlay | Tutorial"
-  ctaType: string;           // "Follow | Comment | Save | Share"
-  captionFramework: string;   // "Hook → Value → CTA"
-  curiosityGapStyle: string;  // "Incomplete information reveal"
-  remixSuggestion: string;   // Concrete remix suggestion
-}
-```
-
-### Video Clip Generation
-
-**Technical Flow:**
-
-1. **Script Parsing**: `parseScriptShots()` extracts individual shot descriptions
-   ```typescript
-   const shotsFromScript = parseScriptShots(content.generatedScript);
-   // Returns: [{ shotIndex: 0, description: "...", durationSeconds: 5 }]
-   ```
-
-2. **Provider Selection**: Multi-provider fallback system
-   ```typescript
-   const PROVIDERS = {
-     "kling-fal": klingFalProvider,      // Primary
-     "image-ken-burns": imageKenBurnsProvider, // Fallback
-     "runway": runwayProvider,           // Tertiary
-   };
-   ```
-
-3. **Clip Generation**: Each shot becomes a separate video clip
-   ```typescript
-   const clip = await generateVideoClip({
-     prompt: shot.description,
-     durationSeconds: shot.durationSeconds,
-     aspectRatio: "9:16" | "16:9" | "1:1",
-     providerOverride: "kling-fal",
-     metadata: { shotIndex, generatedContentId }
-   });
-   ```
-
-4. **Asset Storage**: Clips stored with comprehensive metadata
-   ```typescript
-   await db.insert(reelAssets).values({
-     type: "video_clip",
-     r2Key: clip.r2Key,
-     durationMs: clip.durationSeconds * 1000,
-     metadata: {
-       shotIndex,
-       sourceType: "ai_generated",
-       provider: clip.provider,
-       generationPrompt: shot.description,
-       useClipAudio: false
-     }
-   });
-   ```
-
-**API Endpoint**: `POST /api/video/reel`
-```json
-{
-  "generatedContentId": 123,
-  "prompt": "Custom prompt override",
-  "durationSeconds": 5,
-  "aspectRatio": "9:16",
-  "provider": "kling-fal"
-}
-```
-
-**Response**: 
-```json
-{
-  "jobId": "uuid-string",
-  "status": "queued",
-  "generatedContentId": 123
-}
-```
-
-## Phase 2: Assembly
-
-### Video Assembly Pipeline
-
-**Technical Process:**
-
-#### 1. Clip Retrieval & Preparation
-```typescript
-const shotAssets = await loadShotAssets(userId, generatedContentId);
-// Sorted by shotIndex ascending
-```
-
-#### 2. FFmpeg Concatenation
-```typescript
-async function ffmpegConcatClips({
-  signedClipUrls: string[],
-  outputPath: string,
-  workDir: string,
-  useClipAudioByIndex?: boolean[]
-}): Promise<void>
-```
-
-**Process:**
-- Downloads clips via signed R2 URLs
-- Mutes audio unless `useClipAudio` is true
-- Creates concat.txt file: `file 'clip-0-muted.mp4'`
-- Uses FFmpeg concat demuxer for lossless joining
-- Fallback re-encoding if direct concat fails
-
-#### 3. Audio Mixing System
-```typescript
-async function mixAssemblyAudio({
-  inputVideoPath: string,
-  outputPath: string,
-  voiceoverPath?: string,
-  musicPath?: string,
-  keepClipAudio: boolean
-}): Promise<boolean>
-```
-
-**Audio Levels & Mixing:**
-- **Voiceover**: Volume 1.0x (primary)
-- **Music**: Volume 0.22x (background)
-- **Original Clip Audio**: Volume 0.35-0.45x (supplemental)
-- **Mixing Formula**: `amix=inputs=3:duration=longest:dropout_transition=2`
-
-**Mixing Logic:**
-```bash
-# Voiceover + Music + Clip Audio
-[0:a]volume=0.35[clip];[1:a]volume=1.0[vo];[2:a]volume=0.22[music];
-[clip][vo][music]amix=inputs=3:duration=longest:dropout_transition=2[mix]
-```
-
-#### 4. Caption Rendering
-```typescript
-async function createAssCaptions({
-  scriptText: string,
-  totalDurationMs: number,
-  outputPath: string
-}): Promise<boolean>
-```
-
-**Caption Specifications:**
-- **Chunk Size**: 3 words per subtitle
-- **Font**: Arial, 48-56px (dynamic sizing)
-- **Format**: ASS (Advanced SubStation Alpha)
-- **Position**: Center-aligned, bottom margin
-- **Duration**: Calculated based on total video length
-
-**ASS Format:**
-```
-Dialogue: 0,00:00:00.00,00:02:50.00,Default,,0,0,0,,{\fs48}FIRST THREE WORDS
-```
-
-#### 5. Final Output & Storage
-```typescript
-const outputBuffer = Buffer.from(await Bun.file(workingVideoPath).arrayBuffer());
-const assembledR2Key = `assembled/${userId}/${generatedContentId}/${jobId}.mp4`;
-const assembledR2Url = await uploadFile(outputBuffer, assembledR2Key, "video/mp4");
-```
-
-**API Endpoint**: `POST /api/video/assemble`
-```json
-{
-  "generatedContentId": 123,
-  "includeCaptions": true,
-  "audioMix": {
-    "includeClipAudio": true,
-    "voiceoverVolume": 1.0,
-    "musicVolume": 0.22,
-    "clipAudioVolume": 0.35
-  }
-}
-```
-
-### How Caption Rendering Works
-- Captions are rendered as an ASS subtitle file, then burned into the video using FFmpeg `-vf ass=...`.
-- Captions are composited on top of the picture and become part of the final exported video frames.
-
-## Job Queue System
-
-### Job Types & States
-```typescript
-type VideoJobKind = "reel_generate" | "shot_regenerate" | "assemble";
-type JobStatus = "queued" | "running" | "completed" | "failed";
-```
-
-### Job Lifecycle
-1. **Creation**: Job created with request metadata
-2. **Queueing**: Added to async queue via `setTimeout()`
-3. **Execution**: Background processing with status updates
-4. **Completion**: Results stored, status updated
-5. **Cleanup**: Temporary files removed
-
-### Retry Mechanism
-```typescript
-// POST /api/video/jobs/:jobId/retry
-const retryJob = await videoJobService.createJob({
-  userId: job.userId,
-  generatedContentId: job.generatedContentId,
-  kind: job.kind,
-  request: job.request  // Same parameters
-});
-```
-
-## Asset Management
-
-### Database Schema
-```sql
-CREATE TABLE reel_assets (
-  id SERIAL PRIMARY KEY,
-  generated_content_id INTEGER,
-  user_id TEXT,
-  type TEXT, -- "video_clip" | "voiceover" | "music" | "assembled_video"
-  r2_key TEXT,
-  r2_url TEXT,
-  duration_ms INTEGER,
-  metadata JSONB, -- shotIndex, provider, audio settings
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### Asset Types & Metadata
-```typescript
-// Video Clip Asset
-{
-  type: "video_clip",
-  metadata: {
-    shotIndex: 0,
-    sourceType: "ai_generated",
-    provider: "kling-fal",
-    generationPrompt: "Person walking on beach",
-    hasEmbeddedAudio: false,
-    useClipAudio: false
-  }
-}
-
-// Assembled Video Asset
-{
-  type: "assembled_video",
-  metadata: {
-    sourceType: "phase4_ffmpeg_concat+audio_mix+captions",
-    clipCount: 3,
-    hasVoiceover: true,
-    hasMusic: true,
-    appliedAudioMix: true,
-    captionsApplied: true
-  }
-}
-```
-
-## Error Handling & Fallbacks
-
-### Provider Fallback Logic
-```typescript
-function getVideoGenerationProvider(override?: VideoProvider) {
-  const name = override ?? VIDEO_GENERATION_PROVIDER;
-  if (!PROVIDERS[name].isAvailable()) {
-    // Graceful fallback order
-    const fallbackOrder = ["kling-fal", "image-ken-burns", "runway"];
-    for (const fallback of fallbackOrder) {
-      if (PROVIDERS[fallback].isAvailable()) {
-        return PROVIDERS[fallback];
-      }
-    }
-  }
-}
-```
-
-### Graceful Degradation
-- **Audio Mix Failure**: Continues without audio mixing
-- **Caption Burn Failure**: Continues without captions
-- **FFmpeg Concat Failure**: Falls back to re-encoding
-- **Provider Unavailable**: Automatic provider switching
-
-### FFmpeg Fallback Strategies
-```typescript
-// Primary: Direct concat
-ffmpeg -f concat -safe 0 -i concat.txt -c copy output.mp4
-
-// Fallback: Re-encode
-ffmpeg -f concat -safe 0 -i concat.txt -c:v libx264 -preset fast output.mp4
-```
-
-## Performance Optimizations
-
-### Concurrency & Streaming
-- **Parallel Downloads**: Multiple clips downloaded simultaneously
-- **Streaming Processing**: Large files processed as streams
-- **Temporary File Management**: Efficient `/tmp` directory usage
-- **Non-blocking Operations**: Cost tracking runs async
-
-### Cost Tracking
-```typescript
-async function recordMediaCost({
-  userId,
-  provider,
-  featureType: "video_gen",
-  costUsd,
-  durationMs,
-  metadata
-}) {
-  await db.insert(aiCostLedger).values({
-    provider,
-    totalCost: costUsd.toFixed(8),
-    durationMs,
-    metadata: { prompt: prompt.slice(0, 200) }
-  });
-}
-```
-
-## Frontend Integration
-
-### Re-assembly UX
-- The Video workspace exposes a dedicated **Re-assemble** action in the generation controls.
-- Re-assembly still uses `POST /api/video/assemble` against existing shot/audio assets, so users can rebuild final output without regenerating clips.
-- Users can tune assembly mix controls per run:
-  - `includeClipAudio` (on/off)
-  - `voiceoverVolume` (`0.00`–`2.00`)
-  - `musicVolume` (`0.00`–`1.00`)
-  - `clipAudioVolume` (`0.00`–`1.00`)
-
-### React Hooks
-```typescript
-// Generation Hook
-export function useGenerateReel() {
-  return useMutation({
-    mutationFn: (data: CreateReelRequest) =>
-      authenticatedFetchJson<CreateReelResponse>("/api/video/reel", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: (res) => {
-      // Invalidate related queries
-      queryClient.invalidateQueries(queryKeys.api.videoJob(res.jobId));
-    },
-  });
-}
-
-// Assembly Hook
-export function useAssembleReel() {
-  return useMutation({
-    mutationFn: ({ generatedContentId, includeCaptions = true }) =>
-      authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
-        method: "POST",
-        body: JSON.stringify({ generatedContentId, includeCaptions }),
-      }),
-  });
-}
-```
-
-### Query Management
-```typescript
-queryKeys: {
-  api: {
-    videoJob: (jobId: string) => ['videoJob', jobId],
-    contentAssets: (contentId: number) => ['contentAssets', contentId],
-    generatedContent: (contentId: number) => ['generatedContent', contentId]
-  }
-}
-```
-
-## Security & Access Control
-
-### Authentication & Authorization
-```typescript
-// Middleware Chain
-app.post("/reel",
-  rateLimiter("customer"),      // Rate limiting
-  csrfMiddleware(),             // CSRF protection
-  authMiddleware("user"),       // JWT auth
-  zValidator("json", schema),   // Input validation
-  handler
-);
-```
-
-### User Ownership Validation
-```typescript
-const content = await fetchOwnedContent(userId, generatedContentId);
-if (!content) {
-  return c.json({ error: "Content not found" }, 404);
-}
-```
-
-## Monitoring & Observability
-
-### Debug Logging
-```typescript
-debugLog.error("Video reel job failed", {
-  service: "video-route",
-  operation: "runReelGeneration",
-  jobId: job.id,
-  generatedContentId: job.generatedContentId,
-  error: errorMessage,
-});
-```
-
-### Job Status Tracking
-- **Real-time Updates**: Job status changes logged
-- **Performance Metrics**: Generation time, cost tracking
-- **Error Analysis**: Failed job reasons and patterns
-
-## Configuration
-
-### Environment Variables
-```env
-# Video Generation
-VIDEO_GENERATION_PROVIDER=kling-fal
-FAL_API_KEY=your-fal-key
-RUNWAY_API_KEY=your-runway-key
-
-# Storage
-R2_PUBLIC_URL=https://pub-cdn.example.com
-R2_ACCOUNT_ID=your-account
-R2_ACCESS_KEY_ID=your-key
-R2_SECRET_ACCESS_KEY=your-secret
-
-# AI Models
-ANALYSIS_MODEL=claude-haiku-4-5-20251001
-GENERATION_MODEL=claude-sonnet-4-6
-ANTHROPIC_API_KEY=your-anthropic-key
-```
-
-## Future Enhancements
-
-### Planned Improvements
-1. **Real-time WebSocket Updates**: Job status via WebSocket
-2. **Advanced Audio Processing**: Noise reduction, audio normalization
-3. **Custom Caption Styles**: User-configurable caption appearance
-4. **Batch Processing**: Multiple reels in single job
-5. **Quality Metrics**: Automatic video quality assessment
-
-### Scalability Considerations
-- **Horizontal Scaling**: Job queue can be distributed across workers
-- **CDN Integration**: Edge caching for assembled videos
-- **Database Optimization**: Indexing for asset queries
-- **Storage Optimization**: Lifecycle policies for temporary assets
+This document explains how videos are actually made — the two-phase pipeline (AI clip generation, then FFmpeg assembly), why it's async, and how audio mixing and captions work.
 
 ---
 
-*Last updated: March 2026*
-*System Version: ContentAI v1.0*
+## The High-Level Idea
+
+Making a video involves two completely separate phases that run at different times:
+
+**Phase 1 — Video Clip Generation:** The AI generates individual video clips, one per "shot" in the script. Each clip is a short video file that gets stored in R2. This is done by external AI video providers (Kling via Fal.ai, or Runway). Each clip takes 30–90 seconds to generate.
+
+**Phase 2 — Assembly:** FFmpeg takes all the generated clips, concatenates them into one video, mixes in a voiceover (if any) and background music (if any), burns in captions (if requested), and uploads the final MP4 to R2.
+
+These phases are separate because they have different inputs and can run independently. You can regenerate individual shots without reassembling the whole video. You can reassemble with different audio settings without regenerating any clips.
+
+---
+
+## Why Everything Runs as Async Jobs
+
+Video generation takes too long to do in a synchronous HTTP request. A clip that's 5 seconds long can take a minute to generate from an AI video provider. A script with 5 shots means ~5 minutes total. You can't hold an HTTP connection open that long.
+
+Instead, the API creates a job record and returns immediately with a job ID. The actual work runs in a background worker. The frontend polls the job status endpoint until the job completes or fails.
+
+Jobs are stored in PostgreSQL and processed by an in-memory queue with a single worker. The single worker prevents hammering the AI video providers with concurrent requests, which would cause rate limit errors.
+
+---
+
+## Phase 1: How Clips Get Generated
+
+The script gets parsed into individual shots — each shot has a text description and a target duration. For example, "person walking confidently into a modern office building, 5 seconds."
+
+Each shot becomes one API call to the video provider. The provider returns a video file (or a URL to one). The backend downloads it, uploads it to R2, and creates a `reel_asset` row of type `video_clip` with the shot index stored in its metadata.
+
+The shot index is critical — it's what lets the assembly phase put clips in the right order.
+
+If the configured video provider isn't available (no API key), the system falls back through a priority list: Kling (via Fal) → image-based Ken Burns effect → Runway. The Ken Burns fallback generates a video from a static image with a slow pan/zoom, which isn't great but produces something rather than nothing.
+
+---
+
+## Phase 2: How Assembly Works
+
+Assembly is triggered separately after clips are ready. When the user (or the pipeline automatically) requests assembly:
+
+1. **Clip retrieval:** All `reel_asset` rows of type `video_clip` are fetched, ordered by `shotIndex`. Their R2 keys are used to generate signed download URLs.
+
+2. **Concatenation:** FFmpeg downloads each clip and concatenates them using the concat demuxer (`-f concat`). This is a lossless join — no re-encoding, so it's fast and doesn't degrade quality. If the lossless join fails (incompatible clip formats), it falls back to re-encoding with libx264.
+
+3. **Audio mixing:** If a voiceover exists (from TTS), it's mixed in at 1.0x volume (full). If a music track is attached, it's mixed in at 0.22x (background). Clip audio is muted by default (set to 0) unless `useClipAudio` is enabled per-clip. FFmpeg's `amix` filter handles the combining.
+
+4. **Caption burning:** If captions are requested, the script text is broken into 3-word chunks, timed evenly across the video duration, formatted as an ASS subtitle file, then burned directly into the video frames using FFmpeg's `ass` filter. Burned-in captions are permanent — they're part of the video pixels, not a separate track. They'll show on any player anywhere.
+
+5. **Output:** The assembled MP4 is uploaded to R2 under `assembled/{userId}/{contentId}/{jobId}.mp4`. The `generatedContent` row is updated with the video URL. A `reel_asset` of type `assembled_video` is created.
+
+---
+
+## Audio Mixing Details
+
+The audio levels are fixed at:
+- **Voiceover:** 1.0x (primary voice, full volume)
+- **Music:** 0.22x (background texture, not competing with voice)
+- **Original clip audio:** 0.35–0.45x if enabled (supplemental)
+
+The mix duration is set to `longest` — audio continues as long as any input stream is playing. The voiceover usually dictates the effective duration.
+
+---
+
+## Re-Assembly
+
+Users can re-assemble existing clips with different settings without regenerating the clips. This is useful for:
+- Trying captions on/off
+- Adjusting audio mix levels (voiceover vs music volume)
+- Adding or changing the music track
+
+Re-assembly uses the same endpoint (`POST /api/video/assemble`) but picks up whatever clips, voiceover, and music assets currently exist for that content. It's fast relative to clip generation because FFmpeg assembly takes seconds, not minutes.
+
+---
+
+## Temporary Files
+
+Assembly runs in a temp directory on the server. Clips are downloaded there, concatenated there, audio-mixed there, and the final file is read and uploaded to R2 from there. After upload completes, the temp files are cleaned up. Nothing persists on the server disk after a successful assembly.
+
+FFmpeg must be installed and in the server's PATH. Assembly fails immediately with a clear error if FFmpeg isn't found — it doesn't try to proceed.
+
+---
+
+## What Can Go Wrong
+
+**Clip generation fails:** The job fails. Individual shots can be regenerated via a "retry" endpoint that creates a new job with the same parameters.
+
+**Audio mix fails:** Assembly continues without audio mixing — the video is saved without the voiceover/music overlay. This is a graceful degradation, not a hard failure.
+
+**Caption burn fails:** Assembly continues without captions. Same graceful degradation approach.
+
+**FFmpeg concat fails (lossless):** Falls back to re-encoding. Slower but produces a result.
+
+**Provider unavailable:** Automatically tries the next provider in the fallback chain.
