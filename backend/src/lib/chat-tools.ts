@@ -8,6 +8,7 @@ import {
   musicTracks,
   reelAssets,
   reels,
+  mediaItems,
 } from "../infrastructure/database/drizzle/schema";
 import { eq, and, or, ilike, desc, gte, isNotNull, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
@@ -17,6 +18,7 @@ import {
   findChainQueueItem,
 } from "./queue-chain-guard";
 import { VOICES, getVoiceById } from "../config/voices";
+import { OPENAI_API_KEY, FAL_API_KEY } from "../utils/config/envUtil";
 import { generateSpeech } from "../services/tts/elevenlabs";
 import { uploadFile, deleteFile } from "../services/storage/r2";
 import { recordAiCost } from "./cost-tracker";
@@ -1433,6 +1435,165 @@ export function createGetTrendingAudioTool(_context: ToolContext) {
   });
 }
 
+export function createGenerateImageTool(context: ToolContext) {
+  return tool({
+    description:
+      "Generate an image using an AI image model and save it to the user's media library. Use when the user asks to create, generate, or visualize an image (e.g. thumbnails, cover art, scene illustrations). Returns the saved media item. Prefer DALL-E 3 (requires OpenAI key); falls back to Flux via fal.ai.",
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(10)
+        .max(1000)
+        .describe("Detailed description of the image to generate"),
+      size: z
+        .enum(["square", "portrait", "landscape"])
+        .default("portrait")
+        .describe("Image dimensions: square (1:1), portrait (9:16), landscape (16:9)"),
+      quality: z
+        .enum(["standard", "hd"])
+        .default("standard")
+        .describe("Image quality — hd is slower and costs more"),
+    }),
+    execute: async ({ prompt, size, quality }) => {
+      const sizeMap: Record<string, string> = {
+        square: "1024x1024",
+        portrait: "1024x1792",
+        landscape: "1792x1024",
+      };
+      const dalleSize = sizeMap[size];
+
+      try {
+        let imageBuffer: Buffer;
+        let provider: string;
+
+        if (OPENAI_API_KEY) {
+          // ── DALL-E 3 via OpenAI ──────────────────────────────────────────
+          const res = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${OPENAI_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "dall-e-3",
+              prompt,
+              n: 1,
+              size: dalleSize,
+              quality,
+              response_format: "url",
+            }),
+          });
+
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error(`DALL-E 3 failed (${res.status}): ${body}`);
+          }
+
+          const data = (await res.json()) as {
+            data: Array<{ url: string; revised_prompt?: string }>;
+          };
+          const imageUrl = data.data[0]?.url;
+          if (!imageUrl) throw new Error("No image URL returned");
+
+          const imgRes = await fetch(imageUrl);
+          if (!imgRes.ok) throw new Error("Failed to download generated image");
+          imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+          provider = "dall-e-3";
+        } else if (FAL_API_KEY) {
+          // ── FLUX.1-schnell via fal.ai ────────────────────────────────────
+          const falSizeMap: Record<string, string> = {
+            square: "square_hd",
+            portrait: "portrait_16_9",
+            landscape: "landscape_16_9",
+          };
+
+          const res = await fetch("https://fal.run/fal-ai/flux/schnell", {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${FAL_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              prompt,
+              image_size: falSizeMap[size],
+              num_images: 1,
+              num_inference_steps: quality === "hd" ? 8 : 4,
+            }),
+          });
+
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error(`fal.ai Flux failed (${res.status}): ${body}`);
+          }
+
+          const data = (await res.json()) as {
+            images: Array<{ url: string; content_type: string }>;
+          };
+          const imageUrl = data.images[0]?.url;
+          if (!imageUrl) throw new Error("No image URL returned from fal.ai");
+
+          const imgRes = await fetch(imageUrl);
+          if (!imgRes.ok) throw new Error("Failed to download generated image");
+          imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+          provider = "flux-schnell";
+        } else {
+          return {
+            success: false as const,
+            reason: "no_image_provider",
+            message: "No image generation API key configured (OPENAI_API_KEY or FAL_API_KEY required)",
+          };
+        }
+
+        const itemId = crypto.randomUUID();
+        const r2Key = `media/generated/${context.auth.user.id}/${itemId}.png`;
+        const r2Url = await uploadFile(imageBuffer, r2Key, "image/png");
+
+        const name = prompt.slice(0, 60) + (prompt.length > 60 ? "…" : "");
+
+        const [item] = await db
+          .insert(mediaItems)
+          .values({
+            id: itemId,
+            userId: context.auth.user.id,
+            name,
+            type: "image",
+            mimeType: "image/png",
+            r2Key,
+            r2Url,
+            sizeBytes: imageBuffer.length,
+            durationMs: null,
+            metadata: { provider, prompt, size, quality },
+          })
+          .returning();
+
+        debugLog.info("[tool:generate_image] Image generated and saved", {
+          service: "chat-tools",
+          operation: "generate_image",
+          itemId: item.id,
+          provider,
+          size,
+          userId: context.auth.user.id,
+        });
+
+        return {
+          success: true as const,
+          itemId: item.id,
+          r2Url,
+          provider,
+          message: "Image generated and saved to your media library.",
+        };
+      } catch (err) {
+        debugLog.error("[tool:generate_image] Failed", {
+          service: "chat-tools",
+          operation: "generate_image",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
+        return { success: false as const, reason: "generation_error" };
+      }
+    },
+  });
+}
+
 export function createChatTools(context: ToolContext) {
   return {
     // Content
@@ -1458,6 +1619,8 @@ export function createChatTools(context: ToolContext) {
     assemble_video: createAssembleVideoTool(context),
     regenerate_video_shot: createRegenerateVideoShotTool(context),
     retry_video_job: createRetryVideoJobTool(context),
+    // Image generation
+    generate_image: createGenerateImageTool(context),
     // Queue
     remove_from_queue: createRemoveFromQueueTool(context),
     schedule_content: createScheduleContentTool(context),

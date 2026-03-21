@@ -8,6 +8,9 @@ import {
   Film,
   FileText,
   Repeat2,
+  Eye,
+  MessageSquare,
+  BookOpen,
 } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -56,6 +59,8 @@ export function ChatPanel({
     defaultProviderLabel: string | null;
     analysisModel: string | null;
     generationModel: string | null;
+    supportsVision: boolean;
+    contextWindow: number | null;
   }>();
   const { data: aiDefaults } = useQuery({
     queryKey: queryKeys.api.aiDefaults(),
@@ -143,6 +148,35 @@ export function ChatPanel({
               ))}
             </div>
 
+            {/* Model capabilities */}
+            {aiDefaults && (
+              <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+                <p className="text-xs font-medium text-muted-foreground/50 uppercase tracking-wider">
+                  {t("studio_chat_capabilities_label")}
+                </p>
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border/40 text-xs text-muted-foreground">
+                    <MessageSquare className="w-3 h-3 shrink-0" />
+                    {t("studio_chat_capabilities_generate")}
+                  </span>
+                  {aiDefaults.supportsVision && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border/40 text-xs text-muted-foreground">
+                      <Eye className="w-3 h-3 shrink-0" />
+                      {t("studio_chat_capabilities_images")}
+                    </span>
+                  )}
+                  {aiDefaults.contextWindow && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border/40 text-xs text-muted-foreground">
+                      <BookOpen className="w-3 h-3 shrink-0" />
+                      {aiDefaults.contextWindow >= 1_000_000
+                        ? `${aiDefaults.contextWindow / 1_000_000}M ctx`
+                        : `${aiDefaults.contextWindow / 1_000}k ctx`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground/40 text-center">
               {t("studio_chat_hint")}
             </p>
@@ -213,11 +247,19 @@ export function ChatPanel({
               )}
             </div>
           ) : (
-            <ChatInput
-              activeReelRefs={activeReelRefs}
-              onSendMessage={onSendMessage}
-              disabled={isStreaming}
-            />
+            <>
+              <ChatInput
+                activeReelRefs={activeReelRefs}
+                onSendMessage={onSendMessage}
+                disabled={isStreaming}
+              />
+              {aiDefaults?.generationModel && (
+                <p className="mt-2 text-center text-[11px] text-muted-foreground/40">
+                  {aiDefaults.generationModel}
+                  {aiDefaults.supportsVision && ` · ${t("studio_chat_capabilities_images")}`}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>

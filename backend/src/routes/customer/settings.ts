@@ -92,6 +92,86 @@ userSettingsRouter.put(
 
 // ─── GET /api/customer/settings/ai-defaults ───────────────────────────────────
 
+/**
+ * Returns whether a given provider + model combination supports vision
+ * (image/multimodal input). Based on known model naming conventions.
+ */
+function detectSupportsVision(provider: string, model: string): boolean {
+  const m = model.toLowerCase();
+
+  if (provider === "claude") {
+    // claude-3-*, claude-3.5-*, claude-*-4-* all support vision; claude-2.* does not
+    return (
+      m.startsWith("claude-3") ||
+      m.includes("-4-") ||
+      m.includes("-sonnet-4") ||
+      m.includes("-opus-4") ||
+      m.includes("-haiku-4")
+    );
+  }
+
+  if (provider === "openai") {
+    return (
+      m.startsWith("gpt-4o") ||
+      m.includes("gpt-4-vision") ||
+      m.includes("gpt-4-turbo") ||
+      m.startsWith("o1") ||
+      m.startsWith("o3") ||
+      m.startsWith("o4")
+    );
+  }
+
+  if (provider === "openrouter") {
+    // Match by model path prefix (openrouter format: "provider/model-name")
+    return (
+      m.startsWith("anthropic/claude-3") ||
+      m.startsWith("anthropic/claude-") && (m.includes("-4-") || m.includes("sonnet-4") || m.includes("opus-4")) ||
+      m.startsWith("openai/gpt-4o") ||
+      m.startsWith("openai/o1") ||
+      m.startsWith("openai/o3") ||
+      m.startsWith("google/gemini") ||
+      m.startsWith("meta-llama/llama-3") && m.includes("vision") ||
+      m.startsWith("mistralai/pixtral") ||
+      m.startsWith("qwen/qwen-vl") ||
+      m.startsWith("x-ai/grok") && !m.includes("mini")
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Returns approximate context window in tokens for display purposes.
+ * Returns null if unknown.
+ */
+function detectContextWindow(provider: string, model: string): number | null {
+  const m = model.toLowerCase();
+
+  if (provider === "claude") {
+    if (m.startsWith("claude-3") || m.includes("claude-") && m.includes("-4-")) return 200_000;
+    return null;
+  }
+
+  if (provider === "openai") {
+    if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo") || m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4")) return 128_000;
+    if (m.startsWith("gpt-4")) return 8_192;
+    if (m.startsWith("gpt-3.5-turbo-16k")) return 16_384;
+    if (m.startsWith("gpt-3.5")) return 4_096;
+    return null;
+  }
+
+  if (provider === "openrouter") {
+    if (m.startsWith("anthropic/claude")) return 200_000;
+    if (m.startsWith("google/gemini-1.5") || m.startsWith("google/gemini-2")) return 1_000_000;
+    if (m.startsWith("openai/gpt-4o") || m.startsWith("openai/o1")) return 128_000;
+    if (m.includes("deepseek")) return 128_000;
+    if (m.includes("llama-3")) return 128_000;
+    return null;
+  }
+
+  return null;
+}
+
 userSettingsRouter.get(
   "/ai-defaults",
   rateLimiter("customer"),
@@ -106,7 +186,14 @@ userSettingsRouter.get(
       const defaultProvider = enabled[0] ?? null;
 
       if (!defaultProvider) {
-        return c.json({ defaultProvider: null, defaultProviderLabel: null, analysisModel: null, generationModel: null });
+        return c.json({
+          defaultProvider: null,
+          defaultProviderLabel: null,
+          analysisModel: null,
+          generationModel: null,
+          supportsVision: false,
+          contextWindow: null,
+        });
       }
 
       const def = PROVIDER_REGISTRY[defaultProvider];
@@ -120,6 +207,8 @@ userSettingsRouter.get(
         defaultProviderLabel: def.label,
         analysisModel,
         generationModel,
+        supportsVision: detectSupportsVision(defaultProvider, generationModel),
+        contextWindow: detectContextWindow(defaultProvider, generationModel),
       });
     } catch (error) {
       debugLog.error("Failed to fetch AI defaults", {
