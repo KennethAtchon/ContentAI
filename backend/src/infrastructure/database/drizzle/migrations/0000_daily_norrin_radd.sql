@@ -14,12 +14,26 @@ CREATE TABLE "ai_cost_ledger" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "asset" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text,
+	"type" text NOT NULL,
+	"source" text NOT NULL,
+	"name" text,
+	"mime_type" text,
+	"r2_key" text NOT NULL,
+	"r2_url" text,
+	"size_bytes" integer,
+	"duration_ms" integer,
+	"metadata" jsonb DEFAULT '{}'::jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "chat_message" (
 	"id" text PRIMARY KEY NOT NULL,
 	"session_id" text NOT NULL,
 	"role" text NOT NULL,
 	"content" text NOT NULL,
-	"reel_refs" jsonb,
 	"generated_content_id" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
@@ -43,6 +57,13 @@ CREATE TABLE "contact_message" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "content_asset" (
+	"id" text PRIMARY KEY NOT NULL,
+	"generated_content_id" integer NOT NULL,
+	"asset_id" text NOT NULL,
+	"role" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "edit_project" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
@@ -62,8 +83,7 @@ CREATE TABLE "export_job" (
 	"user_id" text NOT NULL,
 	"status" text DEFAULT 'queued' NOT NULL,
 	"progress" integer DEFAULT 0 NOT NULL,
-	"r2_key" text,
-	"r2_url" text,
+	"output_asset_id" text,
 	"error" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -73,8 +93,8 @@ CREATE TABLE "feature_usage" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"feature_type" text NOT NULL,
-	"input_data" json NOT NULL,
-	"result_data" json NOT NULL,
+	"input_data" jsonb NOT NULL,
+	"result_data" jsonb NOT NULL,
 	"usage_time_ms" integer NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
@@ -90,10 +110,6 @@ CREATE TABLE "generated_content" (
 	"clean_script_for_audio" text,
 	"scene_description" text,
 	"generated_metadata" jsonb,
-	"voiceover_url" text,
-	"background_audio_url" text,
-	"thumbnail_r2_key" text,
-	"video_r2_url" text,
 	"output_type" text DEFAULT 'full' NOT NULL,
 	"model" text,
 	"status" text DEFAULT 'draft' NOT NULL,
@@ -103,7 +119,7 @@ CREATE TABLE "generated_content" (
 );
 --> statement-breakpoint
 CREATE TABLE "instagram_page" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"page_id" text NOT NULL,
 	"username" text NOT NULL,
@@ -113,14 +129,22 @@ CREATE TABLE "instagram_page" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "message_attachment" (
+	"id" text PRIMARY KEY NOT NULL,
+	"message_id" text NOT NULL,
+	"entity_type" text NOT NULL,
+	"reel_id" integer,
+	"asset_id" text
+);
+--> statement-breakpoint
 CREATE TABLE "music_track" (
 	"id" text PRIMARY KEY NOT NULL,
+	"asset_id" text NOT NULL,
 	"name" text NOT NULL,
 	"artist_name" text,
 	"duration_seconds" integer NOT NULL,
 	"mood" text NOT NULL,
 	"genre" text,
-	"r2_key" text NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"uploaded_by" text,
 	"created_at" timestamp DEFAULT now() NOT NULL
@@ -177,7 +201,7 @@ CREATE TABLE "queue_item" (
 );
 --> statement-breakpoint
 CREATE TABLE "reel_analysis" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"reel_id" integer NOT NULL,
 	"hook_pattern" text,
 	"hook_category" text,
@@ -200,18 +224,6 @@ CREATE TABLE "reel_analysis" (
 	"analysis_model" text,
 	"raw_response" jsonb,
 	"analyzed_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "reel_asset" (
-	"id" text PRIMARY KEY NOT NULL,
-	"generated_content_id" integer NOT NULL,
-	"user_id" text NOT NULL,
-	"type" text NOT NULL,
-	"r2_key" text NOT NULL,
-	"r2_url" text,
-	"duration_ms" integer,
-	"metadata" jsonb DEFAULT '{}'::jsonb,
-	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "reel" (
@@ -243,8 +255,23 @@ CREATE TABLE "reel" (
 	CONSTRAINT "reel_external_id_unique" UNIQUE("external_id")
 );
 --> statement-breakpoint
+CREATE TABLE "system_config" (
+	"id" text PRIMARY KEY NOT NULL,
+	"category" text NOT NULL,
+	"key" text NOT NULL,
+	"value" text,
+	"encrypted_value" text,
+	"value_type" text DEFAULT 'string' NOT NULL,
+	"is_secret" boolean DEFAULT false NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"description" text,
+	"updated_by" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "trending_audio" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
 	"audio_id" text NOT NULL,
 	"audio_name" text NOT NULL,
 	"artist_name" text,
@@ -252,6 +279,19 @@ CREATE TABLE "trending_audio" (
 	"first_seen" timestamp DEFAULT now() NOT NULL,
 	"last_seen" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "trending_audio_audio_id_unique" UNIQUE("audio_id")
+);
+--> statement-breakpoint
+CREATE TABLE "user_settings" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"preferred_ai_provider" text,
+	"preferred_video_provider" text,
+	"preferred_voice_id" text,
+	"preferred_tts_speed" text,
+	"preferred_aspect_ratio" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_settings_user_id_unique" UNIQUE("user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "user" (
@@ -275,20 +315,42 @@ CREATE TABLE "user" (
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
+ALTER TABLE "asset" ADD CONSTRAINT "asset_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_session_id_chat_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."chat_session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "content_asset" ADD CONSTRAINT "content_asset_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "content_asset" ADD CONSTRAINT "content_asset_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "edit_project" ADD CONSTRAINT "edit_project_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "edit_project" ADD CONSTRAINT "edit_project_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "export_job" ADD CONSTRAINT "export_job_edit_project_id_edit_project_id_fk" FOREIGN KEY ("edit_project_id") REFERENCES "public"."edit_project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "export_job" ADD CONSTRAINT "export_job_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reel_asset" ADD CONSTRAINT "reel_asset_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "export_job" ADD CONSTRAINT "export_job_output_asset_id_asset_id_fk" FOREIGN KEY ("output_asset_id") REFERENCES "public"."asset"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "feature_usage" ADD CONSTRAINT "feature_usage_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "generated_content" ADD CONSTRAINT "generated_content_source_reel_id_reel_id_fk" FOREIGN KEY ("source_reel_id") REFERENCES "public"."reel"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "generated_content" ADD CONSTRAINT "generated_content_parent_id_generated_content_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."generated_content"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "instagram_page" ADD CONSTRAINT "instagram_page_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "message_attachment" ADD CONSTRAINT "message_attachment_message_id_chat_message_id_fk" FOREIGN KEY ("message_id") REFERENCES "public"."chat_message"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "message_attachment" ADD CONSTRAINT "message_attachment_reel_id_reel_id_fk" FOREIGN KEY ("reel_id") REFERENCES "public"."reel"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "message_attachment" ADD CONSTRAINT "message_attachment_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "music_track" ADD CONSTRAINT "music_track_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order" ADD CONSTRAINT "order_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "queue_item" ADD CONSTRAINT "queue_item_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "queue_item" ADD CONSTRAINT "queue_item_instagram_page_id_instagram_page_id_fk" FOREIGN KEY ("instagram_page_id") REFERENCES "public"."instagram_page"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reel_analysis" ADD CONSTRAINT "reel_analysis_reel_id_reel_id_fk" FOREIGN KEY ("reel_id") REFERENCES "public"."reel"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reel" ADD CONSTRAINT "reel_niche_id_niche_id_fk" FOREIGN KEY ("niche_id") REFERENCES "public"."niche"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_settings" ADD CONSTRAINT "user_settings_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "ai_cost_ledger_created_at_idx" ON "ai_cost_ledger" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "ai_cost_ledger_user_id_idx" ON "ai_cost_ledger" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "ai_cost_ledger_feature_type_idx" ON "ai_cost_ledger" USING btree ("feature_type");--> statement-breakpoint
+CREATE INDEX "assets_user_id_idx" ON "asset" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "assets_type_source_idx" ON "asset" USING btree ("type","source");--> statement-breakpoint
 CREATE INDEX "chat_messages_session_id_idx" ON "chat_message" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_user_id_idx" ON "chat_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_project_id_idx" ON "chat_session" USING btree ("project_id");--> statement-breakpoint
+CREATE INDEX "content_assets_content_idx" ON "content_asset" USING btree ("generated_content_id");--> statement-breakpoint
+CREATE INDEX "content_assets_asset_idx" ON "content_asset" USING btree ("asset_id");--> statement-breakpoint
+CREATE INDEX "content_assets_role_idx" ON "content_asset" USING btree ("generated_content_id","role");--> statement-breakpoint
 CREATE INDEX "edit_projects_user_idx" ON "edit_project" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "edit_projects_content_idx" ON "edit_project" USING btree ("generated_content_id");--> statement-breakpoint
 CREATE INDEX "export_jobs_project_idx" ON "export_job" USING btree ("edit_project_id");--> statement-breakpoint
@@ -296,6 +358,9 @@ CREATE INDEX "export_jobs_user_idx" ON "export_job" USING btree ("user_id");--> 
 CREATE INDEX "feature_usages_user_id_idx" ON "feature_usage" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_user_id_idx" ON "generated_content" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "generated_content_source_reel_idx" ON "generated_content" USING btree ("source_reel_id");--> statement-breakpoint
+CREATE INDEX "message_attachments_message_idx" ON "message_attachment" USING btree ("message_id");--> statement-breakpoint
+CREATE INDEX "message_attachments_reel_idx" ON "message_attachment" USING btree ("reel_id");--> statement-breakpoint
+CREATE INDEX "message_attachments_asset_idx" ON "message_attachment" USING btree ("asset_id");--> statement-breakpoint
 CREATE INDEX "music_track_mood_idx" ON "music_track" USING btree ("mood");--> statement-breakpoint
 CREATE INDEX "music_track_active_idx" ON "music_track" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "orders_user_id_idx" ON "order" USING btree ("user_id");--> statement-breakpoint
@@ -303,9 +368,9 @@ CREATE INDEX "projects_user_id_idx" ON "project" USING btree ("user_id");--> sta
 CREATE INDEX "queue_items_user_id_idx" ON "queue_item" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "queue_items_status_idx" ON "queue_item" USING btree ("status");--> statement-breakpoint
 CREATE UNIQUE INDEX "reel_analyses_reel_id_idx" ON "reel_analysis" USING btree ("reel_id");--> statement-breakpoint
-CREATE INDEX "reel_asset_content_idx" ON "reel_asset" USING btree ("generated_content_id");--> statement-breakpoint
-CREATE INDEX "reel_asset_user_idx" ON "reel_asset" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "reel_asset_type_idx" ON "reel_asset" USING btree ("generated_content_id","type");--> statement-breakpoint
 CREATE INDEX "reels_niche_id_idx" ON "reel" USING btree ("niche_id");--> statement-breakpoint
 CREATE INDEX "reels_views_idx" ON "reel" USING btree ("views");--> statement-breakpoint
-CREATE INDEX "trending_audio_audio_id_idx" ON "trending_audio" USING btree ("audio_id");
+CREATE UNIQUE INDEX "system_config_category_key_idx" ON "system_config" USING btree ("category","key");--> statement-breakpoint
+CREATE INDEX "system_config_category_idx" ON "system_config" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "trending_audio_audio_id_idx" ON "trending_audio" USING btree ("audio_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_settings_user_id_idx" ON "user_settings" USING btree ("user_id");
