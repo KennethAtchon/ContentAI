@@ -45,11 +45,11 @@ Two config paths exist (a known tech debt):
 
 ### Frontend Stream Handling
 
-The stream hook (`use-chat-stream.ts`) polls for SSE text-delta events and:
-1. Appends text to the optimistic message
-2. Strips `<tool_call>...</tool_call>` XML blocks (regex workaround)
-3. Detects tool call names from text deltas to trigger query invalidation
-4. On 403, shows usage limit toast
+The stream hook (`use-chat-stream.ts`) reads the POST response body as SSE-style lines (`drainSseStreamIntoIngest` → `processStreamSseLine`) and:
+1. Appends `text-delta` chunks to accumulated assistant text (shown as the streaming overlay)
+2. Strips `<tool_call>...</tool_call>` XML blocks (`filterToolCallXml`)
+3. Detects content-writing tools from text deltas and tool events for the saving indicator / `streamingContentId`
+4. On 403 with `USAGE_LIMIT_REACHED`, sets `isLimitReached` and invalidates usage queries
 
 ---
 
@@ -77,7 +77,7 @@ const { model } = await getProviderInstanceAsync("generation");
 
 ### B2: XML Tool Call Stripping (Medium Impact)
 
-**File:** `frontend/src/features/chat/hooks/use-chat-stream.ts:17-28`
+**File:** `frontend/src/features/chat/hooks/use-chat-stream.ts` (`filterToolCallXml`, used from `processStreamSseLine`)
 
 A client-side regex strips `<tool_call>...</tool_call>` blocks from streamed text. This exists because some OpenRouter models without native function calling emit tool invocations as raw XML text in the content stream.
 

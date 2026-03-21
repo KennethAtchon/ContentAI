@@ -5,12 +5,12 @@ import {
   timestamp,
   integer,
   numeric,
-  json,
   jsonb,
   serial,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("user", {
@@ -43,7 +43,9 @@ export const orders = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
     status: text("status"),
     stripeSessionId: text("stripe_session_id").unique(),
@@ -75,10 +77,12 @@ export const featureUsages = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     featureType: text("feature_type").notNull(),
-    inputData: json("input_data").notNull(),
-    resultData: json("result_data").notNull(),
+    inputData: jsonb("input_data").notNull(),
+    resultData: jsonb("result_data").notNull(),
     usageTimeMs: integer("usage_time_ms").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -89,16 +93,15 @@ export const featureUsages = pgTable(
 
 export const niches = pgTable("niche", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(), // e.g., "Personal Finance"
+  name: text("name").notNull().unique(),
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
-  // Scraping configuration
-  scrapeLimit: integer("scrape_limit").notNull().default(100), // Max reels to scrape per run
-  scrapeMinViews: integer("scrape_min_views").notNull().default(1000), // Minimum views for reels
-  scrapeMaxDaysOld: integer("scrape_max_days_old").notNull().default(30), // Maximum age in days
+  scrapeLimit: integer("scrape_limit").notNull().default(100),
+  scrapeMinViews: integer("scrape_min_views").notNull().default(1000),
+  scrapeMaxDaysOld: integer("scrape_max_days_old").notNull().default(30),
   scrapeIncludeViralOnly: boolean("scrape_include_viral_only")
     .notNull()
-    .default(false), // Only viral content
+    .default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .notNull()
@@ -153,8 +156,12 @@ export const reels = pgTable(
 export const reelAnalyses = pgTable(
   "reel_analysis",
   {
-    id: serial("id").primaryKey(),
-    reelId: integer("reel_id").notNull(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    reelId: integer("reel_id")
+      .notNull()
+      .references(() => reels.id, { onDelete: "cascade" }),
     hookPattern: text("hook_pattern"),
     hookCategory: text("hook_category"),
     emotionalTrigger: text("emotional_trigger"),
@@ -163,23 +170,12 @@ export const reelAnalyses = pgTable(
     captionFramework: text("caption_framework"),
     curiosityGapStyle: text("curiosity_gap_style"),
     remixSuggestion: text("remix_suggestion"),
-    // Audio analysis
-    // e.g. "motivational", "voiceover", "inspirational", "modern_songs", "no_audio"
     audioType: text("audio_type"),
-    // Caption analysis
-    // e.g. "hook_based", "pov", "cta", "question_driven", "warning", "one_liner",
-    //      "teaser", "listicle", "emoji_heavy", "aesthetic_motivational"
     captionStyle: text("caption_style"),
-    // e.g. "montserrat", "helvetica", "the_bold_font", "poppins", "arial",
-    //      "roboto", "open_sans", "futura", "bebas_neue"
     captionFont: text("caption_font"),
-    // Comment bait strategy description
     commentBaitStyle: text("comment_bait_style"),
-    // Description of how on-screen text is structured (lists, instructions, etc.)
     onScreenTextStructure: text("on_screen_text_structure"),
-    // e.g. "middle", "top", "bottom", "top_and_bottom"
     textPosition: text("text_position"),
-    // Enhanced analysis fields
     shotBreakdown: jsonb("shot_breakdown"),
     engagementDrivers: jsonb("engagement_drivers"),
     replicabilityScore: integer("replicability_score"),
@@ -198,9 +194,7 @@ export const reelAnalyses = pgTable(
  * structured content package that gets published to Instagram, TikTok, etc.
  * It contains everything needed to produce a real post:
  *   - The hook, script, caption, hashtags, and CTA (AI-authored copy)
- *   - The voiceover audio URL (spoken narration, generated via TTS)
- *   - The background audio URL (music track attached by the user)
- *   - The final video file URL once rendered
+ *   - Assets are tracked via content_asset join table (no denormalized URLs)
  *
  * Rows form a version chain via parentId: v1 → v2 → v3 (iterate_content).
  * The tip of each chain (no child exists) is the canonical "current" draft.
@@ -211,27 +205,25 @@ export const generatedContent = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: text("user_id").notNull(),
-    sourceReelId: integer("source_reel_id"),
+    sourceReelId: integer("source_reel_id").references(() => reels.id, {
+      onDelete: "set null",
+    }),
     prompt: text("prompt").notNull(),
     // AI-authored copy
     generatedHook: text("generated_hook"),
     generatedCaption: text("generated_caption"),
-    generatedScript: text("generated_script"), // Structured script with timestamps for video production
-    cleanScriptForAudio: text("clean_script_for_audio"), // Clean script without timestamps for TTS/audio generation
-    sceneDescription: text("scene_description"), // Visual style setter: overall aesthetic, lighting, camera style for all shots
+    generatedScript: text("generated_script"),
+    cleanScriptForAudio: text("clean_script_for_audio"),
+    sceneDescription: text("scene_description"),
     generatedMetadata: jsonb("generated_metadata"),
-    // Audio assets — denormalized for fast publish reads (source of truth is reel_assets)
-    voiceoverUrl: text("voiceover_url"),
-    backgroundAudioUrl: text("background_audio_url"),
-    // Final rendered video
-    thumbnailR2Key: text("thumbnail_r2_key"),
-    videoR2Url: text("video_r2_url"),
     outputType: text("output_type").notNull().default("full"),
     model: text("model"),
     // draft → queued → processing → published | failed
     status: text("status").notNull().default("draft"),
     version: integer("version").notNull().default(1),
-    parentId: integer("parent_id"),
+    parentId: integer("parent_id").references(
+      (): AnyPgColumn => generatedContent.id,
+    ),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -243,7 +235,9 @@ export const generatedContent = pgTable(
 export const trendingAudio = pgTable(
   "trending_audio",
   {
-    id: serial("id").primaryKey(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     audioId: text("audio_id").notNull().unique(),
     audioName: text("audio_name").notNull(),
     artistName: text("artist_name"),
@@ -255,8 +249,12 @@ export const trendingAudio = pgTable(
 );
 
 export const instagramPages = pgTable("instagram_page", {
-  id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   pageId: text("page_id").notNull(),
   username: text("username").notNull(),
   accessToken: text("access_token"),
@@ -270,10 +268,16 @@ export const queueItems = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: text("user_id").notNull(),
-    generatedContentId: integer("generated_content_id"),
+    generatedContentId: integer("generated_content_id").references(
+      () => generatedContent.id,
+      { onDelete: "cascade" },
+    ),
     scheduledFor: timestamp("scheduled_for"),
     postedAt: timestamp("posted_at"),
-    instagramPageId: text("instagram_page_id"),
+    instagramPageId: text("instagram_page_id").references(
+      () => instagramPages.id,
+      { onDelete: "set null" },
+    ),
     status: text("status").notNull().default("scheduled"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -281,6 +285,71 @@ export const queueItems = pgTable(
   (t) => [
     index("queue_items_user_id_idx").on(t.userId),
     index("queue_items_status_idx").on(t.status),
+  ],
+);
+
+// ─── Assets ───────────────────────────────────────────────────────────────────
+// Central registry for every file stored in R2.
+// Replaces the old reel_asset and media_item tables.
+
+export const assets = pgTable(
+  "asset",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    // nullable for platform assets (music tracks, system-generated)
+
+    type: text("type").notNull(),
+    // "video" | "image" | "audio" | "voiceover" | "thumbnail" | "video_clip" | "assembled_video"
+
+    source: text("source").notNull(),
+    // "uploaded"  — user uploaded via media library
+    // "generated" — produced by video render pipeline
+    // "tts"       — produced by text-to-speech
+    // "platform"  — admin-uploaded platform asset (music tracks)
+    // "export"    — final render from an export job
+
+    name: text("name"),
+    mimeType: text("mime_type"),
+    r2Key: text("r2_key").notNull(),
+    r2Url: text("r2_url"),
+    sizeBytes: integer("size_bytes"),
+    durationMs: integer("duration_ms"),
+    metadata: jsonb("metadata").default({}),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("assets_user_id_idx").on(t.userId),
+    index("assets_type_source_idx").on(t.type, t.source),
+  ],
+);
+
+// ─── Content Assets ───────────────────────────────────────────────────────────
+// Join table: which assets belong to which generated content, and in what role.
+// Replaces the old reel_asset table's content-linking function.
+
+export const contentAssets = pgTable(
+  "content_asset",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    generatedContentId: integer("generated_content_id")
+      .notNull()
+      .references(() => generatedContent.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "restrict" }),
+    role: text("role").notNull(),
+    // "voiceover" | "background_music" | "thumbnail" | "final_video" | "video_clip" | "assembled_video" | "image"
+  },
+  (t) => [
+    index("content_assets_content_idx").on(t.generatedContentId),
+    index("content_assets_asset_idx").on(t.assetId),
+    index("content_assets_role_idx").on(t.generatedContentId, t.role),
   ],
 );
 
@@ -340,76 +409,60 @@ export const chatMessages = pgTable(
       .references(() => chatSessions.id, { onDelete: "cascade" }),
     role: text("role").notNull(), // "user" | "assistant" | "system"
     content: text("content").notNull(),
-    reelRefs: jsonb("reel_refs"), // Array of reel IDs referenced in this message
-    mediaRefs: jsonb("media_refs"), // Array of media_item IDs attached to this message
-    generatedContentId: integer("generated_content_id"),
+    generatedContentId: integer("generated_content_id").references(
+      () => generatedContent.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("chat_messages_session_id_idx").on(t.sessionId)],
 );
 
-// ─── Reel Assets ──────────────────────────────────────────────────────────────
-export const reelAssets = pgTable(
-  "reel_asset",
+// ─── Message Attachments ──────────────────────────────────────────────────────
+// Join table: replaces jsonb reelRefs / mediaRefs columns on chat_message.
+// Enforces referential integrity and enables reverse lookups.
+
+export const messageAttachments = pgTable(
+  "message_attachment",
   {
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    generatedContentId: integer("generated_content_id")
+    messageId: text("message_id")
       .notNull()
-      .references(() => generatedContent.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull(),
-    type: text("type").notNull(), // "voiceover" | "music" | "video_clip" | "image"
-    r2Key: text("r2_key").notNull(),
-    r2Url: text("r2_url"),
-    durationMs: integer("duration_ms"),
-    metadata: jsonb("metadata").default({}),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(), // "reel" | "asset"
+    reelId: integer("reel_id").references(() => reels.id, {
+      onDelete: "set null",
+    }),
+    assetId: text("asset_id").references(() => assets.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [
-    index("reel_asset_content_idx").on(t.generatedContentId),
-    index("reel_asset_user_idx").on(t.userId),
-    index("reel_asset_type_idx").on(t.generatedContentId, t.type),
+    index("message_attachments_message_idx").on(t.messageId),
+    index("message_attachments_reel_idx").on(t.reelId),
+    index("message_attachments_asset_idx").on(t.assetId),
   ],
 );
 
-// ─── Media Library ────────────────────────────────────────────────────────────
-
-export const mediaItems = pgTable(
-  "media_item",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(), // original filename
-    type: text("type").notNull(), // "video" | "image" | "audio"
-    mimeType: text("mime_type").notNull(),
-    r2Key: text("r2_key").notNull(),
-    r2Url: text("r2_url"),
-    sizeBytes: integer("size_bytes"),
-    durationMs: integer("duration_ms"), // nullable — video/audio only
-    metadata: jsonb("metadata").default({}),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (t) => [index("media_item_user_idx").on(t.userId)],
-);
-
 // ─── Music Tracks ─────────────────────────────────────────────────────────────
+// Platform catalog of background music. r2Key is stored on the linked asset row.
+
 export const musicTracks = pgTable(
   "music_track",
   {
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     artistName: text("artist_name"),
     durationSeconds: integer("duration_seconds").notNull(),
-    mood: text("mood").notNull(), // "energetic" | "calm" | "dramatic" | "funny" | "inspiring"
+    mood: text("mood").notNull(),
     genre: text("genre"),
-    r2Key: text("r2_key").notNull(),
     isActive: boolean("is_active").notNull().default(true),
     uploadedBy: text("uploaded_by"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -436,7 +489,6 @@ export const editProjects = pgTable(
       () => generatedContent.id,
       { onDelete: "set null" },
     ),
-    // Serialized timeline state
     tracks: jsonb("tracks").notNull().default([]),
     durationMs: integer("duration_ms").notNull().default(0),
     fps: integer("fps").notNull().default(30),
@@ -468,8 +520,9 @@ export const exportJobs = pgTable(
     // "queued" | "rendering" | "done" | "failed"
     status: text("status").notNull().default("queued"),
     progress: integer("progress").notNull().default(0),
-    r2Key: text("r2_key"),
-    r2Url: text("r2_url"),
+    outputAssetId: text("output_asset_id").references(() => assets.id, {
+      onDelete: "set null",
+    }),
     error: text("error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
@@ -545,6 +598,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   featureUsages: many(featureUsages),
   projects: many(projects),
   chatSessions: many(chatSessions),
+  assets: many(assets),
   settings: one(userSettings, {
     fields: [users.id],
     references: [userSettings.userId],
@@ -567,6 +621,23 @@ export const reelsRelations = relations(reels, ({ one }) => ({
   niche: one(niches, { fields: [reels.nicheId], references: [niches.id] }),
 }));
 
+export const assetsRelations = relations(assets, ({ one, many }) => ({
+  user: one(users, { fields: [assets.userId], references: [users.id] }),
+  contentAssets: many(contentAssets),
+  messageAttachments: many(messageAttachments),
+}));
+
+export const contentAssetsRelations = relations(contentAssets, ({ one }) => ({
+  generatedContent: one(generatedContent, {
+    fields: [contentAssets.generatedContentId],
+    references: [generatedContent.id],
+  }),
+  asset: one(assets, {
+    fields: [contentAssets.assetId],
+    references: [assets.id],
+  }),
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   user: one(users, { fields: [projects.userId], references: [users.id] }),
   chatSessions: many(chatSessions),
@@ -584,7 +655,7 @@ export const chatSessionsRelations = relations(
   }),
 );
 
-export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+export const chatMessagesRelations = relations(chatMessages, ({ one, many }) => ({
   session: one(chatSessions, {
     fields: [chatMessages.sessionId],
     references: [chatSessions.id],
@@ -593,7 +664,26 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
     fields: [chatMessages.generatedContentId],
     references: [generatedContent.id],
   }),
+  attachments: many(messageAttachments),
 }));
+
+export const messageAttachmentsRelations = relations(
+  messageAttachments,
+  ({ one }) => ({
+    message: one(chatMessages, {
+      fields: [messageAttachments.messageId],
+      references: [chatMessages.id],
+    }),
+    reel: one(reels, {
+      fields: [messageAttachments.reelId],
+      references: [reels.id],
+    }),
+    asset: one(assets, {
+      fields: [messageAttachments.assetId],
+      references: [assets.id],
+    }),
+  }),
+);
 
 export const editProjectsRelations = relations(
   editProjects,
@@ -607,6 +697,10 @@ export const exportJobsRelations = relations(exportJobs, ({ one }) => ({
   project: one(editProjects, {
     fields: [exportJobs.editProjectId],
     references: [editProjects.id],
+  }),
+  outputAsset: one(assets, {
+    fields: [exportJobs.outputAssetId],
+    references: [assets.id],
   }),
 }));
 
@@ -626,9 +720,9 @@ export const aiCostLedger = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id"), // nullable for system/background calls
-    provider: text("provider").notNull(), // "openai" | "claude"
+    provider: text("provider").notNull(),
     model: text("model").notNull(),
-    featureType: text("feature_type").notNull(), // "reel_analysis" | "generation" | etc.
+    featureType: text("feature_type").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
     inputCost: numeric("input_cost", { precision: 12, scale: 8 })
@@ -680,8 +774,12 @@ export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
-export type ReelAsset = typeof reelAssets.$inferSelect;
-export type NewReelAsset = typeof reelAssets.$inferInsert;
+export type Asset = typeof assets.$inferSelect;
+export type NewAsset = typeof assets.$inferInsert;
+export type ContentAsset = typeof contentAssets.$inferSelect;
+export type NewContentAsset = typeof contentAssets.$inferInsert;
+export type MessageAttachment = typeof messageAttachments.$inferSelect;
+export type NewMessageAttachment = typeof messageAttachments.$inferInsert;
 export type MusicTrack = typeof musicTracks.$inferSelect;
 export type NewMusicTrack = typeof musicTracks.$inferInsert;
 export type EditProject = typeof editProjects.$inferSelect;
@@ -692,5 +790,3 @@ export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
-export type MediaItem = typeof mediaItems.$inferSelect;
-export type NewMediaItem = typeof mediaItems.$inferInsert;

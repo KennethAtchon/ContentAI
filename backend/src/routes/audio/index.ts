@@ -12,7 +12,8 @@ import {
   reels,
   trendingAudio,
   generatedContent,
-  reelAssets,
+  assets,
+  contentAssets,
 } from "../../infrastructure/database/drizzle/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getFileUrl, uploadFile, deleteFile } from "../../services/storage/r2";
@@ -32,17 +33,11 @@ const audioRouter = new Hono<HonoEnv>();
 function sanitizeScriptForTTS(text: string): string {
   return (
     text
-      // Remove timing markers: [0-3s], [0:03], [20-27s], etc.
       .replace(/\[\d+[:\-]\d+s?\]/g, "")
-      // Remove stage directions in parentheses: (video of...), (cut to...)
       .replace(/\([^)]*\)/g, "")
-      // Remove bracketed labels that aren't timing: [HOOK], [CTA], [Scene 1]
       .replace(/\[[^\]]*\]/g, "")
-      // Remove leading bullet/dash markers
       .replace(/^\s*[-•*]\s*/gm, "")
-      // Remove lines that are purely a section label like "CTA:" or "Hook:"
       .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
-      // Collapse multiple blank lines into one
       .replace(/\n{3,}/g, "\n\n")
       .trim()
   );
@@ -180,7 +175,6 @@ audioRouter.post(
       const auth = c.get("auth");
       const { generatedContentId, text, voiceId, speed } = c.req.valid("json");
 
-      // Validate generatedContentId belongs to user
       const [content] = await db
         .select({ id: generatedContent.id })
         .from(generatedContent)
@@ -195,33 +189,48 @@ audioRouter.post(
         return c.json({ error: "Content not found" }, 404);
       }
 
-      // Validate voice
       const voice = getVoiceById(voiceId);
       if (!voice) {
         return c.json({ error: "Invalid voiceId", code: "INVALID_VOICE" }, 400);
       }
 
-      // Check if a voiceover already exists — delete it (regeneration)
-      const [existing] = await db
-        .select()
-        .from(reelAssets)
+      // Remove existing voiceover asset for this content if present
+      const [existingLink] = await db
+        .select({ assetId: contentAssets.assetId })
+        .from(contentAssets)
         .where(
           and(
-            eq(reelAssets.generatedContentId, generatedContentId),
-            eq(reelAssets.userId, auth.user.id),
-            eq(reelAssets.type, "voiceover"),
+            eq(contentAssets.generatedContentId, generatedContentId),
+            eq(contentAssets.role, "voiceover"),
           ),
-        );
+        )
+        .limit(1);
 
-      if (existing) {
-        if (existing.r2Key) {
-          await deleteFile(existing.r2Key).catch(() => {});
+      if (existingLink) {
+        const [existingAsset] = await db
+          .select()
+          .from(assets)
+          .where(eq(assets.id, existingLink.assetId))
+          .limit(1);
+
+        if (existingAsset?.r2Key) {
+          await deleteFile(existingAsset.r2Key).catch(() => {});
         }
-        await db.delete(reelAssets).where(eq(reelAssets.id, existing.id));
+
+        await db
+          .delete(contentAssets)
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, generatedContentId),
+              eq(contentAssets.role, "voiceover"),
+            ),
+          );
+
+        if (existingAsset) {
+          await db.delete(assets).where(eq(assets.id, existingAsset.id));
+        }
       }
 
-      // Strip timing markers, stage directions, and other production metadata
-      // before sending to TTS — ElevenLabs reads everything verbatim.
       const spokenText = sanitizeScriptForTTS(text);
 
       if (!spokenText) {
@@ -234,7 +243,6 @@ audioRouter.post(
         );
       }
 
-      // Generate TTS
       const startMs = Date.now();
       const { audioBuffer, durationMs } = await generateSpeech(
         spokenText,
@@ -243,21 +251,19 @@ audioRouter.post(
       );
       const generationMs = Date.now() - startMs;
 
-      // Upload to R2
       const assetId = crypto.randomUUID();
       const r2Key = `audio/voiceovers/${auth.user.id}/${assetId}.mp3`;
       await uploadFile(audioBuffer, r2Key, "audio/mpeg");
 
-      // Create reel_asset row
       const [asset] = await db
-        .insert(reelAssets)
+        .insert(assets)
         .values({
           id: assetId,
-          generatedContentId,
           userId: auth.user.id,
           type: "voiceover",
+          source: "tts",
           r2Key,
-          r2Url: null,
+          r2Url: R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${r2Key}` : null,
           durationMs,
           metadata: {
             voiceId,
@@ -270,11 +276,16 @@ audioRouter.post(
         })
         .returning();
 
-      // Track cost (ElevenLabs ~$0.30/1000 chars for standard voices)
+      await db.insert(contentAssets).values({
+        generatedContentId,
+        assetId: asset.id,
+        role: "voiceover",
+      });
+
       const costUsd = (spokenText.length / 1000) * 0.3;
       recordAiCost({
         userId: auth.user.id,
-        provider: "openai", // use openai as placeholder since the field is a union type
+        provider: "openai",
         model: "eleven_multilingual_v2",
         featureType: "tts",
         inputTokens: 0,
@@ -288,15 +299,7 @@ audioRouter.post(
         },
       }).catch(() => {});
 
-      // Generate signed URL for playback
       const audioUrl = await getFileUrl(r2Key, 3600);
-
-      // Denormalize the public voiceover URL onto generated_content for fast publish reads
-      const voiceoverPublicUrl = `${R2_PUBLIC_URL}/${r2Key}`;
-      await db
-        .update(generatedContent)
-        .set({ voiceoverUrl: voiceoverPublicUrl })
-        .where(eq(generatedContent.id, generatedContentId));
 
       return c.json({ asset, audioUrl });
     } catch (error) {

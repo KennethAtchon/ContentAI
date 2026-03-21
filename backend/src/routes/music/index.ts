@@ -10,12 +10,12 @@ import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import {
   musicTracks,
-  reelAssets,
+  assets,
+  contentAssets,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, ilike, or, gte, lte, desc, sql } from "drizzle-orm";
 import { getFileUrl } from "../../services/storage/r2";
-import { R2_PUBLIC_URL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 
 const app = new Hono<HonoEnv>();
@@ -71,8 +71,18 @@ app.get(
 
       const [tracks, [countRow]] = await Promise.all([
         db
-          .select()
+          .select({
+            id: musicTracks.id,
+            name: musicTracks.name,
+            artistName: musicTracks.artistName,
+            durationSeconds: musicTracks.durationSeconds,
+            mood: musicTracks.mood,
+            genre: musicTracks.genre,
+            createdAt: musicTracks.createdAt,
+            r2Key: assets.r2Key,
+          })
           .from(musicTracks)
+          .innerJoin(assets, eq(musicTracks.assetId, assets.id))
           .where(and(...conditions))
           .orderBy(desc(musicTracks.createdAt))
           .limit(limit)
@@ -155,59 +165,54 @@ app.post(
         return c.json({ error: "Content not found" }, 404);
       }
 
-      // Validate music track exists and is active
+      // Validate music track exists and is active (join to get assetId + r2Key)
       const [track] = await db
-        .select()
+        .select({
+          id: musicTracks.id,
+          name: musicTracks.name,
+          artistName: musicTracks.artistName,
+          mood: musicTracks.mood,
+          assetId: musicTracks.assetId,
+          r2Key: assets.r2Key,
+          durationSeconds: musicTracks.durationSeconds,
+        })
         .from(musicTracks)
+        .innerJoin(assets, eq(musicTracks.assetId, assets.id))
         .where(
           and(eq(musicTracks.id, musicTrackId), eq(musicTracks.isActive, true)),
-        );
+        )
+        .limit(1);
       if (!track) {
         return c.json({ error: "Music track not found" }, 404);
       }
 
-      // Delete existing music asset for this content if present
-      const [existingMusic] = await db
-        .select()
-        .from(reelAssets)
+      // Replace existing background_music content asset if present
+      await db
+        .delete(contentAssets)
         .where(
           and(
-            eq(reelAssets.generatedContentId, generatedContentId),
-            eq(reelAssets.userId, auth.user.id),
-            eq(reelAssets.type, "music"),
+            eq(contentAssets.generatedContentId, generatedContentId),
+            eq(contentAssets.role, "background_music"),
           ),
         );
-      if (existingMusic) {
-        await db.delete(reelAssets).where(eq(reelAssets.id, existingMusic.id));
-      }
 
-      // Create new music asset reference
-      const [asset] = await db
-        .insert(reelAssets)
-        .values({
-          generatedContentId,
-          userId: auth.user.id,
-          type: "music",
-          r2Key: track.r2Key,
-          r2Url: null,
+      // Link the platform asset to this content
+      await db.insert(contentAssets).values({
+        generatedContentId,
+        assetId: track.assetId,
+        role: "background_music",
+      });
+
+      return c.json({
+        asset: {
+          assetId: track.assetId,
+          role: "background_music",
+          trackName: track.name,
+          artistName: track.artistName,
+          mood: track.mood,
           durationMs: track.durationSeconds * 1000,
-          metadata: {
-            musicTrackId: track.id,
-            trackName: track.name,
-            artistName: track.artistName,
-            mood: track.mood,
-          },
-        })
-        .returning();
-
-      // Denormalize the public background audio URL onto generated_content for fast publish reads
-      const backgroundAudioPublicUrl = `${R2_PUBLIC_URL}/${track.r2Key}`;
-      await db
-        .update(generatedContent)
-        .set({ backgroundAudioUrl: backgroundAudioPublicUrl })
-        .where(eq(generatedContent.id, generatedContentId));
-
-      return c.json({ asset });
+        },
+      });
     } catch (error) {
       debugLog.error("Failed to attach music", {
         service: "music-route",

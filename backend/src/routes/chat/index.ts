@@ -12,6 +12,7 @@ import { db } from "../../services/db/db";
 import {
   chatSessions,
   chatMessages,
+  messageAttachments,
   projects,
   reels,
   generatedContent,
@@ -185,8 +186,6 @@ app.get(
           id: chatMessages.id,
           role: chatMessages.role,
           content: chatMessages.content,
-          reelRefs: chatMessages.reelRefs,
-          mediaRefs: chatMessages.mediaRefs,
           generatedContentId: chatMessages.generatedContentId,
           createdAt: chatMessages.createdAt,
         })
@@ -194,7 +193,30 @@ app.get(
         .where(eq(chatMessages.sessionId, sessionId))
         .orderBy(chatMessages.createdAt);
 
-      return c.json({ session, messages });
+      // Load attachments for all messages
+      const messageIds = messages.map((m) => m.id);
+      const attachments =
+        messageIds.length > 0
+          ? await db
+              .select()
+              .from(messageAttachments)
+              .where(inArray(messageAttachments.messageId, messageIds))
+          : [];
+
+      const attachmentsByMessage = attachments.reduce<
+        Record<string, typeof attachments>
+      >((acc, a) => {
+        acc[a.messageId] ??= [];
+        acc[a.messageId].push(a);
+        return acc;
+      }, {});
+
+      const messagesWithAttachments = messages.map((m) => ({
+        ...m,
+        attachments: attachmentsByMessage[m.id] ?? [],
+      }));
+
+      return c.json({ session, messages: messagesWithAttachments });
     } catch (error) {
       debugLog.error("Failed to fetch chat session", {
         service: "chat-route",
@@ -479,9 +501,29 @@ app.post(
         sessionId,
         role: "user",
         content,
-        reelRefs: reelRefs || null,
-        mediaRefs: mediaRefs || null,
       });
+
+      // Insert attachments for reel refs and media refs
+      const attachmentInserts: Array<{
+        messageId: string;
+        entityType: string;
+        reelId?: number | null;
+        assetId?: string | null;
+      }> = [
+        ...(reelRefs ?? []).map((reelId) => ({
+          messageId: userMessageId,
+          entityType: "reel" as const,
+          reelId,
+        })),
+        ...(mediaRefs ?? []).map((assetId) => ({
+          messageId: userMessageId,
+          entityType: "asset" as const,
+          assetId,
+        })),
+      ];
+      if (attachmentInserts.length > 0) {
+        await db.insert(messageAttachments).values(attachmentInserts);
+      }
 
       debugLog.info("[chat:sendMessage] User message saved to DB", {
         service: "chat-route",
@@ -625,7 +667,6 @@ app.post(
               role: "assistant",
               content: text,
               generatedContentId: savedContentId,
-              reelRefs: reelRefs || null,
             });
 
             debugLog.info("[chat:onFinish] Assistant message saved to DB", {

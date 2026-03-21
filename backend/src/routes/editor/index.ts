@@ -10,7 +10,7 @@ import { db } from "../../services/db/db";
 import {
   editProjects,
   exportJobs,
-  reelAssets,
+  assets,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, count, inArray } from "drizzle-orm";
@@ -405,16 +405,23 @@ app.get(
       }
 
       let r2Url: string | undefined;
-      if (job.status === "done" && job.r2Key) {
-        r2Url = await getFileUrl(job.r2Key, 3600 * 6).catch(
-          () => job.r2Url ?? undefined,
-        );
+      if (job.status === "done" && job.outputAssetId) {
+        const [outputAsset] = await db
+          .select({ r2Key: assets.r2Key, r2Url: assets.r2Url })
+          .from(assets)
+          .where(eq(assets.id, job.outputAssetId))
+          .limit(1);
+        if (outputAsset?.r2Key) {
+          r2Url = await getFileUrl(outputAsset.r2Key, 3600 * 6).catch(
+            () => outputAsset.r2Url ?? undefined,
+          );
+        }
       }
 
       return c.json({
         status: job.status,
         progress: job.progress,
-        r2Url: r2Url ?? job.r2Url ?? undefined,
+        r2Url,
         error: job.error ?? undefined,
       });
     } catch (error) {
@@ -501,18 +508,18 @@ async function runExportJob(
 
     let assetsMap: Record<string, { r2Key: string; type: string }> = {};
     if (assetIds.length > 0) {
-      const assets = await db
+      const assetRows = await db
         .select({
-          id: reelAssets.id,
-          r2Key: reelAssets.r2Key,
-          type: reelAssets.type,
+          id: assets.id,
+          r2Key: assets.r2Key,
+          type: assets.type,
         })
-        .from(reelAssets)
+        .from(assets)
         .where(
-          and(inArray(reelAssets.id, assetIds), eq(reelAssets.userId, userId)),
+          and(inArray(assets.id, assetIds), eq(assets.userId, userId)),
         );
       assetsMap = Object.fromEntries(
-        assets.map((a) => [a.id, { r2Key: a.r2Key, type: a.type }]),
+        assetRows.map((a) => [a.id, { r2Key: a.r2Key!, type: a.type }]),
       );
     }
 
@@ -708,14 +715,27 @@ async function runExportJob(
 
     await setJobProgress(jobId, 85);
 
-    // Upload to R2
+    // Upload to R2 and create asset row
     const outBuffer = Buffer.from(await Bun.file(tmpOut).arrayBuffer());
     const r2Key = `exports/${userId}/${project.id}/${jobId}.mp4`;
     const r2Url = await uploadFile(outBuffer, r2Key, "video/mp4");
 
+    const [outputAsset] = await db
+      .insert(assets)
+      .values({
+        userId,
+        type: "assembled_video",
+        source: "export",
+        r2Key,
+        r2Url,
+        sizeBytes: outBuffer.length,
+        metadata: { editProjectId: project.id, jobId, resolution, fps },
+      })
+      .returning({ id: assets.id });
+
     await db
       .update(exportJobs)
-      .set({ status: "done", progress: 100, r2Key, r2Url })
+      .set({ status: "done", progress: 100, outputAssetId: outputAsset.id })
       .where(eq(exportJobs.id, jobId));
 
     debugLog.info("Export job completed", {

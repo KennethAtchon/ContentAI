@@ -8,7 +8,10 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { musicTracks } from "../../infrastructure/database/drizzle/schema";
+import {
+  musicTracks,
+  assets,
+} from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, ilike, or } from "drizzle-orm";
 import { uploadFile, deleteFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
@@ -34,8 +37,21 @@ musicAdminRouter.get(
         : [];
 
       const tracks = await db
-        .select()
+        .select({
+          id: musicTracks.id,
+          assetId: musicTracks.assetId,
+          name: musicTracks.name,
+          artistName: musicTracks.artistName,
+          durationSeconds: musicTracks.durationSeconds,
+          mood: musicTracks.mood,
+          genre: musicTracks.genre,
+          isActive: musicTracks.isActive,
+          uploadedBy: musicTracks.uploadedBy,
+          createdAt: musicTracks.createdAt,
+          r2Key: assets.r2Key,
+        })
         .from(musicTracks)
+        .innerJoin(assets, eq(musicTracks.assetId, assets.id))
         .where(conditions.length > 0 ? conditions[0] : undefined)
         .orderBy(desc(musicTracks.createdAt));
 
@@ -95,21 +111,39 @@ musicAdminRouter.post(
       const trackId = crypto.randomUUID();
       const r2Key = `music/tracks/${trackId}.mp3`;
       const buffer = Buffer.from(await file.arrayBuffer());
-      await uploadFile(buffer, r2Key, "audio/mpeg");
+      const r2Url = await uploadFile(buffer, r2Key, "audio/mpeg");
 
       // Estimate duration from file size (128kbps mp3 ≈ 16000 bytes/sec)
       const durationSeconds = Math.round(buffer.length / 16000);
+
+      // Create platform asset first, then link to music track
+      const [asset] = await db
+        .insert(assets)
+        .values({
+          id: trackId,
+          userId: null, // platform asset — not owned by any user
+          type: "audio",
+          source: "platform",
+          name: name.trim(),
+          mimeType: "audio/mpeg",
+          r2Key,
+          r2Url,
+          sizeBytes: file.size,
+          durationMs: durationSeconds * 1000,
+          metadata: { artistName: artistName?.trim() || null, mood, genre: genre?.trim() || null },
+        })
+        .returning();
 
       const [track] = await db
         .insert(musicTracks)
         .values({
           id: trackId,
+          assetId: asset.id,
           name: name.trim(),
           artistName: artistName?.trim() || null,
           durationSeconds,
           mood,
           genre: genre?.trim() || null,
-          r2Key,
           isActive: true,
           uploadedBy: auth.user.id,
         })
@@ -188,9 +222,15 @@ musicAdminRouter.delete(
       const { id } = c.req.param();
 
       const [existing] = await db
-        .select()
+        .select({
+          trackId: musicTracks.id,
+          assetId: musicTracks.assetId,
+          r2Key: assets.r2Key,
+        })
         .from(musicTracks)
-        .where(eq(musicTracks.id, id));
+        .innerJoin(assets, eq(musicTracks.assetId, assets.id))
+        .where(eq(musicTracks.id, id))
+        .limit(1);
 
       if (!existing) {
         return c.json({ error: "Track not found" }, 404);
@@ -205,7 +245,9 @@ musicAdminRouter.delete(
         });
       });
 
+      // FK onDelete: "restrict" on assets — delete music track first
       await db.delete(musicTracks).where(eq(musicTracks.id, id));
+      await db.delete(assets).where(eq(assets.id, existing.assetId));
 
       return c.body(null, 204);
     } catch (error) {

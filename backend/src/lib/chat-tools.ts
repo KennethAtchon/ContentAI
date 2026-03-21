@@ -6,9 +6,9 @@ import {
   queueItems,
   reelAnalyses,
   musicTracks,
-  reelAssets,
+  assets,
+  contentAssets,
   reels,
-  mediaItems,
 } from "../infrastructure/database/drizzle/schema";
 import { eq, and, or, ilike, desc, gte, isNotNull, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
@@ -865,37 +865,61 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
         );
 
         const r2Key = `voiceovers/${context.auth.user.id}/${contentId}/${Date.now()}.mp3`;
-        const voiceoverUrl = await uploadFile(audioBuffer, r2Key, "audio/mpeg");
+        const r2Url = await uploadFile(audioBuffer, r2Key, "audio/mpeg");
 
         // Delete existing voiceover asset if present
-        await db
-          .delete(reelAssets)
+        const [existingLink] = await db
+          .select({ assetId: contentAssets.assetId })
+          .from(contentAssets)
           .where(
             and(
-              eq(reelAssets.generatedContentId, contentId),
-              eq(reelAssets.userId, context.auth.user.id),
-              eq(reelAssets.type, "voiceover"),
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "voiceover"),
             ),
-          );
+          )
+          .limit(1);
+
+        if (existingLink) {
+          const [existingAsset] = await db
+            .select({ r2Key: assets.r2Key })
+            .from(assets)
+            .where(eq(assets.id, existingLink.assetId))
+            .limit(1);
+          if (existingAsset?.r2Key) {
+            await deleteFile(existingAsset.r2Key).catch(() => {});
+          }
+          await db
+            .delete(contentAssets)
+            .where(
+              and(
+                eq(contentAssets.generatedContentId, contentId),
+                eq(contentAssets.role, "voiceover"),
+              ),
+            );
+          await db
+            .delete(assets)
+            .where(eq(assets.id, existingLink.assetId))
+            .catch(() => {});
+        }
 
         const [asset] = await db
-          .insert(reelAssets)
+          .insert(assets)
           .values({
-            generatedContentId: contentId,
             userId: context.auth.user.id,
             type: "voiceover",
+            source: "tts",
             r2Key,
-            r2Url: voiceoverUrl,
+            r2Url,
             durationMs,
             metadata: { voiceId, speed },
           })
-          .returning({ id: reelAssets.id });
+          .returning({ id: assets.id });
 
-        // Denormalize URL onto content for fast reads
-        await db
-          .update(generatedContent)
-          .set({ voiceoverUrl })
-          .where(eq(generatedContent.id, contentId));
+        await db.insert(contentAssets).values({
+          generatedContentId: contentId,
+          assetId: asset.id,
+          role: "voiceover",
+        });
 
         void recordAiCost({
           userId: context.auth.user.id,
@@ -1024,7 +1048,7 @@ export function createAttachMusicTool(context: ToolContext) {
             id: musicTracks.id,
             name: musicTracks.name,
             artistName: musicTracks.artistName,
-            r2Key: musicTracks.r2Key,
+            assetId: musicTracks.assetId,
           })
           .from(musicTracks)
           .where(
@@ -1034,31 +1058,21 @@ export function createAttachMusicTool(context: ToolContext) {
 
         if (!track) return { success: false as const, reason: "track_not_found" };
 
-        // Delete existing music asset if present
+        // Replace existing background_music link if present (shared platform asset — no R2 delete)
         await db
-          .delete(reelAssets)
+          .delete(contentAssets)
           .where(
             and(
-              eq(reelAssets.generatedContentId, contentId),
-              eq(reelAssets.userId, context.auth.user.id),
-              eq(reelAssets.type, "music"),
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "background_music"),
             ),
           );
 
-        await db.insert(reelAssets).values({
+        await db.insert(contentAssets).values({
           generatedContentId: contentId,
-          userId: context.auth.user.id,
-          type: "music",
-          r2Key: track.r2Key,
-          r2Url: null,
-          metadata: { musicTrackId: track.id },
+          assetId: track.assetId,
+          role: "background_music",
         });
-
-        // Denormalize URL onto content for fast reads
-        await db
-          .update(generatedContent)
-          .set({ backgroundAudioUrl: track.r2Key })
-          .where(eq(generatedContent.id, contentId));
 
         debugLog.info("[tool:attach_music] Music attached", {
           service: "chat-tools",
@@ -1279,20 +1293,34 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const [asset] = await db
-          .select()
-          .from(reelAssets)
-          .where(and(eq(reelAssets.generatedContentId, contentId), eq(reelAssets.userId, context.auth.user.id), eq(reelAssets.type, "voiceover")))
+        const [link] = await db
+          .select({ assetId: contentAssets.assetId, r2Key: assets.r2Key })
+          .from(contentAssets)
+          .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "voiceover"),
+              eq(assets.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
-        if (!asset) return { success: false as const, reason: "no_voiceover" };
+        if (!link) return { success: false as const, reason: "no_voiceover" };
 
-        if (asset.r2Key) {
-          await deleteFile(asset.r2Key).catch(() => {});
+        if (link.r2Key) {
+          await deleteFile(link.r2Key).catch(() => {});
         }
 
-        await db.delete(reelAssets).where(eq(reelAssets.id, asset.id));
-        await db.update(generatedContent).set({ voiceoverUrl: null }).where(eq(generatedContent.id, contentId));
+        await db
+          .delete(contentAssets)
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "voiceover"),
+            ),
+          );
+        await db.delete(assets).where(eq(assets.id, link.assetId)).catch(() => {});
 
         return { success: true as const };
       } catch (err) {
@@ -1312,16 +1340,28 @@ export function createRemoveMusicTool(context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const [asset] = await db
-          .select()
-          .from(reelAssets)
-          .where(and(eq(reelAssets.generatedContentId, contentId), eq(reelAssets.userId, context.auth.user.id), eq(reelAssets.type, "music")))
+        const [link] = await db
+          .select({ assetId: contentAssets.assetId })
+          .from(contentAssets)
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "background_music"),
+            ),
+          )
           .limit(1);
 
-        if (!asset) return { success: false as const, reason: "no_music" };
+        if (!link) return { success: false as const, reason: "no_music" };
 
-        await db.delete(reelAssets).where(eq(reelAssets.id, asset.id));
-        await db.update(generatedContent).set({ backgroundAudioUrl: null }).where(eq(generatedContent.id, contentId));
+        // background_music links a shared platform asset — only delete the link, not the asset
+        await db
+          .delete(contentAssets)
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, contentId),
+              eq(contentAssets.role, "background_music"),
+            ),
+          );
 
         return { success: true as const };
       } catch (err) {
@@ -1551,12 +1591,13 @@ export function createGenerateImageTool(context: ToolContext) {
         const name = prompt.slice(0, 60) + (prompt.length > 60 ? "…" : "");
 
         const [item] = await db
-          .insert(mediaItems)
+          .insert(assets)
           .values({
             id: itemId,
             userId: context.auth.user.id,
             name,
             type: "image",
+            source: "generated",
             mimeType: "image/png",
             r2Key,
             r2Url,

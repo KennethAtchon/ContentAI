@@ -9,7 +9,7 @@ import { db } from "../../services/db/db";
 import {
   queueItems,
   generatedContent,
-  reelAssets,
+  contentAssets,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, desc, asc, and, sql, ilike, or, inArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
@@ -29,11 +29,9 @@ function deriveStages(
     generatedHook: string | null;
     generatedScript: string | null;
     generatedMetadata: unknown;
-    voiceoverUrl: string | null;
-    videoR2Url: string | null;
     status: string;
   },
-  assetTypeCounts: Record<string, number>,
+  assetRoleCounts: Record<string, number>,
 ): PipelineStage[] {
   const meta = (row.generatedMetadata ?? {}) as Record<string, unknown>;
   const phase4 = (meta.phase4 ?? {}) as Record<string, unknown>;
@@ -41,12 +39,9 @@ function deriveStages(
   const contentFailed = row.status === "failed";
 
   const hasCopy = !!(row.generatedHook || row.generatedScript);
-  const hasVoiceover = !!(
-    row.voiceoverUrl || (assetTypeCounts["voiceover"] ?? 0) > 0
-  );
-  const hasVideoClips = (assetTypeCounts["video_clip"] ?? 0) > 0;
-  const hasAssembled =
-    !!row.videoR2Url || (assetTypeCounts["assembled_video"] ?? 0) > 0;
+  const hasVoiceover = (assetRoleCounts["voiceover"] ?? 0) > 0;
+  const hasVideoClips = (assetRoleCounts["video_clip"] ?? 0) > 0;
+  const hasAssembled = (assetRoleCounts["assembled_video"] ?? 0) > 0 || (assetRoleCounts["final_video"] ?? 0) > 0;
 
   const videoRunning = phase4Status === "running" || phase4Status === "pending";
   const videoFailed = phase4Status === "failed" || contentFailed;
@@ -233,12 +228,9 @@ queueRouter.get(
             // Preview from generatedContent
             generatedHook: generatedContent.generatedHook,
             generatedCaption: generatedContent.generatedCaption,
-            thumbnailR2Key: generatedContent.thumbnailR2Key,
             version: generatedContent.version,
             generatedScript: generatedContent.generatedScript,
             generatedMetadata: generatedContent.generatedMetadata,
-            voiceoverUrl: generatedContent.voiceoverUrl,
-            videoR2Url: generatedContent.videoR2Url,
             contentStatus: generatedContent.status,
             // Project info via chat link (best-effort correlated subquery)
             projectId: sql<string | null>`(
@@ -287,21 +279,20 @@ queueRouter.get(
       const assetCounts = await (contentIds.length > 0
         ? db
             .select({
-              generatedContentId: reelAssets.generatedContentId,
-              type: reelAssets.type,
+              generatedContentId: contentAssets.generatedContentId,
+              role: contentAssets.role,
               count: sql<number>`count(*)::int`,
             })
-            .from(reelAssets)
-            .where(inArray(reelAssets.generatedContentId, contentIds))
-            .groupBy(reelAssets.generatedContentId, reelAssets.type)
+            .from(contentAssets)
+            .where(inArray(contentAssets.generatedContentId, contentIds))
+            .groupBy(contentAssets.generatedContentId, contentAssets.role)
         : Promise.resolve([]));
 
       // Build lookup maps.
       const assetCountMap: Record<number, Record<string, number>> = {};
       for (const row of assetCounts) {
-        if (row.generatedContentId === null) continue;
         assetCountMap[row.generatedContentId] ??= {};
-        assetCountMap[row.generatedContentId][row.type] = row.count;
+        assetCountMap[row.generatedContentId][row.role] = row.count;
       }
 
       // Resolve root content IDs for version chain grouping.
@@ -344,8 +335,6 @@ queueRouter.get(
             generatedHook: row.generatedHook,
             generatedScript: row.generatedScript,
             generatedMetadata: row.generatedMetadata,
-            voiceoverUrl: row.voiceoverUrl,
-            videoR2Url: row.videoR2Url,
             status: row.contentStatus ?? "draft",
           },
           typeCounts,
@@ -365,7 +354,6 @@ queueRouter.get(
           createdAt: row.createdAt,
           generatedHook: row.generatedHook,
           generatedCaption: row.generatedCaption,
-          thumbnailR2Key: row.thumbnailR2Key,
           version: row.version,
           projectId: row.projectId,
           projectName: row.projectName,
@@ -488,7 +476,6 @@ queueRouter.get(
       if (!item) return c.json({ error: "Queue item not found" }, 404);
 
       let content = null;
-      let assets: (typeof reelAssets.$inferSelect)[] = [];
 
       if (item.generatedContentId) {
         const [contentRow] = await db
@@ -497,12 +484,6 @@ queueRouter.get(
           .where(eq(generatedContent.id, item.generatedContentId))
           .limit(1);
         content = contentRow ?? null;
-
-        assets = await db
-          .select()
-          .from(reelAssets)
-          .where(eq(reelAssets.generatedContentId, item.generatedContentId))
-          .orderBy(asc(reelAssets.createdAt));
       }
 
       const sessionId = await db
@@ -517,7 +498,6 @@ queueRouter.get(
       return c.json({
         queueItem: item,
         content,
-        assets,
         sessionId,
       });
     } catch (error) {
@@ -582,9 +562,6 @@ queueRouter.post(
               generatedMetadata: originalContent.generatedMetadata,
               outputType: originalContent.outputType,
               model: originalContent.model,
-              // Audio URLs intentionally cleared — duplicate starts a fresh pipeline.
-              voiceoverUrl: null,
-              backgroundAudioUrl: null,
               status: "draft",
               version: tip.version + 1,
               parentId: tip.id,

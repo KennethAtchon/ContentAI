@@ -8,8 +8,9 @@ import {
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import {
+  assets,
+  contentAssets,
   generatedContent,
-  reelAssets,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { deleteFile, getFileUrl, uploadFile } from "../../services/storage/r2";
@@ -50,27 +51,56 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
       return c.json({ error: "Invalid generatedContentId" }, 400);
     }
 
-    const conditions = [
-      eq(reelAssets.generatedContentId, generatedContentId),
-      eq(reelAssets.userId, auth.user.id),
-    ];
-    if (typeFilter) {
-      conditions.push(eq(reelAssets.type, typeFilter));
+    // Verify content belongs to user
+    const [content] = await db
+      .select({ id: generatedContent.id })
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.id, generatedContentId),
+          eq(generatedContent.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!content) {
+      return c.json({ error: "Content not found" }, 404);
     }
 
-    const assets = await db
-      .select()
-      .from(reelAssets)
+    const conditions = [
+      eq(contentAssets.generatedContentId, generatedContentId),
+    ];
+    if (typeFilter) {
+      conditions.push(eq(contentAssets.role, typeFilter));
+    }
+
+    const rows = await db
+      .select({
+        id: assets.id,
+        userId: assets.userId,
+        type: assets.type,
+        source: assets.source,
+        name: assets.name,
+        mimeType: assets.mimeType,
+        r2Key: assets.r2Key,
+        r2Url: assets.r2Url,
+        sizeBytes: assets.sizeBytes,
+        durationMs: assets.durationMs,
+        metadata: assets.metadata,
+        createdAt: assets.createdAt,
+        role: contentAssets.role,
+      })
+      .from(contentAssets)
+      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
       .where(and(...conditions));
 
-    // Generate fresh signed URLs for media assets.
     const assetsWithUrls = await Promise.all(
-      assets.map(async (asset) => {
+      rows.map(async (asset) => {
         if (asset.r2Key) {
           try {
             const signedUrl = await getFileUrl(asset.r2Key, 3600);
             const isAudio =
-              asset.type === "voiceover" || asset.type === "music";
+              asset.role === "voiceover" || asset.role === "background_music";
             return {
               ...asset,
               audioUrl: isAudio ? signedUrl : null,
@@ -187,26 +217,32 @@ app.post(
       const r2Url = await uploadFile(fileBuffer, r2Key, mime);
 
       const [asset] = await db
-        .insert(reelAssets)
+        .insert(assets)
         .values({
           id: assetId,
-          generatedContentId,
           userId: auth.user.id,
           type: parsedType.data,
+          source: "uploaded",
+          name: fileEntry.name,
+          mimeType: mime,
           r2Key,
           r2Url,
+          sizeBytes: fileEntry.size,
           durationMs: null,
           metadata: {
-            sourceType: "user_uploaded",
             shotIndex,
             hasEmbeddedAudio: isVideo,
             useClipAudio: false,
             originalName: fileEntry.name,
-            mimeType: mime,
-            sizeBytes: fileEntry.size,
           },
         })
         .returning();
+
+      await db.insert(contentAssets).values({
+        generatedContentId,
+        assetId: asset.id,
+        role: parsedType.data,
+      });
 
       const mediaUrl = await getFileUrl(r2Key, 3600).catch(() => r2Url);
       return c.json({ asset: { ...asset, mediaUrl } }, 201);
@@ -244,22 +280,22 @@ app.patch(
 
       const [existing] = await db
         .select()
-        .from(reelAssets)
-        .where(and(eq(reelAssets.id, id), eq(reelAssets.userId, auth.user.id)));
+        .from(assets)
+        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)));
 
       if (!existing) {
         return c.json({ error: "Asset not found" }, 404);
       }
 
       const [updated] = await db
-        .update(reelAssets)
+        .update(assets)
         .set({
           metadata: {
             ...((existing.metadata as Record<string, unknown>) ?? {}),
             ...metadata,
           },
         })
-        .where(eq(reelAssets.id, id))
+        .where(eq(assets.id, id))
         .returning();
 
       return c.json({ asset: updated });
@@ -287,14 +323,14 @@ app.delete(
 
       const [existing] = await db
         .select()
-        .from(reelAssets)
-        .where(and(eq(reelAssets.id, id), eq(reelAssets.userId, auth.user.id)));
+        .from(assets)
+        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)));
 
       if (!existing) {
         return c.json({ error: "Asset not found" }, 404);
       }
 
-      // Delete R2 file only for voiceover (music is shared)
+      // Delete R2 file only for voiceover (music is shared platform asset)
       if (existing.type === "voiceover" && existing.r2Key) {
         await deleteFile(existing.r2Key).catch((err) => {
           debugLog.error("Failed to delete R2 file", {
@@ -306,7 +342,12 @@ app.delete(
         });
       }
 
-      await db.delete(reelAssets).where(eq(reelAssets.id, id));
+      // Delete contentAsset links first (restrict FK on assets)
+      await db
+        .delete(contentAssets)
+        .where(eq(contentAssets.assetId, id));
+
+      await db.delete(assets).where(eq(assets.id, id));
 
       return c.body(null, 204);
     } catch (error) {

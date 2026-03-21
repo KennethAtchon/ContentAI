@@ -52,6 +52,8 @@ This document describes, in detail, how our **chat streaming** works end‑to‑
 
 File: `frontend/src/features/chat/hooks/use-chat-stream.ts`
 
+The hook owns React state and `sendMessage`; **SSE line parsing** (`processStreamSseLine`), **stream draining** (`drainSseStreamIntoIngest`), **403 usage-limit handling**, and **cache patching** (`patchSessionCacheAfterStream`) live as **module-level helpers** next to it for readability.
+
 **Key state:**
 
 - `optimisticUserMessage`: user message shown immediately before server persistence is visible.
@@ -92,7 +94,7 @@ When `sendMessage(content, reelRefs, activeContentId)` is called:
      - URL: `/api/chat/sessions/${sessionId}/messages`
      - Method: `POST`
      - JSON body: `{ content, reelRefs, activeContentId }`
-     - Timeout: **120 seconds** (tailored for long streams).
+     - Timeout: **120 seconds** (`STREAM_REQUEST_TIMEOUT_MS` in the hook file).
      - `signal: controller.signal` for cancellation.
 
 6. **Handle 403 / usage limit**:
@@ -111,26 +113,22 @@ When `sendMessage(content, reelRefs, activeContentId)` is called:
 
 Once the response has a body:
 
-1. **Create a reader and buffers**:
-   - `const reader = response.body.getReader();`
-   - `const decoder = new TextDecoder();`
-   - String buffers for **partial lines** and **accumulated assistant text**.
+1. **`drainSseStreamIntoIngest`**:
+   - Owns the `ReadableStream` reader, `TextDecoder`, and newline `buffer`.
+   - Loops until `read()` returns `done`, decoding chunks and forwarding **complete lines** to `processStreamSseLine`.
+   - Flushes any trailing buffer after the stream ends.
 
-2. **Streaming loop**:
-   - In a `while (true)` loop:
-     - Reads chunks from the reader.
-     - Decodes them as text.
-     - Splits by newline.
-     - Processes **complete lines**; keeps the final incomplete line in `buffer`.
+2. **Ingest state**:
+   - A small mutable object holds **accumulated assistant text** and a **text-delta counter** (for throttled debug logs).
 
-3. **`processLine` and JSON events**:
-   - Ignores lines that do not start with `data: `.
+3. **`processStreamSseLine` and JSON events**:
+   - Ignores lines that do not start with `data: ` (via `parseSseDataPayload`).
    - Strips the prefix and inspects the content:
      - If equal to `[DONE]`, logs and returns.
      - Otherwise parses JSON:
        - `{ type: string, ... }`.
 
-4. **Event types handled on the frontend**:
+4. **Event types handled on the frontend** (via `switch (chunk.type)`):
 
    - **`text-delta`**:
      - Appends `chunk.delta` to `accumulated`.
@@ -138,12 +136,12 @@ Once the response has a body:
        - Strip `<tool_call>...</tool_call>` blocks.
        - Also drop partially streamed `<tool_call>` at the tail.
      - Updates `streamingContent` with the filtered text.
-     - If `accumulated` includes `<tool_call>` plus `save_content`/`iterate_content`:
+     - If `accumulated` includes `<tool_call>` and mentions any name in `CONTENT_WRITING_TOOLS` (`save_content`, `iterate_content`, `edit_content_field`, …):
        - Sets `isSavingContent = true` to show “saving draft” type indicators.
 
    - **`tool-input-start`**:
      - Logs `toolName`.
-     - If the tool is `save_content` or `iterate_content`, sets `isSavingContent = true`.
+     - If the tool is in `CONTENT_WRITING_TOOLS`, sets `isSavingContent = true`.
 
    - **`tool-output-available`**:
      - Expects `chunk.output` with `{ contentId?: number; success?: boolean }`.
@@ -159,15 +157,13 @@ Once the response has a body:
    - Any other `type` is logged at debug level and ignored by the UI.
 
 5. **End of stream**:
-   - After the reader returns `done: true`, the hook:
-     - Calls `processLine(buffer)` if any residual text remains.
-     - Logs final counts (chunks, deltas, length).
+   - After `drainSseStreamIntoIngest` returns, the hook logs final counts (`chunkCount`, `textDeltaCount`, accumulated length).
 
 #### 2.3 Syncing With Query Cache
 
 Once streaming completes normally:
 
-- `queryClient.setQueryData(["chat-sessions", sessionId], updater)`
+- `queryClient.setQueryData(chatSessionDetailQueryKey(sessionId), updater)` (same key shape as `["chat-sessions", sessionId]`)
   - Injects:
     - The **optimistic user message**, if it hasn't already been replaced by the server’s version.
     - A **temporary assistant message** with the fully accumulated text.
@@ -178,21 +174,21 @@ Once streaming completes normally:
   - `setStreamingContent(null);`
 
 - Kicks off a background refetch:
-  - `invalidateQueries({ queryKey: ["chat-sessions", sessionId] })`.
+  - `invalidateQueries({ queryKey: chatSessionDetailQueryKey(sessionId) })` (equivalent to `["chat-sessions", sessionId]`).
   - Replaces optimistic/temporary messages with **real DB‑backed messages** (correct IDs, linked content, timestamps).
 
 #### 2.4 Error and Abort Handling
 
 - **Abort**:
-  - If the `AbortController` is triggered, the stream loop sees an `AbortError`:
+  - If the `AbortController` is triggered, `authenticatedFetch` / the reader rejects with `AbortError`:
     - Logs a benign “Stream aborted by user”.
-    - Clears optimistic and streaming state.
+    - Clears optimistic and streaming overlay state in the `catch` path.
 
 - **Other errors**:
   - Logs error name/message.
   - Sets `streamError` with the error message (for inline UI display).
-  - Always clears `optimisticUserMessage` and `streamingContent` in `finally`.
-  - Resets `isStreaming` and `isSavingContent` to `false`.
+  - Clears `optimisticUserMessage` and `streamingContent` in the `catch` path.
+  - `finally` always resets `isStreaming` and `isSavingContent` to `false`.
 
 ---
 

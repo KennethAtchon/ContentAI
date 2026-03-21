@@ -14,12 +14,12 @@ import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import {
   generatedContent,
-  reelAssets,
+  assets,
+  contentAssets,
 } from "../../infrastructure/database/drizzle/schema";
 import { generateVideoClip } from "../../services/media/video-generation";
 import type { VideoProvider } from "../../services/media/video-generation";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
-import { R2_PUBLIC_URL } from "../../utils/config/envUtil";
 import { debugLog } from "../../utils/debug/debug";
 import {
   videoJobService,
@@ -104,9 +104,11 @@ const _timelineSchema = z.object({
   }),
 });
 
+type AudioAsset = typeof assets.$inferSelect & { role: string };
+
 type AudioAssets = {
-  voiceover: typeof reelAssets.$inferSelect | null;
-  music: typeof reelAssets.$inferSelect | null;
+  voiceover: AudioAsset | null;
+  music: AudioAsset | null;
 };
 
 type TimelineIssue = {
@@ -327,24 +329,25 @@ async function _validateTimeline(input: {
   ];
 
   if (refs.length > 0) {
-    const assets = await db
+    const ownedAssets = await db
       .select({
-        id: reelAssets.id,
-        type: reelAssets.type,
+        id: assets.id,
+        type: assets.type,
       })
-      .from(reelAssets)
+      .from(contentAssets)
+      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
       .where(
         and(
-          eq(reelAssets.userId, input.userId),
-          eq(reelAssets.generatedContentId, input.generatedContentId),
+          eq(contentAssets.generatedContentId, input.generatedContentId),
+          eq(assets.userId, input.userId),
           inArray(
-            reelAssets.id,
+            assets.id,
             refs.map((ref) => ref.assetId),
           ),
         ),
       );
 
-    const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
+    const assetMap = new Map(ownedAssets.map((asset) => [asset.id, asset]));
     for (const ref of refs) {
       const asset = assetMap.get(ref.assetId);
       if (!asset) {
@@ -770,21 +773,36 @@ async function loadAuxAudioAssets(
   userId: string,
   generatedContentId: number,
 ): Promise<AudioAssets> {
-  const assets = await db
-    .select()
-    .from(reelAssets)
+  const rows = await db
+    .select({
+      id: assets.id,
+      userId: assets.userId,
+      type: assets.type,
+      source: assets.source,
+      name: assets.name,
+      mimeType: assets.mimeType,
+      r2Key: assets.r2Key,
+      r2Url: assets.r2Url,
+      sizeBytes: assets.sizeBytes,
+      durationMs: assets.durationMs,
+      metadata: assets.metadata,
+      createdAt: assets.createdAt,
+      role: contentAssets.role,
+    })
+    .from(contentAssets)
+    .innerJoin(assets, eq(contentAssets.assetId, assets.id))
     .where(
       and(
-        eq(reelAssets.userId, userId),
-        eq(reelAssets.generatedContentId, generatedContentId),
+        eq(contentAssets.generatedContentId, generatedContentId),
+        eq(assets.userId, userId),
       ),
     );
 
-  const sorted = assets.sort(
+  const sorted = rows.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
-  const voiceover = sorted.find((asset) => asset.type === "voiceover") ?? null;
-  const music = sorted.find((asset) => asset.type === "music") ?? null;
+  const voiceover = sorted.find((r) => r.role === "voiceover") ?? null;
+  const music = sorted.find((r) => r.role === "background_music") ?? null;
   return { voiceover, music };
 }
 
@@ -931,46 +949,80 @@ async function upsertAssembledAsset(input: {
   durationMs: number;
   metadata: Record<string, unknown>;
 }): Promise<string> {
-  // Delete any previously assembled assets to avoid stale row accumulation.
-  await db
-    .delete(reelAssets)
+  // Find and delete any previously assembled assets to avoid stale row accumulation.
+  const existingLinks = await db
+    .select({ assetId: contentAssets.assetId })
+    .from(contentAssets)
     .where(
       and(
-        eq(reelAssets.generatedContentId, input.generatedContentId),
-        eq(reelAssets.userId, input.userId),
-        eq(reelAssets.type, "assembled_video"),
+        eq(contentAssets.generatedContentId, input.generatedContentId),
+        eq(contentAssets.role, "assembled_video"),
       ),
     );
 
+  if (existingLinks.length > 0) {
+    await db
+      .delete(contentAssets)
+      .where(
+        and(
+          eq(contentAssets.generatedContentId, input.generatedContentId),
+          eq(contentAssets.role, "assembled_video"),
+        ),
+      );
+    for (const link of existingLinks) {
+      await db.delete(assets).where(eq(assets.id, link.assetId)).catch(() => {});
+    }
+  }
+
   const [assembled] = await db
-    .insert(reelAssets)
+    .insert(assets)
     .values({
-      generatedContentId: input.generatedContentId,
       userId: input.userId,
       type: "assembled_video",
+      source: "generated",
       r2Key: input.r2Key,
       r2Url: input.r2Url,
       durationMs: input.durationMs,
       metadata: input.metadata,
     })
-    .returning({ id: reelAssets.id });
+    .returning({ id: assets.id });
+
+  await db.insert(contentAssets).values({
+    generatedContentId: input.generatedContentId,
+    assetId: assembled.id,
+    role: "assembled_video",
+  });
 
   return assembled.id;
 }
 
 async function loadShotAssets(userId: string, generatedContentId: number) {
-  const assets = await db
-    .select()
-    .from(reelAssets)
+  const rows = await db
+    .select({
+      id: assets.id,
+      userId: assets.userId,
+      type: assets.type,
+      source: assets.source,
+      name: assets.name,
+      mimeType: assets.mimeType,
+      r2Key: assets.r2Key,
+      r2Url: assets.r2Url,
+      sizeBytes: assets.sizeBytes,
+      durationMs: assets.durationMs,
+      metadata: assets.metadata,
+      createdAt: assets.createdAt,
+    })
+    .from(contentAssets)
+    .innerJoin(assets, eq(contentAssets.assetId, assets.id))
     .where(
       and(
-        eq(reelAssets.generatedContentId, generatedContentId),
-        eq(reelAssets.userId, userId),
-        eq(reelAssets.type, "video_clip"),
+        eq(contentAssets.generatedContentId, generatedContentId),
+        eq(assets.userId, userId),
+        eq(contentAssets.role, "video_clip"),
       ),
     );
 
-  return assets.sort((a, b) => {
+  return rows.sort((a, b) => {
     const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
     const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
     return ai - bi;
@@ -1235,15 +1287,6 @@ export async function runAssembleFromExistingClips({
       },
     });
 
-    const videoUrl = R2_PUBLIC_URL
-      ? `${R2_PUBLIC_URL}/${assembledR2Key}`
-      : assembledR2Url;
-
-    await db
-      .update(generatedContent)
-      .set({ videoR2Url: videoUrl })
-      .where(eq(generatedContent.id, job.generatedContentId));
-
     await updatePhase4Metadata({
       generatedContentId: job.generatedContentId,
       existingGeneratedMetadata:
@@ -1253,7 +1296,7 @@ export async function runAssembleFromExistingClips({
     });
 
     const signedVideoUrl = await getFileUrl(assembledR2Key, 3600).catch(
-      () => videoUrl,
+      () => assembledR2Url,
     );
 
     await videoJobService.updateJob(job.id, {
@@ -1395,11 +1438,11 @@ export async function runReelGeneration(input: {
       });
 
       const [clipAsset] = await db
-        .insert(reelAssets)
+        .insert(assets)
         .values({
-          generatedContentId: job.generatedContentId,
           userId: job.userId,
           type: "video_clip",
+          source: "generated",
           r2Key: clip.r2Key,
           r2Url: clip.r2Url,
           durationMs: clip.durationSeconds * 1000,
@@ -1413,6 +1456,12 @@ export async function runReelGeneration(input: {
           },
         })
         .returning();
+
+      await db.insert(contentAssets).values({
+        generatedContentId: job.generatedContentId,
+        assetId: clipAsset.id,
+        role: "video_clip",
+      });
 
       createdShots.push({
         shotIndex: shot.shotIndex,
@@ -1502,13 +1551,17 @@ export async function runShotRegenerate(input: {
     // Remove the existing clip(s) for this shot index before inserting the new one
     // to prevent duplicate shots accumulating for the same index.
     const allExistingClips = await db
-      .select()
-      .from(reelAssets)
+      .select({
+        assetId: contentAssets.assetId,
+        metadata: assets.metadata,
+      })
+      .from(contentAssets)
+      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
       .where(
         and(
-          eq(reelAssets.generatedContentId, job.generatedContentId),
-          eq(reelAssets.userId, job.userId),
-          eq(reelAssets.type, "video_clip"),
+          eq(contentAssets.generatedContentId, job.generatedContentId),
+          eq(contentAssets.role, "video_clip"),
+          eq(assets.userId, job.userId),
         ),
       );
     const staleIds = allExistingClips
@@ -1517,17 +1570,27 @@ export async function runShotRegenerate(input: {
           Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) ===
           input.shotIndex,
       )
-      .map((a) => a.id);
+      .map((a) => a.assetId);
     if (staleIds.length > 0) {
-      await db.delete(reelAssets).where(inArray(reelAssets.id, staleIds));
+      await db
+        .delete(contentAssets)
+        .where(
+          and(
+            eq(contentAssets.generatedContentId, job.generatedContentId),
+            inArray(contentAssets.assetId, staleIds),
+          ),
+        );
+      for (const assetId of staleIds) {
+        await db.delete(assets).where(eq(assets.id, assetId)).catch(() => {});
+      }
     }
 
     const [clipAsset] = await db
-      .insert(reelAssets)
+      .insert(assets)
       .values({
-        generatedContentId: job.generatedContentId,
         userId: job.userId,
         type: "video_clip",
+        source: "generated",
         r2Key: clip.r2Key,
         r2Url: clip.r2Url,
         durationMs: clip.durationSeconds * 1000,
@@ -1541,6 +1604,12 @@ export async function runShotRegenerate(input: {
         },
       })
       .returning();
+
+    await db.insert(contentAssets).values({
+      generatedContentId: job.generatedContentId,
+      assetId: clipAsset.id,
+      role: "video_clip",
+    });
 
     await runAssembleFromExistingClips({ job });
 

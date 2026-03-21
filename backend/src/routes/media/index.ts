@@ -7,7 +7,7 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
-import { mediaItems } from "../../infrastructure/database/drizzle/schema";
+import { assets } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import {
   uploadFile,
@@ -39,16 +39,16 @@ function getMaxBytes(mediaType: "video" | "audio" | "image"): number {
   return MAX_IMAGE_BYTES;
 }
 
-// GET /api/media — list all media items for the authenticated user
+// GET /api/media — list user-uploaded assets
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   try {
     const auth = c.get("auth");
 
     const items = await db
       .select()
-      .from(mediaItems)
-      .where(eq(mediaItems.userId, auth.user.id))
-      .orderBy(desc(mediaItems.createdAt));
+      .from(assets)
+      .where(and(eq(assets.userId, auth.user.id), eq(assets.source, "uploaded")))
+      .orderBy(desc(assets.createdAt));
 
     const itemsWithUrls = await Promise.all(
       items.map(async (item) => {
@@ -127,12 +127,13 @@ app.post(
           : (nameOverride as string | null) ?? fileEntry.name;
 
       const [item] = await db
-        .insert(mediaItems)
+        .insert(assets)
         .values({
           id: itemId,
           userId: auth.user.id,
-          name,
           type: mediaType,
+          source: "uploaded",
+          name,
           mimeType: mime,
           r2Key,
           r2Url,
@@ -174,8 +175,14 @@ app.delete(
 
       const [existing] = await db
         .select()
-        .from(mediaItems)
-        .where(and(eq(mediaItems.id, id), eq(mediaItems.userId, auth.user.id)))
+        .from(assets)
+        .where(
+          and(
+            eq(assets.id, id),
+            eq(assets.userId, auth.user.id),
+            eq(assets.source, "uploaded"),
+          ),
+        )
         .limit(1);
 
       if (!existing) {
@@ -191,9 +198,7 @@ app.delete(
         });
       });
 
-      await db
-        .delete(mediaItems)
-        .where(eq(mediaItems.id, id));
+      await db.delete(assets).where(eq(assets.id, id));
 
       return c.body(null, 204);
     } catch (error) {
