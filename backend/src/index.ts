@@ -33,6 +33,7 @@ import audioRoutes from "./routes/audio/index";
 import assetsRoutes from "./routes/assets/index";
 import musicRoutes from "./routes/music/index";
 import editorRoutes from "./routes/editor/index";
+import captionsRoutes from "./routes/editor/captions";
 import videoRoutes from "./routes/video/index";
 import mediaRoutes from "./routes/media/index";
 import { startDailyScan } from "./jobs/daily-scan";
@@ -96,6 +97,7 @@ app.route("/api/audio", audioRoutes);
 app.route("/api/assets", assetsRoutes);
 app.route("/api/music", musicRoutes);
 app.route("/api/editor", editorRoutes);
+app.route("/api/captions", captionsRoutes);
 app.route("/api/video", videoRoutes);
 app.route("/api/media", mediaRoutes);
 

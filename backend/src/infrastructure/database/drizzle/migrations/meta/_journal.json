@@ -8,6 +8,13 @@
       "when": 1774124537790,
       "tag": "0000_living_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774134992014,
+      "tag": "0001_salty_ultimo",
+      "breakpoints": true
     }
   ]
 }

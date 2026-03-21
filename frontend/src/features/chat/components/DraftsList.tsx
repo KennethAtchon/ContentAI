@@ -27,8 +27,10 @@ function DraftCard({
   const { t } = useTranslation();
   const { data: assetsData } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
-  const hasVoiceover = assets.some((a) => a.type === "voiceover");
-  const hasMusic = assets.some((a) => a.type === "music");
+  const hasVoiceover = assets.some(
+    (a) => a.role === "voiceover" || a.type === "voiceover"
+  );
+  const hasMusic = assets.some((a) => a.role === "background_music");
 
   const label = draft.generatedHook
     ? draft.generatedHook.length > 60

@@ -6,6 +6,7 @@ import type {
   Clip,
   EditProject,
   ExportJobStatus,
+  CaptionWord,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 
@@ -283,6 +284,46 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "SET_EXPORT_STATUS":
       return { ...state, exportStatus: action.status };
 
+    case "ADD_CAPTION_CLIP": {
+      const captionClip: Clip = {
+        id: crypto.randomUUID(),
+        assetId: action.assetId,
+        label: "Captions",
+        startMs: action.startMs,
+        durationMs: action.durationMs,
+        trimStartMs: 0,
+        trimEndMs: 0,
+        speed: 1,
+        opacity: 1,
+        warmth: 0,
+        contrast: 0,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+        rotation: 0,
+        volume: 0,
+        muted: true,
+        captionId: action.captionId,
+        captionWords: action.captionWords,
+        captionPresetId: action.presetId,
+        captionGroupSize: 3,
+        captionPositionY: 80,
+      };
+
+      const newTracks = state.tracks.map((t) =>
+        t.id === "text" ? { ...t, clips: [...t.clips, captionClip] } : t,
+      );
+
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+        selectedClipId: captionClip.id,
+      };
+    }
+
     default:
       return state;
   }
@@ -366,6 +407,17 @@ export function useEditorReducer() {
       dispatch({ type: "SET_EXPORT_STATUS", status }),
     []
   );
+  const addCaptionClip = useCallback(
+    (params: {
+      captionId: string;
+      captionWords: CaptionWord[];
+      assetId: string;
+      presetId: string;
+      startMs: number;
+      durationMs: number;
+    }) => dispatch({ type: "ADD_CAPTION_CLIP", ...params }),
+    [],
+  );
 
   return {
     state,
@@ -389,6 +441,7 @@ export function useEditorReducer() {
     redo,
     setExportJob,
     setExportStatus,
+    addCaptionClip,
   };
 }
 

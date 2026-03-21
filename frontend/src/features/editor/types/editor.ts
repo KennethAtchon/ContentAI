@@ -1,3 +1,9 @@
+export interface CaptionWord {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+
 export interface TextStyle {
   fontSize: number;
   fontWeight: "normal" | "bold";
@@ -29,6 +35,13 @@ export interface Clip {
   // Text-only
   textContent?: string;
   textStyle?: TextStyle;
+  // Caption-only
+  captionId?: string;
+  captionWords?: CaptionWord[];
+  captionPresetId?: string;
+  captionGroupSize?: number;
+  captionPositionY?: number;
+  captionFontSizeOverride?: number;
 }
 
 export type TrackType = "video" | "audio" | "music" | "text";
@@ -101,7 +114,16 @@ export type EditorAction =
   | { type: "UNDO" }
   | { type: "REDO" }
   | { type: "SET_EXPORT_JOB"; jobId: string | null }
-  | { type: "SET_EXPORT_STATUS"; status: ExportJobStatus | null };
+  | { type: "SET_EXPORT_STATUS"; status: ExportJobStatus | null }
+  | {
+      type: "ADD_CAPTION_CLIP";
+      captionId: string;
+      captionWords: CaptionWord[];
+      assetId: string;
+      presetId: string;
+      startMs: number;
+      durationMs: number;
+    };
 
 export const TRACK_COLORS: Record<TrackType, string> = {
   video: "#a78bfa",

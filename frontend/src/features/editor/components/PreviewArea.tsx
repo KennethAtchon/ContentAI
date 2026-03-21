@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { Play } from "lucide-react";
 import type { Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
+import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
 
 interface Props {
   tracks: Track[];
@@ -45,6 +46,7 @@ export function PreviewArea({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const captionCanvasRef = useRef<HTMLCanvasElement>(null);
   const assetUrlMap = useAssetUrlMap();
 
   const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
@@ -81,6 +83,29 @@ export function PreviewArea({
       }
     }
   }, [currentTimeMs, isPlaying, videoTrack]);
+
+  // Caption canvas rendering — runs on every currentTimeMs change
+  useEffect(() => {
+    const canvas = captionCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const textTrack = tracks.find((t) => t.type === "text");
+    if (!textTrack) return;
+
+    for (const clip of textTrack.clips) {
+      if (!clip.captionWords?.length) continue;
+      const isActive =
+        currentTimeMs >= clip.startMs &&
+        currentTimeMs < clip.startMs + clip.durationMs;
+      if (!isActive) continue;
+
+      drawCaptionsOnCanvas(ctx, clip, currentTimeMs, canvas.width, canvas.height);
+    }
+  }, [currentTimeMs, tracks]);
 
   const hasContent = (videoTrack?.clips.length ?? 0) > 0;
   const timecode = formatHHMMSSFF(currentTimeMs, fps);
@@ -136,6 +161,15 @@ export function PreviewArea({
               preload="auto"
             />
           ))}
+
+          {/* Caption canvas overlay */}
+          <canvas
+            ref={captionCanvasRef}
+            width={1920}
+            height={1080}
+            className="absolute inset-0 w-full h-full"
+            style={{ pointerEvents: "none" }}
+          />
 
           {/* Empty state */}
           {!hasContent && (

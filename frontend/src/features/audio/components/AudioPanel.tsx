@@ -30,21 +30,23 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
   const updateMetadata = useUpdateAssetMetadata(generatedContentId);
 
   const assets = assetsData?.assets ?? [];
-  const voiceoverAsset = assets.find((a) => a.type === "voiceover");
-  const musicAsset = assets.find((a) => a.type === "music");
+  const voiceoverAsset = assets.find((a) => a.role === "voiceover");
+  const musicAsset = assets.find((a) => a.role === "background_music");
 
   const audioUrl = localAudioUrl ?? voiceoverAsset?.audioUrl ?? null;
   const hasVoiceover = !!voiceoverAsset;
   const hasMusic = !!musicAsset;
-  // Build a minimal MusicTrack from stored asset metadata for display
+  // Build a minimal MusicTrack from the linked asset record.
+  // Music track assets store name in assets.name, artist in metadata.artistName.
+  // The music track ID equals the asset ID (both use the same UUID at upload time).
   const currentMusicTrack: MusicTrack | null = musicAsset
     ? {
-        id: String(
-          (musicAsset.metadata as Record<string, unknown>)?.musicTrackId ?? ""
-        ),
-        name: String(
-          (musicAsset.metadata as Record<string, unknown>)?.trackName ?? ""
-        ),
+        id: musicAsset.id,
+        name:
+          musicAsset.name ??
+          String(
+            (musicAsset.metadata as Record<string, unknown>)?.trackName ?? ""
+          ),
         artistName:
           ((musicAsset.metadata as Record<string, unknown>)
             ?.artistName as string) ?? null,
@@ -54,7 +56,7 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
         mood: String(
           (musicAsset.metadata as Record<string, unknown>)?.mood ?? ""
         ),
-        previewUrl: musicAsset.audioUrl ?? "",
+        previewUrl: musicAsset.audioUrl ?? musicAsset.mediaUrl ?? "",
         isSystemTrack: true,
       }
     : null;

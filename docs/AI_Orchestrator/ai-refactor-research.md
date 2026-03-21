@@ -429,3 +429,11 @@ The four prompts in `backend/src/prompts/` are loaded from disk on every cold st
 - `backend/src/lib/ai/model-registry.ts` (new)
 - `backend/src/lib/ai/helpers.ts`
 - `frontend/src/features/chat/hooks/use-chat-stream.ts`
+
+---
+
+## Studio generate: workspace UX (Mar 2026)
+
+When chat tools persist content (`save_content`, `iterate_content`, `edit_content_field`), the UI does **not** auto-open the content workspace. **Once per chat session**, when the **first** draft id arrives from the stream, the “Open workspace” control plays a short highlight flicker (no toast; later saves in the same session do not repeat). Switching chat sessions clears stream state and aborts the in-flight request (`useChatStream` `sessionId` effect).
+
+**Content assets:** API rows use `type` for storage kind (e.g. `audio` for library music) and `role` for semantic use (`voiceover`, `background_music`). The workspace audio UI and draft cards match **role** (with a legacy fallback on `type === "voiceover"` where needed). Assembled reels use `type === "assembled_video"` with `mediaUrl` for inline preview; **Draft detail** links to the Video tab via `onOpenVideo` from `ContentWorkspace` (`handleOpenVideo`). **Voiceover** auto-selects the first voice when the list loads (`VoiceoverGenerator`).

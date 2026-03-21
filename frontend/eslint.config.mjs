@@ -67,6 +67,8 @@ export default [
         NodeJS: "readonly",
         alert: "readonly",
         HTMLAudioElement: "readonly",
+        HTMLCanvasElement: "readonly",
+        CanvasRenderingContext2D: "readonly",
         cancelAnimationFrame: "readonly",
         requestAnimationFrame: "readonly",
         MouseEvent: "readonly",

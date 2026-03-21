@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
@@ -293,6 +293,16 @@ export function useChatStream(sessionId: string) {
   );
   const abortRef = useRef<AbortController | null>(null);
   const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
+
+  useEffect(() => {
+    abortRef.current?.abort();
+    setOptimisticUserMessage(null);
+    setStreamingContent(null);
+    setIsStreaming(false);
+    setStreamError(null);
+    setIsSavingContent(false);
+    setStreamingContentId(null);
+  }, [sessionId]);
 
   const sendMessage = useCallback(
     async (

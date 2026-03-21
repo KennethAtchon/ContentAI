@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MessageSquarePlus, PanelRight } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { ProjectSidebar } from "./ProjectSidebar";
@@ -63,9 +64,9 @@ export function ChatLayout({
   const [requestAudioForContentId, setRequestAudioForContentId] = useState<
     number | null
   >(null);
-
-  // Track previous draft count to auto-open workspace when first draft appears
-  const prevDraftCountRef = useRef(0);
+  /** One-shot flicker on “Open workspace” after the first saved draft in this session. */
+  const [workspaceToggleFlicker, setWorkspaceToggleFlicker] = useState(false);
+  const firstWorkspaceContentNudgeDoneRef = useRef(false);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -84,6 +85,8 @@ export function ChatLayout({
       setActiveContentId(null);
       setWorkspaceOpen(false);
       setRequestAudioForContentId(null);
+      setWorkspaceToggleFlicker(false);
+      firstWorkspaceContentNudgeDoneRef.current = false;
     }
   }, [sessionData, sessionLoading]);
 
@@ -145,15 +148,21 @@ export function ChatLayout({
     };
   }, [lastReelRefs, search.reelId]);
 
-  // Auto-open workspace when first content is generated
+  // Once per session: when the first draft is persisted, briefly flicker the workspace toggle (no auto-open)
   useEffect(() => {
-    if (streamingContentId && prevDraftCountRef.current === 0) {
-      setWorkspaceOpen(true);
+    if (streamingContentId == null) return;
+    if (firstWorkspaceContentNudgeDoneRef.current) return;
+    firstWorkspaceContentNudgeDoneRef.current = true;
+    if (!workspaceOpen) {
+      setWorkspaceToggleFlicker(true);
     }
-    if (streamingContentId) {
-      prevDraftCountRef.current += 1;
-    }
-  }, [streamingContentId]);
+  }, [streamingContentId, workspaceOpen]);
+
+  useEffect(() => {
+    if (!workspaceToggleFlicker) return;
+    const id = window.setTimeout(() => setWorkspaceToggleFlicker(false), 900);
+    return () => window.clearTimeout(id);
+  }, [workspaceToggleFlicker]);
 
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
@@ -215,9 +224,10 @@ export function ChatLayout({
   const workspaceToggleClass = useMemo(() => {
     const base =
       "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm font-medium transition-all duration-150";
-    return workspaceOpen
-      ? `${base} border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] hover:border-primary/40`
-      : `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
+    if (workspaceOpen) {
+      return `${base} border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] hover:border-primary/40`;
+    }
+    return `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
   }, [workspaceOpen]);
 
   // Combine server messages with optimistic/streaming overlay
@@ -279,8 +289,20 @@ export function ChatLayout({
                 )}
               </div>
               <button
-                onClick={() => setWorkspaceOpen((prev) => !prev)}
-                className={workspaceToggleClass}
+                type="button"
+                onClick={() =>
+                  setWorkspaceOpen((prev) => {
+                    const next = !prev;
+                    if (next) setWorkspaceToggleFlicker(false);
+                    return next;
+                  })
+                }
+                className={cn(
+                  workspaceToggleClass,
+                  workspaceToggleFlicker &&
+                    !workspaceOpen &&
+                    "workspace-open-toggle-flicker"
+                )}
                 aria-label={t("workspace_open")}
               >
                 <PanelRight className="w-3.5 h-3.5" />

@@ -204,6 +204,15 @@ export function ContentWorkspace({
     }
   };
 
+  const handleOpenVideo = () => {
+    const id =
+      selectedDraft?.id ?? activeContentId ?? drafts[drafts.length - 1]?.id;
+    if (id) {
+      onActiveContentChange(id);
+      setActiveTab("video");
+    }
+  };
+
   const handleBack = () => {
     setSelectedDraft(null);
   };
@@ -283,6 +292,7 @@ export function ContentWorkspace({
             isActive={selectedDraft.id === activeContentId}
             onBack={handleBack}
             onOpenAudio={handleOpenAudio}
+            onOpenVideo={handleOpenVideo}
             onSetActive={handleSetActive}
           />
         ) : (

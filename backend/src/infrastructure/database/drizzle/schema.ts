@@ -747,6 +747,44 @@ export const aiCostLedger = pgTable(
 
 export type AiCostEntry = typeof aiCostLedger.$inferSelect;
 
+// ─── Captions ──────────────────────────────────────────────────────────────────
+// Word-level transcription data from Whisper, one row per (user, asset).
+
+export interface CaptionWord {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+
+export const captions = pgTable(
+  "caption",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    language: text("language").notNull().default("en"),
+    words: jsonb("words").notNull().$type<CaptionWord[]>(),
+    fullText: text("full_text").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("captions_asset_idx").on(t.assetId),
+    index("captions_user_idx").on(t.userId),
+    uniqueIndex("captions_user_asset_unique").on(t.userId, t.assetId),
+  ],
+);
+
+export const captionsRelations = relations(captions, ({ one }) => ({
+  user: one(users, { fields: [captions.userId], references: [users.id] }),
+  asset: one(assets, { fields: [captions.assetId], references: [assets.id] }),
+}));
+
 // ─── Inferred types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -790,3 +828,5 @@ export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
+export type Caption = typeof captions.$inferSelect;
+export type NewCaption = typeof captions.$inferInsert;

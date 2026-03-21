@@ -69,6 +69,13 @@ export function VoiceoverGenerator({
   const voices = voicesData?.voices ?? [];
   const isGenerating = generateMutation.isPending;
 
+  // Auto-select the first available voice when voices load
+  useEffect(() => {
+    if (!selectedVoiceId && voices.length > 0) {
+      setSelectedVoiceId(voices[0].id);
+    }
+  }, [voices, selectedVoiceId]);
+
   const handleCopy = async () => {
     if (!scriptValue) return;
     await navigator.clipboard.writeText(scriptValue);

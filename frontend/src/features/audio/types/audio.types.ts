@@ -56,7 +56,9 @@ export interface ReelAsset {
   id: string;
   generatedContentId: number;
   userId: string;
-  type: "voiceover" | "music" | "video_clip" | "image" | "assembled_video";
+  type: string;
+  name?: string | null;
+  role?: string | null;
   r2Key: string;
   r2Url: string | null;
   audioUrl?: string | null;

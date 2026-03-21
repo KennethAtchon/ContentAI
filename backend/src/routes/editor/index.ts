@@ -19,6 +19,7 @@ import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
+import { generateASS } from "./export/ass-generator";
 
 const app = new Hono<HonoEnv>();
 
@@ -63,6 +64,21 @@ const clipDataSchema = z.object({
       align: z.enum(["left", "center", "right"]),
     })
     .optional(),
+  // ── Caption fields ────────────────────────────────────────────────
+  captionId: z.string().optional(),
+  captionWords: z
+    .array(
+      z.object({
+        word: z.string(),
+        startMs: z.number().int().min(0),
+        endMs: z.number().int().min(0),
+      }),
+    )
+    .optional(),
+  captionPresetId: z.string().max(50).optional(),
+  captionGroupSize: z.number().int().min(1).max(10).optional(),
+  captionPositionY: z.number().min(0).max(100).optional(),
+  captionFontSizeOverride: z.number().int().min(8).max(200).optional(),
 });
 
 const trackDataSchema = z.object({
@@ -668,6 +684,36 @@ async function runExportJob(
       );
       latestVideoLabel = label;
     });
+
+    // ── Burn captions via ASS subtitle file ──────────────────────────────
+    const captionClips = textClips.filter(
+      (c: any) => c.captionWords?.length && c.captionPresetId,
+    );
+
+    if (captionClips.length > 0) {
+      for (const captionClip of captionClips) {
+        const assContent = generateASS(
+          captionClip.captionWords,
+          captionClip.captionPresetId,
+          [outW, outH],
+          captionClip.captionGroupSize ?? 3,
+          captionClip.startMs ?? 0,
+        );
+
+        const assPath = join(
+          tmpdir(),
+          `export-${jobId}-captions-${crypto.randomUUID()}.ass`,
+        );
+        writeFileSync(assPath, assContent, "utf-8");
+        tmpFiles.push(assPath);
+
+        const assLabel = `vcap${captionClips.indexOf(captionClip)}`;
+        filterParts.push(
+          `[${latestVideoLabel}]ass='${assPath.replace(/'/g, "'\\''")}'[${assLabel}]`,
+        );
+        latestVideoLabel = assLabel;
+      }
+    }
 
     // Mix audio
     const allAudioClips = [...audioClips, ...musicClips];

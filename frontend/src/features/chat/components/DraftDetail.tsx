@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Mic } from "lucide-react";
+import { ArrowLeft, Mic, Film } from "lucide-react";
 import { AudioStatusBadge } from "@/features/audio/components/AudioStatusBadge";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 import type { SessionDraft } from "../types/chat.types";
@@ -9,6 +9,7 @@ interface DraftDetailProps {
   isActive: boolean;
   onBack: () => void;
   onOpenAudio: () => void;
+  onOpenVideo: () => void;
   onSetActive: (id: number) => void;
 }
 
@@ -34,14 +35,20 @@ export function DraftDetail({
   isActive,
   onBack,
   onOpenAudio,
+  onOpenVideo,
   onSetActive,
 }: DraftDetailProps) {
   const { t } = useTranslation();
   const { data: assetsData } = useContentAssets(draft.id);
+  const assets = assetsData?.assets ?? [];
   const hasAudio =
-    assetsData?.assets.some(
-      (a) => a.type === "voiceover" || a.type === "music"
-    ) ?? false;
+    assets.some(
+      (a) =>
+        a.role === "voiceover" ||
+        a.role === "background_music" ||
+        a.type === "voiceover"
+    );
+  const assembledAsset = assets.find((a) => a.type === "assembled_video") ?? null;
 
   const metadata = draft.generatedMetadata as {
     hashtags?: string[];
@@ -142,16 +149,50 @@ export function DraftDetail({
             </p>
           </Section>
         )}
+
+        <Section label={t("workspace_section_video")}>
+          {assembledAsset?.mediaUrl ? (
+            <div className="flex flex-col gap-2">
+              <video
+                src={assembledAsset.mediaUrl}
+                className="w-full rounded-lg border border-border/60"
+                controls
+                preload="metadata"
+              />
+              <button
+                onClick={onOpenVideo}
+                className="w-full py-1.5 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary/[0.06] transition-colors"
+              >
+                {t("workspace_video_reassemble")}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenVideo}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-dashed border-border/60 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              <Film className="w-3.5 h-3.5" />
+              {t("workspace_video_not_generated")}
+            </button>
+          )}
+        </Section>
       </div>
 
       {/* Action footer */}
-      <div className="shrink-0 border-t px-4 py-3">
+      <div className="shrink-0 border-t px-4 py-3 flex gap-2">
         <button
           onClick={onOpenAudio}
-          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/[0.10] transition-colors"
         >
           <Mic className="w-3.5 h-3.5" />
           {hasAudio ? t("workspace_edit_audio") : t("workspace_add_audio")}
+        </button>
+        <button
+          onClick={onOpenVideo}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-border/60 text-foreground/80 hover:bg-muted transition-colors"
+        >
+          <Film className="w-3.5 h-3.5" />
+          {assembledAsset ? t("workspace_video_reassemble") : t("workspace_tab_video")}
         </button>
       </div>
     </div>
