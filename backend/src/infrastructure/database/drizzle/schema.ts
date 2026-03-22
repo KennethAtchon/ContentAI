@@ -11,7 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const users = pgTable("user", {
   id: text("id")
@@ -498,10 +498,24 @@ export const editProjects = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdateFn(() => new Date()),
+    // ── publish / draft model ──────────────────────────────────────
+    status: text("status").notNull().default("draft"),
+    // "draft" | "published"
+    publishedAt: timestamp("published_at"),
+    parentProjectId: text("parent_project_id").references(
+      (): AnyPgColumn => editProjects.id,
+      { onDelete: "set null" },
+    ),
   },
   (t) => [
     index("edit_projects_user_idx").on(t.userId),
     index("edit_projects_content_idx").on(t.generatedContentId),
+    index("edit_projects_status_idx").on(t.userId, t.status),
+    // 1:1: one editor project per (user, generatedContent).
+    // Partial index — only when generatedContentId is non-null.
+    uniqueIndex("edit_project_unique_content")
+      .on(t.userId, t.generatedContentId)
+      .where(sql`generated_content_id IS NOT NULL`),
   ],
 );
 

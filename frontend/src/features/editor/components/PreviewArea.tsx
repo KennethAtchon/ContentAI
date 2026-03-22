@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { Play } from "lucide-react";
-import type { Track } from "../types/editor";
+import type { CSSProperties } from "react";
+import type { Track, Transition } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
 
@@ -34,6 +35,32 @@ function formatMMSS(ms: number): string {
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function getTransitionStyle(
+  clip: { id: string; startMs: number; durationMs: number; scale?: number; rotation?: number },
+  transitions: Transition[],
+  currentTimeMs: number,
+): CSSProperties {
+  const transition = transitions.find((t) => t.clipAId === clip.id);
+  if (!transition || transition.type === "none") return {};
+
+  const clipEnd = clip.startMs + clip.durationMs;
+  const windowStart = clipEnd - transition.durationMs;
+  if (currentTimeMs < windowStart || currentTimeMs > clipEnd) return {};
+
+  const progress = (currentTimeMs - windowStart) / transition.durationMs;
+
+  switch (transition.type) {
+    case "fade":
+      return { opacity: 1 - progress };
+    case "slide-left":
+      return { transform: `translateX(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)` };
+    case "slide-up":
+      return { transform: `translateY(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)` };
+    default:
+      return {};
+  }
 }
 
 export function PreviewArea({
@@ -143,18 +170,23 @@ export function PreviewArea({
               src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
               className="absolute inset-0 w-full h-full object-contain"
               style={{
-                opacity: activeVideoClips.some((c) => c.id === clip.id)
-                  ? (clip.opacity ?? 1)
-                  : 0,
-                filter:
-                  [
-                    clip.contrast !== undefined && clip.contrast !== 0
-                      ? `contrast(${1 + clip.contrast / 100})`
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ") || undefined,
-                transform: `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`,
+                ...(() => {
+                  const vt = tracks.find((t) => t.type === "video");
+                  const transStyle = getTransitionStyle(clip, vt?.transitions ?? [], currentTimeMs);
+                  const isActive = activeVideoClips.some((c) => c.id === clip.id);
+                  return {
+                    opacity: transStyle.opacity !== undefined ? transStyle.opacity : (isActive ? (clip.opacity ?? 1) : 0),
+                    filter:
+                      [
+                        clip.contrast !== undefined && clip.contrast !== 0
+                          ? `contrast(${1 + clip.contrast / 100})`
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined,
+                    transform: transStyle.transform ?? `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`,
+                  };
+                })(),
               }}
               muted={false}
               playsInline

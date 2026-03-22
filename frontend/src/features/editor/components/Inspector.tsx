@@ -7,12 +7,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import type { Clip, Track } from "../types/editor";
+import type { Clip, Track, Transition } from "../types/editor";
 
 interface Props {
   tracks: Track[];
   selectedClipId: string | null;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  selectedTransition: Transition | null;
+  onSetTransition: (trackId: string, clipAId: string, clipBId: string, type: Transition["type"], durationMs: number) => void;
+  onRemoveTransition: (trackId: string, transitionId: string) => void;
 }
 
 function Section({
@@ -87,7 +90,7 @@ function ValuePill({ value }: { value: string | number }) {
   );
 }
 
-export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
+export function Inspector({ tracks, selectedClipId, onUpdateClip, selectedTransition, onSetTransition, onRemoveTransition: _onRemoveTransition }: Props) {
   const { t } = useTranslation();
 
   // Find selected clip
@@ -111,7 +114,7 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {!selectedClip ? (
+        {!selectedClip && !selectedTransition ? (
           /* Empty state */
           <div className="h-full flex flex-col items-center justify-center gap-2 px-4">
             <span className="text-4xl opacity-20">✦</span>
@@ -122,6 +125,7 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
         ) : (
           /* Populated state */
           <div className="p-3">
+            {selectedClip && <>
             {/* 1. Clip */}
             <Section title="Clip">
               <PropRow label="Name">
@@ -282,6 +286,79 @@ export function Inspector({ tracks, selectedClipId, onUpdateClip }: Props) {
                 </div>
               )}
             </Section>
+            </>}
+
+            {/* Transition section — shown when a transition diamond is selected */}
+            {selectedTransition && (() => {
+              const transTrack = tracks.find(
+                (t) => (t.transitions ?? []).some((tr) => tr.id === selectedTransition.id)
+              );
+              const clipA = transTrack?.clips.find((c) => c.id === selectedTransition.clipAId);
+              const clipB = transTrack?.clips.find((c) => c.id === selectedTransition.clipBId);
+              const maxDuration = clipA && clipB
+                ? Math.min(clipA.durationMs, clipB.durationMs) - 100
+                : 2000;
+
+              const TRANSITION_OPTIONS: { value: Transition["type"]; label: string }[] = [
+                { value: "none", label: "Cut" },
+                { value: "fade", label: "Fade" },
+                { value: "slide-left", label: "Slide Left" },
+                { value: "slide-up", label: "Slide Up" },
+                { value: "dissolve", label: "Dissolve" },
+                { value: "wipe-right", label: "Wipe Right" },
+              ];
+
+              return (
+                <Section title={t("editor_transitions_label")}>
+                  <PropRow label={t("editor_transitions_label")}>
+                    <select
+                      value={selectedTransition.type}
+                      onChange={(e) => {
+                        if (!transTrack) return;
+                        onSetTransition(
+                          transTrack.id,
+                          selectedTransition.clipAId,
+                          selectedTransition.clipBId,
+                          e.target.value as Transition["type"],
+                          selectedTransition.durationMs,
+                        );
+                      }}
+                      className="text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border border-overlay-md"
+                    >
+                      {TRANSITION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </PropRow>
+                  {selectedTransition.type !== "none" && (
+                    <SliderRow
+                      label={t("editor_transitions_duration")}
+                      value={selectedTransition.durationMs}
+                      min={200}
+                      max={maxDuration}
+                      step={100}
+                      onChange={(val) => {
+                        if (!transTrack) return;
+                        onSetTransition(
+                          transTrack.id,
+                          selectedTransition.clipAId,
+                          selectedTransition.clipBId,
+                          selectedTransition.type,
+                          val,
+                        );
+                      }}
+                    />
+                  )}
+                  {selectedTransition.type !== "none" && (
+                    <p className="text-[10px] text-dim-3 mt-1 italic">
+                      {t("editor_transitions_preview_note")}
+                    </p>
+                  )}
+                </Section>
+              );
+            })()}
           </div>
         )}
       </div>

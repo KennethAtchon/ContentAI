@@ -1094,6 +1094,16 @@ function DetailPanel({
             {t("studio_queue_detail_actions")}
           </p>
           <div className="flex flex-wrap gap-2">
+            {content?.id != null && (
+              <Link
+                to="/studio/editor"
+                search={{ contentId: content.id }}
+                className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-sm font-semibold text-studio-accent hover:bg-studio-accent/15 hover:border-studio-accent/50 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t("editor_open_in_editor")}
+              </Link>
+            )}
             {sessionId && (
               <Link
                 to="/studio/generate"

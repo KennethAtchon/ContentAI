@@ -14,6 +14,10 @@ import {
   ZoomIn,
   ZoomOut,
   Upload,
+  Lock,
+  FilePlus,
+  Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -68,6 +72,8 @@ export function EditorLayout({ project, onBack }: Props) {
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
+  const [showAiMenu, setShowAiMenu] = useState(false);
+  const [selectedTransitionKey, setSelectedTransitionKey] = useState<[string, string, string] | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load project on mount
@@ -110,6 +116,51 @@ export function EditorLayout({ project, onBack }: Props) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.api.editorProjects(),
       });
+    },
+  });
+
+  const { mutate: publishProject, isPending: isPublishing } = useMutation({
+    mutationFn: () =>
+      authenticatedFetchJson<{ id: string; status: string; publishedAt: string }>(`/api/editor/${project.id}/publish`, {
+        method: "POST",
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
+      store.loadProject({
+        ...project,
+        tracks: store.state.tracks,
+        status: res.status as "published",
+        publishedAt: res.publishedAt,
+      });
+    },
+  });
+
+  const { mutate: createNewDraft, isPending: isCreatingDraft } = useMutation({
+    mutationFn: () =>
+      authenticatedFetchJson<{ project: EditProject }>(`/api/editor/${project.id}/new-draft`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.api.editorProjects(),
+      });
+      onBack();
+    },
+  });
+
+  const { mutate: aiAssemble, isPending: isAiAssembling } = useMutation({
+    mutationFn: (platform: string) =>
+      authenticatedFetchJson<{ timeline: EditProject["tracks"]; fallback: boolean }>(
+        `/api/editor/${project.id}/ai-assemble`,
+        {
+          method: "POST",
+          body: JSON.stringify({ platform }),
+        },
+      ),
+    onSuccess: (res) => {
+      store.loadProject({ ...project, tracks: res.timeline });
     },
   });
 
@@ -157,24 +208,55 @@ export function EditorLayout({ project, onBack }: Props) {
     [store.removeClip],
   );
 
-  // Save whenever tracks or title change
+  const handleSelectTransition = useCallback(
+    (trackId: string, clipAId: string, clipBId: string) => {
+      store.selectClip(null);
+      // Ensure transition exists (creates "none" if absent)
+      store.setTransition(trackId, clipAId, clipBId, "none", 500);
+      setSelectedTransitionKey([trackId, clipAId, clipBId]);
+    },
+    [store.selectClip, store.setTransition],
+  );
+
+  const selectedTransition = selectedTransitionKey
+    ? (() => {
+        const [trackId, clipAId, clipBId] = selectedTransitionKey;
+        const track = store.state.tracks.find((t) => t.id === trackId);
+        return (track?.transitions ?? []).find(
+          (t) => t.clipAId === clipAId && t.clipBId === clipBId,
+        ) ?? null;
+      })()
+    : null;
+
+  // Clear transition selection when a clip is selected
+  useEffect(() => {
+    if (store.state.selectedClipId) {
+      setSelectedTransitionKey(null);
+    }
+  }, [store.state.selectedClipId]);
+
+  // Save whenever tracks or title change (skip when read-only)
   const tracksRef = useRef(store.state.tracks);
   useEffect(() => {
     if (tracksRef.current === store.state.tracks) return;
     tracksRef.current = store.state.tracks;
-    scheduleSave({
-      tracks: store.state.tracks,
-      durationMs: store.state.durationMs,
-      title: store.state.title,
-    });
+    if (!store.state.isReadOnly) {
+      scheduleSave({
+        tracks: store.state.tracks,
+        durationMs: store.state.durationMs,
+        title: store.state.title,
+      });
+    }
   }, [store.state.tracks, store.state.title]);
 
-  // Save when resolution changes
+  // Save when resolution changes (skip when read-only)
   const resolutionRef = useRef(store.state.resolution);
   useEffect(() => {
     if (resolutionRef.current === store.state.resolution) return;
     resolutionRef.current = store.state.resolution;
-    scheduleSave({ resolution: store.state.resolution });
+    if (!store.state.isReadOnly) {
+      scheduleSave({ resolution: store.state.resolution });
+    }
   }, [store.state.resolution]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
@@ -280,7 +362,8 @@ export function EditorLayout({ project, onBack }: Props) {
             type="text"
             value={state.title}
             onChange={(e) => store.setTitle(e.target.value)}
-            className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] outline-none focus:border-studio-accent transition-colors px-1"
+            readOnly={state.isReadOnly}
+            className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] outline-none focus:border-studio-accent transition-colors px-1 read-only:border-transparent read-only:cursor-default"
           />
 
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
@@ -361,13 +444,77 @@ export function EditorLayout({ project, onBack }: Props) {
 
           <div className="flex-1" />
 
-          <button
-            onClick={() => setShowExport(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity"
-          >
-            <Upload size={14} />
-            {t("editor_export_button")}
-          </button>
+          {state.isReadOnly ? (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-green-500/15 text-green-400 uppercase tracking-wide">
+                <Lock size={11} />
+                {t("editor_status_published")}
+              </span>
+              <button
+                onClick={() => createNewDraft()}
+                disabled={isCreatingDraft}
+                className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
+              >
+                <FilePlus size={14} />
+                {t("editor_new_draft")}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              {project.generatedContentId != null && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAiMenu((v) => !v)}
+                    disabled={isAiAssembling}
+                    className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
+                  >
+                    <Sparkles size={13} />
+                    {t("editor_ai_assemble")}
+                    <ChevronDown size={11} />
+                  </button>
+                  {showAiMenu && (
+                    <div
+                      className="absolute right-0 top-full mt-1 z-50 flex flex-col bg-studio-surface border border-overlay-md rounded-lg shadow-lg overflow-hidden min-w-[168px]"
+                      onMouseLeave={() => setShowAiMenu(false)}
+                    >
+                      {[
+                        { platform: "tiktok", label: t("editor_ai_assemble_tiktok") },
+                        { platform: "youtube-shorts", label: t("editor_ai_assemble_youtube") },
+                        { platform: "instagram", label: t("editor_ai_assemble_instagram") },
+                      ].map(({ platform, label }) => (
+                        <button
+                          key={platform}
+                          onClick={() => {
+                            setShowAiMenu(false);
+                            aiAssemble(platform);
+                          }}
+                          className="text-left px-3 py-2 text-xs text-dim-1 hover:bg-overlay-sm cursor-pointer border-0 bg-transparent transition-colors"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={() => setShowExport(true)}
+                className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors"
+              >
+                <Upload size={14} />
+                {t("editor_export_button")}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(t("editor_publish_confirm"))) publishProject();
+                }}
+                disabled={isPublishing}
+                className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {t("editor_publish_button")}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Workspace (flex:1) ─────────────────────────────────────────── */}
@@ -376,6 +523,11 @@ export function EditorLayout({ project, onBack }: Props) {
             generatedContentId={project.generatedContentId}
             currentTimeMs={state.currentTimeMs}
             onAddClip={handleAddClip}
+            selectedClipId={state.selectedClipId}
+            onUpdateClip={handleUpdateClip}
+            videoTrack={state.tracks.find((t) => t.type === "video")}
+            onReorder={store.reorderShots}
+            readOnly={state.isReadOnly}
           />
 
           <PreviewArea
@@ -391,6 +543,9 @@ export function EditorLayout({ project, onBack }: Props) {
             tracks={state.tracks}
             selectedClipId={state.selectedClipId}
             onUpdateClip={handleUpdateClip}
+            selectedTransition={selectedTransition}
+            onSetTransition={store.setTransition}
+            onRemoveTransition={store.removeTransition}
           />
         </div>
 
@@ -420,6 +575,8 @@ export function EditorLayout({ project, onBack }: Props) {
               onAddClip={handleAddClip}
               onToggleMute={store.toggleTrackMute}
               onToggleLock={store.toggleTrackLock}
+              selectedTransitionId={selectedTransitionKey ? `${selectedTransitionKey[1]}-${selectedTransitionKey[2]}` : null}
+              onSelectTransition={handleSelectTransition}
             />
           </div>
         </div>

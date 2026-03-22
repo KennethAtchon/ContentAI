@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAuthenticatedFetch } from "@/shared/hooks/useAuthenticatedFetch";
-import { useQueryFetcher } from "@/shared/hooks/useQueryFetcher";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { CaptionWord } from "../types/editor";
 
@@ -27,11 +27,11 @@ export function useAutoCaption() {
 }
 
 export function useCaptionsByAsset(assetId: string | undefined) {
-  const fetcher = useQueryFetcher();
+  const fetcher = useQueryFetcher<CaptionResponse>();
 
   return useQuery({
     queryKey: queryKeys.api.captionsByAsset(assetId ?? ""),
-    queryFn: () => fetcher<CaptionResponse>(`/api/captions/${assetId}`),
+    queryFn: () => fetcher(`/api/captions/${assetId}`),
     enabled: !!assetId,
   });
 }

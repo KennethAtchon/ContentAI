@@ -4,6 +4,7 @@ import { TimelineClip } from "./TimelineClip";
 import { TrackHeader } from "./TrackHeader";
 import { Playhead } from "./Playhead";
 import type { Track, Clip, TrackType } from "../types/editor";
+import { TransitionDiamond } from "./TransitionDiamond";
 
 const TRACK_HEIGHT = 56; // px per track
 const RULER_HEIGHT = 32; // px
@@ -28,6 +29,8 @@ interface Props {
   onAddClip: (trackId: string, clip: Clip) => void;
   onToggleMute: (trackId: string) => void;
   onToggleLock: (trackId: string) => void;
+  selectedTransitionId: string | null;
+  onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
 }
 
 export function Timeline({
@@ -42,6 +45,8 @@ export function Timeline({
   onAddClip,
   onToggleMute,
   onToggleLock,
+  selectedTransitionId: _selectedTransitionId,
+  onSelectTransition,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
@@ -195,6 +200,23 @@ export function Timeline({
                   }
                 />
               ))}
+              {track.type === "video" &&
+                track.clips.slice(0, -1).map((clipA, idx) => {
+                  const clipB = track.clips[idx + 1];
+                  const transition = (track.transitions ?? []).find(
+                    (t) => t.clipAId === clipA.id && t.clipBId === clipB.id,
+                  );
+                  return (
+                    <TransitionDiamond
+                      key={`td-${clipA.id}-${clipB.id}`}
+                      clipA={clipA}
+                      clipB={clipB}
+                      transition={transition}
+                      zoom={zoom}
+                      onSelect={() => onSelectTransition(track.id, clipA.id, clipB.id)}
+                    />
+                  );
+                })}
             </div>
           ))}
 

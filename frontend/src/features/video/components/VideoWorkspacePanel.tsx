@@ -144,7 +144,7 @@ export function VideoWorkspacePanel({
 
   const handleReassemble = async () => {
     try {
-      const res = await assembleReel.mutateAsync({
+      await assembleReel.mutateAsync({
         generatedContentId: draft.id,
         includeCaptions,
         audioMix: {
@@ -154,7 +154,7 @@ export function VideoWorkspacePanel({
           musicVolume,
         },
       });
-      onJobStarted(res.jobId, draft.id);
+      // Navigation to editor happens in mutation onSuccess
       setStoryboardDirty(false);
     } catch {
       toast.error(t("workspace_video_action_reassemble_failed"));

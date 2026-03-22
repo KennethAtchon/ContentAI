@@ -11,6 +11,14 @@ export interface TextStyle {
   align: "left" | "center" | "right";
 }
 
+export interface Transition {
+  id: string;
+  type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
+  durationMs: number;
+  clipAId: string;
+  clipBId: string;
+}
+
 export interface Clip {
   id: string;
   assetId: string | null; // assets.id — null for text clips
@@ -53,6 +61,7 @@ export interface Track {
   muted: boolean;
   locked: boolean;
   clips: Clip[];
+  transitions: Transition[];
 }
 
 export interface EditProject {
@@ -66,6 +75,9 @@ export interface EditProject {
   resolution: string;
   createdAt: string;
   updatedAt: string;
+  status: "draft" | "published";
+  publishedAt: string | null;
+  parentProjectId: string | null;
 }
 
 export interface ExportJobStatus {
@@ -93,6 +105,7 @@ export interface EditorState {
   // Export
   exportJobId: string | null;
   exportStatus: ExportJobStatus | null;
+  isReadOnly: boolean;
 }
 
 export type EditorAction =
@@ -123,7 +136,10 @@ export type EditorAction =
       presetId: string;
       startMs: number;
       durationMs: number;
-    };
+    }
+  | { type: "SET_TRANSITION"; trackId: string; clipAId: string; clipBId: string; transitionType: Transition["type"]; durationMs: number }
+  | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
+  | { type: "REORDER_SHOTS"; clipIds: string[] };
 
 export const TRACK_COLORS: Record<TrackType, string> = {
   video: "#a78bfa",

@@ -7,42 +7,15 @@ import type {
   EditProject,
   ExportJobStatus,
   CaptionWord,
+  Transition,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 
 const DEFAULT_TRACKS: Track[] = [
-  {
-    id: "video",
-    type: "video",
-    name: "Video",
-    muted: false,
-    locked: false,
-    clips: [],
-  },
-  {
-    id: "audio",
-    type: "audio",
-    name: "Audio",
-    muted: false,
-    locked: false,
-    clips: [],
-  },
-  {
-    id: "music",
-    type: "music",
-    name: "Music",
-    muted: false,
-    locked: false,
-    clips: [],
-  },
-  {
-    id: "text",
-    type: "text",
-    name: "Text",
-    muted: false,
-    locked: false,
-    clips: [],
-  },
+  { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: [], transitions: [] },
+  { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
+  { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
+  { id: "text",  type: "text",  name: "Text",  muted: false, locked: false, clips: [], transitions: [] },
 ];
 
 export const INITIAL_EDITOR_STATE: EditorState = {
@@ -60,6 +33,7 @@ export const INITIAL_EDITOR_STATE: EditorState = {
   future: [],
   exportJobId: null,
   exportStatus: null,
+  isReadOnly: false,
 };
 
 function computeDuration(tracks: Track[]): number {
@@ -110,6 +84,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         selectedClipId: null,
         past: [],
         future: [],
+        isReadOnly: project.status === "published",
       };
     }
 
@@ -324,6 +299,94 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       };
     }
 
+    case "SET_TRANSITION": {
+      const track = state.tracks.find((t) => t.id === action.trackId);
+      if (!track) return state;
+
+      const clipA = track.clips.find((c) => c.id === action.clipAId);
+      const clipB = track.clips.find((c) => c.id === action.clipBId);
+      if (!clipA || !clipB) return state;
+
+      const maxDuration = Math.min(clipA.durationMs, clipB.durationMs) - 100;
+      const clampedDuration = Math.max(200, Math.min(action.durationMs, maxDuration));
+
+      const transitions = track.transitions ?? [];
+      const existingIdx = transitions.findIndex(
+        (t) => t.clipAId === action.clipAId && t.clipBId === action.clipBId,
+      );
+
+      let newTransitions: Transition[];
+      if (existingIdx >= 0) {
+        newTransitions = transitions.map((t, idx) =>
+          idx === existingIdx
+            ? { ...t, type: action.transitionType, durationMs: clampedDuration }
+            : t,
+        );
+      } else {
+        newTransitions = [
+          ...transitions,
+          {
+            id: crypto.randomUUID(),
+            type: action.transitionType,
+            durationMs: clampedDuration,
+            clipAId: action.clipAId,
+            clipBId: action.clipBId,
+          },
+        ];
+      }
+
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId ? { ...t, transitions: newTransitions } : t,
+      );
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+      };
+    }
+
+    case "REORDER_SHOTS": {
+      const videoTrack = state.tracks.find((t) => t.type === "video");
+      if (!videoTrack) return state;
+
+      const clipMap = new Map(videoTrack.clips.map((c) => [c.id, c]));
+      let cursor = 0;
+      const reorderedClips: Clip[] = [];
+      for (const clipId of action.clipIds) {
+        const clip = clipMap.get(clipId);
+        if (!clip) continue;
+        reorderedClips.push({ ...clip, startMs: cursor });
+        cursor += clip.durationMs;
+      }
+
+      const newTracks = state.tracks.map((t) =>
+        t.type === "video" ? { ...t, clips: reorderedClips } : t,
+      );
+
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "REMOVE_TRANSITION": {
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId
+          ? { ...t, transitions: (t.transitions ?? []).filter((tr) => tr.id !== action.transitionId) }
+          : t,
+      );
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+      };
+    }
+
     default:
       return state;
   }
@@ -418,6 +481,21 @@ export function useEditorReducer() {
     }) => dispatch({ type: "ADD_CAPTION_CLIP", ...params }),
     [],
   );
+  const setTransition = useCallback(
+    (trackId: string, clipAId: string, clipBId: string, transitionType: Transition["type"], durationMs: number) =>
+      dispatch({ type: "SET_TRANSITION", trackId, clipAId, clipBId, transitionType, durationMs }),
+    [],
+  );
+  const removeTransition = useCallback(
+    (trackId: string, transitionId: string) =>
+      dispatch({ type: "REMOVE_TRANSITION", trackId, transitionId }),
+    [],
+  );
+
+  const reorderShots = useCallback(
+    (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
+    [],
+  );
 
   return {
     state,
@@ -442,6 +520,9 @@ export function useEditorReducer() {
     setExportJob,
     setExportStatus,
     addCaptionClip,
+    setTransition,
+    removeTransition,
+    reorderShots,
   };
 }
 

@@ -16,6 +16,7 @@ import {
   generatedContent,
   assets,
   contentAssets,
+  editProjects,
 } from "../../infrastructure/database/drizzle/schema";
 import { generateVideoClip } from "../../services/media/video-generation";
 import type { VideoProvider } from "../../services/media/video-generation";
@@ -1825,6 +1826,82 @@ app.post(
   },
 );
 
+function _convertTimelineToEditorTracks(
+  timeline: TimelinePayload,
+  audioMix?: { clipAudioVolume?: number; voiceoverVolume?: number; musicVolume?: number },
+) {
+  const videoClips = timeline.tracks.video.map((item) => ({
+    id: item.id,
+    assetId: item.assetId ?? null,
+    label: "Clip",
+    startMs: item.startMs,
+    durationMs: item.endMs - item.startMs,
+    trimStartMs: 0,
+    trimEndMs: item.endMs - item.startMs,
+    speed: 1,
+    opacity: 1,
+    warmth: 0,
+    contrast: 0,
+    positionX: 0,
+    positionY: 0,
+    scale: 1,
+    rotation: 0,
+    volume: audioMix?.clipAudioVolume ?? 1,
+    muted: false,
+  }));
+
+  const audioClips = timeline.tracks.audio
+    .filter((item) => (item as Record<string, unknown>).role === "voiceover")
+    .map((item) => ({
+      id: item.id,
+      assetId: item.assetId ?? null,
+      label: "Voiceover",
+      startMs: item.startMs,
+      durationMs: item.endMs - item.startMs,
+      trimStartMs: 0,
+      trimEndMs: item.endMs - item.startMs,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+      volume: audioMix?.voiceoverVolume ?? 1,
+      muted: false,
+    }));
+
+  const musicClips = timeline.tracks.audio
+    .filter((item) => (item as Record<string, unknown>).role === "music")
+    .map((item) => ({
+      id: item.id,
+      assetId: item.assetId ?? null,
+      label: "Music",
+      startMs: item.startMs,
+      durationMs: item.endMs - item.startMs,
+      trimStartMs: 0,
+      trimEndMs: item.endMs - item.startMs,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+      volume: audioMix?.musicVolume ?? 0.25,
+      muted: false,
+    }));
+
+  return [
+    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
+    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: audioClips, transitions: [] },
+    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: musicClips, transitions: [] },
+    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
+  ];
+}
+
 // POST /api/video/assemble
 app.post(
   "/assemble",
@@ -1837,6 +1914,26 @@ app.post(
       const auth = c.get("auth");
       const payload = c.req.valid("json");
 
+      // Legacy mode — keep old ffmpeg path for 30-day migration period
+      if (c.req.query("legacy") === "true") {
+        const content = await fetchOwnedContent(
+          auth.user.id,
+          payload.generatedContentId,
+        );
+        if (!content) {
+          return c.json({ error: "Content not found" }, 404);
+        }
+        const job = await videoJobService.createJob({
+          userId: auth.user.id,
+          generatedContentId: payload.generatedContentId,
+          kind: "assemble",
+          request: payload,
+        });
+        enqueue("assemble", () => runAssembleFromExistingClips({ job }));
+        return c.json({ jobId: job.id, status: job.status }, 202);
+      }
+
+      // New path — upsert editor project and redirect
       const content = await fetchOwnedContent(
         auth.user.id,
         payload.generatedContentId,
@@ -1845,23 +1942,58 @@ app.post(
         return c.json({ error: "Content not found" }, 404);
       }
 
-      const job = await videoJobService.createJob({
+      // Return existing project if already created for this content
+      const [existing] = await db
+        .select()
+        .from(editProjects)
+        .where(
+          and(
+            eq(editProjects.userId, auth.user.id),
+            eq(editProjects.generatedContentId, payload.generatedContentId),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        return c.json({
+          editorProjectId: existing.id,
+          redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
+        });
+      }
+
+      // Build timeline from generated assets
+      const timeline = await _buildInitialTimeline({
         userId: auth.user.id,
         generatedContentId: payload.generatedContentId,
-        kind: "assemble",
-        request: payload,
       });
 
-      enqueue("assemble", () => runAssembleFromExistingClips({ job }));
+      const tracks = _convertTimelineToEditorTracks(timeline, payload.audioMix);
 
-      return c.json({ jobId: job.id, status: job.status }, 202);
+      const [project] = await db
+        .insert(editProjects)
+        .values({
+          userId: auth.user.id,
+          title: content.title ?? "Assembled Reel",
+          generatedContentId: payload.generatedContentId,
+          tracks,
+          durationMs: timeline.durationMs,
+          fps: timeline.fps,
+          resolution: "1080x1920",
+          status: "draft",
+        })
+        .returning();
+
+      return c.json({
+        editorProjectId: project.id,
+        redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
+      });
     } catch (error) {
-      debugLog.error("Failed to queue assembly", {
+      debugLog.error("Failed to create editor project from assembly", {
         service: "video-route",
         operation: "assemble",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-      return c.json({ error: "Failed to queue assembly" }, 500);
+      return c.json({ error: "Failed to create editor project" }, 500);
     }
   },
 );

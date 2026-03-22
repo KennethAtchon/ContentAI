@@ -1,7 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
-import type { CreateReelResponse } from "../types/video.types";
 
 type AssembleReelArgs = {
   generatedContentId: number;
@@ -16,24 +15,21 @@ type AssembleReelArgs = {
 
 export function useAssembleReel() {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: ({
-      generatedContentId,
-      includeCaptions = true,
-      audioMix,
-    }: AssembleReelArgs) =>
-      authenticatedFetchJson<CreateReelResponse>("/api/video/assemble", {
-        method: "POST",
-        body: JSON.stringify({ generatedContentId, includeCaptions, audioMix }),
-      }),
-    onSuccess: (res, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(variables.generatedContentId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.videoJob(res.jobId),
+    mutationFn: ({ generatedContentId, includeCaptions = true, audioMix }: AssembleReelArgs) =>
+      authenticatedFetchJson<{ editorProjectId: string; redirectUrl: string }>(
+        "/api/video/assemble",
+        {
+          method: "POST",
+          body: JSON.stringify({ generatedContentId, includeCaptions, audioMix }),
+        },
+      ),
+    onSuccess: (_data, variables) => {
+      void navigate({
+        to: "/studio/editor",
+        search: { contentId: variables.generatedContentId },
       });
     },
   });

@@ -7,7 +7,8 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import type { Clip } from "../types/editor";
+import { ShotOrderPanel } from "./ShotOrderPanel";
+import type { Clip, Track } from "../types/editor";
 
 interface Asset {
   id: string;
@@ -23,9 +24,14 @@ interface Props {
   generatedContentId: number | null;
   currentTimeMs: number;
   onAddClip: (trackId: string, clip: Clip) => void;
+  selectedClipId: string | null;
+  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  videoTrack?: Track;
+  onReorder?: (clipIds: string[]) => void;
+  readOnly?: boolean;
 }
 
-type TabKey = "media" | "effects" | "audio" | "text";
+type TabKey = "media" | "effects" | "audio" | "text" | "shots";
 
 const EFFECTS = [
   { id: "color-grade", label: "Color Grade", contrast: 20, warmth: 10 },
@@ -86,6 +92,11 @@ export function MediaPanel({
   generatedContentId,
   currentTimeMs,
   onAddClip,
+  selectedClipId,
+  onUpdateClip,
+  videoTrack,
+  onReorder,
+  readOnly,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
@@ -117,6 +128,7 @@ export function MediaPanel({
     { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
     { key: "text", label: t("editor_text_tab") },
+    { key: "shots", label: t("editor_shots_tab") },
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -140,8 +152,13 @@ export function MediaPanel({
     onAddClip(trackId, clip);
   };
 
-  const applyEffect = (_effect: (typeof EFFECTS)[0]) => {
-    // Effects are shown for reference; apply via Inspector on selected clip
+  const applyEffect = (effect: (typeof EFFECTS)[0]) => {
+    if (!selectedClipId) return;
+    onUpdateClip(selectedClipId, {
+      contrast: effect.contrast ?? 0,
+      warmth: effect.warmth ?? 0,
+      opacity: effect.opacity ?? 1,
+    });
   };
 
   const addTextClip = (preset: (typeof TEXT_PRESETS)[0]) => {
@@ -317,6 +334,11 @@ export function MediaPanel({
         {/* Effects tab */}
         {activeTab === "effects" && (
           <div className="flex flex-col gap-1.5">
+            {!selectedClipId && (
+              <p className="text-xs italic text-dim-3 text-center mt-2 mb-1">
+                {t("editor_effects_no_clip")}
+              </p>
+            )}
             {EFFECTS.map((effect) => (
               <button
                 key={effect.id}
@@ -411,6 +433,20 @@ export function MediaPanel({
               </button>
             ))}
           </div>
+        )}
+
+        {/* Shots tab */}
+        {activeTab === "shots" && videoTrack && onReorder && (
+          <ShotOrderPanel
+            videoTrack={videoTrack}
+            onReorder={onReorder}
+            readOnly={readOnly}
+          />
+        )}
+        {activeTab === "shots" && (!videoTrack || !onReorder) && (
+          <p className="text-xs italic text-dim-3 text-center mt-4">
+            {t("editor_shots_empty")}
+          </p>
         )}
       </div>
     </div>

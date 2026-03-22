@@ -11,6 +11,7 @@ import {
   editProjects,
   exportJobs,
   assets,
+  contentAssets,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, count, inArray } from "drizzle-orm";
@@ -20,8 +21,15 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { generateASS } from "./export/ass-generator";
+import { buildInitialTimeline } from "./services/build-initial-timeline";
+import { generateText } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
+import { buildAIAssemblyPrompt } from "./services/ai-assembly-prompt";
 
 const app = new Hono<HonoEnv>();
+
+const anthropic = createAnthropic({ apiKey: ANTHROPIC_API_KEY ?? "" });
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +89,14 @@ const clipDataSchema = z.object({
   captionFontSizeOverride: z.number().int().min(8).max(200).optional(),
 });
 
+const transitionSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(["fade", "slide-left", "slide-up", "dissolve", "wipe-right", "none"]),
+  durationMs: z.number().int().min(200).max(2000),
+  clipAId: z.string().min(1),
+  clipBId: z.string().min(1),
+});
+
 const trackDataSchema = z.object({
   id: z.string().min(1),
   type: z.enum(["video", "audio", "music", "text"]),
@@ -88,6 +104,7 @@ const trackDataSchema = z.object({
   muted: z.boolean(),
   locked: z.boolean(),
   clips: z.array(clipDataSchema),
+  transitions: z.array(transitionSchema).optional(),
 });
 
 const patchProjectSchema = z.object({
@@ -106,6 +123,26 @@ const createProjectSchema = z.object({
 const exportSchema = z.object({
   resolution: resolutionEnum.optional(),
   fps: z.union([z.literal(24), z.literal(30), z.literal(60)]).optional(),
+});
+
+const aiAssemblyResponseSchema = z.object({
+  shotOrder: z.array(z.number().int().min(0)),
+  cuts: z.array(
+    z.object({
+      shotIndex: z.number().int().min(0),
+      trimStartMs: z.number().int().min(0),
+      trimEndMs: z.number().int().min(0),
+      transition: z.enum(["cut", "fade", "slide-left", "dissolve"]),
+    }),
+  ),
+  captionStyle: z.enum(["bold-outline", "clean-white", "highlight"]).optional(),
+  captionGroupSize: z.number().int().min(1).max(6).optional(),
+  musicVolume: z.number().min(0).max(1),
+  totalDuration: z.number().int().min(1000).max(120000),
+});
+
+const aiAssembleRequestSchema = z.object({
+  platform: z.enum(["instagram", "tiktok", "youtube-shorts"]),
 });
 
 // ─── GET /api/editor ─────────────────────────────────────────────────────────
@@ -147,14 +184,16 @@ app.post(
         return c.json({ error: "Invalid request body" }, 400);
       }
 
-      // If a generatedContentId is provided, verify the user owns it.
-      if (parsed.data.generatedContentId) {
+      const { generatedContentId, title } = parsed.data;
+
+      // ── Upsert: if generatedContentId provided, return existing project ──
+      if (generatedContentId) {
         const [ownedContent] = await db
           .select({ id: generatedContent.id })
           .from(generatedContent)
           .where(
             and(
-              eq(generatedContent.id, parsed.data.generatedContentId),
+              eq(generatedContent.id, generatedContentId),
               eq(generatedContent.userId, auth.user.id),
             ),
           )
@@ -163,23 +202,78 @@ app.post(
         if (!ownedContent) {
           return c.json({ error: "Content not found" }, 403);
         }
+
+        const [existing] = await db
+          .select()
+          .from(editProjects)
+          .where(
+            and(
+              eq(editProjects.userId, auth.user.id),
+              eq(editProjects.generatedContentId, generatedContentId),
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          return c.json({ project: existing }, 200);
+        }
       }
 
+      // ── Build initial timeline if generatedContentId is provided ──
+      let tracks: unknown[] = [];
+      let durationMs = 0;
+      if (generatedContentId) {
+        const result = await buildInitialTimeline(generatedContentId);
+        tracks = result.tracks;
+        durationMs = result.durationMs;
+      }
+
+      // ── Insert new project ──
       const [project] = await db
         .insert(editProjects)
         .values({
           userId: auth.user.id,
-          title: parsed.data.title ?? "Untitled Edit",
-          generatedContentId: parsed.data.generatedContentId ?? null,
-          tracks: [],
-          durationMs: 0,
+          title: title ?? "Untitled Edit",
+          generatedContentId: generatedContentId ?? null,
+          tracks,
+          durationMs,
           fps: 30,
           resolution: "1080x1920",
+          status: "draft",
         })
         .returning();
 
       return c.json({ project }, 201);
     } catch (error) {
+      // Race condition: two concurrent requests for the same generatedContentId
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        (error as { code: string }).code === "23505"
+      ) {
+        const auth = c.get("auth");
+        const body = await c.req.json().catch(() => ({}));
+        const parsed = createProjectSchema.safeParse(body);
+        if (parsed.success && parsed.data.generatedContentId) {
+          const [existing] = await db
+            .select()
+            .from(editProjects)
+            .where(
+              and(
+                eq(editProjects.userId, auth.user.id),
+                eq(
+                  editProjects.generatedContentId,
+                  parsed.data.generatedContentId,
+                ),
+              ),
+            )
+            .limit(1);
+          if (existing) {
+            return c.json({ project: existing }, 200);
+          }
+        }
+      }
+
       debugLog.error("Failed to create edit project", {
         service: "editor-route",
         operation: "createProject",
@@ -238,7 +332,7 @@ app.patch(
       }
 
       const [existing] = await db
-        .select({ id: editProjects.id })
+        .select({ id: editProjects.id, status: editProjects.status })
         .from(editProjects)
         .where(
           and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
@@ -247,6 +341,10 @@ app.patch(
 
       if (!existing) {
         return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      if (existing.status === "published") {
+        return c.json({ error: "Published projects are read-only" }, 403);
       }
 
       const updateData: Record<string, unknown> = {};
@@ -317,6 +415,123 @@ app.delete(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to delete edit project" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/publish ────────────────────────────────────────────
+
+app.post(
+  "/:id/publish",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+
+      const [project] = await db
+        .select()
+        .from(editProjects)
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
+        .limit(1);
+
+      if (!project) {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      if (project.status === "published") {
+        return c.json({ error: "Already published" }, 409);
+      }
+
+      const [completedExport] = await db
+        .select({ id: exportJobs.id })
+        .from(exportJobs)
+        .where(
+          and(eq(exportJobs.editProjectId, id), eq(exportJobs.status, "done")),
+        )
+        .limit(1);
+
+      if (!completedExport) {
+        return c.json({ error: "Export your reel before publishing" }, 422);
+      }
+
+      const [updated] = await db
+        .update(editProjects)
+        .set({ status: "published", publishedAt: new Date() })
+        .where(eq(editProjects.id, id))
+        .returning();
+
+      return c.json({
+        id: updated.id,
+        status: updated.status,
+        publishedAt: updated.publishedAt,
+      });
+    } catch (error) {
+      debugLog.error("Failed to publish edit project", {
+        service: "editor-route",
+        operation: "publishProject",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to publish edit project" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/new-draft ──────────────────────────────────────────
+
+app.post(
+  "/:id/new-draft",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+
+      const [source] = await db
+        .select()
+        .from(editProjects)
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
+        .limit(1);
+
+      if (!source) {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      if (source.status !== "published") {
+        return c.json({ error: "Source must be published" }, 403);
+      }
+
+      const [newDraft] = await db
+        .insert(editProjects)
+        .values({
+          userId: auth.user.id,
+          title: `${source.title} (v2)`,
+          generatedContentId: null,
+          tracks: source.tracks,
+          durationMs: source.durationMs,
+          fps: source.fps,
+          resolution: source.resolution,
+          status: "draft",
+          parentProjectId: source.id,
+        })
+        .returning();
+
+      return c.json({ project: newDraft }, 201);
+    } catch (error) {
+      debugLog.error("Failed to create new draft", {
+        service: "editor-route",
+        operation: "newDraft",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to create new draft" }, 500);
     }
   },
 );
@@ -478,6 +693,7 @@ app.get(
 // ─── ffmpeg render worker ────────────────────────────────────────────────────
 
 interface ClipData {
+  id?: string;
   assetId: string | null;
   r2Key?: string;
   startMs: number;
@@ -491,12 +707,30 @@ interface ClipData {
   positionX?: number;
   positionY?: number;
   scale?: number;
+  captionWords?: Array<{ word: string; startMs: number; endMs: number }>;
+  captionPresetId?: string;
+  captionGroupSize?: number;
+  captionPositionY?: number;
+  captionFontSizeOverride?: number;
+  contrast?: number;
+  warmth?: number;
+  opacity?: number;
+}
+
+interface TransitionData {
+  id: string;
+  type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
+  durationMs: number;
+  clipAId: string;
+  clipBId: string;
 }
 
 interface TrackData {
+  id?: string;
   type: "video" | "audio" | "music" | "text";
   muted: boolean;
   clips: ClipData[];
+  transitions?: TransitionData[];
 }
 
 async function setJobProgress(
@@ -644,10 +878,24 @@ async function runExportJob(
         clip.speed && clip.speed !== 1
           ? `setpts=${(1 / clip.speed).toFixed(4)}*PTS,`
           : "";
+
+      const colorFilters: string[] = [];
+      if (clip.contrast && clip.contrast !== 0) {
+        colorFilters.push(`eq=contrast=${1 + clip.contrast / 100}`);
+      }
+      if (clip.warmth && clip.warmth !== 0) {
+        const warmShift = clip.warmth / 200;
+        colorFilters.push(`colorbalance=rs=${warmShift}:bs=${-warmShift}`);
+      }
+      if (clip.opacity !== undefined && clip.opacity !== 1) {
+        colorFilters.push(`format=yuva420p,colorchannelmixer=aa=${clip.opacity}`);
+      }
+      const colorStr = colorFilters.length > 0 ? colorFilters.join(",") + "," : "";
+
       filterParts.push(
         `[${i}:v]trim=start=${trimStart}:duration=${clip.durationMs / 1000},` +
           `${pts}scale=${outW}:${outH}:force_original_aspect_ratio=decrease,` +
-          `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:black,setpts=PTS-STARTPTS[v${i}]`,
+          `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:black,${colorStr}setpts=PTS-STARTPTS[v${i}]`,
       );
     });
 
@@ -655,14 +903,52 @@ async function runExportJob(
     const textClips = textTrack?.clips ?? [];
     let latestVideoLabel = "";
 
-    if (videoInputCount > 1) {
-      const concatInputs = videoClips.map((_, i) => `[v${i}]`).join("");
-      filterParts.push(
-        `${concatInputs}concat=n=${videoInputCount}:v=1:a=0[vconcat]`,
-      );
-      latestVideoLabel = "vconcat";
-    } else {
+    // Join clips with xfade (or hard cut if no transition)
+    const videoTransitions = videoTrack?.transitions ?? [];
+
+    if (videoInputCount === 1) {
       latestVideoLabel = "v0";
+    } else {
+      const xfadeTypeMap: Record<string, string> = {
+        "fade": "fade",
+        "slide-left": "slideleft",
+        "slide-up": "slideup",
+        "dissolve": "dissolve",
+        "wipe-right": "wiperight",
+      };
+
+      let currentLabel = "[v0]";
+      let accumulatedDuration = videoClips[0].durationMs / 1000;
+
+      for (let i = 1; i < videoClips.length; i++) {
+        const clipA = videoClips[i - 1];
+        const clipB = videoClips[i];
+        const trans = videoTransitions.find(
+          (t) => t.clipAId === clipA.id && t.clipBId === clipB.id,
+        );
+
+        const isLast = i === videoClips.length - 1;
+        const outLabel = isLast ? "[vjoined]" : `[vx${i}]`;
+
+        if (trans && trans.type !== "none" && xfadeTypeMap[trans.type]) {
+          const xfadeType = xfadeTypeMap[trans.type];
+          const transDurSec = trans.durationMs / 1000;
+          const offset = accumulatedDuration - transDurSec;
+
+          filterParts.push(
+            `${currentLabel}[v${i}]xfade=transition=${xfadeType}:duration=${transDurSec}:offset=${offset.toFixed(4)}${outLabel}`,
+          );
+          accumulatedDuration += clipB.durationMs / 1000 - transDurSec;
+        } else {
+          const offset = accumulatedDuration;
+          filterParts.push(
+            `${currentLabel}[v${i}]xfade=transition=fade:duration=0.001:offset=${offset.toFixed(4)}${outLabel}`,
+          );
+          accumulatedDuration += clipB.durationMs / 1000;
+        }
+        currentLabel = outLabel;
+      }
+      latestVideoLabel = "vjoined";
     }
 
     // Apply text overlays
@@ -841,5 +1127,226 @@ async function runExportJob(
     }
   }
 }
+
+// ─── Helper functions for AI assembly ────────────────────────────────────────
+
+async function loadProjectShotAssets(userId: string, generatedContentId: number) {
+  const rows = await db
+    .select({
+      id: assets.id,
+      durationMs: assets.durationMs,
+      metadata: assets.metadata,
+    })
+    .from(contentAssets)
+    .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+    .where(
+      and(
+        eq(contentAssets.generatedContentId, generatedContentId),
+        eq(assets.userId, userId),
+        eq(contentAssets.role, "video_clip"),
+      ),
+    );
+
+  return rows.sort((a, b) => {
+    const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+    const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+    return ai - bi;
+  });
+}
+
+function convertAIResponseToTracks(
+  aiResponse: z.infer<typeof aiAssemblyResponseSchema>,
+  shotAssets: Array<{ id: string; durationMs: number | null; metadata: unknown }>,
+) {
+  let cursor = 0;
+  const videoClips = aiResponse.cuts.map((cut, i) => {
+    const asset = shotAssets[cut.shotIndex];
+    const clipDuration = cut.trimEndMs - cut.trimStartMs;
+    const clip = {
+      id: `ai-clip-${i}`,
+      assetId: asset.id,
+      label: `Shot ${cut.shotIndex + 1}`,
+      startMs: cursor,
+      durationMs: clipDuration,
+      trimStartMs: cut.trimStartMs,
+      trimEndMs: cut.trimEndMs,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+      volume: 1,
+      muted: false,
+    };
+    cursor += clipDuration;
+    return clip;
+  });
+
+  return [
+    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
+    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
+    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
+    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
+  ];
+}
+
+function buildStandardPresetTracks(
+  shotAssets: Array<{ id: string; durationMs: number | null; metadata: unknown }>,
+) {
+  let cursor = 0;
+  const videoClips = shotAssets.map((asset, i) => {
+    const durationMs = Math.max(1, asset.durationMs ?? 5000);
+    const clip = {
+      id: `std-clip-${i}`,
+      assetId: asset.id,
+      label: `Shot ${i + 1}`,
+      startMs: cursor,
+      durationMs,
+      trimStartMs: 0,
+      trimEndMs: durationMs,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+      volume: 1,
+      muted: false,
+    };
+    cursor += durationMs;
+    return clip;
+  });
+
+  return [
+    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
+    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
+    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
+    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
+  ];
+}
+
+// ─── POST /api/editor/:id/ai-assemble ────────────────────────────────────────
+
+app.post(
+  "/:id/ai-assemble",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+      const body = await c.req.json().catch(() => null);
+      const parsed = aiAssembleRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json({ error: "Invalid request body" }, 400);
+      }
+      const { platform } = parsed.data;
+
+      const [project] = await db
+        .select()
+        .from(editProjects)
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
+        .limit(1);
+
+      if (!project) {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
+      if (!project.generatedContentId) {
+        return c.json(
+          { error: "Project has no generated content — AI assembly requires generated shots" },
+          404,
+        );
+      }
+
+      const shotAssets = await loadProjectShotAssets(
+        auth.user.id,
+        project.generatedContentId,
+      );
+
+      if (shotAssets.length === 0) {
+        return c.json({ error: "No shot clips available" }, 400);
+      }
+
+      const shotsContext = shotAssets.map((asset, i) => ({
+        index: i,
+        description:
+          ((asset.metadata as Record<string, unknown>)?.generationPrompt as string) ??
+          `Shot ${i + 1}`,
+        durationMs: asset.durationMs ?? 5000,
+      }));
+
+      const targetDurationMs =
+        platform === "tiktok" ? 15000
+        : platform === "youtube-shorts" ? 60000
+        : 30000;
+
+      const prompt = buildAIAssemblyPrompt({ shots: shotsContext, platform, targetDurationMs });
+
+      let aiResponse: z.infer<typeof aiAssemblyResponseSchema> | null = null;
+      try {
+        const result = await generateText({
+          model: anthropic("claude-sonnet-4-6"),
+          prompt,
+          maxTokens: 1024,
+        });
+
+        const text = result.text;
+        const jsonMatch = text.match(/```json\n?([\s\S]+?)\n?```/);
+        const raw = JSON.parse(jsonMatch ? jsonMatch[1] : text);
+        aiResponse = aiAssemblyResponseSchema.parse(raw);
+
+        const maxIndex = shotsContext.length - 1;
+        for (const cut of aiResponse.cuts) {
+          if (cut.shotIndex > maxIndex) {
+            throw new Error(`Shot index ${cut.shotIndex} out of range (max ${maxIndex})`);
+          }
+          const shotDuration = shotsContext[cut.shotIndex].durationMs;
+          if (cut.trimEndMs > shotDuration) {
+            throw new Error(
+              `trimEndMs ${cut.trimEndMs} exceeds shot ${cut.shotIndex} duration ${shotDuration}`,
+            );
+          }
+        }
+      } catch (err) {
+        debugLog.error("AI assembly parse failed — returning Standard preset fallback", {
+          service: "editor-route",
+          operation: "aiAssemble",
+          projectId: id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+
+        const standardTimeline = buildStandardPresetTracks(shotAssets);
+        return c.json({
+          timeline: standardTimeline,
+          assembledBy: "ai" as const,
+          fallback: true,
+        });
+      }
+
+      const timeline = convertAIResponseToTracks(aiResponse, shotAssets);
+
+      return c.json({
+        timeline,
+        assembledBy: "ai" as const,
+        fallback: false,
+      });
+    } catch (error) {
+      debugLog.error("AI assembly failed", {
+        service: "editor-route",
+        operation: "aiAssemble",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to run AI assembly" }, 500);
+    }
+  },
+);
 
 export default app;
