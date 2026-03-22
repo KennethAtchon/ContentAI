@@ -343,9 +343,7 @@ app.delete(
       }
 
       // Delete contentAsset links first (restrict FK on assets)
-      await db
-        .delete(contentAssets)
-        .where(eq(contentAssets.assetId, id));
+      await db.delete(contentAssets).where(eq(contentAssets.assetId, id));
 
       await db.delete(assets).where(eq(assets.id, id));
 

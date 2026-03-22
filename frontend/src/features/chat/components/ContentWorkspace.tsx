@@ -37,16 +37,9 @@ export function ContentWorkspace({
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
-  const storageKey = `video_job_${sessionId}`;
-  const contentIdKey = `video_job_${sessionId}_contentId`;
-  const [videoJobId, setVideoJobId] = useState<string | null>(() =>
-    localStorage.getItem(storageKey)
-  );
+  const [videoJobId, setVideoJobId] = useState<string | null>(null);
   const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
-    () => {
-      const stored = localStorage.getItem(contentIdKey);
-      return stored ? Number(stored) : null;
-    }
+    null
   );
   const { data: videoJobData } = useVideoJob(videoJobId);
   const prevVideoStatusRef = useRef<string | null>(null);
@@ -56,8 +49,6 @@ export function ContentWorkspace({
   const drafts = data?.drafts ?? [];
 
   const startVideoJob = (jobId: string, contentId: number) => {
-    localStorage.setItem(storageKey, jobId);
-    localStorage.setItem(contentIdKey, String(contentId));
     setVideoJobId(jobId);
     setVideoJobContentId(contentId);
     toastIdRef.current = toast.loading(t("workspace_video_generating"), {
@@ -67,8 +58,6 @@ export function ContentWorkspace({
   };
 
   const clearVideoJob = () => {
-    localStorage.removeItem(storageKey);
-    localStorage.removeItem(contentIdKey);
     setVideoJobId(null);
     setVideoJobContentId(null);
   };

@@ -105,7 +105,6 @@ export const CAPTION_PRESETS: readonly CaptionPreset[] = [
 /** Lookup helper used by both frontend preview and backend ASS generator. */
 export function getCaptionPreset(id: string): CaptionPreset {
   return (
-    CAPTION_PRESETS.find((p) => p.id === id) ??
-    CAPTION_PRESETS[0] // fallback to clean-white
+    CAPTION_PRESETS.find((p) => p.id === id) ?? CAPTION_PRESETS[0] // fallback to clean-white
   );
 }

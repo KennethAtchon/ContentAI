@@ -338,9 +338,7 @@ function QueuePage() {
                         deleteItem.isPending ? deleteItem.variables : null
                       }
                       duplicatingId={
-                        duplicateItem.isPending
-                          ? duplicateItem.variables
-                          : null
+                        duplicateItem.isPending ? duplicateItem.variables : null
                       }
                     />
                   ) : (

@@ -1,7 +1,13 @@
 export type VideoJobStatus = "queued" | "running" | "completed" | "failed";
 
 export interface VideoJobProgress {
-  phase: "queued" | "decode" | "graph-build" | "encode" | "finalize" | "completed";
+  phase:
+    | "queued"
+    | "decode"
+    | "graph-build"
+    | "encode"
+    | "finalize"
+    | "completed";
   percent: number;
   message?: string;
   shotsCompleted?: number;

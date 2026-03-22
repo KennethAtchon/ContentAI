@@ -30,7 +30,11 @@ interface Props {
   onToggleMute: (trackId: string) => void;
   onToggleLock: (trackId: string) => void;
   selectedTransitionId: string | null;
-  onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
+  onSelectTransition: (
+    trackId: string,
+    clipAId: string,
+    clipBId: string
+  ) => void;
 }
 
 export function Timeline({
@@ -49,7 +53,9 @@ export function Timeline({
   onSelectTransition,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(
+    null
+  );
 
   const totalWidthPx = Math.max((durationMs / 1000) * zoom + 4000, 4000);
   const contentHeight = RULER_HEIGHT + tracks.length * TRACK_HEIGHT;
@@ -75,7 +81,12 @@ export function Timeline({
     const raw = e.dataTransfer.getData("application/x-contentai-asset");
     if (!raw) return;
 
-    let asset: { assetId: string; type: string; durationMs: number | null; label: string };
+    let asset: {
+      assetId: string;
+      type: string;
+      durationMs: number | null;
+      label: string;
+    };
     try {
       asset = JSON.parse(raw);
     } catch {
@@ -90,7 +101,7 @@ export function Timeline({
     const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
     const startMs = Math.max(
       0,
-      ((e.clientX - rect.left + scrollLeft) / zoom) * 1000,
+      ((e.clientX - rect.left + scrollLeft) / zoom) * 1000
     );
 
     const clip: Clip = {
@@ -153,7 +164,11 @@ export function Timeline({
             position: "relative",
           }}
         >
-          <TimelineRuler totalWidthPx={totalWidthPx} zoom={zoom} onSeek={onSeek} />
+          <TimelineRuler
+            totalWidthPx={totalWidthPx}
+            zoom={zoom}
+            onSeek={onSeek}
+          />
 
           {tracks.map((track, trackIndex) => (
             <div
@@ -204,7 +219,7 @@ export function Timeline({
                 track.clips.slice(0, -1).map((clipA, idx) => {
                   const clipB = track.clips[idx + 1];
                   const transition = (track.transitions ?? []).find(
-                    (t) => t.clipAId === clipA.id && t.clipBId === clipB.id,
+                    (t) => t.clipAId === clipA.id && t.clipBId === clipB.id
                   );
                   return (
                     <TransitionDiamond
@@ -213,7 +228,9 @@ export function Timeline({
                       clipB={clipB}
                       transition={transition}
                       zoom={zoom}
-                      onSelect={() => onSelectTransition(track.id, clipA.id, clipB.id)}
+                      onSelect={() =>
+                        onSelectTransition(track.id, clipA.id, clipB.id)
+                      }
                     />
                   );
                 })}

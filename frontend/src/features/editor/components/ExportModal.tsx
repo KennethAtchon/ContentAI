@@ -74,10 +74,7 @@ export function ExportModal({ projectId, onClose }: Props) {
           <h2 className="text-base font-semibold text-dim-1">
             {t("editor_export_modal_title")}
           </h2>
-          <button
-            onClick={onClose}
-            className="transport-btn"
-          >
+          <button onClick={onClose} className="transport-btn">
             <X size={15} />
           </button>
         </div>
@@ -93,7 +90,7 @@ export function ExportModal({ projectId, onClose }: Props) {
                 <div className="flex gap-2">
                   {(
                     [
-                      { value: "720x1280",  label: "720p Portrait" },
+                      { value: "720x1280", label: "720p Portrait" },
                       { value: "1080x1920", label: "1080p Portrait" },
                       { value: "1920x1080", label: "1080p Landscape" },
                     ] as const

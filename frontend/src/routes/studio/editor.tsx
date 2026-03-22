@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,17 +37,17 @@ function groupByVersion(projects: EditProject[]): ProjectGroup[] {
   for (const [rootId, versions] of groups) {
     versions.sort(
       (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
     result.push({ root: byId.get(rootId) ?? versions[0], versions });
   }
 
   result.sort((a, b) => {
     const latestA = Math.max(
-      ...a.versions.map((v) => new Date(v.updatedAt).getTime()),
+      ...a.versions.map((v) => new Date(v.updatedAt).getTime())
     );
     const latestB = Math.max(
-      ...b.versions.map((v) => new Date(v.updatedAt).getTime()),
+      ...b.versions.map((v) => new Date(v.updatedAt).getTime())
     );
     return latestB - latestA;
   });
@@ -66,6 +66,7 @@ function EditorPage() {
   const fetcher = useQueryFetcher<{ projects: EditProject[] }>();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeProject, setActiveProject] = useState<EditProject | null>(null);
   const [isSmallScreen] = useState(() => window.innerWidth < 1280);
 
@@ -122,6 +123,21 @@ function EditorPage() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.api.editorProjects(),
       });
+    },
+  });
+
+  // Open in AI Chat — for blank projects, link-content creates a generated_content row first
+  const { mutate: openInAIChat, isPending: isLinking } = useMutation({
+    mutationFn: async (proj: EditProject) => {
+      if (proj.generatedContentId) return proj.generatedContentId;
+      const res = await authenticatedFetchJson<{ generatedContentId: number }>(
+        `/api/editor/${proj.id}/link-content`,
+        { method: "POST" }
+      );
+      return res.generatedContentId;
+    },
+    onSuccess: () => {
+      void navigate({ to: "/studio/generate" });
     },
   });
 
@@ -226,7 +242,9 @@ function EditorPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                             <p className="text-sm font-medium text-dim-1 truncate">
-                              {proj.title}
+                              {proj.generatedHook ??
+                                proj.title ??
+                                t("editor_untitled")}
                             </p>
                             {group.versions.length > 1 && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-overlay-md text-dim-3 uppercase tracking-wide shrink-0">
@@ -246,7 +264,7 @@ function EditorPage() {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
-                              },
+                              }
                             )}
                             {" · "}
                             {(proj.durationMs / 1000).toFixed(0)}s
@@ -261,8 +279,19 @@ function EditorPage() {
                             {t("editor_open_project")}
                           </button>
                           <button
+                            onClick={() => openInAIChat(proj)}
+                            disabled={isLinking}
+                            className="py-1.5 px-2.5 text-xs rounded-lg bg-overlay-sm text-dim-2 border border-overlay-md cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-50"
+                          >
+                            {t("editor_open_in_ai_chat")}
+                          </button>
+                          <button
                             onClick={() => {
-                              if (confirm(`Delete "${proj.title}"?`))
+                              if (
+                                confirm(
+                                  `Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`
+                                )
+                              )
                                 deleteProject(proj.id);
                             }}
                             className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
@@ -271,7 +300,7 @@ function EditorPage() {
                           </button>
                         </div>
                       </div>
-                    )),
+                    ))
                   )}
                 </div>
               )}

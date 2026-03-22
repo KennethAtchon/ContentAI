@@ -32,7 +32,9 @@ export default function AdminVerifyPage() {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   // Get the intended destination from the search params or default to admin dashboard
-  const searchParams = new URLSearchParams(location.search as unknown as Record<string, string>);
+  const searchParams = new URLSearchParams(
+    location.search as unknown as Record<string, string>
+  );
   const redirectTo = searchParams.get("redirect") || "/admin/dashboard";
 
   /**

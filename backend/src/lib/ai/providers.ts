@@ -31,7 +31,9 @@ export interface ProviderDefinition {
   /** Default models used when no DB override is set */
   defaultModels: Record<ModelTier, string>;
   /** Build the AI SDK provider instance from a resolved API key */
-  createInstance: (apiKey: string) => ReturnType<typeof createOpenAI | typeof createAnthropic>;
+  createInstance: (
+    apiKey: string,
+  ) => ReturnType<typeof createOpenAI | typeof createAnthropic>;
 }
 
 /**

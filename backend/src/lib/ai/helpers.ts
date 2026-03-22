@@ -9,7 +9,11 @@ import { generateText } from "ai";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
 import { getEnabledProvidersAsync, getModelForProviderAsync } from "./config";
-import { PROVIDER_REGISTRY, type ProviderId, type ModelTier } from "./providers";
+import {
+  PROVIDER_REGISTRY,
+  type ProviderId,
+  type ModelTier,
+} from "./providers";
 
 // ─── Provider Resolution ──────────────────────────────────────────────────────
 
@@ -23,7 +27,10 @@ export async function getProviderInstanceAsync(providerId: ProviderId) {
     await import("../../services/config/system-config.service");
 
   const def = PROVIDER_REGISTRY[providerId];
-  const key = await systemConfigService.getApiKey(def.dbApiKeyName, def.envApiKey);
+  const key = await systemConfigService.getApiKey(
+    def.dbApiKeyName,
+    def.envApiKey,
+  );
   if (!key) return null;
 
   return def.createInstance(key);
@@ -67,13 +74,17 @@ export function extractUsageTokens(usage: unknown): {
   const u = usage as Record<string, unknown>;
   return {
     inputTokens:
-      typeof u.inputTokens === "number" ? u.inputTokens
-      : typeof u.promptTokens === "number" ? u.promptTokens
-      : 0,
+      typeof u.inputTokens === "number"
+        ? u.inputTokens
+        : typeof u.promptTokens === "number"
+          ? u.promptTokens
+          : 0,
     outputTokens:
-      typeof u.outputTokens === "number" ? u.outputTokens
-      : typeof u.completionTokens === "number" ? u.completionTokens
-      : 0,
+      typeof u.outputTokens === "number"
+        ? u.outputTokens
+        : typeof u.completionTokens === "number"
+          ? u.completionTokens
+          : 0,
   };
 }
 
@@ -171,7 +182,8 @@ export async function callAiWithFallback(
   params: AiCallParams,
 ): Promise<AiCallResult> {
   const enabledProviders = await getEnabledProvidersAsync();
-  if (enabledProviders.length === 0) throw new Error("No AI providers are enabled");
+  if (enabledProviders.length === 0)
+    throw new Error("No AI providers are enabled");
 
   const errors: string[] = [];
 

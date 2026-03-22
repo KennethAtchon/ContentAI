@@ -9,7 +9,7 @@ import {
 
 const RESOLUTION_OPTIONS = [
   { value: "1080x1920", labelKey: "editor_resolution_portrait_hd" },
-  { value: "720x1280",  labelKey: "editor_resolution_portrait_sd" },
+  { value: "720x1280", labelKey: "editor_resolution_portrait_sd" },
   { value: "2160x3840", labelKey: "editor_resolution_portrait_4k" },
   { value: "1920x1080", labelKey: "editor_resolution_landscape" },
   { value: "1080x1080", labelKey: "editor_resolution_square" },

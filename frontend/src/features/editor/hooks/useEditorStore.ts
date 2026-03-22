@@ -12,10 +12,42 @@ import type {
 import { splitClip } from "../utils/split-clip";
 
 const DEFAULT_TRACKS: Track[] = [
-  { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: [], transitions: [] },
-  { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
-  { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
-  { id: "text",  type: "text",  name: "Text",  muted: false, locked: false, clips: [], transitions: [] },
+  {
+    id: "video",
+    type: "video",
+    name: "Video",
+    muted: false,
+    locked: false,
+    clips: [],
+    transitions: [],
+  },
+  {
+    id: "audio",
+    type: "audio",
+    name: "Audio",
+    muted: false,
+    locked: false,
+    clips: [],
+    transitions: [],
+  },
+  {
+    id: "music",
+    type: "music",
+    name: "Music",
+    muted: false,
+    locked: false,
+    clips: [],
+    transitions: [],
+  },
+  {
+    id: "text",
+    type: "text",
+    name: "Text",
+    muted: false,
+    locked: false,
+    clips: [],
+    transitions: [],
+  },
 ];
 
 export const INITIAL_EDITOR_STATE: EditorState = {
@@ -76,7 +108,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return {
         ...state,
         editProjectId: project.id,
-        title: project.title,
+        title: project.title ?? "Untitled Edit",
         durationMs: project.durationMs,
         fps: project.fps,
         resolution: project.resolution,
@@ -286,7 +318,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       };
 
       const newTracks = state.tracks.map((t) =>
-        t.id === "text" ? { ...t, clips: [...t.clips, captionClip] } : t,
+        t.id === "text" ? { ...t, clips: [...t.clips, captionClip] } : t
       );
 
       return {
@@ -308,11 +340,14 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       if (!clipA || !clipB) return state;
 
       const maxDuration = Math.min(clipA.durationMs, clipB.durationMs) - 100;
-      const clampedDuration = Math.max(200, Math.min(action.durationMs, maxDuration));
+      const clampedDuration = Math.max(
+        200,
+        Math.min(action.durationMs, maxDuration)
+      );
 
       const transitions = track.transitions ?? [];
       const existingIdx = transitions.findIndex(
-        (t) => t.clipAId === action.clipAId && t.clipBId === action.clipBId,
+        (t) => t.clipAId === action.clipAId && t.clipBId === action.clipBId
       );
 
       let newTransitions: Transition[];
@@ -320,7 +355,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         newTransitions = transitions.map((t, idx) =>
           idx === existingIdx
             ? { ...t, type: action.transitionType, durationMs: clampedDuration }
-            : t,
+            : t
         );
       } else {
         newTransitions = [
@@ -336,7 +371,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       }
 
       const newTracks = state.tracks.map((t) =>
-        t.id === action.trackId ? { ...t, transitions: newTransitions } : t,
+        t.id === action.trackId ? { ...t, transitions: newTransitions } : t
       );
       return {
         ...state,
@@ -361,7 +396,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       }
 
       const newTracks = state.tracks.map((t) =>
-        t.type === "video" ? { ...t, clips: reorderedClips } : t,
+        t.type === "video" ? { ...t, clips: reorderedClips } : t
       );
 
       return {
@@ -376,8 +411,13 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "REMOVE_TRANSITION": {
       const newTracks = state.tracks.map((t) =>
         t.id === action.trackId
-          ? { ...t, transitions: (t.transitions ?? []).filter((tr) => tr.id !== action.transitionId) }
-          : t,
+          ? {
+              ...t,
+              transitions: (t.transitions ?? []).filter(
+                (tr) => tr.id !== action.transitionId
+              ),
+            }
+          : t
       );
       return {
         ...state,
@@ -479,22 +519,35 @@ export function useEditorReducer() {
       startMs: number;
       durationMs: number;
     }) => dispatch({ type: "ADD_CAPTION_CLIP", ...params }),
-    [],
+    []
   );
   const setTransition = useCallback(
-    (trackId: string, clipAId: string, clipBId: string, transitionType: Transition["type"], durationMs: number) =>
-      dispatch({ type: "SET_TRANSITION", trackId, clipAId, clipBId, transitionType, durationMs }),
-    [],
+    (
+      trackId: string,
+      clipAId: string,
+      clipBId: string,
+      transitionType: Transition["type"],
+      durationMs: number
+    ) =>
+      dispatch({
+        type: "SET_TRANSITION",
+        trackId,
+        clipAId,
+        clipBId,
+        transitionType,
+        durationMs,
+      }),
+    []
   );
   const removeTransition = useCallback(
     (trackId: string, transitionId: string) =>
       dispatch({ type: "REMOVE_TRANSITION", trackId, transitionId }),
-    [],
+    []
   );
 
   const reorderShots = useCallback(
     (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
-    [],
+    []
   );
 
   return {

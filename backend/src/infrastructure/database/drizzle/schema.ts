@@ -208,7 +208,7 @@ export const generatedContent = pgTable(
     sourceReelId: integer("source_reel_id").references(() => reels.id, {
       onDelete: "set null",
     }),
-    prompt: text("prompt").notNull(),
+    prompt: text("prompt"),
     // AI-authored copy
     generatedHook: text("generated_hook"),
     generatedCaption: text("generated_caption"),
@@ -504,18 +504,22 @@ export const editProjects = pgTable(
     publishedAt: timestamp("published_at"),
     parentProjectId: text("parent_project_id").references(
       (): AnyPgColumn => editProjects.id,
-      { onDelete: "set null" },
+      { onDelete: "cascade" },
     ),
   },
   (t) => [
     index("edit_projects_user_idx").on(t.userId),
     index("edit_projects_content_idx").on(t.generatedContentId),
     index("edit_projects_status_idx").on(t.userId, t.status),
-    // 1:1: one editor project per (user, generatedContent).
-    // Partial index — only when generatedContentId is non-null.
-    uniqueIndex("edit_project_unique_content")
+    // 1:1: one root editor project per (user, generatedContent).
+    // Partial index — root projects only (parentProjectId IS NULL), and only
+    // when generatedContentId is non-null. Snapshot rows are excluded so they
+    // do not violate this constraint.
+    uniqueIndex("edit_project_unique_content_root")
       .on(t.userId, t.generatedContentId)
-      .where(sql`generated_content_id IS NOT NULL`),
+      .where(
+        sql`parent_project_id IS NULL AND generated_content_id IS NOT NULL`,
+      ),
   ],
 );
 
@@ -669,17 +673,20 @@ export const chatSessionsRelations = relations(
   }),
 );
 
-export const chatMessagesRelations = relations(chatMessages, ({ one, many }) => ({
-  session: one(chatSessions, {
-    fields: [chatMessages.sessionId],
-    references: [chatSessions.id],
+export const chatMessagesRelations = relations(
+  chatMessages,
+  ({ one, many }) => ({
+    session: one(chatSessions, {
+      fields: [chatMessages.sessionId],
+      references: [chatSessions.id],
+    }),
+    generatedContent: one(generatedContent, {
+      fields: [chatMessages.generatedContentId],
+      references: [generatedContent.id],
+    }),
+    attachments: many(messageAttachments),
   }),
-  generatedContent: one(generatedContent, {
-    fields: [chatMessages.generatedContentId],
-    references: [generatedContent.id],
-  }),
-  attachments: many(messageAttachments),
-}));
+);
 
 export const messageAttachmentsRelations = relations(
   messageAttachments,

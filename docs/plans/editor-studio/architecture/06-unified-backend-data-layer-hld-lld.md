@@ -253,27 +253,111 @@ This closes the loop: every editor project, regardless of origin, can become the
 
 5. Remove `TimelinePayload` type alias (`type TimelinePayload = z.infer<typeof _timelineSchema>`) if it is only used by the deleted functions. Check for other usages before removing — if `_timelineSchema` or `TimelinePayload` is used by `_validateTimeline` or other live code, leave those.
 
-6. The `audioMix` parameter from `payload.audioMix` previously fed into `_convertTimelineToEditorTracks` to set per-track volumes. After this change, volume defaults come from `buildInitialTimeline`. The `audioMix` input field on the `assembleSchema` should be retained for future use but may be ignored for now; or you can apply `audioMix` volumes as a post-processing step over the returned tracks. See "Edge cases" below.
+6. The `audioMix` parameter from `payload.audioMix` previously fed into `_convertTimelineToEditorTracks` to set per-track volumes. After this change, volume defaults come from `buildInitialTimeline`. Retain the `audioMix` field on `assembleSchema` — Phase 2 applies it as a post-processing step via `applyAudioMix` after the timeline is built. Do not apply it here in Phase 1; Phase 2 owns that responsibility.
 
 **`backend/src/routes/editor/services/build-initial-timeline.ts`**
 
-Verify the function handles `role === "assembled_video"` assets. Currently it filters for `role === "video_clip" || role === "final_video"` (line 54–55). Add `"assembled_video"` to the video clip filter to ensure any pre-assembled video assets that exist in `content_asset` are placed in the video track:
+Three correctness fixes are required in this file:
+
+**Fix 1 — Clip ordering: sort by `shotIndex`, not `createdAt`.**
+
+`_buildInitialTimeline` (the function being replaced) sorted video clips by `metadata.shotIndex`, an explicit integer written by the pipeline to record the intended playback order. Assets are committed to the database asynchronously during generation, so `createdAt` order does not match `shotIndex` order. The current `orderBy(assets.createdAt)` will produce clips in the wrong sequence.
+
+Add `metadata` to the selected fields and apply the same `shotIndex` sort:
 
 ```typescript
-const videoClipAssets = linkedAssets.filter(
-  (a) =>
-    a.role === "video_clip" ||
-    a.role === "final_video" ||
-    a.role === "assembled_video",
-);
+const linkedAssets = await db
+  .select({
+    role: contentAssets.role,
+    assetId: assets.id,
+    durationMs: assets.durationMs,
+    type: assets.type,
+    name: assets.name,
+    metadata: assets.metadata,   // ← add this
+  })
+  .from(contentAssets)
+  .innerJoin(assets, eq(assets.id, contentAssets.assetId))
+  .where(eq(contentAssets.generatedContentId, generatedContentId));
+
+// Sort video clips by shotIndex so the timeline matches intended shot order.
+// Other roles (voiceover, music) are order-insensitive — keep insertion order.
+const byShotIndex = (a: typeof linkedAssets[number], b: typeof linkedAssets[number]) => {
+  const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+  const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+  return ai - bi;
+};
 ```
+
+Then sort `videoClipAssets` before building clips:
+```typescript
+const videoClipAssets = linkedAssets
+  .filter((a) => a.role === "video_clip")
+  .sort(byShotIndex);
+```
+
+**Fix 2 — Asset role scope: use `video_clip` only; exclude `final_video`, `assembled_video`, and `image` from the initial timeline.**
+
+The previous `_buildInitialTimeline` only fetched `role === "video_clip"` assets. Including `final_video` or `assembled_video` alongside raw clips would place the previously-assembled output video on the same track as its constituent shots — a duplicate that would render incorrectly. `image` assets are a separate concern handled by the image track in the AI assembly step, not the initial editor bootstrap.
+
+```typescript
+// Only video_clip role — no final_video, assembled_video, or image.
+// final_video / assembled_video would be duplicates of the raw clips.
+const videoClipAssets = linkedAssets
+  .filter((a) => a.role === "video_clip")
+  .sort(byShotIndex);
+const voiceoverAssets = linkedAssets.filter((a) => a.role === "voiceover");
+const musicAssets = linkedAssets.filter((a) => a.role === "background_music");
+// image and caption roles are excluded from the initial editor bootstrap.
+```
+
+**Fix 3 — `trimEndMs` and `durationMs` clamping.**
+
+`makeClip` currently sets `trimEndMs: 0`. The established convention (from `_convertTimelineToEditorTracks` and the editor's own `convertAIResponseToTracks`) is `trimEndMs = clip.durationMs` — meaning "no trim from the end." `trimEndMs: 0` with `trimStartMs: 0` means "trim the entire clip to 0ms" under the semantic used by `convertAIResponseToTracks` (line 1164: `clipDuration = trimEndMs - trimStartMs`).
+
+Also add the duration clamp that `_buildInitialTimeline` applied (`min: 1000ms, max: 180_000ms`) — the current implementation returns `durationMs: 0` for an empty asset set, which is a degenerate project state.
+
+Updated `makeClip` and duration computation:
+```typescript
+function makeClip(
+  asset: (typeof linkedAssets)[number],
+  startMs: number,
+  overrides?: Partial<TimelineClip>,
+): TimelineClip {
+  const dur = asset.durationMs ?? 5000;
+  return {
+    id: crypto.randomUUID(),
+    assetId: asset.assetId,
+    label: asset.name ?? asset.type,
+    startMs,
+    durationMs: dur,
+    trimStartMs: 0,
+    trimEndMs: dur,   // ← full duration, not 0
+    speed: 1,
+    opacity: 1,
+    warmth: 0,
+    contrast: 0,
+    positionX: 0,
+    positionY: 0,
+    scale: 1,
+    rotation: 0,
+    volume: 1,
+    muted: false,
+    ...overrides,
+  };
+}
+
+// Clamp total duration: min 1 second, max 3 minutes (same as _buildInitialTimeline).
+const totalDuration = Math.min(Math.max(videoPosition, 1000), 180_000);
+```
+
+**Captions track:** `buildInitialTimeline` returns a `text` track but no `captions` track. Caption assets (if any) are loaded and applied separately via the captions API; they are intentionally excluded from the initial editor bootstrap. This is the correct behaviour — do not add a `captions` track here.
 
 #### API contract changes
 None. The response from `POST /api/video/assemble` remains `{ editorProjectId: string, redirectUrl: string }`.
 
 #### Edge cases
-- **`audioMix` volumes:** `_convertTimelineToEditorTracks` applied `audioMix.clipAudioVolume`, `audioMix.voiceoverVolume`, and `audioMix.musicVolume` per clip. `buildInitialTimeline` uses hardcoded defaults (`volume: 1` for video/voiceover, `volume: 0.3` for music). If the caller supplies `audioMix`, apply it as a post-processing pass over the returned tracks array before writing to `edit_project`. This keeps `buildInitialTimeline` free of assembly-specific concerns.
-- **Empty asset set:** If `generatedContentId` has no assets yet, `buildInitialTimeline` returns `{ tracks: [...empty track skeletons...], durationMs: 0 }`. The assemble endpoint should check `durationMs === 0` and return 422 with `{ error: "No assets ready to assemble" }`.
+- **`audioMix` volumes:** `_convertTimelineToEditorTracks` applied `audioMix.clipAudioVolume`, `audioMix.voiceoverVolume`, and `audioMix.musicVolume` per clip. `buildInitialTimeline` uses hardcoded defaults (`volume: 1` for video/voiceover, `volume: 0.3` for music). Phase 2 applies `audioMix` as a post-processing step via `applyAudioMix` — see Phase 2 LLD.
+- **Empty asset set:** If `generatedContentId` has no assets yet, `buildInitialTimeline` returns `{ tracks: [...empty track skeletons...], durationMs: 1000 }` (clamped minimum). The assemble endpoint should check `durationMs <= 1000 && all tracks have no clips` and return 422 with `{ error: "No assets ready to assemble" }`. Use a clip-count check, not `durationMs`, since 1000ms is now the floor value even for empty sets.
 
 ---
 
@@ -289,12 +373,30 @@ The current handler has two branches:
 1. `if (existing)` — returns existing project without update
 2. Otherwise — inserts new project
 
-The existing branch is already correct in spirit (return without update) but should be made explicit:
+The existing branch is already correct in spirit (return without update) but should be made explicit. Two correctness fixes are required:
+
+1. **Add `isNull(editProjects.parentProjectId)` to the SELECT.** Phase 8 introduces snapshot rows that share the same `(userId, generatedContentId)`. Without this filter, the SELECT can match a snapshot and return its ID as the working editor project, directing the user to a read-only historical version. Add this filter now so Phase 8 cannot silently break this path.
+
+2. **Handle the concurrent-first-assembly race.** Two quick taps on "Assemble" will both pass the SELECT check before either INSERT commits. Use `.onConflictDoNothing()` and re-fetch if no row is returned, so the second concurrent request resolves cleanly instead of returning a 500.
 
 ```typescript
+import { isNull } from "drizzle-orm";  // add to drizzle-orm imports
+
+// Fetch the root project only — snapshots (parentProjectId IS NOT NULL) are excluded.
+const [existing] = await db
+  .select()
+  .from(editProjects)
+  .where(
+    and(
+      eq(editProjects.userId, auth.user.id),
+      eq(editProjects.generatedContentId, payload.generatedContentId),
+      isNull(editProjects.parentProjectId),  // ← root projects only
+    ),
+  )
+  .limit(1);
+
 if (existing) {
   // Editor is the source of truth — do NOT overwrite manual edits.
-  // Redirect to the existing project.
   return c.json({
     editorProjectId: existing.id,
     redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
@@ -305,8 +407,18 @@ if (existing) {
 const { tracks, durationMs } = await buildInitialTimeline(
   payload.generatedContentId,
 );
+
+// Check for empty asset set before inserting
+const hasClips = tracks.some((t) => t.clips.length > 0);
+if (!hasClips) {
+  return c.json({ error: "No assets ready to assemble" }, 422);
+}
+
 const finalTracks = applyAudioMix(tracks, payload.audioMix);
 
+// Use onConflictDoNothing to handle concurrent first-assembly requests.
+// If two requests race, the second INSERT is silently ignored and we
+// re-fetch the row the first request created.
 const [created] = await db
   .insert(editProjects)
   .values({
@@ -316,10 +428,31 @@ const [created] = await db
     durationMs,
     status: "draft",
   })
+  .onConflictDoNothing()
   .returning({ id: editProjects.id });
 
+// If onConflictDoNothing fired (concurrent first-assembly), fetch the existing row.
+const projectId = created?.id ?? (
+  await db
+    .select({ id: editProjects.id })
+    .from(editProjects)
+    .where(
+      and(
+        eq(editProjects.userId, auth.user.id),
+        eq(editProjects.generatedContentId, payload.generatedContentId),
+        isNull(editProjects.parentProjectId),
+      ),
+    )
+    .limit(1)
+    .then((r) => r[0]?.id)
+);
+
+if (!projectId) {
+  return c.json({ error: "Failed to create editor project" }, 500);
+}
+
 return c.json({
-  editorProjectId: created.id,
+  editorProjectId: projectId,
   redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
 });
 ```
@@ -356,7 +489,7 @@ If the user explicitly wants to reset the editor to a fresh AI-generated timelin
 The response shape `{ editorProjectId: string, redirectUrl: string }` is unchanged. The behavioural guarantee is now: this endpoint is safe to call multiple times — it is a pure create-if-not-exists with no destructive side effects on an existing editor.
 
 #### Edge cases
-- **Race condition (two concurrent first assembles):** The partial unique index `edit_project_unique_content` on `(userId, generatedContentId) WHERE parentProjectId IS NULL AND generatedContentId IS NOT NULL` (updated in Phase 8) prevents duplicate INSERT. The second concurrent request will get a unique-constraint error; handle with an upsert or retry-fetch pattern.
+- **Race condition (two concurrent first assembles):** Handled by `.onConflictDoNothing()` + re-fetch in the LLD code above. The second concurrent INSERT is silently discarded and the handler re-fetches the row the first request created, returning 200 to both callers.
 - **FFmpeg legacy path:** The `?legacy=true` query param path (lines 1917–1933) remains intact during the migration window. It should be removed after the migration period.
 
 ---
@@ -566,13 +699,16 @@ If `videoJobData` is present and status is `"running"` or `"pending"`, render a 
    )`,
    ```
 
-3. Add the LEFT JOIN on `edit_projects` to both the data query and the count query:
+3. Add the LEFT JOIN on `edit_projects` to both the data query and the count query. The `isNull(editProjects.parentProjectId)` filter is **required** — Phase 8 introduces snapshot rows that share the same `(userId, generatedContentId)`. Without this filter, a content item with N snapshots produces N duplicate queue rows, breaking counts and pagination:
    ```typescript
+   import { isNull } from "drizzle-orm";  // add to drizzle-orm imports if not present
+
    .leftJoin(
      editProjects,
      and(
        eq(editProjects.generatedContentId, queueItems.generatedContentId),
        eq(editProjects.userId, queueItems.userId),
+       isNull(editProjects.parentProjectId),  // ← root projects only
      ),
    )
    ```
@@ -674,8 +810,8 @@ The `stages` array in each item gains two new stage entries: `{ id: "edit", ... 
 
 #### Edge cases
 - **Blank editor projects (no `generatedContentId`):** The LEFT JOIN on `editProjects.generatedContentId = queueItems.generatedContentId` will not match blank projects. After Phase 6 is complete, blank projects gain a `generatedContentId`, so this gap resolves itself.
-- **Multiple edit projects per content (future versioning):** The schema allows multiple `edit_projects` per `generatedContentId` if `generatedContentId IS NULL` partial unique index is satisfied. The JOIN uses `eq(editProjects.userId, queueItems.userId)` which may match multiple rows if versioning creates new projects. Add `AND edit_projects.parent_project_id IS NULL` to the JOIN condition to select only the root project, or select the latest by `updatedAt`.
-- **Performance:** The correlated subqueries for `latestExportStatus` and `latestExportUrl` run per queue item. For the default page size of 20 items this is acceptable. Add an index on `export_job.edit_project_id, created_at DESC` — this index already exists as `export_jobs_project_idx` on `editProjectId` alone; it is sufficient for the ORDER BY + LIMIT 1 pattern.
+- **Multiple edit projects per content (versioning):** Already handled — the `isNull(editProjects.parentProjectId)` filter on the LEFT JOIN (item 3 above) ensures only the root project is matched. Snapshot rows (Phase 8) will not produce duplicate queue rows.
+- **Performance:** The correlated subqueries for `latestExportStatus` and `latestExportUrl` run per queue item. For the default page size of 20 items this is acceptable. The existing `export_jobs_project_idx` on `editProjectId` is sufficient for the `ORDER BY created_at DESC LIMIT 1` pattern. **Note:** the correlated subqueries use raw SQL table names `"export_job"` and `"asset"` — these match the actual Drizzle table names (`pgTable("export_job", ...)` and `pgTable("asset", ...)`). If either table is renamed in the schema, update these raw SQL strings accordingly.
 
 ---
 
@@ -711,44 +847,78 @@ Update the `NewGeneratedContent` type consumers: anywhere that constructs a `New
 
 After `const [project]` is fetched and verified (line 556–566), add the auto-create block before the concurrency check:
 
-```typescript
-// Auto-create generated_content for blank projects on first export
-if (!project.generatedContentId) {
-  const [newContent] = await db
-    .insert(generatedContent)
-    .values({
-      userId: auth.user.id,
-      prompt: null,          // editor-originated, no AI prompt
-      status: "draft",
-      version: 1,
-      outputType: "full",
-    })
-    .returning({ id: generatedContent.id });
+All three writes (INSERT `generated_content`, INSERT `queue_item`, UPDATE `edit_project`) must be atomic. Wrap the block in a Drizzle transaction so a server crash or DB rejection at any step leaves no orphaned rows:
 
-  // Create queue_item for pipeline visibility
-  await db.insert(queueItems).values({
-    userId: auth.user.id,
-    generatedContentId: newContent.id,
-    status: "draft",
+```typescript
+// Auto-create generated_content for blank projects on first export.
+// All three writes are in a transaction — partial failure leaves no orphaned rows.
+if (!project.generatedContentId) {
+  const newContentId = await db.transaction(async (tx) => {
+    const [newContent] = await tx
+      .insert(generatedContent)
+      .values({
+        userId: auth.user.id,
+        prompt: null,          // editor-originated, no AI prompt
+        status: "draft",
+        version: 1,
+        outputType: "full",
+      })
+      .returning({ id: generatedContent.id });
+
+    // Link the edit_project first, using WHERE generated_content_id IS NULL
+    // to make the assignment atomic — if another request raced us, this UPDATE
+    // matches 0 rows and we skip the queue_item insert.
+    const updated = await tx
+      .update(editProjects)
+      .set({ generatedContentId: newContent.id })
+      .where(
+        and(
+          eq(editProjects.id, id),
+          isNull(editProjects.generatedContentId),  // guard against race
+        ),
+      )
+      .returning({ generatedContentId: editProjects.generatedContentId });
+
+    if (!updated[0]) {
+      // Another concurrent request won the race; roll back and use their row.
+      throw new Error("RACE_LOST");
+    }
+
+    // Create queue_item for pipeline visibility
+    await tx.insert(queueItems).values({
+      userId: auth.user.id,
+      generatedContentId: newContent.id,
+      status: "draft",
+    });
+
+    return newContent.id;
+  }).catch(async (err) => {
+    if (err.message === "RACE_LOST") {
+      // The concurrent request already linked a generated_content row — fetch it.
+      const [refetched] = await db
+        .select({ generatedContentId: editProjects.generatedContentId })
+        .from(editProjects)
+        .where(eq(editProjects.id, id));
+      return refetched?.generatedContentId ?? null;
+    }
+    throw err;
   });
 
-  // Link the edit_project to the new generated_content row
-  await db
-    .update(editProjects)
-    .set({ generatedContentId: newContent.id })
-    .where(eq(editProjects.id, id));
+  if (!newContentId) {
+    return c.json({ error: "Failed to initialise pipeline for this project" }, 500);
+  }
 
   // Update local variable for downstream use in this handler
-  project.generatedContentId = newContent.id;
+  project.generatedContentId = newContentId;
 }
 ```
 
-Add `queueItems` to the import from schema at the top of `editor/index.ts`.
+Add `queueItems`, `isNull` to the imports at the top of `editor/index.ts`.
 
 The block is guarded by `!project.generatedContentId` — on subsequent exports the block is skipped.
 
 #### Edge cases
-- **Concurrent first exports:** Two concurrent first-export requests on the same blank project will both pass the `!project.generatedContentId` check (read before write). Both will INSERT a `generated_content` row. The second UPDATE on `edit_project.generatedContentId` will overwrite the first. This leaves an orphan `generated_content` row. Mitigation: wrap the auto-create block in a serializable transaction or use `UPDATE edit_project SET generated_content_id = ... WHERE id = ? AND generated_content_id IS NULL RETURNING generated_content_id` to make the assignment atomic, then skip INSERT if the row was updated by another process.
+- **Concurrent first exports:** Handled by the `WHERE generated_content_id IS NULL` guard on the UPDATE inside the transaction. The second concurrent request's UPDATE matches 0 rows, catches the `RACE_LOST` error, and re-fetches the `generatedContentId` created by the first request. No orphaned rows.
 - **Title population:** The auto-created `generated_content` row has no `generatedHook`. The queue will show "Untitled" for this item until the user adds copy. This is acceptable for Phase 7, which adds `generatedHook` to the gallery.
 - **`prompt` nullable migration:** Any code path that calls `generated_content.prompt` and does not handle `null` will need a null guard. Grep for `.prompt` on `GeneratedContent` type across the backend.
 
@@ -885,7 +1055,9 @@ editorRouter.post("/:id/fork", requireAuth, async (c) => {
   if (!root) return c.json({ error: "Not found" }, 404);
   if (root.parentProjectId) return c.json({ error: "Cannot fork a snapshot" }, 400);
 
-  // Create snapshot preserving current state
+  // Create snapshot preserving current state.
+  // Snapshots are always "draft" regardless of the root's status — they are
+  // read-only historical copies and should never be treated as published.
   const [snapshot] = await db
     .insert(editProjects)
     .values({
@@ -895,7 +1067,7 @@ editorRouter.post("/:id/fork", requireAuth, async (c) => {
       durationMs: root.durationMs,
       fps: root.fps,
       resolution: root.resolution,
-      status: root.status,
+      status: "draft",          // ← always draft, never inherit root.status
       title: root.title,
       parentProjectId: root.id,  // marks this as a snapshot
     })
@@ -942,15 +1114,89 @@ editorRouter.get("/:id/versions", requireAuth, async (c) => {
 });
 ```
 
+**`backend/src/routes/editor/index.ts`** — `PUT /:id/restore-from/:snapshotId` endpoint
+
+This endpoint was listed in the API contract but was missing its implementation. "Restore to this version" must: (1) preserve the current root state as a new snapshot (so the restore itself is undoable), then (2) copy the target snapshot's `tracks` and `durationMs` onto the root.
+
+```typescript
+// PUT /api/editor/:id/restore-from/:snapshotId
+// Restores the root project to a prior snapshot's state.
+// The current root state is forked to a new snapshot before overwriting,
+// so the restore is itself undoable from version history.
+editorRouter.put("/:id/restore-from/:snapshotId", requireAuth, async (c) => {
+  const { id, snapshotId } = c.req.param();
+  const auth = c.get("auth");
+
+  // Fetch both the root and the target snapshot in parallel
+  const [rootResult, snapshotResult] = await Promise.all([
+    db
+      .select()
+      .from(editProjects)
+      .where(
+        and(
+          eq(editProjects.id, id),
+          eq(editProjects.userId, auth.user.id),
+          isNull(editProjects.parentProjectId),  // must be the root
+        ),
+      )
+      .limit(1),
+    db
+      .select()
+      .from(editProjects)
+      .where(
+        and(
+          eq(editProjects.id, snapshotId),
+          eq(editProjects.userId, auth.user.id),
+          eq(editProjects.parentProjectId, id),  // must be a snapshot of this root
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const root = rootResult[0];
+  const snapshot = snapshotResult[0];
+
+  if (!root) return c.json({ error: "Root project not found" }, 404);
+  if (!snapshot) return c.json({ error: "Snapshot not found" }, 404);
+
+  await db.transaction(async (tx) => {
+    // Preserve current root state as a new snapshot before overwriting
+    await tx.insert(editProjects).values({
+      userId: root.userId,
+      generatedContentId: root.generatedContentId,
+      tracks: root.tracks,
+      durationMs: root.durationMs,
+      fps: root.fps,
+      resolution: root.resolution,
+      status: "draft",
+      title: root.title,
+      parentProjectId: root.id,
+    });
+
+    // Overwrite root with the target snapshot's tracks
+    await tx
+      .update(editProjects)
+      .set({
+        tracks: snapshot.tracks,
+        durationMs: snapshot.durationMs,
+        status: "draft",
+      })
+      .where(eq(editProjects.id, root.id));
+  });
+
+  return c.json({ ok: true });
+});
+```
+
 **`frontend/src/features/editor/`** — version history panel
 
-A "Version history" button in the editor toolbar opens a sidebar listing snapshots from `GET /api/editor/:id/versions`. Each snapshot entry shows its `createdAt` timestamp. A "Restore" action calls `POST /api/editor/:snapshotId/fork` targeting the snapshot... but actually restoration means: fork the root (preserving current state) then copy snapshot tracks onto root. A simpler UX: "Reset to this version" calls a new `PUT /api/editor/:id/restore-from/:snapshotId` which copies snapshot `tracks` onto the root project.
+A "Version history" button in the editor toolbar opens a sidebar listing snapshots from `GET /api/editor/:id/versions`. Each snapshot entry shows its `createdAt` timestamp. A "Restore to this version" button calls `PUT /api/editor/:id/restore-from/:snapshotId`, then invalidates `queryKeys.api.editorProject(id)` and `queryKeys.api.editorByContent(contentId)` so the editor reloads the restored tracks.
 
 #### API contract additions
 ```
-POST /api/editor/:id/fork             → { snapshotId: string }
-GET  /api/editor/:id/versions         → { versions: { id, createdAt, status }[] }
-PUT  /api/editor/:id/restore-from/:snapshotId → { ok: true }
+POST /api/editor/:id/fork                              → { snapshotId: string }
+GET  /api/editor/:id/versions                          → { versions: { id, createdAt, status }[] }
+PUT  /api/editor/:id/restore-from/:snapshotId          → { ok: true }
 ```
 
 #### Edge cases
@@ -1084,32 +1330,61 @@ editorRouter.post("/:id/link-content", requireAuth, async (c) => {
     return c.json({ generatedContentId: project.generatedContentId });
   }
 
-  // Create a new generated_content row for this editor-originated project
-  const [newContent] = await db
-    .insert(generatedContent)
-    .values({
+  // All three writes are in a transaction — partial failure leaves no orphaned rows.
+  // The UPDATE uses WHERE generated_content_id IS NULL to guard against concurrent calls.
+  const linkedContentId = await db.transaction(async (tx) => {
+    const [newContent] = await tx
+      .insert(generatedContent)
+      .values({
+        userId: auth.user.id,
+        prompt: null,
+        status: "draft",
+        version: 1,
+        outputType: "full",
+      })
+      .returning({ id: generatedContent.id });
+
+    // Link to the edit_project atomically — 0 rows updated means another request raced us
+    const updated = await tx
+      .update(editProjects)
+      .set({ generatedContentId: newContent.id })
+      .where(
+        and(
+          eq(editProjects.id, id),
+          isNull(editProjects.generatedContentId),  // guard against race
+        ),
+      )
+      .returning({ generatedContentId: editProjects.generatedContentId });
+
+    if (!updated[0]) {
+      throw new Error("RACE_LOST");
+    }
+
+    // Create queue_item so it appears in the pipeline
+    await tx.insert(queueItems).values({
       userId: auth.user.id,
-      prompt: null,
+      generatedContentId: newContent.id,
       status: "draft",
-      version: 1,
-      outputType: "full",
-    })
-    .returning({ id: generatedContent.id });
+    });
 
-  // Link to the edit_project
-  await db
-    .update(editProjects)
-    .set({ generatedContentId: newContent.id })
-    .where(eq(editProjects.id, id));
-
-  // Create queue_item so it appears in the pipeline
-  await db.insert(queueItems).values({
-    userId: auth.user.id,
-    generatedContentId: newContent.id,
-    status: "draft",
+    return newContent.id;
+  }).catch(async (err) => {
+    if (err.message === "RACE_LOST") {
+      // Another concurrent request already linked — fetch and return their contentId
+      const [refetched] = await db
+        .select({ generatedContentId: editProjects.generatedContentId })
+        .from(editProjects)
+        .where(eq(editProjects.id, id));
+      return refetched?.generatedContentId ?? null;
+    }
+    throw err;
   });
 
-  return c.json({ generatedContentId: newContent.id });
+  if (!linkedContentId) {
+    return c.json({ error: "Failed to link content" }, 500);
+  }
+
+  return c.json({ generatedContentId: linkedContentId });
 });
 ```
 
@@ -1146,7 +1421,7 @@ POST /api/editor/:id/link-content  → { generatedContentId: number }
 ```
 
 #### Edge cases
-- **Concurrent link-content calls:** Two concurrent calls on the same blank project will both INSERT a `generated_content` row. Mitigation: use a database transaction with `SELECT ... FOR UPDATE` on the `edit_project` row to serialize; or use `INSERT INTO edit_project SET generated_content_id = ... WHERE id = ? AND generated_content_id IS NULL RETURNING generated_content_id`.
+- **Concurrent link-content calls:** Handled by the `WHERE generated_content_id IS NULL` guard on the UPDATE inside the transaction. The second concurrent request's transaction throws `RACE_LOST`, rolls back its INSERT, and re-fetches the `generatedContentId` created by the first request. No orphaned rows.
 - **AI workspace receiving a blank `generated_content`:** The chat loads with `prompt: null` and `generatedHook: null`. The workspace must handle this gracefully — display "New project" as the title and allow the user to start a chat from scratch for this content.
 - **`/studio/generate?contentId=X` routing:** Verify the AI workspace route reads `contentId` from search params and loads the correct draft session. If it does not currently support this, a small change to `ContentWorkspace.tsx` is needed to initialise with the provided `contentId`.
 

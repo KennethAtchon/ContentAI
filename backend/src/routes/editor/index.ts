@@ -13,8 +13,9 @@ import {
   assets,
   contentAssets,
   generatedContent,
+  queueItems,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, count, inArray } from "drizzle-orm";
+import { eq, and, desc, count, inArray, isNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { tmpdir } from "os";
@@ -91,7 +92,14 @@ const clipDataSchema = z.object({
 
 const transitionSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(["fade", "slide-left", "slide-up", "dissolve", "wipe-right", "none"]),
+  type: z.enum([
+    "fade",
+    "slide-left",
+    "slide-up",
+    "dissolve",
+    "wipe-right",
+    "none",
+  ]),
   durationMs: z.number().int().min(200).max(2000),
   clipAId: z.string().min(1),
   clipBId: z.string().min(1),
@@ -145,15 +153,103 @@ const aiAssembleRequestSchema = z.object({
   platform: z.enum(["instagram", "tiktok", "youtube-shorts"]),
 });
 
+// ─── GET /api/editor/assets ──────────────────────────────────────────────────
+// Must be registered before /:id routes to avoid param capture.
+
+app.get(
+  "/assets",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const contentIdParam = c.req.query("contentId");
+      const roles = c.req.queries("role") ?? [];
+
+      // Sub-select: only content owned by this user
+      const userContentIds = db
+        .select({ id: generatedContent.id })
+        .from(generatedContent)
+        .where(eq(generatedContent.userId, auth.user.id));
+
+      const conditions: ReturnType<typeof eq>[] = [
+        inArray(contentAssets.generatedContentId, userContentIds) as ReturnType<
+          typeof eq
+        >,
+      ];
+
+      if (contentIdParam) {
+        conditions.push(
+          eq(contentAssets.generatedContentId, Number(contentIdParam)),
+        );
+      }
+      if (roles.length > 0) {
+        conditions.push(
+          inArray(contentAssets.role, roles) as ReturnType<typeof eq>,
+        );
+      }
+
+      const result = await db
+        .select({
+          id: contentAssets.id,
+          generatedContentId: contentAssets.generatedContentId,
+          role: contentAssets.role,
+          r2Url: assets.r2Url,
+          durationMs: assets.durationMs,
+          sourceHook: generatedContent.generatedHook,
+        })
+        .from(contentAssets)
+        .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+        .innerJoin(
+          generatedContent,
+          eq(contentAssets.generatedContentId, generatedContent.id),
+        )
+        .where(and(...conditions))
+        .orderBy(desc(assets.createdAt))
+        .limit(100);
+
+      return c.json({ assets: result });
+    } catch (error) {
+      debugLog.error("Failed to list editor assets", {
+        service: "editor-route",
+        operation: "listAssets",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to list editor assets" }, 500);
+    }
+  },
+);
+
 // ─── GET /api/editor ─────────────────────────────────────────────────────────
 
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   try {
     const auth = c.get("auth");
 
+    // tracks JSONB is excluded from the list response — fetch it via GET /:id
     const projects = await db
-      .select()
+      .select({
+        id: editProjects.id,
+        userId: editProjects.userId,
+        title: editProjects.title,
+        generatedContentId: editProjects.generatedContentId,
+        durationMs: editProjects.durationMs,
+        fps: editProjects.fps,
+        resolution: editProjects.resolution,
+        status: editProjects.status,
+        publishedAt: editProjects.publishedAt,
+        parentProjectId: editProjects.parentProjectId,
+        createdAt: editProjects.createdAt,
+        updatedAt: editProjects.updatedAt,
+        // From linked generated_content — null for blank projects
+        generatedHook: generatedContent.generatedHook,
+        generatedCaption: generatedContent.generatedCaption,
+      })
       .from(editProjects)
+      .leftJoin(
+        generatedContent,
+        eq(editProjects.generatedContentId, generatedContent.id),
+      )
       .where(eq(editProjects.userId, auth.user.id))
       .orderBy(desc(editProjects.updatedAt));
 
@@ -223,7 +319,10 @@ app.post(
       let tracks: unknown[] = [];
       let durationMs = 0;
       if (generatedContentId) {
-        const result = await buildInitialTimeline(generatedContentId);
+        const result = await buildInitialTimeline(
+          generatedContentId,
+          auth.user.id,
+        );
         tracks = result.tracks;
         durationMs = result.durationMs;
       }
@@ -463,7 +562,26 @@ app.post(
         .update(editProjects)
         .set({ status: "published", publishedAt: new Date() })
         .where(eq(editProjects.id, id))
-        .returning();
+        .returning({
+          id: editProjects.id,
+          status: editProjects.status,
+          publishedAt: editProjects.publishedAt,
+          generatedContentId: editProjects.generatedContentId,
+        });
+
+      // Mark the linked queue item as ready for scheduling
+      if (updated.generatedContentId) {
+        await db
+          .update(queueItems)
+          .set({ status: "ready" })
+          .where(
+            and(
+              eq(queueItems.generatedContentId, updated.generatedContentId),
+              eq(queueItems.userId, auth.user.id),
+              inArray(queueItems.status, ["draft", "scheduled"]),
+            ),
+          );
+      }
 
       return c.json({
         id: updated.id,
@@ -563,6 +681,69 @@ app.post(
 
       if (!project) {
         return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      // Auto-create generated_content for blank projects on first export.
+      // All three writes are in a transaction — partial failure leaves no orphaned rows.
+      if (!project.generatedContentId) {
+        const newContentId = await db
+          .transaction(async (tx) => {
+            const [newContent] = await tx
+              .insert(generatedContent)
+              .values({
+                userId: auth.user.id,
+                prompt: null,
+                status: "draft",
+                version: 1,
+                outputType: "full",
+              })
+              .returning({ id: generatedContent.id });
+
+            // Link atomically — 0 rows updated means a concurrent request raced us
+            const updated = await tx
+              .update(editProjects)
+              .set({ generatedContentId: newContent.id })
+              .where(
+                and(
+                  eq(editProjects.id, id),
+                  isNull(editProjects.generatedContentId),
+                ),
+              )
+              .returning({
+                generatedContentId: editProjects.generatedContentId,
+              });
+
+            if (!updated[0]) {
+              throw new Error("RACE_LOST");
+            }
+
+            await tx.insert(queueItems).values({
+              userId: auth.user.id,
+              generatedContentId: newContent.id,
+              status: "draft",
+            });
+
+            return newContent.id;
+          })
+          .catch(async (err: unknown) => {
+            if (err instanceof Error && err.message === "RACE_LOST") {
+              const [refetched] = await db
+                .select({ generatedContentId: editProjects.generatedContentId })
+                .from(editProjects)
+                .where(eq(editProjects.id, id));
+              return refetched?.generatedContentId ?? null;
+            }
+            throw err;
+          });
+
+        if (!newContentId) {
+          return c.json(
+            { error: "Failed to initialise pipeline for this project" },
+            500,
+          );
+        }
+
+        project.generatedContentId = newContentId;
       }
 
       // Enforce per-user concurrency limit — prevent unbounded background ffmpeg processes.
@@ -791,9 +972,7 @@ async function runExportJob(
           type: assets.type,
         })
         .from(assets)
-        .where(
-          and(inArray(assets.id, assetIds), eq(assets.userId, userId)),
-        );
+        .where(and(inArray(assets.id, assetIds), eq(assets.userId, userId)));
       assetsMap = Object.fromEntries(
         assetRows.map((a) => [a.id, { r2Key: a.r2Key!, type: a.type }]),
       );
@@ -888,9 +1067,12 @@ async function runExportJob(
         colorFilters.push(`colorbalance=rs=${warmShift}:bs=${-warmShift}`);
       }
       if (clip.opacity !== undefined && clip.opacity !== 1) {
-        colorFilters.push(`format=yuva420p,colorchannelmixer=aa=${clip.opacity}`);
+        colorFilters.push(
+          `format=yuva420p,colorchannelmixer=aa=${clip.opacity}`,
+        );
       }
-      const colorStr = colorFilters.length > 0 ? colorFilters.join(",") + "," : "";
+      const colorStr =
+        colorFilters.length > 0 ? colorFilters.join(",") + "," : "";
 
       filterParts.push(
         `[${i}:v]trim=start=${trimStart}:duration=${clip.durationMs / 1000},` +
@@ -910,10 +1092,10 @@ async function runExportJob(
       latestVideoLabel = "v0";
     } else {
       const xfadeTypeMap: Record<string, string> = {
-        "fade": "fade",
+        fade: "fade",
         "slide-left": "slideleft",
         "slide-up": "slideup",
-        "dissolve": "dissolve",
+        dissolve: "dissolve",
         "wipe-right": "wiperight",
       };
 
@@ -979,8 +1161,8 @@ async function runExportJob(
     if (captionClips.length > 0) {
       for (const captionClip of captionClips) {
         const assContent = generateASS(
-          captionClip.captionWords,
-          captionClip.captionPresetId,
+          captionClip.captionWords ?? [],
+          captionClip.captionPresetId!,
           [outW, outH],
           captionClip.captionGroupSize ?? 3,
           captionClip.startMs ?? 0,
@@ -1130,7 +1312,10 @@ async function runExportJob(
 
 // ─── Helper functions for AI assembly ────────────────────────────────────────
 
-async function loadProjectShotAssets(userId: string, generatedContentId: number) {
+async function loadProjectShotAssets(
+  userId: string,
+  generatedContentId: number,
+) {
   const rows = await db
     .select({
       id: assets.id,
@@ -1156,7 +1341,11 @@ async function loadProjectShotAssets(userId: string, generatedContentId: number)
 
 function convertAIResponseToTracks(
   aiResponse: z.infer<typeof aiAssemblyResponseSchema>,
-  shotAssets: Array<{ id: string; durationMs: number | null; metadata: unknown }>,
+  shotAssets: Array<{
+    id: string;
+    durationMs: number | null;
+    metadata: unknown;
+  }>,
 ) {
   let cursor = 0;
   const videoClips = aiResponse.cuts.map((cut, i) => {
@@ -1186,15 +1375,51 @@ function convertAIResponseToTracks(
   });
 
   return [
-    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
-    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
-    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
-    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
+    {
+      id: "video",
+      type: "video",
+      name: "Video",
+      muted: false,
+      locked: false,
+      clips: videoClips,
+      transitions: [],
+    },
+    {
+      id: "audio",
+      type: "audio",
+      name: "Audio",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: "music",
+      type: "music",
+      name: "Music",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: "text",
+      type: "text",
+      name: "Text",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
   ];
 }
 
 function buildStandardPresetTracks(
-  shotAssets: Array<{ id: string; durationMs: number | null; metadata: unknown }>,
+  shotAssets: Array<{
+    id: string;
+    durationMs: number | null;
+    metadata: unknown;
+  }>,
 ) {
   let cursor = 0;
   const videoClips = shotAssets.map((asset, i) => {
@@ -1223,10 +1448,42 @@ function buildStandardPresetTracks(
   });
 
   return [
-    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
-    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: [], transitions: [] },
-    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: [], transitions: [] },
-    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
+    {
+      id: "video",
+      type: "video",
+      name: "Video",
+      muted: false,
+      locked: false,
+      clips: videoClips,
+      transitions: [],
+    },
+    {
+      id: "audio",
+      type: "audio",
+      name: "Audio",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: "music",
+      type: "music",
+      name: "Music",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: "text",
+      type: "text",
+      name: "Text",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
   ];
 }
 
@@ -1261,7 +1518,10 @@ app.post(
       }
       if (!project.generatedContentId) {
         return c.json(
-          { error: "Project has no generated content — AI assembly requires generated shots" },
+          {
+            error:
+              "Project has no generated content — AI assembly requires generated shots",
+          },
           404,
         );
       }
@@ -1278,24 +1538,30 @@ app.post(
       const shotsContext = shotAssets.map((asset, i) => ({
         index: i,
         description:
-          ((asset.metadata as Record<string, unknown>)?.generationPrompt as string) ??
-          `Shot ${i + 1}`,
+          ((asset.metadata as Record<string, unknown>)
+            ?.generationPrompt as string) ?? `Shot ${i + 1}`,
         durationMs: asset.durationMs ?? 5000,
       }));
 
       const targetDurationMs =
-        platform === "tiktok" ? 15000
-        : platform === "youtube-shorts" ? 60000
-        : 30000;
+        platform === "tiktok"
+          ? 15000
+          : platform === "youtube-shorts"
+            ? 60000
+            : 30000;
 
-      const prompt = buildAIAssemblyPrompt({ shots: shotsContext, platform, targetDurationMs });
+      const prompt = buildAIAssemblyPrompt({
+        shots: shotsContext,
+        platform,
+        targetDurationMs,
+      });
 
       let aiResponse: z.infer<typeof aiAssemblyResponseSchema> | null = null;
       try {
         const result = await generateText({
           model: anthropic("claude-sonnet-4-6"),
           prompt,
-          maxTokens: 1024,
+          maxOutputTokens: 1024,
         });
 
         const text = result.text;
@@ -1306,7 +1572,9 @@ app.post(
         const maxIndex = shotsContext.length - 1;
         for (const cut of aiResponse.cuts) {
           if (cut.shotIndex > maxIndex) {
-            throw new Error(`Shot index ${cut.shotIndex} out of range (max ${maxIndex})`);
+            throw new Error(
+              `Shot index ${cut.shotIndex} out of range (max ${maxIndex})`,
+            );
           }
           const shotDuration = shotsContext[cut.shotIndex].durationMs;
           if (cut.trimEndMs > shotDuration) {
@@ -1316,12 +1584,15 @@ app.post(
           }
         }
       } catch (err) {
-        debugLog.error("AI assembly parse failed — returning Standard preset fallback", {
-          service: "editor-route",
-          operation: "aiAssemble",
-          projectId: id,
-          error: err instanceof Error ? err.message : "Unknown error",
-        });
+        debugLog.error(
+          "AI assembly parse failed — returning Standard preset fallback",
+          {
+            service: "editor-route",
+            operation: "aiAssemble",
+            projectId: id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          },
+        );
 
         const standardTimeline = buildStandardPresetTracks(shotAssets);
         return c.json({
@@ -1345,6 +1616,301 @@ app.post(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to run AI assembly" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/link-content ───────────────────────────────────────
+
+app.post(
+  "/:id/link-content",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { id } = c.req.param();
+      const auth = c.get("auth");
+
+      const [project] = await db
+        .select({
+          id: editProjects.id,
+          generatedContentId: editProjects.generatedContentId,
+        })
+        .from(editProjects)
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
+        .limit(1);
+
+      if (!project) return c.json({ error: "Not found" }, 404);
+
+      // Already linked — idempotent return
+      if (project.generatedContentId) {
+        return c.json({ generatedContentId: project.generatedContentId });
+      }
+
+      // All three writes are in a transaction — partial failure leaves no orphaned rows.
+      const linkedContentId = await db
+        .transaction(async (tx) => {
+          const [newContent] = await tx
+            .insert(generatedContent)
+            .values({
+              userId: auth.user.id,
+              prompt: null,
+              status: "draft",
+              version: 1,
+              outputType: "full",
+            })
+            .returning({ id: generatedContent.id });
+
+          // Link atomically — 0 rows updated means a concurrent request raced us
+          const updated = await tx
+            .update(editProjects)
+            .set({ generatedContentId: newContent.id })
+            .where(
+              and(
+                eq(editProjects.id, id),
+                isNull(editProjects.generatedContentId),
+              ),
+            )
+            .returning({ generatedContentId: editProjects.generatedContentId });
+
+          if (!updated[0]) {
+            throw new Error("RACE_LOST");
+          }
+
+          await tx.insert(queueItems).values({
+            userId: auth.user.id,
+            generatedContentId: newContent.id,
+            status: "draft",
+          });
+
+          return newContent.id;
+        })
+        .catch(async (err: unknown) => {
+          if (err instanceof Error && err.message === "RACE_LOST") {
+            const [refetched] = await db
+              .select({ generatedContentId: editProjects.generatedContentId })
+              .from(editProjects)
+              .where(eq(editProjects.id, id));
+            return refetched?.generatedContentId ?? null;
+          }
+          throw err;
+        });
+
+      if (!linkedContentId) {
+        return c.json({ error: "Failed to link content" }, 500);
+      }
+
+      return c.json({ generatedContentId: linkedContentId });
+    } catch (error) {
+      debugLog.error("Failed to link content", {
+        service: "editor-route",
+        operation: "linkContent",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to link content" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/fork ───────────────────────────────────────────────
+
+app.post(
+  "/:id/fork",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { id } = c.req.param();
+      const auth = c.get("auth");
+      const body = (await c.req.json().catch(() => ({}))) as {
+        resetToAI?: boolean;
+      };
+
+      const [root] = await db
+        .select()
+        .from(editProjects)
+        .where(
+          and(
+            eq(editProjects.id, id),
+            eq(editProjects.userId, auth.user.id),
+            isNull(editProjects.parentProjectId),
+          ),
+        )
+        .limit(1);
+
+      if (!root) return c.json({ error: "Not found" }, 404);
+
+      // Build AI timeline outside the transaction (I/O-heavy, non-DB work)
+      let aiTimeline: { tracks: unknown; durationMs: number } | null = null;
+      if (body.resetToAI && root.generatedContentId) {
+        aiTimeline = await buildInitialTimeline(
+          root.generatedContentId,
+          auth.user.id,
+        );
+      }
+
+      // Snapshot + optional root reset must be atomic: a crash between the two
+      // would leave a duplicate snapshot without the corresponding root update.
+      const [snapshot] = await db.transaction(async (tx) => {
+        const inserted = await tx
+          .insert(editProjects)
+          .values({
+            userId: root.userId,
+            generatedContentId: root.generatedContentId,
+            tracks: root.tracks,
+            durationMs: root.durationMs,
+            fps: root.fps,
+            resolution: root.resolution,
+            status: "draft",
+            title: root.title,
+            parentProjectId: root.id,
+          })
+          .returning({ id: editProjects.id });
+
+        if (aiTimeline) {
+          await tx
+            .update(editProjects)
+            .set({
+              tracks: aiTimeline.tracks,
+              durationMs: aiTimeline.durationMs,
+              status: "draft",
+            })
+            .where(eq(editProjects.id, root.id));
+        }
+
+        return inserted;
+      });
+
+      return c.json({ snapshotId: snapshot.id });
+    } catch (error) {
+      debugLog.error("Failed to fork project", {
+        service: "editor-route",
+        operation: "forkProject",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fork project" }, 500);
+    }
+  },
+);
+
+// ─── GET /api/editor/:id/versions ────────────────────────────────────────────
+
+app.get(
+  "/:id/versions",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { id } = c.req.param();
+      const auth = c.get("auth");
+
+      const versions = await db
+        .select({
+          id: editProjects.id,
+          createdAt: editProjects.createdAt,
+          status: editProjects.status,
+        })
+        .from(editProjects)
+        .where(
+          and(
+            eq(editProjects.parentProjectId, id),
+            eq(editProjects.userId, auth.user.id),
+          ),
+        )
+        .orderBy(desc(editProjects.createdAt));
+
+      return c.json({ versions });
+    } catch (error) {
+      debugLog.error("Failed to list versions", {
+        service: "editor-route",
+        operation: "listVersions",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to list versions" }, 500);
+    }
+  },
+);
+
+// ─── PUT /api/editor/:id/restore-from/:snapshotId ────────────────────────────
+
+app.put(
+  "/:id/restore-from/:snapshotId",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const { id, snapshotId } = c.req.param();
+      const auth = c.get("auth");
+
+      const [rootResult, snapshotResult] = await Promise.all([
+        db
+          .select()
+          .from(editProjects)
+          .where(
+            and(
+              eq(editProjects.id, id),
+              eq(editProjects.userId, auth.user.id),
+              isNull(editProjects.parentProjectId),
+            ),
+          )
+          .limit(1),
+        db
+          .select()
+          .from(editProjects)
+          .where(
+            and(
+              eq(editProjects.id, snapshotId),
+              eq(editProjects.userId, auth.user.id),
+              eq(editProjects.parentProjectId, id),
+            ),
+          )
+          .limit(1),
+      ]);
+
+      const root = rootResult[0];
+      const snapshot = snapshotResult[0];
+
+      if (!root) return c.json({ error: "Root project not found" }, 404);
+      if (!snapshot) return c.json({ error: "Snapshot not found" }, 404);
+
+      await db.transaction(async (tx) => {
+        // Preserve current root state as a new snapshot before overwriting
+        await tx.insert(editProjects).values({
+          userId: root.userId,
+          generatedContentId: root.generatedContentId,
+          tracks: root.tracks,
+          durationMs: root.durationMs,
+          fps: root.fps,
+          resolution: root.resolution,
+          status: "draft",
+          title: root.title,
+          parentProjectId: root.id,
+        });
+
+        // Overwrite root with the target snapshot's tracks
+        await tx
+          .update(editProjects)
+          .set({
+            tracks: snapshot.tracks,
+            durationMs: snapshot.durationMs,
+            status: "draft",
+          })
+          .where(eq(editProjects.id, root.id));
+      });
+
+      return c.json({ ok: true });
+    } catch (error) {
+      debugLog.error("Failed to restore from snapshot", {
+        service: "editor-route",
+        operation: "restoreFromSnapshot",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to restore from snapshot" }, 500);
     }
   },
 );

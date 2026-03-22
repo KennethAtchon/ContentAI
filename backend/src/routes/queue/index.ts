@@ -10,8 +10,19 @@ import {
   queueItems,
   generatedContent,
   contentAssets,
+  editProjects,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, asc, and, sql, ilike, or, inArray } from "drizzle-orm";
+import {
+  eq,
+  desc,
+  asc,
+  and,
+  sql,
+  ilike,
+  or,
+  inArray,
+  isNull,
+} from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 
@@ -30,6 +41,8 @@ function deriveStages(
     generatedScript: string | null;
     generatedMetadata: unknown;
     status: string;
+    editProjectStatus?: string | null;
+    latestExportStatus?: string | null;
   },
   assetRoleCounts: Record<string, number>,
 ): PipelineStage[] {
@@ -41,7 +54,9 @@ function deriveStages(
   const hasCopy = !!(row.generatedHook || row.generatedScript);
   const hasVoiceover = (assetRoleCounts["voiceover"] ?? 0) > 0;
   const hasVideoClips = (assetRoleCounts["video_clip"] ?? 0) > 0;
-  const hasAssembled = (assetRoleCounts["assembled_video"] ?? 0) > 0 || (assetRoleCounts["final_video"] ?? 0) > 0;
+  const hasAssembled =
+    (assetRoleCounts["assembled_video"] ?? 0) > 0 ||
+    (assetRoleCounts["final_video"] ?? 0) > 0;
 
   const videoRunning = phase4Status === "running" || phase4Status === "pending";
   const videoFailed = phase4Status === "failed" || contentFailed;
@@ -74,6 +89,28 @@ function deriveStages(
       label: "Assembly",
       status: hasAssembled ? "ok" : hasVideoClips ? "pending" : "pending",
     },
+    {
+      id: "edit",
+      label: "Manual Edit",
+      status:
+        row.editProjectStatus === "published"
+          ? "ok"
+          : row.editProjectStatus === "draft"
+            ? "running"
+            : "pending",
+    },
+    {
+      id: "export",
+      label: "Export",
+      status:
+        row.latestExportStatus === "done"
+          ? "ok"
+          : row.latestExportStatus === "rendering"
+            ? "running"
+            : row.latestExportStatus === "failed"
+              ? "failed"
+              : "pending",
+    },
   ];
 
   return stages;
@@ -90,7 +127,10 @@ async function resolveChainTip(startId: number, userId: string) {
     .select()
     .from(generatedContent)
     .where(
-      and(eq(generatedContent.id, startId), eq(generatedContent.userId, userId)),
+      and(
+        eq(generatedContent.id, startId),
+        eq(generatedContent.userId, userId),
+      ),
     )
     .limit(1)
     .then((r) => r[0]);
@@ -125,28 +165,6 @@ async function resolveChainTip(startId: number, userId: string) {
 /**
  * Walk up the parentId chain to find the root content ID (the v1 ancestor).
  */
-async function resolveChainRoot(contentId: number, userId: string): Promise<number> {
-  const MAX_CHAIN_DEPTH = 50;
-  const visitedIds = new Set<number>();
-  let currentId = contentId;
-  visitedIds.add(currentId);
-
-  for (let depth = 0; depth < MAX_CHAIN_DEPTH; depth++) {
-    const [row] = await db
-      .select({ id: generatedContent.id, parentId: generatedContent.parentId })
-      .from(generatedContent)
-      .where(
-        and(eq(generatedContent.id, currentId), eq(generatedContent.userId, userId)),
-      )
-      .limit(1);
-
-    if (!row || !row.parentId || visitedIds.has(row.parentId)) break;
-    visitedIds.add(row.parentId);
-    currentId = row.parentId;
-  }
-
-  return currentId;
-}
 
 const queueRouter = new Hono<HonoEnv>();
 
@@ -251,11 +269,42 @@ queueRouter.get(
               WHERE cm.generated_content_id = ${queueItems.generatedContentId}
               LIMIT 1
             )`,
+            // Editor project state (root project only — snapshots excluded)
+            editProjectId: editProjects.id,
+            editProjectStatus: editProjects.status,
+            editProjectUpdatedAt: editProjects.updatedAt,
+            // Latest export job status (correlated subqueries — table names are
+            // "export_job" and "asset" as defined in schema.ts)
+            latestExportStatus: sql<string | null>`(
+              SELECT status FROM export_job
+              WHERE edit_project_id = ${editProjects.id}
+              ORDER BY created_at DESC
+              LIMIT 1
+            )`,
+            latestExportUrl: sql<string | null>`(
+              SELECT a.r2_url FROM export_job ej
+              JOIN asset a ON a.id = ej.output_asset_id
+              WHERE ej.edit_project_id = ${editProjects.id}
+                AND ej.status = 'done'
+              ORDER BY ej.created_at DESC
+              LIMIT 1
+            )`,
           })
           .from(queueItems)
           .leftJoin(
             generatedContent,
             eq(queueItems.generatedContentId, generatedContent.id),
+          )
+          .leftJoin(
+            editProjects,
+            and(
+              eq(
+                editProjects.generatedContentId,
+                queueItems.generatedContentId,
+              ),
+              eq(editProjects.userId, queueItems.userId),
+              isNull(editProjects.parentProjectId),
+            ),
           )
           .where(and(...conditions))
           .orderBy(orderBy)
@@ -295,37 +344,60 @@ queueRouter.get(
         assetCountMap[row.generatedContentId][row.role] = row.count;
       }
 
-      // Resolve root content IDs for version chain grouping.
+      // Batch-resolve all root content IDs in one recursive CTE query instead
+      // of N sequential per-row calls (O(N*depth) → O(1) query).
       const rootContentIds: Record<number, number> = {};
-      for (const row of rows) {
-        if (row.generatedContentId) {
-          rootContentIds[row.generatedContentId] = await resolveChainRoot(
-            row.generatedContentId,
-            auth.user.id,
-          );
-        }
-      }
-
-      // Count total versions per root chain.
-      const uniqueRoots = [...new Set(Object.values(rootContentIds))];
       const versionCounts: Record<number, number> = {};
-      for (const rootId of uniqueRoots) {
-        // Count all descendants of this root (including the root itself).
-        const [{ count }] = await db
+      if (contentIds.length > 0) {
+        const rootRows = await db
           .execute(
             sql`
               WITH RECURSIVE chain AS (
-                SELECT id FROM generated_content WHERE id = ${rootId} AND user_id = ${auth.user.id}
+                SELECT id AS start_id, id AS cur_id, parent_id
+                FROM generated_content
+                WHERE id = ANY(${contentIds}::int[]) AND user_id = ${auth.user.id}
                 UNION ALL
-                SELECT gc.id FROM generated_content gc
-                JOIN chain c ON gc.parent_id = c.id
+                SELECT chain.start_id, gc.id, gc.parent_id
+                FROM generated_content gc
+                JOIN chain ON chain.parent_id = gc.id
                 WHERE gc.user_id = ${auth.user.id}
               )
-              SELECT count(*)::int AS count FROM chain
+              SELECT start_id::int, cur_id::int AS root_id
+              FROM chain
+              WHERE parent_id IS NULL
             `,
           )
-          .then((r) => r as unknown as { count: number }[]);
-        versionCounts[rootId] = count;
+          .then((r) => r as unknown as { start_id: number; root_id: number }[]);
+
+        for (const row of rootRows) {
+          rootContentIds[row.start_id] = row.root_id;
+        }
+
+        // Batch-count descendants for all unique roots in one query.
+        const uniqueRoots = [...new Set(Object.values(rootContentIds))];
+        const countRows = await db
+          .execute(
+            sql`
+              WITH RECURSIVE descendants AS (
+                SELECT id, id AS root_id
+                FROM generated_content
+                WHERE id = ANY(${uniqueRoots}::int[]) AND user_id = ${auth.user.id}
+                UNION ALL
+                SELECT gc.id, d.root_id
+                FROM generated_content gc
+                JOIN descendants d ON gc.parent_id = d.id
+                WHERE gc.user_id = ${auth.user.id}
+              )
+              SELECT root_id::int, count(*)::int AS count
+              FROM descendants
+              GROUP BY root_id
+            `,
+          )
+          .then((r) => r as unknown as { root_id: number; count: number }[]);
+
+        for (const row of countRows) {
+          versionCounts[row.root_id] = row.count;
+        }
       }
 
       const items = rows.map((row) => {
@@ -336,11 +408,13 @@ queueRouter.get(
             generatedScript: row.generatedScript,
             generatedMetadata: row.generatedMetadata,
             status: row.contentStatus ?? "draft",
+            editProjectStatus: row.editProjectStatus,
+            latestExportStatus: row.latestExportStatus,
           },
           typeCounts,
         );
         const rootId = row.generatedContentId
-          ? rootContentIds[row.generatedContentId] ?? null
+          ? (rootContentIds[row.generatedContentId] ?? null)
           : null;
         return {
           id: row.id,
@@ -361,6 +435,10 @@ queueRouter.get(
           stages,
           rootContentId: rootId,
           versionCount: rootId ? (versionCounts[rootId] ?? 1) : 1,
+          editProjectId: row.editProjectId ?? null,
+          editProjectStatus: row.editProjectStatus ?? null,
+          latestExportStatus: row.latestExportStatus ?? null,
+          latestExportUrl: row.latestExportUrl ?? null,
         };
       });
 
@@ -425,7 +503,12 @@ queueRouter.post(
         return c.json({ error: "Content is already in the queue" }, 409);
       }
 
-      await assertNoChainQueueItem(db, generatedContentId, auth.user.id, "add_to_queue_endpoint");
+      await assertNoChainQueueItem(
+        db,
+        generatedContentId,
+        auth.user.id,
+        "add_to_queue_endpoint",
+      );
       const [queueItem] = await db
         .insert(queueItems)
         .values({

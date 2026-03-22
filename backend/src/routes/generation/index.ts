@@ -258,7 +258,12 @@ generationRouter.post(
         return c.json({ error: "scheduledFor must be in the future" }, 400);
       }
 
-      await assertNoChainQueueItem(db, id, auth.user.id, "generation_schedule_endpoint");
+      await assertNoChainQueueItem(
+        db,
+        id,
+        auth.user.id,
+        "generation_schedule_endpoint",
+      );
       const [queueItem] = await db
         .insert(queueItems)
         .values({

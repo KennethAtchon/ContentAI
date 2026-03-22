@@ -1069,6 +1069,7 @@
   "editor_new_project": "New Edit",
   "editor_no_projects": "No edit projects yet",
   "editor_open_project": "Open",
+  "editor_open_in_ai_chat": "AI Chat",
   "editor_delete_project": "Delete",
   "editor_export_download": "Download",
   "editor_export_copy_url": "Copy URL",

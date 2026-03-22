@@ -246,8 +246,10 @@ export function MediaPanel({
                           assetId: asset.id,
                           type: asset.type,
                           durationMs: asset.durationMs,
-                          label: String(asset.metadata?.originalName ?? asset.type),
-                        }),
+                          label: String(
+                            asset.metadata?.originalName ?? asset.type
+                          ),
+                        })
                       );
                       e.dataTransfer.effectAllowed = "copy";
                     }}
@@ -293,9 +295,7 @@ export function MediaPanel({
                     .filter(
                       (item) =>
                         !search ||
-                        item.name
-                          .toLowerCase()
-                          .includes(search.toLowerCase())
+                        item.name.toLowerCase().includes(search.toLowerCase())
                     )
                     .map((item) => (
                       <button
@@ -385,8 +385,10 @@ export function MediaPanel({
                           assetId: asset.id,
                           type: asset.type,
                           durationMs: asset.durationMs,
-                          label: String(asset.metadata?.originalName ?? asset.type),
-                        }),
+                          label: String(
+                            asset.metadata?.originalName ?? asset.type
+                          ),
+                        })
                       );
                       e.dataTransfer.effectAllowed = "copy";
                     }}
@@ -394,7 +396,11 @@ export function MediaPanel({
                     className="flex items-center gap-2 px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors text-left"
                   >
                     <span className="text-dim-3 shrink-0">
-                      {asset.type === "music" ? <Music size={14} /> : <Mic size={14} />}
+                      {asset.type === "music" ? (
+                        <Music size={14} />
+                      ) : (
+                        <Mic size={14} />
+                      )}
                     </span>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-dim-1 truncate">

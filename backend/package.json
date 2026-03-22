@@ -43,6 +43,7 @@
     "ioredis": "^5.8.2",
     "json2csv": "^6.0.0-alpha.2",
     "lucide-react": "^0.576.0",
+    "openai": "^6.32.0",
     "pdf-lib": "^1.17.1",
     "postgres": "^3.4.8",
     "prom-client": "^15.1.3",

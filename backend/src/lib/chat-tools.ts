@@ -128,7 +128,12 @@ export function createSaveContentTool(context: ToolContext) {
 
           // v1 brand-new content — no chain exists yet, but guard anyway so any
           // future regression blows up loudly instead of silently duplicating.
-          await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "save_content");
+          await assertNoChainQueueItem(
+            tx,
+            inserted.id,
+            context.auth.user.id,
+            "save_content",
+          );
           await tx.insert(queueItems).values({
             userId: context.auth.user.id,
             generatedContentId: inserted.id,
@@ -242,9 +247,7 @@ export function createGetContentTool(context: ToolContext) {
     description:
       "Retrieve the full current content for a given content ID. Call this before making targeted edits so you can read all existing fields and understand what to preserve vs change. Also use when the user asks what you previously wrote ('what hashtags did you pick?', 'show me my current caption', etc.).",
     inputSchema: z.object({
-      contentId: z
-        .number()
-        .describe("The ID of the content piece to retrieve"),
+      contentId: z.number().describe("The ID of the content piece to retrieve"),
     }),
     execute: async ({ contentId }: { contentId: number }) => {
       debugLog.info("[tool:get_content] Tool invoked", {
@@ -323,9 +326,7 @@ export function createEditContentFieldTool(context: ToolContext) {
     description:
       "Edit one or more specific fields of existing generated content without changing the others. Use this instead of iterate_content when the user wants to change just a caption, hook, hashtags, CTA, or any single field. Always prefer this over iterate_content when only 1–3 fields are being changed. Call get_content first if you need to read the current values before editing.",
     inputSchema: z.object({
-      contentId: z
-        .number()
-        .describe("ID of the content piece to edit"),
+      contentId: z.number().describe("ID of the content piece to edit"),
       edits: z
         .object({
           hook: z.string().max(200).optional(),
@@ -388,14 +389,12 @@ export function createEditContentFieldTool(context: ToolContext) {
         }
 
         // Resolve to the chain tip with a single recursive-style query
-        const tip = await resolveChainTip(
-          parent.id,
-          context.auth.user.id,
-        );
+        const tip = await resolveChainTip(parent.id, context.auth.user.id);
 
-        const parentMeta = tip.generatedMetadata as
-          | Record<string, unknown>
-          | null;
+        const parentMeta = tip.generatedMetadata as Record<
+          string,
+          unknown
+        > | null;
 
         // Merge: only override fields that are explicitly provided
         const newMetadata = {
@@ -414,10 +413,8 @@ export function createEditContentFieldTool(context: ToolContext) {
               generatedHook: edits.hook ?? tip.generatedHook,
               generatedCaption: edits.caption ?? tip.generatedCaption,
               generatedScript: edits.script ?? tip.generatedScript,
-              cleanScriptForAudio:
-                edits.cleanScript ?? tip.cleanScriptForAudio,
-              sceneDescription:
-                edits.sceneDescription ?? tip.sceneDescription,
+              cleanScriptForAudio: edits.cleanScript ?? tip.cleanScriptForAudio,
+              sceneDescription: edits.sceneDescription ?? tip.sceneDescription,
               generatedMetadata: newMetadata,
               outputType: tip.outputType,
               status: "draft",
@@ -428,14 +425,23 @@ export function createEditContentFieldTool(context: ToolContext) {
 
           // Walk the full chain to find any existing queue item (handles stranded
           // items at grandparent levels), then move it forward. Never insert new.
-          const existing = await findChainQueueItem(tx, tip.id, context.auth.user.id);
+          const existing = await findChainQueueItem(
+            tx,
+            tip.id,
+            context.auth.user.id,
+          );
           if (existing) {
             await tx
               .update(queueItems)
               .set({ generatedContentId: inserted.id })
               .where(eq(queueItems.id, existing.queueItemId));
           } else {
-            await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "edit_content_field");
+            await assertNoChainQueueItem(
+              tx,
+              inserted.id,
+              context.auth.user.id,
+              "edit_content_field",
+            );
             await tx.insert(queueItems).values({
               userId: context.auth.user.id,
               generatedContentId: inserted.id,
@@ -570,9 +576,10 @@ export function createIterateContentTool(context: ToolContext) {
           },
         );
 
-        const parentMeta = effectiveParent.generatedMetadata as
-          | Record<string, unknown>
-          | null;
+        const parentMeta = effectiveParent.generatedMetadata as Record<
+          string,
+          unknown
+        > | null;
 
         const row = await db.transaction(async (tx) => {
           const [inserted] = await tx
@@ -602,14 +609,23 @@ export function createIterateContentTool(context: ToolContext) {
 
           // Walk the full chain to find any existing queue item (handles stranded
           // items at grandparent levels), then move it forward. Never insert new.
-          const existing = await findChainQueueItem(tx, effectiveParent.id, context.auth.user.id);
+          const existing = await findChainQueueItem(
+            tx,
+            effectiveParent.id,
+            context.auth.user.id,
+          );
           if (existing) {
             await tx
               .update(queueItems)
               .set({ generatedContentId: inserted.id })
               .where(eq(queueItems.id, existing.queueItemId));
           } else {
-            await assertNoChainQueueItem(tx, inserted.id, context.auth.user.id, "iterate_content");
+            await assertNoChainQueueItem(
+              tx,
+              inserted.id,
+              context.auth.user.id,
+              "iterate_content",
+            );
             await tx.insert(queueItems).values({
               userId: context.auth.user.id,
               generatedContentId: inserted.id,
@@ -923,7 +939,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
 
         void recordAiCost({
           userId: context.auth.user.id,
-          provider: "elevenlabs",
+          provider: "openai",
           model: voice.elevenLabsId,
           featureType: "tts",
           inputTokens: 0,
@@ -1041,7 +1057,8 @@ export function createAttachMusicTool(context: ToolContext) {
           )
           .limit(1);
 
-        if (!content) return { success: false as const, reason: "content_not_found" };
+        if (!content)
+          return { success: false as const, reason: "content_not_found" };
 
         const [track] = await db
           .select({
@@ -1052,11 +1069,15 @@ export function createAttachMusicTool(context: ToolContext) {
           })
           .from(musicTracks)
           .where(
-            and(eq(musicTracks.id, musicTrackId), eq(musicTracks.isActive, true)),
+            and(
+              eq(musicTracks.id, musicTrackId),
+              eq(musicTracks.isActive, true),
+            ),
           )
           .limit(1);
 
-        if (!track) return { success: false as const, reason: "track_not_found" };
+        if (!track)
+          return { success: false as const, reason: "track_not_found" };
 
         // Replace existing background_music link if present (shared platform asset — no R2 delete)
         await db
@@ -1105,38 +1126,89 @@ export function createGenerateVideoReelTool(context: ToolContext) {
     description:
       "Kick off full video reel generation from an existing draft. Creates an async job and returns a jobId immediately — use get_video_job_status to poll progress. Call this when the user says 'generate the video', 'create the reel', 'make the video now', etc. Requires the content to already have a hook or script.",
     inputSchema: z.object({
-      contentId: z.number().describe("The generatedContent ID to generate video for"),
-      prompt: z.string().optional().describe("Override prompt for video visuals (uses hook by default)"),
-      durationSeconds: z.number().optional().describe("Target duration in seconds (default: 30)"),
+      contentId: z
+        .number()
+        .describe("The generatedContent ID to generate video for"),
+      prompt: z
+        .string()
+        .optional()
+        .describe("Override prompt for video visuals (uses hook by default)"),
+      durationSeconds: z
+        .number()
+        .optional()
+        .describe("Target duration in seconds (default: 30)"),
       aspectRatio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
       provider: z.enum(["kling-fal", "runway", "image-ken-burns"]).optional(),
     }),
-    execute: async ({ contentId, prompt, durationSeconds, aspectRatio, provider }) => {
+    execute: async ({
+      contentId,
+      prompt,
+      durationSeconds,
+      aspectRatio,
+      provider,
+    }) => {
       try {
         const [content] = await db
-          .select({ id: generatedContent.id, generatedHook: generatedContent.generatedHook, prompt: generatedContent.prompt })
+          .select({
+            id: generatedContent.id,
+            generatedHook: generatedContent.generatedHook,
+            prompt: generatedContent.prompt,
+          })
           .from(generatedContent)
-          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
         if (!content) return { success: false as const, reason: "not_found" };
 
-        const resolvedPrompt = prompt?.trim() || content.generatedHook?.trim() || content.prompt?.trim();
-        if (!resolvedPrompt) return { success: false as const, reason: "no_prompt" };
+        const resolvedPrompt =
+          prompt?.trim() ||
+          content.generatedHook?.trim() ||
+          content.prompt?.trim();
+        if (!resolvedPrompt)
+          return { success: false as const, reason: "no_prompt" };
 
         const job = await videoJobService.createJob({
           userId: context.auth.user.id,
           generatedContentId: contentId,
           kind: "reel_generate",
-          request: { prompt: resolvedPrompt, durationSeconds, aspectRatio, provider },
+          request: {
+            prompt: resolvedPrompt,
+            durationSeconds,
+            aspectRatio,
+            provider,
+          },
         });
 
-        setTimeout(() => void runReelGeneration({ job, prompt: resolvedPrompt, durationSeconds, aspectRatio, provider: provider as VideoProvider | undefined }), 0);
+        setTimeout(
+          () =>
+            void runReelGeneration({
+              job,
+              prompt: resolvedPrompt,
+              durationSeconds,
+              aspectRatio,
+              provider: provider as VideoProvider | undefined,
+            }),
+          0,
+        );
 
-        debugLog.info("[tool:generate_video_reel] Job created", { service: "chat-tools", operation: "generate_video_reel", jobId: job.id, contentId });
+        debugLog.info("[tool:generate_video_reel] Job created", {
+          service: "chat-tools",
+          operation: "generate_video_reel",
+          jobId: job.id,
+          contentId,
+        });
         return { success: true as const, jobId: job.id, status: job.status };
       } catch (err) {
-        debugLog.error("[tool:generate_video_reel] Failed", { service: "chat-tools", operation: "generate_video_reel", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:generate_video_reel] Failed", {
+          service: "chat-tools",
+          operation: "generate_video_reel",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1148,7 +1220,9 @@ export function createGetVideoJobStatusTool(context: ToolContext) {
     description:
       "Check the status of a video generation job. Returns status (queued/running/completed/failed), progress (shotsCompleted/totalShots), and result URL if complete. Use this to report progress to the user after calling generate_video_reel, assemble_video, or regenerate_video_shot.",
     inputSchema: z.object({
-      jobId: z.string().describe("The job ID returned by a video generation tool"),
+      jobId: z
+        .string()
+        .describe("The job ID returned by a video generation tool"),
     }),
     execute: async ({ jobId }) => {
       try {
@@ -1175,19 +1249,48 @@ export function createAssembleVideoTool(context: ToolContext) {
     description:
       "Assemble existing video clips into a final reel with voiceover and music mixed in. Call this after the user has approved individual shots and wants to produce the final video. Returns a jobId — poll with get_video_job_status.",
     inputSchema: z.object({
-      contentId: z.number().describe("The generatedContent ID whose clips to assemble"),
+      contentId: z
+        .number()
+        .describe("The generatedContent ID whose clips to assemble"),
       includeCaptions: z.boolean().default(true),
-      voiceoverVolume: z.number().min(0).max(1).default(1).describe("Voiceover volume 0–1"),
-      musicVolume: z.number().min(0).max(1).default(0.22).describe("Background music volume 0–1"),
-      clipAudioVolume: z.number().min(0).max(1).default(0.35).describe("Clip audio volume 0–1"),
+      voiceoverVolume: z
+        .number()
+        .min(0)
+        .max(1)
+        .default(1)
+        .describe("Voiceover volume 0–1"),
+      musicVolume: z
+        .number()
+        .min(0)
+        .max(1)
+        .default(0.22)
+        .describe("Background music volume 0–1"),
+      clipAudioVolume: z
+        .number()
+        .min(0)
+        .max(1)
+        .default(0.35)
+        .describe("Clip audio volume 0–1"),
       includeClipAudio: z.boolean().default(true),
     }),
-    execute: async ({ contentId, includeCaptions, voiceoverVolume, musicVolume, clipAudioVolume, includeClipAudio }) => {
+    execute: async ({
+      contentId,
+      includeCaptions,
+      voiceoverVolume,
+      musicVolume,
+      clipAudioVolume,
+      includeClipAudio,
+    }) => {
       try {
         const [content] = await db
           .select({ id: generatedContent.id })
           .from(generatedContent)
-          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
         if (!content) return { success: false as const, reason: "not_found" };
@@ -1196,15 +1299,32 @@ export function createAssembleVideoTool(context: ToolContext) {
           userId: context.auth.user.id,
           generatedContentId: contentId,
           kind: "assemble",
-          request: { includeCaptions, audioMix: { includeClipAudio, clipAudioVolume, voiceoverVolume, musicVolume } },
+          request: {
+            includeCaptions,
+            audioMix: {
+              includeClipAudio,
+              clipAudioVolume,
+              voiceoverVolume,
+              musicVolume,
+            },
+          },
         });
 
         setTimeout(() => void runAssembleFromExistingClips({ job }), 0);
 
-        debugLog.info("[tool:assemble_video] Job created", { service: "chat-tools", operation: "assemble_video", jobId: job.id, contentId });
+        debugLog.info("[tool:assemble_video] Job created", {
+          service: "chat-tools",
+          operation: "assemble_video",
+          jobId: job.id,
+          contentId,
+        });
         return { success: true as const, jobId: job.id, status: job.status };
       } catch (err) {
-        debugLog.error("[tool:assemble_video] Failed", { service: "chat-tools", operation: "assemble_video", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:assemble_video] Failed", {
+          service: "chat-tools",
+          operation: "assemble_video",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1217,18 +1337,34 @@ export function createRegenerateVideoShotTool(context: ToolContext) {
       "Regenerate a single shot/scene in the storyboard. Use this when the user says a specific shot looks wrong, doesn't match the script, or wants a different visual for a particular scene. Returns a jobId.",
     inputSchema: z.object({
       contentId: z.number().describe("The generatedContent ID"),
-      shotIndex: z.number().int().min(0).describe("Zero-based index of the shot to regenerate"),
+      shotIndex: z
+        .number()
+        .int()
+        .min(0)
+        .describe("Zero-based index of the shot to regenerate"),
       prompt: z.string().describe("Visual description for the new shot"),
       durationSeconds: z.number().optional(),
       aspectRatio: z.enum(["9:16", "16:9", "1:1"]).optional(),
       provider: z.enum(["kling-fal", "runway", "image-ken-burns"]).optional(),
     }),
-    execute: async ({ contentId, shotIndex, prompt, durationSeconds, aspectRatio, provider }) => {
+    execute: async ({
+      contentId,
+      shotIndex,
+      prompt,
+      durationSeconds,
+      aspectRatio,
+      provider,
+    }) => {
       try {
         const [content] = await db
           .select({ id: generatedContent.id })
           .from(generatedContent)
-          .where(and(eq(generatedContent.id, contentId), eq(generatedContent.userId, context.auth.user.id)))
+          .where(
+            and(
+              eq(generatedContent.id, contentId),
+              eq(generatedContent.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
         if (!content) return { success: false as const, reason: "not_found" };
@@ -1237,14 +1373,35 @@ export function createRegenerateVideoShotTool(context: ToolContext) {
           userId: context.auth.user.id,
           generatedContentId: contentId,
           kind: "shot_regenerate",
-          request: { shotIndex, prompt, durationSeconds, aspectRatio, provider },
+          request: {
+            shotIndex,
+            prompt,
+            durationSeconds,
+            aspectRatio,
+            provider,
+          },
         });
 
-        setTimeout(() => void runShotRegenerate({ job, shotIndex, prompt, durationSeconds, aspectRatio, provider: provider as VideoProvider | undefined }), 0);
+        setTimeout(
+          () =>
+            void runShotRegenerate({
+              job,
+              shotIndex,
+              prompt,
+              durationSeconds,
+              aspectRatio,
+              provider: provider as VideoProvider | undefined,
+            }),
+          0,
+        );
 
         return { success: true as const, jobId: job.id, status: job.status };
       } catch (err) {
-        debugLog.error("[tool:regenerate_video_shot] Failed", { service: "chat-tools", operation: "regenerate_video_shot", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:regenerate_video_shot] Failed", {
+          service: "chat-tools",
+          operation: "regenerate_video_shot",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1261,8 +1418,10 @@ export function createRetryVideoJobTool(context: ToolContext) {
     execute: async ({ jobId }) => {
       try {
         const job = await videoJobService.getJob(jobId);
-        if (!job || job.userId !== context.auth.user.id) return { success: false as const, reason: "not_found" };
-        if (job.status !== "failed") return { success: false as const, reason: "job_not_failed" };
+        if (!job || job.userId !== context.auth.user.id)
+          return { success: false as const, reason: "not_found" };
+        if (job.status !== "failed")
+          return { success: false as const, reason: "job_not_failed" };
 
         const retryJob = await videoJobService.createJob({
           userId: job.userId,
@@ -1273,9 +1432,17 @@ export function createRetryVideoJobTool(context: ToolContext) {
 
         setTimeout(() => void getRetryRunner(job, retryJob)(), 0);
 
-        return { success: true as const, jobId: retryJob.id, status: retryJob.status };
+        return {
+          success: true as const,
+          jobId: retryJob.id,
+          status: retryJob.status,
+        };
       } catch (err) {
-        debugLog.error("[tool:retry_video_job] Failed", { service: "chat-tools", operation: "retry_video_job", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:retry_video_job] Failed", {
+          service: "chat-tools",
+          operation: "retry_video_job",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1289,7 +1456,9 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
     description:
       "Delete the voiceover audio from a draft. Use when the user says 'remove the voiceover', 'delete the audio', 'start over with the voice'. Also clears the voiceoverUrl field on the content.",
     inputSchema: z.object({
-      contentId: z.number().describe("The generatedContent ID whose voiceover to delete"),
+      contentId: z
+        .number()
+        .describe("The generatedContent ID whose voiceover to delete"),
     }),
     execute: async ({ contentId }) => {
       try {
@@ -1320,23 +1489,32 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
               eq(contentAssets.role, "voiceover"),
             ),
           );
-        await db.delete(assets).where(eq(assets.id, link.assetId)).catch(() => {});
+        await db
+          .delete(assets)
+          .where(eq(assets.id, link.assetId))
+          .catch(() => {});
 
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:delete_voiceover] Failed", { service: "chat-tools", operation: "delete_voiceover", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:delete_voiceover] Failed", {
+          service: "chat-tools",
+          operation: "delete_voiceover",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
   });
 }
 
-export function createRemoveMusicTool(context: ToolContext) {
+export function createRemoveMusicTool(_context: ToolContext) {
   return tool({
     description:
       "Remove the background music from a draft. Use when the user says 'remove the music', 'no background music', 'change the music' (remove first, then search_music + attach_music).",
     inputSchema: z.object({
-      contentId: z.number().describe("The generatedContent ID whose music to remove"),
+      contentId: z
+        .number()
+        .describe("The generatedContent ID whose music to remove"),
     }),
     execute: async ({ contentId }) => {
       try {
@@ -1365,7 +1543,11 @@ export function createRemoveMusicTool(context: ToolContext) {
 
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:remove_music] Failed", { service: "chat-tools", operation: "remove_music", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:remove_music] Failed", {
+          service: "chat-tools",
+          operation: "remove_music",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1379,14 +1561,21 @@ export function createRemoveFromQueueTool(context: ToolContext) {
     description:
       "Remove a content item from the queue entirely. Use when the user says 'delete this from the queue', 'remove this', 'I don't want to post this anymore'. Looks up the queue item by content ID.",
     inputSchema: z.object({
-      contentId: z.number().describe("The generatedContent ID whose queue item to remove"),
+      contentId: z
+        .number()
+        .describe("The generatedContent ID whose queue item to remove"),
     }),
     execute: async ({ contentId }) => {
       try {
         const [item] = await db
           .select({ id: queueItems.id })
           .from(queueItems)
-          .where(and(eq(queueItems.generatedContentId, contentId), eq(queueItems.userId, context.auth.user.id)))
+          .where(
+            and(
+              eq(queueItems.generatedContentId, contentId),
+              eq(queueItems.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
         if (!item) return { success: false as const, reason: "not_in_queue" };
@@ -1394,7 +1583,11 @@ export function createRemoveFromQueueTool(context: ToolContext) {
         await db.delete(queueItems).where(eq(queueItems.id, item.id));
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:remove_from_queue] Failed", { service: "chat-tools", operation: "remove_from_queue", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:remove_from_queue] Failed", {
+          service: "chat-tools",
+          operation: "remove_from_queue",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1407,33 +1600,54 @@ export function createScheduleContentTool(context: ToolContext) {
       "Schedule a queue item to be posted at a specific date and time, or attach an Instagram page. Use when the user says 'schedule this for Tuesday', 'post this at 9am', 'schedule for next week'. The scheduledFor must be a future ISO 8601 datetime string.",
     inputSchema: z.object({
       contentId: z.number().describe("The generatedContent ID to schedule"),
-      scheduledFor: z.string().describe("ISO 8601 datetime string (must be in the future)"),
-      instagramPageId: z.string().optional().describe("Instagram page ID to post to"),
+      scheduledFor: z
+        .string()
+        .describe("ISO 8601 datetime string (must be in the future)"),
+      instagramPageId: z
+        .string()
+        .optional()
+        .describe("Instagram page ID to post to"),
     }),
     execute: async ({ contentId, scheduledFor, instagramPageId }) => {
       try {
         const date = new Date(scheduledFor);
-        if (isNaN(date.getTime())) return { success: false as const, reason: "invalid_date" };
-        if (date <= new Date()) return { success: false as const, reason: "date_in_past" };
+        if (isNaN(date.getTime()))
+          return { success: false as const, reason: "invalid_date" };
+        if (date <= new Date())
+          return { success: false as const, reason: "date_in_past" };
 
         const [item] = await db
           .select({ id: queueItems.id, status: queueItems.status })
           .from(queueItems)
-          .where(and(eq(queueItems.generatedContentId, contentId), eq(queueItems.userId, context.auth.user.id)))
+          .where(
+            and(
+              eq(queueItems.generatedContentId, contentId),
+              eq(queueItems.userId, context.auth.user.id),
+            ),
+          )
           .limit(1);
 
         if (!item) return { success: false as const, reason: "not_in_queue" };
-        if (item.status === "posted") return { success: false as const, reason: "already_posted" };
+        if (item.status === "posted")
+          return { success: false as const, reason: "already_posted" };
 
         const updateData: Record<string, unknown> = { scheduledFor: date };
         if (instagramPageId) updateData.instagramPageId = instagramPageId;
-        if (item.status === "draft" || item.status === "ready") updateData.status = "scheduled";
+        if (item.status === "draft" || item.status === "ready")
+          updateData.status = "scheduled";
 
-        await db.update(queueItems).set(updateData).where(eq(queueItems.id, item.id));
+        await db
+          .update(queueItems)
+          .set(updateData)
+          .where(eq(queueItems.id, item.id));
 
         return { success: true as const, scheduledFor: date.toISOString() };
       } catch (err) {
-        debugLog.error("[tool:schedule_content] Failed", { service: "chat-tools", operation: "schedule_content", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:schedule_content] Failed", {
+          service: "chat-tools",
+          operation: "schedule_content",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1447,7 +1661,13 @@ export function createGetTrendingAudioTool(_context: ToolContext) {
     description:
       "Fetch trending audio tracks currently being used in reels. Use this when the user asks 'what music is trending?', 'what audio should I use?', 'what sounds are popular right now?'. Returns track names, artists, use counts, and trend direction.",
     inputSchema: z.object({
-      days: z.number().int().min(1).max(90).default(7).describe("Lookback window in days"),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(90)
+        .default(7)
+        .describe("Lookback window in days"),
       limit: z.number().int().min(1).max(20).default(10),
     }),
     execute: async ({ days, limit }) => {
@@ -1457,18 +1677,27 @@ export function createGetTrendingAudioTool(_context: ToolContext) {
         const trending = await db
           .select({
             audioName: reels.audioName,
-            artistName: reels.audioArtistName,
             useCount: sql<number>`count(*)::int`,
           })
           .from(reels)
           .where(and(isNotNull(reels.audioName), gte(reels.scrapedAt, cutoff)))
-          .groupBy(reels.audioName, reels.audioArtistName)
+          .groupBy(reels.audioName)
           .orderBy(desc(sql`count(*)`))
           .limit(limit);
 
-        return { tracks: trending.map(t => ({ audioName: t.audioName, artistName: t.artistName, useCount: t.useCount })) };
+        return {
+          tracks: trending.map((t) => ({
+            audioName: t.audioName,
+            artistName: null as string | null,
+            useCount: t.useCount,
+          })),
+        };
       } catch (err) {
-        debugLog.error("[tool:get_trending_audio] Failed", { service: "chat-tools", operation: "get_trending_audio", error: err instanceof Error ? err.message : "Unknown" });
+        debugLog.error("[tool:get_trending_audio] Failed", {
+          service: "chat-tools",
+          operation: "get_trending_audio",
+          error: err instanceof Error ? err.message : "Unknown",
+        });
         return { tracks: [] };
       }
     },
@@ -1488,7 +1717,9 @@ export function createGenerateImageTool(context: ToolContext) {
       size: z
         .enum(["square", "portrait", "landscape"])
         .default("portrait")
-        .describe("Image dimensions: square (1:1), portrait (9:16), landscape (16:9)"),
+        .describe(
+          "Image dimensions: square (1:1), portrait (9:16), landscape (16:9)",
+        ),
       quality: z
         .enum(["standard", "hd"])
         .default("standard")
@@ -1508,21 +1739,24 @@ export function createGenerateImageTool(context: ToolContext) {
 
         if (OPENAI_API_KEY) {
           // ── DALL-E 3 via OpenAI ──────────────────────────────────────────
-          const res = await fetch("https://api.openai.com/v1/images/generations", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${OPENAI_API_KEY}`,
-              "Content-Type": "application/json",
+          const res = await fetch(
+            "https://api.openai.com/v1/images/generations",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENAI_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "dall-e-3",
+                prompt,
+                n: 1,
+                size: dalleSize,
+                quality,
+                response_format: "url",
+              }),
             },
-            body: JSON.stringify({
-              model: "dall-e-3",
-              prompt,
-              n: 1,
-              size: dalleSize,
-              quality,
-              response_format: "url",
-            }),
-          });
+          );
 
           if (!res.ok) {
             const body = await res.text();
@@ -1580,7 +1814,8 @@ export function createGenerateImageTool(context: ToolContext) {
           return {
             success: false as const,
             reason: "no_image_provider",
-            message: "No image generation API key configured (OPENAI_API_KEY or FAL_API_KEY required)",
+            message:
+              "No image generation API key configured (OPENAI_API_KEY or FAL_API_KEY required)",
           };
         }
 
@@ -1675,10 +1910,7 @@ export function createChatTools(context: ToolContext) {
  * Finds the tip (the node with no children) in a single DB query
  * instead of an iterative loop.
  */
-async function resolveChainTip(
-  startId: number,
-  userId: string,
-) {
+async function resolveChainTip(startId: number, userId: string) {
   // Find the tip: the content row with startId as an ancestor (or itself)
   // that has no child pointing to it.
   // Strategy: fetch all descendants in one shot, then return the tail.

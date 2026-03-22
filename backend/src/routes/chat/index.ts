@@ -426,7 +426,8 @@ app.post(
     try {
       const auth = c.get("auth");
       const sessionId = c.req.param("id");
-      const { content, reelRefs, mediaRefs, activeContentId } = c.req.valid("json");
+      const { content, reelRefs, mediaRefs, activeContentId } =
+        c.req.valid("json");
 
       debugLog.info("[chat:sendMessage] Request received", {
         service: "chat-route",
@@ -569,7 +570,8 @@ app.post(
         systemPromptLength: systemPrompt.length,
       });
 
-      const { providerId: modelProvider, model: modelName } = await getModelInfo("generation");
+      const { providerId: modelProvider, model: modelName } =
+        await getModelInfo("generation");
       const streamStartMs = Date.now();
 
       debugLog.info("[chat:sendMessage] Starting AI stream", {

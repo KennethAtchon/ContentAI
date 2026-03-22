@@ -13,7 +13,7 @@ export function drawCaptionsOnCanvas(
   clip: Clip,
   currentTimeMs: number,
   canvasW: number,
-  canvasH: number,
+  canvasH: number
 ): void {
   if (!clip.captionWords?.length || !clip.captionPresetId) return;
 
@@ -24,7 +24,7 @@ export function drawCaptionsOnCanvas(
 
   // Find the word whose time range contains the current playhead
   const activeIdx = words.findIndex(
-    (w) => relativeMs >= w.startMs && relativeMs < w.endMs,
+    (w) => relativeMs >= w.startMs && relativeMs < w.endMs
   );
   if (activeIdx === -1) return;
 
@@ -71,7 +71,7 @@ function drawWordByWord(
   preset: ReturnType<typeof getCaptionPreset>,
   canvasW: number,
   y: number,
-  _fontSize: number,
+  _fontSize: number
 ): void {
   const spaceWidth = ctx.measureText(" ").width;
   const wordMeasurements = group.map((w) => ({
@@ -115,7 +115,7 @@ function drawSimpleText(
   text: string,
   preset: ReturnType<typeof getCaptionPreset>,
   canvasW: number,
-  y: number,
+  y: number
 ): void {
   if (preset.outlineWidth > 0) {
     ctx.strokeStyle = preset.outlineColor ?? "#000000";

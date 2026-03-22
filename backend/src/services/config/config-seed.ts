@@ -160,21 +160,24 @@ function buildSeedEntries(): SeedEntry[] {
       key: "runway_model",
       value: RUNWAY_MODEL || "gen3a_turbo",
       valueType: "string",
-      description: "Runway model: gen3a_turbo or gen3a (overridden by RUNWAY_MODEL env var)",
+      description:
+        "Runway model: gen3a_turbo or gen3a (overridden by RUNWAY_MODEL env var)",
     },
     {
       category: "video",
       key: "kling_model",
       value: KLING_MODEL || "fal-ai/kling-video/v2.1/standard/text-to-video",
       valueType: "string",
-      description: "Kling model endpoint on fal.ai (overridden by KLING_MODEL env var)",
+      description:
+        "Kling model endpoint on fal.ai (overridden by KLING_MODEL env var)",
     },
     {
       category: "video",
       key: "flux_model",
       value: FLUX_MODEL || "fal-ai/flux/schnell",
       valueType: "string",
-      description: "FLUX model for image+ken-burns provider (overridden by FLUX_MODEL env var)",
+      description:
+        "FLUX model for image+ken-burns provider (overridden by FLUX_MODEL env var)",
     },
 
     // ── Subscription ───────────────────────────────────────────────────────────

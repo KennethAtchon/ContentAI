@@ -31,8 +31,14 @@ export function useRegenerateShotInEditor(editorStore: EditorStore) {
     refetchInterval: 2000,
     select: (data) => {
       const job = data.job;
-      if (job.status === "completed" && job.result?.clipAssetId && activeClipId) {
-        editorStore.updateClip(activeClipId, { assetId: job.result.clipAssetId });
+      if (
+        job.status === "completed" &&
+        job.result?.clipAssetId &&
+        activeClipId
+      ) {
+        editorStore.updateClip(activeClipId, {
+          assetId: job.result.clipAssetId,
+        });
         setActiveJobId(null);
         setActiveClipId(null);
       }
@@ -56,7 +62,7 @@ export function useRegenerateShotInEditor(editorStore: EditorStore) {
         {
           method: "POST",
           body: JSON.stringify({ generatedContentId, shotIndex, prompt }),
-        },
+        }
       );
       setActiveJobId(result.jobId);
       setActiveClipId(clipId);

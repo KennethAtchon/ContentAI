@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { tmpdir } from "os";
 import { join } from "path";
 import { existsSync, mkdirSync, rmSync, unlinkSync } from "fs";
@@ -34,6 +34,7 @@ import {
   parseScriptShots,
   type ShotInput,
 } from "./utils";
+import { buildInitialTimeline } from "../editor/services/build-initial-timeline";
 
 const app = new Hono<HonoEnv>();
 
@@ -423,76 +424,6 @@ async function _validateTimeline(input: {
   }
 
   return issues;
-}
-
-async function _buildInitialTimeline(input: {
-  userId: string;
-  generatedContentId: number;
-}): Promise<TimelinePayload> {
-  const videoAssets = await loadShotAssets(
-    input.userId,
-    input.generatedContentId,
-  );
-  const auxAudio = await loadAuxAudioAssets(
-    input.userId,
-    input.generatedContentId,
-  );
-
-  let cursor = 0;
-  const video = videoAssets.map((asset, idx) => {
-    const durationMs = Math.max(1, asset.durationMs ?? 5000);
-    const item = {
-      id: `clip-${idx + 1}`,
-      assetId: asset.id,
-      lane: 0,
-      startMs: cursor,
-      endMs: cursor + durationMs,
-      trimStartMs: 0,
-      trimEndMs: durationMs,
-    };
-    cursor += durationMs;
-    return item;
-  });
-
-  const durationMs = Math.min(Math.max(cursor, 1000), 180_000);
-  const audio: Array<z.infer<typeof timelineItemSchema>> = [];
-
-  if (auxAudio.voiceover) {
-    const voiceoverDurationMs = auxAudio.voiceover.durationMs
-      ? Math.min(auxAudio.voiceover.durationMs, durationMs)
-      : durationMs;
-    audio.push({
-      id: "voiceover-main",
-      assetId: auxAudio.voiceover.id,
-      role: "voiceover",
-      startMs: 0,
-      endMs: voiceoverDurationMs,
-    });
-  }
-  if (auxAudio.music) {
-    const musicDurationMs = auxAudio.music.durationMs
-      ? Math.min(auxAudio.music.durationMs, durationMs)
-      : durationMs;
-    audio.push({
-      id: "music-main",
-      assetId: auxAudio.music.id,
-      role: "music",
-      startMs: 0,
-      endMs: musicDurationMs,
-    });
-  }
-
-  return {
-    schemaVersion: 1,
-    fps: 30,
-    durationMs,
-    tracks: {
-      video,
-      audio,
-      text: [],
-      captions: [],
-    },
-  };
 }
 
 function _normalizeTimelineForPersistence(
@@ -908,7 +839,7 @@ async function fetchOwnedContent(
   generatedContentId: number,
 ): Promise<{
   id: number;
-  prompt: string;
+  prompt: string | null;
   generatedHook: string | null;
   generatedScript: string | null;
   cleanScriptForAudio: string | null;
@@ -950,51 +881,57 @@ async function upsertAssembledAsset(input: {
   durationMs: number;
   metadata: Record<string, unknown>;
 }): Promise<string> {
-  // Find and delete any previously assembled assets to avoid stale row accumulation.
-  const existingLinks = await db
-    .select({ assetId: contentAssets.assetId })
-    .from(contentAssets)
-    .where(
-      and(
-        eq(contentAssets.generatedContentId, input.generatedContentId),
-        eq(contentAssets.role, "assembled_video"),
-      ),
-    );
-
-  if (existingLinks.length > 0) {
-    await db
-      .delete(contentAssets)
+  return db.transaction(async (tx) => {
+    // Find and delete any previously assembled assets within the same transaction
+    // so there is never a window where no assembled_video row exists.
+    const existingLinks = await tx
+      .select({ assetId: contentAssets.assetId })
+      .from(contentAssets)
       .where(
         and(
           eq(contentAssets.generatedContentId, input.generatedContentId),
           eq(contentAssets.role, "assembled_video"),
         ),
       );
-    for (const link of existingLinks) {
-      await db.delete(assets).where(eq(assets.id, link.assetId)).catch(() => {});
+
+    if (existingLinks.length > 0) {
+      await tx
+        .delete(contentAssets)
+        .where(
+          and(
+            eq(contentAssets.generatedContentId, input.generatedContentId),
+            eq(contentAssets.role, "assembled_video"),
+          ),
+        );
+      for (const link of existingLinks) {
+        await tx
+          .delete(assets)
+          .where(eq(assets.id, link.assetId))
+          .catch(() => {});
+      }
     }
-  }
 
-  const [assembled] = await db
-    .insert(assets)
-    .values({
-      userId: input.userId,
-      type: "assembled_video",
-      source: "generated",
-      r2Key: input.r2Key,
-      r2Url: input.r2Url,
-      durationMs: input.durationMs,
-      metadata: input.metadata,
-    })
-    .returning({ id: assets.id });
+    const [assembled] = await tx
+      .insert(assets)
+      .values({
+        userId: input.userId,
+        type: "assembled_video",
+        source: "generated",
+        r2Key: input.r2Key,
+        r2Url: input.r2Url,
+        durationMs: input.durationMs,
+        metadata: input.metadata,
+      })
+      .returning({ id: assets.id });
 
-  await db.insert(contentAssets).values({
-    generatedContentId: input.generatedContentId,
-    assetId: assembled.id,
-    role: "assembled_video",
+    await tx.insert(contentAssets).values({
+      generatedContentId: input.generatedContentId,
+      assetId: assembled.id,
+      role: "assembled_video",
+    });
+
+    return assembled.id;
   });
-
-  return assembled.id;
 }
 
 async function loadShotAssets(userId: string, generatedContentId: number) {
@@ -1582,7 +1519,10 @@ export async function runShotRegenerate(input: {
           ),
         );
       for (const assetId of staleIds) {
-        await db.delete(assets).where(eq(assets.id, assetId)).catch(() => {});
+        await db
+          .delete(assets)
+          .where(eq(assets.id, assetId))
+          .catch(() => {});
       }
     }
 
@@ -1826,80 +1766,34 @@ app.post(
   },
 );
 
-function _convertTimelineToEditorTracks(
-  timeline: TimelinePayload,
-  audioMix?: { clipAudioVolume?: number; voiceoverVolume?: number; musicVolume?: number },
+function applyAudioMix(
+  tracks: Array<
+    {
+      type: string;
+      clips: Array<{ volume: number } & Record<string, unknown>>;
+    } & Record<string, unknown>
+  >,
+  audioMix?: {
+    clipAudioVolume?: number;
+    voiceoverVolume?: number;
+    musicVolume?: number;
+  },
 ) {
-  const videoClips = timeline.tracks.video.map((item) => ({
-    id: item.id,
-    assetId: item.assetId ?? null,
-    label: "Clip",
-    startMs: item.startMs,
-    durationMs: item.endMs - item.startMs,
-    trimStartMs: 0,
-    trimEndMs: item.endMs - item.startMs,
-    speed: 1,
-    opacity: 1,
-    warmth: 0,
-    contrast: 0,
-    positionX: 0,
-    positionY: 0,
-    scale: 1,
-    rotation: 0,
-    volume: audioMix?.clipAudioVolume ?? 1,
-    muted: false,
+  if (!audioMix) return tracks;
+  return tracks.map((track) => ({
+    ...track,
+    clips: track.clips.map((clip) => ({
+      ...clip,
+      volume:
+        track.type === "video"
+          ? (audioMix.clipAudioVolume ?? clip.volume)
+          : track.type === "audio"
+            ? (audioMix.voiceoverVolume ?? clip.volume)
+            : track.type === "music"
+              ? (audioMix.musicVolume ?? clip.volume)
+              : clip.volume,
+    })),
   }));
-
-  const audioClips = timeline.tracks.audio
-    .filter((item) => (item as Record<string, unknown>).role === "voiceover")
-    .map((item) => ({
-      id: item.id,
-      assetId: item.assetId ?? null,
-      label: "Voiceover",
-      startMs: item.startMs,
-      durationMs: item.endMs - item.startMs,
-      trimStartMs: 0,
-      trimEndMs: item.endMs - item.startMs,
-      speed: 1,
-      opacity: 1,
-      warmth: 0,
-      contrast: 0,
-      positionX: 0,
-      positionY: 0,
-      scale: 1,
-      rotation: 0,
-      volume: audioMix?.voiceoverVolume ?? 1,
-      muted: false,
-    }));
-
-  const musicClips = timeline.tracks.audio
-    .filter((item) => (item as Record<string, unknown>).role === "music")
-    .map((item) => ({
-      id: item.id,
-      assetId: item.assetId ?? null,
-      label: "Music",
-      startMs: item.startMs,
-      durationMs: item.endMs - item.startMs,
-      trimStartMs: 0,
-      trimEndMs: item.endMs - item.startMs,
-      speed: 1,
-      opacity: 1,
-      warmth: 0,
-      contrast: 0,
-      positionX: 0,
-      positionY: 0,
-      scale: 1,
-      rotation: 0,
-      volume: audioMix?.musicVolume ?? 0.25,
-      muted: false,
-    }));
-
-  return [
-    { id: "video", type: "video", name: "Video", muted: false, locked: false, clips: videoClips, transitions: [] },
-    { id: "audio", type: "audio", name: "Audio", muted: false, locked: false, clips: audioClips, transitions: [] },
-    { id: "music", type: "music", name: "Music", muted: false, locked: false, clips: musicClips, transitions: [] },
-    { id: "text", type: "text", name: "Text", muted: false, locked: false, clips: [], transitions: [] },
-  ];
 }
 
 // POST /api/video/assemble
@@ -1942,7 +1836,8 @@ app.post(
         return c.json({ error: "Content not found" }, 404);
       }
 
-      // Return existing project if already created for this content
+      // Return existing root project if already created for this content.
+      // isNull(parentProjectId) ensures snapshots (Phase 8) are never returned.
       const [existing] = await db
         .select()
         .from(editProjects)
@@ -1950,41 +1845,73 @@ app.post(
           and(
             eq(editProjects.userId, auth.user.id),
             eq(editProjects.generatedContentId, payload.generatedContentId),
+            isNull(editProjects.parentProjectId),
           ),
         )
         .limit(1);
 
       if (existing) {
+        // Editor is the source of truth — do NOT overwrite manual edits.
         return c.json({
           editorProjectId: existing.id,
           redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
         });
       }
 
-      // Build timeline from generated assets
-      const timeline = await _buildInitialTimeline({
-        userId: auth.user.id,
-        generatedContentId: payload.generatedContentId,
-      });
+      // First assembly: build timeline from current assets.
+      const { tracks: rawTracks, durationMs } = await buildInitialTimeline(
+        payload.generatedContentId,
+        auth.user.id,
+      );
 
-      const tracks = _convertTimelineToEditorTracks(timeline, payload.audioMix);
+      // Check for empty asset set before inserting.
+      const hasClips = rawTracks.some((t) => t.clips.length > 0);
+      if (!hasClips) {
+        return c.json({ error: "No assets ready to assemble" }, 422);
+      }
 
-      const [project] = await db
+      const tracks = applyAudioMix(
+        rawTracks as unknown as Parameters<typeof applyAudioMix>[0],
+        payload.audioMix,
+      );
+
+      // onConflictDoNothing handles two concurrent first-assembly requests:
+      // the second INSERT is silently discarded and we re-fetch below.
+      const [created] = await db
         .insert(editProjects)
         .values({
           userId: auth.user.id,
-          title: content.title ?? "Assembled Reel",
+          title: content.generatedHook ?? "Assembled Reel",
           generatedContentId: payload.generatedContentId,
           tracks,
-          durationMs: timeline.durationMs,
-          fps: timeline.fps,
+          durationMs,
           resolution: "1080x1920",
           status: "draft",
         })
-        .returning();
+        .onConflictDoNothing()
+        .returning({ id: editProjects.id });
+
+      const projectId =
+        created?.id ??
+        (await db
+          .select({ id: editProjects.id })
+          .from(editProjects)
+          .where(
+            and(
+              eq(editProjects.userId, auth.user.id),
+              eq(editProjects.generatedContentId, payload.generatedContentId),
+              isNull(editProjects.parentProjectId),
+            ),
+          )
+          .limit(1)
+          .then((r) => r[0]?.id));
+
+      if (!projectId) {
+        return c.json({ error: "Failed to create editor project" }, 500);
+      }
 
       return c.json({
-        editorProjectId: project.id,
+        editorProjectId: projectId,
         redirectUrl: `/studio/editor?contentId=${payload.generatedContentId}`,
       });
     } catch (error) {

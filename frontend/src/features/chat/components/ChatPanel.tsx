@@ -24,7 +24,11 @@ import type { Reel } from "@/features/reels/types/reel.types";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
-  onSendMessage: (content: string, reelRefs?: number[], mediaRefs?: string[]) => void;
+  onSendMessage: (
+    content: string,
+    reelRefs?: number[],
+    mediaRefs?: string[]
+  ) => void;
   isStreaming?: boolean;
   streamingMessageId?: string;
   streamError?: string | null;
@@ -256,7 +260,8 @@ export function ChatPanel({
               {aiDefaults?.generationModel && (
                 <p className="mt-2 text-center text-[11px] text-muted-foreground/40">
                   {aiDefaults.generationModel}
-                  {aiDefaults.supportsVision && ` · ${t("studio_chat_capabilities_images")}`}
+                  {aiDefaults.supportsVision &&
+                    ` · ${t("studio_chat_capabilities_images")}`}
                 </p>
               )}
             </>

@@ -20,7 +20,7 @@ export function useAutoCaption() {
         {
           method: "POST",
           body: JSON.stringify({ assetId }),
-        },
+        }
       );
     },
   });

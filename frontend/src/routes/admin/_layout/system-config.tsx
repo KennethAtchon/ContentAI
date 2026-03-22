@@ -468,7 +468,9 @@ function ProviderPriorityList({
       {description && <p className="text-xs text-dim-3">{description}</p>}
       <div className="space-y-1.5">
         {items.map((item, idx) => {
-          const isActive = providerStatus ? (providerStatus[item] ?? false) : undefined;
+          const isActive = providerStatus
+            ? (providerStatus[item] ?? false)
+            : undefined;
           return (
             <div
               key={item}
@@ -490,7 +492,9 @@ function ProviderPriorityList({
                   <Circle
                     className={cn(
                       "h-2 w-2",
-                      isActive ? "fill-green-400 text-green-400" : "fill-dim-3 text-dim-3"
+                      isActive
+                        ? "fill-green-400 text-green-400"
+                        : "fill-dim-3 text-dim-3"
                     )}
                   />
                   {isActive ? "Active" : "No key"}
@@ -626,7 +630,10 @@ function AiProviderOverview() {
       <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden animate-pulse">
         <div className="px-4 py-3 border-b border-overlay-sm h-11 bg-overlay-xs" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0">
+          <div
+            key={i}
+            className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0"
+          >
             <div className="h-4 w-32 bg-overlay-sm rounded mb-2" />
             <div className="h-3 w-48 bg-overlay-xs rounded" />
           </div>
@@ -678,17 +685,23 @@ function AiProviderOverview() {
                   {singleModelProviders.has(provider.id) ? (
                     <p className="text-xs text-dim-2">
                       <span className="text-dim-3">Model —</span>{" "}
-                      <span className="font-mono">{provider.analysisModel}</span>
+                      <span className="font-mono">
+                        {provider.analysisModel}
+                      </span>
                     </p>
                   ) : (
                     <>
                       <p className="text-xs text-dim-2">
                         <span className="text-dim-3">Analysis —</span>{" "}
-                        <span className="font-mono">{provider.analysisModel}</span>
+                        <span className="font-mono">
+                          {provider.analysisModel}
+                        </span>
                       </p>
                       <p className="text-xs text-dim-2">
                         <span className="text-dim-3">Generation —</span>{" "}
-                        <span className="font-mono">{provider.generationModel}</span>
+                        <span className="font-mono">
+                          {provider.generationModel}
+                        </span>
                       </p>
                     </>
                   )}
@@ -762,7 +775,9 @@ function AiTabContent({
 
   const providerStatus: Record<string, boolean> = React.useMemo(() => {
     if (!statusData) return {};
-    return Object.fromEntries(statusData.providers.map((p) => [p.id, p.active]));
+    return Object.fromEntries(
+      statusData.providers.map((p) => [p.id, p.active])
+    );
   }, [statusData]);
 
   return (
@@ -788,7 +803,11 @@ function AiTabContent({
 
       <Section
         title="Claude Models"
-        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.claude ?? false} /> : undefined}
+        headerRight={
+          statusData ? (
+            <ProviderStatusBadge active={providerStatus.claude ?? false} />
+          ) : undefined
+        }
       >
         <ConfigTextField
           label="Analysis Model"
@@ -808,7 +827,11 @@ function AiTabContent({
 
       <Section
         title="OpenAI"
-        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.openai ?? false} /> : undefined}
+        headerRight={
+          statusData ? (
+            <ProviderStatusBadge active={providerStatus.openai ?? false} />
+          ) : undefined
+        }
       >
         <ConfigTextField
           label="Model"
@@ -820,7 +843,11 @@ function AiTabContent({
 
       <Section
         title="OpenRouter"
-        headerRight={statusData ? <ProviderStatusBadge active={providerStatus.openrouter ?? false} /> : undefined}
+        headerRight={
+          statusData ? (
+            <ProviderStatusBadge active={providerStatus.openrouter ?? false} />
+          ) : undefined
+        }
       >
         <ConfigTextField
           label="Model"
@@ -881,7 +908,10 @@ function VideoProviderOverview() {
       <div className="rounded-xl border border-overlay-sm bg-studio-surface overflow-hidden animate-pulse">
         <div className="px-4 py-3 border-b border-overlay-sm h-11 bg-overlay-xs" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0">
+          <div
+            key={i}
+            className="px-4 py-3 h-14 border-b border-overlay-sm last:border-0"
+          >
             <div className="h-4 w-32 bg-overlay-sm rounded mb-2" />
             <div className="h-3 w-48 bg-overlay-xs rounded" />
           </div>
@@ -919,11 +949,17 @@ function VideoProviderOverview() {
                 </span>
                 <ProviderStatusBadge active={provider.active} />
                 {provider.id === configuredDefault && (
-                  <span className={cn(
-                    "text-xs font-medium",
-                    provider.id === defaultProvider ? "text-studio-accent" : "text-dim-3"
-                  )}>
-                    {provider.id === defaultProvider ? "default" : "configured default — unavailable"}
+                  <span
+                    className={cn(
+                      "text-xs font-medium",
+                      provider.id === defaultProvider
+                        ? "text-studio-accent"
+                        : "text-dim-3"
+                    )}
+                  >
+                    {provider.id === defaultProvider
+                      ? "default"
+                      : "configured default — unavailable"}
                   </span>
                 )}
               </div>
@@ -1736,7 +1772,9 @@ function ApiKeysTab() {
 
   if (isLoading || statusLoading) return <TabSkeleton />;
 
-  const configuredCount = API_KEY_ROWS.filter((r) => isConfigured(r.key)).length;
+  const configuredCount = API_KEY_ROWS.filter((r) =>
+    isConfigured(r.key)
+  ).length;
 
   return (
     <div className="space-y-5">
@@ -1772,7 +1810,9 @@ function ApiKeysTab() {
               source={getSource(row.key)}
               onSave={async (value) => {
                 await updateEntry(row.key, value);
-                await queryClient.invalidateQueries({ queryKey: queryKeys.api.admin.apiKeysStatus() });
+                await queryClient.invalidateQueries({
+                  queryKey: queryKeys.api.admin.apiKeysStatus(),
+                });
               }}
             />
           ))}

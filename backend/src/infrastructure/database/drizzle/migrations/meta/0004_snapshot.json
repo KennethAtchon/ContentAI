@@ -1,6 +1,6 @@
 {
-  "id": "d0c2d9f5-7522-4f72-9a41-b990a52d6d3d",
-  "prevId": "0ec31f57-fd0d-4773-a13a-c19c402860a1",
+  "id": "c55ef2f3-5989-4e32-8ae9-55aecd8800ca",
+  "prevId": "338045c3-28f6-4c22-8301-683c3123cf4e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -894,8 +894,8 @@
           "method": "btree",
           "with": {}
         },
-        "edit_project_unique_content": {
-          "name": "edit_project_unique_content",
+        "edit_project_unique_content_root": {
+          "name": "edit_project_unique_content_root",
           "columns": [
             {
               "expression": "user_id",
@@ -911,7 +911,7 @@
             }
           ],
           "isUnique": true,
-          "where": "generated_content_id IS NOT NULL",
+          "where": "parent_project_id IS NULL AND generated_content_id IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1190,7 +1190,7 @@
           "name": "prompt",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "generated_hook": {
           "name": "generated_hook",

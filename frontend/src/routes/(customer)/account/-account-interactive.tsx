@@ -694,13 +694,17 @@ function UserPreferences() {
 
   const { data: aiDefaults } = useQuery<AiDefaultsData>({
     queryKey: queryKeys.api.aiDefaults(),
-    queryFn: () => fetcher("/api/customer/settings/ai-defaults") as Promise<AiDefaultsData>,
+    queryFn: () =>
+      fetcher("/api/customer/settings/ai-defaults") as Promise<AiDefaultsData>,
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: videoDefaults } = useQuery<VideoDefaultsData>({
     queryKey: queryKeys.api.videoDefaults(),
-    queryFn: () => fetcher("/api/customer/settings/video-defaults") as Promise<VideoDefaultsData>,
+    queryFn: () =>
+      fetcher(
+        "/api/customer/settings/video-defaults"
+      ) as Promise<VideoDefaultsData>,
     staleTime: 5 * 60 * 1000,
   });
 

@@ -45,12 +45,10 @@ export const queryKeys = {
         ["api", "admin", "niche-jobs", nicheId] as const,
       systemConfig: (category?: string) =>
         ["api", "admin", "system-config", category] as const,
-      aiProvidersStatus: () =>
-        ["api", "admin", "ai-providers-status"] as const,
+      aiProvidersStatus: () => ["api", "admin", "ai-providers-status"] as const,
       videoProvidersStatus: () =>
         ["api", "admin", "video-providers-status"] as const,
-      apiKeysStatus: () =>
-        ["api", "admin", "api-keys-status"] as const,
+      apiKeysStatus: () => ["api", "admin", "api-keys-status"] as const,
     },
     aiDefaults: () => ["api", "customer", "ai-defaults"] as const,
     videoDefaults: () => ["api", "customer", "video-defaults"] as const,
@@ -108,6 +106,8 @@ export const queryKeys = {
       ["captions", "asset", assetId] as const,
     editorByContent: (contentId?: number) =>
       ["api", "editor", "by-content", contentId] as const,
+    editorAssets: (contentId?: number) =>
+      ["api", "editor", "assets", contentId] as const,
 
     mediaLibrary: () => ["api", "media", "library"] as const,
 

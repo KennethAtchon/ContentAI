@@ -67,7 +67,7 @@ export interface Track {
 export interface EditProject {
   id: string;
   userId: string;
-  title: string;
+  title: string | null;
   generatedContentId: number | null;
   tracks: Track[];
   durationMs: number;
@@ -78,6 +78,9 @@ export interface EditProject {
   status: "draft" | "published";
   publishedAt: string | null;
   parentProjectId: string | null;
+  // From linked generated_content (null for blank / list-view responses)
+  generatedHook?: string | null;
+  generatedCaption?: string | null;
 }
 
 export interface ExportJobStatus {
@@ -137,7 +140,14 @@ export type EditorAction =
       startMs: number;
       durationMs: number;
     }
-  | { type: "SET_TRANSITION"; trackId: string; clipAId: string; clipBId: string; transitionType: Transition["type"]; durationMs: number }
+  | {
+      type: "SET_TRANSITION";
+      trackId: string;
+      clipAId: string;
+      clipBId: string;
+      transitionType: Transition["type"];
+      durationMs: number;
+    }
   | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
   | { type: "REORDER_SHOTS"; clipIds: string[] };
 

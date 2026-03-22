@@ -123,9 +123,7 @@ export function ChatInput({
     }
   };
 
-  async function handleVideoFileChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  async function handleVideoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     // Reset input so same file can be re-selected

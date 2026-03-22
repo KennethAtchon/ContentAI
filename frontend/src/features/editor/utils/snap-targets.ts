@@ -13,7 +13,7 @@ export const SNAP_THRESHOLD_PX = 10;
 export function collectSnapTargets(
   tracks: Track[],
   excludeClipId: string,
-  playheadMs: number,
+  playheadMs: number
 ): number[] {
   const set = new Set<number>();
   set.add(0);
@@ -37,7 +37,7 @@ export function collectSnapTargets(
 export function findNearestSnap(
   ms: number,
   targets: number[],
-  thresholdMs: number,
+  thresholdMs: number
 ): number | null {
   let best: number | null = null;
   let bestDist = thresholdMs;

@@ -9,18 +9,14 @@ import type { HonoEnv } from "../../middleware/protection";
 import { db } from "../../services/db/db";
 import { assets } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
-import {
-  uploadFile,
-  deleteFile,
-  getFileUrl,
-} from "../../services/storage/r2";
+import { uploadFile, deleteFile, getFileUrl } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 
 const app = new Hono<HonoEnv>();
 
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB
-const MAX_AUDIO_BYTES = 50 * 1024 * 1024;  // 50 MB
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;  // 10 MB
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 const ALLOWED_VIDEO_MIMES = new Set(["video/mp4", "video/quicktime"]);
 const ALLOWED_AUDIO_MIMES = new Set(["audio/mpeg", "audio/wav", "audio/mp4"]);
@@ -47,7 +43,9 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
     const items = await db
       .select()
       .from(assets)
-      .where(and(eq(assets.userId, auth.user.id), eq(assets.source, "uploaded")))
+      .where(
+        and(eq(assets.userId, auth.user.id), eq(assets.source, "uploaded")),
+      )
       .orderBy(desc(assets.createdAt));
 
     const itemsWithUrls = await Promise.all(
@@ -106,10 +104,7 @@ app.post(
       const maxBytes = getMaxBytes(mediaType);
       if (fileEntry.size > maxBytes) {
         const limitMb = maxBytes / (1024 * 1024);
-        return c.json(
-          { error: `File exceeds ${limitMb}MB limit` },
-          400,
-        );
+        return c.json({ error: `File exceeds ${limitMb}MB limit` }, 400);
       }
 
       const ext = fileEntry.name.includes(".")
@@ -124,7 +119,7 @@ app.post(
       const name =
         nameOverride instanceof File
           ? fileEntry.name
-          : (nameOverride as string | null) ?? fileEntry.name;
+          : ((nameOverride as string | null) ?? fileEntry.name);
 
       const [item] = await db
         .insert(assets)

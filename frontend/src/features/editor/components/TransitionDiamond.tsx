@@ -8,7 +8,13 @@ interface Props {
   onSelect: () => void;
 }
 
-export function TransitionDiamond({ clipA, clipB, transition, zoom, onSelect }: Props) {
+export function TransitionDiamond({
+  clipA,
+  clipB,
+  transition,
+  zoom,
+  onSelect,
+}: Props) {
   const gapStartPx = ((clipA.startMs + clipA.durationMs) / 1000) * zoom;
   const gapEndPx = (clipB.startMs / 1000) * zoom;
   const midPx = (gapStartPx + gapEndPx) / 2;

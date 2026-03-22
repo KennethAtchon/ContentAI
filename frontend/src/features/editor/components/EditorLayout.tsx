@@ -73,7 +73,9 @@ export function EditorLayout({ project, onBack }: Props) {
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
   const [showAiMenu, setShowAiMenu] = useState(false);
-  const [selectedTransitionKey, setSelectedTransitionKey] = useState<[string, string, string] | null>(null);
+  const [selectedTransitionKey, setSelectedTransitionKey] = useState<
+    [string, string, string] | null
+  >(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load project on mount
@@ -121,7 +123,11 @@ export function EditorLayout({ project, onBack }: Props) {
 
   const { mutate: publishProject, isPending: isPublishing } = useMutation({
     mutationFn: () =>
-      authenticatedFetchJson<{ id: string; status: string; publishedAt: string }>(`/api/editor/${project.id}/publish`, {
+      authenticatedFetchJson<{
+        id: string;
+        status: string;
+        publishedAt: string;
+      }>(`/api/editor/${project.id}/publish`, {
         method: "POST",
       }),
     onSuccess: (res) => {
@@ -139,9 +145,12 @@ export function EditorLayout({ project, onBack }: Props) {
 
   const { mutate: createNewDraft, isPending: isCreatingDraft } = useMutation({
     mutationFn: () =>
-      authenticatedFetchJson<{ project: EditProject }>(`/api/editor/${project.id}/new-draft`, {
-        method: "POST",
-      }),
+      authenticatedFetchJson<{ project: EditProject }>(
+        `/api/editor/${project.id}/new-draft`,
+        {
+          method: "POST",
+        }
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.api.editorProjects(),
@@ -152,13 +161,13 @@ export function EditorLayout({ project, onBack }: Props) {
 
   const { mutate: aiAssemble, isPending: isAiAssembling } = useMutation({
     mutationFn: (platform: string) =>
-      authenticatedFetchJson<{ timeline: EditProject["tracks"]; fallback: boolean }>(
-        `/api/editor/${project.id}/ai-assemble`,
-        {
-          method: "POST",
-          body: JSON.stringify({ platform }),
-        },
-      ),
+      authenticatedFetchJson<{
+        timeline: EditProject["tracks"];
+        fallback: boolean;
+      }>(`/api/editor/${project.id}/ai-assemble`, {
+        method: "POST",
+        body: JSON.stringify({ platform }),
+      }),
     onSuccess: (res) => {
       store.loadProject({ ...project, tracks: res.timeline });
     },
@@ -169,7 +178,7 @@ export function EditorLayout({ project, onBack }: Props) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => save(patch), 2000);
     },
-    [save],
+    [save]
   );
 
   useEffect(() => {
@@ -181,7 +190,7 @@ export function EditorLayout({ project, onBack }: Props) {
   // ── Playback ────────────────────────────────────────────────────────────────
   const onTick = useCallback(
     (ms: number) => store.setCurrentTime(ms),
-    [store.setCurrentTime],
+    [store.setCurrentTime]
   );
   const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
   usePlayback({
@@ -195,17 +204,17 @@ export function EditorLayout({ project, onBack }: Props) {
   // ── Clip actions (trigger auto-save via tracks effect) ──────────────────────
   const handleAddClip = useCallback(
     (trackId: string, clip: Clip) => store.addClip(trackId, clip),
-    [store.addClip],
+    [store.addClip]
   );
 
   const handleUpdateClip = useCallback(
     (clipId: string, patch: Partial<Clip>) => store.updateClip(clipId, patch),
-    [store.updateClip],
+    [store.updateClip]
   );
 
   const handleRemoveClip = useCallback(
     (clipId: string) => store.removeClip(clipId),
-    [store.removeClip],
+    [store.removeClip]
   );
 
   const handleSelectTransition = useCallback(
@@ -215,16 +224,18 @@ export function EditorLayout({ project, onBack }: Props) {
       store.setTransition(trackId, clipAId, clipBId, "none", 500);
       setSelectedTransitionKey([trackId, clipAId, clipBId]);
     },
-    [store.selectClip, store.setTransition],
+    [store.selectClip, store.setTransition]
   );
 
   const selectedTransition = selectedTransitionKey
     ? (() => {
         const [trackId, clipAId, clipBId] = selectedTransitionKey;
         const track = store.state.tracks.find((t) => t.id === trackId);
-        return (track?.transitions ?? []).find(
-          (t) => t.clipAId === clipAId && t.clipBId === clipBId,
-        ) ?? null;
+        return (
+          (track?.transitions ?? []).find(
+            (t) => t.clipAId === clipAId && t.clipBId === clipBId
+          ) ?? null
+        );
       })()
     : null;
 
@@ -272,13 +283,13 @@ export function EditorLayout({ project, onBack }: Props) {
       if (e.code === "ArrowLeft") {
         e.preventDefault();
         store.setCurrentTime(
-          store.state.currentTimeMs - 1000 / store.state.fps,
+          store.state.currentTimeMs - 1000 / store.state.fps
         );
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
         store.setCurrentTime(
-          store.state.currentTimeMs + 1000 / store.state.fps,
+          store.state.currentTimeMs + 1000 / store.state.fps
         );
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
@@ -302,7 +313,10 @@ export function EditorLayout({ project, onBack }: Props) {
       if (e.code === "KeyS" && !e.metaKey && !e.ctrlKey) {
         if (store.state.selectedClipId) {
           e.preventDefault();
-          store.splitClip(store.state.selectedClipId, store.state.currentTimeMs);
+          store.splitClip(
+            store.state.selectedClipId,
+            store.state.currentTimeMs
+          );
         }
       }
       // Cmd/Ctrl+D — duplicate
@@ -332,7 +346,9 @@ export function EditorLayout({ project, onBack }: Props) {
   const rewind = () =>
     store.setCurrentTime(Math.max(0, state.currentTimeMs - 5000));
   const fastForward = () =>
-    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
+    store.setCurrentTime(
+      Math.min(state.durationMs, state.currentTimeMs + 5000)
+    );
 
   const zoomIn = () => store.setZoom(state.zoom * 1.25);
   const zoomOut = () => store.setZoom(state.zoom / 1.25);
@@ -388,10 +404,18 @@ export function EditorLayout({ project, onBack }: Props) {
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
 
           <div className="flex items-center gap-0.5">
-            <button onClick={jumpToStart} title="Jump to start" className="transport-btn">
+            <button
+              onClick={jumpToStart}
+              title="Jump to start"
+              className="transport-btn"
+            >
               <SkipBack size={14} />
             </button>
-            <button onClick={rewind} title="Rewind 5s" className="transport-btn">
+            <button
+              onClick={rewind}
+              title="Rewind 5s"
+              className="transport-btn"
+            >
               <Rewind size={14} />
             </button>
             <button
@@ -401,10 +425,18 @@ export function EditorLayout({ project, onBack }: Props) {
             >
               {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
             </button>
-            <button onClick={fastForward} title="Forward 5s" className="transport-btn">
+            <button
+              onClick={fastForward}
+              title="Forward 5s"
+              className="transport-btn"
+            >
               <FastForward size={14} />
             </button>
-            <button onClick={jumpToEnd} title="Jump to end" className="transport-btn">
+            <button
+              onClick={jumpToEnd}
+              title="Jump to end"
+              className="transport-btn"
+            >
               <SkipForward size={14} />
             </button>
           </div>
@@ -428,7 +460,7 @@ export function EditorLayout({ project, onBack }: Props) {
             onClick={zoomFit}
             className={cn(
               "text-xs text-dim-3 hover:text-dim-1 bg-transparent border-0 cursor-pointer px-1.5",
-              "h-7 rounded transition-colors hover:bg-overlay-sm",
+              "h-7 rounded transition-colors hover:bg-overlay-sm"
             )}
           >
             Fit
@@ -478,9 +510,18 @@ export function EditorLayout({ project, onBack }: Props) {
                       onMouseLeave={() => setShowAiMenu(false)}
                     >
                       {[
-                        { platform: "tiktok", label: t("editor_ai_assemble_tiktok") },
-                        { platform: "youtube-shorts", label: t("editor_ai_assemble_youtube") },
-                        { platform: "instagram", label: t("editor_ai_assemble_instagram") },
+                        {
+                          platform: "tiktok",
+                          label: t("editor_ai_assemble_tiktok"),
+                        },
+                        {
+                          platform: "youtube-shorts",
+                          label: t("editor_ai_assemble_youtube"),
+                        },
+                        {
+                          platform: "instagram",
+                          label: t("editor_ai_assemble_instagram"),
+                        },
                       ].map(({ platform, label }) => (
                         <button
                           key={platform}
@@ -575,7 +616,11 @@ export function EditorLayout({ project, onBack }: Props) {
               onAddClip={handleAddClip}
               onToggleMute={store.toggleTrackMute}
               onToggleLock={store.toggleTrackLock}
-              selectedTransitionId={selectedTransitionKey ? `${selectedTransitionKey[1]}-${selectedTransitionKey[2]}` : null}
+              selectedTransitionId={
+                selectedTransitionKey
+                  ? `${selectedTransitionKey[1]}-${selectedTransitionKey[2]}`
+                  : null
+              }
               onSelectTransition={handleSelectTransition}
             />
           </div>

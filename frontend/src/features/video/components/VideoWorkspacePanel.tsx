@@ -86,7 +86,11 @@ export function VideoWorkspacePanel({
   const isJobActive =
     videoJobData?.job.status === "queued" ||
     videoJobData?.job.status === "running";
-  const { data: assetsData } = useContentAssets(draft.id, undefined, isJobActive ? 4000 : false);
+  const { data: assetsData } = useContentAssets(
+    draft.id,
+    undefined,
+    isJobActive ? 4000 : false
+  );
 
   const assembledAsset =
     assetsData?.assets.find((asset) => asset.type === "assembled_video") ??

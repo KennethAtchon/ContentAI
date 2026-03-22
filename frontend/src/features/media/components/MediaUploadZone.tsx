@@ -25,7 +25,9 @@ export function MediaUploadZone({ onUploaded, compact }: Props) {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragging(false);
-    void handleFiles(e.dataTransfer.files as unknown as HTMLInputElement["files"]);
+    void handleFiles(
+      e.dataTransfer.files as unknown as HTMLInputElement["files"]
+    );
   }
 
   if (compact) {

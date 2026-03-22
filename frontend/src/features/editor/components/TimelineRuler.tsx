@@ -50,7 +50,9 @@ export function TimelineRuler({ totalWidthPx, zoom, onSeek }: Props) {
           className="absolute top-0 flex flex-col items-center pointer-events-none"
           style={{ left: tick.x }}
         >
-          <div className={tick.label ? "bg-dim-3 h-4 w-px" : "bg-dim-3 h-2 w-px"} />
+          <div
+            className={tick.label ? "bg-dim-3 h-4 w-px" : "bg-dim-3 h-2 w-px"}
+          />
           {tick.label && (
             <span className="text-[9px] italic text-dim-3 mt-0.5 whitespace-nowrap select-none">
               {tick.label}

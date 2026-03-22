@@ -118,7 +118,9 @@ app.post(
       }
 
       // 5. Send to Whisper
-      let transcription: OpenAI.Audio.Transcription & { words?: Array<{ word: string; start: number; end: number }> };
+      let transcription: OpenAI.Audio.Transcription & {
+        words?: Array<{ word: string; start: number; end: number }>;
+      };
       try {
         const mimeType = asset.mimeType ?? "audio/mpeg";
         const ext = mimeType.includes("wav")
@@ -128,7 +130,9 @@ app.post(
             : "mp3";
 
         transcription = (await openai.audio.transcriptions.create({
-          file: new File([audioBuffer], `audio.${ext}`, { type: mimeType }),
+          file: new File([new Uint8Array(audioBuffer)], `audio.${ext}`, {
+            type: mimeType,
+          }),
           model: "whisper-1",
           response_format: "verbose_json",
           timestamp_granularities: ["word"],
@@ -161,11 +165,13 @@ app.post(
 
       // 6. Convert seconds to ms
       const whisperWords = transcription.words ?? [];
-      const words: CaptionWord[] = whisperWords.map((w) => ({
-        word: w.word,
-        startMs: Math.round(w.start * 1000),
-        endMs: Math.round(w.end * 1000),
-      }));
+      const words: CaptionWord[] = whisperWords.map(
+        (w: { word: string; start: number; end: number }) => ({
+          word: w.word,
+          startMs: Math.round(w.start * 1000),
+          endMs: Math.round(w.end * 1000),
+        }),
+      );
 
       // 7. Save to DB
       const [saved] = await db
@@ -217,10 +223,7 @@ app.get(
         .select()
         .from(captions)
         .where(
-          and(
-            eq(captions.assetId, assetId),
-            eq(captions.userId, auth.user.id),
-          ),
+          and(eq(captions.assetId, assetId), eq(captions.userId, auth.user.id)),
         )
         .limit(1);
 

@@ -1,0 +1,2 @@
+DROP INDEX "edit_project_unique_content";--> statement-breakpoint
+CREATE UNIQUE INDEX "edit_project_unique_content_root" ON "edit_project" USING btree ("user_id","generated_content_id") WHERE parent_project_id IS NULL AND generated_content_id IS NOT NULL;

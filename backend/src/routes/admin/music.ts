@@ -130,7 +130,11 @@ musicAdminRouter.post(
           r2Url,
           sizeBytes: file.size,
           durationMs: durationSeconds * 1000,
-          metadata: { artistName: artistName?.trim() || null, mood, genre: genre?.trim() || null },
+          metadata: {
+            artistName: artistName?.trim() || null,
+            mood,
+            genre: genre?.trim() || null,
+          },
         })
         .returning();
 

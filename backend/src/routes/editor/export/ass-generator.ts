@@ -8,14 +8,14 @@ interface ASSPresetConfig {
   fontFamily: string;
   fontSize: number;
   bold: boolean;
-  primaryColor: string;   // ASS &HAABBGGRR format
-  outlineColor: string;   // ASS &HAABBGGRR format
+  primaryColor: string; // ASS &HAABBGGRR format
+  outlineColor: string; // ASS &HAABBGGRR format
   outlineWidth: number;
-  backColor: string;       // ASS &HAABBGGRR format
-  borderStyle: number;     // 1 = outline+shadow, 3 = opaque box
-  positionY: number;       // percentage (0-100)
+  backColor: string; // ASS &HAABBGGRR format
+  borderStyle: number; // 1 = outline+shadow, 3 = opaque box
+  positionY: number; // percentage (0-100)
   animation: "none" | "highlight" | "karaoke";
-  activeColor?: string;    // ASS &HAABBGGRR for highlight/karaoke active word
+  activeColor?: string; // ASS &HAABBGGRR for highlight/karaoke active word
 }
 
 /**
@@ -25,9 +25,7 @@ interface ASSPresetConfig {
 function cssToASS(hex: string, alpha = 0): string {
   // Handle rgba(...) by extracting alpha
   if (hex.startsWith("rgba")) {
-    const match = hex.match(
-      /rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]+)?\)/,
-    );
+    const match = hex.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]+)?\)/);
     if (match) {
       const r = parseInt(match[1]).toString(16).padStart(2, "0");
       const g = parseInt(match[2]).toString(16).padStart(2, "0");
@@ -102,7 +100,7 @@ const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
     positionY: 80,
     animation: "none",
   },
-  "highlight": {
+  highlight: {
     fontFamily: "Inter",
     fontSize: 48,
     bold: true,
@@ -115,7 +113,7 @@ const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
     animation: "highlight",
     activeColor: cssToASS("#FACC15"),
   },
-  "karaoke": {
+  karaoke: {
     fontFamily: "Inter",
     fontSize: 48,
     bold: true,
@@ -185,10 +183,7 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
 
     let text: string;
 
-    if (
-      preset.animation === "highlight" ||
-      preset.animation === "karaoke"
-    ) {
+    if (preset.animation === "highlight" || preset.animation === "karaoke") {
       const activeColor = preset.activeColor ?? preset.primaryColor;
       const tag = preset.animation === "karaoke" ? "kf" : "k";
 
@@ -202,9 +197,7 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
       text = group.map((w) => w.word).join(" ");
     }
 
-    events.push(
-      `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}`,
-    );
+    events.push(`Dialogue: 0,${start},${end},Default,,0,0,0,,${text}`);
   }
 
   return header + "[Events]\n" + events.join("\n") + "\n";

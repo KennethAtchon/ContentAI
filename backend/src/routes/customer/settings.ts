@@ -125,15 +125,18 @@ function detectSupportsVision(provider: string, model: string): boolean {
     // Match by model path prefix (openrouter format: "provider/model-name")
     return (
       m.startsWith("anthropic/claude-3") ||
-      m.startsWith("anthropic/claude-") && (m.includes("-4-") || m.includes("sonnet-4") || m.includes("opus-4")) ||
+      (m.startsWith("anthropic/claude-") &&
+        (m.includes("-4-") ||
+          m.includes("sonnet-4") ||
+          m.includes("opus-4"))) ||
       m.startsWith("openai/gpt-4o") ||
       m.startsWith("openai/o1") ||
       m.startsWith("openai/o3") ||
       m.startsWith("google/gemini") ||
-      m.startsWith("meta-llama/llama-3") && m.includes("vision") ||
+      (m.startsWith("meta-llama/llama-3") && m.includes("vision")) ||
       m.startsWith("mistralai/pixtral") ||
       m.startsWith("qwen/qwen-vl") ||
-      m.startsWith("x-ai/grok") && !m.includes("mini")
+      (m.startsWith("x-ai/grok") && !m.includes("mini"))
     );
   }
 
@@ -148,12 +151,23 @@ function detectContextWindow(provider: string, model: string): number | null {
   const m = model.toLowerCase();
 
   if (provider === "claude") {
-    if (m.startsWith("claude-3") || m.includes("claude-") && m.includes("-4-")) return 200_000;
+    if (
+      m.startsWith("claude-3") ||
+      (m.includes("claude-") && m.includes("-4-"))
+    )
+      return 200_000;
     return null;
   }
 
   if (provider === "openai") {
-    if (m.startsWith("gpt-4o") || m.startsWith("gpt-4-turbo") || m.startsWith("o1") || m.startsWith("o3") || m.startsWith("o4")) return 128_000;
+    if (
+      m.startsWith("gpt-4o") ||
+      m.startsWith("gpt-4-turbo") ||
+      m.startsWith("o1") ||
+      m.startsWith("o3") ||
+      m.startsWith("o4")
+    )
+      return 128_000;
     if (m.startsWith("gpt-4")) return 8_192;
     if (m.startsWith("gpt-3.5-turbo-16k")) return 16_384;
     if (m.startsWith("gpt-3.5")) return 4_096;
@@ -162,8 +176,10 @@ function detectContextWindow(provider: string, model: string): number | null {
 
   if (provider === "openrouter") {
     if (m.startsWith("anthropic/claude")) return 200_000;
-    if (m.startsWith("google/gemini-1.5") || m.startsWith("google/gemini-2")) return 1_000_000;
-    if (m.startsWith("openai/gpt-4o") || m.startsWith("openai/o1")) return 128_000;
+    if (m.startsWith("google/gemini-1.5") || m.startsWith("google/gemini-2"))
+      return 1_000_000;
+    if (m.startsWith("openai/gpt-4o") || m.startsWith("openai/o1"))
+      return 128_000;
     if (m.includes("deepseek")) return 128_000;
     if (m.includes("llama-3")) return 128_000;
     return null;
@@ -229,15 +245,27 @@ userSettingsRouter.get(
   authMiddleware("user"),
   async (c) => {
     try {
-      const { klingFalProvider } = await import("../../services/media/video-generation/providers/kling-fal");
-      const { runwayProvider } = await import("../../services/media/video-generation/providers/runway");
-      const { imageKenBurnsProvider } = await import("../../services/media/video-generation/providers/image-ken-burns");
-      const { systemConfigService } = await import("../../services/config/system-config.service");
+      const { klingFalProvider } =
+        await import("../../services/media/video-generation/providers/kling-fal");
+      const { runwayProvider } =
+        await import("../../services/media/video-generation/providers/runway");
+      const { imageKenBurnsProvider } =
+        await import("../../services/media/video-generation/providers/image-ken-burns");
+      const { systemConfigService } =
+        await import("../../services/config/system-config.service");
 
       const PROVIDERS = [
-        { id: "kling-fal", label: "Kling (via Fal.ai)", provider: klingFalProvider },
+        {
+          id: "kling-fal",
+          label: "Kling (via Fal.ai)",
+          provider: klingFalProvider,
+        },
         { id: "runway", label: "Runway", provider: runwayProvider },
-        { id: "image-ken-burns", label: "Image + Ken Burns", provider: imageKenBurnsProvider },
+        {
+          id: "image-ken-burns",
+          label: "Image + Ken Burns",
+          provider: imageKenBurnsProvider,
+        },
       ] as const;
 
       const [dbDefault, availabilities] = await Promise.all([
@@ -247,11 +275,12 @@ userSettingsRouter.get(
 
       const configuredDefault = dbDefault ?? "kling-fal";
       const preferred = PROVIDERS.find((p) => p.id === configuredDefault);
-      const preferredActive = preferred && availabilities[PROVIDERS.indexOf(preferred)];
+      const preferredActive =
+        preferred && availabilities[PROVIDERS.indexOf(preferred)];
 
       const effectiveDefault = preferredActive
         ? preferred
-        : PROVIDERS.find((_, i) => availabilities[i]) ?? null;
+        : (PROVIDERS.find((_, i) => availabilities[i]) ?? null);
 
       return c.json({
         defaultProvider: effectiveDefault?.id ?? null,

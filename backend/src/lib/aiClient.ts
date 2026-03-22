@@ -1,6 +1,10 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { callAiWithFallback, getModelInstance, extractUsageTokens } from "./ai/helpers";
+import {
+  callAiWithFallback,
+  getModelInstance,
+  extractUsageTokens,
+} from "./ai/helpers";
 import { DEFAULT_SETTINGS } from "./ai/config";
 import type { ProviderId, ModelTier } from "./ai/providers";
 

@@ -131,14 +131,17 @@ Generate an original variation following the same viral structure.`;
     .returning();
 
   // Auto-enroll every generated draft in the pipeline queue.
-  await assertNoChainQueueItem(db, content.id, userId, "reel_content_generator");
-  await db
-    .insert(queueItems)
-    .values({
-      userId,
-      generatedContentId: content.id,
-      status: "draft",
-    });
+  await assertNoChainQueueItem(
+    db,
+    content.id,
+    userId,
+    "reel_content_generator",
+  );
+  await db.insert(queueItems).values({
+    userId,
+    generatedContentId: content.id,
+    status: "draft",
+  });
 
   // Keep generatedContent.status in sync with the queue.
   await db

@@ -1,6 +1,6 @@
 {
-  "id": "d0c2d9f5-7522-4f72-9a41-b990a52d6d3d",
-  "prevId": "0ec31f57-fd0d-4773-a13a-c19c402860a1",
+  "id": "338045c3-28f6-4c22-8301-683c3123cf4e",
+  "prevId": "d0c2d9f5-7522-4f72-9a41-b990a52d6d3d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1190,7 +1190,7 @@
           "name": "prompt",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "generated_hook": {
           "name": "generated_hook",

@@ -41,14 +41,14 @@ export function DraftDetail({
   const { t } = useTranslation();
   const { data: assetsData } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
-  const hasAudio =
-    assets.some(
-      (a) =>
-        a.role === "voiceover" ||
-        a.role === "background_music" ||
-        a.type === "voiceover"
-    );
-  const assembledAsset = assets.find((a) => a.type === "assembled_video") ?? null;
+  const hasAudio = assets.some(
+    (a) =>
+      a.role === "voiceover" ||
+      a.role === "background_music" ||
+      a.type === "voiceover"
+  );
+  const assembledAsset =
+    assets.find((a) => a.type === "assembled_video") ?? null;
 
   const metadata = draft.generatedMetadata as {
     hashtags?: string[];
@@ -192,7 +192,9 @@ export function DraftDetail({
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border border-border/60 text-foreground/80 hover:bg-muted transition-colors"
         >
           <Film className="w-3.5 h-3.5" />
-          {assembledAsset ? t("workspace_video_reassemble") : t("workspace_tab_video")}
+          {assembledAsset
+            ? t("workspace_video_reassemble")
+            : t("workspace_tab_video")}
         </button>
       </div>
     </div>

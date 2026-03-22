@@ -38,9 +38,15 @@ function formatMMSS(ms: number): string {
 }
 
 function getTransitionStyle(
-  clip: { id: string; startMs: number; durationMs: number; scale?: number; rotation?: number },
+  clip: {
+    id: string;
+    startMs: number;
+    durationMs: number;
+    scale?: number;
+    rotation?: number;
+  },
   transitions: Transition[],
-  currentTimeMs: number,
+  currentTimeMs: number
 ): CSSProperties {
   const transition = transitions.find((t) => t.clipAId === clip.id);
   if (!transition || transition.type === "none") return {};
@@ -55,9 +61,13 @@ function getTransitionStyle(
     case "fade":
       return { opacity: 1 - progress };
     case "slide-left":
-      return { transform: `translateX(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)` };
+      return {
+        transform: `translateX(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)`,
+      };
     case "slide-up":
-      return { transform: `translateY(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)` };
+      return {
+        transform: `translateY(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)`,
+      };
     default:
       return {};
   }
@@ -82,8 +92,7 @@ export function PreviewArea({
   const videoTrack = tracks.find((t) => t.type === "video");
   const activeVideoClips = (videoTrack?.clips ?? []).filter(
     (c) =>
-      currentTimeMs >= c.startMs &&
-      currentTimeMs < c.startMs + c.durationMs
+      currentTimeMs >= c.startMs && currentTimeMs < c.startMs + c.durationMs
   );
 
   // Sync all video elements to current playhead time
@@ -130,7 +139,13 @@ export function PreviewArea({
         currentTimeMs < clip.startMs + clip.durationMs;
       if (!isActive) continue;
 
-      drawCaptionsOnCanvas(ctx, clip, currentTimeMs, canvas.width, canvas.height);
+      drawCaptionsOnCanvas(
+        ctx,
+        clip,
+        currentTimeMs,
+        canvas.width,
+        canvas.height
+      );
     }
   }, [currentTimeMs, tracks]);
 
@@ -148,7 +163,10 @@ export function PreviewArea({
       {/* Preview screen — aspect ratio derived from resolution string */}
       <div
         className="relative w-full"
-        style={{ aspectRatio: `${resW}/${resH}`, maxHeight: "calc(100% - 40px)" }}
+        style={{
+          aspectRatio: `${resW}/${resH}`,
+          maxHeight: "calc(100% - 40px)",
+        }}
       >
         {/* Film-strip edges */}
         <div className="absolute left-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
@@ -172,10 +190,21 @@ export function PreviewArea({
               style={{
                 ...(() => {
                   const vt = tracks.find((t) => t.type === "video");
-                  const transStyle = getTransitionStyle(clip, vt?.transitions ?? [], currentTimeMs);
-                  const isActive = activeVideoClips.some((c) => c.id === clip.id);
+                  const transStyle = getTransitionStyle(
+                    clip,
+                    vt?.transitions ?? [],
+                    currentTimeMs
+                  );
+                  const isActive = activeVideoClips.some(
+                    (c) => c.id === clip.id
+                  );
                   return {
-                    opacity: transStyle.opacity !== undefined ? transStyle.opacity : (isActive ? (clip.opacity ?? 1) : 0),
+                    opacity:
+                      transStyle.opacity !== undefined
+                        ? transStyle.opacity
+                        : isActive
+                          ? (clip.opacity ?? 1)
+                          : 0,
                     filter:
                       [
                         clip.contrast !== undefined && clip.contrast !== 0
@@ -184,7 +213,9 @@ export function PreviewArea({
                       ]
                         .filter(Boolean)
                         .join(" ") || undefined,
-                    transform: transStyle.transform ?? `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`,
+                    transform:
+                      transStyle.transform ??
+                      `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`,
                   };
                 })(),
               }}
@@ -207,7 +238,9 @@ export function PreviewArea({
           {!hasContent && (
             <div className="flex flex-col items-center gap-2">
               <Play size={32} className="text-white/40" />
-              <span className="text-xs text-white/70">Add clips to the timeline</span>
+              <span className="text-xs text-white/70">
+                Add clips to the timeline
+              </span>
             </div>
           )}
 

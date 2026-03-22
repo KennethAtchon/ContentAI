@@ -31,16 +31,14 @@ const audioRouter = new Hono<HonoEnv>();
  * bullet markers, and collapses excess whitespace.
  */
 function sanitizeScriptForTTS(text: string): string {
-  return (
-    text
-      .replace(/\[\d+[:\-]\d+s?\]/g, "")
-      .replace(/\([^)]*\)/g, "")
-      .replace(/\[[^\]]*\]/g, "")
-      .replace(/^\s*[-•*]\s*/gm, "")
-      .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
-  );
+  return text
+    .replace(/\[\d+[:\-]\d+s?\]/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/^\s*[-•*]\s*/gm, "")
+    .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const ttsRequestSchema = z.object({

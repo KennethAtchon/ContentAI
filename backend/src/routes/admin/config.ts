@@ -105,8 +105,11 @@ configAdminRouter.get(
   authMiddleware("admin"),
   async (c) => {
     try {
-      const { getEnabledProvidersAsync, getProviderPriorityAsync, getModelForProviderAsync } =
-        await import("../../lib/ai/config");
+      const {
+        getEnabledProvidersAsync,
+        getProviderPriorityAsync,
+        getModelForProviderAsync,
+      } = await import("../../lib/ai/config");
       const { PROVIDER_REGISTRY } = await import("../../lib/ai/providers");
 
       const [priority, enabled] = await Promise.all([
@@ -127,7 +130,13 @@ configAdminRouter.get(
               ])
             : [def.defaultModels.analysis, def.defaultModels.generation];
 
-          return { id, label: def.label, active, analysisModel, generationModel };
+          return {
+            id,
+            label: def.label,
+            active,
+            analysisModel,
+            generationModel,
+          };
         }),
       );
 
@@ -154,37 +163,70 @@ configAdminRouter.get(
   authMiddleware("admin"),
   async (c) => {
     try {
-      const { klingFalProvider } = await import("../../services/media/video-generation/providers/kling-fal");
-      const { runwayProvider } = await import("../../services/media/video-generation/providers/runway");
-      const { imageKenBurnsProvider } = await import("../../services/media/video-generation/providers/image-ken-burns");
-      const { systemConfigService } = await import("../../services/config/system-config.service");
+      const { klingFalProvider } =
+        await import("../../services/media/video-generation/providers/kling-fal");
+      const { runwayProvider } =
+        await import("../../services/media/video-generation/providers/runway");
+      const { imageKenBurnsProvider } =
+        await import("../../services/media/video-generation/providers/image-ken-burns");
+      const { systemConfigService } =
+        await import("../../services/config/system-config.service");
 
       const ALL_VIDEO_PROVIDERS = [
-        { id: "kling-fal",       label: "Kling (via Fal.ai)",    provider: klingFalProvider,      modelKey: "kling_model",    defaultModel: "fal-ai/kling-video/v2.1/standard/text-to-video" },
-        { id: "runway",          label: "Runway",                provider: runwayProvider,        modelKey: "runway_model",   defaultModel: "gen3a_turbo" },
-        { id: "image-ken-burns", label: "Image + Ken Burns",     provider: imageKenBurnsProvider, modelKey: "flux_model",     defaultModel: "fal-ai/flux/schnell" },
+        {
+          id: "kling-fal",
+          label: "Kling (via Fal.ai)",
+          provider: klingFalProvider,
+          modelKey: "kling_model",
+          defaultModel: "fal-ai/kling-video/v2.1/standard/text-to-video",
+        },
+        {
+          id: "runway",
+          label: "Runway",
+          provider: runwayProvider,
+          modelKey: "runway_model",
+          defaultModel: "gen3a_turbo",
+        },
+        {
+          id: "image-ken-burns",
+          label: "Image + Ken Burns",
+          provider: imageKenBurnsProvider,
+          modelKey: "flux_model",
+          defaultModel: "fal-ai/flux/schnell",
+        },
       ] as const;
 
       const [availabilities, dbDefault, dbFallback] = await Promise.all([
         Promise.all(ALL_VIDEO_PROVIDERS.map((p) => p.provider.isAvailable())),
         systemConfigService.get("video", "default_provider"),
-        systemConfigService.getJson<string[]>("video", "fallback_order", ["kling-fal", "image-ken-burns", "runway"]),
+        systemConfigService.getJson<string[]>("video", "fallback_order", [
+          "kling-fal",
+          "image-ken-burns",
+          "runway",
+        ]),
       ]);
 
       const providers = await Promise.all(
         ALL_VIDEO_PROVIDERS.map(async (p, i) => {
           const active = availabilities[i] ?? false;
-          const model = await systemConfigService.get("video", p.modelKey).then((v) => v || p.defaultModel);
+          const model = await systemConfigService
+            .get("video", p.modelKey)
+            .then((v) => v || p.defaultModel);
           return { id: p.id, label: p.label, active, model };
         }),
       );
 
       const defaultProvider = dbDefault ?? "kling-fal";
-      const activeDefault = providers.find((p) => p.id === defaultProvider && p.active)
-        ?? providers.find((p) => dbFallback.includes(p.id) && p.active)
-        ?? null;
+      const activeDefault =
+        providers.find((p) => p.id === defaultProvider && p.active) ??
+        providers.find((p) => dbFallback.includes(p.id) && p.active) ??
+        null;
 
-      return c.json({ providers, defaultProvider: activeDefault?.id ?? null, configuredDefault: defaultProvider });
+      return c.json({
+        providers,
+        defaultProvider: activeDefault?.id ?? null,
+        configuredDefault: defaultProvider,
+      });
     } catch (error) {
       debugLog.error("Failed to fetch video provider status", {
         service: "admin-config",
@@ -205,30 +247,38 @@ configAdminRouter.get(
   async (c) => {
     try {
       const {
-        ANTHROPIC_API_KEY, OPENAI_API_KEY, OPEN_ROUTER_KEY,
-        FAL_API_KEY, RUNWAY_API_KEY, ELEVENLABS_API_KEY,
-        RESEND_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
-        INSTAGRAM_API_TOKEN, SOCIAL_API_KEY,
+        ANTHROPIC_API_KEY,
+        OPENAI_API_KEY,
+        OPEN_ROUTER_KEY,
+        FAL_API_KEY,
+        RUNWAY_API_KEY,
+        ELEVENLABS_API_KEY,
+        RESEND_API_KEY,
+        STRIPE_SECRET_KEY,
+        STRIPE_WEBHOOK_SECRET,
+        INSTAGRAM_API_TOKEN,
+        SOCIAL_API_KEY,
       } = await import("../../utils/config/envUtil");
 
       const keyEnvMap: Record<string, string> = {
-        anthropic_api_key:    ANTHROPIC_API_KEY,
-        openai_api_key:       OPENAI_API_KEY,
-        openrouter_api_key:   OPEN_ROUTER_KEY,
-        fal_api_key:          FAL_API_KEY,
-        runway_api_key:       RUNWAY_API_KEY,
-        elevenlabs_api_key:   ELEVENLABS_API_KEY,
-        resend_api_key:       RESEND_API_KEY,
-        stripe_secret_key:    STRIPE_SECRET_KEY,
+        anthropic_api_key: ANTHROPIC_API_KEY,
+        openai_api_key: OPENAI_API_KEY,
+        openrouter_api_key: OPEN_ROUTER_KEY,
+        fal_api_key: FAL_API_KEY,
+        runway_api_key: RUNWAY_API_KEY,
+        elevenlabs_api_key: ELEVENLABS_API_KEY,
+        resend_api_key: RESEND_API_KEY,
+        stripe_secret_key: STRIPE_SECRET_KEY,
         stripe_webhook_secret: STRIPE_WEBHOOK_SECRET,
-        instagram_api_token:  INSTAGRAM_API_TOKEN,
-        social_api_key:       SOCIAL_API_KEY,
+        instagram_api_token: INSTAGRAM_API_TOKEN,
+        social_api_key: SOCIAL_API_KEY,
       };
 
       const results = await Promise.all(
         Object.entries(keyEnvMap).map(async ([key, envVal]) => {
           const active = await systemConfigService.hasApiKey(key, envVal);
-          const source = await systemConfigService.get("api_keys", key)
+          const source = await systemConfigService
+            .get("api_keys", key)
             .then((v) => (v && v.trim() ? "db" : envVal ? "env" : "none"))
             .catch(() => (envVal ? "env" : "none"));
           return [key, { active, source }] as const;
