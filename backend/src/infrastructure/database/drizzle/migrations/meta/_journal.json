@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774124537790,
-      "tag": "0000_living_nicolaos",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774134992014,
-      "tag": "0001_salty_ultimo",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1774140619130,
-      "tag": "0002_overjoyed_wonder_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1774214823133,
-      "tag": "0003_groovy_valkyrie",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1774214938283,
-      "tag": "0004_great_tarot",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1774215798044,
-      "tag": "0005_awesome_longshot",
+      "when": 1774231677256,
+      "tag": "0000_majestic_bruce_banner",
       "breakpoints": true
     }
   ]

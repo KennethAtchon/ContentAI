@@ -1,1 +1,0 @@
-ALTER TABLE "generated_content" ALTER COLUMN "prompt" DROP NOT NULL;
