@@ -24,14 +24,17 @@ Start with [overview.md](./overview.md) for the full tech stack and system desig
 
 ## Domain features
 
+See **[domain/README.md](./domain/README.md)** for the full table (including media, assets, preferences, shared routes, and analytics). Highlights:
+
 | Doc | What it covers |
 |-----|---------------|
 | [business-model.md](./domain/business-model.md) | Subscription tiers, pricing, usage limits, payment flows |
-| [subscription-system.md](./domain/subscription-system.md) | Firebase Stripe Extension, subscription lifecycle, custom claims |
+| [subscription-system.md](./domain/subscription-system.md) | Firebase Stripe Extension, subscription lifecycle, orders from Checkout |
 | [studio-system.md](./domain/studio-system.md) | ReelStudio workspace: reel discovery, analysis, generation, queue |
 | [generation-system.md](./domain/generation-system.md) | AI content generation pipeline, Claude integration, feature gating |
-| [account-management.md](./domain/account-management.md) | Profile, usage dashboard, subscription management |
+| [account-management.md](./domain/account-management.md) | Profile (`/api/customer/profile`), usage, preferences link |
 | [admin-dashboard.md](./domain/admin-dashboard.md) | Metrics, customer/order/subscription management |
+| [domain/README.md](./domain/README.md) | Index of all domain docs and system map |
 
 ## System diagrams
 

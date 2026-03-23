@@ -64,6 +64,14 @@ If the Apify key isn't configured (local dev), the scraper returns 0/0 immediate
 
 ---
 
+## Scheduled daily scrape (automation)
+
+In addition to admin-triggered scans, the API server schedules a **daily job** (`startDailyScan` in `backend/src/jobs/daily-scan.ts`). At **3:00 AM** (server local time), it loads every niche with `isActive: true` and enqueues a scrape for each via `queueService.enqueue`, spacing niches by about **30 seconds** to avoid thundering the worker.
+
+This reuses the same queue/worker path as manual admin scans — it is not a separate ingestion pipeline. If the process restarts, the interval is rescheduled from the new boot time.
+
+---
+
 ## Video Storage for Reels
 
 After a reel is scraped, the system asynchronously copies its video and audio files to Cloudflare R2 (our own storage). This happens fire-and-forget after the database insert — a reel can appear in Discover before its R2 copy is ready.

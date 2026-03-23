@@ -71,3 +71,11 @@ When an admin updates config through the panel, the new value is written to the 
 ## System Prompts
 
 Prompts for different AI tasks (chat generation, reel analysis) are `.txt` files on disk in `backend/src/prompts/`. They're read from disk on first use and cached in memory for the lifetime of the process — no disk I/O after the first call. To change a prompt, you update the file and restart the server.
+
+---
+
+## User-level overrides
+
+Admins edit **global** provider priority, models, and keys. Individual users can store **personal defaults** (preferred AI provider, video provider, voice, TTS speed, aspect ratio) via **`/api/customer/settings`**. Resolution logic in feature code typically applies user prefs when set, otherwise falls back to system config.
+
+See [User Preferences System](./user-preferences-system.md).

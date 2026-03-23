@@ -349,6 +349,12 @@ sequenceDiagram
     Client->>User: Redirect to /studio/discover
 ```
 
+### Postgres registration (`POST /api/auth/register`)
+
+The auth middleware upserts the user row on **every** authenticated request, so most flows never need a dedicated registration call. The app can also call **`POST /api/auth/register`** with `Authorization: Bearer {idToken}` after sign-up or first Google sign-in. That handler verifies the token with Firebase Admin and runs the same **`users` insert … onConflictDoUpdate** pattern, returning `{ user: { id, email, role, name } }`. Use it when you need an explicit “ensure DB user exists” round-trip before other logic runs.
+
+---
+
 ### Google OAuth Sign-In
 
 ```mermaid

@@ -22,6 +22,13 @@ ContentAI (ReelStudio) is an AI-powered short-form video creation platform. User
 | [Admin Dashboard](./admin-dashboard.md) | Metrics, customer/order/subscription management, niche/music admin |
 | [Account Management](./account-management.md) | Profile, subscription, usage dashboard |
 | [Video Playback](./contentai-video-playback-technical-deep-dive.md) | R2 mirroring, signed URL generation, fallback |
+| [User-Uploaded Media](./user-uploaded-media-system.md) | Personal library: `GET/POST/DELETE /api/media`, R2, signed URLs |
+| [Content-Scoped Assets](./content-assets-system.md) | Assets linked to `generatedContent`: `/api/assets` list, upload, patch, delete |
+| [User Preferences](./user-preferences-system.md) | Per-user AI/video/voice defaults: `/api/customer/settings` |
+| [Shared & Public API](./shared-public-api.md) | Contact form, confirmation email, authenticated image upload: `/api/shared` |
+| [Client Analytics](./client-analytics-endpoints.md) | Browser telemetry logged on the server: `/api/analytics` |
+
+**Cross-cutting (not duplicated here):** [Authentication & registration](../core/authentication.md) — Firebase + `POST /api/auth/register` for Postgres upsert.
 
 ---
 
@@ -101,6 +108,8 @@ reel
 - **Touching the video assembly pipeline?** See [Reel Generation System](./reel-generation-system.md)
 - **Working on the manual editor?** See [Manual Editor System](./manual-editor-system.md)
 - **Adding admin capabilities?** See [Admin Dashboard](./admin-dashboard.md)
+- **User uploads vs content-linked files?** See [User-Uploaded Media](./user-uploaded-media-system.md) vs [Content-Scoped Assets](./content-assets-system.md)
+- **Contact form or public upload?** See [Shared & Public API](./shared-public-api.md)
 
 ---
 

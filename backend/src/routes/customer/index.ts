@@ -13,9 +13,21 @@ import {
   featureUsages,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { z } from "zod";
+import Stripe from "stripe";
 import { adminAuth } from "../../services/firebase/admin";
 import { debugLog } from "../../utils/debug/debug";
 import { getFeatureLimitsForStripeRole } from "../../constants/subscription.constants";
+import { STRIPE_SECRET_KEY } from "../../utils/config/envUtil";
+
+const stripeClient = STRIPE_SECRET_KEY
+  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
+  : null;
+
+const createOrderFromCheckoutSchema = z.object({
+  stripeSessionId: z.string().min(1, "stripeSessionId is required"),
+  status: z.string().optional(),
+});
 
 const customer = new Hono<HonoEnv>();
 
@@ -292,6 +304,133 @@ customer.get(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to fetch orders" }, 500);
+    }
+  },
+);
+
+/**
+ * POST /api/customer/orders/create
+ *
+ * Creates a completed order from a Stripe Checkout Session (mode=payment).
+ * Verifies payment with Stripe, checks metadata.userId, and fills totalAmount from the session.
+ */
+customer.post(
+  "/orders/create",
+  rateLimiter("payment"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      if (!stripeClient) {
+        return c.json({ error: "Stripe is not configured" }, 503);
+      }
+
+      const body = await c.req.json().catch(() => null);
+      const parsed = createOrderFromCheckoutSchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json(
+          { error: "Invalid request body", details: parsed.error.flatten() },
+          400,
+        );
+      }
+
+      const { stripeSessionId, status } = parsed.data;
+
+      const [existing] = await db
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.stripeSessionId, stripeSessionId),
+            eq(orders.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        return c.json({ order: existing }, 200);
+      }
+
+      const session = await stripeClient.checkout.sessions.retrieve(
+        stripeSessionId,
+      );
+
+      if (session.mode !== "payment") {
+        return c.json(
+          { error: "Checkout session is not a one-time payment" },
+          400,
+        );
+      }
+
+      if (
+        session.payment_status !== "paid" &&
+        session.payment_status !== "no_payment_required"
+      ) {
+        return c.json(
+          {
+            error: "Payment not completed for this session",
+            payment_status: session.payment_status,
+          },
+          400,
+        );
+      }
+
+      const metaUserId = session.metadata?.userId;
+      // Checkout metadata uses Firebase UID (see frontend createProductCheckout / PaymentService).
+      if (!metaUserId || metaUserId !== auth.firebaseUser.uid) {
+        return c.json({ error: "Session does not belong to this user" }, 403);
+      }
+
+      const amountCents = session.amount_total;
+      if (amountCents == null) {
+        return c.json(
+          { error: "Session has no amount_total; cannot create order" },
+          400,
+        );
+      }
+
+      const totalAmount = (amountCents / 100).toFixed(2);
+
+      try {
+        const [order] = await db
+          .insert(orders)
+          .values({
+            userId: auth.user.id,
+            totalAmount,
+            status: status ?? "completed",
+            stripeSessionId,
+          })
+          .returning();
+
+        return c.json({ order }, 201);
+      } catch (insertErr: unknown) {
+        const code =
+          insertErr && typeof insertErr === "object" && "code" in insertErr
+            ? (insertErr as { code?: string }).code
+            : undefined;
+        if (code === "23505") {
+          const [race] = await db
+            .select()
+            .from(orders)
+            .where(
+              and(
+                eq(orders.stripeSessionId, stripeSessionId),
+                eq(orders.userId, auth.user.id),
+              ),
+            )
+            .limit(1);
+          if (race) return c.json({ order: race }, 200);
+        }
+        throw insertErr;
+      }
+    } catch (error) {
+      debugLog.error("Failed to create order from checkout", {
+        service: "customer-route",
+        operation: "createOrderFromCheckout",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to create order" }, 500);
     }
   },
 );

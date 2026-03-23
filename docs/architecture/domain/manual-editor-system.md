@@ -81,6 +81,20 @@ On mobile, the shell forces `quick` mode regardless of the saved preference, bec
 
 ---
 
+## Caption transcription (Whisper)
+
+Timeline captions can be driven by **word-level timing** from audio, not only manual text. The backend exposes **`/api/captions`** (mounted separately from `/api/editor`):
+
+**POST `/api/captions/transcribe`** — Body: `{ "assetId": "<uuid>" }`. The asset must belong to the user and have `type` `voiceover` or `audio`, with an `r2Key`. The server downloads the file from R2 (max **25 MB** for Whisper), calls OpenAI **Whisper** (`whisper-1`) with `verbose_json` and word timestamps, converts seconds to milliseconds, and stores a row in the `captions` table.
+
+**Idempotency:** If a caption row already exists for that `assetId` and user, the handler returns the existing words and text without calling Whisper again (avoids duplicate charges).
+
+**GET `/api/captions/:assetId`** — Returns stored `words`, `fullText`, and `captionId` for that asset, or 404 if none.
+
+This is distinct from **assembly-time burned-in captions** in the [Reel Generation System](./reel-generation-system.md), which derive timing from script chunks. Whisper captions are for **editable, time-aligned** caption tracks in the editor UI.
+
+---
+
 ## What Happens If Two Saves Conflict
 
 If you have the editor open in two browser tabs and both try to save, here's what happens:
