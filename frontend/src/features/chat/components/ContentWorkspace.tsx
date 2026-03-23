@@ -1,18 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { X, FileText, Mic, Film } from "lucide-react";
-import { toast } from "sonner";
 import { DraftsList } from "./DraftsList";
 import { DraftDetail } from "./DraftDetail";
 import { AudioPanel } from "@/features/audio/components/AudioPanel";
 import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackContext";
 import { VideoWorkspacePanel } from "@/features/video/components/VideoWorkspacePanel";
-import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { cn } from "@/shared/utils/helpers/utils";
 import type { SessionDraft } from "../types/chat.types";
+import type { VideoJobResponse } from "@/features/video/types/video.types";
 
 type WorkspaceTab = "drafts" | "audio" | "video";
 
@@ -23,6 +22,9 @@ interface ContentWorkspaceProps {
   requestAudioForContentId: number | null;
   onActiveContentChange: (id: number) => void;
   onClose: () => void;
+  videoJobId: string | null;
+  videoJobData: VideoJobResponse | undefined;
+  onVideoJobStarted: (jobId: string, contentId: number) => void;
 }
 
 export function ContentWorkspace({
@@ -32,35 +34,17 @@ export function ContentWorkspace({
   requestAudioForContentId,
   onActiveContentChange,
   onClose,
+  videoJobId,
+  videoJobData,
+  onVideoJobStarted,
 }: ContentWorkspaceProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
-  const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
-    null
-  );
-  const { data: videoJobData } = useVideoJob(videoJobId);
-  const prevVideoStatusRef = useRef<string | null>(null);
-  const toastIdRef = useRef<string | number | null>(null);
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
-
-  const startVideoJob = (jobId: string, contentId: number) => {
-    setVideoJobId(jobId);
-    setVideoJobContentId(contentId);
-    toastIdRef.current = toast.loading(t("workspace_video_generating"), {
-      description: t("workspace_video_generating_toast_description"),
-      duration: Infinity,
-    });
-  };
-
-  const clearVideoJob = () => {
-    setVideoJobId(null);
-    setVideoJobContentId(null);
-  };
 
   const resolvedVideoDraft =
     selectedDraft ??
@@ -97,84 +81,6 @@ export function ContentWorkspace({
       onActiveContentChange(drafts[drafts.length - 1].id);
     }
   }, [isLoading, drafts.length, activeContentId, onActiveContentChange]);
-
-  // Restore persistent loading toast if a job was already running when the page loaded
-  useEffect(() => {
-    const status = videoJobData?.job.status;
-    if (
-      (status === "queued" || status === "running") &&
-      toastIdRef.current === null &&
-      videoJobId !== null
-    ) {
-      toastIdRef.current = toast.loading(t("workspace_video_generating"), {
-        description: t("workspace_video_generating_toast_description"),
-        duration: Infinity,
-      });
-    }
-  }, [videoJobData?.job.status, videoJobId, t]);
-
-  // Keep toast description in sync with shot-by-shot progress
-  useEffect(() => {
-    if (!toastIdRef.current) return;
-    const progress = videoJobData?.job.progress;
-    const status = videoJobData?.job.status;
-    if (status !== "queued" && status !== "running") return;
-
-    const { shotsCompleted, totalShots } = progress ?? {};
-    const description =
-      shotsCompleted !== undefined && totalShots !== undefined && totalShots > 0
-        ? t("workspace_video_generating_toast_shot_progress", {
-            completed: shotsCompleted,
-            total: totalShots,
-          })
-        : t("workspace_video_generating_toast_description");
-
-    toast.loading(t("workspace_video_generating"), {
-      id: toastIdRef.current,
-      description,
-      duration: Infinity,
-    });
-  }, [
-    videoJobData?.job.progress?.shotsCompleted,
-    videoJobData?.job.progress?.totalShots,
-    videoJobData?.job.status,
-    t,
-  ]);
-
-  // Persistent toast lifecycle: update to success/error when job finishes
-  useEffect(() => {
-    const status = videoJobData?.job.status ?? null;
-    const prev = prevVideoStatusRef.current;
-    prevVideoStatusRef.current = status;
-
-    if (status === "completed") {
-      clearVideoJob();
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(videoJobContentId ?? 0),
-      });
-      if (prev !== "completed") {
-        toast.success(t("workspace_video_ready"), {
-          id: toastIdRef.current ?? undefined,
-        });
-        toastIdRef.current = null;
-      }
-    } else if (status === "failed") {
-      clearVideoJob();
-      if (prev !== "failed") {
-        toast.error(t("workspace_video_failed"), {
-          id: toastIdRef.current ?? undefined,
-          description: videoJobData?.job.error ?? undefined,
-        });
-        toastIdRef.current = null;
-      }
-    }
-  }, [
-    videoJobData?.job.status,
-    videoJobData?.job.error,
-    t,
-    queryClient,
-    videoJobContentId,
-  ]);
 
   const handleSelectDraft = (draft: SessionDraft) => {
     setSelectedDraft(draft);
@@ -311,7 +217,7 @@ export function ContentWorkspace({
           draft={resolvedVideoDraft}
           onBackToDrafts={() => setActiveTab("drafts")}
           videoJobId={videoJobId}
-          onJobStarted={startVideoJob}
+          onJobStarted={onVideoJobStarted}
           videoJobData={videoJobData}
         />
       ) : (

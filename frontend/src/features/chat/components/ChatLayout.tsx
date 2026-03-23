@@ -1,11 +1,22 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { MessageSquarePlus, PanelRight } from "lucide-react";
+import { Loader2, MessageSquarePlus, PanelRight } from "lucide-react";
+import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { useVideoJob } from "@/features/video/hooks/use-video-job";
+import type { VideoJobResponse } from "@/features/video/types/video.types";
+import {
+  clearPersistedStudioVideoJob,
+  findActiveReelJobCandidateFromDrafts,
+  persistStudioVideoJob,
+  readPersistedStudioVideoJob,
+} from "@/features/video/lib/studio-video-job-storage";
+import { useSessionDrafts } from "../hooks/use-session-drafts";
+import { useApp } from "@/shared/contexts/app-context";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ContentWorkspace } from "./ContentWorkspace";
@@ -35,6 +46,7 @@ export function ChatLayout({
     reelId?: string;
   };
   const navigate = useNavigate();
+  const { user } = useApp();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
@@ -47,6 +59,9 @@ export function ChatLayout({
   const sessionId = search.sessionId || "";
   const { data: sessionData, isLoading: sessionLoading } =
     useChatSession(sessionId);
+  const { data: sessionDraftsData } = useSessionDrafts(
+    sessionId.length > 0 ? sessionId : null
+  );
   const {
     sendMessage,
     optimisticUserMessage,
@@ -66,6 +81,178 @@ export function ChatLayout({
   const [requestAudioForContentId, setRequestAudioForContentId] = useState<
     number | null
   >(null);
+
+  const [videoJobId, setVideoJobId] = useState<string | null>(null);
+  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
+    null
+  );
+  const { data: videoJobData } = useVideoJob(videoJobId);
+  const prevVideoStatusRef = useRef<string | null>(null);
+  const videoJobToastIdRef = useRef<string | number | null>(null);
+  const [reelProgressToastHiddenByUser, setReelProgressToastHiddenByUser] =
+    useState(false);
+  const prevSessionIdForVideoRef = useRef<string>("");
+
+  const reelGeneratingDescription = useMemo(() => {
+    const progress = videoJobData?.job.progress;
+    const { shotsCompleted, totalShots } = progress ?? {};
+    if (
+      shotsCompleted !== undefined &&
+      totalShots !== undefined &&
+      totalShots > 0
+    ) {
+      return t("workspace_video_generating_toast_shot_progress", {
+        completed: shotsCompleted,
+        total: totalShots,
+      });
+    }
+    return t("workspace_video_generating_toast_description");
+  }, [
+    videoJobData?.job.progress?.shotsCompleted,
+    videoJobData?.job.progress?.totalShots,
+    t,
+  ]);
+
+  const reelGeneratingToastOpts = useCallback(
+    (description: string) => ({
+      description,
+      duration: Infinity,
+      closeButton: true,
+      onDismiss: () => {
+        videoJobToastIdRef.current = null;
+        setReelProgressToastHiddenByUser(true);
+      },
+      cancel: {
+        label: t("workspace_video_generating_toast_hide"),
+        onClick: () => {
+          const id = videoJobToastIdRef.current;
+          if (id != null) toast.dismiss(id);
+          videoJobToastIdRef.current = null;
+          setReelProgressToastHiddenByUser(true);
+        },
+      },
+    }),
+    [t]
+  );
+
+  const handleVideoJobStarted = useCallback(
+    (jobId: string, contentId: number) => {
+      setReelProgressToastHiddenByUser(false);
+      setVideoJobId(jobId);
+      setVideoJobContentId(contentId);
+      if (sessionId) {
+        persistStudioVideoJob(sessionId, { jobId, contentId });
+      }
+      videoJobToastIdRef.current = toast.loading(
+        t("workspace_video_generating"),
+        reelGeneratingToastOpts(
+          t("workspace_video_generating_toast_description")
+        )
+      );
+    },
+    [t, reelGeneratingToastOpts, sessionId]
+  );
+
+  const handleShowReelProgressToast = useCallback(() => {
+    if (videoJobToastIdRef.current != null) return;
+    const status = videoJobData?.job.status;
+    if (status !== "queued" && status !== "running") return;
+    setReelProgressToastHiddenByUser(false);
+    videoJobToastIdRef.current = toast.loading(
+      t("workspace_video_generating"),
+      reelGeneratingToastOpts(reelGeneratingDescription)
+    );
+  }, [
+    videoJobData?.job.status,
+    reelGeneratingDescription,
+    t,
+    reelGeneratingToastOpts,
+  ]);
+
+  // Clear in-flight video job when switching chat sessions (URL session id).
+  useEffect(() => {
+    if (prevSessionIdForVideoRef.current === sessionId) return;
+    const hadPreviousSession = prevSessionIdForVideoRef.current !== "";
+    prevSessionIdForVideoRef.current = sessionId;
+    if (!hadPreviousSession) return;
+
+    setVideoJobId(null);
+    setVideoJobContentId(null);
+    prevVideoStatusRef.current = null;
+    setReelProgressToastHiddenByUser(false);
+    if (videoJobToastIdRef.current != null) {
+      toast.dismiss(videoJobToastIdRef.current);
+      videoJobToastIdRef.current = null;
+    }
+  }, [sessionId]);
+
+  // Restore in-flight video job from sessionStorage after refresh / new tab.
+  useEffect(() => {
+    if (!sessionId || !user) return;
+    let cancelled = false;
+
+    void (async () => {
+      const persisted = readPersistedStudioVideoJob(sessionId);
+      if (!persisted) return;
+      try {
+        const data = await authenticatedFetchJson<VideoJobResponse>(
+          `/api/video/jobs/${persisted.jobId}`
+        );
+        if (cancelled) return;
+        const s = data.job.status;
+        if (s === "queued" || s === "running") {
+          setVideoJobId((prev) => prev ?? persisted.jobId);
+          setVideoJobContentId((prev) => prev ?? persisted.contentId);
+          setReelProgressToastHiddenByUser(false);
+        } else {
+          clearPersistedStudioVideoJob(sessionId);
+        }
+      } catch {
+        if (!cancelled) clearPersistedStudioVideoJob(sessionId);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, user, authenticatedFetchJson]);
+
+  // Fallback when storage was cleared: draft metadata still has phase4 assembly queued/running.
+  useEffect(() => {
+    if (!sessionId || !user) return;
+    if (readPersistedStudioVideoJob(sessionId)) return;
+    const drafts = sessionDraftsData?.drafts;
+    if (!drafts?.length) return;
+
+    let cancelled = false;
+    const candidate = findActiveReelJobCandidateFromDrafts(drafts);
+    if (!candidate) return;
+
+    void (async () => {
+      try {
+        const data = await authenticatedFetchJson<VideoJobResponse>(
+          `/api/video/jobs/${candidate.jobId}`
+        );
+        if (cancelled) return;
+        const s = data.job.status;
+        if (s === "queued" || s === "running") {
+          setVideoJobId((prev) => prev ?? candidate.jobId);
+          setVideoJobContentId((prev) => prev ?? candidate.contentId);
+          setReelProgressToastHiddenByUser(false);
+          persistStudioVideoJob(sessionId, {
+            jobId: candidate.jobId,
+            contentId: candidate.contentId,
+          });
+        }
+      } catch {
+        // stale job id in metadata — ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, user, authenticatedFetchJson, sessionDraftsData?.drafts]);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -232,6 +419,94 @@ export function ChatLayout({
       });
   }, [streamingContentId, authenticatedFetchJson, queryClient]);
 
+  // Restore loading toast if a job was already running (e.g. panel was closed then reopened).
+  useEffect(() => {
+    const status = videoJobData?.job.status;
+    if (
+      (status === "queued" || status === "running") &&
+      videoJobToastIdRef.current === null &&
+      videoJobId !== null &&
+      !reelProgressToastHiddenByUser
+    ) {
+      videoJobToastIdRef.current = toast.loading(
+        t("workspace_video_generating"),
+        reelGeneratingToastOpts(reelGeneratingDescription)
+      );
+    }
+  }, [
+    videoJobData?.job.status,
+    videoJobId,
+    t,
+    reelGeneratingToastOpts,
+    reelProgressToastHiddenByUser,
+    reelGeneratingDescription,
+  ]);
+
+  // Keep toast copy in sync with shot progress while the job runs.
+  useEffect(() => {
+    if (videoJobToastIdRef.current == null) return;
+    const status = videoJobData?.job.status;
+    if (status !== "queued" && status !== "running") return;
+
+    toast.loading(t("workspace_video_generating"), {
+      id: videoJobToastIdRef.current,
+      ...reelGeneratingToastOpts(reelGeneratingDescription),
+    });
+  }, [
+    videoJobData?.job.status,
+    reelGeneratingDescription,
+    t,
+    reelGeneratingToastOpts,
+  ]);
+
+  useEffect(() => {
+    const status = videoJobData?.job.status ?? null;
+    const prev = prevVideoStatusRef.current;
+    prevVideoStatusRef.current = status;
+
+    if (status === "completed") {
+      setVideoJobId(null);
+      setVideoJobContentId(null);
+      if (sessionId) clearPersistedStudioVideoJob(sessionId);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.api.contentAssets(videoJobContentId ?? 0),
+      });
+      if (prev !== "completed") {
+        const tid = videoJobToastIdRef.current;
+        toast.success(t("workspace_video_ready"), {
+          ...(tid != null ? { id: tid } : {}),
+          description: t("workspace_video_ready_toast_description"),
+          duration: 6000,
+          closeButton: true,
+        });
+        videoJobToastIdRef.current = null;
+        setReelProgressToastHiddenByUser(false);
+      }
+    } else if (status === "failed") {
+      setVideoJobId(null);
+      setVideoJobContentId(null);
+      if (sessionId) clearPersistedStudioVideoJob(sessionId);
+      if (prev !== "failed") {
+        const tid = videoJobToastIdRef.current;
+        toast.error(t("workspace_video_failed"), {
+          ...(tid != null ? { id: tid } : {}),
+          description: videoJobData?.job.error ?? undefined,
+          duration: 8000,
+          closeButton: true,
+        });
+        videoJobToastIdRef.current = null;
+        setReelProgressToastHiddenByUser(false);
+      }
+    }
+  }, [
+    videoJobData?.job.status,
+    videoJobData?.job.error,
+    t,
+    queryClient,
+    videoJobContentId,
+    sessionId,
+  ]);
+
   const workspaceToggleClass = useMemo(() => {
     const base =
       "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm font-medium transition-all duration-150";
@@ -240,6 +515,13 @@ export function ChatLayout({
     }
     return `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
   }, [workspaceOpen]);
+
+  const reelJobRunning =
+    videoJobId !== null &&
+    (videoJobData?.job.status === "queued" ||
+      videoJobData?.job.status === "running");
+  const showReelProgressRecall =
+    reelJobRunning && reelProgressToastHiddenByUser;
 
   // Combine server messages with optimistic/streaming overlay
   const displayMessages = useMemo((): ChatMessage[] => {
@@ -299,15 +581,30 @@ export function ChatLayout({
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setWorkspaceOpen((prev) => !prev)}
-                className={workspaceToggleClass}
-                aria-label={t("workspace_open")}
-              >
-                <PanelRight className="w-3.5 h-3.5" />
-                {t("workspace_open")}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {showReelProgressRecall ? (
+                  <button
+                    type="button"
+                    onClick={handleShowReelProgressToast}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground text-sm font-medium transition-colors"
+                    aria-label={t("workspace_video_generating_toast_show_aria")}
+                  >
+                    <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                    <span className="hidden sm:inline">
+                      {t("workspace_video_generating_toast_show")}
+                    </span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceOpen((prev) => !prev)}
+                  className={workspaceToggleClass}
+                  aria-label={t("workspace_open")}
+                >
+                  <PanelRight className="w-3.5 h-3.5" />
+                  {t("workspace_open")}
+                </button>
+              </div>
             </div>
 
             <ChatPanel
@@ -354,6 +651,9 @@ export function ChatLayout({
           requestAudioForContentId={requestAudioForContentId}
           onActiveContentChange={setActiveContentId}
           onClose={() => setWorkspaceOpen(false)}
+          videoJobId={videoJobId}
+          videoJobData={videoJobData}
+          onVideoJobStarted={handleVideoJobStarted}
         />
       )}
     </div>

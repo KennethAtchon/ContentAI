@@ -352,9 +352,8 @@ customer.post(
         return c.json({ order: existing }, 200);
       }
 
-      const session = await stripeClient.checkout.sessions.retrieve(
-        stripeSessionId,
-      );
+      const session =
+        await stripeClient.checkout.sessions.retrieve(stripeSessionId);
 
       if (session.mode !== "payment") {
         return c.json(

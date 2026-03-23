@@ -83,9 +83,12 @@ export function VideoWorkspacePanel({
     number | null
   >(null);
   const storyboardSectionRef = useRef<HTMLElement>(null);
+  const jobTargetsThisDraft =
+    videoJobData != null && videoJobData.job.generatedContentId === draft.id;
+  const rawVideoStatus = videoJobData?.job.status ?? null;
   const isJobActive =
-    videoJobData?.job.status === "queued" ||
-    videoJobData?.job.status === "running";
+    jobTargetsThisDraft &&
+    (rawVideoStatus === "queued" || rawVideoStatus === "running");
   const { data: assetsData } = useContentAssets(
     draft.id,
     undefined,
@@ -101,13 +104,17 @@ export function VideoWorkspacePanel({
       .filter((asset): asset is ShotClip => !!asset)
       .sort((a, b) => a.shotIndex - b.shotIndex) ?? [];
 
-  const videoStatus = videoJobData?.job.status ?? null;
+  const videoStatus =
+    jobTargetsThisDraft && rawVideoStatus ? rawVideoStatus : null;
   const videoRunning = videoStatus === "queued" || videoStatus === "running";
   const videoFailed = videoStatus === "failed";
   const hasVideoOutput =
-    !!assembledAsset || !!videoJobData?.job.result?.videoUrl;
+    !!assembledAsset ||
+    (jobTargetsThisDraft && !!videoJobData?.job.result?.videoUrl);
   const previewVideoUrl =
-    assembledAsset?.mediaUrl ?? videoJobData?.job.result?.videoUrl ?? null;
+    assembledAsset?.mediaUrl ??
+    (jobTargetsThisDraft ? videoJobData?.job.result?.videoUrl : null) ??
+    null;
   const mutatingStoryboard =
     regenerateShot.isPending ||
     uploadShotAsset.isPending ||
@@ -130,8 +137,13 @@ export function VideoWorkspacePanel({
       });
       onJobStarted(res.jobId, draft.id);
       setStoryboardDirty(false);
-    } catch {
-      toast.error(t("workspace_video_action_generate_failed"));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      toast.error(
+        msg.includes("Another video task")
+          ? t("workspace_video_job_in_progress")
+          : t("workspace_video_action_generate_failed")
+      );
     }
   };
 

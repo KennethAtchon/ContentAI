@@ -80,6 +80,17 @@ const STAGE_LABEL: Record<string, string> = {
   pending: "text-dim-3",
 };
 
+interface ContentVersion {
+  id: number;
+  version: number;
+  generatedHook: string | null;
+  generatedCaption: string | null;
+  generatedScript: string | null;
+  cleanScriptForAudio: string | null;
+  sceneDescription: string | null;
+  createdAt: string;
+}
+
 interface QueueDetail {
   queueItem: QueueItem;
   content: {
@@ -106,6 +117,8 @@ interface QueueDetail {
     createdAt: string;
   }>;
   sessionId: string | null;
+  /** Full version chain, oldest first (v1 … vN). Empty for single-version content. */
+  versions: ContentVersion[];
 }
 
 function QueuePage() {
@@ -906,8 +919,37 @@ function DetailPanel({
   isDuplicating: boolean;
 }) {
   const { t } = useTranslation();
-  const { content, sessionId, queueItem } = detail;
+  const { sessionId, queueItem } = detail;
   const assets = detail.assets ?? [];
+
+  // Version navigation — default to the latest (last in array).
+  const versions = detail.versions ?? [];
+  const hasVersions = versions.length > 1;
+  const [selectedVersionIdx, setSelectedVersionIdx] = useState(
+    Math.max(0, versions.length - 1)
+  );
+
+  // Reset to latest whenever the queue item changes.
+  const queueItemId = queueItem.id;
+  useEffect(() => {
+    setSelectedVersionIdx(Math.max(0, versions.length - 1));
+  }, [queueItemId]);
+
+  // Use the selected historical version's copy fields when browsing history,
+  // falling back to the live content object for assets/metadata fields.
+  const selectedVersion = versions[selectedVersionIdx] ?? null;
+  const content = selectedVersion
+    ? {
+        ...detail.content,
+        id: selectedVersion.id,
+        version: selectedVersion.version,
+        generatedHook: selectedVersion.generatedHook,
+        generatedCaption: selectedVersion.generatedCaption,
+        generatedScript: selectedVersion.generatedScript,
+        cleanScriptForAudio: selectedVersion.cleanScriptForAudio,
+        sceneDescription: selectedVersion.sceneDescription,
+      }
+    : detail.content;
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const voiceover = assets.find((a) => a.type === "voiceover");
@@ -972,6 +1014,42 @@ function DetailPanel({
           {content?.generatedHook ??
             `${t("studio_queue_itemLabel")} #${queueItem.id}`}
         </h2>
+
+        {/* ── Version navigator ── */}
+        {hasVersions && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setSelectedVersionIdx((i) => Math.max(0, i - 1))}
+              disabled={selectedVersionIdx === 0}
+              className="p-1 rounded-md text-dim-3 hover:text-dim-1 hover:bg-overlay-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm text-dim-2 tabular-nums select-none">
+              v{versions[selectedVersionIdx]?.version ?? 1}
+              <span className="text-dim-3">
+                {" "}
+                / v{versions[versions.length - 1]?.version ?? 1}
+              </span>
+            </span>
+            <button
+              onClick={() =>
+                setSelectedVersionIdx((i) =>
+                  Math.min(versions.length - 1, i + 1)
+                )
+              }
+              disabled={selectedVersionIdx === versions.length - 1}
+              className="p-1 rounded-md text-dim-3 hover:text-dim-1 hover:bg-overlay-sm disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {selectedVersionIdx < versions.length - 1 && (
+              <span className="text-xs text-dim-3 ml-1">
+                (viewing older version)
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-4 text-sm text-dim-3 flex-wrap">
           {queueItem.scheduledFor ? (

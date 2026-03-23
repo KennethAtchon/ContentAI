@@ -282,10 +282,13 @@ app.post(
 
       const { generatedContentId, title } = parsed.data;
 
-      // ── Upsert: if generatedContentId provided, return existing project ──
+      // ── Upsert: if generatedContentId provided, find or update existing project ──
       if (generatedContentId) {
         const [ownedContent] = await db
-          .select({ id: generatedContent.id })
+          .select({
+            id: generatedContent.id,
+            parentId: generatedContent.parentId,
+          })
           .from(generatedContent)
           .where(
             and(
@@ -299,19 +302,55 @@ app.post(
           return c.json({ error: "Content not found" }, 403);
         }
 
+        // Walk up parent_id chain to find the root content ID so we can
+        // locate any existing editor project regardless of which version
+        // triggered this call.
+        let chainRootId = generatedContentId;
+        let cursor = ownedContent.parentId;
+        while (cursor != null) {
+          const [parent] = await db
+            .select({
+              id: generatedContent.id,
+              parentId: generatedContent.parentId,
+            })
+            .from(generatedContent)
+            .where(
+              and(
+                eq(generatedContent.id, cursor),
+                eq(generatedContent.userId, auth.user.id),
+              ),
+            )
+            .limit(1);
+          if (!parent) break;
+          chainRootId = parent.id;
+          cursor = parent.parentId;
+        }
+
         const [existing] = await db
           .select()
           .from(editProjects)
           .where(
             and(
               eq(editProjects.userId, auth.user.id),
-              eq(editProjects.generatedContentId, generatedContentId),
+              eq(editProjects.generatedContentId, chainRootId),
+              isNull(editProjects.parentProjectId),
             ),
           )
           .limit(1);
 
         if (existing) {
-          return c.json({ project: existing }, 200);
+          // Update the project to track the new version tip and rebuild the
+          // timeline from the new version's content (hook, script, scenes).
+          const { tracks, durationMs } = await buildInitialTimeline(
+            generatedContentId,
+            auth.user.id,
+          );
+          const [updated] = await db
+            .update(editProjects)
+            .set({ generatedContentId, tracks, durationMs })
+            .where(eq(editProjects.id, existing.id))
+            .returning();
+          return c.json({ project: updated }, 200);
         }
       }
 
@@ -364,6 +403,7 @@ app.post(
                   editProjects.generatedContentId,
                   parsed.data.generatedContentId,
                 ),
+                isNull(editProjects.parentProjectId),
               ),
             )
             .limit(1);

@@ -967,6 +967,20 @@ async function loadShotAssets(userId: string, generatedContentId: number) {
   });
 }
 
+function getPhase4AssemblyFromMetadata(metadata: unknown): {
+  jobId: string;
+  status: string;
+} | null {
+  const root = metadata as Record<string, unknown> | null | undefined;
+  const phase4 = root?.phase4 as Record<string, unknown> | undefined;
+  const assembly = phase4?.assembly as Record<string, unknown> | undefined;
+  if (!assembly) return null;
+  const jobId = assembly.jobId;
+  const status = assembly.status;
+  if (typeof jobId !== "string" || typeof status !== "string") return null;
+  return { jobId, status };
+}
+
 async function updatePhase4Metadata(input: {
   generatedContentId: number;
   existingGeneratedMetadata: Record<string, unknown> | null;
@@ -1677,6 +1691,41 @@ app.post(
         );
       }
 
+      const assembly = getPhase4AssemblyFromMetadata(content.generatedMetadata);
+      if (
+        assembly &&
+        (assembly.status === "queued" || assembly.status === "running")
+      ) {
+        const existing = await videoJobService.getJob(assembly.jobId);
+        if (
+          existing &&
+          (existing.status === "queued" || existing.status === "running")
+        ) {
+          if (
+            existing.kind === "reel_generate" &&
+            existing.generatedContentId === payload.generatedContentId
+          ) {
+            return c.json(
+              {
+                jobId: existing.id,
+                status: existing.status,
+                generatedContentId: payload.generatedContentId,
+              },
+              202,
+            );
+          }
+          return c.json(
+            {
+              error: "Another video task is already running for this content",
+              code: "VIDEO_JOB_IN_PROGRESS",
+              jobId: existing.id,
+              kind: existing.kind,
+            },
+            409,
+          );
+        }
+      }
+
       const job = await videoJobService.createJob({
         userId: auth.user.id,
         generatedContentId: payload.generatedContentId,
@@ -1685,6 +1734,14 @@ app.post(
           ...payload,
           prompt: resolvedPrompt,
         },
+      });
+
+      await updatePhase4Metadata({
+        generatedContentId: payload.generatedContentId,
+        existingGeneratedMetadata:
+          (content.generatedMetadata as Record<string, unknown> | null) ?? null,
+        jobId: job.id,
+        status: "queued",
       });
 
       enqueue("reel_generate", () =>

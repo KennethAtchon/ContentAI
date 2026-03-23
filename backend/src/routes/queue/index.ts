@@ -410,7 +410,9 @@ queueRouter.get(
               GROUP BY root_id
             `,
                 )
-                .then((r) => r as unknown as { root_id: number; count: number }[])
+                .then(
+                  (r) => r as unknown as { root_id: number; count: number }[],
+                )
             : [];
 
         for (const row of countRows) {
@@ -626,9 +628,7 @@ queueRouter.get(
           })
           .from(contentAssets)
           .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-          .where(
-            eq(contentAssets.generatedContentId, item.generatedContentId),
-          );
+          .where(eq(contentAssets.generatedContentId, item.generatedContentId));
 
         detailAssets = await Promise.all(
           assetRows.map(async (r) => {
@@ -652,11 +652,76 @@ queueRouter.get(
         );
       }
 
+      // Collect the full version chain by walking up parent_id from the current
+      // tip. Returns rows sorted oldest → newest (v1 first).
+      let versions: Array<{
+        id: number;
+        version: number;
+        generatedHook: string | null;
+        generatedCaption: string | null;
+        generatedScript: string | null;
+        cleanScriptForAudio: string | null;
+        sceneDescription: string | null;
+        createdAt: string;
+      }> = [];
+
+      if (item.generatedContentId) {
+        const chainRows = await db.execute(
+          sql`
+            WITH RECURSIVE chain AS (
+              SELECT id, version, generated_hook, generated_caption,
+                     generated_script, clean_script_for_audio,
+                     scene_description, created_at, parent_id
+              FROM generated_content
+              WHERE id = ${item.generatedContentId} AND user_id = ${auth.user.id}
+              UNION ALL
+              SELECT gc.id, gc.version, gc.generated_hook, gc.generated_caption,
+                     gc.generated_script, gc.clean_script_for_audio,
+                     gc.scene_description, gc.created_at, gc.parent_id
+              FROM generated_content gc
+              JOIN chain ON gc.id = chain.parent_id
+              WHERE gc.user_id = ${auth.user.id}
+            )
+            SELECT id::int, version::int, generated_hook, generated_caption,
+                   generated_script, clean_script_for_audio, scene_description,
+                   created_at
+            FROM chain
+            ORDER BY version ASC
+          `,
+        );
+
+        versions = (
+          chainRows as unknown as Array<{
+            id: number;
+            version: number;
+            generated_hook: string | null;
+            generated_caption: string | null;
+            generated_script: string | null;
+            clean_script_for_audio: string | null;
+            scene_description: string | null;
+            created_at: Date;
+          }>
+        ).map((r) => ({
+          id: r.id,
+          version: r.version,
+          generatedHook: r.generated_hook,
+          generatedCaption: r.generated_caption,
+          generatedScript: r.generated_script,
+          cleanScriptForAudio: r.clean_script_for_audio,
+          sceneDescription: r.scene_description,
+          createdAt:
+            r.created_at instanceof Date
+              ? r.created_at.toISOString()
+              : String(r.created_at),
+        }));
+      }
+
       return c.json({
         queueItem: item,
         content,
         sessionId,
         assets: detailAssets,
+        versions,
       });
     } catch (error) {
       debugLog.error("Failed to fetch queue item detail", {
