@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateAdminMusicTracksQueries } from "@/shared/lib/query-invalidation";
 
 export interface AdminMusicTrack {
   id: string;
@@ -15,13 +17,11 @@ export interface AdminMusicTrack {
   createdAt: string;
 }
 
-const QUERY_KEY = ["api", "admin", "music"] as const;
-
 export function useAdminMusicTracks(search?: string) {
   const fetcher = useQueryFetcher<{ tracks: AdminMusicTrack[] }>();
   const params = search ? `?search=${encodeURIComponent(search)}` : "";
   return useQuery({
-    queryKey: [...QUERY_KEY, search],
+    queryKey: [...queryKeys.api.admin.musicRoot(), search],
     queryFn: () => fetcher(`/api/admin/music${params}`),
   });
 }
@@ -43,7 +43,7 @@ export function useUploadMusicTrack() {
       return res.json() as Promise<{ track: AdminMusicTrack }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      void invalidateAdminMusicTracksQueries(queryClient);
     },
   });
 }
@@ -62,7 +62,7 @@ export function useToggleMusicTrack() {
         }
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      void invalidateAdminMusicTracksQueries(queryClient);
     },
   });
 }
@@ -75,7 +75,7 @@ export function useDeleteMusicTrack() {
     mutationFn: (id: string) =>
       authenticatedFetchJson(`/api/admin/music/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      void invalidateAdminMusicTracksQueries(queryClient);
     },
   });
 }

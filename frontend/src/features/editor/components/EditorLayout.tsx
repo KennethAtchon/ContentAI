@@ -23,6 +23,7 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { useEditorReducer } from "../hooks/useEditorStore";
 import { usePlayback } from "../hooks/usePlayback";
@@ -115,9 +116,7 @@ export function EditorLayout({ project, onBack }: Props) {
         body: JSON.stringify(patch),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
     },
   });
 
@@ -131,9 +130,7 @@ export function EditorLayout({ project, onBack }: Props) {
         method: "POST",
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
       store.loadProject({
         ...project,
         tracks: store.state.tracks,
@@ -152,9 +149,7 @@ export function EditorLayout({ project, onBack }: Props) {
         }
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
       onBack();
     },
   });

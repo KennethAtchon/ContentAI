@@ -20,6 +20,11 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
+  invalidateAdminApiKeysStatus,
+  invalidateAfterAdminSystemConfigCacheFlush,
+  invalidateAfterAdminSystemConfigSave,
+} from "@/shared/lib/query-invalidation";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -111,7 +116,7 @@ function useSystemConfig(category: string) {
         method: "PUT",
         body: JSON.stringify({ value }),
       });
-      await queryClient.invalidateQueries({ queryKey });
+      await invalidateAfterAdminSystemConfigSave(queryClient, category);
     },
     [category, authenticatedFetchJson, queryClient]
   );
@@ -1810,9 +1815,7 @@ function ApiKeysTab() {
               source={getSource(row.key)}
               onSave={async (value) => {
                 await updateEntry(row.key, value);
-                await queryClient.invalidateQueries({
-                  queryKey: queryKeys.api.admin.apiKeysStatus(),
-                });
+                await invalidateAdminApiKeysStatus(queryClient);
               }}
             />
           ))}
@@ -1837,9 +1840,7 @@ function SystemConfigPage() {
         method: "POST",
         body: JSON.stringify({ category: "all" }),
       });
-      await queryClient.invalidateQueries({
-        queryKey: ["api", "admin", "system-config"],
-      });
+      await invalidateAfterAdminSystemConfigCacheFlush(queryClient);
       toast.success("Config cache invalidated");
     } catch {
       toast.error("Failed to invalidate cache");

@@ -6,6 +6,7 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateQueueQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
@@ -190,7 +191,7 @@ function QueuePage() {
     },
     onSuccess: (_, id) => {
       if (detailItemId === id) setDetailItemId(null);
-      queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
+      void invalidateQueueQueries(queryClient);
     },
   });
 
@@ -207,7 +208,7 @@ function QueuePage() {
     },
     onSuccess: () => {
       toast.success(t("studio_queue_duplicated"));
-      queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
+      void invalidateQueueQueries(queryClient);
     },
     onError: () => toast.error(t("studio_queue_duplicate_failed")),
   });

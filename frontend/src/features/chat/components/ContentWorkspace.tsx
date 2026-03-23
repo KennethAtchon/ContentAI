@@ -8,7 +8,7 @@ import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackCo
 import { VideoWorkspacePanel } from "@/features/video/components/VideoWorkspacePanel";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
 import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateSessionDrafts } from "@/shared/lib/query-invalidation";
 import { cn } from "@/shared/utils/helpers/utils";
 import type { SessionDraft } from "../types/chat.types";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
@@ -55,9 +55,7 @@ export function ContentWorkspace({
   // Invalidate drafts when stream produces new content
   useEffect(() => {
     if (streamingContentId) {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.sessionDrafts(sessionId),
-      });
+      void invalidateSessionDrafts(queryClient, sessionId);
     }
   }, [streamingContentId, sessionId, queryClient]);
 

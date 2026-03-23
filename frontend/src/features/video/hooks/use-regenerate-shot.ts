@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateAfterRegenerateShot } from "@/shared/lib/query-invalidation";
 import type { CreateReelResponse } from "../types/video.types";
 
 type RegenerateShotArgs = {
@@ -25,12 +25,11 @@ export function useRegenerateShot() {
         }
       ),
     onSuccess: (res, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(variables.generatedContentId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.videoJob(res.jobId),
-      });
+      void invalidateAfterRegenerateShot(
+        queryClient,
+        variables.generatedContentId,
+        res.jobId
+      );
     },
   });
 }

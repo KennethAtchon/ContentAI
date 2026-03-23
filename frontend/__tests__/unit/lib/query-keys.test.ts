@@ -61,6 +61,38 @@ describe("query-keys", () => {
       expect(queryKeys.api.usageStats()).toEqual(["api", "account", "usage"]);
     });
 
+    it("usersQueriesRoot", () => {
+      expect(queryKeys.api.usersQueriesRoot()).toEqual(["api", "users"]);
+    });
+
+    it("queueRoot", () => {
+      expect(queryKeys.api.queueRoot()).toEqual(["api", "queue"]);
+    });
+
+    it("generationHistoryRoot", () => {
+      expect(queryKeys.api.generationHistoryRoot()).toEqual([
+        "api",
+        "generation-history",
+      ]);
+    });
+
+    it("chatSessionsRoot and chatSession", () => {
+      expect(queryKeys.api.chatSessionsRoot()).toEqual(["chat-sessions"]);
+      expect(queryKeys.api.chatSession("s1")).toEqual(["chat-sessions", "s1"]);
+    });
+
+    it("project", () => {
+      expect(queryKeys.api.project("p1")).toEqual(["api", "projects", "p1"]);
+    });
+
+    it("contentAssetsPrefix", () => {
+      expect(queryKeys.api.contentAssetsPrefix(42)).toEqual([
+        "api",
+        "assets",
+        42,
+      ]);
+    });
+
     it("paginated", () => {
       expect(queryKeys.api.paginated("orders", { page: 1, limit: 20 })).toEqual(
         ["api", "paginated", "orders", { page: 1, limit: 20 }]
@@ -69,6 +101,14 @@ describe("query-keys", () => {
   });
 
   describe("api.admin", () => {
+    it("ordersRoot", () => {
+      expect(queryKeys.api.admin.ordersRoot()).toEqual([
+        "api",
+        "admin",
+        "orders",
+      ]);
+    });
+
     it("orders", () => {
       expect(queryKeys.api.admin.orders()).toEqual([
         "api",
@@ -162,6 +202,25 @@ describe("query-keys", () => {
         "admin",
         "subscriptions",
         "analytics",
+      ]);
+    });
+
+    it("nichesRoot and nicheReelsPrefix and musicRoot", () => {
+      expect(queryKeys.api.admin.nichesRoot()).toEqual([
+        "api",
+        "admin",
+        "niches",
+      ]);
+      expect(queryKeys.api.admin.nicheReelsPrefix(7)).toEqual([
+        "api",
+        "admin",
+        "niche-reels",
+        7,
+      ]);
+      expect(queryKeys.api.admin.musicRoot()).toEqual([
+        "api",
+        "admin",
+        "music",
       ]);
     });
 

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateQueueQueries } from "@/shared/lib/query-invalidation";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 
 export function useSendToQueue() {
@@ -16,7 +17,7 @@ export function useSendToQueue() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
+      void invalidateQueueQueries(queryClient);
     },
   });
 }

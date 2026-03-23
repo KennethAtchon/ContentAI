@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateAfterGenerateReel } from "@/shared/lib/query-invalidation";
 import type {
   CreateReelRequest,
   CreateReelResponse,
@@ -17,15 +17,11 @@ export function useGenerateReel() {
         body: JSON.stringify(data),
       }),
     onSuccess: (res, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.generatedContent(variables.generatedContentId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(variables.generatedContentId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.videoJob(res.jobId),
-      });
+      void invalidateAfterGenerateReel(
+        queryClient,
+        variables.generatedContentId,
+        res.jobId
+      );
     },
   });
 }

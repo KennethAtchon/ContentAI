@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 
 type AssembleReelArgs = {
   generatedContentId: number;
@@ -37,9 +37,7 @@ export function useAssembleReel() {
         }
       ),
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
       void navigate({
         to: "/studio/editor",
         search: { contentId: variables.generatedContentId },

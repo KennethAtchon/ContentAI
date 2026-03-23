@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { debugLog } from "@/shared/utils/debug";
+import { invalidateAfterAdminOrderSave } from "@/shared/lib/query-invalidation";
 
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -196,8 +197,7 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
         { orderId: order?.id }
       );
 
-      queryClient.invalidateQueries({ queryKey: ["api", "admin", "orders"] });
-      queryClient.invalidateQueries({ queryKey: ["api", "users"] });
+      void invalidateAfterAdminOrderSave(queryClient);
 
       // Trigger parent callback if provided
       if (onSubmit) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 
@@ -26,9 +27,7 @@ export function useEditorProject() {
         body: JSON.stringify(patch),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
     },
   });
 

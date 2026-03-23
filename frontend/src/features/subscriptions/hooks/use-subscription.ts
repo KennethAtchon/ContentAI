@@ -11,7 +11,7 @@ import { useState, useEffect, useRef } from "react";
 import { getAuth } from "firebase/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { debugLog } from "@/shared/utils/debug";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateAfterSubscriptionRoleChange } from "@/shared/lib/query-invalidation";
 
 export type SubscriptionRole = "basic" | "pro" | "enterprise" | null;
 
@@ -84,24 +84,7 @@ export function useSubscription(): SubscriptionAccess {
             oldRole: previousRoleRef.current,
             newRole,
           });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.reelsUsage(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.usageStats(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.currentSubscription(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.portalLink(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.admin.subscriptions(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.admin.subscriptionsAnalytics(),
-          });
+          void invalidateAfterSubscriptionRoleChange(queryClient);
         }
 
         previousRoleRef.current = newRole;

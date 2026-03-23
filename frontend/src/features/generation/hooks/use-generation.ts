@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
+import {
+  invalidateGenerationHistoryQueries,
+  invalidateQueueAndGenerationHistory,
+} from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
@@ -43,9 +47,7 @@ export function useGenerateContent() {
       return res.json() as Promise<{ content: GeneratedContent }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["api", "generation-history"],
-      });
+      void invalidateGenerationHistoryQueries(queryClient);
     },
   });
 }
@@ -75,10 +77,7 @@ export function useQueueContent() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
-      queryClient.invalidateQueries({
-        queryKey: ["api", "generation-history"],
-      });
+      void invalidateQueueAndGenerationHistory(queryClient);
     },
   });
 }

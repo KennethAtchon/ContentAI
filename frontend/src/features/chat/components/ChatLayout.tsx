@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/shared/lib/query-keys";
+import {
+  invalidateContentAssetsForGeneration,
+  invalidateEditorProjectsQueries,
+  invalidateQueueQueries,
+} from "@/shared/lib/query-invalidation";
 import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
 import {
@@ -393,7 +397,7 @@ export function ChatLayout({
   // reflects the new item without requiring a manual refresh.
   useEffect(() => {
     if (!streamingContentId) return;
-    void queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
+    void invalidateQueueQueries(queryClient);
   }, [streamingContentId, queryClient]);
 
   // Auto-create an editor project in the background so the project is ready
@@ -405,9 +409,7 @@ export function ChatLayout({
       body: JSON.stringify({ generatedContentId: streamingContentId }),
     })
       .then(() => {
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.api.editorProjects(),
-        });
+        void invalidateEditorProjectsQueries(queryClient);
       })
       .catch((err) => {
         debugLog.error("Failed to auto-create editor project", {
@@ -468,9 +470,10 @@ export function ChatLayout({
       setVideoJobId(null);
       setVideoJobContentId(null);
       if (sessionId) clearPersistedStudioVideoJob(sessionId);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(videoJobContentId ?? 0),
-      });
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        videoJobContentId ?? 0
+      );
       if (prev !== "completed") {
         const tid = videoJobToastIdRef.current;
         toast.success(t("workspace_video_ready"), {

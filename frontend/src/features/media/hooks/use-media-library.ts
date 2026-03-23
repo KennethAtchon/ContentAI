@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateMediaLibraryQueries } from "@/shared/lib/query-invalidation";
 import { mediaService } from "../services/media.service";
 import type { MediaLibraryResponse } from "../types/media.types";
 
@@ -20,9 +21,7 @@ export function useUploadMedia() {
     mutationFn: ({ file, name }: { file: File; name?: string }) =>
       mediaService.upload(file, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.mediaLibrary(),
-      });
+      void invalidateMediaLibraryQueries(queryClient);
     },
   });
 }
@@ -33,9 +32,7 @@ export function useDeleteMedia() {
   return useMutation({
     mutationFn: (id: string) => mediaService.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.mediaLibrary(),
-      });
+      void invalidateMediaLibraryQueries(queryClient);
     },
   });
 }

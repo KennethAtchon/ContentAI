@@ -18,6 +18,7 @@ import { useApp } from "@/shared/contexts/app-context";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateUsageStatsAndGenerationHistory } from "@/shared/lib/query-invalidation";
 import {
   Loader2,
   Download,
@@ -159,16 +160,7 @@ export function UsageDashboard() {
         window.open(response.url, "_blank");
       }
 
-      // Invalidate usage stats and history cache after export
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.usageStats(),
-      });
-      queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === "api" &&
-          q.queryKey[1] === "generation-history",
-      });
+      void invalidateUsageStatsAndGenerationHistory(queryClient);
     } catch (err) {
       setExportError(
         err instanceof Error ? err.message : "Failed to export usage data"

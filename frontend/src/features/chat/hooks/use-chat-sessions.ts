@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateChatSessionsQueries } from "@/shared/lib/query-invalidation";
 import { chatService } from "../services/chat.service";
 import type {
   CreateSessionRequest,
@@ -7,14 +9,14 @@ import type {
 
 export const useChatSessions = (projectId?: string) => {
   return useQuery({
-    queryKey: ["chat-sessions", projectId],
+    queryKey: [...queryKeys.api.chatSessionsRoot(), projectId],
     queryFn: () => chatService.getChatSessions(projectId),
   });
 };
 
 export const useChatSession = (id: string) => {
   return useQuery({
-    queryKey: ["chat-sessions", id],
+    queryKey: queryKeys.api.chatSession(id),
     queryFn: () => chatService.getChatSession(id),
     enabled: !!id,
   });
@@ -27,7 +29,7 @@ export const useCreateChatSession = () => {
     mutationFn: (session: CreateSessionRequest) =>
       chatService.createChatSession(session),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+      void invalidateChatSessionsQueries(queryClient);
     },
   });
 };
@@ -38,7 +40,7 @@ export const useDeleteChatSession = () => {
   return useMutation({
     mutationFn: (id: string) => chatService.deleteChatSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+      void invalidateChatSessionsQueries(queryClient);
     },
   });
 };
@@ -55,7 +57,7 @@ export const useUpdateChatSession = () => {
       updates: UpdateSessionRequest;
     }) => chatService.updateChatSession(id, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-sessions"] });
+      void invalidateChatSessionsQueries(queryClient);
     },
   });
 };

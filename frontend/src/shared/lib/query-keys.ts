@@ -2,6 +2,9 @@
  * Centralized query keys for React Query.
  * Use for consistent cache keys and invalidation (e.g. by prefix or predicate).
  * Keys: profile, reels, subscriptions, usage, settings, admin (config, status), studio.
+ *
+ * Cross-resource invalidation (admin save → customer cache, etc.): see
+ * `query-invalidation.ts` and extend mappings there when adding dependent queries.
  */
 
 export const queryKeys = {
@@ -15,8 +18,15 @@ export const queryKeys = {
     currentSubscription: () => ["api", "subscriptions", "current"] as const,
     portalLink: () => ["api", "subscriptions", "portal-link"] as const,
     usageStats: () => ["api", "account", "usage"] as const,
+    /** Prefix for all `/api/users/...` queries (e.g. admin order form user picker) */
+    usersQueriesRoot: () => ["api", "users"] as const,
     userSettings: () => ["api", "customer", "settings"] as const,
+    /** Account page voice list (`/api/audio/voices`); keep in sync with TTS system config */
+    userSettingsVoices: () =>
+      [...queryKeys.api.userSettings(), "voices"] as const,
     admin: {
+      /** Prefix-invalidates any paginated admin orders query */
+      ordersRoot: () => ["api", "admin", "orders"] as const,
       orders: (params?: { page?: number; limit?: number }) =>
         ["api", "admin", "orders", params] as const,
       users: () => ["api", "admin", "users"] as const,
@@ -37,6 +47,10 @@ export const queryKeys = {
         ["api", "shared", "contact-messages", params] as const,
       niches: (params?: { search?: string; active?: boolean }) =>
         ["api", "admin", "niches", params] as const,
+      /** Prefix for all niche reel list queries for a niche */
+      nicheReelsPrefix: (nicheId: number) =>
+        ["api", "admin", "niche-reels", nicheId] as const,
+      nichesRoot: () => ["api", "admin", "niches"] as const,
       nicheReels: (
         nicheId: number,
         params?: { page?: number; limit?: number }
@@ -49,6 +63,7 @@ export const queryKeys = {
       videoProvidersStatus: () =>
         ["api", "admin", "video-providers-status"] as const,
       apiKeysStatus: () => ["api", "admin", "api-keys-status"] as const,
+      musicRoot: () => ["api", "admin", "music"] as const,
     },
     aiDefaults: () => ["api", "customer", "ai-defaults"] as const,
     videoDefaults: () => ["api", "customer", "video-defaults"] as const,
@@ -60,6 +75,7 @@ export const queryKeys = {
     reelAnalysis: (id: number) => ["api", "reel-analysis", id] as const,
     generationHistory: (params?: { limit?: number; offset?: number }) =>
       ["api", "generation-history", params] as const,
+    generationHistoryRoot: () => ["api", "generation-history"] as const,
     audioTrending: (params?: {
       days?: number;
       nicheId?: number | null;
@@ -73,8 +89,13 @@ export const queryKeys = {
       limit?: number;
       offset?: number;
     }) => ["api", "queue", params] as const,
+    queueRoot: () => ["api", "queue"] as const,
     queueDetail: (id: number) => ["api", "queue-detail", id] as const,
     projects: () => ["api", "projects"] as const,
+    project: (id: string) => ["api", "projects", id] as const,
+    /** Studio chat sessions: list + detail share this prefix */
+    chatSessionsRoot: () => ["chat-sessions"] as const,
+    chatSession: (sessionId: string) => ["chat-sessions", sessionId] as const,
     audioVoices: () => ["api", "audio", "voices"] as const,
     musicLibrary: (filters?: {
       search?: string;
@@ -84,6 +105,9 @@ export const queryKeys = {
     }) => ["api", "music", "library", filters] as const,
     contentAssets: (generatedContentId: number, type?: string) =>
       ["api", "assets", generatedContentId, type] as const,
+    /** Prefix-invalidates all asset-type slices for one generated content id */
+    contentAssetsPrefix: (generatedContentId: number) =>
+      ["api", "assets", generatedContentId] as const,
     videoJob: (jobId: string) => ["api", "video", "job", jobId] as const,
     videoComposition: (compositionId: string) =>
       ["api", "video", "composition", compositionId] as const,

@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import {
+  invalidateAdminNicheJobs,
+  invalidateAdminNicheReelsAndNichesList,
+  invalidateAdminNicheReelsForNiche,
+  invalidateAdminNichesQueries,
+} from "@/shared/lib/query-invalidation";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -100,7 +106,7 @@ export function useCreateNiche() {
       return res.json() as Promise<{ niche: AdminNiche }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "admin", "niches"] });
+      void invalidateAdminNichesQueries(queryClient);
     },
   });
 }
@@ -133,7 +139,7 @@ export function useUpdateNiche() {
       return res.json() as Promise<{ niche: AdminNiche }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "admin", "niches"] });
+      void invalidateAdminNichesQueries(queryClient);
     },
   });
 }
@@ -156,7 +162,7 @@ export function useDeleteNiche() {
       return res.json() as Promise<{ deleted: boolean }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["api", "admin", "niches"] });
+      void invalidateAdminNichesQueries(queryClient);
     },
   });
 }
@@ -243,9 +249,7 @@ export function useScanNiche() {
       }>;
     },
     onSuccess: (_data, { nicheId }) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.admin.nicheJobs(nicheId),
-      });
+      void invalidateAdminNicheJobs(queryClient, nicheId);
     },
   });
 }
@@ -269,9 +273,7 @@ export function useDedupeNiche() {
       }>;
     },
     onSuccess: (_data, nicheId) => {
-      queryClient.invalidateQueries({
-        queryKey: ["api", "admin", "niche-reels", nicheId],
-      });
+      void invalidateAdminNicheReelsForNiche(queryClient, nicheId);
     },
   });
 }
@@ -295,10 +297,7 @@ export function useDeleteAdminReel() {
       return { reelId, nicheId };
     },
     onSuccess: ({ nicheId }) => {
-      queryClient.invalidateQueries({
-        queryKey: ["api", "admin", "niche-reels", nicheId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["api", "admin", "niches"] });
+      void invalidateAdminNicheReelsAndNichesList(queryClient, nicheId);
     },
   });
 }

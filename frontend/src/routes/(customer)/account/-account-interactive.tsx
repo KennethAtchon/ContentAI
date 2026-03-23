@@ -21,6 +21,7 @@ import { useSubscription } from "@/features/subscriptions/hooks/use-subscription
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateUserSettingsQuery } from "@/shared/lib/query-invalidation";
 import { cn } from "@/shared/utils/helpers/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
@@ -684,7 +685,7 @@ function UserPreferences() {
     });
 
   const { data: voices, isLoading: voicesLoading } = useQuery<Voice[]>({
-    queryKey: [...queryKeys.api.userSettings(), "voices"],
+    queryKey: queryKeys.api.userSettingsVoices(),
     queryFn: () =>
       (fetcher("/api/audio/voices") as Promise<{ voices: Voice[] }>).then(
         (r) => r.voices
@@ -715,7 +716,7 @@ function UserPreferences() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.api.userSettings() });
+      void invalidateUserSettingsQuery(queryClient);
     },
     onError: () => {
       toast.error(t("user_settings_save_error"));

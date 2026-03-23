@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/shared/contexts/app-context";
+import { queryKeys } from "@/shared/lib/query-keys";
+import {
+  invalidateChatProjectQueries,
+  invalidateChatProjectsQueries,
+} from "@/shared/lib/query-invalidation";
 import { chatService } from "../services/chat.service";
 import type {
   CreateProjectRequest,
@@ -9,7 +14,7 @@ import type {
 export const useProjects = () => {
   const { user } = useApp();
   return useQuery({
-    queryKey: ["projects"],
+    queryKey: queryKeys.api.projects(),
     queryFn: () => chatService.getProjects(),
     enabled: !!user,
   });
@@ -17,7 +22,7 @@ export const useProjects = () => {
 
 export const useProject = (id: string) => {
   return useQuery({
-    queryKey: ["projects", id],
+    queryKey: queryKeys.api.project(id),
     queryFn: () => chatService.getProject(id),
     enabled: !!id,
   });
@@ -30,7 +35,7 @@ export const useCreateProject = () => {
     mutationFn: (project: CreateProjectRequest) =>
       chatService.createProject(project),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      void invalidateChatProjectsQueries(queryClient);
     },
   });
 };
@@ -47,8 +52,7 @@ export const useUpdateProject = () => {
       updates: UpdateProjectRequest;
     }) => chatService.updateProject(id, updates),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      queryClient.invalidateQueries({ queryKey: ["projects", id] });
+      void invalidateChatProjectQueries(queryClient, id);
     },
   });
 };
@@ -59,7 +63,7 @@ export const useDeleteProject = () => {
   return useMutation({
     mutationFn: (id: string) => chatService.deleteProject(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      void invalidateChatProjectsQueries(queryClient);
     },
   });
 };

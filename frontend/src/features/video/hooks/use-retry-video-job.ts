@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateVideoJob } from "@/shared/lib/query-invalidation";
 import type { CreateReelResponse } from "../types/video.types";
 
 export function useRetryVideoJob() {
@@ -16,9 +16,7 @@ export function useRetryVideoJob() {
         }
       ),
     onSuccess: (res) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.videoJob(res.jobId),
-      });
+      void invalidateVideoJob(queryClient, res.jobId);
     },
   });
 }

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
@@ -86,9 +87,7 @@ function EditorPage() {
         body: JSON.stringify({ generatedContentId: cId }),
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
       setActiveProject(res.project);
     },
   });
@@ -108,9 +107,7 @@ function EditorPage() {
         body: JSON.stringify({ title: "Untitled Edit" }),
       }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
       setActiveProject(res.project);
     },
   });
@@ -120,9 +117,7 @@ function EditorPage() {
     mutationFn: (id: string) =>
       authenticatedFetchJson(`/api/editor/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.api.editorProjects(),
-      });
+      void invalidateEditorProjectsQueries(queryClient);
     },
   });
 

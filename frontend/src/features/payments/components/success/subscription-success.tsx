@@ -23,7 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getAuth } from "firebase/auth";
 import { debugLog } from "@/shared/utils/debug";
 import { APP_NAME, CORE_FEATURE_PATH } from "@/shared/constants/app.constants";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateCustomerSubscriptionSummary } from "@/shared/lib/query-invalidation";
 
 interface SubscriptionSuccessProps {
   sessionId: string | null;
@@ -71,11 +71,7 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
   useEffect(() => {
     if (!sessionId) return;
 
-    queryClient.invalidateQueries({ queryKey: queryKeys.api.usageStats() });
-    queryClient.invalidateQueries({ queryKey: queryKeys.api.reelsUsage() });
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.api.currentSubscription(),
-    });
+    void invalidateCustomerSubscriptionSummary(queryClient);
 
     const MAX_ATTEMPTS = 20; // 60s max
     let attempts = 0;
@@ -90,16 +86,7 @@ export function SubscriptionSuccess({ sessionId }: SubscriptionSuccessProps) {
         const result = await user.getIdTokenResult();
 
         if (result.claims.stripeRole) {
-          // Role is now set — invalidate everything and stop polling
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.usageStats(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.reelsUsage(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.api.currentSubscription(),
-          });
+          void invalidateCustomerSubscriptionSummary(queryClient);
           clearInterval(interval);
           debugLog.info("Stripe role claim detected, caches invalidated", {
             component: "SubscriptionSuccess",

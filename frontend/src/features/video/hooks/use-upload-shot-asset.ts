@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
 
 type UploadShotAssetArgs = {
   generatedContentId: number;
@@ -37,9 +37,10 @@ export function useUploadShotAsset() {
       return response.json();
     },
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(variables.generatedContentId),
-      });
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        variables.generatedContentId
+      );
     },
   });
 }

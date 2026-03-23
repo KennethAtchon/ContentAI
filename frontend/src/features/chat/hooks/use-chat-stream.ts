@@ -2,6 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
+import {
+  invalidateChatSessionQuery,
+  invalidateReelsUsageAndUsageStats,
+} from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
 
@@ -31,10 +35,6 @@ type ChatSessionQueryData = {
   session: unknown;
   messages: ChatMessage[];
 };
-
-function chatSessionDetailQueryKey(sessionId: string) {
-  return ["chat-sessions", sessionId] as const;
-}
 
 // ---------------------------------------------------------------------------
 // SSE / stream parsing (module scope keeps the hook thin)
@@ -229,12 +229,7 @@ async function handleChatMessagesForbiddenResponse(
   if (code !== "USAGE_LIMIT_REACHED") return false;
 
   debugLog.warn("[ChatStream] Usage limit reached — aborting stream");
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.api.reelsUsage(),
-  });
-  void queryClient.invalidateQueries({
-    queryKey: queryKeys.api.usageStats(),
-  });
+  void invalidateReelsUsageAndUsageStats(queryClient);
   return true;
 }
 
@@ -264,7 +259,7 @@ function patchSessionCacheAfterStream(
     : [];
 
   queryClient.setQueryData(
-    chatSessionDetailQueryKey(sessionId),
+    queryKeys.api.chatSession(sessionId),
     (old: ChatSessionQueryData | undefined) => {
       if (!old) return old;
       return {
@@ -416,9 +411,7 @@ export function useChatStream(sessionId: string) {
         );
 
         debugLog.info("[ChatStream] Triggering background session refresh");
-        void queryClient.invalidateQueries({
-          queryKey: chatSessionDetailQueryKey(sessionId),
-        });
+        void invalidateChatSessionQuery(queryClient, sessionId);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           debugLog.info("[ChatStream] Stream aborted by user");

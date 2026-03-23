@@ -153,10 +153,14 @@ This means: **the editor always has a meaningful layout from the moment content 
 
 Changes to `runReelGeneration`:
 1. After generating all `video_clip` assets, do NOT call `runAssembleFromExistingClips`.
-2. Instead, call `POST /api/editor` (or a new internal `refreshEditorTimeline(contentId, userId)` function) to rebuild the editor's tracks from the newly created assets.
+2. Instead, call `refreshEditorTimeline(contentId, userId)` after each individual clip is generated to replace the matching placeholder on the timeline.
 3. The frontend should show the editor (or a link to it) when clip generation completes, not a video preview of the assembled output.
 
-The `runAssembleFromExistingClips` function and its `upsertAssembledAsset` helper are **no longer called** from this path. They can be kept for internal tooling or removed.
+`runAssembleFromExistingClips` has **two call sites** that must both be removed:
+- `runReelGeneration` in `backend/src/routes/video/index.ts` (direct call)
+- `chat-tools.ts` — the `assemble_video` AI tool calls `runAssembleFromExistingClips` via `setTimeout`. **This tool must be removed from the AI tool list or rewired to trigger an editor export.** If the function is deleted and the tool definition remains, any active chat session that invokes it will crash.
+
+The `runAssembleFromExistingClips` function, `upsertAssembledAsset`, `mixAssemblyAudio`, and `createAssCaptions` are fully retired. Existing `assembled_video` rows in `content_assets` are excluded from all UI via filter (see D) and cleaned up by data migration (see Migration Path).
 
 ---
 
@@ -263,32 +267,51 @@ sequenceDiagram
 
 ## Migration Path
 
-### Phase 1 — Fix what's broken today (no schema changes)
+The canonical phase sequence is defined in the LLD build sequence. **All three documents (README, this file, LLD) use the same four phases:**
+
+### Phase 1 — Schema + Core Backend Services
 
 | # | Change | Files |
 |---|---|---|
-| 1 | Editor project title = content hook (truncated) | `backend/src/routes/editor/index.ts` |
-| 2 | Filter `assembled_video` out of MediaPanel asset fetch | `backend/src/routes/editor/index.ts` (assets endpoint) |
-| 3 | AI Assembly fills audio + text tracks from existing content assets | `backend/src/routes/editor/index.ts` (`convertAIResponseToTracks`) |
-| 4 | `buildInitialTimeline` generates placeholder clips from script | `backend/src/routes/editor/services/build-initial-timeline.ts` |
+| 1 | Add `autoTitle` column to `edit_projects` + migration (set `false` for existing rows where title ≠ hook) | `schema.ts`, migration |
+| 2 | Update `Clip` TypeScript type with `isPlaceholder`, `placeholderShotIndex`, `placeholderLabel` | `frontend/src/features/editor/types/editor.ts` |
+| 3 | Write `refreshEditorTimeline` service (with transaction + row lock) | new `refresh-editor-timeline.ts` |
+| 4 | Update `buildInitialTimeline`: placeholder clips from script + empty-result guard | `build-initial-timeline.ts` |
+| 5 | Update `POST /api/editor`: title from hook + `autoTitle` flag | `backend/src/routes/editor/index.ts` |
+| 6 | Update `PATCH /api/editor`: set `autoTitle=false` only when title actually changes | `backend/src/routes/editor/index.ts` |
 
-### Phase 2 — Decouple "Generate Clips" from auto-assembly
+### Phase 2 — Backend Decoupling (old assembly code stays alive as fallback)
 
-| # | Change | Files |
-|---|---|---|
-| 5 | `runReelGeneration` does NOT call `runAssembleFromExistingClips` | `backend/src/routes/video/index.ts` |
-| 6 | After each clip is generated, call `refreshEditorTimeline` | `backend/src/routes/video/index.ts`, new `refreshEditorTimeline` service |
-| 7 | Frontend renames "Generate Reel" button to "Generate Clips" | `VideoWorkspacePanel.tsx` |
-| 8 | Frontend shows editor link (not video preview) when clips finish | `VideoWorkspacePanel.tsx` / `ChatLayout.tsx` |
-
-### Phase 3 — Editor as the single output path (requires schema + migration)
+**Do not delete `runAssembleFromExistingClips` yet.** The editor UI that replaces the assembled preview ships in Phase 3. Deleting the old path before the new UI is live leaves users with no visible output.
 
 | # | Change | Files |
 |---|---|---|
-| 9 | Add `autoTitle: boolean` column to `edit_projects` | `schema.ts`, migration |
-| 10 | Queue pipeline stages updated to reflect editor-centric flow | `backend/src/routes/queue/index.ts` (`deriveStages`) |
-| 11 | Queue item publish path validates export_job exists (already does) | — |
-| 12 | `runAssembleFromExistingClips` removed or marked deprecated | `backend/src/routes/video/index.ts` |
+| 7 | `runReelGeneration` calls `refreshEditorTimeline` per clip instead of `runAssembleFromExistingClips` | `backend/src/routes/video/index.ts` |
+| 8 | Voiceover + music generation handlers call `refreshEditorTimeline` after inserting asset | voiceover + music routes |
+| 9 | Filter `assembled_video` out of MediaPanel asset fetch | `backend/src/routes/editor/index.ts` (assets endpoint) |
+| 10 | AI Assembly (`convertAIResponseToTracks`) fills audio + text tracks | `backend/src/routes/editor/index.ts` |
+
+### Phase 3 — Editor UI (ships atomically with final Phase 2 backend changes)
+
+**Phase 2 and Phase 3 must deploy together.** Phase 3 is the UI that makes the new backend behaviour visible.
+
+| # | Change | Files |
+|---|---|---|
+| 11 | `TimelineClip` renders placeholder slots with per-slot status states (Queued / Generating / Failed) | `TimelineClip.tsx` |
+| 12 | Add `MERGE_TRACKS_FROM_SERVER` reducer (matches by `placeholderShotIndex`, never overwrites `locallyModified` clips) | `useEditorStore.ts` |
+| 13 | Add exponential back-off polling in `EditorLayout` while placeholders exist | `EditorLayout.tsx` |
+| 14 | Rename "Generate Reel" → "Generate Clips"; post-generation CTA links to editor | `VideoWorkspacePanel.tsx` |
+| 15 | Add confirmation dialog before timeline rebuild on script iteration | `EditorLayout.tsx` / chat integration |
+
+### Phase 4 — Delete Old Code + Queue Stages (only after Phase 3 is verified end-to-end)
+
+| # | Change | Files |
+|---|---|---|
+| 16 | Run data migration: create synthetic `export_job` rows for all existing `assembled_video` content assets so in-progress queue items can publish | migration script |
+| 17 | Remove `runAssembleFromExistingClips`, `upsertAssembledAsset`, `mixAssemblyAudio`, `createAssCaptions` | `backend/src/routes/video/index.ts` |
+| 18 | Remove or rewire `assemble_video` AI chat tool in `chat-tools.ts` | `chat-tools.ts` |
+| 19 | Remove `POST /api/video/assemble` endpoint | `backend/src/routes/video/index.ts` |
+| 20 | Update `deriveStages` for editor-centric pipeline stages | `backend/src/routes/queue/index.ts` |
 
 ---
 

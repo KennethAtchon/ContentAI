@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
 
 export function useDeleteAsset(generatedContentId: number) {
   const { authenticatedFetchJson } = useAuthenticatedFetch();
@@ -10,9 +10,10 @@ export function useDeleteAsset(generatedContentId: number) {
     mutationFn: (assetId: string) =>
       authenticatedFetchJson(`/api/assets/${assetId}`, { method: "DELETE" }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.contentAssets(generatedContentId),
-      });
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        generatedContentId
+      );
     },
   });
 }
