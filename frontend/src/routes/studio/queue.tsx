@@ -906,7 +906,8 @@ function DetailPanel({
   isDuplicating: boolean;
 }) {
   const { t } = useTranslation();
-  const { content, assets, sessionId, queueItem } = detail;
+  const { content, sessionId, queueItem } = detail;
+  const assets = detail.assets ?? [];
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const voiceover = assets.find((a) => a.type === "voiceover");

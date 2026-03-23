@@ -11,6 +11,7 @@ import {
   generatedContent,
   contentAssets,
   editProjects,
+  assets,
 } from "../../infrastructure/database/drizzle/schema";
 import {
   eq,
@@ -25,6 +26,7 @@ import {
 } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
+import { getFileUrl } from "../../services/storage/r2";
 
 type PipelineStageStatus = "pending" | "running" | "ok" | "failed";
 
@@ -349,13 +351,19 @@ queueRouter.get(
       const rootContentIds: Record<number, number> = {};
       const versionCounts: Record<number, number> = {};
       if (contentIds.length > 0) {
+        // Drizzle expands JS arrays in sql`...` into multiple params, which breaks
+        // ANY($n::int[]). Use IN (...) via sql.join so each id is one bound param.
+        const idList = sql.join(
+          contentIds.map((id) => sql`${id}`),
+          sql`, `,
+        );
         const rootRows = await db
           .execute(
             sql`
               WITH RECURSIVE chain AS (
                 SELECT id AS start_id, id AS cur_id, parent_id
                 FROM generated_content
-                WHERE id = ANY(${contentIds}::int[]) AND user_id = ${auth.user.id}
+                WHERE id IN (${idList}) AND user_id = ${auth.user.id}
                 UNION ALL
                 SELECT chain.start_id, gc.id, gc.parent_id
                 FROM generated_content gc
@@ -375,13 +383,22 @@ queueRouter.get(
 
         // Batch-count descendants for all unique roots in one query.
         const uniqueRoots = [...new Set(Object.values(rootContentIds))];
-        const countRows = await db
-          .execute(
-            sql`
+        const rootIdList =
+          uniqueRoots.length > 0
+            ? sql.join(
+                uniqueRoots.map((id) => sql`${id}`),
+                sql`, `,
+              )
+            : null;
+        const countRows =
+          uniqueRoots.length > 0 && rootIdList
+            ? await db
+                .execute(
+                  sql`
               WITH RECURSIVE descendants AS (
                 SELECT id, id AS root_id
                 FROM generated_content
-                WHERE id = ANY(${uniqueRoots}::int[]) AND user_id = ${auth.user.id}
+                WHERE id IN (${rootIdList}) AND user_id = ${auth.user.id}
                 UNION ALL
                 SELECT gc.id, d.root_id
                 FROM generated_content gc
@@ -392,8 +409,9 @@ queueRouter.get(
               FROM descendants
               GROUP BY root_id
             `,
-          )
-          .then((r) => r as unknown as { root_id: number; count: number }[]);
+                )
+                .then((r) => r as unknown as { root_id: number; count: number }[])
+            : [];
 
         for (const row of countRows) {
           versionCounts[row.root_id] = row.count;
@@ -537,6 +555,14 @@ queueRouter.post(
 );
 
 /**
+ * Maps content_asset.role to the `type` field the studio queue detail UI expects.
+ */
+function queueDetailAssetType(role: string): string {
+  if (role === "background_music") return "music";
+  return role;
+}
+
+/**
  * GET /api/queue/:id/detail
  * Full content detail for a queue item: generated content + assets + composition info.
  */
@@ -578,10 +604,59 @@ queueRouter.get(
             (r[0] as { session_id: string } | undefined)?.session_id ?? null,
         );
 
+      let detailAssets: Array<{
+        id: string;
+        type: string;
+        r2Url: string | null;
+        durationMs: number | null;
+        metadata: unknown;
+        createdAt: string;
+      }> = [];
+
+      if (item.generatedContentId) {
+        const assetRows = await db
+          .select({
+            id: assets.id,
+            role: contentAssets.role,
+            r2Key: assets.r2Key,
+            r2Url: assets.r2Url,
+            durationMs: assets.durationMs,
+            metadata: assets.metadata,
+            createdAt: assets.createdAt,
+          })
+          .from(contentAssets)
+          .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+          .where(
+            eq(contentAssets.generatedContentId, item.generatedContentId),
+          );
+
+        detailAssets = await Promise.all(
+          assetRows.map(async (r) => {
+            let url: string | null = r.r2Url;
+            if (r.r2Key) {
+              try {
+                url = await getFileUrl(r.r2Key, 3600);
+              } catch {
+                url = r.r2Url;
+              }
+            }
+            return {
+              id: r.id,
+              type: queueDetailAssetType(r.role),
+              r2Url: url,
+              durationMs: r.durationMs,
+              metadata: r.metadata,
+              createdAt: r.createdAt.toISOString(),
+            };
+          }),
+        );
+      }
+
       return c.json({
         queueItem: item,
         content,
         sessionId,
+        assets: detailAssets,
       });
     } catch (error) {
       debugLog.error("Failed to fetch queue item detail", {

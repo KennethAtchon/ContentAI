@@ -64,7 +64,12 @@ export async function findChainQueueItem(
     const [existing] = await (db as typeof defaultDb)
       .select({ id: queueItems.id })
       .from(queueItems)
-      .where(eq(queueItems.generatedContentId, currentId))
+      .where(
+        and(
+          eq(queueItems.generatedContentId, currentId),
+          eq(queueItems.userId, userId),
+        ),
+      )
       .limit(1);
 
     if (existing) {
