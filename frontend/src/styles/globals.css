@@ -130,23 +130,6 @@
   }
 }
 
-@keyframes workspace-open-toggle-flicker {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--color-accent) / 0);
-  }
-  20%,
-  60% {
-    box-shadow:
-      0 0 0 2px hsl(var(--color-accent) / 0.45),
-      0 0 14px hsl(var(--color-accent) / 0.12);
-  }
-  40%,
-  80% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-}
-
 /* ── Studio compound utilities ────────────────────────────────────────────── */
 
 @layer components {
@@ -177,9 +160,6 @@
     animation: gen-bar 2.2s ease forwards;
   }
 
-  .workspace-open-toggle-flicker {
-    animation: workspace-open-toggle-flicker 0.85s ease-out forwards;
-  }
 }
 
 @layer utilities {

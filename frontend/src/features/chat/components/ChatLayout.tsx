@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MessageSquarePlus, PanelRight } from "lucide-react";
-import { cn } from "@/shared/utils/helpers/utils";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/shared/lib/query-keys";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ContentWorkspace } from "./ContentWorkspace";
@@ -35,6 +36,7 @@ export function ChatLayout({
   };
   const navigate = useNavigate();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
+  const queryClient = useQueryClient();
 
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [selectedSession, setSelectedSession] = useState<
@@ -64,9 +66,6 @@ export function ChatLayout({
   const [requestAudioForContentId, setRequestAudioForContentId] = useState<
     number | null
   >(null);
-  /** One-shot flicker on “Open workspace” after the first saved draft in this session. */
-  const [workspaceToggleFlicker, setWorkspaceToggleFlicker] = useState(false);
-  const firstWorkspaceContentNudgeDoneRef = useRef(false);
 
   // Update selected project from URL params
   useEffect(() => {
@@ -85,8 +84,6 @@ export function ChatLayout({
       setActiveContentId(null);
       setWorkspaceOpen(false);
       setRequestAudioForContentId(null);
-      setWorkspaceToggleFlicker(false);
-      firstWorkspaceContentNudgeDoneRef.current = false;
     }
   }, [sessionData, sessionLoading]);
 
@@ -148,22 +145,6 @@ export function ChatLayout({
     };
   }, [lastReelRefs, search.reelId]);
 
-  // Once per session: when the first draft is persisted, briefly flicker the workspace toggle (no auto-open)
-  useEffect(() => {
-    if (streamingContentId == null) return;
-    if (firstWorkspaceContentNudgeDoneRef.current) return;
-    firstWorkspaceContentNudgeDoneRef.current = true;
-    if (!workspaceOpen) {
-      setWorkspaceToggleFlicker(true);
-    }
-  }, [streamingContentId, workspaceOpen]);
-
-  useEffect(() => {
-    if (!workspaceToggleFlicker) return;
-    const id = window.setTimeout(() => setWorkspaceToggleFlicker(false), 900);
-    return () => window.clearTimeout(id);
-  }, [workspaceToggleFlicker]);
-
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
     setSelectedSession(undefined);
@@ -220,6 +201,36 @@ export function ChatLayout({
     setRequestAudioForContentId(contentId);
     setWorkspaceOpen(true);
   }, []);
+
+  // Invalidate the queue whenever new content is generated so the queue page
+  // reflects the new item without requiring a manual refresh.
+  useEffect(() => {
+    if (!streamingContentId) return;
+    void queryClient.invalidateQueries({ queryKey: ["api", "queue"] });
+  }, [streamingContentId, queryClient]);
+
+  // Auto-create an editor project in the background so the project is ready
+  // when the user navigates to the editor after generation.
+  useEffect(() => {
+    if (!streamingContentId) return;
+    void authenticatedFetchJson("/api/editor", {
+      method: "POST",
+      body: JSON.stringify({ generatedContentId: streamingContentId }),
+    })
+      .then(() => {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.api.editorProjects(),
+        });
+      })
+      .catch((err) => {
+        debugLog.error("Failed to auto-create editor project", {
+          service: "chat-layout",
+          operation: "auto-create-editor",
+          contentId: streamingContentId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+  }, [streamingContentId, authenticatedFetchJson, queryClient]);
 
   const workspaceToggleClass = useMemo(() => {
     const base =
@@ -290,19 +301,8 @@ export function ChatLayout({
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setWorkspaceOpen((prev) => {
-                    const next = !prev;
-                    if (next) setWorkspaceToggleFlicker(false);
-                    return next;
-                  })
-                }
-                className={cn(
-                  workspaceToggleClass,
-                  workspaceToggleFlicker &&
-                    !workspaceOpen &&
-                    "workspace-open-toggle-flicker"
-                )}
+                onClick={() => setWorkspaceOpen((prev) => !prev)}
+                className={workspaceToggleClass}
                 aria-label={t("workspace_open")}
               >
                 <PanelRight className="w-3.5 h-3.5" />
