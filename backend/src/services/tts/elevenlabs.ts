@@ -1,4 +1,11 @@
-import { ELEVENLABS_API_KEY } from "../../utils/config/envUtil";
+import {
+  DEV_MOCK_EXTERNAL_INTEGRATIONS,
+  ELEVENLABS_API_KEY,
+} from "../../utils/config/envUtil";
+import {
+  estimateMp3DurationMsFromBufferSize,
+  getDevMockVoiceBuffer,
+} from "../media/dev-fixtures/load-fixtures";
 import { systemConfigService } from "../../services/config/system-config.service";
 import { debugLog } from "../../utils/debug/debug";
 import type { VoiceConfig } from "../../config/voices";
@@ -38,6 +45,19 @@ export async function generateSpeech(
   voice: VoiceConfig,
   speed: TTSSpeed,
 ): Promise<TTSResult> {
+  if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
+    const audioBuffer = getDevMockVoiceBuffer();
+    const durationMs = estimateMp3DurationMsFromBufferSize(audioBuffer.length);
+    debugLog.info("DEV_MOCK_EXTERNAL_INTEGRATIONS — returning fixture MP3 for TTS", {
+      service: "elevenlabs-tts",
+      operation: "generateSpeech",
+      voiceId: voice.id,
+      speed,
+      durationMs,
+    });
+    return { audioBuffer, durationMs };
+  }
+
   const apiKey = await systemConfigService.getApiKey(
     "elevenlabs",
     ELEVENLABS_API_KEY,

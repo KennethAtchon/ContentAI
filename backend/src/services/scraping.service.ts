@@ -8,7 +8,7 @@ import type { NewReel } from "../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import {
-  DEV_USE_MOCK_REEL_SCRAPE,
+  DEV_MOCK_EXTERNAL_INTEGRATIONS,
   R2_PUBLIC_URL,
   SOCIAL_API_KEY,
   VIRAL_VIEWS_THRESHOLD,
@@ -116,9 +116,9 @@ class ScrapingService {
 
     const finalConfig = { ...defaultConfig, ...config };
 
-    if (DEV_USE_MOCK_REEL_SCRAPE) {
+    if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
       debugLog.info(
-        "DEV_USE_MOCK_REEL_SCRAPE enabled — using local reels as scrape source",
+        "DEV_MOCK_EXTERNAL_INTEGRATIONS enabled — using local reels as scrape source",
         {
           service: "scraping-service",
           nicheId,

@@ -68,17 +68,44 @@ start_infra_only() {
     log_info "Postgres: localhost:5432, Redis: localhost:6379"
 }
 
+# Set MOCK_EXTERNALS=1 before calling. Uses docker-compose.dev-mock.yml when enabled.
+docker_with_mock() {
+    if [ "${MOCK_EXTERNALS:-0}" = 1 ]; then
+        docker compose -f docker-compose.yml -f docker-compose.dev-mock.yml "$@"
+    else
+        docker compose "$@"
+    fi
+}
+
 # Main commands
 case "${1:-help}" in
     "start")
         check_docker
-        if [ "${2:-}" = "--infra" ] || [ "${2:-}" = "infra" ]; then
+        MOCK_EXTERNALS=0
+        START_INFRA=0
+        for arg in "${@:2}"; do
+            case "$arg" in
+                --infra|infra) START_INFRA=1 ;;
+                --mock-externals) MOCK_EXTERNALS=1 ;;
+                *)
+                    log_error "Unknown start option: $arg (use --infra, --mock-externals)"
+                    exit 1
+                    ;;
+            esac
+        done
+        if [ "$START_INFRA" = 1 ]; then
+            if [ "$MOCK_EXTERNALS" = 1 ]; then
+                log_warn "--mock-externals applies to the backend container; infra-only start has no backend. Ignoring --mock-externals."
+            fi
             log_info "Starting infrastructure (Postgres, Redis) only..."
             start_infra_only
         else
             log_info "Starting Docker services..."
             if check_env; then
-                docker compose up -d --build
+                if [ "$MOCK_EXTERNALS" = 1 ]; then
+                    log_info "Backend will use DEV_MOCK_EXTERNAL_INTEGRATIONS=true (see docker-compose.dev-mock.yml)."
+                fi
+                docker_with_mock up -d --build
                 log_info "Services started. Frontend: http://localhost:3000, Backend: http://localhost:3001"
             else
                 log_error "Please configure .env file first, then run: ./docker-scripts.sh start"
@@ -177,8 +204,22 @@ case "${1:-help}" in
     "production")
         log_info "Starting production services with nginx..."
         check_docker
+        MOCK_EXTERNALS=0
+        for arg in "${@:2}"; do
+            case "$arg" in
+                --mock-externals) MOCK_EXTERNALS=1 ;;
+                *)
+                    log_error "Unknown production option: $arg (use --mock-externals if you need fixture mocks)"
+                    exit 1
+                    ;;
+            esac
+        done
         if check_env; then
-            NODE_ENV=production docker compose --profile production up -d
+            if [ "$MOCK_EXTERNALS" = 1 ]; then
+                log_warn "Production stack with --mock-externals: backend will use fixture mocks. Not for real deployments."
+                log_info "Backend DEV_MOCK_EXTERNAL_INTEGRATIONS=true (docker-compose.dev-mock.yml)."
+            fi
+            NODE_ENV=production docker_with_mock --profile production up -d
             log_info "Production services started. Access via http://localhost"
         else
             log_error "Please configure .env file first."
@@ -198,6 +239,8 @@ case "${1:-help}" in
         echo "Commands:"
         echo "  start          - Start all development services"
         echo "  start --infra  - Start Postgres and Redis only (same as: infra)"
+        echo "  start --mock-externals - Start stack with backend DEV_MOCK_EXTERNAL_INTEGRATIONS=true"
+        echo "    (bundled MP4/MP3 fixtures + mock scrape; see docker-compose.dev-mock.yml)"
         echo "  infra          - Start Postgres and Redis only"
         echo "  stop           - Stop all services"
         echo "  restart        - Restart all services"
@@ -209,11 +252,13 @@ case "${1:-help}" in
         echo "  build          - Build Docker images"
         echo "  clean          - Remove all containers, networks, and volumes"
         echo "  production     - Start production services with nginx"
+        echo "  production --mock-externals - Same, but force backend fixture mocks (dev/testing only)"
         echo "  status         - Show service status"
         echo "  help           - Show this help message"
         echo ""
         echo "Examples:"
         echo "  $0 start                    # Start development environment"
+        echo "  $0 start --mock-externals   # Docker dev with mocked video/TTS/scrape APIs"
         echo "  $0 infra                    # DB + Redis only (run app with bun dev)"
         echo "  $0 migrate                  # Run database migrations"
         echo "  $0 production               # Start production environment"

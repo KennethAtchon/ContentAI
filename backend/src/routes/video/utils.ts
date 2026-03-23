@@ -6,6 +6,20 @@ export type ShotInput = {
   durationSeconds: number;
 };
 
+/** Four synthetic shots for `DEV_MOCK_EXTERNAL_INTEGRATIONS` reel_generate jobs. */
+export function buildMockDevReelShots(
+  fallbackPrompt: string,
+  durationSeconds?: number,
+): ShotInput[] {
+  const d = Math.min(10, Math.max(3, durationSeconds ?? 5));
+  const snippet = fallbackPrompt.trim().slice(0, 200);
+  return [0, 1, 2, 3].map((i) => ({
+    shotIndex: i,
+    description: `[mock ${i + 1}/4] ${snippet}`,
+    durationSeconds: d,
+  }));
+}
+
 export function formatAssTime(seconds: number): string {
   const clamped = Math.max(0, seconds);
   const hours = Math.floor(clamped / 3600);

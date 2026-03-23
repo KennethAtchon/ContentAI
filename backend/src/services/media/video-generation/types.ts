@@ -1,5 +1,8 @@
 export type VideoProvider = "kling-fal" | "runway" | "image-ken-burns";
 
+/** Provider id persisted on generated clips (includes local dev uploads). */
+export type VideoClipResultProvider = VideoProvider | "dev-fixture";
+
 export interface GenerateVideoClipParams {
   prompt: string;
   durationSeconds: number; // 3–10
@@ -12,7 +15,7 @@ export interface VideoClipResult {
   r2Key: string;
   r2Url: string;
   durationSeconds: number;
-  provider: VideoProvider;
+  provider: VideoClipResultProvider;
   costUsd: number;
   generationTimeMs: number;
 }

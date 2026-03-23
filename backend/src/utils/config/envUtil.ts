@@ -255,10 +255,34 @@ export const VIRAL_VIEWS_THRESHOLD = parseInt(
   getEnvVar("VIRAL_VIEWS_THRESHOLD", false, "100000"),
   10,
 );
-/** Use local mock reels for scrape jobs in development (avoids external API costs). */
-export const DEV_USE_MOCK_REEL_SCRAPE =
+/**
+ * Development-only: mock outbound integrations (reel scrape, video clip gen, ElevenLabs TTS)
+ * using bundled fixtures under `backend/fixtures/media/`. See `docs/plans/dev-mock-external-integrations.md`.
+ *
+ * When unset, defaults to the legacy scrape flag default so existing `.env` behavior is preserved.
+ */
+export const DEV_MOCK_EXTERNAL_INTEGRATIONS =
   IS_DEVELOPMENT &&
-  getEnvVarAsBoolean("DEV_USE_MOCK_REEL_SCRAPE", IS_DEVELOPMENT);
+  getEnvVarAsBoolean(
+    "DEV_MOCK_EXTERNAL_INTEGRATIONS",
+    getEnvVarAsBoolean("DEV_USE_MOCK_REEL_SCRAPE", IS_DEVELOPMENT),
+  );
+
+/** @deprecated Alias of `DEV_MOCK_EXTERNAL_INTEGRATIONS` — use the new name in `.env`. */
+export const DEV_USE_MOCK_REEL_SCRAPE = DEV_MOCK_EXTERNAL_INTEGRATIONS;
+
+/**
+ * Milliseconds to wait inside mocked `generateVideoClip` before uploading the fixture (simulates provider latency).
+ * Only read when `DEV_MOCK_EXTERNAL_INTEGRATIONS` is active. Default `15000`. Set `0` for instant mocks (e.g. tests).
+ */
+export const DEV_MOCK_VIDEO_CLIP_DELAY_MS = (() => {
+  if (!IS_DEVELOPMENT) return 0;
+  const raw = process.env.DEV_MOCK_VIDEO_CLIP_DELAY_MS;
+  if (raw === undefined || raw === "") return 15_000;
+  const n = parseInt(raw, 10);
+  if (Number.isNaN(n)) return 15_000;
+  return Math.max(0, n);
+})();
 
 // ============================================================================
 // Cron Jobs

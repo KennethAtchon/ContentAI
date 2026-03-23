@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildMockDevReelShots,
   deriveUseClipAudioByIndex,
   extractCaptionSourceText,
   formatAssTime,
@@ -47,5 +48,14 @@ describe("video route utils", () => {
 
   test("formatAssTime returns ASS timestamp shape", () => {
     expect(formatAssTime(65.42)).toBe("0:01:05.42");
+  });
+
+  test("buildMockDevReelShots returns four clamped shots", () => {
+    const shots = buildMockDevReelShots("hook text", 4);
+    expect(shots).toHaveLength(4);
+    expect(shots.map((s) => s.shotIndex)).toEqual([0, 1, 2, 3]);
+    expect(shots[0]?.durationSeconds).toBe(4);
+    expect(shots[0]?.description).toContain("[mock 1/4]");
+    expect(shots[0]?.description).toContain("hook text");
   });
 });

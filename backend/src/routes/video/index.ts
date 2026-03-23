@@ -28,12 +28,14 @@ import {
   type VideoJobKind,
 } from "../../services/video/job.service";
 import {
+  buildMockDevReelShots,
   deriveUseClipAudioByIndex,
   extractCaptionSourceText,
   formatAssTime,
   parseScriptShots,
   type ShotInput,
 } from "./utils";
+import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
 import { buildInitialTimeline } from "../editor/services/build-initial-timeline";
 
 const app = new Hono<HonoEnv>();
@@ -1319,17 +1321,20 @@ export async function runReelGeneration(input: {
       throw new Error("No prompt available for video generation");
     }
 
-    const shotsFromScript = parseScriptShots(content.generatedScript);
-    const shots: ShotInput[] =
-      shotsFromScript.length > 0
-        ? shotsFromScript
-        : [
-            {
-              shotIndex: 0,
-              description: fallbackPrompt,
-              durationSeconds: input.durationSeconds ?? 5,
-            },
-          ];
+    const shots: ShotInput[] = DEV_MOCK_EXTERNAL_INTEGRATIONS
+      ? buildMockDevReelShots(fallbackPrompt, input.durationSeconds)
+      : (() => {
+          const shotsFromScript = parseScriptShots(content.generatedScript);
+          return shotsFromScript.length > 0
+            ? shotsFromScript
+            : [
+                {
+                  shotIndex: 0,
+                  description: fallbackPrompt,
+                  durationSeconds: input.durationSeconds ?? 5,
+                },
+              ];
+        })();
 
     const sceneDescription = content.sceneDescription ?? undefined;
 

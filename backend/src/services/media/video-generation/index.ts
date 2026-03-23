@@ -1,7 +1,13 @@
 import { db } from "@/services/db/db";
 import { aiCostLedger } from "@/infrastructure/database/drizzle/schema";
-import { VIDEO_GENERATION_PROVIDER } from "@/utils/config/envUtil";
+import {
+  DEV_MOCK_EXTERNAL_INTEGRATIONS,
+  DEV_MOCK_VIDEO_CLIP_DELAY_MS,
+  VIDEO_GENERATION_PROVIDER,
+} from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
+import { storage } from "@/services/storage";
+import { getDevMockVideoBufferForShot } from "@/services/media/dev-fixtures/load-fixtures";
 import { klingFalProvider } from "./providers/kling-fal";
 import { runwayProvider } from "./providers/runway";
 import { imageKenBurnsProvider } from "./providers/image-ken-burns";
@@ -10,10 +16,12 @@ import type {
   VideoGenerationProvider,
   GenerateVideoClipParams,
   VideoClipResult,
+  VideoClipResultProvider,
 } from "./types";
 
 export type {
   VideoProvider,
+  VideoClipResultProvider,
   VideoGenerationProvider,
   GenerateVideoClipParams,
   VideoClipResult,
@@ -106,6 +114,67 @@ export async function generateVideoClip(
   params: GenerateVideoClipParams & { providerOverride?: VideoProvider },
 ): Promise<VideoClipResult> {
   const { providerOverride, ...clipParams } = params;
+
+  if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
+    const startMs = Date.now();
+    const durationSeconds = Math.min(
+      10,
+      Math.max(3, clipParams.durationSeconds),
+    );
+    if (DEV_MOCK_VIDEO_CLIP_DELAY_MS > 0) {
+      debugLog.info("[video-generation] Mock clip: simulating provider delay", {
+        service: "video-generation",
+        operation: "generateVideoClip",
+        delayMs: DEV_MOCK_VIDEO_CLIP_DELAY_MS,
+      });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, DEV_MOCK_VIDEO_CLIP_DELAY_MS);
+      });
+    }
+    const rawShot = clipParams.metadata?.shotIndex;
+    const shotIndex =
+      typeof rawShot === "number" && Number.isFinite(rawShot)
+        ? Math.trunc(rawShot)
+        : 0;
+    const slot = ((shotIndex % 4) + 4) % 4;
+    const r2Key = `video-clips/${clipParams.userId ?? "anon"}/dev-mock-slot${slot + 1}-${Date.now()}.mp4`;
+    const r2Url = await storage.uploadFile(
+      getDevMockVideoBufferForShot(shotIndex),
+      r2Key,
+      "video/mp4",
+    );
+    const result: VideoClipResult = {
+      r2Key,
+      r2Url,
+      durationSeconds,
+      provider: "dev-fixture",
+      costUsd: 0,
+      generationTimeMs: Date.now() - startMs,
+    };
+    debugLog.info("[video-generation] DEV_MOCK_EXTERNAL_INTEGRATIONS — fixture clip upload", {
+      service: "video-generation",
+      operation: "generateVideoClip",
+      r2Key,
+      durationSeconds,
+      shotIndex,
+      fixtureSlot: slot + 1,
+    });
+    recordMediaCost({
+      userId: params.userId,
+      provider: result.provider,
+      featureType: "video_gen",
+      costUsd: result.costUsd,
+      durationMs: result.generationTimeMs,
+      metadata: {
+        durationSeconds: result.durationSeconds,
+        r2Key: result.r2Key,
+        prompt: params.prompt.slice(0, 200),
+        devFixture: true,
+      },
+    }).catch(() => {});
+    return result;
+  }
+
   const provider = await getVideoGenerationProvider(providerOverride);
 
   const result = await provider.generate(clipParams);
@@ -129,7 +198,7 @@ export async function generateVideoClip(
 
 async function recordMediaCost(params: {
   userId?: string;
-  provider: VideoProvider;
+  provider: VideoClipResultProvider;
   featureType: string;
   costUsd: number;
   durationMs?: number;
