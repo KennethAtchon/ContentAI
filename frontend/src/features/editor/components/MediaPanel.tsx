@@ -26,6 +26,7 @@ interface Props {
   onAddClip: (trackId: string, clip: Clip) => void;
   selectedClipId: string | null;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  onEffectPreview?: (patch: Partial<Clip> | null) => void;
   videoTrack?: Track;
   onReorder?: (clipIds: string[]) => void;
   readOnly?: boolean;
@@ -94,6 +95,7 @@ export function MediaPanel({
   onAddClip,
   selectedClipId,
   onUpdateClip,
+  onEffectPreview,
   videoTrack,
   onReorder,
   readOnly,
@@ -354,6 +356,15 @@ export function MediaPanel({
               <button
                 key={effect.id}
                 onClick={() => applyEffect(effect)}
+                onMouseEnter={() =>
+                  selectedClipId &&
+                  onEffectPreview?.({
+                    contrast: effect.contrast ?? 0,
+                    warmth: effect.warmth ?? 0,
+                    opacity: effect.opacity ?? 1,
+                  })
+                }
+                onMouseLeave={() => onEffectPreview?.(null)}
                 className="text-left px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors"
               >
                 <p className="text-xs font-medium text-dim-1">{effect.label}</p>

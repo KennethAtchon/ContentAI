@@ -78,6 +78,18 @@ function formatHHMMSSFF(ms: number, fps: number): string {
   ].join(":");
 }
 
+/** Parse HH:MM:SS:FF (or HH:MM:SS or MM:SS) timecode string to milliseconds. */
+function parseTimecode(raw: string, fps: number): number | null {
+  const parts = raw.trim().split(":").map(Number);
+  if (parts.some(isNaN)) return null;
+  let hh = 0, mm = 0, ss = 0, ff = 0;
+  if (parts.length === 4) [hh, mm, ss, ff] = parts;
+  else if (parts.length === 3) [mm, ss, ff] = parts;
+  else if (parts.length === 2) [ss, ff] = parts;
+  else return null;
+  return (hh * 3600 + mm * 60 + ss) * 1000 + Math.round((ff / fps) * 1000);
+}
+
 export function EditorLayout({ project, onBack }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -86,6 +98,9 @@ export function EditorLayout({ project, onBack }: Props) {
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
   const [showAiMenu, setShowAiMenu] = useState(false);
+  const [timecodeEditing, setTimecodeEditing] = useState(false);
+  const [timecodeInput, setTimecodeInput] = useState("");
+  const [effectPreview, setEffectPreview] = useState<{ clipId: string; patch: Partial<Clip> } | null>(null);
   const [selectedTransitionKey, setSelectedTransitionKey] = useState<
     [string, string, string] | null
   >(null);
@@ -504,6 +519,43 @@ export function EditorLayout({ project, onBack }: Props) {
           st.pasteClip(trackId, s.currentTimeMs);
         }
       }
+
+      // [ — set in-point: trim clip start to current playhead
+      if (e.code === "BracketLeft" && !e.metaKey && !e.ctrlKey) {
+        if (s.selectedClipId) {
+          const clip = s.tracks.flatMap((t) => t.clips).find((c) => c.id === s.selectedClipId);
+          if (
+            clip &&
+            s.currentTimeMs > clip.startMs &&
+            s.currentTimeMs < clip.startMs + clip.durationMs
+          ) {
+            e.preventDefault();
+            const delta = s.currentTimeMs - clip.startMs;
+            st.updateClip(clip.id, {
+              startMs: s.currentTimeMs,
+              trimStartMs: clip.trimStartMs + delta,
+              durationMs: clip.durationMs - delta,
+            });
+          }
+        }
+      }
+
+      // ] — set out-point: trim clip end to current playhead
+      if (e.code === "BracketRight" && !e.metaKey && !e.ctrlKey) {
+        if (s.selectedClipId) {
+          const clip = s.tracks.flatMap((t) => t.clips).find((c) => c.id === s.selectedClipId);
+          if (
+            clip &&
+            s.currentTimeMs > clip.startMs &&
+            s.currentTimeMs < clip.startMs + clip.durationMs
+          ) {
+            e.preventDefault();
+            st.updateClip(clip.id, {
+              durationMs: s.currentTimeMs - clip.startMs,
+            });
+          }
+        }
+      }
     };
 
     window.addEventListener("keydown", handler);
@@ -620,9 +672,41 @@ export function EditorLayout({ project, onBack }: Props) {
           </div>
 
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-          <span className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums">
-            {timecode}
-          </span>
+          {timecodeEditing ? (
+            <input
+              autoFocus
+              type="text"
+              value={timecodeInput}
+              onChange={(e) => setTimecodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const ms = parseTimecode(timecodeInput, state.fps);
+                  if (ms !== null) {
+                    store.setCurrentTime(
+                      Math.max(0, Math.min(state.durationMs, ms))
+                    );
+                  }
+                  setTimecodeEditing(false);
+                }
+                if (e.key === "Escape") {
+                  setTimecodeEditing(false);
+                }
+              }}
+              onBlur={() => setTimecodeEditing(false)}
+              className="font-mono text-sm text-dim-1 min-w-[120px] text-center tabular-nums bg-overlay-sm border border-studio-accent rounded px-1 outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => {
+                setTimecodeInput(timecode);
+                setTimecodeEditing(true);
+              }}
+              title="Click to enter timecode"
+              className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums bg-transparent border-0 cursor-text hover:bg-overlay-sm rounded px-1 transition-colors"
+            >
+              {timecode}
+            </button>
+          )}
 
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
           <button onClick={zoomOut} title="Zoom out" className="transport-btn">
@@ -756,6 +840,13 @@ export function EditorLayout({ project, onBack }: Props) {
             onAddClip={handleAddClip}
             selectedClipId={state.selectedClipId}
             onUpdateClip={handleUpdateClip}
+            onEffectPreview={(patch) =>
+              setEffectPreview(
+                patch && state.selectedClipId
+                  ? { clipId: state.selectedClipId, patch }
+                  : null
+              )
+            }
             videoTrack={state.tracks.find((t) => t.type === "video")}
             onReorder={store.reorderShots}
             readOnly={state.isReadOnly}
@@ -768,6 +859,7 @@ export function EditorLayout({ project, onBack }: Props) {
             durationMs={state.durationMs}
             fps={state.fps}
             resolution={state.resolution}
+            effectPreviewOverride={effectPreview}
           />
 
           <Inspector

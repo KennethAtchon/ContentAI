@@ -12,6 +12,8 @@ interface Props {
   durationMs: number;
   fps: number;
   resolution: string;
+  /** Temporary per-clip property override for effect hover preview. Not committed to state. */
+  effectPreviewOverride?: { clipId: string; patch: Partial<Clip> } | null;
 }
 
 function formatHHMMSSFF(ms: number, fps: number): string {
@@ -116,6 +118,7 @@ export function PreviewArea({
   durationMs,
   fps,
   resolution,
+  effectPreviewOverride,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -185,8 +188,12 @@ export function PreviewArea({
       }
 
       if (isActive) {
+        // Multiply timeline offset by clip.speed so the source position stays
+        // in sync with the playhead when speed != 1 (e.g. 2× plays 2s of source
+        // per 1s of timeline, so at timeline+5s we need source frame at 10s).
         const targetTime =
-          (currentTimeMs - clip.startMs) / 1000 + clip.trimStartMs / 1000;
+          ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
+          clip.trimStartMs / 1000;
         if (Math.abs(el.currentTime - targetTime) > 0.1) {
           el.currentTime = targetTime;
         }
@@ -297,6 +304,15 @@ export function PreviewArea({
             const isActive = activeVideoClipIds.has(clip.id);
             const isDisabled = clip.enabled === false;
 
+            // Merge effect hover preview (non-destructive, display only)
+            const preview =
+              effectPreviewOverride?.clipId === clip.id
+                ? effectPreviewOverride.patch
+                : null;
+            const contrast = preview?.contrast ?? clip.contrast;
+            const warmth = preview?.warmth ?? clip.warmth;
+            const baseOpacity = preview?.opacity ?? clip.opacity ?? 1;
+
             const outgoing = getOutgoingTransitionStyle(clip, videoTransitions, currentTimeMs);
             const incoming = getIncomingTransitionStyle(clip, videoTransitions, videoClips, currentTimeMs);
 
@@ -309,7 +325,7 @@ export function PreviewArea({
             } else if (incoming?.opacity !== undefined) {
               opacity = incoming.opacity as number;
             } else {
-              opacity = isActive ? (clip.opacity ?? 1) : 0;
+              opacity = isActive ? baseOpacity : 0;
             }
 
             const clipPath = incoming?.clipPath as string | undefined;
@@ -319,11 +335,11 @@ export function PreviewArea({
               `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`;
 
             const filterParts: string[] = [];
-            if (clip.contrast !== undefined && clip.contrast !== 0) {
-              filterParts.push(`contrast(${1 + clip.contrast / 100})`);
+            if (contrast !== undefined && contrast !== 0) {
+              filterParts.push(`contrast(${1 + contrast / 100})`);
             }
-            if (clip.warmth !== undefined && clip.warmth !== 0) {
-              filterParts.push(buildWarmthFilter(clip.warmth));
+            if (warmth !== undefined && warmth !== 0) {
+              filterParts.push(buildWarmthFilter(warmth));
             }
 
             return (
