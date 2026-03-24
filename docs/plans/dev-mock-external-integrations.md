@@ -2,7 +2,7 @@
 
 ## Goal
 
-In **development** (`APP_ENV=development`), optionally replace outbound calls to **expensive or slow** integrations with **bundled binary fixtures** uploaded to R2, while **keeping the same DB writes and linking** (assets, `content_assets`, job progress, assembly pipeline).
+In **development** (`APP_ENV=development`), optionally replace outbound calls to **expensive or slow** integrations with **bundled binary fixtures** uploaded to R2, while **keeping the same DB writes and linking** (assets, `content_assets`, job progress, editor timeline refresh). Final renders use the **Studio Editor** export path, not server-side assembly.
 
 Scope for this iteration:
 
@@ -83,15 +83,15 @@ Callers (`chat-tools` `generate_voiceover`, `routes/audio`) unchanged: they uplo
 
 ### 4) Reel generation job (`runReelGeneration`)
 
-**Real path:** `parseScriptShots(generatedScript)` → if non-empty, use those shots; else one fallback shot from prompt. For each shot, `generateVideoClip` → insert `assets` + `content_assets` → `updatePhase4Metadata` → `runAssembleFromExistingClips`.
+**Real path:** `parseScriptShots(generatedScript)` → if non-empty, use those shots; else one fallback shot from prompt. For each shot, `generateVideoClip` → insert `assets` + `content_assets` → `refreshEditorTimeline` → job completes with `shotCount`. Final mix/export is **only** via the Studio Editor (no server-side assembly).
 
-**Mock path:** When `DEV_MOCK_EXTERNAL_INTEGRATIONS`, **skip** `parseScriptShots` entirely (invalid scripts do not block dev). Build **exactly four** `ShotInput` entries:
+**Mock path:** When `DEV_MOCK_EXTERNAL_INTEGRATIONS`, **skip** `parseScriptShots` entirely (invalid scripts do not block dev). Build **exactly four** `ShotInput` entries (`buildMockDevReelShots`):
 
 - `shotIndex`: `0..3`
 - `description`: `[mock 1/4] …` through `[mock 4/4]` plus a snippet of the fallback prompt (for debugging in metadata).
 - `durationSeconds`: `clamp(3, input.durationSeconds ?? 5, 10)`
 
-Then the same loop, DB inserts, metadata update, and assembly run unchanged.
+Then the same per-shot loop, DB inserts, phase4 metadata, and `refreshEditorTimeline` calls as production — still **no** chat/server assembly step.
 
 ## Code touchpoints (implementation checklist)
 
@@ -113,5 +113,5 @@ Then the same loop, DB inserts, metadata update, and assembly run unchanged.
 
 ## Verification
 
-- With `APP_ENV=development` and `DEV_MOCK_EXTERNAL_INTEGRATIONS=true`: trigger reel generation → job `progress.totalShots === 4`, four `video_clip` assets, assembly completes without fal/Eleven keys for clip/TTS paths used through these entry points.
+- With `APP_ENV=development` and `DEV_MOCK_EXTERNAL_INTEGRATIONS=true`: trigger reel generation → job `progress.totalShots === 4`, four `video_clip` assets, editor timeline updates via `refreshEditorTimeline`, job status `completed` — **without** fal/Eleven keys on clip/TTS paths that hit these mocks. Open the Editor to export the final file.
 - With `DEV_MOCK_EXTERNAL_INTEGRATIONS=false` and keys set: existing real providers behave as before.

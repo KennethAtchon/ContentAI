@@ -33,13 +33,13 @@ describe("stripe-map-loader", () => {
     test("returns config for pro tier", () => {
       const config = getStripeTierConfig("pro");
       expect(config.prices.monthly.priceId).toBeDefined();
-      expect(config.prices.annual.amount).toBe(200);
+      expect(config.prices.annual.amount).toBe(490);
     });
 
     test("returns config for enterprise tier", () => {
       const config = getStripeTierConfig("enterprise");
-      expect(config.prices.monthly.amount).toBe(100);
-      expect(config.prices.annual.amount).toBe(1000);
+      expect(config.prices.monthly.amount).toBe(149);
+      expect(config.prices.annual.amount).toBe(1490);
     });
   });
 
@@ -59,17 +59,17 @@ describe("stripe-map-loader", () => {
   describe("getStripePriceAmount", () => {
     test("returns monthly amount for basic", () => {
       const amount = getStripePriceAmount("basic", "monthly");
-      expect(amount).toBe(10);
+      expect(amount).toBe(19);
     });
 
     test("returns annual amount for basic", () => {
       const amount = getStripePriceAmount("basic", "annual");
-      expect(amount).toBe(100);
+      expect(amount).toBe(190);
     });
 
     test("returns correct amounts for enterprise", () => {
-      expect(getStripePriceAmount("enterprise", "monthly")).toBe(100);
-      expect(getStripePriceAmount("enterprise", "annual")).toBe(1000);
+      expect(getStripePriceAmount("enterprise", "monthly")).toBe(149);
+      expect(getStripePriceAmount("enterprise", "annual")).toBe(1490);
     });
   });
 });

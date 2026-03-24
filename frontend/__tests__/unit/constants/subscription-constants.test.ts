@@ -11,7 +11,7 @@ describe("subscription.constants", () => {
   describe("getTierConfig", () => {
     test("returns config for basic monthly", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.BASIC, "monthly");
-      expect(config.name).toBe("Basic");
+      expect(config.name).toBe("Creator");
       expect(config.billingCycle).toBe("monthly");
       expect(config.features.aiAnalysis).toBe(true);
       expect(config.stripePriceId).toBeDefined();
@@ -22,7 +22,8 @@ describe("subscription.constants", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.PRO, "annual");
       expect(config.name).toBe("Pro");
       expect(config.billingCycle).toBe("annual");
-      expect(config.features.apiAccess).toBe(true);
+      expect(config.features.instagramPublishing).toBe(true);
+      expect(config.features.apiAccess).toBe(false);
     });
 
     test("defaults billing cycle to monthly", () => {
@@ -50,14 +51,10 @@ describe("subscription.constants", () => {
   describe("getTierDescription", () => {
     test("returns descriptions for each tier", () => {
       expect(getTierDescription(SUBSCRIPTION_TIERS.BASIC)).toBe(
-        "Basic and higher"
+        "Creator and higher"
       );
-      expect(getTierDescription(SUBSCRIPTION_TIERS.PRO)).toBe(
-        "Pro and Enterprise"
-      );
-      expect(getTierDescription(SUBSCRIPTION_TIERS.ENTERPRISE)).toBe(
-        "Enterprise"
-      );
+      expect(getTierDescription(SUBSCRIPTION_TIERS.PRO)).toBe("Pro and Agency");
+      expect(getTierDescription(SUBSCRIPTION_TIERS.ENTERPRISE)).toBe("Agency");
     });
 
     test("returns empty string for unknown tier", () => {

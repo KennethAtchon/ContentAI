@@ -17,25 +17,6 @@ mock.module("@/services/rate-limit/rate-limit-redis", () => ({
   ),
 }));
 
-const redisMock = {
-  ping: mock(() => Promise.resolve("PONG")),
-  set: mock(() => Promise.resolve("OK")),
-  get: mock(() => Promise.resolve("ok")),
-  del: mock(() => Promise.resolve(1)),
-};
-mock.module("ioredis", () => ({
-  default: class MockRedis {
-    ping = redisMock.ping;
-    set = redisMock.set;
-    get = redisMock.get;
-    del = redisMock.del;
-  },
-}));
-mock.module("@/services/db/redis", () => ({
-  default: () => redisMock,
-  getRedisConnection: () => redisMock,
-}));
-
 import { Hono } from "hono";
 import healthRoutes from "@/routes/health";
 

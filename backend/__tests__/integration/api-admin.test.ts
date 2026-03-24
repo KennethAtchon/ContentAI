@@ -8,6 +8,7 @@ import { Hono } from "hono";
 mock.module("@/middleware/protection", () => ({
   rateLimiter: () => async (_c: any, next: any) => next(),
   authMiddleware: () => async (_c: any, next: any) => next(),
+  csrfMiddleware: () => async (_c: any, next: any) => next(),
   requireAuth: mock().mockResolvedValue({
     userId: "test-uid",
     firebaseUser: { uid: "test-uid", stripeRole: "basic" },

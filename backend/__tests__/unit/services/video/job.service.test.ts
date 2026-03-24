@@ -1,40 +1,19 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-
-const redisStore = new Map<string, string>();
-const redisSetMock = mock(
-  async (key: string, value: string, mode?: string, ttl?: number) => {
-    redisStore.set(key, value);
-    return `OK:${mode ?? ""}:${ttl ?? ""}`;
-  },
-);
-const redisGetMock = mock(async (key: string) => redisStore.get(key) ?? null);
-
-mock.module("@/utils/system/system-logger", () => ({
-  systemLogger: {
-    redis: mock(),
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-  },
-}));
-
-mock.module("ioredis", () => ({
-  default: class MockRedis {
-    on() {
-      return this;
-    }
-    set = redisSetMock;
-    get = redisGetMock;
-  },
-}));
-
+import { beforeEach, describe, expect, test } from "bun:test";
 import { videoJobService } from "@/services/video/job.service";
+
+const testMocks = (global as any).__testMocks__ as {
+  redisTestStore: Map<string, string>;
+  redisTestMocks: {
+    set: { mock: { calls: unknown[][] } };
+    get: { mock: { calls: unknown[][] } };
+  };
+};
 
 describe("video job service", () => {
   beforeEach(() => {
-    redisStore.clear();
-    redisSetMock.mockClear();
-    redisGetMock.mockClear();
+    testMocks.redisTestStore.clear();
+    testMocks.redisTestMocks.set.mockClear();
+    testMocks.redisTestMocks.get.mockClear();
   });
 
   test("createJob persists queued job with request metadata", async () => {
@@ -54,7 +33,7 @@ describe("video job service", () => {
     expect(fetched?.generatedContentId).toBe(42);
     expect(fetched?.kind).toBe("reel_generate");
 
-    const [, , mode, ttl] = redisSetMock.mock.calls[0] ?? [];
+    const [, , mode, ttl] = testMocks.redisTestMocks.set.mock.calls[0] ?? [];
     expect(mode).toBe("EX");
     expect(ttl).toBe(60 * 60 * 24);
   });
@@ -91,7 +70,7 @@ describe("video job service", () => {
   });
 
   test("getJob returns null for malformed payload", async () => {
-    redisStore.set("video_job:bad-json", "{broken");
+    testMocks.redisTestStore.set("video_job:bad-json", "{broken");
     const job = await videoJobService.getJob("bad-json");
     expect(job).toBeNull();
   });

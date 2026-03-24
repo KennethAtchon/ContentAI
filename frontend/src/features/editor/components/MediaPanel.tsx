@@ -113,9 +113,7 @@ export function MediaPanel({
   const { data: libraryData } = useMediaLibrary();
 
   const allAssets = assetsData?.assets ?? [];
-  const videoAssets = allAssets.filter(
-    (a) => a.type === "video_clip" || a.type === "assembled_video"
-  );
+  const videoAssets = allAssets.filter((a) => a.type === "video_clip");
   const audioAssets = allAssets.filter(
     (a) => a.type === "voiceover" || a.type === "music"
   );

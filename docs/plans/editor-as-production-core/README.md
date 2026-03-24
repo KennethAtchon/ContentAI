@@ -1,6 +1,6 @@
 # Plan: Editor as Production Core
 
-**Status:** Design complete — ready for implementation
+**Status:** Implemented (editor-only export, placeholder timelines, dev mocks aligned — see codebase and `docs/plans/dev-mock-external-integrations.md`).
 **Date:** 2026-03-22
 
 The editor becomes the single production system. All assets flow into the editor timeline. The final video is produced exclusively by exporting from the editor.

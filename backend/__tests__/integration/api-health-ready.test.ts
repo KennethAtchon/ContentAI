@@ -4,32 +4,17 @@
  */
 import { describe, expect, test, mock, beforeEach } from "bun:test";
 
-// Mock redis before importing routes
-const redisMock = {
-  ping: mock(() => Promise.resolve("PONG")),
-  set: mock(() => Promise.resolve("OK")),
-  get: mock(() => Promise.resolve("ok")),
-  del: mock(() => Promise.resolve(1)),
-  quit: mock(() => Promise.resolve()),
-};
-mock.module("ioredis", () => ({
-  default: class MockRedis {
-    ping = redisMock.ping;
-    set = redisMock.set;
-    get = redisMock.get;
-    del = redisMock.del;
-    quit = redisMock.quit;
-  },
-}));
-mock.module("@/services/db/redis", () => ({
-  default: () => redisMock,
-  getRedisConnection: () => redisMock,
+// Health route imports protection via a path that may not hit the @/ mock alone; also
+// stub Redis-backed rate limiting so GET /api/health never returns 429 in tests.
+mock.module("@/services/rate-limit/rate-limit-redis", () => ({
+  checkRateLimit: mock(() => Promise.resolve(true)),
 }));
 
 // Mock rate limiter so auth doesn't block tests
 mock.module("@/middleware/protection", () => ({
   rateLimiter: () => async (_c: any, next: any) => next(),
   authMiddleware: () => async (_c: any, next: any) => next(),
+  csrfMiddleware: () => async (_c: any, next: any) => next(),
   requireAuth: mock(),
 }));
 
@@ -57,8 +42,7 @@ app.get("/api/ready", (c) =>
 
 describe("Health & Readiness Routes", () => {
   beforeEach(() => {
-    redisMock.ping.mockResolvedValue("PONG");
-    redisMock.get.mockResolvedValue("ok");
+    (global as any).__testMocks__?.redisTestStore?.clear?.();
   });
 
   describe("GET /api/live", () => {

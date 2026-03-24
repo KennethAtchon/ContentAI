@@ -12,7 +12,7 @@ import {
   contentAssets,
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notInArray } from "drizzle-orm";
 import { deleteFile, getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 
@@ -72,6 +72,14 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
     ];
     if (typeFilter) {
       conditions.push(eq(contentAssets.role, typeFilter));
+    } else {
+      // Editor / workspace source media only — not exported or legacy assembled outputs.
+      conditions.push(
+        notInArray(contentAssets.role, ["assembled_video", "final_video"]),
+      );
+      conditions.push(
+        notInArray(assets.type, ["assembled_video", "final_video"]),
+      );
     }
 
     const rows = await db

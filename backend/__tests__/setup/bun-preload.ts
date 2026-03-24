@@ -154,7 +154,12 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL ||
   "postgresql://postgres:postgres@localhost:5432/template_test?schema=public";
 process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "a".repeat(32);
+// AES-256-GCM requires exactly 32 bytes; a host env may set a non-conforming key.
+{
+  const k = process.env.ENCRYPTION_KEY;
+  process.env.ENCRYPTION_KEY =
+    k && k.length === 32 ? k : "a".repeat(32);
+}
 process.env.CSRF_SECRET = process.env.CSRF_SECRET || "0".repeat(64);
 process.env.CORS_ALLOWED_ORIGINS =
   process.env.CORS_ALLOWED_ORIGINS || "http://localhost:3000";
@@ -269,6 +274,20 @@ const systemLoggerMocks = {
   lifecycle: mock(),
 };
 
+/** In-memory Redis for tests — supports video job persistence and health checks. */
+const redisTestStore = new Map<string, string>();
+const redisTestMocks = {
+  ping: mock(() => Promise.resolve("PONG")),
+  set: mock(
+    async (key: string, value: string, _mode?: string, _ttl?: number) => {
+      redisTestStore.set(key, value);
+      return "OK";
+    },
+  ),
+  get: mock(async (key: string) => redisTestStore.get(key) ?? null),
+  del: mock(async (key: string) => (redisTestStore.delete(key) ? 1 : 0)),
+};
+
 (global as any).__testMocks__ = {
   adminAuth: adminAuthMocks,
   db: dbMock,
@@ -283,6 +302,8 @@ const systemLoggerMocks = {
   timeService: timeServiceMocks,
   pii: piiMocks,
   systemLogger: systemLoggerMocks,
+  redisTestStore,
+  redisTestMocks,
 };
 
 // Default mocks
@@ -354,6 +375,26 @@ mock.module("@/infrastructure/database/drizzle/schema", () => ({
   usersRelations: {},
   ordersRelations: {},
   featureUsagesRelations: {},
+  niches: {},
+  reels: {},
+  reelAnalyses: {},
+  generatedContent: {},
+  trendingAudio: {},
+  instagramPages: {},
+  queueItems: {},
+  assets: {},
+  contentAssets: {},
+  projects: {},
+  chatSessions: {},
+  chatMessages: {},
+  messageAttachments: {},
+  musicTracks: {},
+  editProjects: {},
+  exportJobs: {},
+  systemConfig: {},
+  userSettings: {},
+  aiCostLedger: {},
+  captions: {},
 }));
 
 mock.module("@/utils/debug/debug", () => ({
@@ -416,6 +457,18 @@ mock.module("@/utils/system/system-logger", () => ({
     systemLoggerMocks.auth(level, msg, op, data),
   logPerformanceEvent: (msg: string, op: string, data?: any) =>
     systemLoggerMocks.performance(msg, op, data),
+}));
+
+mock.module("ioredis", () => ({
+  default: class MockRedis {
+    on() {
+      return this;
+    }
+    ping = redisTestMocks.ping;
+    set = redisTestMocks.set;
+    get = redisTestMocks.get;
+    del = redisTestMocks.del;
+  },
 }));
 
 // Console (silence noise in tests)

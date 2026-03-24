@@ -1,12 +1,11 @@
 /**
- * Unit tests for subscription.constants – getTierConfig, tierHasExportFormat,
- * isUsageLimitReached, getTierDescription.
+ * Unit tests for subscription.constants – getTierConfig, isUsageLimitReached,
+ * getTierDescription.
  */
 import { describe, expect, test } from "bun:test";
 import {
   SUBSCRIPTION_TIERS,
   getTierConfig,
-  tierHasExportFormat,
   isUsageLimitReached,
   getTierDescription,
   type SubscriptionTier,
@@ -16,9 +15,9 @@ describe("subscription.constants", () => {
   describe("getTierConfig", () => {
     test("returns config for basic monthly", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.BASIC, "monthly");
-      expect(config.name).toBe("Basic");
+      expect(config.name).toBe("Creator");
       expect(config.billingCycle).toBe("monthly");
-      expect(config.features.calculationTypes).toContain("loan");
+      expect(config.features.aiAnalysis).toBe(true);
       expect(config.stripePriceId).toBeDefined();
       expect(typeof config.price).toBe("number");
     });
@@ -27,27 +26,12 @@ describe("subscription.constants", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.PRO, "annual");
       expect(config.name).toBe("Pro");
       expect(config.billingCycle).toBe("annual");
-      expect(config.features.exportFormats).toContain("pdf");
+      expect(config.features.instagramPublishing).toBe(true);
     });
 
     test("defaults billing cycle to monthly", () => {
       const config = getTierConfig(SUBSCRIPTION_TIERS.ENTERPRISE);
       expect(config.billingCycle).toBe("monthly");
-    });
-  });
-
-  describe("tierHasExportFormat", () => {
-    test("returns true when tier has format", () => {
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.PRO, "pdf")).toBe(true);
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.ENTERPRISE, "api")).toBe(
-        true,
-      );
-    });
-
-    test("returns false when tier does not have format", () => {
-      expect(tierHasExportFormat(SUBSCRIPTION_TIERS.BASIC, "excel")).toBe(
-        false,
-      );
     });
   });
 
@@ -70,14 +54,10 @@ describe("subscription.constants", () => {
   describe("getTierDescription", () => {
     test("returns descriptions for each tier", () => {
       expect(getTierDescription(SUBSCRIPTION_TIERS.BASIC)).toBe(
-        "Basic and higher",
+        "Creator and higher",
       );
-      expect(getTierDescription(SUBSCRIPTION_TIERS.PRO)).toBe(
-        "Pro and Enterprise",
-      );
-      expect(getTierDescription(SUBSCRIPTION_TIERS.ENTERPRISE)).toBe(
-        "Enterprise",
-      );
+      expect(getTierDescription(SUBSCRIPTION_TIERS.PRO)).toBe("Pro and Agency");
+      expect(getTierDescription(SUBSCRIPTION_TIERS.ENTERPRISE)).toBe("Agency");
     });
 
     test("returns empty string for unknown tier", () => {

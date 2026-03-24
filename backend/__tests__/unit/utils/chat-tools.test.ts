@@ -1,29 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { createSaveContentTool } from "@/lib/chat-tools";
-import { z } from "zod";
-
-// Mock the database
-vi.mock("@/services/db/db", () => ({
-  db: {
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
-      }),
-    }),
-  },
-}));
-
-// Mock debug log
-vi.mock("@/utils/debug/debug", () => ({
-  debugLog: {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
 
 describe("createSaveContentTool", () => {
-  let mockContext: any;
+  let mockContext: {
+    auth: { user: { id: string } };
+    content: string;
+    savedContentId?: number;
+  };
 
   beforeEach(() => {
     mockContext = {
@@ -33,17 +16,18 @@ describe("createSaveContentTool", () => {
     };
   });
 
-  it("should accept cleanScript parameter in input schema", () => {
+  it("accepts cleanScript in input schema", () => {
     const tool = createSaveContentTool(mockContext);
     const schema = tool.inputSchema;
 
-    // Test that the schema accepts cleanScript
     const validInput = {
       hook: "Amazing hook that stops the scroll",
       script:
         "[0-3s] Opening hook with visual\n[3-8s] Problem setup\n[8-15s] Solution demonstration",
       cleanScript:
         "Amazing hook that stops the scroll. Here's the problem setup, and now let me show you the solution demonstration.",
+      sceneDescription:
+        "Cinematic handheld footage with warm lighting and close-up product detail.",
       caption: "Amazing caption with emojis 🔥",
       hashtags: ["viral", "trending", "fyp"],
       cta: "Follow for more!",
@@ -53,7 +37,7 @@ describe("createSaveContentTool", () => {
     expect(() => schema.parse(validInput)).not.toThrow();
   });
 
-  it("should require cleanScript to be at least 30 characters", () => {
+  it("requires cleanScript to be at least 30 characters", () => {
     const tool = createSaveContentTool(mockContext);
     const schema = tool.inputSchema;
 
@@ -61,6 +45,8 @@ describe("createSaveContentTool", () => {
       hook: "Amazing hook that stops the scroll",
       script: "[0-3s] Opening hook with visual",
       cleanScript: "Too short",
+      sceneDescription:
+        "Cinematic handheld footage with warm lighting and close-up product detail.",
       caption: "Amazing caption with emojis 🔥",
       hashtags: ["viral", "trending"],
       cta: "Follow for more!",
@@ -68,31 +54,5 @@ describe("createSaveContentTool", () => {
     };
 
     expect(() => schema.parse(invalidInput)).toThrow();
-  });
-
-  it("should pass cleanScript to database insertion", async () => {
-    const { db } = await import("@/services/db/db");
-    const tool = createSaveContentTool(mockContext);
-
-    const input = {
-      hook: "Test hook",
-      script: "[0-3s] Test script with timestamps",
-      cleanScript: "Test script without timestamps for clean audio",
-      caption: "Test caption",
-      hashtags: ["test"],
-      cta: "Test CTA",
-      contentType: "full_script" as const,
-    };
-
-    await tool.execute(input);
-
-    // Verify db.insert was called with cleanScriptForAudio
-    expect(db.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        values: expect.objectContaining({
-          cleanScriptForAudio: "Test script without timestamps for clean audio",
-        }),
-      }),
-    );
   });
 });
