@@ -28,6 +28,8 @@ export interface Clip {
   trimStartMs: number;
   trimEndMs: number;
   speed: number;
+  // Enabled — disabled clips are skipped in preview/export
+  enabled?: boolean;
   // Look
   opacity: number;
   warmth: number;
@@ -108,9 +110,11 @@ export interface EditorState {
   resolution: string;
   currentTimeMs: number;
   isPlaying: boolean;
+  playbackRate: number; // 1 normally; negative = reverse (JKL); >1 = fast forward
   zoom: number; // pixels per second, default 40
   tracks: Track[];
   selectedClipId: string | null;
+  clipboardClip: Clip | null; // copy/paste
   // Undo/redo
   past: Track[][];
   future: Track[][];
@@ -126,13 +130,18 @@ export type EditorAction =
   | { type: "SET_RESOLUTION"; resolution: string }
   | { type: "SET_CURRENT_TIME"; ms: number }
   | { type: "SET_PLAYING"; playing: boolean }
+  | { type: "SET_PLAYBACK_RATE"; rate: number }
   | { type: "SET_ZOOM"; zoom: number }
   | { type: "SELECT_CLIP"; clipId: string | null }
   | { type: "ADD_CLIP"; trackId: string; clip: Clip }
   | { type: "UPDATE_CLIP"; clipId: string; patch: Partial<Clip> }
   | { type: "REMOVE_CLIP"; clipId: string }
+  | { type: "RIPPLE_DELETE_CLIP"; clipId: string }
   | { type: "SPLIT_CLIP"; clipId: string; atMs: number }
   | { type: "DUPLICATE_CLIP"; clipId: string }
+  | { type: "COPY_CLIP"; clipId: string }
+  | { type: "PASTE_CLIP"; trackId: string; startMs: number }
+  | { type: "TOGGLE_CLIP_ENABLED"; clipId: string }
   | { type: "MOVE_CLIP"; clipId: string; startMs: number }
   | { type: "TOGGLE_TRACK_MUTE"; trackId: string }
   | { type: "TOGGLE_TRACK_LOCK"; trackId: string }

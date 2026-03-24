@@ -298,6 +298,19 @@ export function MediaPanel({
                     .map((item) => (
                       <button
                         key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData(
+                            "application/x-contentai-asset",
+                            JSON.stringify({
+                              assetId: item.id,
+                              type: "video_clip",
+                              durationMs: item.durationMs,
+                              label: item.name,
+                            })
+                          );
+                          e.dataTransfer.effectAllowed = "copy";
+                        }}
                         onClick={() =>
                           addVideoClip({
                             id: item.id,
@@ -308,7 +321,7 @@ export function MediaPanel({
                           })
                         }
                         className="group relative aspect-video rounded overflow-hidden bg-overlay-sm border border-overlay-sm hover:border-studio-accent/50 transition-colors cursor-pointer"
-                        title="Click to add to timeline"
+                        title="Click or drag to timeline"
                       >
                         <video
                           src={item.mediaUrl ?? undefined}

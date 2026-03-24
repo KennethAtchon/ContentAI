@@ -4,6 +4,7 @@ interface PlaybackOptions {
   isPlaying: boolean;
   currentTimeMs: number;
   durationMs: number;
+  playbackRate: number; // 1 = normal, 2 = 2× fast, -1 = reverse (JKL)
   onTick: (ms: number) => void;
   onEnd: () => void;
 }
@@ -11,21 +12,25 @@ interface PlaybackOptions {
 /**
  * Drives the editor playhead via requestAnimationFrame.
  * Calls onTick with the new currentTimeMs every frame while playing.
- * Calls onEnd when the playhead reaches durationMs.
+ * Calls onEnd when the playhead reaches durationMs (or 0 when playing in reverse).
+ * Respects playbackRate for JKL scrubbing and per-clip speed display.
  */
 export function usePlayback({
   isPlaying,
   currentTimeMs,
   durationMs,
+  playbackRate,
   onTick,
   onEnd,
 }: PlaybackOptions) {
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
   const currentTimeMsRef = useRef(currentTimeMs);
+  const playbackRateRef = useRef(playbackRate);
 
-  // Keep ref in sync so the rAF callback uses the latest value
+  // Keep refs in sync so the rAF callback always uses the latest values
   currentTimeMsRef.current = currentTimeMs;
+  playbackRateRef.current = playbackRate;
 
   const stop = useCallback(() => {
     if (rafRef.current !== null) {
@@ -49,15 +54,27 @@ export function usePlayback({
       const elapsed = timestamp - lastTimestampRef.current;
       lastTimestampRef.current = timestamp;
 
-      const newTimeMs = currentTimeMsRef.current + elapsed;
+      const rate = playbackRateRef.current;
+      const newTimeMs = currentTimeMsRef.current + elapsed * rate;
 
-      if (durationMs > 0 && newTimeMs >= durationMs) {
-        onTick(durationMs);
-        onEnd();
-        return;
+      if (rate >= 0) {
+        // Forward playback — stop at end
+        if (durationMs > 0 && newTimeMs >= durationMs) {
+          onTick(durationMs);
+          onEnd();
+          return;
+        }
+        onTick(newTimeMs);
+      } else {
+        // Reverse playback — stop at start
+        if (newTimeMs <= 0) {
+          onTick(0);
+          onEnd();
+          return;
+        }
+        onTick(newTimeMs);
       }
 
-      onTick(newTimeMs);
       rafRef.current = requestAnimationFrame(tick);
     };
 

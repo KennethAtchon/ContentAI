@@ -1,9 +1,32 @@
 import { useEffect } from "react";
 import WaveSurfer from "wavesurfer.js";
 
-// Module-level cache: reuse instances rather than destroying and recreating.
+const CACHE_MAX_SIZE = 20;
+
+// Module-level LRU cache: reuse instances rather than destroying and recreating.
 // Keyed by audioUrl so the same file is decoded only once.
+// Evicts the least-recently-used entry when the cap is reached.
 const waveformCache = new Map<string, WaveSurfer>();
+
+function evictOldestIfNeeded() {
+  if (waveformCache.size < CACHE_MAX_SIZE) return;
+  // Map iteration order is insertion order — first entry is oldest
+  const oldestKey = waveformCache.keys().next().value;
+  if (oldestKey === undefined) return;
+  const ws = waveformCache.get(oldestKey);
+  try {
+    ws?.destroy();
+  } catch {
+    // ignore
+  }
+  waveformCache.delete(oldestKey);
+}
+
+function touchKey(key: string, ws: WaveSurfer) {
+  // Re-insert to move to end (most-recently-used)
+  waveformCache.delete(key);
+  waveformCache.set(key, ws);
+}
 
 interface UseWaveformOptions {
   audioUrl: string | undefined;
@@ -24,7 +47,7 @@ export function useWaveform({
     const existing = waveformCache.get(audioUrl);
 
     if (existing) {
-      // Re-mount cached instance into this container
+      touchKey(audioUrl, existing);
       try {
         existing.setOptions({ container, waveColor, height });
       } catch {
@@ -33,6 +56,8 @@ export function useWaveform({
       }
       return;
     }
+
+    evictOldestIfNeeded();
 
     const ws = WaveSurfer.create({
       container,

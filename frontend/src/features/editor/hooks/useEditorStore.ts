@@ -10,6 +10,7 @@ import type {
   Transition,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
+import { clampMoveToFreeSpace } from "../utils/clip-constraints";
 
 const DEFAULT_TRACKS: Track[] = [
   {
@@ -58,9 +59,11 @@ export const INITIAL_EDITOR_STATE: EditorState = {
   resolution: "1080x1920",
   currentTimeMs: 0,
   isPlaying: false,
+  playbackRate: 1,
   zoom: 40, // px/s
   tracks: DEFAULT_TRACKS,
   selectedClipId: null,
+  clipboardClip: null,
   past: [],
   future: [],
   exportJobId: null,
@@ -114,6 +117,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         resolution: project.resolution,
         tracks,
         selectedClipId: null,
+        clipboardClip: null,
         past: [],
         future: [],
         isReadOnly: project.status === "published",
@@ -131,6 +135,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
     case "SET_PLAYING":
       return { ...state, isPlaying: action.playing };
+
+    case "SET_PLAYBACK_RATE":
+      return { ...state, playbackRate: action.rate };
 
     case "SET_ZOOM":
       return { ...state, zoom: Math.max(5, Math.min(200, action.zoom)) };
@@ -183,6 +190,104 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       };
     }
 
+    case "RIPPLE_DELETE_CLIP": {
+      // Find the clip, remove it, and shift all subsequent clips on the same
+      // track left by the deleted clip's duration to close the gap.
+      let newTracks = state.tracks;
+      for (const track of state.tracks) {
+        const clip = track.clips.find((c) => c.id === action.clipId);
+        if (!clip) continue;
+        const newClips = track.clips
+          .filter((c) => c.id !== action.clipId)
+          .map((c) =>
+            c.startMs > clip.startMs
+              ? { ...c, startMs: c.startMs - clip.durationMs, locallyModified: true as const }
+              : c
+          );
+        // Also drop transitions that referenced the deleted clip
+        const newTransitions = (track.transitions ?? []).filter(
+          (tr) => tr.clipAId !== action.clipId && tr.clipBId !== action.clipId
+        );
+        newTracks = state.tracks.map((t) =>
+          t.id === track.id ? { ...t, clips: newClips, transitions: newTransitions } : t
+        );
+        break;
+      }
+      if (newTracks === state.tracks) return state;
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        selectedClipId:
+          state.selectedClipId === action.clipId ? null : state.selectedClipId,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "TOGGLE_CLIP_ENABLED": {
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, {
+        enabled: (() => {
+          for (const t of state.tracks) {
+            const c = t.clips.find((cl) => cl.id === action.clipId);
+            if (c) return c.enabled === false ? true : false;
+          }
+          return false;
+        })(),
+        locallyModified: true,
+      });
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+      };
+    }
+
+    case "COPY_CLIP": {
+      for (const track of state.tracks) {
+        const clip = track.clips.find((c) => c.id === action.clipId);
+        if (clip) return { ...state, clipboardClip: clip };
+      }
+      return state;
+    }
+
+    case "PASTE_CLIP": {
+      if (!state.clipboardClip) return state;
+      const track = state.tracks.find((t) => t.id === action.trackId);
+      if (!track) return state;
+
+      const newClip: Clip = {
+        ...state.clipboardClip,
+        id: crypto.randomUUID(),
+        startMs: action.startMs,
+        locallyModified: true,
+      };
+
+      // Clamp to free space
+      const clampedStart = clampMoveToFreeSpace(
+        track,
+        newClip.id,
+        newClip.startMs,
+        newClip.durationMs
+      );
+      newClip.startMs = clampedStart;
+
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId
+          ? { ...t, clips: [...t.clips, newClip] }
+          : t
+      );
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+        selectedClipId: newClip.id,
+      };
+    }
+
     case "SPLIT_CLIP": {
       let newTracks = state.tracks;
       for (const track of state.tracks) {
@@ -216,10 +321,17 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       for (const track of state.tracks) {
         const clip = track.clips.find((c) => c.id === action.clipId);
         if (!clip) continue;
+        const proposedStart = clip.startMs + clip.durationMs;
+        const clampedStart = clampMoveToFreeSpace(
+          track,
+          "new", // placeholder id that won't match any existing clip
+          proposedStart,
+          clip.durationMs
+        );
         const copy: Clip = {
           ...clip,
           id: crypto.randomUUID(),
-          startMs: clip.startMs + clip.durationMs,
+          startMs: clampedStart,
           locallyModified: true,
         };
         newTracks = state.tracks.map((t) =>
@@ -406,8 +518,20 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         cursor += clip.durationMs;
       }
 
+      // Remap transitions to match the new clip order (by index adjacency).
+      const oldTransitions = videoTrack.transitions ?? [];
+      const newTransitions = reorderedClips.slice(0, -1).flatMap((clipA, idx) => {
+        const clipB = reorderedClips[idx + 1];
+        const existing = oldTransitions.find(
+          (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id
+        );
+        return existing ? [existing] : [];
+      });
+
       const newTracks = state.tracks.map((t) =>
-        t.type === "video" ? { ...t, clips: reorderedClips } : t
+        t.type === "video"
+          ? { ...t, clips: reorderedClips, transitions: newTransitions }
+          : t
       );
 
       return {
@@ -470,9 +594,24 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         if (localTrack.type === "audio" || localTrack.type === "music") {
-          const hasLocalEdits = localTrack.clips.some((c) => c.locallyModified);
-          if (hasLocalEdits) return localTrack;
-          return serverTrack;
+          // Per-clip merge: locally modified clips are preserved; others take
+          // the server version. New server clips are appended.
+          const localClipMap = new Map(localTrack.clips.map((c) => [c.id, c]));
+          const serverClipMap = new Map(serverTrack.clips.map((c) => [c.id, c]));
+
+          const mergedClips = serverTrack.clips.map((sc) => {
+            const local = localClipMap.get(sc.id);
+            return local?.locallyModified ? local : sc;
+          });
+
+          // Keep local-only clips (not yet on server) that are locally modified
+          for (const lc of localTrack.clips) {
+            if (!serverClipMap.has(lc.id) && lc.locallyModified) {
+              mergedClips.push(lc);
+            }
+          }
+
+          return { ...localTrack, clips: mergedClips };
         }
 
         return localTrack;
@@ -512,6 +651,10 @@ export function useEditorReducer() {
     (playing: boolean) => dispatch({ type: "SET_PLAYING", playing }),
     []
   );
+  const setPlaybackRate = useCallback(
+    (rate: number) => dispatch({ type: "SET_PLAYBACK_RATE", rate }),
+    []
+  );
   const setZoom = useCallback(
     (zoom: number) => dispatch({ type: "SET_ZOOM", zoom }),
     []
@@ -532,6 +675,23 @@ export function useEditorReducer() {
   );
   const removeClip = useCallback(
     (clipId: string) => dispatch({ type: "REMOVE_CLIP", clipId }),
+    []
+  );
+  const rippleDeleteClip = useCallback(
+    (clipId: string) => dispatch({ type: "RIPPLE_DELETE_CLIP", clipId }),
+    []
+  );
+  const toggleClipEnabled = useCallback(
+    (clipId: string) => dispatch({ type: "TOGGLE_CLIP_ENABLED", clipId }),
+    []
+  );
+  const copyClip = useCallback(
+    (clipId: string) => dispatch({ type: "COPY_CLIP", clipId }),
+    []
+  );
+  const pasteClip = useCallback(
+    (trackId: string, startMs: number) =>
+      dispatch({ type: "PASTE_CLIP", trackId, startMs }),
     []
   );
   const splitClipAction = useCallback(
@@ -601,7 +761,6 @@ export function useEditorReducer() {
       dispatch({ type: "REMOVE_TRANSITION", trackId, transitionId }),
     []
   );
-
   const reorderShots = useCallback(
     (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
     []
@@ -615,11 +774,16 @@ export function useEditorReducer() {
     setResolution,
     setCurrentTime,
     setPlaying,
+    setPlaybackRate,
     setZoom,
     selectClip,
     addClip,
     updateClip,
     removeClip,
+    rippleDeleteClip,
+    toggleClipEnabled,
+    copyClip,
+    pasteClip,
     splitClip: splitClipAction,
     duplicateClip,
     moveClip,

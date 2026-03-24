@@ -90,6 +90,8 @@ export function EditorLayout({ project, onBack }: Props) {
     [string, string, string] | null
   >(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const timelineScrollRef = useRef<HTMLDivElement>(null);
   const lastHandledServerUpdatedAt = useRef(project.updatedAt);
   const [pollIntervalMs, setPollIntervalMs] = useState(2000);
   const [scriptResetPending, setScriptResetPending] =
@@ -254,6 +256,7 @@ export function EditorLayout({ project, onBack }: Props) {
     isPlaying: store.state.isPlaying,
     currentTimeMs: store.state.currentTimeMs,
     durationMs: store.state.durationMs,
+    playbackRate: store.state.playbackRate,
     onTick,
     onEnd,
   });
@@ -274,14 +277,59 @@ export function EditorLayout({ project, onBack }: Props) {
     [store.removeClip]
   );
 
+  const handleDeleteAllClipsInTrack = useCallback(
+    (trackId: string) => {
+      const track = store.state.tracks.find((t) => t.id === trackId);
+      if (!track) return;
+      for (const clip of track.clips) store.removeClip(clip.id);
+    },
+    [store.removeClip, store.state.tracks]
+  );
+
+  const handleClipSplit = useCallback(
+    (clipId: string) => store.splitClip(clipId, store.state.currentTimeMs),
+    [store.splitClip, store.state.currentTimeMs]
+  );
+
+  const handleClipDuplicate = useCallback(
+    (clipId: string) => store.duplicateClip(clipId),
+    [store.duplicateClip]
+  );
+
+  const handleClipCopy = useCallback(
+    (clipId: string) => store.copyClip(clipId),
+    [store.copyClip]
+  );
+
+  const handleClipPaste = useCallback(
+    (trackId: string, startMs: number) => store.pasteClip(trackId, startMs),
+    [store.pasteClip]
+  );
+
+  const handleClipToggleEnabled = useCallback(
+    (clipId: string) => store.toggleClipEnabled(clipId),
+    [store.toggleClipEnabled]
+  );
+
+  const handleClipRippleDelete = useCallback(
+    (clipId: string) => store.rippleDeleteClip(clipId),
+    [store.rippleDeleteClip]
+  );
+
+  const handleClipSetSpeed = useCallback(
+    (clipId: string, speed: number) =>
+      store.updateClip(clipId, { speed }),
+    [store.updateClip]
+  );
+
   const handleSelectTransition = useCallback(
     (trackId: string, clipAId: string, clipBId: string) => {
       store.selectClip(null);
-      // Ensure transition exists (creates "none" if absent)
-      store.setTransition(trackId, clipAId, clipBId, "none", 500);
       setSelectedTransitionKey([trackId, clipAId, clipBId]);
+      // Only create a transition record when the user actually changes the type
+      // in the Inspector — not just from clicking the diamond.
     },
-    [store.selectClip, store.setTransition]
+    [store.selectClip]
   );
 
   const selectedTransition = selectedTransitionKey
@@ -328,66 +376,139 @@ export function EditorLayout({ project, onBack }: Props) {
   }, [store.state.resolution]);
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
+  // Use refs for volatile state values so the effect never needs to re-run
+  // (and re-register the listener) on playback ticks.
+  const kbStateRef = useRef(store.state);
+  kbStateRef.current = store.state;
+  const kbStoreRef = useRef(store);
+  kbStoreRef.current = store;
+  const kbRemoveClipRef = useRef(handleRemoveClip);
+  kbRemoveClipRef.current = handleRemoveClip;
+  const kbRippleDeleteRef = useRef(handleClipRippleDelete);
+  kbRippleDeleteRef.current = handleClipRippleDelete;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
+      const s = kbStateRef.current;
+      const st = kbStoreRef.current;
+
+      // Space — play/pause
       if (e.code === "Space") {
         e.preventDefault();
-        store.setPlaying(!store.state.isPlaying);
+        st.setPlaying(!s.isPlaying);
       }
+
+      // Arrow keys — step one frame
       if (e.code === "ArrowLeft") {
         e.preventDefault();
-        store.setCurrentTime(
-          store.state.currentTimeMs - 1000 / store.state.fps
-        );
+        st.setCurrentTime(Math.max(0, s.currentTimeMs - 1000 / s.fps));
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
-        store.setCurrentTime(
-          store.state.currentTimeMs + 1000 / store.state.fps
-        );
+        st.setCurrentTime(Math.min(s.durationMs, s.currentTimeMs + 1000 / s.fps));
       }
+
+      // JKL scrubbing
+      if (e.code === "KeyJ" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        // J: reverse playback at 1×; if already playing in reverse, increase speed
+        const newRate = s.isPlaying && s.playbackRate < 0
+          ? Math.max(s.playbackRate * 2, -8)
+          : -1;
+        st.setPlaybackRate(newRate);
+        st.setPlaying(true);
+      }
+      if (e.code === "KeyK" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        // K: stop and reset rate to 1×
+        st.setPlaying(false);
+        st.setPlaybackRate(1);
+      }
+      if (e.code === "KeyL" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        // L: forward 1×; if already playing forward, increase speed
+        const newRate = s.isPlaying && s.playbackRate > 0
+          ? Math.min(s.playbackRate * 2, 8)
+          : 1;
+        st.setPlaybackRate(newRate);
+        st.setPlaying(true);
+      }
+
+      // Undo/Redo
       if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        store.undo();
+        st.undo();
       }
       if (
         (e.metaKey || e.ctrlKey) &&
         (e.key === "y" || (e.key === "z" && e.shiftKey))
       ) {
         e.preventDefault();
-        store.redo();
+        st.redo();
       }
+
+      // Delete / Backspace — delete selected clip
       if (e.code === "Delete" || e.code === "Backspace") {
-        if (store.state.selectedClipId) {
+        if (s.selectedClipId) {
           e.preventDefault();
-          handleRemoveClip(store.state.selectedClipId);
+          if (e.shiftKey) {
+            // Shift+Delete — ripple delete
+            kbRippleDeleteRef.current(s.selectedClipId);
+          } else {
+            kbRemoveClipRef.current(s.selectedClipId);
+          }
         }
       }
+
+      // Escape — deselect
+      if (e.code === "Escape") {
+        st.selectClip(null);
+      }
+
       // S — split at playhead
       if (e.code === "KeyS" && !e.metaKey && !e.ctrlKey) {
-        if (store.state.selectedClipId) {
+        if (s.selectedClipId) {
           e.preventDefault();
-          store.splitClip(
-            store.state.selectedClipId,
-            store.state.currentTimeMs
-          );
+          st.splitClip(s.selectedClipId, s.currentTimeMs);
         }
       }
+
       // Cmd/Ctrl+D — duplicate
       if ((e.metaKey || e.ctrlKey) && e.key === "d") {
-        if (store.state.selectedClipId) {
+        if (s.selectedClipId) {
           e.preventDefault();
-          store.duplicateClip(store.state.selectedClipId);
+          st.duplicateClip(s.selectedClipId);
+        }
+      }
+
+      // Cmd/Ctrl+C — copy selected clip
+      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
+        if (s.selectedClipId) {
+          e.preventDefault();
+          st.copyClip(s.selectedClipId);
+        }
+      }
+
+      // Cmd/Ctrl+V — paste at current playhead
+      if ((e.metaKey || e.ctrlKey) && e.key === "v") {
+        if (s.clipboardClip) {
+          e.preventDefault();
+          // Paste onto the track that owns the clipboard clip
+          const ownerTrack = s.tracks.find((t) =>
+            t.clips.some((c) => c.id === s.clipboardClip?.id)
+          );
+          const trackId = ownerTrack?.id ?? "video";
+          st.pasteClip(trackId, s.currentTimeMs);
         }
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [store, handleRemoveClip]);
+  }, []); // empty deps — handler reads live values via refs
 
   const { state } = store;
   const timecode = formatHHMMSSFF(state.currentTimeMs, state.fps);
@@ -410,7 +531,7 @@ export function EditorLayout({ project, onBack }: Props) {
   const zoomIn = () => store.setZoom(state.zoom * 1.25);
   const zoomOut = () => store.setZoom(state.zoom / 1.25);
   const zoomFit = () => {
-    const containerW = 800;
+    const containerW = timelineContainerRef.current?.clientWidth ?? 800;
     const newZoom =
       state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
     store.setZoom(newZoom);
@@ -604,7 +725,19 @@ export function EditorLayout({ project, onBack }: Props) {
               </button>
               <button
                 onClick={() => {
-                  if (confirm(t("editor_publish_confirm"))) publishProject();
+                  if (!confirm(t("editor_publish_confirm"))) return;
+                  // Flush any pending debounced save before publishing so the
+                  // server has the latest state before the project is locked.
+                  if (saveTimerRef.current) {
+                    clearTimeout(saveTimerRef.current);
+                    saveTimerRef.current = null;
+                    save({
+                      tracks: stripLocallyModifiedFromTracks(store.state.tracks),
+                      durationMs: store.state.durationMs,
+                      title: store.state.title,
+                    });
+                  }
+                  publishProject();
                 }}
                 disabled={isPublishing}
                 className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
@@ -674,25 +807,37 @@ export function EditorLayout({ project, onBack }: Props) {
             </span>
           </div>
 
-          <div className="flex-1 overflow-hidden">
+          <div ref={timelineContainerRef} className="flex-1 overflow-hidden">
             <Timeline
               tracks={state.tracks}
               durationMs={state.durationMs}
               currentTimeMs={state.currentTimeMs}
               zoom={state.zoom}
               selectedClipId={state.selectedClipId}
+              hasClipboard={!!state.clipboardClip}
               onSeek={store.setCurrentTime}
               onSelectClip={store.selectClip}
               onUpdateClip={handleUpdateClip}
               onAddClip={handleAddClip}
               onToggleMute={store.toggleTrackMute}
               onToggleLock={store.toggleTrackLock}
+              onDeleteAllClipsInTrack={handleDeleteAllClipsInTrack}
               selectedTransitionId={
                 selectedTransitionKey
                   ? `${selectedTransitionKey[1]}-${selectedTransitionKey[2]}`
                   : null
               }
               onSelectTransition={handleSelectTransition}
+              onRemoveTransition={store.removeTransition}
+              onClipSplit={handleClipSplit}
+              onClipDuplicate={handleClipDuplicate}
+              onClipCopy={handleClipCopy}
+              onClipPaste={handleClipPaste}
+              onClipToggleEnabled={handleClipToggleEnabled}
+              onClipRippleDelete={handleClipRippleDelete}
+              onClipDelete={handleRemoveClip}
+              onClipSetSpeed={handleClipSetSpeed}
+              scrollRef={timelineScrollRef}
             />
           </div>
         </div>
