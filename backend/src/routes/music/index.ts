@@ -203,6 +203,17 @@ app.post(
         role: "background_music",
       });
 
+      const { refreshEditorTimeline } = await import(
+        "../editor/services/refresh-editor-timeline"
+      );
+      await refreshEditorTimeline(generatedContentId, auth.user.id).catch(
+        (err) =>
+          debugLog.warn("refreshEditorTimeline (attach-music) failed", {
+            err,
+            contentId: generatedContentId,
+          }),
+      );
+
       return c.json({
         asset: {
           assetId: track.assetId,

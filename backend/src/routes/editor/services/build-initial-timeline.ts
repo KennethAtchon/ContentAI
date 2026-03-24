@@ -5,45 +5,67 @@ import {
   contentAssets,
   generatedContent,
 } from "../../../infrastructure/database/drizzle/schema";
+import { parseScriptShots } from "../../../shared/services/parse-script-shots";
+import {
+  mergePlaceholdersWithRealClips,
+  type AssetMergeRow,
+  type TimelineTrackJson,
+} from "./refresh-editor-timeline";
+import { debugLog } from "../../../utils/debug/debug";
 
-interface TimelineClip {
-  id: string;
-  assetId: string;
-  label: string;
-  startMs: number;
-  durationMs: number;
-  trimStartMs: number;
-  trimEndMs: number;
-  speed: number;
-  opacity: number;
-  warmth: number;
-  contrast: number;
-  positionX: number;
-  positionY: number;
-  scale: number;
-  rotation: number;
-  volume: number;
-  muted: boolean;
-}
-
-interface TimelineTrack {
-  id: string;
-  type: "video" | "audio" | "music" | "text";
-  name: string;
-  muted: boolean;
-  locked: boolean;
-  clips: TimelineClip[];
-  transitions: [];
+function emptyTracksFromVideo(
+  videoClips: TimelineTrackJson["clips"],
+): TimelineTrackJson[] {
+  return [
+    {
+      id: crypto.randomUUID(),
+      type: "video",
+      name: "Video",
+      muted: false,
+      locked: false,
+      clips: videoClips,
+      transitions: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "audio",
+      name: "Voiceover",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "music",
+      name: "Music",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "text",
+      name: "Text",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    },
+  ];
 }
 
 export async function buildInitialTimeline(
   generatedContentId: number,
   userId: string,
-): Promise<{ tracks: TimelineTrack[]; durationMs: number }> {
-  // Verify ownership before reading any assets — prevents latent IDOR if a
-  // future call site passes an unvalidated generatedContentId.
+): Promise<{ tracks: TimelineTrackJson[]; durationMs: number }> {
   const [content] = await db
-    .select({ id: generatedContent.id })
+    .select({
+      id: generatedContent.id,
+      generatedScript: generatedContent.generatedScript,
+      generatedHook: generatedContent.generatedHook,
+    })
     .from(generatedContent)
     .where(
       and(
@@ -56,6 +78,67 @@ export async function buildInitialTimeline(
   if (!content) {
     return { tracks: [], durationMs: 0 };
   }
+
+  let shots: { description: string; estimatedDurationMs: number }[] = [];
+  if (content.generatedScript) {
+    try {
+      const parsed = parseScriptShots(content.generatedScript);
+      shots = parsed.map((s) => ({
+        description: s.description,
+        estimatedDurationMs: s.durationSeconds * 1000,
+      }));
+    } catch {
+      shots = [];
+    }
+  }
+
+  if (shots.length === 0) {
+    if (content.generatedScript) {
+      debugLog.warn(
+        "[buildInitialTimeline] parseScriptShots returned 0 shots; falling back to hook placeholder",
+        {
+          service: "build-initial-timeline",
+          contentId: content.id,
+        },
+      );
+    }
+    shots = [
+      {
+        description: content.generatedHook ?? "Shot 1",
+        estimatedDurationMs: 5000,
+      },
+    ];
+  }
+
+  let cursor = 0;
+  const placeholderClips: TimelineTrackJson["clips"] = shots.map((shot, i) => {
+    const dur = shot.estimatedDurationMs ?? 5000;
+    const start = cursor;
+    cursor += dur;
+    return {
+      id: `placeholder-shot-${i}`,
+      assetId: null,
+      label: shot.description,
+      isPlaceholder: true as const,
+      placeholderShotIndex: i,
+      placeholderLabel: shot.description,
+      placeholderStatus: "pending" as const,
+      startMs: start,
+      durationMs: dur,
+      trimStartMs: 0,
+      trimEndMs: dur,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+      volume: 1,
+      muted: false,
+    };
+  });
 
   const linkedAssets = await db
     .select({
@@ -70,9 +153,6 @@ export async function buildInitialTimeline(
     .innerJoin(assets, eq(assets.id, contentAssets.assetId))
     .where(eq(contentAssets.generatedContentId, generatedContentId));
 
-  // Sort video clips by shotIndex to match the intended playback order.
-  // Assets are committed asynchronously during generation so createdAt order
-  // does not match shotIndex order.
   const byShotIndex = (
     a: (typeof linkedAssets)[number],
     b: (typeof linkedAssets)[number],
@@ -82,107 +162,56 @@ export async function buildInitialTimeline(
     return ai - bi;
   };
 
-  // Only video_clip role — final_video/assembled_video would be duplicates of
-  // the raw clips; image is excluded from the initial editor bootstrap.
   const videoClipAssets = linkedAssets
     .filter((a) => a.role === "video_clip")
     .sort(byShotIndex);
-  const voiceoverAssets = linkedAssets.filter((a) => a.role === "voiceover");
-  const musicAssets = linkedAssets.filter((a) => a.role === "background_music");
 
-  function makeClip(
-    asset: (typeof linkedAssets)[number],
-    startMs: number,
-    overrides?: Partial<TimelineClip>,
-  ): TimelineClip {
-    const dur = asset.durationMs ?? 5000;
-    return {
-      id: crypto.randomUUID(),
-      assetId: asset.assetId,
-      label: asset.name ?? asset.type,
-      startMs,
-      durationMs: dur,
-      trimStartMs: 0,
-      trimEndMs: dur,
-      speed: 1,
-      opacity: 1,
-      warmth: 0,
-      contrast: 0,
-      positionX: 0,
-      positionY: 0,
-      scale: 1,
-      rotation: 0,
-      volume: 1,
-      muted: false,
-      ...overrides,
-    };
-  }
+  const videoRows: AssetMergeRow[] = videoClipAssets.map((a) => ({
+    id: a.assetId,
+    role: a.role,
+    durationMs: a.durationMs,
+    metadata: a.metadata,
+  }));
 
-  let videoPosition = 0;
-  const videoTrackClips: TimelineClip[] = [];
-  for (const asset of videoClipAssets) {
-    const duration = asset.durationMs ?? 5000;
-    videoTrackClips.push(makeClip(asset, videoPosition));
-    videoPosition += duration;
-  }
+  const voiceRow = linkedAssets.find((a) => a.role === "voiceover");
+  const musicRow = linkedAssets.find((a) => a.role === "background_music");
 
-  // Clamp total duration: min 1 second, max 3 minutes (matches _buildInitialTimeline).
-  const totalDuration = Math.min(Math.max(videoPosition, 1000), 180_000);
+  const voiceover: AssetMergeRow | undefined = voiceRow
+    ? {
+        id: voiceRow.assetId,
+        role: voiceRow.role,
+        durationMs: voiceRow.durationMs,
+        metadata: voiceRow.metadata,
+      }
+    : undefined;
 
-  const audioTrackClips = voiceoverAssets.map((asset) =>
-    makeClip(asset, 0, {
-      durationMs: asset.durationMs ?? totalDuration,
-      trimEndMs: asset.durationMs ?? totalDuration,
-    }),
+  const music: AssetMergeRow | undefined = musicRow
+    ? {
+        id: musicRow.assetId,
+        role: musicRow.role,
+        durationMs: musicRow.durationMs,
+        metadata: musicRow.metadata,
+      }
+    : undefined;
+
+  let tracks = emptyTracksFromVideo(placeholderClips);
+  tracks = mergePlaceholdersWithRealClips(
+    tracks,
+    videoRows,
+    voiceover,
+    music,
+    undefined,
   );
 
-  const musicTrackClips = musicAssets.map((asset) =>
-    makeClip(asset, 0, {
-      durationMs: asset.durationMs ?? totalDuration,
-      trimEndMs: asset.durationMs ?? totalDuration,
-      volume: 0.3,
-    }),
-  );
+  let maxEnd = 0;
+  for (const track of tracks) {
+    for (const clip of track.clips) {
+      const end =
+        Number(clip.startMs ?? 0) + Number(clip.durationMs ?? 0);
+      if (end > maxEnd) maxEnd = end;
+    }
+  }
+  const durationMs = Math.min(Math.max(maxEnd, 1000), 180_000);
 
-  return {
-    tracks: [
-      {
-        id: crypto.randomUUID(),
-        type: "video",
-        name: "Video",
-        muted: false,
-        locked: false,
-        clips: videoTrackClips,
-        transitions: [],
-      },
-      {
-        id: crypto.randomUUID(),
-        type: "audio",
-        name: "Voiceover",
-        muted: false,
-        locked: false,
-        clips: audioTrackClips,
-        transitions: [],
-      },
-      {
-        id: crypto.randomUUID(),
-        type: "music",
-        name: "Music",
-        muted: false,
-        locked: false,
-        clips: musicTrackClips,
-        transitions: [],
-      },
-      {
-        id: crypto.randomUUID(),
-        type: "text",
-        name: "Text",
-        muted: false,
-        locked: false,
-        clips: [],
-        transitions: [],
-      },
-    ],
-    durationMs: totalDuration,
-  };
+  return { tracks, durationMs };
 }

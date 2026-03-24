@@ -151,14 +151,17 @@ export async function generateVideoClip(
       costUsd: 0,
       generationTimeMs: Date.now() - startMs,
     };
-    debugLog.info("[video-generation] DEV_MOCK_EXTERNAL_INTEGRATIONS — fixture clip upload", {
-      service: "video-generation",
-      operation: "generateVideoClip",
-      r2Key,
-      durationSeconds,
-      shotIndex,
-      fixtureSlot: slot + 1,
-    });
+    debugLog.info(
+      "[video-generation] DEV_MOCK_EXTERNAL_INTEGRATIONS — fixture clip upload",
+      {
+        service: "video-generation",
+        operation: "generateVideoClip",
+        r2Key,
+        durationSeconds,
+        shotIndex,
+        fixtureSlot: slot + 1,
+      },
+    );
     recordMediaCost({
       userId: params.userId,
       provider: result.provider,

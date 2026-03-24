@@ -15,7 +15,7 @@ import {
   generatedContent,
   queueItems,
 } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, count, inArray, isNull } from "drizzle-orm";
+import { eq, and, desc, count, inArray, isNull, notInArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { tmpdir } from "os";
@@ -23,6 +23,7 @@ import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { generateASS } from "./export/ass-generator";
 import { buildInitialTimeline } from "./services/build-initial-timeline";
+import { resolveContentChainIds } from "./services/refresh-editor-timeline";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
@@ -187,6 +188,13 @@ app.get(
         conditions.push(
           inArray(contentAssets.role, roles) as ReturnType<typeof eq>,
         );
+      } else {
+        conditions.push(
+          notInArray(contentAssets.role, [
+            "assembled_video",
+            "final_video",
+          ]) as ReturnType<typeof eq>,
+        );
       }
 
       const result = await db
@@ -241,6 +249,7 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         parentProjectId: editProjects.parentProjectId,
         createdAt: editProjects.createdAt,
         updatedAt: editProjects.updatedAt,
+        autoTitle: editProjects.autoTitle,
         // From linked generated_content — null for blank projects
         generatedHook: generatedContent.generatedHook,
         generatedCaption: generatedContent.generatedCaption,
@@ -302,29 +311,10 @@ app.post(
           return c.json({ error: "Content not found" }, 403);
         }
 
-        // Walk up parent_id chain to find the root content ID so we can
-        // locate any existing editor project regardless of which version
-        // triggered this call.
-        let chainRootId = generatedContentId;
-        let cursor = ownedContent.parentId;
-        while (cursor != null) {
-          const [parent] = await db
-            .select({
-              id: generatedContent.id,
-              parentId: generatedContent.parentId,
-            })
-            .from(generatedContent)
-            .where(
-              and(
-                eq(generatedContent.id, cursor),
-                eq(generatedContent.userId, auth.user.id),
-              ),
-            )
-            .limit(1);
-          if (!parent) break;
-          chainRootId = parent.id;
-          cursor = parent.parentId;
-        }
+        const chainIds = await resolveContentChainIds(
+          generatedContentId,
+          auth.user.id,
+        );
 
         const [existing] = await db
           .select()
@@ -332,22 +322,34 @@ app.post(
           .where(
             and(
               eq(editProjects.userId, auth.user.id),
-              eq(editProjects.generatedContentId, chainRootId),
+              inArray(editProjects.generatedContentId, chainIds),
               isNull(editProjects.parentProjectId),
             ),
           )
           .limit(1);
 
         if (existing) {
-          // Update the project to track the new version tip and rebuild the
-          // timeline from the new version's content (hook, script, scenes).
           const { tracks, durationMs } = await buildInitialTimeline(
             generatedContentId,
             auth.user.id,
           );
+          const [contentRow] = await db
+            .select({ generatedHook: generatedContent.generatedHook })
+            .from(generatedContent)
+            .where(
+              and(
+                eq(generatedContent.id, generatedContentId),
+                eq(generatedContent.userId, auth.user.id),
+              ),
+            )
+            .limit(1);
+          const titleUpdate =
+            existing.autoTitle && contentRow?.generatedHook
+              ? { title: contentRow.generatedHook.slice(0, 60) }
+              : {};
           const [updated] = await db
             .update(editProjects)
-            .set({ generatedContentId, tracks, durationMs })
+            .set({ generatedContentId, tracks, durationMs, ...titleUpdate })
             .where(eq(editProjects.id, existing.id))
             .returning();
           return c.json({ project: updated }, 200);
@@ -366,12 +368,31 @@ app.post(
         durationMs = result.durationMs;
       }
 
-      // ── Insert new project ──
+      let insertTitle = title ?? "Untitled Edit";
+      let insertAutoTitle = !title;
+      if (generatedContentId && !title) {
+        const [hookRow] = await db
+          .select({ generatedHook: generatedContent.generatedHook })
+          .from(generatedContent)
+          .where(
+            and(
+              eq(generatedContent.id, generatedContentId),
+              eq(generatedContent.userId, auth.user.id),
+            ),
+          )
+          .limit(1);
+        if (hookRow?.generatedHook) {
+          insertTitle = hookRow.generatedHook.slice(0, 60);
+          insertAutoTitle = true;
+        }
+      }
+
       const [project] = await db
         .insert(editProjects)
         .values({
           userId: auth.user.id,
-          title: title ?? "Untitled Edit",
+          title: insertTitle,
+          autoTitle: insertAutoTitle,
           generatedContentId: generatedContentId ?? null,
           tracks,
           durationMs,
@@ -393,16 +414,17 @@ app.post(
         const body = await c.req.json().catch(() => ({}));
         const parsed = createProjectSchema.safeParse(body);
         if (parsed.success && parsed.data.generatedContentId) {
+          const chainIds = await resolveContentChainIds(
+            parsed.data.generatedContentId,
+            auth.user.id,
+          );
           const [existing] = await db
             .select()
             .from(editProjects)
             .where(
               and(
                 eq(editProjects.userId, auth.user.id),
-                eq(
-                  editProjects.generatedContentId,
-                  parsed.data.generatedContentId,
-                ),
+                inArray(editProjects.generatedContentId, chainIds),
                 isNull(editProjects.parentProjectId),
               ),
             )
@@ -471,7 +493,12 @@ app.patch(
       }
 
       const [existing] = await db
-        .select({ id: editProjects.id, status: editProjects.status })
+        .select({
+          id: editProjects.id,
+          status: editProjects.status,
+          title: editProjects.title,
+          autoTitle: editProjects.autoTitle,
+        })
         .from(editProjects)
         .where(
           and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
@@ -487,7 +514,12 @@ app.patch(
       }
 
       const updateData: Record<string, unknown> = {};
-      if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+      if (parsed.data.title !== undefined) {
+        updateData.title = parsed.data.title;
+        if (parsed.data.title !== existing.title) {
+          updateData.autoTitle = false;
+        }
+      }
       if (parsed.data.tracks !== undefined)
         updateData.tracks = parsed.data.tracks;
       if (parsed.data.durationMs !== undefined)
@@ -1379,6 +1411,14 @@ async function loadProjectShotAssets(
   });
 }
 
+function mapCaptionStyleToPresetId(
+  style: z.infer<typeof aiAssemblyResponseSchema>["captionStyle"],
+): string {
+  if (style === "clean-white") return "clean-white";
+  if (style === "highlight") return "highlight";
+  return "bold-outline";
+}
+
 function convertAIResponseToTracks(
   aiResponse: z.infer<typeof aiAssemblyResponseSchema>,
   shotAssets: Array<{
@@ -1386,6 +1426,11 @@ function convertAIResponseToTracks(
     durationMs: number | null;
     metadata: unknown;
   }>,
+  aux: {
+    voiceover?: { id: string; durationMs: number | null };
+    music?: { id: string; durationMs: number | null };
+    totalVideoMs: number;
+  },
 ) {
   let cursor = 0;
   const videoClips = aiResponse.cuts.map((cut, i) => {
@@ -1414,10 +1459,100 @@ function convertAIResponseToTracks(
     return clip;
   });
 
+  const totalVideoMs = cursor;
+  const spanMs = Math.max(totalVideoMs, aux.totalVideoMs, 1000);
+
+  const voiceDur = aux.voiceover?.durationMs ?? spanMs;
+  const audioClips = aux.voiceover
+    ? [
+        {
+          id: `voiceover-${aux.voiceover.id}`,
+          assetId: aux.voiceover.id,
+          label: "Voiceover",
+          startMs: 0,
+          durationMs: voiceDur,
+          trimStartMs: 0,
+          trimEndMs: voiceDur,
+          speed: 1,
+          opacity: 1,
+          warmth: 0,
+          contrast: 0,
+          positionX: 0,
+          positionY: 0,
+          scale: 1,
+          rotation: 0,
+          volume: 1,
+          muted: false,
+        },
+      ]
+    : [];
+
+  const musicDur = aux.music?.durationMs ?? spanMs;
+  const musicClips = aux.music
+    ? [
+        {
+          id: `music-${aux.music.id}`,
+          assetId: aux.music.id,
+          label: "Music",
+          startMs: 0,
+          durationMs: musicDur,
+          trimStartMs: 0,
+          trimEndMs: musicDur,
+          speed: 1,
+          opacity: 1,
+          warmth: 0,
+          contrast: 0,
+          positionX: 0,
+          positionY: 0,
+          scale: 1,
+          rotation: 0,
+          volume: aiResponse.musicVolume,
+          muted: false,
+        },
+      ]
+    : [];
+
+  const captionPresetId = aiResponse.captionStyle
+    ? mapCaptionStyleToPresetId(aiResponse.captionStyle)
+    : "bold-outline";
+  const captionGroupSize = aiResponse.captionGroupSize ?? 3;
+  const textClips =
+    totalVideoMs > 0
+      ? [
+          {
+            id: `ai-caption-${crypto.randomUUID()}`,
+            assetId: aux.voiceover?.id ?? null,
+            label: "Captions",
+            startMs: 0,
+            durationMs: totalVideoMs,
+            trimStartMs: 0,
+            trimEndMs: totalVideoMs,
+            speed: 1,
+            opacity: 1,
+            warmth: 0,
+            contrast: 0,
+            positionX: 0,
+            positionY: 0,
+            scale: 1,
+            rotation: 0,
+            volume: 0,
+            muted: true,
+            captionPresetId,
+            captionGroupSize,
+            captionPositionY: 80,
+            captionWords: [] as {
+              word: string;
+              startMs: number;
+              endMs: number;
+            }[],
+          },
+        ]
+      : [];
+
   return [
     {
       id: "video",
-      type: "video",
+      type: "video" as const,
       name: "Video",
       muted: false,
       locked: false,
@@ -1426,29 +1561,29 @@ function convertAIResponseToTracks(
     },
     {
       id: "audio",
-      type: "audio",
+      type: "audio" as const,
       name: "Audio",
       muted: false,
       locked: false,
-      clips: [],
+      clips: audioClips,
       transitions: [],
     },
     {
       id: "music",
-      type: "music",
+      type: "music" as const,
       name: "Music",
       muted: false,
       locked: false,
-      clips: [],
+      clips: musicClips,
       transitions: [],
     },
     {
       id: "text",
-      type: "text",
+      type: "text" as const,
       name: "Text",
       muted: false,
       locked: false,
-      clips: [],
+      clips: textClips,
       transitions: [],
     },
   ];
@@ -1460,6 +1595,13 @@ function buildStandardPresetTracks(
     durationMs: number | null;
     metadata: unknown;
   }>,
+  aux?: {
+    voiceover?: { id: string; durationMs: number | null };
+    music?: { id: string; durationMs: number | null };
+    musicVolume?: number;
+    captionPresetId?: string;
+    captionGroupSize?: number;
+  },
 ) {
   let cursor = 0;
   const videoClips = shotAssets.map((asset, i) => {
@@ -1487,10 +1629,99 @@ function buildStandardPresetTracks(
     return clip;
   });
 
+  const totalVideoMs = cursor;
+  const spanMs = Math.max(totalVideoMs, 1000);
+  const musicVol = aux?.musicVolume ?? 0.22;
+
+  const voiceDur = aux?.voiceover?.durationMs ?? spanMs;
+  const audioClips = aux?.voiceover
+    ? [
+        {
+          id: `voiceover-${aux.voiceover.id}`,
+          assetId: aux.voiceover.id,
+          label: "Voiceover",
+          startMs: 0,
+          durationMs: voiceDur,
+          trimStartMs: 0,
+          trimEndMs: voiceDur,
+          speed: 1,
+          opacity: 1,
+          warmth: 0,
+          contrast: 0,
+          positionX: 0,
+          positionY: 0,
+          scale: 1,
+          rotation: 0,
+          volume: 1,
+          muted: false,
+        },
+      ]
+    : [];
+
+  const musicDur = aux?.music?.durationMs ?? spanMs;
+  const musicClips = aux?.music
+    ? [
+        {
+          id: `music-${aux.music.id}`,
+          assetId: aux.music.id,
+          label: "Music",
+          startMs: 0,
+          durationMs: musicDur,
+          trimStartMs: 0,
+          trimEndMs: musicDur,
+          speed: 1,
+          opacity: 1,
+          warmth: 0,
+          contrast: 0,
+          positionX: 0,
+          positionY: 0,
+          scale: 1,
+          rotation: 0,
+          volume: musicVol,
+          muted: false,
+        },
+      ]
+    : [];
+
+  const capPreset = aux?.captionPresetId ?? "bold-outline";
+  const capGroup = aux?.captionGroupSize ?? 3;
+  const textClips =
+    totalVideoMs > 0
+      ? [
+          {
+            id: `std-caption-${crypto.randomUUID()}`,
+            assetId: aux?.voiceover?.id ?? null,
+            label: "Captions",
+            startMs: 0,
+            durationMs: totalVideoMs,
+            trimStartMs: 0,
+            trimEndMs: totalVideoMs,
+            speed: 1,
+            opacity: 1,
+            warmth: 0,
+            contrast: 0,
+            positionX: 0,
+            positionY: 0,
+            scale: 1,
+            rotation: 0,
+            volume: 0,
+            muted: true,
+            captionPresetId: capPreset,
+            captionGroupSize: capGroup,
+            captionPositionY: 80,
+            captionWords: [] as {
+              word: string;
+              startMs: number;
+              endMs: number;
+            }[],
+          },
+        ]
+      : [];
+
   return [
     {
       id: "video",
-      type: "video",
+      type: "video" as const,
       name: "Video",
       muted: false,
       locked: false,
@@ -1499,29 +1730,29 @@ function buildStandardPresetTracks(
     },
     {
       id: "audio",
-      type: "audio",
+      type: "audio" as const,
       name: "Audio",
       muted: false,
       locked: false,
-      clips: [],
+      clips: audioClips,
       transitions: [],
     },
     {
       id: "music",
-      type: "music",
+      type: "music" as const,
       name: "Music",
       muted: false,
       locked: false,
-      clips: [],
+      clips: musicClips,
       transitions: [],
     },
     {
       id: "text",
-      type: "text",
+      type: "text" as const,
       name: "Text",
       muted: false,
       locked: false,
-      clips: [],
+      clips: textClips,
       transitions: [],
     },
   ];
@@ -1574,6 +1805,36 @@ app.post(
       if (shotAssets.length === 0) {
         return c.json({ error: "No shot clips available" }, 400);
       }
+
+      const auxRows = await db
+        .select({
+          role: contentAssets.role,
+          id: assets.id,
+          durationMs: assets.durationMs,
+        })
+        .from(contentAssets)
+        .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+        .where(
+          and(
+            eq(contentAssets.generatedContentId, project.generatedContentId),
+            eq(assets.userId, auth.user.id),
+          ),
+        );
+      const voiceR = auxRows.find((r) => r.role === "voiceover");
+      const musicR = auxRows.find((r) => r.role === "background_music");
+      const shotSpan = shotAssets.reduce(
+        (s, a) => s + (a.durationMs ?? 5000),
+        0,
+      );
+      const auxPack = {
+        voiceover: voiceR
+          ? { id: voiceR.id, durationMs: voiceR.durationMs }
+          : undefined,
+        music: musicR
+          ? { id: musicR.id, durationMs: musicR.durationMs }
+          : undefined,
+        totalVideoMs: shotSpan,
+      };
 
       const shotsContext = shotAssets.map((asset, i) => ({
         index: i,
@@ -1634,7 +1895,13 @@ app.post(
           },
         );
 
-        const standardTimeline = buildStandardPresetTracks(shotAssets);
+        const standardTimeline = buildStandardPresetTracks(shotAssets, {
+          voiceover: auxPack.voiceover,
+          music: auxPack.music,
+          musicVolume: 0.22,
+          captionPresetId: "bold-outline",
+          captionGroupSize: 3,
+        });
         return c.json({
           timeline: standardTimeline,
           assembledBy: "ai" as const,
@@ -1642,7 +1909,11 @@ app.post(
         });
       }
 
-      const timeline = convertAIResponseToTracks(aiResponse, shotAssets);
+      const timeline = convertAIResponseToTracks(
+        aiResponse,
+        shotAssets,
+        auxPack,
+      );
 
       return c.json({
         timeline,

@@ -299,6 +299,17 @@ audioRouter.post(
 
       const audioUrl = await getFileUrl(r2Key, 3600);
 
+      const { refreshEditorTimeline } = await import(
+        "../editor/services/refresh-editor-timeline"
+      );
+      await refreshEditorTimeline(generatedContentId, auth.user.id).catch(
+        (err) =>
+          debugLog.warn("refreshEditorTimeline (voiceover) failed", {
+            err,
+            contentId: generatedContentId,
+          }),
+      );
+
       return c.json({ asset, audioUrl });
     } catch (error) {
       if (

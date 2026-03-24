@@ -25,7 +25,6 @@ import { recordAiCost } from "./cost-tracker";
 import { videoJobService } from "../services/video/job.service";
 import {
   runReelGeneration,
-  runAssembleFromExistingClips,
   runShotRegenerate,
   getRetryRunner,
 } from "../routes/video/index";
@@ -937,6 +936,17 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
           role: "voiceover",
         });
 
+        const { refreshEditorTimeline } = await import(
+          "../routes/editor/services/refresh-editor-timeline"
+        );
+        await refreshEditorTimeline(contentId, context.auth.user.id).catch(
+          (err) =>
+            debugLog.warn(
+              "refreshEditorTimeline (generate_voiceover tool) failed",
+              { err, contentId },
+            ),
+        );
+
         void recordAiCost({
           userId: context.auth.user.id,
           provider: "openai",
@@ -1095,6 +1105,17 @@ export function createAttachMusicTool(context: ToolContext) {
           role: "background_music",
         });
 
+        const { refreshEditorTimeline } = await import(
+          "../routes/editor/services/refresh-editor-timeline"
+        );
+        await refreshEditorTimeline(contentId, context.auth.user.id).catch(
+          (err) =>
+            debugLog.warn("refreshEditorTimeline (attach_music tool) failed", {
+              err,
+              contentId,
+            }),
+        );
+
         debugLog.info("[tool:attach_music] Music attached", {
           service: "chat-tools",
           operation: "attach_music",
@@ -1218,7 +1239,7 @@ export function createGenerateVideoReelTool(context: ToolContext) {
 export function createGetVideoJobStatusTool(context: ToolContext) {
   return tool({
     description:
-      "Check the status of a video generation job. Returns status (queued/running/completed/failed), progress (shotsCompleted/totalShots), and result URL if complete. Use this to report progress to the user after calling generate_video_reel, assemble_video, or regenerate_video_shot.",
+      "Check the status of a video generation job. Returns status (queued/running/completed/failed), progress (shotsCompleted/totalShots), and result if complete. Use this to report progress to the user after calling generate_video_reel or regenerate_video_shot.",
     inputSchema: z.object({
       jobId: z
         .string()
@@ -1238,93 +1259,6 @@ export function createGetVideoJobStatusTool(context: ToolContext) {
           error: job.error ?? null,
         };
       } catch {
-        return { success: false as const, reason: "error" };
-      }
-    },
-  });
-}
-
-export function createAssembleVideoTool(context: ToolContext) {
-  return tool({
-    description:
-      "Assemble existing video clips into a final reel with voiceover and music mixed in. Call this after the user has approved individual shots and wants to produce the final video. Returns a jobId — poll with get_video_job_status.",
-    inputSchema: z.object({
-      contentId: z
-        .number()
-        .describe("The generatedContent ID whose clips to assemble"),
-      includeCaptions: z.boolean().default(true),
-      voiceoverVolume: z
-        .number()
-        .min(0)
-        .max(1)
-        .default(1)
-        .describe("Voiceover volume 0–1"),
-      musicVolume: z
-        .number()
-        .min(0)
-        .max(1)
-        .default(0.22)
-        .describe("Background music volume 0–1"),
-      clipAudioVolume: z
-        .number()
-        .min(0)
-        .max(1)
-        .default(0.35)
-        .describe("Clip audio volume 0–1"),
-      includeClipAudio: z.boolean().default(true),
-    }),
-    execute: async ({
-      contentId,
-      includeCaptions,
-      voiceoverVolume,
-      musicVolume,
-      clipAudioVolume,
-      includeClipAudio,
-    }) => {
-      try {
-        const [content] = await db
-          .select({ id: generatedContent.id })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
-
-        if (!content) return { success: false as const, reason: "not_found" };
-
-        const job = await videoJobService.createJob({
-          userId: context.auth.user.id,
-          generatedContentId: contentId,
-          kind: "assemble",
-          request: {
-            includeCaptions,
-            audioMix: {
-              includeClipAudio,
-              clipAudioVolume,
-              voiceoverVolume,
-              musicVolume,
-            },
-          },
-        });
-
-        setTimeout(() => void runAssembleFromExistingClips({ job }), 0);
-
-        debugLog.info("[tool:assemble_video] Job created", {
-          service: "chat-tools",
-          operation: "assemble_video",
-          jobId: job.id,
-          contentId,
-        });
-        return { success: true as const, jobId: job.id, status: job.status };
-      } catch (err) {
-        debugLog.error("[tool:assemble_video] Failed", {
-          service: "chat-tools",
-          operation: "assemble_video",
-          error: err instanceof Error ? err.message : "Unknown",
-        });
         return { success: false as const, reason: "error" };
       }
     },
@@ -1892,7 +1826,6 @@ export function createChatTools(context: ToolContext) {
     // Video
     generate_video_reel: createGenerateVideoReelTool(context),
     get_video_job_status: createGetVideoJobStatusTool(context),
-    assemble_video: createAssembleVideoTool(context),
     regenerate_video_shot: createRegenerateVideoShotTool(context),
     retry_video_job: createRetryVideoJobTool(context),
     // Image generation

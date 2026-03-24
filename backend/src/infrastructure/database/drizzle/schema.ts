@@ -485,6 +485,7 @@ export const editProjects = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull().default("Untitled Edit"),
+    autoTitle: boolean("auto_title").notNull().default(true),
     generatedContentId: integer("generated_content_id").references(
       () => generatedContent.id,
       { onDelete: "set null" },

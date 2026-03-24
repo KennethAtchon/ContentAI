@@ -140,7 +140,12 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
     case "ADD_CLIP": {
       const newTracks = state.tracks.map((t) =>
-        t.id === action.trackId ? { ...t, clips: [...t.clips, action.clip] } : t
+        t.id === action.trackId
+          ? {
+              ...t,
+              clips: [...t.clips, { ...action.clip, locallyModified: true }],
+            }
+          : t
       );
       return {
         ...state,
@@ -152,11 +157,10 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
 
     case "UPDATE_CLIP": {
-      const newTracks = updateClipInTracks(
-        state.tracks,
-        action.clipId,
-        action.patch
-      );
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, {
+        ...action.patch,
+        locallyModified: true,
+      });
       return {
         ...state,
         past: [...state.past, state.tracks].slice(-50),
@@ -188,8 +192,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         if (!result) break; // atMs not inside clip — no-op
         const newClips = [
           ...track.clips.slice(0, idx),
-          result[0],
-          result[1],
+          { ...result[0], locallyModified: true },
+          { ...result[1], locallyModified: true },
           ...track.clips.slice(idx + 1),
         ];
         newTracks = state.tracks.map((t) =>
@@ -216,6 +220,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           ...clip,
           id: crypto.randomUUID(),
           startMs: clip.startMs + clip.durationMs,
+          locallyModified: true,
         };
         newTracks = state.tracks.map((t) =>
           t.id === track.id ? { ...t, clips: [...t.clips, copy] } : t
@@ -235,6 +240,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "MOVE_CLIP": {
       const newTracks = updateClipInTracks(state.tracks, action.clipId, {
         startMs: action.startMs,
+        locallyModified: true,
       });
       return {
         ...state,
@@ -315,6 +321,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         captionPresetId: action.presetId,
         captionGroupSize: 3,
         captionPositionY: 80,
+        locallyModified: true,
       };
 
       const newTracks = state.tracks.map((t) =>
@@ -391,7 +398,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       for (const clipId of action.clipIds) {
         const clip = clipMap.get(clipId);
         if (!clip) continue;
-        reorderedClips.push({ ...clip, startMs: cursor });
+        reorderedClips.push({
+          ...clip,
+          startMs: cursor,
+          locallyModified: true,
+        });
         cursor += clip.durationMs;
       }
 
@@ -424,6 +435,52 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         past: [...state.past, state.tracks].slice(-50),
         future: [],
         tracks: newTracks,
+      };
+    }
+
+    case "MERGE_TRACKS_FROM_SERVER": {
+      const serverTracks = action.tracks;
+      const merged = state.tracks.map((localTrack) => {
+        const serverTrack = serverTracks.find((t) => t.type === localTrack.type);
+        if (!serverTrack) return localTrack;
+
+        if (localTrack.type === "video") {
+          const updatedClips = localTrack.clips.map((localClip) => {
+            if (localClip.locallyModified) return localClip;
+
+            if (localClip.isPlaceholder) {
+              const serverClip = serverTrack.clips.find(
+                (sc) =>
+                  sc.placeholderShotIndex === localClip.placeholderShotIndex
+              );
+              if (serverClip && !serverClip.isPlaceholder) return serverClip;
+              if (
+                serverClip?.placeholderStatus !== undefined &&
+                serverClip.placeholderStatus !== localClip.placeholderStatus
+              ) {
+                return {
+                  ...localClip,
+                  placeholderStatus: serverClip.placeholderStatus,
+                };
+              }
+            }
+            return localClip;
+          });
+          return { ...localTrack, clips: updatedClips };
+        }
+
+        if (localTrack.type === "audio" || localTrack.type === "music") {
+          const hasLocalEdits = localTrack.clips.some((c) => c.locallyModified);
+          if (hasLocalEdits) return localTrack;
+          return serverTrack;
+        }
+
+        return localTrack;
+      });
+      return {
+        ...state,
+        tracks: merged,
+        durationMs: computeDuration(merged),
       };
     }
 

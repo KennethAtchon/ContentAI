@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "@tanstack/react-router";
 import {
   Film,
   Loader2,
   RotateCcw,
-  WandSparkles,
   RefreshCw,
 } from "lucide-react";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 import { useUpdateAssetMetadata } from "@/features/audio/hooks/use-update-asset-metadata";
 import { useGenerateReel } from "@/features/video/hooks/use-generate-reel";
 import { useRetryVideoJob } from "@/features/video/hooks/use-retry-video-job";
-import { useAssembleReel } from "@/features/video/hooks/use-assemble-reel";
 import { useRegenerateShot } from "@/features/video/hooks/use-regenerate-shot";
 import { useUploadShotAsset } from "@/features/video/hooks/use-upload-shot-asset";
 import { toast } from "sonner";
@@ -64,18 +63,11 @@ export function VideoWorkspacePanel({
   const { t } = useTranslation();
   const generateReel = useGenerateReel();
   const retryVideoJob = useRetryVideoJob();
-  const assembleReel = useAssembleReel();
   const regenerateShot = useRegenerateShot();
   const uploadShotAsset = useUploadShotAsset();
   const updateAssetMetadata = useUpdateAssetMetadata(draft.id);
 
-  const [storyboardDirty, setStoryboardDirty] = useState(false);
   const [showFailureModal, setShowFailureModal] = useState(false);
-  const [includeCaptions, setIncludeCaptions] = useState(true);
-  const [includeClipAudioInMix, setIncludeClipAudioInMix] = useState(true);
-  const [voiceoverVolume, setVoiceoverVolume] = useState(1);
-  const [musicVolume, setMusicVolume] = useState(0.22);
-  const [clipAudioVolume, setClipAudioVolume] = useState(0.35);
   const [pendingRegenerateShotIndex, setPendingRegenerateShotIndex] = useState<
     number | null
   >(null);
@@ -95,9 +87,6 @@ export function VideoWorkspacePanel({
     isJobActive ? 4000 : false
   );
 
-  const assembledAsset =
-    assetsData?.assets.find((asset) => asset.type === "assembled_video") ??
-    null;
   const shotClips: ShotClip[] =
     assetsData?.assets
       .map(toShotClip)
@@ -108,18 +97,12 @@ export function VideoWorkspacePanel({
     jobTargetsThisDraft && rawVideoStatus ? rawVideoStatus : null;
   const videoRunning = videoStatus === "queued" || videoStatus === "running";
   const videoFailed = videoStatus === "failed";
-  const hasVideoOutput =
-    !!assembledAsset ||
-    (jobTargetsThisDraft && !!videoJobData?.job.result?.videoUrl);
-  const previewVideoUrl =
-    assembledAsset?.mediaUrl ??
-    (jobTargetsThisDraft ? videoJobData?.job.result?.videoUrl : null) ??
-    null;
+  const jobCompleted =
+    jobTargetsThisDraft && rawVideoStatus === "completed";
   const mutatingStoryboard =
     regenerateShot.isPending ||
     uploadShotAsset.isPending ||
     updateAssetMetadata.isPending ||
-    assembleReel.isPending ||
     videoRunning;
 
   useEffect(() => {
@@ -130,13 +113,12 @@ export function VideoWorkspacePanel({
     }
   }, [videoStatus]);
 
-  const handleGenerateReel = async () => {
+  const handleGenerateClips = async () => {
     try {
       const res = await generateReel.mutateAsync({
         generatedContentId: draft.id,
       });
       onJobStarted(res.jobId, draft.id);
-      setStoryboardDirty(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       toast.error(
@@ -158,25 +140,6 @@ export function VideoWorkspacePanel({
     }
   };
 
-  const handleReassemble = async () => {
-    try {
-      await assembleReel.mutateAsync({
-        generatedContentId: draft.id,
-        includeCaptions,
-        audioMix: {
-          includeClipAudio: includeClipAudioInMix,
-          clipAudioVolume,
-          voiceoverVolume,
-          musicVolume,
-        },
-      });
-      // Navigation to editor happens in mutation onSuccess
-      setStoryboardDirty(false);
-    } catch {
-      toast.error(t("workspace_video_action_reassemble_failed"));
-    }
-  };
-
   const handleSetUseClipAudio = async (
     asset: ShotClip,
     useClipAudio: boolean
@@ -189,7 +152,6 @@ export function VideoWorkspacePanel({
           useClipAudio,
         },
       });
-      setStoryboardDirty(true);
       toast.success(
         useClipAudio
           ? t("workspace_video_action_clip_audio_enabled")
@@ -209,7 +171,6 @@ export function VideoWorkspacePanel({
         shotIndex,
         file,
       });
-      setStoryboardDirty(true);
       toast.success(t("workspace_video_action_upload_success"));
     } catch {
       toast.error(t("workspace_video_action_upload_failed"));
@@ -238,13 +199,14 @@ export function VideoWorkspacePanel({
         prompt: prompt.trim(),
       });
       onJobStarted(res.jobId, draft.id);
-      setStoryboardDirty(false);
     } catch {
       toast.error(t("workspace_video_action_regenerate_failed"));
     } finally {
       setPendingRegenerateShotIndex(null);
     }
   };
+
+  const editorSearch = { contentId: draft.id } as const;
 
   return (
     <div className="relative flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -263,15 +225,15 @@ export function VideoWorkspacePanel({
             </>
           ) : videoFailed ? (
             <span className="text-error">{t("workspace_video_failed")}</span>
-          ) : hasVideoOutput ? (
-            <span>{t("workspace_video_ready")}</span>
+          ) : shotClips.length > 0 || jobCompleted ? (
+            <span>{t("video_workspace_clips_ready")}</span>
           ) : (
             <span>{t("workspace_video_not_generated")}</span>
           )}
         </div>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
-            onClick={() => void handleGenerateReel()}
+            onClick={() => void handleGenerateClips()}
             disabled={generateReel.isPending || videoRunning}
             className="inline-flex items-center gap-1.5 rounded-md border border-success/50 bg-success/10 px-2.5 py-1.5 text-sm text-success hover:bg-success/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-success"
           >
@@ -284,21 +246,14 @@ export function VideoWorkspacePanel({
               ? t("workspace_generate_reel_pending")
               : t("workspace_generate_reel")}
           </button>
-          {!videoRunning && (hasVideoOutput || shotClips.length > 0) && (
-            <button
-              onClick={() => void handleReassemble()}
-              disabled={assembleReel.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+          {(shotClips.length > 0 || jobCompleted) && (
+            <Link
+              to="/studio/editor"
+              search={editorSearch}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted"
             >
-              {assembleReel.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <WandSparkles className="h-3.5 w-3.5" />
-              )}
-              {assembleReel.isPending
-                ? t("workspace_video_reassembling")
-                : t("workspace_video_reassemble")}
-            </button>
+              {t("video_workspace_open_editor")}
+            </Link>
           )}
           {videoFailed && (
             <button
@@ -316,86 +271,6 @@ export function VideoWorkspacePanel({
                 : t("workspace_video_retry")}
             </button>
           )}
-        </div>
-        <label className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/80">
-          <input
-            type="checkbox"
-            checked={includeCaptions}
-            onChange={(event) =>
-              setIncludeCaptions(event.currentTarget.checked)
-            }
-            className="h-3.5 w-3.5"
-          />
-          {t("workspace_video_include_captions")}
-        </label>
-        <label className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/80">
-          <input
-            type="checkbox"
-            checked={includeClipAudioInMix}
-            onChange={(event) =>
-              setIncludeClipAudioInMix(event.currentTarget.checked)
-            }
-            className="h-3.5 w-3.5"
-          />
-          {t("workspace_video_include_clip_audio")}
-        </label>
-        <div className="mt-2 grid grid-cols-1 gap-2 text-sm">
-          <label className="flex items-center gap-2">
-            <span className="w-28 text-muted-foreground">
-              {t("workspace_video_mix_voiceover")}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={2}
-              step={0.05}
-              value={voiceoverVolume}
-              onChange={(event) =>
-                setVoiceoverVolume(Number(event.currentTarget.value))
-              }
-              className="flex-1"
-            />
-            <span className="w-8 text-right">{voiceoverVolume.toFixed(2)}</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <span className="w-28 text-muted-foreground">
-              {t("workspace_video_mix_music")}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={musicVolume}
-              onChange={(event) =>
-                setMusicVolume(Number(event.currentTarget.value))
-              }
-              className="flex-1"
-            />
-            <span className="w-8 text-right">{musicVolume.toFixed(2)}</span>
-          </label>
-          <label
-            className={`flex items-center gap-2 ${
-              includeClipAudioInMix ? "" : "opacity-50"
-            }`}
-          >
-            <span className="w-28 text-muted-foreground">
-              {t("workspace_video_mix_clip")}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={clipAudioVolume}
-              onChange={(event) =>
-                setClipAudioVolume(Number(event.currentTarget.value))
-              }
-              disabled={!includeClipAudioInMix}
-              className="flex-1"
-            />
-            <span className="w-8 text-right">{clipAudioVolume.toFixed(2)}</span>
-          </label>
         </div>
       </section>
 
@@ -498,60 +373,22 @@ export function VideoWorkspacePanel({
             ))
           )}
         </div>
-        {storyboardDirty && (
-          <button
-            onClick={() => void handleReassemble()}
-            disabled={mutatingStoryboard}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-warning/50 bg-warning/10 px-2.5 py-1.5 text-sm text-warning hover:bg-warning/15 disabled:opacity-50 disabled:cursor-not-allowed dark:text-warning"
-          >
-            {assembleReel.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <WandSparkles className="h-3.5 w-3.5" />
-            )}
-            {assembleReel.isPending
-              ? t("workspace_video_reassembling")
-              : t("workspace_storyboard_apply_changes")}
-          </button>
-        )}
       </section>
 
       <section className="rounded-lg border border-border/60 p-3">
         <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
           {t("workspace_video_region_preview")}
         </p>
-        {previewVideoUrl ? (
-          <>
-            <video
-              className="mt-2 w-full rounded-lg border border-border/60"
-              controls
-              preload="metadata"
-              src={previewVideoUrl}
-            />
-            <a
-              href={previewVideoUrl}
-              download
-              className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
-            >
-              {t("workspace_video_download")}
-            </a>
-            <button
-              onClick={() =>
-                storyboardSectionRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                })
-              }
-              className="mt-2 ml-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
-            >
-              {t("workspace_video_back_to_storyboard")}
-            </button>
-          </>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("workspace_video_preview_empty")}
-          </p>
-        )}
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t("video_workspace_clips_ready")}
+        </p>
+        <Link
+          to="/studio/editor"
+          search={editorSearch}
+          className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
+        >
+          {t("video_workspace_open_editor")}
+        </Link>
       </section>
 
       {showFailureModal && (

@@ -13,6 +13,7 @@ import {
   SkipForward,
   ZoomIn,
   ZoomOut,
+  RefreshCw,
   Upload,
   Lock,
   FilePlus,
@@ -34,7 +35,18 @@ import { MediaPanel } from "./MediaPanel";
 import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
-import type { EditProject, Clip } from "../types/editor";
+import type { EditProject, Clip, Track } from "../types/editor";
+import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 
 interface Props {
   project: EditProject;
@@ -78,11 +90,61 @@ export function EditorLayout({ project, onBack }: Props) {
     [string, string, string] | null
   >(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHandledServerUpdatedAt = useRef(project.updatedAt);
+  const [pollIntervalMs, setPollIntervalMs] = useState(2000);
+  const [scriptResetPending, setScriptResetPending] =
+    useState<EditProject | null>(null);
 
-  // Load project on mount
+  const hasPlaceholders =
+    store.state.tracks
+      .find((t) => t.type === "video")
+      ?.clips.some((c) => c.isPlaceholder) ?? false;
+
+  useEffect(() => {
+    if (!hasPlaceholders) setPollIntervalMs(2000);
+  }, [hasPlaceholders]);
+
+  const projectFetcher = useQueryFetcher<{ project: EditProject }>();
+  const { data: polledPayload } = useQuery({
+    queryKey: queryKeys.api.editorProject(project.id),
+    queryFn: () => projectFetcher(`/api/editor/${project.id}`),
+    enabled: !!project.id,
+    refetchInterval: hasPlaceholders ? pollIntervalMs : false,
+  });
+
   useEffect(() => {
     store.loadProject(project);
+    lastHandledServerUpdatedAt.current = project.updatedAt;
   }, [project.id]);
+
+  useEffect(() => {
+    const serverP = polledPayload?.project;
+    if (!serverP) return;
+    if (serverP.updatedAt === lastHandledServerUpdatedAt.current) return;
+
+    setPollIntervalMs((p) => Math.min(p * 2, 15000));
+
+    const serverVideo = serverP.tracks.find((t) => t.type === "video");
+    const localVideo = store.state.tracks.find((t) => t.type === "video");
+    const serverAllPlaceholders =
+      !!serverVideo &&
+      serverVideo.clips.length > 0 &&
+      serverVideo.clips.every((c) => c.isPlaceholder);
+    const localHasRealClip = localVideo?.clips.some(
+      (c) => Boolean(c.assetId) && !c.isPlaceholder,
+    );
+
+    if (serverAllPlaceholders && localHasRealClip) {
+      setScriptResetPending(serverP);
+      return;
+    }
+
+    lastHandledServerUpdatedAt.current = serverP.updatedAt;
+    store.dispatch({
+      type: "MERGE_TRACKS_FROM_SERVER",
+      tracks: serverP.tracks as Track[],
+    });
+  }, [polledPayload?.project?.updatedAt]);
 
   // ── Asset URL Map ───────────────────────────────────────────────────────────
   // Fetch project assets to build assetId → URL map for PreviewArea and waveforms.
@@ -248,7 +310,7 @@ export function EditorLayout({ project, onBack }: Props) {
     tracksRef.current = store.state.tracks;
     if (!store.state.isReadOnly) {
       scheduleSave({
-        tracks: store.state.tracks,
+        tracks: stripLocallyModifiedFromTracks(store.state.tracks),
         durationMs: store.state.durationMs,
         title: store.state.title,
       });
@@ -591,7 +653,21 @@ export function EditorLayout({ project, onBack }: Props) {
             className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0"
             style={{ height: 32 }}
           >
-            <span className="text-xs font-bold text-dim-1">Timeline</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-dim-1">Timeline</span>
+              <button
+                type="button"
+                title={t("editor_sync_timeline")}
+                onClick={() =>
+                  void queryClient.invalidateQueries({
+                    queryKey: queryKeys.api.editorProject(project.id),
+                  })
+                }
+                className="p-1 rounded hover:bg-overlay-sm text-dim-3 hover:text-dim-1"
+              >
+                <RefreshCw size={12} />
+              </button>
+            </div>
             <span className="text-xs italic text-dim-3">
               {Math.round(state.zoom)} px/s ·{" "}
               {(state.durationMs / 60000).toFixed(1)} min
@@ -627,6 +703,42 @@ export function EditorLayout({ project, onBack }: Props) {
             onClose={() => setShowExport(false)}
           />
         )}
+
+        <AlertDialog
+          open={!!scriptResetPending}
+          onOpenChange={(open) => {
+            if (!open && scriptResetPending) {
+              lastHandledServerUpdatedAt.current =
+                scriptResetPending.updatedAt;
+              setScriptResetPending(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t("editor_script_iteration_title")}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("editor_script_iteration_body")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (!scriptResetPending) return;
+                  lastHandledServerUpdatedAt.current =
+                    scriptResetPending.updatedAt;
+                  store.loadProject(scriptResetPending);
+                  setScriptResetPending(null);
+                }}
+              >
+                {t("editor_script_iteration_confirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AssetUrlMapContext.Provider>
   );

@@ -50,6 +50,14 @@ export interface Clip {
   captionGroupSize?: number;
   captionPositionY?: number;
   captionFontSizeOverride?: number;
+
+  /** Placeholder slot until a real clip is generated */
+  isPlaceholder?: true;
+  placeholderShotIndex?: number;
+  placeholderLabel?: string;
+  placeholderStatus?: "pending" | "generating" | "failed";
+  /** Set on user edits; stripped before PATCH save */
+  locallyModified?: boolean;
 }
 
 export type TrackType = "video" | "audio" | "music" | "text";
@@ -81,6 +89,7 @@ export interface EditProject {
   // From linked generated_content (null for blank / list-view responses)
   generatedHook?: string | null;
   generatedCaption?: string | null;
+  autoTitle?: boolean;
 }
 
 export interface ExportJobStatus {
@@ -149,7 +158,8 @@ export type EditorAction =
       durationMs: number;
     }
   | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
-  | { type: "REORDER_SHOTS"; clipIds: string[] };
+  | { type: "REORDER_SHOTS"; clipIds: string[] }
+  | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] };
 
 export const TRACK_COLORS: Record<TrackType, string> = {
   video: "#a78bfa",

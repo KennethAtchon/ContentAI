@@ -12,6 +12,7 @@ import {
   contentAssets,
   editProjects,
   assets,
+  exportJobs,
 } from "../../infrastructure/database/drizzle/schema";
 import {
   eq,
@@ -37,13 +38,35 @@ interface PipelineStage {
   error?: string;
 }
 
+function tracksHaveBlockingPlaceholders(tracks: unknown): boolean {
+  if (!Array.isArray(tracks)) return false;
+  for (const t of tracks as Array<{ type?: string; clips?: unknown[] }>) {
+    if (t.type !== "video" || !Array.isArray(t.clips)) continue;
+    for (const c of t.clips) {
+      const clip = c as {
+        isPlaceholder?: boolean;
+        placeholderStatus?: string;
+      };
+      if (
+        clip.isPlaceholder &&
+        (clip.placeholderStatus === "pending" ||
+          clip.placeholderStatus === "generating")
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function deriveStages(
   row: {
     generatedHook: string | null;
     generatedScript: string | null;
     generatedMetadata: unknown;
     status: string;
-    editProjectStatus?: string | null;
+    editProjectId?: string | null;
+    editProjectTracks?: unknown;
     latestExportStatus?: string | null;
   },
   assetRoleCounts: Record<string, number>,
@@ -56,12 +79,25 @@ function deriveStages(
   const hasCopy = !!(row.generatedHook || row.generatedScript);
   const hasVoiceover = (assetRoleCounts["voiceover"] ?? 0) > 0;
   const hasVideoClips = (assetRoleCounts["video_clip"] ?? 0) > 0;
-  const hasAssembled =
-    (assetRoleCounts["assembled_video"] ?? 0) > 0 ||
-    (assetRoleCounts["final_video"] ?? 0) > 0;
 
   const videoRunning = phase4Status === "running" || phase4Status === "pending";
   const videoFailed = phase4Status === "failed" || contentFailed;
+
+  const hasEditProject = row.editProjectId != null && row.editProjectId !== "";
+  const blockingPlaceholders = tracksHaveBlockingPlaceholders(
+    row.editProjectTracks,
+  );
+
+  let editorReadyStatus: PipelineStageStatus = "pending";
+  if (!hasVideoClips) {
+    editorReadyStatus = "pending";
+  } else if (!hasEditProject) {
+    editorReadyStatus = "pending";
+  } else if (blockingPlaceholders) {
+    editorReadyStatus = "running";
+  } else {
+    editorReadyStatus = "ok";
+  }
 
   const stages: PipelineStage[] = [
     {
@@ -87,19 +123,9 @@ function deriveStages(
       error: videoFailed ? (phase4.error as string | undefined) : undefined,
     },
     {
-      id: "assembled",
-      label: "Assembly",
-      status: hasAssembled ? "ok" : hasVideoClips ? "pending" : "pending",
-    },
-    {
-      id: "edit",
-      label: "Manual Edit",
-      status:
-        row.editProjectStatus === "published"
-          ? "ok"
-          : row.editProjectStatus === "draft"
-            ? "running"
-            : "pending",
+      id: "editor_ready",
+      label: "Editor ready",
+      status: editorReadyStatus,
     },
     {
       id: "export",
@@ -274,6 +300,7 @@ queueRouter.get(
             // Editor project state (root project only — snapshots excluded)
             editProjectId: editProjects.id,
             editProjectStatus: editProjects.status,
+            editProjectTracks: editProjects.tracks,
             editProjectUpdatedAt: editProjects.updatedAt,
             // Latest export job status (correlated subqueries — table names are
             // "export_job" and "asset" as defined in schema.ts)
@@ -428,7 +455,8 @@ queueRouter.get(
             generatedScript: row.generatedScript,
             generatedMetadata: row.generatedMetadata,
             status: row.contentStatus ?? "draft",
-            editProjectStatus: row.editProjectStatus,
+            editProjectId: row.editProjectId,
+            editProjectTracks: row.editProjectTracks,
             latestExportStatus: row.latestExportStatus,
           },
           typeCounts,
@@ -713,7 +741,71 @@ queueRouter.get(
             r.created_at instanceof Date
               ? r.created_at.toISOString()
               : String(r.created_at),
-        }));
+        }        ));
+      }
+
+      let latestExportUrl: string | null = null;
+      let latestExportStatus: string | null = null;
+
+      if (item.generatedContentId) {
+        const [latestJob] = await db
+          .select({ status: exportJobs.status })
+          .from(exportJobs)
+          .innerJoin(
+            editProjects,
+            eq(exportJobs.editProjectId, editProjects.id),
+          )
+          .where(
+            and(
+              eq(
+                editProjects.generatedContentId,
+                item.generatedContentId,
+              ),
+              eq(editProjects.userId, auth.user.id),
+              isNull(editProjects.parentProjectId),
+            ),
+          )
+          .orderBy(desc(exportJobs.createdAt))
+          .limit(1);
+
+        latestExportStatus = latestJob?.status ?? null;
+
+        const [latestDone] = await db
+          .select({
+            r2Url: assets.r2Url,
+            r2Key: assets.r2Key,
+          })
+          .from(exportJobs)
+          .innerJoin(
+            editProjects,
+            eq(exportJobs.editProjectId, editProjects.id),
+          )
+          .innerJoin(assets, eq(exportJobs.outputAssetId, assets.id))
+          .where(
+            and(
+              eq(
+                editProjects.generatedContentId,
+                item.generatedContentId,
+              ),
+              eq(editProjects.userId, auth.user.id),
+              isNull(editProjects.parentProjectId),
+              eq(exportJobs.status, "done"),
+            ),
+          )
+          .orderBy(desc(exportJobs.createdAt))
+          .limit(1);
+
+        if (latestDone) {
+          let url = latestDone.r2Url;
+          if (latestDone.r2Key) {
+            try {
+              url = await getFileUrl(latestDone.r2Key, 3600);
+            } catch {
+              /* keep r2Url */
+            }
+          }
+          latestExportUrl = url;
+        }
       }
 
       return c.json({
@@ -722,6 +814,8 @@ queueRouter.get(
         sessionId,
         assets: detailAssets,
         versions,
+        latestExportUrl,
+        latestExportStatus,
       });
     } catch (error) {
       debugLog.error("Failed to fetch queue item detail", {

@@ -120,6 +120,9 @@ interface QueueDetail {
   sessionId: string | null;
   /** Full version chain, oldest first (v1 … vN). Empty for single-version content. */
   versions: ContentVersion[];
+  /** Signed URL from latest completed editor export (preferred final video). */
+  latestExportUrl: string | null;
+  latestExportStatus: string | null;
 }
 
 function QueuePage() {
@@ -957,6 +960,11 @@ function DetailPanel({
   const music = assets.find((a) => a.type === "music");
   const videoClips = assets.filter((a) => a.type === "video_clip");
   const assembled = assets.find((a) => a.type === "assembled_video");
+  const finalVideoUrl =
+    detail.latestExportUrl ??
+    assembled?.r2Url ??
+    content?.videoR2Url ??
+    null;
 
   function handleDelete() {
     if (confirmDelete) {
@@ -972,7 +980,7 @@ function DetailPanel({
     music?.r2Url ||
     content?.voiceoverUrl ||
     content?.backgroundAudioUrl;
-  const hasVideoContent = assembled?.r2Url || content?.videoR2Url;
+  const hasVideoContent = Boolean(finalVideoUrl);
   const hasCopyContent =
     content?.generatedCaption ||
     content?.sceneDescription ||
@@ -1147,15 +1155,15 @@ function DetailPanel({
                   {t("studio_queue_detail_clips", { count: videoClips.length })}
                 </span>
               </div>
-              {assembled?.r2Url || content?.videoR2Url ? (
+              {finalVideoUrl ? (
                 <a
-                  href={(assembled?.r2Url ?? content?.videoR2Url)!}
+                  href={finalVideoUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-sm text-studio-accent hover:underline"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  {t("studio_queue_detail_view_assembled")}
+                  {t("studio_queue_detail_view_final_video")}
                 </a>
               ) : (
                 <span className="text-sm text-dim-3">

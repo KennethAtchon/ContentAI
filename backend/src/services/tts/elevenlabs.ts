@@ -48,13 +48,16 @@ export async function generateSpeech(
   if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
     const audioBuffer = getDevMockVoiceBuffer();
     const durationMs = estimateMp3DurationMsFromBufferSize(audioBuffer.length);
-    debugLog.info("DEV_MOCK_EXTERNAL_INTEGRATIONS — returning fixture MP3 for TTS", {
-      service: "elevenlabs-tts",
-      operation: "generateSpeech",
-      voiceId: voice.id,
-      speed,
-      durationMs,
-    });
+    debugLog.info(
+      "DEV_MOCK_EXTERNAL_INTEGRATIONS — returning fixture MP3 for TTS",
+      {
+        service: "elevenlabs-tts",
+        operation: "generateSpeech",
+        voiceId: voice.id,
+        speed,
+        durationMs,
+      },
+    );
     return { audioBuffer, durationMs };
   }
 

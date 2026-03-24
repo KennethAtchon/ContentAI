@@ -1,4 +1,7 @@
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Loader2, Clock, CircleAlert } from "lucide-react";
+import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Clip, Track, TrackType } from "../types/editor";
 import { useWaveform } from "../hooks/use-waveform";
@@ -36,6 +39,7 @@ export function TimelineClip({
   onTrimStart,
   onTrimEnd,
 }: Props) {
+  const { t } = useTranslation();
   const left = (clip.startMs / 1000) * zoom;
   const width = Math.max((clip.durationMs / 1000) * zoom, 4);
   const color = TRACK_COLORS[trackType];
@@ -55,7 +59,7 @@ export function TimelineClip({
   });
 
   const handleDragStart = (e: React.MouseEvent) => {
-    if (isLocked) return;
+    if (isLocked || clip.isPlaceholder) return;
     e.stopPropagation();
     const dragStartX = e.clientX;
     const dragStartMs = clip.startMs;
@@ -93,7 +97,7 @@ export function TimelineClip({
   };
 
   const handleTrimLeft = (e: React.MouseEvent) => {
-    if (isLocked) return;
+    if (isLocked || clip.isPlaceholder) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origStart = clip.startMs;
@@ -120,7 +124,7 @@ export function TimelineClip({
   };
 
   const handleTrimRight = (e: React.MouseEvent) => {
-    if (isLocked) return;
+    if (isLocked || clip.isPlaceholder) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origDuration = clip.durationMs;
@@ -140,6 +144,55 @@ export function TimelineClip({
     window.addEventListener("mousemove", onMove_);
     window.addEventListener("mouseup", onUp);
   };
+
+  if (clip.isPlaceholder) {
+    const st = clip.placeholderStatus ?? "pending";
+    return (
+      <div
+        ref={clipRef}
+        className={cn(
+          "absolute top-[7px] rounded select-none overflow-hidden flex flex-col justify-center",
+          "border-2 border-dashed border-studio-fg/25 bg-studio-bg/80",
+          isSelected ? "ring-2 ring-studio-accent" : "",
+        )}
+        style={{
+          left,
+          width,
+          height: 42,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+      >
+        <div className="flex items-center gap-1 px-1.5 min-w-0">
+          {st === "generating" ? (
+            <Loader2
+              className="h-3 w-3 shrink-0 animate-spin text-dim-3"
+              aria-hidden
+            />
+          ) : st === "failed" ? (
+            <CircleAlert
+              className="h-3 w-3 shrink-0 text-error"
+              aria-hidden
+            />
+          ) : (
+            <Clock className="h-3 w-3 shrink-0 text-dim-3" aria-hidden />
+          )}
+          <span className="text-[10px] font-medium text-dim-2 truncate">
+            {clip.placeholderLabel ?? clip.label}
+          </span>
+        </div>
+        <span className="text-[9px] px-1.5 text-dim-4">
+          {st === "generating"
+            ? t("timeline_placeholder_generating")
+            : st === "failed"
+              ? t("timeline_placeholder_failed")
+              : t("timeline_placeholder_queued")}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
