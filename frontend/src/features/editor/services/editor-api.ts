@@ -48,6 +48,20 @@ export async function patchEditorProject(
   );
 }
 
+export async function publishEditorProject(id: string): Promise<{
+  id: string;
+  status: string;
+  publishedAt: string;
+}> {
+  return authenticatedFetchJson<{
+    id: string;
+    status: string;
+    publishedAt: string;
+  }>(`/api/editor/${id}/publish`, {
+    method: "POST",
+  });
+}
+
 export async function deleteEditorProject(id: string): Promise<void> {
   await authenticatedFetchJson<void>(`/api/editor/${id}`, { method: "DELETE" });
 }

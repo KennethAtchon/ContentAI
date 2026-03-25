@@ -6,6 +6,7 @@ const CACHE_MAX_SIZE = 20;
 // Module-level LRU cache: reuse instances rather than destroying and recreating.
 // Keyed by audioUrl so the same file is decoded only once.
 // Evicts the least-recently-used entry when the cap is reached.
+// Limitation: multiple editor tabs share this map (same URL → same instance); acceptable for now.
 const waveformCache = new Map<string, WaveSurfer>();
 
 function evictOldestIfNeeded() {

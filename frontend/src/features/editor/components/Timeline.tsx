@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { TrackHeader } from "./TrackHeader";
@@ -73,6 +74,7 @@ export function Timeline({
   onClipSetSpeed,
   scrollRef,
 }: Props) {
+  const { t } = useTranslation();
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
 
   const totalWidthPx = Math.max((durationMs / 1000) * zoom + 4000, 4000);
@@ -163,7 +165,7 @@ export function Timeline({
       >
         <div className="h-8 border-b border-overlay-sm flex items-center px-3">
           <span className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
-            Tracks
+            {t("editor_tracks_label")}
           </span>
         </div>
         {tracks.map((track) => (

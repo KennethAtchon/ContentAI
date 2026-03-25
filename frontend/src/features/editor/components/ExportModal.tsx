@@ -85,14 +85,23 @@ export function ExportModal({ projectId, onClose }: Props) {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-xs text-dim-2 mb-1.5">
-                  Resolution
+                  {t("editor_export_resolution")}
                 </label>
                 <div className="flex gap-2">
                   {(
                     [
-                      { value: "720x1280", label: "720p Portrait" },
-                      { value: "1080x1920", label: "1080p Portrait" },
-                      { value: "1920x1080", label: "1080p Landscape" },
+                      {
+                        value: "720x1280",
+                        label: t("editor_export_resolution_720_portrait"),
+                      },
+                      {
+                        value: "1080x1920",
+                        label: t("editor_export_resolution_1080_portrait"),
+                      },
+                      {
+                        value: "1920x1080",
+                        label: t("editor_export_resolution_1080_landscape"),
+                      },
                     ] as const
                   ).map((r) => (
                     <button
@@ -113,7 +122,7 @@ export function ExportModal({ projectId, onClose }: Props) {
 
               <div>
                 <label className="block text-xs text-dim-2 mb-1.5">
-                  Frame Rate
+                  {t("editor_export_frame_rate")}
                 </label>
                 <div className="flex gap-2">
                   {([24, 30, 60] as const).map((f) => (

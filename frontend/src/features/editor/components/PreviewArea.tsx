@@ -1,9 +1,11 @@
 import { useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { Clip, Track, Transition } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
+import { formatHHMMSSFF, formatMMSS } from "../utils/timecode";
 
 interface Props {
   tracks: Track[];
@@ -16,27 +18,43 @@ interface Props {
   effectPreviewOverride?: { clipId: string; patch: Partial<Clip> } | null;
 }
 
-function formatHHMMSSFF(ms: number, fps: number): string {
-  const totalFrames = Math.floor((ms / 1000) * fps);
-  const ff = totalFrames % fps;
-  const totalSec = Math.floor(totalFrames / fps);
-  const ss = totalSec % 60;
-  const totalMin = Math.floor(totalSec / 60);
-  const mm = totalMin % 60;
-  const hh = Math.floor(totalMin / 60);
-  return [
-    String(hh).padStart(2, "0"),
-    String(mm).padStart(2, "0"),
-    String(ss).padStart(2, "0"),
-    String(ff).padStart(2, "0"),
-  ].join(":");
+const PRELOAD_WINDOW_MS = 45_000;
+
+function videoClipNeedsHeavyPreload(
+  clip: Clip,
+  currentTimeMs: number,
+  videoTransitions: Transition[],
+  videoClips: Clip[],
+  activeIds: Set<string>,
+): boolean {
+  if (activeIds.has(clip.id)) return true;
+  const incomingTransition = videoTransitions.find(
+    (tr) =>
+      tr.clipBId === clip.id &&
+      (tr.type === "dissolve" || tr.type === "wipe-right"),
+  );
+  if (incomingTransition) {
+    const clipA = videoClips.find((c) => c.id === incomingTransition.clipAId);
+    if (clipA) {
+      const clipAEnd = clipA.startMs + clipA.durationMs;
+      const windowStart = clipAEnd - incomingTransition.durationMs;
+      if (currentTimeMs >= windowStart && currentTimeMs < clipAEnd) return true;
+    }
+  }
+  const end = clip.startMs + clip.durationMs;
+  return (
+    currentTimeMs >= clip.startMs - PRELOAD_WINDOW_MS &&
+    currentTimeMs <= end + PRELOAD_WINDOW_MS
+  );
 }
 
-function formatMMSS(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+function audioClipNeedsHeavyPreload(clip: Clip, currentTimeMs: number): boolean {
+  const end = clip.startMs + clip.durationMs;
+  if (currentTimeMs >= clip.startMs && currentTimeMs < end) return true;
+  return (
+    currentTimeMs >= clip.startMs - PRELOAD_WINDOW_MS &&
+    currentTimeMs <= end + PRELOAD_WINDOW_MS
+  );
 }
 
 /** Style for the outgoing clip (clipA) during a transition. */
@@ -120,6 +138,7 @@ export function PreviewArea({
   resolution,
   effectPreviewOverride,
 }: Props) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -227,7 +246,8 @@ export function PreviewArea({
 
       if (isActive) {
         const targetTime =
-          (currentTimeMs - clip.startMs) / 1000 + (clip.trimStartMs ?? 0) / 1000;
+          ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
+          (clip.trimStartMs ?? 0) / 1000;
         if (Math.abs(el.currentTime - targetTime) > 0.1) {
           el.currentTime = targetTime;
         }
@@ -279,7 +299,7 @@ export function PreviewArea({
   return (
     <div className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0">
       <p className="text-[10px] font-semibold text-dim-3 mb-2 tracking-widest uppercase">
-        Preview
+        {t("editor_preview_label")}
       </p>
 
       {/* Preview screen — aspect ratio derived from resolution string */}
@@ -302,6 +322,13 @@ export function PreviewArea({
           {/* Stacked video elements — all rendered for preload, visibility via opacity */}
           {videoClips.map((clip) => {
             const isActive = activeVideoClipIds.has(clip.id);
+            const heavyPreload = videoClipNeedsHeavyPreload(
+              clip,
+              currentTimeMs,
+              videoTransitions,
+              videoClips,
+              activeVideoClipIds,
+            );
             const isDisabled = clip.enabled === false;
 
             // Merge effect hover preview (non-destructive, display only)
@@ -358,7 +385,7 @@ export function PreviewArea({
                   transform,
                 }}
                 playsInline
-                preload="auto"
+                preload={heavyPreload ? "auto" : "metadata"}
               />
             );
           })}
@@ -372,7 +399,11 @@ export function PreviewArea({
                 else audioRefs.current.delete(clip.id);
               }}
               src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
-              preload="auto"
+              preload={
+                audioClipNeedsHeavyPreload(clip, currentTimeMs)
+                  ? "auto"
+                  : "metadata"
+              }
             />
           ))}
 
@@ -420,7 +451,7 @@ export function PreviewArea({
             <div className="flex flex-col items-center gap-2">
               <Play size={32} className="text-white/40" />
               <span className="text-xs text-white/70">
-                Add clips to the timeline
+                {t("editor_preview_empty")}
               </span>
             </div>
           )}

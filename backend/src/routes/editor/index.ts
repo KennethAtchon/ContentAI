@@ -33,6 +33,25 @@ const app = new Hono<HonoEnv>();
 
 const anthropic = createAnthropic({ apiKey: ANTHROPIC_API_KEY ?? "" });
 
+/** Chain ffmpeg `atempo` filters (each accepts 0.5–2.0) to match clip playback speed. */
+function buildFfmpegAtempoChain(speed: number): string {
+  if (!speed || Math.abs(speed - 1) < 1e-6) return "";
+  let s = speed;
+  const parts: string[] = [];
+  while (s > 2 + 1e-6) {
+    parts.push("atempo=2");
+    s /= 2;
+  }
+  while (s < 0.5 - 1e-6) {
+    parts.push("atempo=0.5");
+    s /= 0.5;
+  }
+  if (Math.abs(s - 1) > 1e-6) {
+    parts.push(`atempo=${s.toFixed(4)}`);
+  }
+  return parts.join(",");
+}
+
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const resolutionEnum = z.enum([
@@ -633,7 +652,9 @@ app.post(
       const [updated] = await db
         .update(editProjects)
         .set({ status: "published", publishedAt: new Date() })
-        .where(eq(editProjects.id, id))
+        .where(
+          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+        )
         .returning({
           id: editProjects.id,
           status: editProjects.status,
@@ -1262,7 +1283,13 @@ async function runExportJob(
       allAudioClips.forEach((clip, i) => {
         const inputIdx = videoInputCount + i;
         const vol = (clip.muted ? 0 : (clip.volume ?? 1)).toFixed(2);
-        filterParts.push(`[${inputIdx}:a]volume=${vol}[a${i}]`);
+        const trimStart = (clip.trimStartMs ?? 0) / 1000;
+        const durSec = clip.durationMs / 1000;
+        const atempo = buildFfmpegAtempoChain(clip.speed ?? 1);
+        const tempoPart = atempo ? `,${atempo}` : "";
+        filterParts.push(
+          `[${inputIdx}:a]atrim=start=${trimStart}:duration=${durSec},asetpts=PTS-STARTPTS${tempoPart},volume=${vol}[a${i}]`,
+        );
       });
       if (allAudioClips.length > 1) {
         const amixInputs = allAudioClips.map((_, i) => `[a${i}]`).join("");

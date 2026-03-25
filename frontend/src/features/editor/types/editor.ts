@@ -115,6 +115,8 @@ export interface EditorState {
   tracks: Track[];
   selectedClipId: string | null;
   clipboardClip: Clip | null; // copy/paste
+  /** Track id the copied clip came from (paste target when source clip was deleted). */
+  clipboardSourceTrackId: string | null;
   // Undo/redo
   past: Track[][];
   future: Track[][];

@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { patchEditorProject } from "../services/editor-api";
+import { EDITOR_AUTOSAVE_DEBOUNCE_MS } from "../constants/editor";
 
 import type { EditProject } from "../types/editor";
 
 export function useEditorProject() {
   const queryClient = useQueryClient();
   const fetcher = useQueryFetcher<{ projects: EditProject[] }>();
-  const { authenticatedFetchJson } = useAuthenticatedFetch();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load the active project
@@ -21,11 +21,8 @@ export function useEditorProject() {
 
   // Save mutation (debounced)
   const { mutate: save } = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: object }) =>
-      authenticatedFetchJson(`/api/editor/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      }),
+    mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof patchEditorProject>[1] }) =>
+      patchEditorProject(id, patch),
     onSuccess: () => {
       void invalidateEditorProjectsQueries(queryClient);
     },
@@ -37,7 +34,7 @@ export function useEditorProject() {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         save({ id, patch });
-      }, 2000);
+      }, EDITOR_AUTOSAVE_DEBOUNCE_MS);
     },
     [save]
   );

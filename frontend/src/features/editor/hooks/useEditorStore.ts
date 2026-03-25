@@ -64,6 +64,7 @@ export const INITIAL_EDITOR_STATE: EditorState = {
   tracks: DEFAULT_TRACKS,
   selectedClipId: null,
   clipboardClip: null,
+  clipboardSourceTrackId: null,
   past: [],
   future: [],
   exportJobId: null,
@@ -118,6 +119,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         tracks,
         selectedClipId: null,
         clipboardClip: null,
+        clipboardSourceTrackId: null,
         past: [],
         future: [],
         isReadOnly: project.status === "published",
@@ -247,7 +249,12 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "COPY_CLIP": {
       for (const track of state.tracks) {
         const clip = track.clips.find((c) => c.id === action.clipId);
-        if (clip) return { ...state, clipboardClip: clip };
+        if (clip)
+          return {
+            ...state,
+            clipboardClip: clip,
+            clipboardSourceTrackId: track.id,
+          };
       }
       return state;
     }
@@ -363,21 +370,29 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       };
     }
 
-    case "TOGGLE_TRACK_MUTE":
+    case "TOGGLE_TRACK_MUTE": {
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId ? { ...t, muted: !t.muted } : t
+      );
       return {
         ...state,
-        tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, muted: !t.muted } : t
-        ),
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
       };
+    }
 
-    case "TOGGLE_TRACK_LOCK":
+    case "TOGGLE_TRACK_LOCK": {
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId ? { ...t, locked: !t.locked } : t
+      );
       return {
         ...state,
-        tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, locked: !t.locked } : t
-        ),
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
       };
+    }
 
     case "UNDO": {
       if (state.past.length === 0) return state;
@@ -593,7 +608,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           return { ...localTrack, clips: updatedClips };
         }
 
-        if (localTrack.type === "audio" || localTrack.type === "music") {
+        if (
+          localTrack.type === "audio" ||
+          localTrack.type === "music" ||
+          localTrack.type === "text"
+        ) {
           // Per-clip merge: locally modified clips are preserved; others take
           // the server version. New server clips are appended.
           const localClipMap = new Map(localTrack.clips.map((c) => [c.id, c]));

@@ -34,37 +34,73 @@ interface Props {
 
 type TabKey = "media" | "effects" | "audio" | "text" | "shots";
 
-const EFFECTS = [
-  { id: "color-grade", label: "Color Grade", contrast: 20, warmth: 10 },
-  { id: "bw", label: "B&W", contrast: 10, warmth: -100 },
-  { id: "warm", label: "Warm", warmth: 40, contrast: 5 },
-  { id: "cool", label: "Cool", warmth: -40, contrast: 5 },
-  { id: "vignette", label: "Vignette", opacity: 0.9, contrast: 15 },
+const EFFECT_DEFINITIONS: {
+  id: string;
+  labelKey: string;
+  contrast: number;
+  warmth: number;
+  opacity: number;
+}[] = [
+  {
+    id: "color-grade",
+    labelKey: "editor_effect_color_grade",
+    contrast: 20,
+    warmth: 10,
+    opacity: 1,
+  },
+  {
+    id: "bw",
+    labelKey: "editor_effect_bw",
+    contrast: 10,
+    warmth: -100,
+    opacity: 1,
+  },
+  {
+    id: "warm",
+    labelKey: "editor_effect_warm",
+    warmth: 40,
+    contrast: 5,
+    opacity: 1,
+  },
+  {
+    id: "cool",
+    labelKey: "editor_effect_cool",
+    warmth: -40,
+    contrast: 5,
+    opacity: 1,
+  },
+  {
+    id: "vignette",
+    labelKey: "editor_effect_vignette",
+    opacity: 0.9,
+    contrast: 15,
+    warmth: 0,
+  },
 ];
 
-const TEXT_PRESETS = [
+const TEXT_PRESET_DEFINITIONS = [
   {
     id: "title",
-    label: "Title",
-    content: "Title Text",
+    labelKey: "editor_text_preset_title_label",
+    contentKey: "editor_text_preset_title_content",
     fontSize: 64,
-    fontWeight: "bold",
+    fontWeight: "bold" as const,
   },
   {
     id: "subtitle",
-    label: "Subtitle",
-    content: "Subtitle",
+    labelKey: "editor_text_preset_subtitle_label",
+    contentKey: "editor_text_preset_subtitle_content",
     fontSize: 40,
-    fontWeight: "normal",
+    fontWeight: "normal" as const,
   },
   {
     id: "caption",
-    label: "Caption",
-    content: "Caption here",
+    labelKey: "editor_text_preset_caption_label",
+    contentKey: "editor_text_preset_caption_content",
     fontSize: 28,
-    fontWeight: "normal",
+    fontWeight: "normal" as const,
   },
-];
+] as const;
 
 function makeClip(overrides: Partial<Clip>): Clip {
   return {
@@ -152,7 +188,7 @@ export function MediaPanel({
     onAddClip(trackId, clip);
   };
 
-  const applyEffect = (effect: (typeof EFFECTS)[0]) => {
+  const applyEffect = (effect: (typeof EFFECT_DEFINITIONS)[0]) => {
     if (!selectedClipId) return;
     onUpdateClip(selectedClipId, {
       contrast: effect.contrast ?? 0,
@@ -161,13 +197,13 @@ export function MediaPanel({
     });
   };
 
-  const addTextClip = (preset: (typeof TEXT_PRESETS)[0]) => {
+  const addTextClip = (preset: (typeof TEXT_PRESET_DEFINITIONS)[number]) => {
     const clip = makeClip({
       assetId: null,
-      label: preset.label,
+      label: t(preset.labelKey),
       startMs: currentTimeMs,
       durationMs: 3000,
-      textContent: preset.content,
+      textContent: t(preset.contentKey),
       textStyle: {
         fontSize: preset.fontSize,
         fontWeight: preset.fontWeight as "bold" | "normal",
@@ -352,7 +388,7 @@ export function MediaPanel({
                 {t("editor_effects_no_clip")}
               </p>
             )}
-            {EFFECTS.map((effect) => (
+            {EFFECT_DEFINITIONS.map((effect) => (
               <button
                 key={effect.id}
                 onClick={() => applyEffect(effect)}
@@ -367,10 +403,12 @@ export function MediaPanel({
                 onMouseLeave={() => onEffectPreview?.(null)}
                 className="text-left px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors"
               >
-                <p className="text-xs font-medium text-dim-1">{effect.label}</p>
+                <p className="text-xs font-medium text-dim-1">
+                  {t(effect.labelKey)}
+                </p>
                 <p className="text-[10px] text-dim-3 mt-0.5">
                   {Object.entries(effect)
-                    .filter(([k]) => k !== "id" && k !== "label")
+                    .filter(([k]) => k !== "id" && k !== "labelKey")
                     .map(([k, v]) => `${k}: ${v}`)
                     .join(" · ")}
                 </p>
@@ -384,7 +422,7 @@ export function MediaPanel({
           <>
             {audioAssets.length === 0 && (
               <p className="text-xs italic text-dim-3 text-center mt-4">
-                No audio assets
+                {t("editor_audio_empty")}
               </p>
             )}
             <div className="flex flex-col gap-1.5">
@@ -443,7 +481,7 @@ export function MediaPanel({
         {/* Text tab */}
         {activeTab === "text" && (
           <div className="flex flex-col gap-1.5">
-            {TEXT_PRESETS.map((preset) => (
+            {TEXT_PRESET_DEFINITIONS.map((preset) => (
               <button
                 key={preset.id}
                 onClick={() => addTextClip(preset)}
@@ -456,7 +494,7 @@ export function MediaPanel({
                     fontWeight: preset.fontWeight,
                   }}
                 >
-                  {preset.label}
+                  {t(preset.labelKey)}
                 </p>
               </button>
             ))}

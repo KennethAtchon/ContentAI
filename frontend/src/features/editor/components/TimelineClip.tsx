@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
@@ -76,14 +76,18 @@ export function TimelineClip({
   const dragCurrentMs = useRef(0);
   const assetUrlMap = useAssetUrlMap();
   const isAudioTrack = trackType === "audio" || trackType === "music";
-  const waveformContainerRef = useRef<HTMLDivElement>(null);
+  const [waveformContainerEl, setWaveformContainerEl] =
+    useState<HTMLDivElement | null>(null);
+  const onWaveformContainerRef = useCallback((el: HTMLDivElement | null) => {
+    setWaveformContainerEl(el);
+  }, []);
   const isDisabled = clip.enabled === false;
 
   useWaveform({
     audioUrl: isAudioTrack
       ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
       : undefined,
-    container: waveformContainerRef.current,
+    container: waveformContainerEl,
     waveColor: color,
     height: 32,
   });
@@ -270,7 +274,7 @@ export function TimelineClip({
       >
         {isAudioTrack ? (
           <div
-            ref={waveformContainerRef}
+            ref={onWaveformContainerRef}
             className="absolute inset-0 opacity-30 pointer-events-none"
           />
         ) : (

@@ -26,6 +26,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
+import type { MediaItem } from "@/features/media/types/media.types";
 import { useEditorReducer } from "../hooks/useEditorStore";
 import { usePlayback } from "../hooks/usePlayback";
 import { Timeline } from "./Timeline";
@@ -36,6 +37,13 @@ import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
 import type { EditProject, Clip, Track } from "../types/editor";
+import { EDITOR_AUTOSAVE_DEBOUNCE_MS } from "../constants/editor";
+import {
+  patchEditorProject,
+  publishEditorProject,
+  type PatchProjectParams,
+} from "../services/editor-api";
+import { formatHHMMSSFF, parseTimecode } from "../utils/timecode";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import {
   AlertDialog,
@@ -62,34 +70,6 @@ interface Asset {
   durationMs: number | null;
 }
 
-function formatHHMMSSFF(ms: number, fps: number): string {
-  const totalFrames = Math.floor((ms / 1000) * fps);
-  const ff = totalFrames % fps;
-  const totalSec = Math.floor(totalFrames / fps);
-  const ss = totalSec % 60;
-  const totalMin = Math.floor(totalSec / 60);
-  const mm = totalMin % 60;
-  const hh = Math.floor(totalMin / 60);
-  return [
-    String(hh).padStart(2, "0"),
-    String(mm).padStart(2, "0"),
-    String(ss).padStart(2, "0"),
-    String(ff).padStart(2, "0"),
-  ].join(":");
-}
-
-/** Parse HH:MM:SS:FF (or HH:MM:SS or MM:SS) timecode string to milliseconds. */
-function parseTimecode(raw: string, fps: number): number | null {
-  const parts = raw.trim().split(":").map(Number);
-  if (parts.some(isNaN)) return null;
-  let hh = 0, mm = 0, ss = 0, ff = 0;
-  if (parts.length === 4) [hh, mm, ss, ff] = parts;
-  else if (parts.length === 3) [mm, ss, ff] = parts;
-  else if (parts.length === 2) [ss, ff] = parts;
-  else return null;
-  return (hh * 3600 + mm * 60 + ss) * 1000 + Math.round((ff / fps) * 1000);
-}
-
 export function EditorLayout({ project, onBack }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -111,6 +91,7 @@ export function EditorLayout({ project, onBack }: Props) {
   const [pollIntervalMs, setPollIntervalMs] = useState(2000);
   const [scriptResetPending, setScriptResetPending] =
     useState<EditProject | null>(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const hasPlaceholders =
     store.state.tracks
@@ -134,6 +115,9 @@ export function EditorLayout({ project, onBack }: Props) {
     lastHandledServerUpdatedAt.current = project.updatedAt;
   }, [project.id]);
 
+  const editorStoreRef = useRef(store);
+  editorStoreRef.current = store;
+
   useEffect(() => {
     const serverP = polledPayload?.project;
     if (!serverP) return;
@@ -142,7 +126,9 @@ export function EditorLayout({ project, onBack }: Props) {
     setPollIntervalMs((p) => Math.min(p * 2, 15000));
 
     const serverVideo = serverP.tracks.find((t) => t.type === "video");
-    const localVideo = store.state.tracks.find((t) => t.type === "video");
+    const localVideo = editorStoreRef.current.state.tracks.find(
+      (t) => t.type === "video",
+    );
     const serverAllPlaceholders =
       !!serverVideo &&
       serverVideo.clips.length > 0 &&
@@ -157,11 +143,11 @@ export function EditorLayout({ project, onBack }: Props) {
     }
 
     lastHandledServerUpdatedAt.current = serverP.updatedAt;
-    store.dispatch({
+    editorStoreRef.current.dispatch({
       type: "MERGE_TRACKS_FROM_SERVER",
       tracks: serverP.tracks as Track[],
     });
-  }, [polledPayload?.project?.updatedAt]);
+  }, [polledPayload?.project]);
 
   // ── Asset URL Map ───────────────────────────────────────────────────────────
   // Fetch project assets to build assetId → URL map for PreviewArea and waveforms.
@@ -180,34 +166,28 @@ export function EditorLayout({ project, onBack }: Props) {
       const url = a.mediaUrl ?? a.audioUrl ?? a.r2Url ?? "";
       if (url) map.set(a.id, url);
     }
-    for (const item of libraryData?.items ?? []) {
-      const url = (item as any).mediaUrl ?? (item as any).r2Url ?? "";
+    for (const item of (libraryData?.items ?? []) as MediaItem[]) {
+      const url = item.mediaUrl ?? item.r2Url ?? "";
       if (url) map.set(item.id, url);
     }
     return map;
   }, [assetsData, libraryData]);
 
   // ── Auto-save ───────────────────────────────────────────────────────────────
-  const { mutate: save } = useMutation({
-    mutationFn: (patch: object) =>
-      authenticatedFetchJson(`/api/editor/${project.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(patch),
-      }),
+  const {
+    mutate: queueSave,
+    mutateAsync: flushSave,
+    isPending: isSavingPatch,
+  } = useMutation({
+    mutationFn: (patch: PatchProjectParams) =>
+      patchEditorProject(project.id, patch),
     onSuccess: () => {
       void invalidateEditorProjectsQueries(queryClient);
     },
   });
 
-  const { mutate: publishProject, isPending: isPublishing } = useMutation({
-    mutationFn: () =>
-      authenticatedFetchJson<{
-        id: string;
-        status: string;
-        publishedAt: string;
-      }>(`/api/editor/${project.id}/publish`, {
-        method: "POST",
-      }),
+  const { mutateAsync: runPublish, isPending: isPublishing } = useMutation({
+    mutationFn: () => publishEditorProject(project.id),
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
       store.loadProject({
@@ -242,17 +222,36 @@ export function EditorLayout({ project, onBack }: Props) {
         method: "POST",
         body: JSON.stringify({ platform }),
       }),
-    onSuccess: (res) => {
-      store.loadProject({ ...project, tracks: res.timeline });
+    onSuccess: async (res) => {
+      const merged: EditProject = { ...project, tracks: res.timeline };
+      store.loadProject(merged);
+      let durationMs = 0;
+      for (const tr of res.timeline) {
+        for (const c of tr.clips) {
+          durationMs = Math.max(durationMs, c.startMs + c.durationMs);
+        }
+      }
+      try {
+        await flushSave({
+          tracks: stripLocallyModifiedFromTracks(res.timeline),
+          durationMs,
+          title: merged.title ?? undefined,
+        });
+      } catch {
+        // Autosave will retry on next edit; user may also use sync.
+      }
     },
   });
 
   const scheduleSave = useCallback(
-    (patch: object) => {
+    (patch: PatchProjectParams) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => save(patch), 2000);
+      saveTimerRef.current = setTimeout(
+        () => queueSave(patch),
+        EDITOR_AUTOSAVE_DEBOUNCE_MS
+      );
     },
-    [save]
+    [queueSave]
   );
 
   useEffect(() => {
@@ -511,11 +510,13 @@ export function EditorLayout({ project, onBack }: Props) {
       if ((e.metaKey || e.ctrlKey) && e.key === "v") {
         if (s.clipboardClip) {
           e.preventDefault();
-          // Paste onto the track that owns the clipboard clip
           const ownerTrack = s.tracks.find((t) =>
             t.clips.some((c) => c.id === s.clipboardClip?.id)
           );
-          const trackId = ownerTrack?.id ?? "video";
+          const trackId =
+            s.clipboardSourceTrackId ??
+            ownerTrack?.id ??
+            "video";
           st.pasteClip(trackId, s.currentTimeMs);
         }
       }
@@ -589,18 +590,55 @@ export function EditorLayout({ project, onBack }: Props) {
     store.setZoom(newZoom);
   };
 
+  const editorPublishStateRef = useRef({
+    tracks: state.tracks,
+    durationMs: state.durationMs,
+    title: state.title,
+    resolution: state.resolution,
+  });
+  editorPublishStateRef.current = {
+    tracks: state.tracks,
+    durationMs: state.durationMs,
+    title: state.title,
+    resolution: state.resolution,
+  };
+
+  const handleConfirmPublish = useCallback(async () => {
+    setPublishDialogOpen(false);
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const snap = editorPublishStateRef.current;
+    try {
+      await flushSave({
+        tracks: stripLocallyModifiedFromTracks(snap.tracks),
+        durationMs: snap.durationMs,
+        title: snap.title,
+        resolution: snap.resolution,
+      });
+      await runPublish();
+    } catch {
+      // User can open Publish again if save or publish failed.
+    }
+  }, [flushSave, runPublish]);
+
   return (
     <AssetUrlMapContext.Provider value={assetUrlMap}>
       <div
-        className="flex flex-col bg-studio-bg overflow-hidden"
-        style={{ height: "100%", minWidth: 1280 }}
+        className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
+        style={{ height: "100%" }}
       >
         {/* ── Toolbar (54px) ──────────────────────────────────────────────── */}
         <div
           className="flex items-center gap-0 px-4 border-b border-overlay-sm bg-studio-surface shrink-0"
           style={{ height: 54 }}
         >
-          <button onClick={onBack} title="Back" className="transport-btn mr-2">
+          <button
+            onClick={onBack}
+            title={t("editor_back")}
+            className="transport-btn mr-2"
+          >
             <ArrowLeft size={15} />
           </button>
 
@@ -617,7 +655,7 @@ export function EditorLayout({ project, onBack }: Props) {
           <button
             onClick={store.undo}
             disabled={state.past.length === 0}
-            title="Undo (Cmd+Z)"
+            title={t("editor_transport_undo")}
             className="transport-btn disabled:opacity-30"
           >
             <Undo2 size={14} />
@@ -625,7 +663,7 @@ export function EditorLayout({ project, onBack }: Props) {
           <button
             onClick={store.redo}
             disabled={state.future.length === 0}
-            title="Redo (Cmd+Shift+Z)"
+            title={t("editor_transport_redo")}
             className="transport-btn disabled:opacity-30"
           >
             <Redo2 size={14} />
@@ -636,35 +674,39 @@ export function EditorLayout({ project, onBack }: Props) {
           <div className="flex items-center gap-0.5">
             <button
               onClick={jumpToStart}
-              title="Jump to start"
+              title={t("editor_transport_jump_start")}
               className="transport-btn"
             >
               <SkipBack size={14} />
             </button>
             <button
               onClick={rewind}
-              title="Rewind 5s"
+              title={t("editor_transport_rewind")}
               className="transport-btn"
             >
               <Rewind size={14} />
             </button>
             <button
               onClick={() => store.setPlaying(!state.isPlaying)}
-              title={state.isPlaying ? "Pause (Space)" : "Play (Space)"}
+              title={
+                state.isPlaying
+                  ? t("editor_transport_pause")
+                  : t("editor_transport_play")
+              }
               className="transport-btn text-studio-accent"
             >
               {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
             </button>
             <button
               onClick={fastForward}
-              title="Forward 5s"
+              title={t("editor_transport_forward")}
               className="transport-btn"
             >
               <FastForward size={14} />
             </button>
             <button
               onClick={jumpToEnd}
-              title="Jump to end"
+              title={t("editor_transport_jump_end")}
               className="transport-btn"
             >
               <SkipForward size={14} />
@@ -701,7 +743,7 @@ export function EditorLayout({ project, onBack }: Props) {
                 setTimecodeInput(timecode);
                 setTimecodeEditing(true);
               }}
-              title="Click to enter timecode"
+              title={t("editor_transport_timecode_hint")}
               className="font-mono text-sm text-dim-1 min-w-[120px] text-center select-none tabular-nums bg-transparent border-0 cursor-text hover:bg-overlay-sm rounded px-1 transition-colors"
             >
               {timecode}
@@ -709,13 +751,21 @@ export function EditorLayout({ project, onBack }: Props) {
           )}
 
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-          <button onClick={zoomOut} title="Zoom out" className="transport-btn">
+          <button
+            onClick={zoomOut}
+            title={t("editor_transport_zoom_out")}
+            className="transport-btn"
+          >
             <ZoomOut size={14} />
           </button>
           <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
             {Math.round(state.zoom)}px/s
           </span>
-          <button onClick={zoomIn} title="Zoom in" className="transport-btn">
+          <button
+            onClick={zoomIn}
+            title={t("editor_transport_zoom_in")}
+            className="transport-btn"
+          >
             <ZoomIn size={14} />
           </button>
           <button
@@ -725,7 +775,7 @@ export function EditorLayout({ project, onBack }: Props) {
               "h-7 rounded transition-colors hover:bg-overlay-sm"
             )}
           >
-            Fit
+            {t("editor_transport_zoom_fit")}
           </button>
 
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
@@ -808,22 +858,9 @@ export function EditorLayout({ project, onBack }: Props) {
                 {t("editor_export_button")}
               </button>
               <button
-                onClick={() => {
-                  if (!confirm(t("editor_publish_confirm"))) return;
-                  // Flush any pending debounced save before publishing so the
-                  // server has the latest state before the project is locked.
-                  if (saveTimerRef.current) {
-                    clearTimeout(saveTimerRef.current);
-                    saveTimerRef.current = null;
-                    save({
-                      tracks: stripLocallyModifiedFromTracks(store.state.tracks),
-                      durationMs: store.state.durationMs,
-                      title: store.state.title,
-                    });
-                  }
-                  publishProject();
-                }}
-                disabled={isPublishing}
+                type="button"
+                onClick={() => setPublishDialogOpen(true)}
+                disabled={isPublishing || isSavingPatch}
                 className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
               >
                 {t("editor_publish_button")}
@@ -879,7 +916,9 @@ export function EditorLayout({ project, onBack }: Props) {
             style={{ height: 32 }}
           >
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-dim-1">Timeline</span>
+              <span className="text-xs font-bold text-dim-1">
+                {t("editor_timeline_label")}
+              </span>
               <button
                 type="button"
                 title={t("editor_sync_timeline")}
@@ -972,6 +1011,31 @@ export function EditorLayout({ project, onBack }: Props) {
                 }}
               >
                 {t("editor_script_iteration_confirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          open={publishDialogOpen}
+          onOpenChange={setPublishDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t("editor_publish_confirm_title")}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("editor_publish_confirm")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isPublishing || isSavingPatch}
+                onClick={() => void handleConfirmPublish()}
+              >
+                {t("editor_publish_confirm_action")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
