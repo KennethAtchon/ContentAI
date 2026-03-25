@@ -102,6 +102,88 @@ function videoTimelineSpanMs(tracks: TimelineTrackJson[]): number {
   return v.clips.reduce((s, c) => s + Number(c.durationMs ?? 0), 0);
 }
 
+/**
+ * Builds the video track from content_assets order when there are no placeholders
+ * (editor timeline is asset-driven, not script-driven). Preserves existing clip
+ * rows when asset ids match so incremental refresh during reel generation keeps
+ * stable ids and user trim fields.
+ */
+export function reconcileVideoClipsWithoutPlaceholders(
+  existingClips: TimelineClipJson[],
+  videoPool: AssetMergeRow[],
+): TimelineClipJson[] {
+  const sortedPool = [...videoPool].sort(sortVideoAssetsByShot);
+  const consumedIds = new Set<string>();
+  let cursor = 0;
+  const result: TimelineClipJson[] = [];
+
+  for (const asset of sortedPool) {
+    const existing = existingClips.find(
+      (c) =>
+        c.isPlaceholder !== true &&
+        c.assetId === asset.id &&
+        typeof c.id === "string" &&
+        !consumedIds.has(c.id),
+    );
+    if (existing && typeof existing.id === "string") {
+      consumedIds.add(existing.id);
+    }
+
+    const meta = (asset.metadata as Record<string, unknown>) ?? {};
+    const genPrompt =
+      typeof meta.generationPrompt === "string"
+        ? meta.generationPrompt
+        : undefined;
+    const shotIdx = metadataShotIndex(asset.metadata);
+    const dur = Math.max(
+      1,
+      Number(existing?.durationMs ?? asset.durationMs ?? 5000),
+    );
+
+    if (existing) {
+      const trimEnd = Math.min(Number(existing.trimEndMs ?? dur), dur);
+      const trimStart = Math.min(Number(existing.trimStartMs ?? 0), trimEnd);
+      result.push({
+        ...existing,
+        assetId: asset.id,
+        startMs: cursor,
+        durationMs: dur,
+        trimStartMs: trimStart,
+        trimEndMs: trimEnd,
+        label:
+          typeof existing.label === "string" && existing.label.trim() !== ""
+            ? existing.label
+            : genPrompt ??
+              `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
+      });
+    } else {
+      result.push({
+        id: crypto.randomUUID(),
+        assetId: asset.id,
+        label:
+          genPrompt ??
+          `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
+        startMs: cursor,
+        durationMs: dur,
+        trimStartMs: 0,
+        trimEndMs: dur,
+        speed: 1,
+        opacity: 1,
+        warmth: 0,
+        contrast: 0,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+        rotation: 0,
+        volume: 1,
+        muted: false,
+      });
+    }
+    cursor += dur;
+  }
+  return result;
+}
+
 export function mergePlaceholdersWithRealClips(
   currentTracks: TimelineTrackJson[],
   videoClips: AssetMergeRow[],
@@ -118,6 +200,15 @@ export function mergePlaceholdersWithRealClips(
 
   return currentTracks.map((track) => {
     if (track.type === "video") {
+      const hasPlaceholder = track.clips.some((c) => c.isPlaceholder === true);
+      if (!hasPlaceholder) {
+        const reconciled = reconcileVideoClipsWithoutPlaceholders(
+          track.clips,
+          videoPool,
+        );
+        return { ...track, clips: reconciled };
+      }
+
       const updatedClips = track.clips.map((raw) => {
         let clip: TimelineClipJson = { ...raw };
         if (!clip.isPlaceholder) return clip;

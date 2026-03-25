@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mergePlaceholdersWithRealClips } from "../../../../src/routes/editor/services/refresh-editor-timeline";
+import {
+  mergePlaceholdersWithRealClips,
+  reconcileVideoClipsWithoutPlaceholders,
+} from "../../../../src/routes/editor/services/refresh-editor-timeline";
 
 const baseTracks = [
   {
@@ -32,7 +35,7 @@ const baseTracks = [
   {
     id: "t1",
     type: "text" as const,
-    name: "Text",
+    name: "Caption",
     muted: false,
     locked: false,
     clips: [] as Record<string, unknown>[],
@@ -90,5 +93,61 @@ describe("mergePlaceholdersWithRealClips", () => {
     expect(video.clips[1]!.assetId).toBe("asset-1");
     expect(video.clips[1]!.startMs).toBe(3000);
     expect(video.clips[1]!.durationMs).toBe(4000);
+  });
+
+  test("reconciles empty video track from assets (no placeholders)", () => {
+    const tracks = structuredClone(baseTracks);
+    const videoClips = [
+      { id: "a1", role: "video_clip", durationMs: 2000, metadata: { shotIndex: 0 } },
+      { id: "a2", role: "video_clip", durationMs: 3000, metadata: { shotIndex: 1 } },
+    ];
+    const out = mergePlaceholdersWithRealClips(
+      tracks,
+      videoClips,
+      undefined,
+      undefined,
+    );
+    const video = out.find((t) => t.type === "video")!;
+    expect(video.clips).toHaveLength(2);
+    expect(video.clips[0]!.assetId).toBe("a1");
+    expect(video.clips[0]!.startMs).toBe(0);
+    expect(video.clips[1]!.assetId).toBe("a2");
+    expect(video.clips[1]!.startMs).toBe(2000);
+  });
+
+  test("reconcile preserves clip id when a second asset appears", () => {
+    const first = reconcileVideoClipsWithoutPlaceholders(
+      [],
+      [
+        {
+          id: "only",
+          role: "video_clip",
+          durationMs: 1000,
+          metadata: { shotIndex: 0 },
+        },
+      ],
+    );
+    expect(first).toHaveLength(1);
+    const id0 = first[0]!.id;
+
+    const second = reconcileVideoClipsWithoutPlaceholders(first, [
+      {
+        id: "only",
+        role: "video_clip",
+        durationMs: 1000,
+        metadata: { shotIndex: 0 },
+      },
+      {
+        id: "new",
+        role: "video_clip",
+        durationMs: 2000,
+        metadata: { shotIndex: 1 },
+      },
+    ]);
+    expect(second).toHaveLength(2);
+    expect(second[0]!.id).toBe(id0);
+    expect(second[0]!.assetId).toBe("only");
+    expect(second[1]!.assetId).toBe("new");
+    expect(second[1]!.startMs).toBe(1000);
   });
 });

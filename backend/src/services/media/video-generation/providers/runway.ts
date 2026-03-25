@@ -1,4 +1,5 @@
 import { safeFetch } from "@/services/api/safe-fetch";
+import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { storage } from "@/services/storage";
 import { RUNWAY_API_KEY, RUNWAY_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
@@ -8,6 +9,10 @@ import type {
   VideoClipResult,
   VideoGenerationProvider,
 } from "../types";
+import {
+  RUNWAY_API_DURATION_MAX,
+  RUNWAY_API_DURATION_MIN,
+} from "../provider-duration-limits";
 
 const RUNWAY_BASE = "https://api.dev.runwayml.com/v1";
 const POLL_INTERVAL_MS = 4000;
@@ -77,7 +82,10 @@ export const runwayProvider: VideoGenerationProvider = {
       RUNWAY_MODEL ||
       (await systemConfigService.get("video", "runway_model")) ||
       "gen3a_turbo";
-    const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
+    const apiDuration = Math.min(
+      RUNWAY_API_DURATION_MAX,
+      Math.max(RUNWAY_API_DURATION_MIN, params.durationSeconds),
+    );
 
     if (!apiKey) throw new Error("RUNWAY_API_KEY is not configured");
 
@@ -86,7 +94,7 @@ export const runwayProvider: VideoGenerationProvider = {
       operation: "generate",
       model,
       prompt: params.prompt.slice(0, 80),
-      duration,
+      duration: apiDuration,
     });
 
     const res = await safeFetch(`${RUNWAY_BASE}/text_to_video`, {
@@ -100,7 +108,7 @@ export const runwayProvider: VideoGenerationProvider = {
         promptText: params.prompt,
         model,
         ratio: params.aspectRatio === "16:9" ? "1280:768" : "768:1280",
-        duration,
+        duration: apiDuration,
       }),
       timeout: 30_000,
     });
@@ -117,14 +125,30 @@ export const runwayProvider: VideoGenerationProvider = {
     if (!videoUrl) throw new Error("Runway returned no video URL");
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-runway.mp4`;
-    const r2Url = await storage.uploadFromUrl(videoUrl, r2Key, "video/mp4");
+    const videoRes = await safeFetch(videoUrl, {
+      headers: { "User-Agent": "ContentAI-Scraper/1.0" },
+      timeout: 300_000,
+      validateResponse: () => true,
+    });
+    if (!videoRes.ok) {
+      const errBody = await videoRes.text().catch(() => "");
+      throw new Error(
+        `Failed to download Runway video (${videoRes.status}): ${errBody.slice(0, 240)}`,
+      );
+    }
+    const buffer = Buffer.from(await videoRes.arrayBuffer());
+    const r2Url = await storage.uploadFile(buffer, r2Key, "video/mp4");
+    const durationSeconds = resolveVideoOutputDurationSeconds(
+      buffer,
+      apiDuration,
+    );
 
     return {
       r2Key,
       r2Url,
-      durationSeconds: duration,
+      durationSeconds,
       provider: "runway",
-      costUsd: this.estimateCost(duration),
+      costUsd: this.estimateCost(durationSeconds),
       generationTimeMs: Date.now() - startMs,
     };
   },

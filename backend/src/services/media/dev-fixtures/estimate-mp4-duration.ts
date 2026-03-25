@@ -70,3 +70,23 @@ export function estimateMp4DurationSecondsFromBuffer(buf: Buffer): number | null
   }
   return null;
 }
+
+const PROBE_SANITY_MAX_SEC = 600;
+
+/**
+ * Prefer measured MP4 duration; otherwise use fallback (e.g. API-requested length).
+ */
+export function resolveVideoOutputDurationSeconds(
+  buffer: Buffer,
+  fallbackSeconds: number,
+): number {
+  const probed = estimateMp4DurationSecondsFromBuffer(buffer);
+  if (probed != null && probed > 0 && Number.isFinite(probed)) {
+    return Math.min(PROBE_SANITY_MAX_SEC, Math.max(0.05, probed));
+  }
+  const f = Number(fallbackSeconds);
+  if (!Number.isFinite(f) || f <= 0) {
+    return 3;
+  }
+  return Math.min(PROBE_SANITY_MAX_SEC, Math.max(0.05, f));
+}

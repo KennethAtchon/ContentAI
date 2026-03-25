@@ -43,6 +43,8 @@ The AudioPanel now sends `cleanScriptForAudio` to the TTS service:
 
 The `generatedScript` field with timestamps is still available for video production workflows, maintaining backward compatibility.
 
+**Editor vs generation:** `buildInitialTimeline` does **not** read `generatedScript`. The editor timeline is built from linked **assets** (`content_assets`). The caption/text track uses composed copy: **`generated_hook`**, **`clean_script_for_audio`** (natural language, same idea as TTS — not timestamped script), and **`generated_caption`**, in that order with blank lines between sections. Only the video job (`runReelGeneration`) parses `generatedScript` via `parseScriptShots` to call providers.
+
 ## Testing the Implementation
 
 1. Generate new content in the chat

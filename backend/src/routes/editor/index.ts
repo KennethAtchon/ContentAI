@@ -1607,7 +1607,7 @@ function convertAIResponseToTracks(
     {
       id: "text",
       type: "text" as const,
-      name: "Text",
+      name: "Caption",
       muted: false,
       locked: false,
       clips: textClips,
@@ -1776,7 +1776,7 @@ function buildStandardPresetTracks(
     {
       id: "text",
       type: "text" as const,
-      name: "Text",
+      name: "Caption",
       muted: false,
       locked: false,
       clips: textClips,

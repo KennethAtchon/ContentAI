@@ -43,7 +43,7 @@ const DEFAULT_TRACKS: Track[] = [
   {
     id: "text",
     type: "text",
-    name: "Text",
+    name: "Caption",
     muted: false,
     locked: false,
     clips: [],

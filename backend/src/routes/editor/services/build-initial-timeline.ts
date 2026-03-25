@@ -5,13 +5,45 @@ import {
   contentAssets,
   generatedContent,
 } from "../../../infrastructure/database/drizzle/schema";
-import { parseScriptShots } from "../../../shared/services/parse-script-shots";
+import { extractCaptionSourceText } from "../../video/utils";
 import {
   mergePlaceholdersWithRealClips,
   type AssetMergeRow,
+  type TimelineClipJson,
   type TimelineTrackJson,
 } from "./refresh-editor-timeline";
-import { debugLog } from "../../../utils/debug/debug";
+
+/** Collapse whitespace for on-screen copy (hook / caption / clean script). */
+function normalizeCopy(s: string | null | undefined): string {
+  if (!s) return "";
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Caption track text: hook + model “clean” words (clean_script_for_audio, no
+ * timestamp lines) + social caption. Omits duplicate clean block when it only
+ * repeats the hook.
+ */
+export function composeCaptionOverlayText(input: {
+  generatedHook: string | null;
+  generatedCaption: string | null;
+  cleanScriptForAudio: string | null;
+}): string {
+  const hook = normalizeCopy(input.generatedHook);
+  const caption = normalizeCopy(input.generatedCaption);
+  const clean = normalizeCopy(
+    extractCaptionSourceText({
+      cleanScriptForAudio: input.cleanScriptForAudio,
+      generatedScript: null,
+    }),
+  );
+
+  const parts: string[] = [];
+  if (hook) parts.push(hook);
+  if (clean && clean !== hook) parts.push(clean);
+  if (caption) parts.push(caption);
+  return parts.join("\n\n");
+}
 
 function emptyTracksFromVideo(
   videoClips: TimelineTrackJson["clips"],
@@ -47,7 +79,7 @@ function emptyTracksFromVideo(
     {
       id: crypto.randomUUID(),
       type: "text",
-      name: "Text",
+      name: "Caption",
       muted: false,
       locked: false,
       clips: [],
@@ -56,6 +88,37 @@ function emptyTracksFromVideo(
   ];
 }
 
+function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
+  const trimmed = text.trim();
+  const dur = Math.min(Math.max(spanMs, 1000), 180_000);
+  const label = trimmed.length > 40 ? `${trimmed.slice(0, 37)}…` : trimmed;
+  return {
+    id: crypto.randomUUID(),
+    assetId: null,
+    label,
+    textContent: trimmed,
+    startMs: 0,
+    durationMs: dur,
+    trimStartMs: 0,
+    trimEndMs: dur,
+    speed: 1,
+    opacity: 1,
+    warmth: 0,
+    contrast: 0,
+    positionX: 0,
+    positionY: 0,
+    scale: 1,
+    rotation: 0,
+    volume: 0,
+    muted: true,
+  };
+}
+
+/**
+ * Builds editor tracks from linked assets plus caption overlay copy from hook,
+ * clean_script_for_audio, and generated_caption. Does not read generated_script
+ * (that stays in the video job / parseScriptShots only).
+ */
 export async function buildInitialTimeline(
   generatedContentId: number,
   userId: string,
@@ -63,8 +126,9 @@ export async function buildInitialTimeline(
   const [content] = await db
     .select({
       id: generatedContent.id,
-      generatedScript: generatedContent.generatedScript,
       generatedHook: generatedContent.generatedHook,
+      generatedCaption: generatedContent.generatedCaption,
+      cleanScriptForAudio: generatedContent.cleanScriptForAudio,
     })
     .from(generatedContent)
     .where(
@@ -78,67 +142,6 @@ export async function buildInitialTimeline(
   if (!content) {
     return { tracks: [], durationMs: 0 };
   }
-
-  let shots: { description: string; estimatedDurationMs: number }[] = [];
-  if (content.generatedScript) {
-    try {
-      const parsed = parseScriptShots(content.generatedScript);
-      shots = parsed.map((s) => ({
-        description: s.description,
-        estimatedDurationMs: s.durationSeconds * 1000,
-      }));
-    } catch {
-      shots = [];
-    }
-  }
-
-  if (shots.length === 0) {
-    if (content.generatedScript) {
-      debugLog.warn(
-        "[buildInitialTimeline] parseScriptShots returned 0 shots; falling back to hook placeholder",
-        {
-          service: "build-initial-timeline",
-          contentId: content.id,
-        },
-      );
-    }
-    shots = [
-      {
-        description: content.generatedHook ?? "Shot 1",
-        estimatedDurationMs: 5000,
-      },
-    ];
-  }
-
-  let cursor = 0;
-  const placeholderClips: TimelineTrackJson["clips"] = shots.map((shot, i) => {
-    const dur = shot.estimatedDurationMs ?? 5000;
-    const start = cursor;
-    cursor += dur;
-    return {
-      id: `placeholder-shot-${i}`,
-      assetId: null,
-      label: shot.description,
-      isPlaceholder: true as const,
-      placeholderShotIndex: i,
-      placeholderLabel: shot.description,
-      placeholderStatus: "pending" as const,
-      startMs: start,
-      durationMs: dur,
-      trimStartMs: 0,
-      trimEndMs: dur,
-      speed: 1,
-      opacity: 1,
-      warmth: 0,
-      contrast: 0,
-      positionX: 0,
-      positionY: 0,
-      scale: 1,
-      rotation: 0,
-      volume: 1,
-      muted: false,
-    };
-  });
 
   const linkedAssets = await db
     .select({
@@ -194,9 +197,7 @@ export async function buildInitialTimeline(
       }
     : undefined;
 
-  let tracks = emptyTracksFromVideo(placeholderClips);
-  // mergePlaceholdersWithRealClips maps assets to placeholder slots, matches
-  // shot metadata, then sequentializes video startMs (single-lane, no overlap).
+  let tracks = emptyTracksFromVideo([]);
   tracks = mergePlaceholdersWithRealClips(
     tracks,
     videoRows,
@@ -213,6 +214,23 @@ export async function buildInitialTimeline(
       if (end > maxEnd) maxEnd = end;
     }
   }
+
+  const overlayText = composeCaptionOverlayText({
+    generatedHook: content.generatedHook,
+    generatedCaption: content.generatedCaption,
+    cleanScriptForAudio: content.cleanScriptForAudio,
+  });
+  if (overlayText.length > 0) {
+    const spanMs = Math.min(Math.max(maxEnd, 1000), 180_000);
+    tracks = tracks.map((t) =>
+      t.type === "text"
+        ? { ...t, clips: [buildCaptionClip(overlayText, spanMs)] }
+        : t,
+    );
+    const capEnd = spanMs;
+    if (capEnd > maxEnd) maxEnd = capEnd;
+  }
+
   const durationMs = Math.min(Math.max(maxEnd, 1000), 180_000);
 
   return { tracks, durationMs };

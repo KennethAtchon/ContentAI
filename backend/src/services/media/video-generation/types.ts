@@ -5,7 +5,8 @@ export type VideoClipResultProvider = VideoProvider | "dev-fixture";
 
 export interface GenerateVideoClipParams {
   prompt: string;
-  durationSeconds: number; // 3–10
+  /** Intended clip length (seconds). Providers may cap API requests; stored duration follows the output file. */
+  durationSeconds: number;
   aspectRatio?: "9:16" | "16:9" | "1:1";
   userId?: string;
   metadata?: Record<string, unknown>;

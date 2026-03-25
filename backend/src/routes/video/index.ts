@@ -21,11 +21,13 @@ import {
 import {
   buildMockDevReelShots,
   deriveUseClipAudioByIndex,
+  durationSecondsToMs,
   extractCaptionSourceText,
   formatAssTime,
   parseScriptShots,
   type ShotInput,
 } from "./utils";
+import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "../../shared/constants/video-shot-durations";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
 import { refreshEditorTimeline } from "../editor/services/refresh-editor-timeline";
 
@@ -37,7 +39,12 @@ const aspectRatioSchema = z.enum(["9:16", "16:9", "1:1"]);
 const createReelSchema = z.object({
   generatedContentId: z.number().int().positive(),
   prompt: z.string().min(1).max(1000).optional(),
-  durationSeconds: z.number().int().min(3).max(10).optional(),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SCRIPT_SHOT_DURATION_SECONDS)
+    .optional(),
   aspectRatio: aspectRatioSchema.optional(),
   provider: providerSchema.optional(),
 });
@@ -46,7 +53,12 @@ const regenerateShotSchema = z.object({
   generatedContentId: z.number().int().positive(),
   shotIndex: z.number().int().min(0).max(99),
   prompt: z.string().min(1).max(1000),
-  durationSeconds: z.number().int().min(3).max(10).optional(),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SCRIPT_SHOT_DURATION_SECONDS)
+    .optional(),
   aspectRatio: aspectRatioSchema.optional(),
   provider: providerSchema.optional(),
 });
@@ -674,7 +686,7 @@ export async function runReelGeneration(input: {
           source: "generated",
           r2Key: clip.r2Key,
           r2Url: clip.r2Url,
-          durationMs: clip.durationSeconds * 1000,
+          durationMs: durationSecondsToMs(clip.durationSeconds),
           metadata: {
             shotIndex: shot.shotIndex,
             sourceType: "ai_generated",
@@ -695,7 +707,7 @@ export async function runReelGeneration(input: {
       createdShots.push({
         shotIndex: shot.shotIndex,
         description: shot.description,
-        durationMs: clip.durationSeconds * 1000,
+        durationMs: durationSecondsToMs(clip.durationSeconds),
         assetId: clipAsset.id,
         useClipAudio: false,
       });
@@ -843,7 +855,7 @@ export async function runShotRegenerate(input: {
         source: "generated",
         r2Key: clip.r2Key,
         r2Url: clip.r2Url,
-        durationMs: clip.durationSeconds * 1000,
+        durationMs: durationSecondsToMs(clip.durationSeconds),
         metadata: {
           shotIndex: input.shotIndex,
           sourceType: "ai_generated",

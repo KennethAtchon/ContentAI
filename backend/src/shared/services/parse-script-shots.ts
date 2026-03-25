@@ -1,3 +1,7 @@
+import {
+  MAX_SCRIPT_SHOT_DURATION_SECONDS,
+  MIN_SCRIPT_SHOT_DURATION_SECONDS,
+} from "../constants/video-shot-durations";
 import { debugLog } from "../../utils/debug/debug";
 
 export type ShotInput = {
@@ -6,6 +10,7 @@ export type ShotInput = {
   durationSeconds: number;
 };
 
+/** Used by the video generation job (`runReelGeneration`) only — not the editor timeline. */
 export function parseScriptShots(script: string | null): ShotInput[] {
   if (!script) return [];
 
@@ -71,7 +76,11 @@ export function parseScriptShots(script: string | null): ShotInput[] {
       );
     }
 
-    const durationSeconds = Math.max(3, Math.min(10, end - start || 5));
+    const span = end - start;
+    const durationSeconds = Math.min(
+      MAX_SCRIPT_SHOT_DURATION_SECONDS,
+      Math.max(MIN_SCRIPT_SHOT_DURATION_SECONDS, span),
+    );
     shots.push({
       shotIndex: shots.length,
       description: text,

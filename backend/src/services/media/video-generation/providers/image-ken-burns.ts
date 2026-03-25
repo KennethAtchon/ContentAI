@@ -1,4 +1,5 @@
 import { safeFetch } from "@/services/api/safe-fetch";
+import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, FLUX_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
@@ -11,6 +12,10 @@ import type {
   VideoClipResult,
   VideoGenerationProvider,
 } from "../types";
+import {
+  KEN_BURNS_DURATION_MAX,
+  KEN_BURNS_DURATION_MIN,
+} from "../provider-duration-limits";
 
 // ~$0.003 per FLUX Schnell image, negligible compute for FFmpeg
 const COST_PER_CLIP = 0.006;
@@ -154,7 +159,10 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
       FLUX_MODEL ||
       (await systemConfigService.get("video", "flux_model")) ||
       "fal-ai/flux/schnell";
-    const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
+    const duration = Math.min(
+      KEN_BURNS_DURATION_MAX,
+      Math.max(KEN_BURNS_DURATION_MIN, params.durationSeconds),
+    );
     const aspectRatio = params.aspectRatio ?? "9:16";
 
     if (!apiKey) throw new Error("FAL_API_KEY is not configured");
@@ -171,11 +179,15 @@ export const imageKenBurnsProvider: VideoGenerationProvider = {
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-kb.mp4`;
     const r2Url = await storage.uploadFile(videoBuffer, r2Key, "video/mp4");
+    const durationSeconds = resolveVideoOutputDurationSeconds(
+      videoBuffer,
+      duration,
+    );
 
     return {
       r2Key,
       r2Url,
-      durationSeconds: duration,
+      durationSeconds,
       provider: "image-ken-burns",
       costUsd: COST_PER_CLIP,
       generationTimeMs: Date.now() - startMs,

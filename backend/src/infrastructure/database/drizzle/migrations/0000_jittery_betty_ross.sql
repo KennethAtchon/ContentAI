@@ -78,6 +78,7 @@ CREATE TABLE "edit_project" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"title" text DEFAULT 'Untitled Edit' NOT NULL,
+	"auto_title" boolean DEFAULT true NOT NULL,
 	"generated_content_id" integer,
 	"tracks" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"duration_ms" integer DEFAULT 0 NOT NULL,

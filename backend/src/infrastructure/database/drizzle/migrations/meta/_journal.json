@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774231677256,
-      "tag": "0000_majestic_bruce_banner",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774312155636,
-      "tag": "0001_sturdy_glorian",
+      "when": 1774414807304,
+      "tag": "0000_jittery_betty_ross",
       "breakpoints": true
     }
   ]

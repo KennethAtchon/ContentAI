@@ -7,7 +7,7 @@ import {
 } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
 import { storage } from "@/services/storage";
-import { estimateMp4DurationSecondsFromBuffer } from "@/services/media/dev-fixtures/estimate-mp4-duration";
+import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { getDevMockVideoBufferForShot } from "@/services/media/dev-fixtures/load-fixtures";
 import { klingFalProvider } from "./providers/kling-fal";
 import { runwayProvider } from "./providers/runway";
@@ -124,15 +124,10 @@ export async function generateVideoClip(
         ? Math.trunc(rawShot)
         : 0;
     const fixtureBuffer = getDevMockVideoBufferForShot(shotIndex);
-    const probedSec = estimateMp4DurationSecondsFromBuffer(fixtureBuffer);
-    const fallbackRequested = Math.min(
-      10,
-      Math.max(3, clipParams.durationSeconds),
+    const durationSeconds = resolveVideoOutputDurationSeconds(
+      fixtureBuffer,
+      clipParams.durationSeconds,
     );
-    const durationSeconds =
-      probedSec != null && Number.isFinite(probedSec) && probedSec > 0
-        ? Math.min(300, Math.max(0.5, probedSec))
-        : fallbackRequested;
     if (DEV_MOCK_VIDEO_CLIP_DELAY_MS > 0) {
       debugLog.info("[video-generation] Mock clip: simulating provider delay", {
         service: "video-generation",

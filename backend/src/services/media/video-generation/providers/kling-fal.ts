@@ -1,4 +1,5 @@
 import { safeFetch } from "@/services/api/safe-fetch";
+import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, KLING_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
@@ -8,6 +9,10 @@ import type {
   VideoClipResult,
   VideoGenerationProvider,
 } from "../types";
+import {
+  KLING_API_DURATION_MAX,
+  KLING_API_DURATION_MIN,
+} from "../provider-duration-limits";
 
 const FAL_BASE = "https://queue.fal.run";
 const POLL_INTERVAL_MS = 10_000;
@@ -246,7 +251,10 @@ export const klingFalProvider: VideoGenerationProvider = {
       KLING_MODEL ||
       (await systemConfigService.get("video", "kling_model")) ||
       "fal-ai/kling-video/v2.1/standard/text-to-video";
-    const duration = Math.min(Math.max(params.durationSeconds, 3), 10);
+    const apiDuration = Math.min(
+      KLING_API_DURATION_MAX,
+      Math.max(KLING_API_DURATION_MIN, params.durationSeconds),
+    );
 
     if (!apiKey) throw new Error("FAL_API_KEY is not configured");
 
@@ -255,7 +263,7 @@ export const klingFalProvider: VideoGenerationProvider = {
       operation: "generate",
       model,
       prompt: params.prompt,
-      duration,
+      duration: apiDuration,
       aspectRatio: params.aspectRatio ?? "9:16",
       userId: params.userId,
     });
@@ -264,7 +272,7 @@ export const klingFalProvider: VideoGenerationProvider = {
       model,
       {
         prompt: params.prompt,
-        duration,
+        duration: apiDuration,
         aspect_ratio: params.aspectRatio ?? "9:16",
       },
       apiKey,
@@ -287,10 +295,22 @@ export const klingFalProvider: VideoGenerationProvider = {
     }
 
     const r2Key = `video-clips/${params.userId ?? "anon"}/${Date.now()}-kling.mp4`;
-    const r2Url = await storage.uploadFromUrl(
-      result.video.url,
-      r2Key,
-      "video/mp4",
+    const videoRes = await safeFetch(result.video.url, {
+      headers: { "User-Agent": "ContentAI-Scraper/1.0" },
+      timeout: 300_000,
+      validateResponse: () => true,
+    });
+    if (!videoRes.ok) {
+      const errBody = await videoRes.text().catch(() => "");
+      throw new Error(
+        `Failed to download generated video (${videoRes.status}): ${errBody.slice(0, 240)}`,
+      );
+    }
+    const buffer = Buffer.from(await videoRes.arrayBuffer());
+    const r2Url = await storage.uploadFile(buffer, r2Key, "video/mp4");
+    const durationSeconds = resolveVideoOutputDurationSeconds(
+      buffer,
+      apiDuration,
     );
 
     debugLog.info("[kling-fal] Uploaded to R2", {
@@ -299,14 +319,15 @@ export const klingFalProvider: VideoGenerationProvider = {
       r2Key,
       r2Url,
       generationTimeMs: Date.now() - startMs,
+      durationSeconds,
     });
 
     return {
       r2Key,
       r2Url,
-      durationSeconds: duration,
+      durationSeconds,
       provider: "kling-fal",
-      costUsd: this.estimateCost(duration),
+      costUsd: this.estimateCost(durationSeconds),
       generationTimeMs: Date.now() - startMs,
     };
   },
