@@ -211,7 +211,7 @@ export const OPEN_ROUTER_KEY = getEnvVar("OPEN_ROUTER_KEY", false);
 export const OPEN_ROUTER_MODEL = getEnvVar(
   "OPEN_ROUTER_MODEL",
   false,
-  "openai/gpt-4o-mini",
+  "google/gemini-2.0-flash-lite-001",
 );
 
 // ============================================================================

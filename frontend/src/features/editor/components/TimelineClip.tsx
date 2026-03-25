@@ -76,6 +76,7 @@ export function TimelineClip({
   const dragCurrentMs = useRef(0);
   const assetUrlMap = useAssetUrlMap();
   const isAudioTrack = trackType === "audio" || trackType === "music";
+  const hasWaveform = isAudioTrack || trackType === "video";
   const [waveformContainerEl, setWaveformContainerEl] =
     useState<HTMLDivElement | null>(null);
   const onWaveformContainerRef = useCallback((el: HTMLDivElement | null) => {
@@ -84,7 +85,7 @@ export function TimelineClip({
   const isDisabled = clip.enabled === false;
 
   useWaveform({
-    audioUrl: isAudioTrack
+    audioUrl: hasWaveform
       ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
       : undefined,
     container: waveformContainerEl,
@@ -272,7 +273,7 @@ export function TimelineClip({
         onMouseDown={handleDragStart}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
       >
-        {isAudioTrack ? (
+        {hasWaveform ? (
           <div
             ref={onWaveformContainerRef}
             className="absolute inset-0 opacity-30 pointer-events-none"

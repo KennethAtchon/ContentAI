@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import type { Clip, Track, Transition } from "../types/editor";
+import { CAPTION_PRESETS } from "../constants/caption-presets";
 
 interface Props {
   tracks: Track[];
@@ -179,18 +180,18 @@ export function Inspector({
                         })
                       }
                       className={cn(
-                        "relative w-10 h-5 rounded-full border-0 cursor-pointer transition-colors",
+                        "relative w-10 h-5 rounded-full cursor-pointer transition-colors shrink-0",
                         selectedClip.enabled !== false
-                          ? "bg-studio-accent"
-                          : "bg-overlay-md"
+                          ? "bg-studio-accent border border-studio-accent"
+                          : "bg-transparent border border-overlay-lg"
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                          "absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform",
                           selectedClip.enabled !== false
-                            ? "translate-x-5"
-                            : "translate-x-0.5"
+                            ? "bg-white translate-x-5"
+                            : "bg-dim-3 translate-x-0.5"
                         )}
                       />
                     </button>
@@ -281,14 +282,18 @@ export function Inspector({
                         onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
                       }
                       className={cn(
-                        "relative w-10 h-5 rounded-full border-0 cursor-pointer transition-colors",
-                        selectedClip.muted ? "bg-studio-accent" : "bg-overlay-md"
+                        "relative w-10 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                        selectedClip.muted
+                          ? "bg-studio-accent border border-studio-accent"
+                          : "bg-transparent border border-overlay-lg"
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                          selectedClip.muted ? "translate-x-5" : "translate-x-0.5"
+                          "absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform",
+                          selectedClip.muted
+                            ? "bg-white translate-x-5"
+                            : "bg-dim-3 translate-x-0.5"
                         )}
                       />
                     </button>
@@ -312,6 +317,28 @@ export function Inspector({
                 {/* 5. Captions — only for caption clips */}
                 {isCaptionClip && (
                   <Section title="Captions">
+                    {/* Preset picker */}
+                    <div className="mb-2">
+                      <p className="text-[10px] text-dim-3 mb-1.5">{t("editor_captions_style")}</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {CAPTION_PRESETS.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() =>
+                              onUpdateClip(selectedClip!.id, { captionPresetId: p.id })
+                            }
+                            className={cn(
+                              "text-left px-2 py-1.5 rounded text-[11px] border-0 cursor-pointer transition-colors truncate",
+                              selectedClip.captionPresetId === p.id
+                                ? "bg-studio-accent/20 text-studio-accent ring-1 ring-studio-accent"
+                                : "bg-overlay-sm text-dim-2 hover:bg-overlay-md"
+                            )}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <SliderRow
                       label="Position Y"
                       value={selectedClip.captionPositionY ?? 80}

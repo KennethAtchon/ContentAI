@@ -1,14 +1,25 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Music, Mic } from "lucide-react";
+import { Music, Mic, Loader2, Captions } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
 import { ShotOrderPanel } from "./ShotOrderPanel";
-import type { Clip, Track } from "../types/editor";
+import { CAPTION_PRESETS } from "../constants/caption-presets";
+import { useAutoCaption } from "../hooks/use-captions";
+import type { Clip, Track, CaptionWord } from "../types/editor";
+
+type AddCaptionClipParams = {
+  captionId: string;
+  captionWords: CaptionWord[];
+  assetId: string;
+  presetId: string;
+  startMs: number;
+  durationMs: number;
+};
 
 interface Asset {
   id: string;
@@ -29,6 +40,7 @@ interface Props {
   onEffectPreview?: (patch: Partial<Clip> | null) => void;
   videoTrack?: Track;
   onReorder?: (clipIds: string[]) => void;
+  onAddCaptionClip?: (params: AddCaptionClipParams) => void;
   readOnly?: boolean;
 }
 
@@ -78,29 +90,6 @@ const EFFECT_DEFINITIONS: {
   },
 ];
 
-const TEXT_PRESET_DEFINITIONS = [
-  {
-    id: "title",
-    labelKey: "editor_text_preset_title_label",
-    contentKey: "editor_text_preset_title_content",
-    fontSize: 64,
-    fontWeight: "bold" as const,
-  },
-  {
-    id: "subtitle",
-    labelKey: "editor_text_preset_subtitle_label",
-    contentKey: "editor_text_preset_subtitle_content",
-    fontSize: 40,
-    fontWeight: "normal" as const,
-  },
-  {
-    id: "caption",
-    labelKey: "editor_text_preset_caption_label",
-    contentKey: "editor_text_preset_caption_content",
-    fontSize: 28,
-    fontWeight: "normal" as const,
-  },
-] as const;
 
 function makeClip(overrides: Partial<Clip>): Clip {
   return {
@@ -134,12 +123,15 @@ export function MediaPanel({
   onEffectPreview,
   videoTrack,
   onReorder,
+  onAddCaptionClip,
   readOnly,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [activeTab, setActiveTab] = useState<TabKey>("media");
   const [search, setSearch] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState("clean-white");
+  const autoCaption = useAutoCaption();
 
   const { data: assetsData } = useQuery({
     queryKey: queryKeys.api.contentAssets(generatedContentId ?? 0),
@@ -163,7 +155,7 @@ export function MediaPanel({
     { key: "media", label: t("editor_media_tab") },
     { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
-    { key: "text", label: t("editor_text_tab") },
+    { key: "text", label: t("editor_caption_tab") },
     { key: "shots", label: t("editor_shots_tab") },
   ];
 
@@ -197,21 +189,28 @@ export function MediaPanel({
     });
   };
 
-  const addTextClip = (preset: (typeof TEXT_PRESET_DEFINITIONS)[number]) => {
-    const clip = makeClip({
-      assetId: null,
-      label: t(preset.labelKey),
-      startMs: currentTimeMs,
-      durationMs: 3000,
-      textContent: t(preset.contentKey),
-      textStyle: {
-        fontSize: preset.fontSize,
-        fontWeight: preset.fontWeight as "bold" | "normal",
-        color: "#ffffff",
-        align: "center",
-      },
-    });
-    onAddClip("text", clip);
+  const voiceoverAsset = allAssets.find((a) => a.type === "voiceover");
+
+  const handleAutoCaption = async () => {
+    if (!voiceoverAsset || !onAddCaptionClip) return;
+    try {
+      const result = await autoCaption.mutateAsync(voiceoverAsset.id);
+      const durationMs =
+        voiceoverAsset.durationMs ??
+        (result.words.length > 0
+          ? result.words[result.words.length - 1].endMs
+          : 30000);
+      onAddCaptionClip({
+        captionId: result.captionId,
+        captionWords: result.words,
+        assetId: voiceoverAsset.id,
+        presetId: selectedPresetId,
+        startMs: 0,
+        durationMs,
+      });
+    } catch {
+      // error is visible via autoCaption.isError
+    }
   };
 
   return (
@@ -478,24 +477,93 @@ export function MediaPanel({
           </>
         )}
 
-        {/* Text tab */}
+        {/* Caption tab */}
         {activeTab === "text" && (
-          <div className="flex flex-col gap-1.5">
-            {TEXT_PRESET_DEFINITIONS.map((preset) => (
+          <div className="flex flex-col gap-2">
+            {/* Auto-generate from voiceover */}
+            <div className="rounded bg-overlay-sm p-2.5">
+              <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-2">
+                {t("editor_captions_auto_generate")}
+              </p>
+              {!voiceoverAsset ? (
+                <p className="text-[11px] italic text-dim-3">
+                  {t("editor_captions_no_voiceover")}
+                </p>
+              ) : (
+                <>
+                  {autoCaption.isError && (
+                    <p className="text-[11px] text-red-400 mb-1.5">
+                      {t("editor_captions_failed")}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleAutoCaption}
+                    disabled={autoCaption.isPending || readOnly}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-studio-accent text-white text-xs font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {autoCaption.isPending ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        {t("editor_captions_generating")}
+                      </>
+                    ) : (
+                      <>
+                        <Captions size={12} />
+                        {t("editor_captions_auto_generate")}
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Style presets */}
+            <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold px-0.5">
+              {t("editor_captions_style")}
+            </p>
+            {CAPTION_PRESETS.map((preset) => (
               <button
                 key={preset.id}
-                onClick={() => addTextClip(preset)}
-                className="text-left px-3 py-3 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors"
+                onClick={() => setSelectedPresetId(preset.id)}
+                className={cn(
+                  "text-left px-3 py-2.5 rounded border-0 cursor-pointer transition-colors",
+                  selectedPresetId === preset.id
+                    ? "bg-studio-accent/20 ring-1 ring-studio-accent"
+                    : "bg-overlay-sm hover:bg-overlay-md"
+                )}
               >
                 <p
-                  className="text-dim-1 truncate"
+                  className="truncate leading-tight"
                   style={{
-                    fontSize: Math.min(preset.fontSize / 3, 18),
+                    fontFamily: preset.fontFamily,
+                    fontSize: 13,
                     fontWeight: preset.fontWeight,
+                    color: preset.color === "#111111" ? "#e5e7eb" : preset.color,
+                    WebkitTextStroke:
+                      preset.outlineWidth > 0
+                        ? `${preset.outlineWidth * 0.4}px ${preset.outlineColor ?? "#000"}`
+                        : undefined,
+                    backgroundColor:
+                      preset.backgroundColor &&
+                      !preset.backgroundColor.startsWith("rgba")
+                        ? preset.backgroundColor
+                        : undefined,
+                    padding:
+                      preset.backgroundPadding
+                        ? `1px ${preset.backgroundPadding / 4}px`
+                        : undefined,
+                    borderRadius: preset.backgroundRadius
+                      ? preset.backgroundRadius / 2
+                      : undefined,
                   }}
                 >
-                  {t(preset.labelKey)}
+                  {preset.name}
                 </p>
+                {preset.animation !== "none" && (
+                  <p className="text-[10px] text-dim-3 mt-0.5">
+                    {preset.animation}
+                  </p>
+                )}
               </button>
             ))}
           </div>

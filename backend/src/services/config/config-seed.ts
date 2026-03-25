@@ -64,7 +64,7 @@ function buildSeedEntries(): SeedEntry[] {
     {
       category: "ai",
       key: "provider_priority",
-      value: JSON.stringify(["openai", "claude", "openrouter"]),
+      value: JSON.stringify(["openrouter", "openai", "claude"]),
       valueType: "json",
       description:
         "Ordered list of AI providers to try. First available is used.",

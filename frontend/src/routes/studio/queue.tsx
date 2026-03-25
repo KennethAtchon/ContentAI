@@ -1193,7 +1193,7 @@ function DetailPanel({
             {sessionId && (
               <Link
                 to="/studio/generate"
-                search={{ session: sessionId } as Record<string, string>}
+                search={{ sessionId } as Record<string, string>}
                 className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-sm font-semibold text-dim-2 hover:text-studio-fg hover:border-overlay-lg transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" />

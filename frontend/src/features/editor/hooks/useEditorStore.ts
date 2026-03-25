@@ -580,7 +580,10 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "MERGE_TRACKS_FROM_SERVER": {
       const serverTracks = action.tracks;
       const merged = state.tracks.map((localTrack) => {
-        const serverTrack = serverTracks.find((t) => t.type === localTrack.type);
+        // Match by id first (preserves user-added extra tracks), fall back to type
+        const serverTrack =
+          serverTracks.find((t) => t.id === localTrack.id) ??
+          serverTracks.find((t) => t.type === localTrack.type);
         if (!serverTrack) return localTrack;
 
         if (localTrack.type === "video") {
@@ -639,6 +642,31 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...state,
         tracks: merged,
         durationMs: computeDuration(merged),
+      };
+    }
+
+    case "ADD_TRACK": {
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: [...state.tracks, action.track],
+      };
+    }
+
+    case "REMOVE_TRACK": {
+      const newTracks = state.tracks.filter((t) => t.id !== action.trackId);
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+        selectedClipId: state.tracks
+          .find((t) => t.id === action.trackId)
+          ?.clips.some((c) => c.id === state.selectedClipId)
+          ? null
+          : state.selectedClipId,
       };
     }
 
@@ -784,6 +812,22 @@ export function useEditorReducer() {
     (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
     []
   );
+  const addVideoTrack = useCallback(() => {
+    const track: Track = {
+      id: crypto.randomUUID(),
+      type: "video",
+      name: "Video",
+      muted: false,
+      locked: false,
+      clips: [],
+      transitions: [],
+    };
+    dispatch({ type: "ADD_TRACK", track });
+  }, []);
+  const removeTrack = useCallback(
+    (trackId: string) => dispatch({ type: "REMOVE_TRACK", trackId }),
+    []
+  );
 
   return {
     state,
@@ -816,6 +860,8 @@ export function useEditorReducer() {
     setTransition,
     removeTransition,
     reorderShots,
+    addVideoTrack,
+    removeTrack,
   };
 }
 

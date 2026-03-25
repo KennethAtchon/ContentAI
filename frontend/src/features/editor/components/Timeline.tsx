@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Plus } from "lucide-react";
 import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { TrackHeader } from "./TrackHeader";
@@ -44,6 +45,8 @@ interface Props {
   onClipRippleDelete: (clipId: string) => void;
   onClipDelete: (clipId: string) => void;
   onClipSetSpeed: (clipId: string, speed: number) => void;
+  onAddVideoTrack: () => void;
+  onRemoveTrack: (trackId: string) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -72,13 +75,17 @@ export function Timeline({
   onClipRippleDelete,
   onClipDelete,
   onClipSetSpeed,
+  onAddVideoTrack,
+  onRemoveTrack,
   scrollRef,
 }: Props) {
   const { t } = useTranslation();
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
 
+  const videoTracks = tracks.filter((t) => t.type === "video");
   const totalWidthPx = Math.max((durationMs / 1000) * zoom + 4000, 4000);
-  const contentHeight = RULER_HEIGHT + tracks.length * TRACK_HEIGHT;
+  // +1 row for the "Add Video Track" button
+  const contentHeight = RULER_HEIGHT + (tracks.length + 1) * TRACK_HEIGHT;
 
   // Auto-scroll to follow playhead during playback
   useEffect(() => {
@@ -175,8 +182,19 @@ export function Timeline({
             onToggleMute={() => onToggleMute(track.id)}
             onToggleLock={() => onToggleLock(track.id)}
             onDeleteAllClips={() => onDeleteAllClipsInTrack(track.id)}
+            canRemove={track.type === "video" && videoTracks.length > 1}
+            onRemove={() => onRemoveTrack(track.id)}
           />
         ))}
+        {/* Add Video Track button */}
+        <button
+          onClick={onAddVideoTrack}
+          className="flex items-center gap-2 px-3 h-14 border-b border-overlay-sm shrink-0 cursor-pointer bg-transparent border-0 text-dim-3 hover:text-dim-1 hover:bg-overlay-sm transition-colors w-full text-left"
+          title={t("editor_add_video_track")}
+        >
+          <Plus size={13} />
+          <span className="text-xs">{t("editor_add_video_track")}</span>
+        </button>
       </div>
 
       {/* Scrollable track area */}

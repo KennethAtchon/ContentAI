@@ -36,7 +36,7 @@ Each provider has separate model names configured for each tier. So "use Sonnet 
 
 When code calls the AI, it asks for an `"analysis"` or `"generation"` tier model. The system:
 
-1. Fetches the provider priority list from the database (cached in Redis). Default order: OpenAI → Claude → OpenRouter.
+1. Fetches the provider priority list from the database (cached in Redis). Default order: OpenRouter → OpenAI → Claude.
 2. Filters to only providers that have a configured API key (either in the DB or as an env var).
 3. Uses the first provider with a key.
 

@@ -886,6 +886,7 @@ export function EditorLayout({ project, onBack }: Props) {
             }
             videoTrack={state.tracks.find((t) => t.type === "video")}
             onReorder={store.reorderShots}
+            onAddCaptionClip={store.addCaptionClip}
             readOnly={state.isReadOnly}
           />
 
@@ -968,6 +969,8 @@ export function EditorLayout({ project, onBack }: Props) {
               onClipRippleDelete={handleClipRippleDelete}
               onClipDelete={handleRemoveClip}
               onClipSetSpeed={handleClipSetSpeed}
+              onAddVideoTrack={store.addVideoTrack}
+              onRemoveTrack={store.removeTrack}
               scrollRef={timelineScrollRef}
             />
           </div>

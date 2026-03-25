@@ -745,9 +745,9 @@ function AiTab() {
   if (isLoading) return <TabSkeleton />;
 
   const priorityOrder = getJson<string[]>("provider_priority", [
+    "openrouter",
     "openai",
     "claude",
-    "openrouter",
   ]);
 
   return (
@@ -858,7 +858,7 @@ function AiTabContent({
           label="Model"
           value={getStr("openrouter_model")}
           onSave={(v) => updateEntry("openrouter_model", v)}
-          placeholder="openai/gpt-4o-mini"
+          placeholder="google/gemini-2.0-flash-lite-001"
         />
       </Section>
 

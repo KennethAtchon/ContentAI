@@ -170,6 +170,8 @@ export type EditorAction =
     }
   | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
   | { type: "REORDER_SHOTS"; clipIds: string[] }
+  | { type: "ADD_TRACK"; track: Track }
+  | { type: "REMOVE_TRACK"; trackId: string }
   | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] };
 
 export const TRACK_COLORS: Record<TrackType, string> = {

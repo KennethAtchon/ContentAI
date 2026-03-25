@@ -1,4 +1,4 @@
-import { Volume2, VolumeX, Lock, Unlock } from "lucide-react";
+import { Volume2, VolumeX, Lock, Unlock, Trash2 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Track } from "../types/editor";
@@ -9,9 +9,11 @@ interface Props {
   onToggleMute: () => void;
   onToggleLock: () => void;
   onDeleteAllClips: () => void;
+  canRemove?: boolean;
+  onRemove?: () => void;
 }
 
-export function TrackHeader({ track, onToggleMute, onToggleLock, onDeleteAllClips }: Props) {
+export function TrackHeader({ track, onToggleMute, onToggleLock, onDeleteAllClips, canRemove, onRemove }: Props) {
   const color = TRACK_COLORS[track.type];
 
   return (
@@ -51,6 +53,15 @@ export function TrackHeader({ track, onToggleMute, onToggleLock, onDeleteAllClip
         >
           {track.locked ? <Lock size={12} /> : <Unlock size={12} />}
         </button>
+        {canRemove && onRemove && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            title="Remove track"
+            className="w-6 h-6 rounded flex items-center justify-center border-0 cursor-pointer transition-colors bg-transparent text-dim-3 hover:text-red-400"
+          >
+            <Trash2 size={11} />
+          </button>
+        )}
       </div>
     </TrackHeaderContextMenu>
   );

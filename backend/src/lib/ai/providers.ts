@@ -93,7 +93,7 @@ export type ProviderId = keyof typeof PROVIDER_REGISTRY;
 
 /** Default provider priority order — overridable at runtime via DB config. */
 export const DEFAULT_PROVIDER_PRIORITY: ProviderId[] = [
+  "openrouter",
   "openai",
   "claude",
-  "openrouter",
 ];
