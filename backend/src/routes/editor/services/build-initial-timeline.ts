@@ -195,6 +195,8 @@ export async function buildInitialTimeline(
     : undefined;
 
   let tracks = emptyTracksFromVideo(placeholderClips);
+  // mergePlaceholdersWithRealClips maps assets to placeholder slots, matches
+  // shot metadata, then sequentializes video startMs (single-lane, no overlap).
   tracks = mergePlaceholdersWithRealClips(
     tracks,
     videoRows,

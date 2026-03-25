@@ -7,6 +7,7 @@ import {
 } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
 import { storage } from "@/services/storage";
+import { estimateMp4DurationSecondsFromBuffer } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { getDevMockVideoBufferForShot } from "@/services/media/dev-fixtures/load-fixtures";
 import { klingFalProvider } from "./providers/kling-fal";
 import { runwayProvider } from "./providers/runway";
@@ -117,10 +118,21 @@ export async function generateVideoClip(
 
   if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
     const startMs = Date.now();
-    const durationSeconds = Math.min(
+    const rawShot = clipParams.metadata?.shotIndex;
+    const shotIndex =
+      typeof rawShot === "number" && Number.isFinite(rawShot)
+        ? Math.trunc(rawShot)
+        : 0;
+    const fixtureBuffer = getDevMockVideoBufferForShot(shotIndex);
+    const probedSec = estimateMp4DurationSecondsFromBuffer(fixtureBuffer);
+    const fallbackRequested = Math.min(
       10,
       Math.max(3, clipParams.durationSeconds),
     );
+    const durationSeconds =
+      probedSec != null && Number.isFinite(probedSec) && probedSec > 0
+        ? Math.min(300, Math.max(0.5, probedSec))
+        : fallbackRequested;
     if (DEV_MOCK_VIDEO_CLIP_DELAY_MS > 0) {
       debugLog.info("[video-generation] Mock clip: simulating provider delay", {
         service: "video-generation",
@@ -131,15 +143,10 @@ export async function generateVideoClip(
         setTimeout(resolve, DEV_MOCK_VIDEO_CLIP_DELAY_MS);
       });
     }
-    const rawShot = clipParams.metadata?.shotIndex;
-    const shotIndex =
-      typeof rawShot === "number" && Number.isFinite(rawShot)
-        ? Math.trunc(rawShot)
-        : 0;
     const slot = ((shotIndex % 4) + 4) % 4;
     const r2Key = `video-clips/${clipParams.userId ?? "anon"}/dev-mock-slot${slot + 1}-${Date.now()}.mp4`;
     const r2Url = await storage.uploadFile(
-      getDevMockVideoBufferForShot(shotIndex),
+      fixtureBuffer,
       r2Key,
       "video/mp4",
     );

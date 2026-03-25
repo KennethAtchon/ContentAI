@@ -51,7 +51,7 @@ function PropRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 py-0.5">
+    <div className="flex items-center justify-between gap-2 py-0.5 min-w-0">
       <span className="text-xs text-dim-2 shrink-0">{label}</span>
       {children}
     </div>
@@ -121,7 +121,7 @@ export function Inspector({
 
   return (
     <div
-      className="flex flex-col h-full border-l border-overlay-sm bg-studio-surface"
+      className="flex flex-col h-full min-h-0 border-l border-overlay-sm bg-studio-surface"
       style={{ width: 244 }}
     >
       <div className="px-4 py-2 border-b border-overlay-sm shrink-0">
@@ -130,7 +130,7 @@ export function Inspector({
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {!selectedClip && !selectedTransition ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 px-4">
             <span className="text-4xl opacity-20">✦</span>
@@ -174,13 +174,14 @@ export function Inspector({
                   </PropRow>
                   <PropRow label="Enabled">
                     <button
+                      type="button"
                       onClick={() =>
                         onUpdateClip(selectedClip!.id, {
                           enabled: selectedClip!.enabled === false ? true : false,
                         })
                       }
                       className={cn(
-                        "relative w-10 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                        "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
                         selectedClip.enabled !== false
                           ? "bg-studio-accent border border-studio-accent"
                           : "bg-transparent border border-overlay-lg"
@@ -188,10 +189,10 @@ export function Inspector({
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform",
+                          "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
                           selectedClip.enabled !== false
-                            ? "bg-white translate-x-5"
-                            : "bg-dim-3 translate-x-0.5"
+                            ? "bg-white translate-x-[1.375rem]"
+                            : "bg-dim-3 translate-x-0"
                         )}
                       />
                     </button>

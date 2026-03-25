@@ -587,28 +587,35 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         if (!serverTrack) return localTrack;
 
         if (localTrack.type === "video") {
-          const updatedClips = localTrack.clips.map((localClip) => {
-            if (localClip.locallyModified) return localClip;
+          // Server timeline is canonical while reels generate (buildInitialTimeline +
+          // refreshEditorTimeline sequentialize video on the backend). Prefer the
+          // server's clip order and timing; only keep local clips the user edited.
+          const videoLocallyModified = localTrack.clips.some(
+            (c) => c.locallyModified,
+          );
+          if (!videoLocallyModified) {
+            return {
+              ...localTrack,
+              clips: serverTrack.clips.map((c) => ({ ...c })),
+              transitions: serverTrack.transitions ?? localTrack.transitions ?? [],
+            };
+          }
 
-            if (localClip.isPlaceholder) {
-              const serverClip = serverTrack.clips.find(
-                (sc) =>
-                  sc.placeholderShotIndex === localClip.placeholderShotIndex
-              );
-              if (serverClip && !serverClip.isPlaceholder) return serverClip;
-              if (
-                serverClip?.placeholderStatus !== undefined &&
-                serverClip.placeholderStatus !== localClip.placeholderStatus
-              ) {
-                return {
-                  ...localClip,
-                  placeholderStatus: serverClip.placeholderStatus,
-                };
-              }
-            }
-            return localClip;
-          });
-          return { ...localTrack, clips: updatedClips };
+          const mergedClips: Clip[] = [];
+          const seen = new Set<string>();
+          for (const sc of serverTrack.clips) {
+            const local = localTrack.clips.find((lc) => lc.id === sc.id);
+            mergedClips.push(local?.locallyModified ? local : sc);
+            seen.add(sc.id);
+          }
+          for (const lc of localTrack.clips) {
+            if (!seen.has(lc.id) && lc.locallyModified) mergedClips.push(lc);
+          }
+          return {
+            ...localTrack,
+            clips: mergedClips,
+            transitions: serverTrack.transitions ?? localTrack.transitions ?? [],
+          };
         }
 
         if (

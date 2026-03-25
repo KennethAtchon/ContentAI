@@ -34,6 +34,44 @@ export type AssetMergeRow = {
   metadata: unknown;
 };
 
+function metadataShotIndex(metadata: unknown): number {
+  const m = metadata as Record<string, unknown> | null | undefined;
+  if (!m || typeof m !== "object") return -1;
+  const v = m.shotIndex ?? m.shot_index;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)))
+    return Number(v);
+  return -1;
+}
+
+function sortVideoAssetsByShot(a: AssetMergeRow, b: AssetMergeRow): number {
+  const ai = metadataShotIndex(a.metadata);
+  const bi = metadataShotIndex(b.metadata);
+  const aMissing = ai < 0;
+  const bMissing = bi < 0;
+  if (aMissing && bMissing) return a.id.localeCompare(b.id);
+  if (aMissing) return 1;
+  if (bMissing) return -1;
+  if (ai !== bi) return ai - bi;
+  return a.id.localeCompare(b.id);
+}
+
+/**
+ * Places video clips end-to-end in track order so none share the same timeline range.
+ * Preserves the clips array order (script / placeholder slot order).
+ */
+export function sequentializeVideoClipStarts(
+  clips: TimelineClipJson[],
+): TimelineClipJson[] {
+  let cursor = 0;
+  return clips.map((c) => {
+    const dur = Math.max(0, Number(c.durationMs ?? 0));
+    const next = { ...c, startMs: cursor };
+    cursor += dur;
+    return next;
+  });
+}
+
 export async function resolveContentChainIds(
   contentId: number,
   userId: string,
@@ -75,6 +113,9 @@ export function mergePlaceholdersWithRealClips(
   },
 ): TimelineTrackJson[] {
   const spanMs = videoTimelineSpanMs(currentTracks);
+  const videoPool = [...videoClips].sort(sortVideoAssetsByShot);
+  const usedVideoAssetIds = new Set<string>();
+
   return currentTracks.map((track) => {
     if (track.type === "video") {
       const updatedClips = track.clips.map((raw) => {
@@ -90,12 +131,20 @@ export function mergePlaceholdersWithRealClips(
         }
 
         const shotIndex = clip.placeholderShotIndex ?? 0;
-        const realAsset = videoClips.find(
+        const exact = videoPool.find(
           (a) =>
-            Number((a.metadata as { shotIndex?: number })?.shotIndex ?? -1) ===
-            shotIndex,
+            !usedVideoAssetIds.has(a.id) &&
+            metadataShotIndex(a.metadata) === shotIndex,
         );
+        const unindexed = videoPool.find(
+          (a) =>
+            !usedVideoAssetIds.has(a.id) && metadataShotIndex(a.metadata) < 0,
+        );
+        const realAsset =
+          exact ?? unindexed ?? videoPool.find((a) => !usedVideoAssetIds.has(a.id));
         if (!realAsset) return clip;
+
+        usedVideoAssetIds.add(realAsset.id);
 
         const meta = (realAsset.metadata as Record<string, unknown>) ?? {};
         const genPrompt =
@@ -120,7 +169,8 @@ export function mergePlaceholdersWithRealClips(
           placeholderStatus: undefined,
         };
       });
-      return { ...track, clips: updatedClips };
+      const sequenced = sequentializeVideoClipStarts(updatedClips);
+      return { ...track, clips: sequenced };
     }
 
     if (track.type === "audio") {
