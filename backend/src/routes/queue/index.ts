@@ -283,6 +283,7 @@ queueRouter.get(
               SELECT cs.project_id FROM chat_message cm
               JOIN chat_session cs ON cm.session_id = cs.id
               WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
             projectName: sql<string | null>`(
@@ -290,11 +291,14 @@ queueRouter.get(
               JOIN chat_session cs ON cm.session_id = cs.id
               JOIN project p ON cs.project_id = p.id
               WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
             sessionId: sql<string | null>`(
               SELECT cm.session_id FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
               WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
             // Editor project state (root project only — snapshots excluded)
@@ -625,14 +629,21 @@ queueRouter.get(
         content = contentRow ?? null;
       }
 
-      const sessionId = await db
+      const sessionRow = await db
         .execute(
-          sql`SELECT cm.session_id FROM chat_message cm WHERE cm.generated_content_id = ${item.generatedContentId} LIMIT 1`,
+          sql`SELECT cm.session_id, cs.project_id
+              FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
+              WHERE cm.generated_content_id = ${item.generatedContentId}
+              ORDER BY cs.updated_at DESC
+              LIMIT 1`,
         )
         .then(
           (r) =>
-            (r[0] as { session_id: string } | undefined)?.session_id ?? null,
+            (r[0] as { session_id: string; project_id: string } | undefined) ?? null,
         );
+      const sessionId = sessionRow?.session_id ?? null;
+      const projectId = sessionRow?.project_id ?? null;
 
       let detailAssets: Array<{
         id: string;
@@ -812,6 +823,7 @@ queueRouter.get(
         queueItem: item,
         content,
         sessionId,
+        projectId,
         assets: detailAssets,
         versions,
         latestExportUrl,

@@ -39,7 +39,7 @@ export function VoiceoverGenerator({
 
   const canonical = buildVoiceoverTextForTts({
     generatedHook,
-    cleanScriptForAudio: voiceoverScript,
+    voiceoverScript,
   });
   const [scriptValue, setScriptValue] = useState(canonical);
   const isModified = scriptValue !== canonical;

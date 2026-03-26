@@ -31,6 +31,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { OpenChatButton } from "./_components/OpenChatButton";
 
 /** A group of queue items that belong to the same version chain. */
 interface VersionGroup {
@@ -118,6 +119,7 @@ interface QueueDetail {
     createdAt: string;
   }>;
   sessionId: string | null;
+  projectId: string | null;
   /** Full version chain, oldest first (v1 … vN). Empty for single-version content. */
   versions: ContentVersion[];
   /** Signed URL from latest completed editor export (preferred final video). */
@@ -923,7 +925,7 @@ function DetailPanel({
   isDuplicating: boolean;
 }) {
   const { t } = useTranslation();
-  const { sessionId, queueItem } = detail;
+  const { sessionId, projectId, queueItem } = detail;
   const assets = detail.assets ?? [];
 
   // Version navigation — default to the latest (last in array).
@@ -975,16 +977,20 @@ function DetailPanel({
     }
   }
 
-  const hasAudioContent =
-    voiceover?.r2Url ||
-    music?.r2Url ||
-    content?.voiceoverUrl ||
-    content?.backgroundAudioUrl;
+  const voiceoverUrl = voiceover?.r2Url ?? content?.voiceoverUrl ?? null;
+  const musicUrl = music?.r2Url ?? content?.backgroundAudioUrl ?? null;
+  const hasAudioContent = Boolean(voiceoverUrl ?? musicUrl);
   const hasVideoContent = Boolean(finalVideoUrl);
   const hasCopyContent =
     content?.postCaption ||
     content?.sceneDescription ||
-    content?.voiceoverScript;
+    content?.voiceoverScript ||
+    content?.generatedScript;
+  const metadata = content?.generatedMetadata as {
+    hashtags?: string[];
+    cta?: string;
+  } | null;
+  const hasMetadata = (metadata?.hashtags?.length ?? 0) > 0 || Boolean(metadata?.cta);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -1094,6 +1100,18 @@ function DetailPanel({
               {t("studio_queue_detail_copy")}
             </p>
             <div className="space-y-4">
+              {content?.generatedScript && (
+                <CopyField
+                  label={t("studio_queue_detail_script")}
+                  value={content.generatedScript}
+                />
+              )}
+              {content?.voiceoverScript && (
+                <CopyField
+                  label={t("studio_queue_detail_clean_script")}
+                  value={content.voiceoverScript}
+                />
+              )}
               {content?.postCaption && (
                 <CopyField
                   label={t("studio_queue_detail_caption")}
@@ -1106,71 +1124,105 @@ function DetailPanel({
                   value={content.sceneDescription}
                 />
               )}
-              {content?.voiceoverScript && (
-                <CopyField
-                  label={t("studio_queue_detail_clean_script")}
-                  value={content.voiceoverScript}
-                />
+            </div>
+          </div>
+        )}
+
+        {/* Hashtags + CTA */}
+        {hasMetadata && (
+          <div className="space-y-4">
+            <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
+              {t("studio_queue_detail_social")}
+            </p>
+            <div className="space-y-3">
+              {(metadata?.hashtags?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-sm text-dim-3">{t("studio_queue_detail_hashtags")}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {metadata!.hashtags!.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-sm text-studio-accent/80 bg-studio-accent/10 px-2 py-0.5 rounded-full"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {metadata?.cta && (
+                <div className="space-y-1">
+                  <p className="text-sm text-dim-3">{t("studio_queue_detail_cta")}</p>
+                  <p className="text-sm text-dim-1 italic">"{metadata.cta}"</p>
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Audio + Video in 2-col grid when both present, else single column */}
-        <div
-          className={cn(
-            "grid gap-6",
-            hasAudioContent && hasVideoContent ? "grid-cols-2" : "grid-cols-1"
-          )}
-        >
-          {/* Audio */}
+        {/* Audio */}
+        {hasAudioContent && (
           <div className="space-y-3">
             <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
               {t("studio_queue_detail_audio")}
             </p>
-            <div className="space-y-2.5">
-              <AssetRow
+            <div className="space-y-3">
+              <AudioRow
                 label={t("studio_queue_detail_voiceover")}
-                url={voiceover?.r2Url ?? content?.voiceoverUrl ?? null}
-                listenLabel={t("studio_queue_detail_listen")}
+                url={voiceoverUrl}
                 noneLabel={t("studio_queue_detail_none")}
               />
-              <AssetRow
+              <AudioRow
                 label={t("studio_queue_detail_music")}
-                url={music?.r2Url ?? content?.backgroundAudioUrl ?? null}
-                listenLabel={t("studio_queue_detail_listen")}
+                url={musicUrl}
                 noneLabel={t("studio_queue_detail_none")}
               />
             </div>
           </div>
+        )}
 
-          {/* Video */}
+        {/* Video */}
+        <div className="space-y-3">
+          <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
+            {t("studio_queue_detail_video")}
+          </p>
           <div className="space-y-3">
-            <p className="text-sm font-bold uppercase tracking-wider text-dim-3">
-              {t("studio_queue_detail_video")}
-            </p>
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-dim-2">
+            {finalVideoUrl ? (
+              <video
+                src={finalVideoUrl}
+                controls
+                className="w-full rounded-lg border border-overlay-md"
+                preload="metadata"
+              />
+            ) : (
+              <span className="text-sm text-dim-3">
+                {t("studio_queue_detail_no_video")}
+              </span>
+            )}
+            {videoClips.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-sm text-dim-3">
                   {t("studio_queue_detail_clips", { count: videoClips.length })}
-                </span>
+                </p>
+                <div className="space-y-1">
+                  {videoClips.map((clip, i) => (
+                    <div
+                      key={clip.id}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="text-dim-2">
+                        {t("studio_queue_detail_clip_n", { n: i + 1 })}
+                      </span>
+                      <span className="text-dim-3 tabular-nums">
+                        {clip.durationMs != null
+                          ? `${(clip.durationMs / 1000).toFixed(1)}s`
+                          : "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {finalVideoUrl ? (
-                <a
-                  href={finalVideoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-studio-accent hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {t("studio_queue_detail_view_final_video")}
-                </a>
-              ) : (
-                <span className="text-sm text-dim-3">
-                  {t("studio_queue_detail_no_video")}
-                </span>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
@@ -1190,16 +1242,12 @@ function DetailPanel({
                 {t("editor_open_in_editor")}
               </Link>
             )}
-            {sessionId && (
-              <Link
-                to="/studio/generate"
-                search={{ sessionId } as Record<string, string>}
-                className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-sm font-semibold text-dim-2 hover:text-studio-fg hover:border-overlay-lg transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                {t("studio_queue_detail_open_chat")}
-              </Link>
-            )}
+            <OpenChatButton
+              sessionId={sessionId}
+              projectId={projectId}
+              generatedContentId={content?.id ?? null}
+              className="inline-flex items-center gap-2 rounded-lg border border-overlay-md bg-overlay-xs px-4 py-2 text-sm font-semibold text-dim-2 hover:text-studio-fg hover:border-overlay-lg transition-colors disabled:opacity-40"
+            />
             {queueItem.status !== "posted" && (
               <button
                 onClick={onDuplicate}
@@ -1273,32 +1321,14 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AssetRow({
-  label,
-  url,
-  listenLabel,
-  noneLabel,
-}: {
-  label: string;
-  url: string | null;
-  listenLabel: string;
-  noneLabel: string;
-}) {
+function AudioRow({ label, url, noneLabel }: { label: string; url: string | null; noneLabel: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-dim-2">{label}</span>
+    <div className="space-y-1.5">
+      <span className="text-sm text-dim-3">{label}</span>
       {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-studio-accent hover:underline"
-        >
-          <ExternalLink className="h-2.5 w-2.5" />
-          {listenLabel}
-        </a>
+        <audio src={url} controls className="w-full h-8" preload="metadata" />
       ) : (
-        <span className="text-sm text-dim-3">{noneLabel}</span>
+        <span className="text-sm text-dim-3 italic">{noneLabel}</span>
       )}
     </div>
   );

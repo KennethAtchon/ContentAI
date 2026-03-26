@@ -13,15 +13,15 @@ import {
   type TimelineTrackJson,
 } from "./refresh-editor-timeline";
 
-/** Collapse whitespace for on-screen copy (hook / caption / clean script). */
+/** Collapse whitespace for on-screen copy (hook / voiceover body / post caption). */
 function normalizeCopy(s: string | null | undefined): string {
   if (!s) return "";
   return s.replace(/\s+/g, " ").trim();
 }
 
 /**
- * Caption track text: hook + model “clean” words (clean_script_for_audio, no
- * timestamp lines) + social caption. Omits duplicate clean block when it only
+ * On-screen overlay text: hook + voiceover body (voiceover_script, no
+ * timestamp lines) + post caption. Omits duplicate body block when it only
  * repeats the hook.
  */
 export function composeOverlayText(input: {
@@ -79,7 +79,7 @@ function emptyTracksFromVideo(
     {
       id: crypto.randomUUID(),
       type: "text",
-      name: "Caption",
+      name: "Text",
       muted: false,
       locked: false,
       clips: [],
@@ -115,8 +115,8 @@ function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
 }
 
 /**
- * Builds editor tracks from linked assets plus caption overlay copy from hook,
- * clean_script_for_audio, and generated_caption. Does not read generated_script
+ * Builds editor tracks from linked assets plus overlay copy from hook,
+ * voiceover_script, and post_caption. Does not read generated_script
  * (that stays in the video job / parseScriptShots only).
  */
 export async function buildInitialTimeline(

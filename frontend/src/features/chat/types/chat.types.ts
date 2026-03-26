@@ -56,7 +56,9 @@ export interface SessionDraft {
   status: string;
   generatedHook: string | null;
   generatedScript: string | null;
+  voiceoverScript: string | null;
   postCaption: string | null;
+  sceneDescription: string | null;
   generatedMetadata: {
     hashtags?: string[];
     cta?: string;

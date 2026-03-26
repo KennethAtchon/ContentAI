@@ -121,18 +121,31 @@ function EditorPage() {
     },
   });
 
-  // Open in AI Chat — for blank projects, link-content creates a generated_content row first
+  // Open in AI Chat — ensures a generatedContentId exists, then resolves the
+  // most recent chat session for that content (creating one if needed).
   const { mutate: openInAIChat, isPending: isLinking } = useMutation({
     mutationFn: async (proj: EditProject) => {
-      if (proj.generatedContentId) return proj.generatedContentId;
-      const res = await authenticatedFetchJson<{ generatedContentId: number }>(
-        `/api/editor/${proj.id}/link-content`,
-        { method: "POST" }
+      let contentId = proj.generatedContentId;
+      if (!contentId) {
+        const res = await authenticatedFetchJson<{ generatedContentId: number }>(
+          `/api/editor/${proj.id}/link-content`,
+          { method: "POST" },
+        );
+        contentId = res.generatedContentId;
+      }
+      return authenticatedFetchJson<{ sessionId: string; projectId: string }>(
+        "/api/chat/sessions/resolve-for-content",
+        {
+          method: "POST",
+          body: JSON.stringify({ generatedContentId: contentId }),
+        },
       );
-      return res.generatedContentId;
     },
-    onSuccess: () => {
-      void navigate({ to: "/studio/generate" });
+    onSuccess: (result) => {
+      void navigate({
+        to: "/studio/generate",
+        search: { sessionId: result.sessionId, projectId: result.projectId, reelId: undefined },
+      });
     },
   });
 

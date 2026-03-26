@@ -41,12 +41,11 @@ export function DraftDetail({
   const { t } = useTranslation();
   const { data: assetsData } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
-  const hasAudio = assets.some(
-    (a) =>
-      a.role === "voiceover" ||
-      a.role === "background_music" ||
-      a.type === "voiceover"
-  );
+  const voiceoverAsset =
+    assets.find((a) => a.role === "voiceover" || a.type === "voiceover") ?? null;
+  const musicAsset =
+    assets.find((a) => a.role === "background_music" || a.type === "background_music") ?? null;
+  const hasAudio = Boolean(voiceoverAsset ?? musicAsset);
   const assembledAsset =
     assets.find((a) => a.type === "assembled_video") ?? null;
 
@@ -111,11 +110,49 @@ export function DraftDetail({
           </Section>
         )}
 
+        {draft.voiceoverScript && (
+          <Section label={t("workspace_section_voiceover_script")}>
+            <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-line">
+              {draft.voiceoverScript}
+            </p>
+          </Section>
+        )}
+
+        {draft.sceneDescription && (
+          <Section label={t("workspace_section_scene")}>
+            <p className="text-sm leading-relaxed text-foreground/80 whitespace-pre-line">
+              {draft.sceneDescription}
+            </p>
+          </Section>
+        )}
+
         {draft.postCaption && (
           <Section label={t("workspace_section_caption")}>
             <p className="text-sm leading-relaxed text-foreground/80">
               {draft.postCaption}
             </p>
+          </Section>
+        )}
+
+        {(voiceoverAsset?.audioUrl ?? voiceoverAsset?.r2Url) && (
+          <Section label={t("workspace_section_voiceover")}>
+            <audio
+              src={voiceoverAsset.audioUrl ?? voiceoverAsset.r2Url ?? undefined}
+              controls
+              className="w-full h-8"
+              preload="metadata"
+            />
+          </Section>
+        )}
+
+        {(musicAsset?.audioUrl ?? musicAsset?.r2Url) && (
+          <Section label={t("workspace_section_music")}>
+            <audio
+              src={musicAsset.audioUrl ?? musicAsset.r2Url ?? undefined}
+              controls
+              className="w-full h-8"
+              preload="metadata"
+            />
           </Section>
         )}
 

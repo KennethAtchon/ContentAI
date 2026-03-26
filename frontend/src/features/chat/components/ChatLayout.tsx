@@ -270,6 +270,13 @@ export function ChatLayout({
   useEffect(() => {
     if (sessionData && !sessionLoading) {
       setSelectedSession(sessionData.session);
+      // Sync project when not already set (e.g. navigating from queue/editor with only sessionId)
+      if (!selectedProject && projects) {
+        const project = projects.find(
+          (p) => p.id === sessionData.session.projectId,
+        );
+        if (project) setSelectedProject(project);
+      }
       // Reset state when switching sessions
       setActiveReelRefs([]);
       setActiveContentId(null);
@@ -341,7 +348,7 @@ export function ChatLayout({
     setSelectedSession(undefined);
     navigate({
       to: "/studio/generate",
-      search: { projectId: project.id },
+      search: { projectId: project.id, sessionId: undefined, reelId: undefined },
     });
   };
 
@@ -349,7 +356,7 @@ export function ChatLayout({
     setSelectedSession(session);
     navigate({
       to: "/studio/generate",
-      search: { projectId: session.projectId, sessionId: session.id },
+      search: { projectId: session.projectId, sessionId: session.id, reelId: undefined },
     });
   };
 
@@ -383,7 +390,9 @@ export function ChatLayout({
     setSelectedSession(undefined);
     navigate({
       to: "/studio/generate",
-      search: selectedProject ? { projectId: selectedProject.id } : {},
+      search: selectedProject
+        ? { projectId: selectedProject.id, sessionId: undefined, reelId: undefined }
+        : { sessionId: undefined, projectId: undefined, reelId: undefined },
     });
   };
 

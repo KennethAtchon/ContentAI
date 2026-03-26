@@ -143,6 +143,108 @@ app.post(
   },
 );
 
+// POST /api/chat/sessions/resolve-for-content
+// Finds or creates a chat session for a given generated_content id.
+// Registered before /sessions/:id to avoid the :id wildcard capturing this path.
+app.post(
+  "/sessions/resolve-for-content",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  zValidator(
+    "json",
+    z.object({ generatedContentId: z.number().int().positive() }),
+  ),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { generatedContentId } = c.req.valid("json");
+
+      // Verify the content belongs to this user
+      const [content] = await db
+        .select({ id: generatedContent.id, generatedHook: generatedContent.generatedHook })
+        .from(generatedContent)
+        .where(
+          and(
+            eq(generatedContent.id, generatedContentId),
+            eq(generatedContent.userId, auth.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!content) {
+        return c.json({ error: "Content not found" }, 404);
+      }
+
+      // Find the most recently active session that has discussed this content
+      const existingRow = await db
+        .execute(
+          sql`SELECT cm.session_id, cs.project_id
+              FROM chat_message cm
+              JOIN chat_session cs ON cm.session_id = cs.id
+              WHERE cm.generated_content_id = ${generatedContentId}
+                AND cs.user_id = ${auth.user.id}
+              ORDER BY cs.updated_at DESC
+              LIMIT 1`,
+        )
+        .then(
+          (r) =>
+            (r[0] as { session_id: string; project_id: string } | undefined) ?? null,
+        );
+
+      if (existingRow) {
+        return c.json({
+          sessionId: existingRow.session_id,
+          projectId: existingRow.project_id,
+        });
+      }
+
+      // No session exists — find or create a project, then create a session
+      let [project] = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.userId, auth.user.id))
+        .orderBy(desc(projects.updatedAt))
+        .limit(1);
+
+      if (!project) {
+        const [newProject] = await db
+          .insert(projects)
+          .values({
+            id: crypto.randomUUID(),
+            userId: auth.user.id,
+            name: "My Project",
+          })
+          .returning({ id: projects.id });
+        project = newProject;
+      }
+
+      const sessionTitle = `Chat for "${content.generatedHook ?? "content"}"`;
+      const [newSession] = await db
+        .insert(chatSessions)
+        .values({
+          id: crypto.randomUUID(),
+          userId: auth.user.id,
+          projectId: project.id,
+          title: sessionTitle,
+        })
+        .returning({ id: chatSessions.id, projectId: chatSessions.projectId });
+
+      return c.json({
+        sessionId: newSession.id,
+        projectId: newSession.projectId,
+      });
+    } catch (error) {
+      debugLog.error("Failed to resolve session for content", {
+        service: "chat-route",
+        operation: "resolveForContent",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to resolve session" }, 500);
+    }
+  },
+);
+
 // GET /api/chat/sessions/:id - Get chat session with messages
 app.get(
   "/sessions/:id",
@@ -287,7 +389,9 @@ app.get(
           status: generatedContent.status,
           generatedHook: generatedContent.generatedHook,
           generatedScript: generatedContent.generatedScript,
+          voiceoverScript: generatedContent.voiceoverScript,
           postCaption: generatedContent.postCaption,
+          sceneDescription: generatedContent.sceneDescription,
           generatedMetadata: generatedContent.generatedMetadata,
           parentId: generatedContent.parentId,
           createdAt: generatedContent.createdAt,

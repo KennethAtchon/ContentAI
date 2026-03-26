@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774417888519,
-      "tag": "0000_condemned_microbe",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774504800000,
-      "tag": "0001_rename_caption_and_voiceover_script",
+      "when": 1774504729143,
+      "tag": "0000_calm_whizzer",
       "breakpoints": true
     }
   ]
