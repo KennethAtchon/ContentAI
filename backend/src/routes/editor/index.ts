@@ -23,7 +23,10 @@ import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { generateASS } from "./export/ass-generator";
 import { buildInitialTimeline } from "./services/build-initial-timeline";
-import { resolveContentChainIds } from "./services/refresh-editor-timeline";
+import {
+  resolveContentChainIds,
+  refreshEditorTimeline,
+} from "./services/refresh-editor-timeline";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
@@ -348,10 +351,6 @@ app.post(
           .limit(1);
 
         if (existing) {
-          const { tracks, durationMs } = await buildInitialTimeline(
-            generatedContentId,
-            auth.user.id,
-          );
           const [contentRow] = await db
             .select({ generatedHook: generatedContent.generatedHook })
             .from(generatedContent)
@@ -366,12 +365,44 @@ app.post(
             existing.autoTitle && contentRow?.generatedHook
               ? { title: contentRow.generatedHook.slice(0, 60) }
               : {};
-          const [updated] = await db
+
+          // Only rebuild the timeline if the project has no user content yet.
+          // If the user has already arranged clips, preserve their edits.
+          const existingTracks = existing.tracks as
+            | { clips?: unknown[] }[]
+            | null;
+          const hasUserTracks =
+            Array.isArray(existingTracks) &&
+            existingTracks.some(
+              (t) => Array.isArray(t.clips) && t.clips.length > 0,
+            );
+
+          if (!hasUserTracks) {
+            const { tracks, durationMs } = await buildInitialTimeline(
+              generatedContentId,
+              auth.user.id,
+            );
+            const [updated] = await db
+              .update(editProjects)
+              .set({ generatedContentId, tracks, durationMs, ...titleUpdate })
+              .where(eq(editProjects.id, existing.id))
+              .returning();
+            return c.json({ project: updated }, 200);
+          }
+
+          // Update metadata first, then merge any new/resolved assets into
+          // the existing user-edited tracks without touching clip positions.
+          await db
             .update(editProjects)
-            .set({ generatedContentId, tracks, durationMs, ...titleUpdate })
+            .set({ generatedContentId, ...titleUpdate })
+            .where(eq(editProjects.id, existing.id));
+          await refreshEditorTimeline(generatedContentId, auth.user.id);
+          const [refreshed] = await db
+            .select()
+            .from(editProjects)
             .where(eq(editProjects.id, existing.id))
-            .returning();
-          return c.json({ project: updated }, 200);
+            .limit(1);
+          return c.json({ project: refreshed }, 200);
         }
       }
 

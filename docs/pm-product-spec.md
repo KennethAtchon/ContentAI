@@ -15,29 +15,6 @@ This spec covers a phased set of improvements that fix the broken handoffs, upgr
 
 ---
 
-## Section 1 — Immediate Bugs (Ship First)
-
-These are active regressions. Users who click these features today get nothing. They must be fixed before any new feature work is visible.
-
-### 1.1 AI Chat Session Button Does Nothing
-
-**What's happening:** On the queue page and content cards, there are buttons labeled "Open Chat Session" or "AI Chat." Clicking them does not open anything. No navigation, no error, no feedback. The button is dead.
-
-**Why it matters:** This is the primary entry point back into the generation workflow. A user who wants to regenerate copy, swap a shot, or adjust the voiceover script must go through the AI chat. If that button does nothing, they have no way to iterate on their content. They hit a wall and leave.
-
-**The correct behavior:**
-- If a chat session already exists for this draft (linked by `generatedContentId`), clicking opens that chat session — the user is dropped directly into the conversation with their prior context intact, not a blank new chat.
-- If no chat session exists yet (edge case for older content or manually-created projects), clicking creates a new chat session linked to this `generatedContentId` and opens it.
-- The URL should be `/studio/generate?contentId=X` or equivalent, navigating to the correct chat context.
-
-**User experience:**
-1. User sees their reel in the queue → clicks "Open AI Chat"
-2. Instantly navigated to the chat where they generated this content
-3. The AI has context: the script, the shots, the voiceover that were generated here
-4. User can say "make the hook punchier" and the AI understands what they're referring to
-
----
-
 
 ### 1.4 Multiple Video Timeline Tracks (Prevent Stacking, Enable Layering)
 
@@ -59,15 +36,6 @@ These are active regressions. Users who click these features today get nothing. 
 3. The two video tracks composite in the preview (Video 2 renders on top of Video 1)
 4. Vertical scrolling on the timeline lets users see all tracks if they've added several
 
----
-
-### 1.5 Enabled and Mute Buttons Appearing Offscreen
-
-**What's happening:** When a clip is disabled or muted in the inspector, the "Enabled" and "Mute" toggle buttons visually go offscreen. The toggle is still clickable but invisible — users cannot see the state they are toggling.
-
-**Why it matters:** This is a visual regression. Users who accidentally disable a clip have no way to re-enable it without knowing exactly where the off-screen button is. It creates a support burden ("my clip disappeared") that should not exist.
-
-**The correct behavior:** The enabled/muted state toggles must always remain within the inspector panel boundaries. The toggle state (on/off) must be visually distinct at a glance.
 
 ---
 

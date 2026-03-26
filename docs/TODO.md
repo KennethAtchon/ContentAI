@@ -57,3 +57,14 @@ Mute
 Also we need to revamp the "text" bar to be generable text like...CAPTIONS
 The options for the text tab should NOT be title, subtitle, caption. It should be what THEME the text it (you have to research the top 5 most common captions). Also rename "text" tab to "caption". The options for making it a title, subtitle, caption, should be part of the "inspector" when u click the caption. Also the enabled button appears offscreen when its turned off (so does mute button).
 And voiceovers and shots dont have the audio wave thing? Are they broken
+
+
+create a feature request doc using ur pm skill, what I see missing from the editor right now: right clicking empty space results in    
+"paste here" which doesnt make sense, what do you want me to paste??? a clip?? clips are a separate entity, did they want me to COPY     
+another clip? maybe make that clear, but the right click on empty space should allow to create a new clip too (based on which track they 
+ are adding the new clip too), right now the text clip shows the text on screen, this is good but the problem is no way to change size,  
+all the text shows up at the same time (we need an algorithm to show the "correct" amount of text per moment in the screen) , bug: I     
+HAVE to reload the page in order for my projects in /studio/generate to show, another bug is users can search clips and text *BEYOND*    
+their max size which makes no sense, we should just allow *duplicating* the clip onto the timeline. Every clip needs a max clip. Also a  
+bug: When duplicating clips, it causes them to overlap (we want to strictly enforce clips not overlapping in the same track, and fix it  
+when it happens, duplicates should append at the END) 

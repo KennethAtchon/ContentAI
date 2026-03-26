@@ -279,11 +279,12 @@ export function Inspector({
                   />
                   <PropRow label="Mute">
                     <button
+                      type="button"
                       onClick={() =>
                         onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
                       }
                       className={cn(
-                        "relative w-10 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                        "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
                         selectedClip.muted
                           ? "bg-studio-accent border border-studio-accent"
                           : "bg-transparent border border-overlay-lg"
@@ -291,10 +292,10 @@ export function Inspector({
                     >
                       <span
                         className={cn(
-                          "absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform",
+                          "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
                           selectedClip.muted
-                            ? "bg-white translate-x-5"
-                            : "bg-dim-3 translate-x-0.5"
+                            ? "bg-white translate-x-[1.375rem]"
+                            : "bg-dim-3 translate-x-0"
                         )}
                       />
                     </button>

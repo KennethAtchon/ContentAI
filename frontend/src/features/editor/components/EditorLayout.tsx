@@ -19,6 +19,8 @@ import {
   FilePlus,
   Sparkles,
   ChevronDown,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -37,7 +39,10 @@ import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
 import type { EditProject, Clip, Track } from "../types/editor";
-import { EDITOR_AUTOSAVE_DEBOUNCE_MS } from "../constants/editor";
+import {
+  EDITOR_AUTOSAVE_DEBOUNCE_MS,
+  EDITOR_AUTOSAVE_INTERVAL_MS,
+} from "../constants/editor";
 import {
   patchEditorProject,
   publishEditorProject,
@@ -85,6 +90,8 @@ export function EditorLayout({ project, onBack }: Props) {
     [string, string, string] | null
   >(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSavingPatchRef = useRef(false);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const lastHandledServerUpdatedAt = useRef(project.updatedAt);
@@ -174,6 +181,9 @@ export function EditorLayout({ project, onBack }: Props) {
   }, [assetsData, libraryData]);
 
   // ── Auto-save ───────────────────────────────────────────────────────────────
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
   const {
     mutate: queueSave,
     mutateAsync: flushSave,
@@ -182,9 +192,12 @@ export function EditorLayout({ project, onBack }: Props) {
     mutationFn: (patch: PatchProjectParams) =>
       patchEditorProject(project.id, patch),
     onSuccess: () => {
+      setLastSavedAt(new Date());
+      setIsDirty(false);
       void invalidateEditorProjectsQueries(queryClient);
     },
   });
+  isSavingPatchRef.current = isSavingPatch;
 
   const { mutateAsync: runPublish, isPending: isPublishing } = useMutation({
     mutationFn: () => publishEditorProject(project.id),
@@ -371,6 +384,7 @@ export function EditorLayout({ project, onBack }: Props) {
     if (tracksRef.current === store.state.tracks) return;
     tracksRef.current = store.state.tracks;
     if (!store.state.isReadOnly) {
+      setIsDirty(true);
       scheduleSave({
         tracks: stripLocallyModifiedFromTracks(store.state.tracks),
         durationMs: store.state.durationMs,
@@ -385,6 +399,7 @@ export function EditorLayout({ project, onBack }: Props) {
     if (resolutionRef.current === store.state.resolution) return;
     resolutionRef.current = store.state.resolution;
     if (!store.state.isReadOnly) {
+      setIsDirty(true);
       scheduleSave({ resolution: store.state.resolution });
     }
   }, [store.state.resolution]);
@@ -603,6 +618,24 @@ export function EditorLayout({ project, onBack }: Props) {
     resolution: state.resolution,
   };
 
+  // Periodic heartbeat save — fires every 30 s regardless of debounce activity
+  useEffect(() => {
+    intervalTimerRef.current = setInterval(() => {
+      if (!state.isReadOnly && !isSavingPatchRef.current) {
+        const snap = editorPublishStateRef.current;
+        void flushSave({
+          tracks: stripLocallyModifiedFromTracks(snap.tracks),
+          durationMs: snap.durationMs,
+          title: snap.title,
+          resolution: snap.resolution,
+        });
+      }
+    }, EDITOR_AUTOSAVE_INTERVAL_MS);
+    return () => {
+      if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
+    };
+  }, [flushSave]);
+
   const handleConfirmPublish = useCallback(async () => {
     setPublishDialogOpen(false);
     if (saveTimerRef.current) {
@@ -623,6 +656,25 @@ export function EditorLayout({ project, onBack }: Props) {
     }
   }, [flushSave, runPublish]);
 
+  const handleBack = useCallback(async () => {
+    if (!state.isReadOnly && saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      const snap = editorPublishStateRef.current;
+      try {
+        await flushSave({
+          tracks: stripLocallyModifiedFromTracks(snap.tracks),
+          durationMs: snap.durationMs,
+          title: snap.title,
+          resolution: snap.resolution,
+        });
+      } catch {
+        // proceed even if save fails
+      }
+    }
+    onBack();
+  }, [state.isReadOnly, flushSave, onBack]);
+
   return (
     <AssetUrlMapContext.Provider value={assetUrlMap}>
       <div
@@ -635,7 +687,7 @@ export function EditorLayout({ project, onBack }: Props) {
           style={{ height: 54 }}
         >
           <button
-            onClick={onBack}
+            onClick={handleBack}
             title={t("editor_back")}
             className="transport-btn mr-2"
           >
@@ -787,6 +839,25 @@ export function EditorLayout({ project, onBack }: Props) {
           />
 
           <div className="flex-1" />
+
+          {/* Save status indicator */}
+          {!state.isReadOnly && (
+            <div className="flex items-center gap-1.5 mr-3 text-xs min-w-[110px] justify-end">
+              {isSavingPatch ? (
+                <span className="flex items-center gap-1 text-dim-3">
+                  <Loader2 size={11} className="animate-spin" />
+                  {t("editor_saving")}
+                </span>
+              ) : isDirty ? (
+                <span className="text-amber-400">{t("editor_unsaved_changes")}</span>
+              ) : lastSavedAt ? (
+                <span className="flex items-center gap-1 text-dim-3">
+                  <Check size={11} className="text-green-500" />
+                  {t("editor_saved")}
+                </span>
+              ) : null}
+            </div>
+          )}
 
           {state.isReadOnly ? (
             <div className="flex items-center gap-2">
