@@ -85,9 +85,9 @@ interface ContentVersion {
   id: number;
   version: number;
   generatedHook: string | null;
-  generatedCaption: string | null;
+  postCaption: string | null;
   generatedScript: string | null;
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
   sceneDescription: string | null;
   createdAt: string;
 }
@@ -97,9 +97,9 @@ interface QueueDetail {
   content: {
     id: number;
     generatedHook: string | null;
-    generatedCaption: string | null;
+    postCaption: string | null;
     generatedScript: string | null;
-    cleanScriptForAudio: string | null;
+    voiceoverScript: string | null;
     sceneDescription: string | null;
     generatedMetadata: Record<string, unknown> | null;
     voiceoverUrl: string | null;
@@ -948,9 +948,9 @@ function DetailPanel({
         id: selectedVersion.id,
         version: selectedVersion.version,
         generatedHook: selectedVersion.generatedHook,
-        generatedCaption: selectedVersion.generatedCaption,
+        postCaption: selectedVersion.postCaption,
         generatedScript: selectedVersion.generatedScript,
-        cleanScriptForAudio: selectedVersion.cleanScriptForAudio,
+        voiceoverScript: selectedVersion.voiceoverScript,
         sceneDescription: selectedVersion.sceneDescription,
       }
     : detail.content;
@@ -982,9 +982,9 @@ function DetailPanel({
     content?.backgroundAudioUrl;
   const hasVideoContent = Boolean(finalVideoUrl);
   const hasCopyContent =
-    content?.generatedCaption ||
+    content?.postCaption ||
     content?.sceneDescription ||
-    content?.cleanScriptForAudio;
+    content?.voiceoverScript;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -1094,10 +1094,10 @@ function DetailPanel({
               {t("studio_queue_detail_copy")}
             </p>
             <div className="space-y-4">
-              {content?.generatedCaption && (
+              {content?.postCaption && (
                 <CopyField
                   label={t("studio_queue_detail_caption")}
-                  value={content.generatedCaption}
+                  value={content.postCaption}
                 />
               )}
               {content?.sceneDescription && (
@@ -1106,10 +1106,10 @@ function DetailPanel({
                   value={content.sceneDescription}
                 />
               )}
-              {content?.cleanScriptForAudio && (
+              {content?.voiceoverScript && (
                 <CopyField
                   label={t("studio_queue_detail_clean_script")}
-                  value={content.cleanScriptForAudio}
+                  value={content.voiceoverScript}
                 />
               )}
             </div>

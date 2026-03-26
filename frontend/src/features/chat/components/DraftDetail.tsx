@@ -111,10 +111,10 @@ export function DraftDetail({
           </Section>
         )}
 
-        {draft.generatedCaption && (
+        {draft.postCaption && (
           <Section label={t("workspace_section_caption")}>
             <p className="text-sm leading-relaxed text-foreground/80">
-              {draft.generatedCaption}
+              {draft.postCaption}
             </p>
           </Section>
         )}

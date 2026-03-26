@@ -42,7 +42,7 @@ export interface ToolContext {
 export function createSaveContentTool(context: ToolContext) {
   return tool({
     description:
-      "Save a complete generated content piece (hook, structured script, clean script, caption, hashtags, CTA, sceneDescription) to the database. Call this after writing a full generation. The script field should contain VISUAL descriptions of what to show on screen with timestamps [0-3s], while cleanScript should be the spoken narration without timestamps for audio/TTS generation. sceneDescription sets the overall visual aesthetic for all shots. Never output raw content as plain text — always call this tool.",
+      "Save a complete generated content piece (hook, structured script, voiceoverScript, postCaption, hashtags, CTA, sceneDescription) to the database. Call this after writing a full generation. The script field should contain VISUAL descriptions of what to show on screen with timestamps [0-3s], while voiceoverScript should be the spoken narration without timestamps for audio/TTS generation. postCaption is for the social platform post (not on-screen text). sceneDescription sets the overall visual aesthetic for all shots. Never output raw content as plain text — always call this tool.",
     inputSchema: z.object({
       hook: z
         .string()
@@ -55,7 +55,7 @@ export function createSaveContentTool(context: ToolContext) {
         .describe(
           "Scene-by-scene VISUAL shot list with timing, e.g. [0-3s] Close-up of person looking shocked at phone screen. Describes what to SHOW on screen, not what to say.",
         ),
-      cleanScript: z
+      voiceoverScript: z
         .string()
         .min(30)
         .describe(
@@ -67,7 +67,7 @@ export function createSaveContentTool(context: ToolContext) {
         .describe(
           "Overall visual style for the reel, e.g. 'Cinematic documentary style, warm colour grading, handheld camera, close-ups'. Applied to all shots for visual coherence.",
         ),
-      caption: z.string().min(20).describe("Full caption text with emojis"),
+      postCaption: z.string().min(20).describe("Post caption text with emojis (for social platform post, not on-screen text)"),
       hashtags: z
         .array(z.string())
         .min(3)
@@ -81,18 +81,18 @@ export function createSaveContentTool(context: ToolContext) {
     execute: async ({
       hook,
       script,
-      cleanScript,
+      voiceoverScript,
       sceneDescription,
-      caption,
+      postCaption,
       hashtags,
       cta,
       contentType,
     }: {
       hook: string;
       script: string;
-      cleanScript: string;
+      voiceoverScript: string;
       sceneDescription: string;
-      caption: string;
+      postCaption: string;
       hashtags: string[];
       cta: string;
       contentType: "hook_only" | "caption_only" | "full_script";
@@ -103,8 +103,8 @@ export function createSaveContentTool(context: ToolContext) {
         contentType,
         hookLength: hook.length,
         scriptLength: script.length,
-        cleanScriptLength: cleanScript.length,
-        captionLength: caption.length,
+        voiceoverScriptLength: voiceoverScript.length,
+        postCaptionLength: postCaption.length,
         hashtagCount: hashtags.length,
         userId: context.auth.user.id,
       });
@@ -116,9 +116,9 @@ export function createSaveContentTool(context: ToolContext) {
               userId: context.auth.user.id,
               prompt: context.content,
               generatedHook: hook,
-              generatedCaption: caption,
+              postCaption,
               generatedScript: script,
-              cleanScriptForAudio: cleanScript,
+              voiceoverScript,
               sceneDescription,
               generatedMetadata: { hashtags, cta, contentType },
               outputType: contentType,
@@ -265,9 +265,9 @@ export function createGetContentTool(context: ToolContext) {
             outputType: generatedContent.outputType,
             status: generatedContent.status,
             generatedHook: generatedContent.generatedHook,
-            generatedCaption: generatedContent.generatedCaption,
+            postCaption: generatedContent.postCaption,
             generatedScript: generatedContent.generatedScript,
-            cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+            voiceoverScript: generatedContent.voiceoverScript,
             sceneDescription: generatedContent.sceneDescription,
             generatedMetadata: generatedContent.generatedMetadata,
             parentId: generatedContent.parentId,
@@ -301,9 +301,9 @@ export function createGetContentTool(context: ToolContext) {
           outputType: row.outputType,
           status: row.status,
           hook: row.generatedHook,
-          caption: row.generatedCaption,
+          postCaption: row.postCaption,
           script: row.generatedScript,
-          cleanScript: row.cleanScriptForAudio,
+          voiceoverScript: row.voiceoverScript,
           sceneDescription: row.sceneDescription,
           hashtags: meta?.hashtags ?? [],
           cta: meta?.cta ?? null,
@@ -325,17 +325,17 @@ export function createGetContentTool(context: ToolContext) {
 export function createEditContentFieldTool(context: ToolContext) {
   return tool({
     description:
-      "Edit one or more specific fields of existing generated content without changing the others. Use this instead of iterate_content when the user wants to change just a caption, hook, hashtags, CTA, or any single field. Always prefer this over iterate_content when only 1–3 fields are being changed. Call get_content first if you need to read the current values before editing.",
+      "Edit one or more specific fields of existing generated content without changing the others. Use this instead of iterate_content when the user wants to change just the postCaption, hook, hashtags, CTA, voiceoverScript, or any single field. Always prefer this over iterate_content when only 1–3 fields are being changed. Call get_content first if you need to read the current values before editing.",
     inputSchema: z.object({
       contentId: z.number().describe("ID of the content piece to edit"),
       edits: z
         .object({
           hook: z.string().max(200).optional(),
-          caption: z.string().optional(),
+          postCaption: z.string().optional(),
           hashtags: z.array(z.string()).min(3).max(15).optional(),
           cta: z.string().optional(),
           script: z.string().optional(),
-          cleanScript: z.string().optional(),
+          voiceoverScript: z.string().optional(),
           sceneDescription: z.string().optional(),
         })
         .describe("Only include the fields being changed"),
@@ -353,11 +353,11 @@ export function createEditContentFieldTool(context: ToolContext) {
       contentId: number;
       edits: {
         hook?: string;
-        caption?: string;
+        postCaption?: string;
         hashtags?: string[];
         cta?: string;
         script?: string;
-        cleanScript?: string;
+        voiceoverScript?: string;
         sceneDescription?: string;
       };
       changeDescription: string;
@@ -412,9 +412,9 @@ export function createEditContentFieldTool(context: ToolContext) {
               prompt: context.content,
               sourceReelId: tip.sourceReelId,
               generatedHook: edits.hook ?? tip.generatedHook,
-              generatedCaption: edits.caption ?? tip.generatedCaption,
+              postCaption: edits.postCaption ?? tip.postCaption,
               generatedScript: edits.script ?? tip.generatedScript,
-              cleanScriptForAudio: edits.cleanScript ?? tip.cleanScriptForAudio,
+              voiceoverScript: edits.voiceoverScript ?? tip.voiceoverScript,
               sceneDescription: edits.sceneDescription ?? tip.sceneDescription,
               generatedMetadata: newMetadata,
               outputType: tip.outputType,
@@ -485,9 +485,9 @@ export function createIterateContentTool(context: ToolContext) {
         .describe("The ID of the content piece to iterate on"),
       hook: z.string().max(200).optional(),
       script: z.string().optional(),
-      cleanScript: z.string().optional(),
+      voiceoverScript: z.string().optional(),
       sceneDescription: z.string().optional(),
-      caption: z.string().optional(),
+      postCaption: z.string().optional(),
       hashtags: z.array(z.string()).optional(),
       cta: z.string().optional(),
       changeDescription: z
@@ -500,9 +500,9 @@ export function createIterateContentTool(context: ToolContext) {
       parentContentId,
       hook,
       script,
-      cleanScript,
+      voiceoverScript,
       sceneDescription,
-      caption,
+      postCaption,
       hashtags,
       cta,
       changeDescription,
@@ -510,9 +510,9 @@ export function createIterateContentTool(context: ToolContext) {
       parentContentId: number;
       hook?: string;
       script?: string;
-      cleanScript?: string;
+      voiceoverScript?: string;
       sceneDescription?: string;
-      caption?: string;
+      postCaption?: string;
       hashtags?: string[];
       cta?: string;
       changeDescription: string;
@@ -525,9 +525,9 @@ export function createIterateContentTool(context: ToolContext) {
         fieldsOverridden: {
           hook: hook !== undefined,
           script: script !== undefined,
-          cleanScript: cleanScript !== undefined,
+          voiceoverScript: voiceoverScript !== undefined,
           sceneDescription: sceneDescription !== undefined,
-          caption: caption !== undefined,
+          postCaption: postCaption !== undefined,
           hashtags: hashtags !== undefined,
           cta: cta !== undefined,
         },
@@ -590,10 +590,9 @@ export function createIterateContentTool(context: ToolContext) {
               prompt: context.content,
               sourceReelId: effectiveParent.sourceReelId,
               generatedHook: hook ?? effectiveParent.generatedHook,
-              generatedCaption: caption ?? effectiveParent.generatedCaption,
+              postCaption: postCaption ?? effectiveParent.postCaption,
               generatedScript: script ?? effectiveParent.generatedScript,
-              cleanScriptForAudio:
-                cleanScript ?? effectiveParent.cleanScriptForAudio,
+              voiceoverScript: voiceoverScript ?? effectiveParent.voiceoverScript,
               sceneDescription:
                 sceneDescription ?? effectiveParent.sceneDescription,
               generatedMetadata: {
@@ -774,7 +773,7 @@ export function createSearchContentTool(context: ToolContext) {
           conditions.push(
             or(
               ilike(generatedContent.generatedHook, `%${query}%`),
-              ilike(generatedContent.generatedCaption, `%${query}%`),
+              ilike(generatedContent.postCaption, `%${query}%`),
             )!,
           );
         }
@@ -786,7 +785,7 @@ export function createSearchContentTool(context: ToolContext) {
             outputType: generatedContent.outputType,
             status: generatedContent.status,
             hook: generatedContent.generatedHook,
-            caption: generatedContent.generatedCaption,
+            postCaption: generatedContent.postCaption,
             createdAt: generatedContent.createdAt,
           })
           .from(generatedContent)
@@ -857,7 +856,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
         const [content] = await db
           .select({
             id: generatedContent.id,
-            cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+            voiceoverScript: generatedContent.voiceoverScript,
             generatedHook: generatedContent.generatedHook,
           })
           .from(generatedContent)
@@ -873,7 +872,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
 
         const composed = buildVoiceoverTextForTts({
           generatedHook: content.generatedHook,
-          cleanScriptForAudio: content.cleanScriptForAudio,
+          voiceoverScript: content.voiceoverScript,
         });
         const script = sanitizeScriptForTTS(composed);
         if (!script) {

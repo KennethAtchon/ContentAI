@@ -287,7 +287,7 @@ app.get(
           status: generatedContent.status,
           generatedHook: generatedContent.generatedHook,
           generatedScript: generatedContent.generatedScript,
-          generatedCaption: generatedContent.generatedCaption,
+          postCaption: generatedContent.postCaption,
           generatedMetadata: generatedContent.generatedMetadata,
           parentId: generatedContent.parentId,
           createdAt: generatedContent.createdAt,
@@ -818,9 +818,9 @@ async function buildChatContext(
           outputType: generatedContent.outputType,
           status: generatedContent.status,
           generatedHook: generatedContent.generatedHook,
-          generatedCaption: generatedContent.generatedCaption,
+          postCaption: generatedContent.postCaption,
           generatedScript: generatedContent.generatedScript,
-          cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+          voiceoverScript: generatedContent.voiceoverScript,
           sceneDescription: generatedContent.sceneDescription,
           generatedMetadata: generatedContent.generatedMetadata,
         })
@@ -842,14 +842,14 @@ async function buildChatContext(
 
         context += `\n\nActive Draft (ID: ${active.id}, v${active.version}, status: ${active.status}):
 Hook: "${active.generatedHook ?? "none"}"
-Caption: "${active.generatedCaption ?? "none"}"
+Post caption: "${active.postCaption ?? "none"}"
 Hashtags: ${hashtags}
 CTA: ${cta}
 Script (first 300 chars): "${(active.generatedScript ?? "none").slice(0, 300)}..."
 Scene Description: "${active.sceneDescription ?? "none"}"
 Type: ${active.outputType}
 
-For targeted field edits (caption, hook, hashtags, CTA only), call edit_content_field with contentId: ${active.id}.
+For targeted field edits (postCaption, hook, hashtags, CTA only), call edit_content_field with contentId: ${active.id}.
 For full rewrites or multi-field changes, call iterate_content with parentContentId: ${active.id}.`;
       }
     }

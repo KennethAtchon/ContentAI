@@ -2,7 +2,7 @@ import { extractCaptionSourceText } from "../../routes/video/utils";
 
 export interface VoiceoverTextInput {
   generatedHook: string | null;
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
 }
 
 function normalizeCopy(s: string | null | undefined): string {
@@ -13,7 +13,7 @@ function normalizeCopy(s: string | null | undefined): string {
 /**
  * Compose default spoken TTS text: hook (if present) prepended to clean body
  * (deduped). Does NOT include generated_caption — overlay track uses that
- * separately via composeCaptionOverlayText.
+ * separately via composeOverlayText.
  *
  * Rules:
  * - Both hook and body: "hook\n\nbody" (deduped: body omitted when equal to hook)
@@ -25,7 +25,7 @@ export function buildVoiceoverTextForTts(input: VoiceoverTextInput): string {
   const hookNorm = normalizeCopy(input.generatedHook);
   const cleanNorm = normalizeCopy(
     extractCaptionSourceText({
-      cleanScriptForAudio: input.cleanScriptForAudio,
+      voiceoverScript: input.voiceoverScript,
       generatedScript: null,
     }),
   );

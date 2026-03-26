@@ -90,7 +90,7 @@ export interface EditProject {
   parentProjectId: string | null;
   // From linked generated_content (null for blank / list-view responses)
   generatedHook?: string | null;
-  generatedCaption?: string | null;
+  postCaption?: string | null;
   autoTitle?: boolean;
 }
 

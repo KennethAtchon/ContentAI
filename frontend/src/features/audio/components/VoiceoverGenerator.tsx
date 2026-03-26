@@ -18,7 +18,7 @@ import { buildVoiceoverTextForTts } from "../utils/build-voiceover-text-for-tts"
 
 interface VoiceoverGeneratorProps {
   generatedContentId: number;
-  generatedScript: string | null;
+  voiceoverScript: string | null;
   generatedHook: string | null;
   onSuccess: (audioUrl: string) => void;
   onCancel?: () => void;
@@ -26,7 +26,7 @@ interface VoiceoverGeneratorProps {
 
 export function VoiceoverGenerator({
   generatedContentId,
-  generatedScript,
+  voiceoverScript,
   generatedHook,
   onSuccess,
   onCancel,
@@ -39,7 +39,7 @@ export function VoiceoverGenerator({
 
   const canonical = buildVoiceoverTextForTts({
     generatedHook,
-    cleanScriptForAudio: generatedScript,
+    cleanScriptForAudio: voiceoverScript,
   });
   const [scriptValue, setScriptValue] = useState(canonical);
   const isModified = scriptValue !== canonical;
@@ -49,7 +49,7 @@ export function VoiceoverGenerator({
     setScriptValue(canonical);
   }, [canonical]);
 
-  const usingHookFallback = !generatedScript && !!generatedHook;
+  const usingHookFallback = !voiceoverScript && !!generatedHook;
 
   const wordCount = scriptValue.trim().split(/\s+/).filter(Boolean).length;
   const estimatedSeconds =

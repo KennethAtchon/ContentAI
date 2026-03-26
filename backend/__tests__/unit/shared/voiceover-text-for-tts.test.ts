@@ -4,32 +4,32 @@ import { buildVoiceoverTextForTts } from "../../../src/shared/services/voiceover
 describe("buildVoiceoverTextForTts", () => {
   it("returns hook only when no clean script", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "Hook line", cleanScriptForAudio: null }),
+      buildVoiceoverTextForTts({ generatedHook: "Hook line", voiceoverScript: null }),
     ).toBe("Hook line");
   });
 
   it("returns body only when no hook", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: null, cleanScriptForAudio: "Body text here" }),
+      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: "Body text here" }),
     ).toBe("Body text here");
   });
 
   it("returns empty string when both are null", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: null, cleanScriptForAudio: null }),
+      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: null }),
     ).toBe("");
   });
 
   it("returns empty string when both are empty/whitespace", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "  ", cleanScriptForAudio: "   " }),
+      buildVoiceoverTextForTts({ generatedHook: "  ", voiceoverScript: "   " }),
     ).toBe("");
   });
 
   it("joins hook and body with double newline", () => {
     const result = buildVoiceoverTextForTts({
       generatedHook: "Hook line",
-      cleanScriptForAudio: "Body text here",
+      voiceoverScript: "Body text here",
     });
     expect(result).toBe("Hook line\n\nBody text here");
   });
@@ -38,7 +38,7 @@ describe("buildVoiceoverTextForTts", () => {
     expect(
       buildVoiceoverTextForTts({
         generatedHook: "Same text",
-        cleanScriptForAudio: "Same text",
+        voiceoverScript: "Same text",
       }),
     ).toBe("Same text");
   });
@@ -47,7 +47,7 @@ describe("buildVoiceoverTextForTts", () => {
     expect(
       buildVoiceoverTextForTts({
         generatedHook: "Same   text",
-        cleanScriptForAudio: "  Same text  ",
+        voiceoverScript: "  Same text  ",
       }),
     ).toBe("Same text");
   });
@@ -55,7 +55,7 @@ describe("buildVoiceoverTextForTts", () => {
   it("strips bracket-prefixed lines from clean script body", () => {
     const result = buildVoiceoverTextForTts({
       generatedHook: "Hook",
-      cleanScriptForAudio: "[0-3s] Body text here",
+      voiceoverScript: "[0-3s] Body text here",
     });
     expect(result).toBe("Hook\n\nBody text here");
   });
@@ -64,7 +64,7 @@ describe("buildVoiceoverTextForTts", () => {
     expect(
       buildVoiceoverTextForTts({
         generatedHook: "Hook",
-        cleanScriptForAudio: "[intro]\n[outro]",
+        voiceoverScript: "[intro]\n[outro]",
       }),
     ).toBe("Hook");
   });
@@ -72,7 +72,7 @@ describe("buildVoiceoverTextForTts", () => {
   it("does not include generated_caption", () => {
     const result = buildVoiceoverTextForTts({
       generatedHook: "Hook",
-      cleanScriptForAudio: "Body",
+      voiceoverScript: "Body",
     });
     expect(result).not.toContain("caption");
     expect(result).toBe("Hook\n\nBody");
@@ -80,7 +80,7 @@ describe("buildVoiceoverTextForTts", () => {
 
   it("returns hook when body is empty after trim", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "Hook", cleanScriptForAudio: "" }),
+      buildVoiceoverTextForTts({ generatedHook: "Hook", voiceoverScript: "" }),
     ).toBe("Hook");
   });
 });

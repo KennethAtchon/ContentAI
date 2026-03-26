@@ -23,7 +23,7 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
   const { data: contentData } = useGeneratedContent(generatedContentId);
   const { data: assetsData, isLoading } = useContentAssets(generatedContentId);
 
-  const cleanScriptForAudio = contentData?.content.cleanScriptForAudio ?? null;
+  const voiceoverScript = contentData?.content.voiceoverScript ?? null;
   const generatedHook = contentData?.content.generatedHook ?? null;
   const attachMusic = useAttachMusic();
   const deleteAsset = useDeleteAsset(generatedContentId);
@@ -106,7 +106,7 @@ export function AudioPanel({ generatedContentId }: AudioPanelProps) {
             {showGenerator ? (
               <VoiceoverGenerator
                 generatedContentId={generatedContentId}
-                generatedScript={cleanScriptForAudio}
+                voiceoverScript={voiceoverScript}
                 generatedHook={generatedHook}
                 onSuccess={(url) => {
                   setLocalAudioUrl(url);

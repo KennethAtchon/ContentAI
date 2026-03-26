@@ -1,10 +1,10 @@
 export interface VoiceoverTextInput {
   generatedHook: string | null;
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
 }
 
-function extractBody(cleanScriptForAudio: string | null): string {
-  const source = (cleanScriptForAudio ?? "").trim();
+function extractBody(voiceoverScript: string | null): string {
+  const source = (voiceoverScript ?? "").trim();
   if (!source) return "";
   return source
     .replace(/^\[[^\]]+\]\s*/gm, "")
@@ -26,7 +26,7 @@ function normalizeCopy(s: string | null | undefined): string {
  */
 export function buildVoiceoverTextForTts(input: VoiceoverTextInput): string {
   const hookNorm = normalizeCopy(input.generatedHook);
-  const cleanNorm = normalizeCopy(extractBody(input.cleanScriptForAudio));
+  const cleanNorm = normalizeCopy(extractBody(input.voiceoverScript));
 
   const parts: string[] = [];
   if (hookNorm) parts.push(hookNorm);

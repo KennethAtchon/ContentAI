@@ -24,16 +24,16 @@ function normalizeCopy(s: string | null | undefined): string {
  * timestamp lines) + social caption. Omits duplicate clean block when it only
  * repeats the hook.
  */
-export function composeCaptionOverlayText(input: {
+export function composeOverlayText(input: {
   generatedHook: string | null;
-  generatedCaption: string | null;
-  cleanScriptForAudio: string | null;
+  postCaption: string | null;
+  voiceoverScript: string | null;
 }): string {
   const hook = normalizeCopy(input.generatedHook);
-  const caption = normalizeCopy(input.generatedCaption);
+  const caption = normalizeCopy(input.postCaption);
   const clean = normalizeCopy(
     extractCaptionSourceText({
-      cleanScriptForAudio: input.cleanScriptForAudio,
+      voiceoverScript: input.voiceoverScript,
       generatedScript: null,
     }),
   );
@@ -127,8 +127,8 @@ export async function buildInitialTimeline(
     .select({
       id: generatedContent.id,
       generatedHook: generatedContent.generatedHook,
-      generatedCaption: generatedContent.generatedCaption,
-      cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+      postCaption: generatedContent.postCaption,
+      voiceoverScript: generatedContent.voiceoverScript,
     })
     .from(generatedContent)
     .where(
@@ -215,10 +215,10 @@ export async function buildInitialTimeline(
     }
   }
 
-  const overlayText = composeCaptionOverlayText({
+  const overlayText = composeOverlayText({
     generatedHook: content.generatedHook,
-    generatedCaption: content.generatedCaption,
-    cleanScriptForAudio: content.cleanScriptForAudio,
+    postCaption: content.postCaption,
+    voiceoverScript: content.voiceoverScript,
   });
   if (overlayText.length > 0) {
     const spanMs = Math.min(Math.max(maxEnd, 1000), 180_000);

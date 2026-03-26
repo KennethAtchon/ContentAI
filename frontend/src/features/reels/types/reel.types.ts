@@ -42,7 +42,7 @@ export interface GeneratedContent {
   sourceReelId: number | null;
   prompt: string;
   generatedHook: string | null;
-  generatedCaption: string | null;
+  postCaption: string | null;
   generatedScript: string | null;
   outputType: string;
   model: string | null;
@@ -71,7 +71,7 @@ export interface QueueItem {
   createdAt: string;
   // Preview from generatedContent
   generatedHook: string | null;
-  generatedCaption: string | null;
+  postCaption: string | null;
   thumbnailR2Key: string | null;
   version: number | null;
   // Project info (populated when content was generated via chat)

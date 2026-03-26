@@ -38,11 +38,11 @@ export function formatAssTime(seconds: number): string {
 }
 
 export function extractCaptionSourceText(input: {
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
   generatedScript: string | null;
 }): string {
   const source = (
-    input.cleanScriptForAudio ??
+    input.voiceoverScript ??
     input.generatedScript ??
     ""
   ).trim();

@@ -56,7 +56,7 @@ export interface SessionDraft {
   status: string;
   generatedHook: string | null;
   generatedScript: string | null;
-  generatedCaption: string | null;
+  postCaption: string | null;
   generatedMetadata: {
     hashtags?: string[];
     cta?: string;

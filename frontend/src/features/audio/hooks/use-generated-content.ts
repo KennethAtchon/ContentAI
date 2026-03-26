@@ -5,9 +5,9 @@ import { queryKeys } from "@/shared/lib/query-keys";
 interface GeneratedContentRecord {
   id: number;
   generatedScript: string | null;
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
   generatedHook: string | null;
-  generatedCaption: string | null;
+  postCaption: string | null;
   outputType: string;
   status: string;
 }

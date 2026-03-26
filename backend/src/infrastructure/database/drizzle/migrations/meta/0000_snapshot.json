@@ -1265,8 +1265,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "generated_caption": {
-          "name": "generated_caption",
+        "post_caption": {
+          "name": "post_caption",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1277,8 +1277,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "clean_script_for_audio": {
-          "name": "clean_script_for_audio",
+        "voiceover_script": {
+          "name": "voiceover_script",
           "type": "text",
           "primaryKey": false,
           "notNull": false

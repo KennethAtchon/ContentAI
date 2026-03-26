@@ -273,7 +273,7 @@ queueRouter.get(
             createdAt: queueItems.createdAt,
             // Preview from generatedContent
             generatedHook: generatedContent.generatedHook,
-            generatedCaption: generatedContent.generatedCaption,
+            postCaption: generatedContent.postCaption,
             version: generatedContent.version,
             generatedScript: generatedContent.generatedScript,
             generatedMetadata: generatedContent.generatedMetadata,
@@ -475,7 +475,7 @@ queueRouter.get(
           errorMessage: row.errorMessage,
           createdAt: row.createdAt,
           generatedHook: row.generatedHook,
-          generatedCaption: row.generatedCaption,
+          postCaption: row.postCaption,
           version: row.version,
           projectId: row.projectId,
           projectName: row.projectName,
@@ -686,9 +686,9 @@ queueRouter.get(
         id: number;
         version: number;
         generatedHook: string | null;
-        generatedCaption: string | null;
+        postCaption: string | null;
         generatedScript: string | null;
-        cleanScriptForAudio: string | null;
+        voiceoverScript: string | null;
         sceneDescription: string | null;
         createdAt: string;
       }> = [];
@@ -697,21 +697,21 @@ queueRouter.get(
         const chainRows = await db.execute(
           sql`
             WITH RECURSIVE chain AS (
-              SELECT id, version, generated_hook, generated_caption,
-                     generated_script, clean_script_for_audio,
+              SELECT id, version, generated_hook, post_caption,
+                     generated_script, voiceover_script,
                      scene_description, created_at, parent_id
               FROM generated_content
               WHERE id = ${item.generatedContentId} AND user_id = ${auth.user.id}
               UNION ALL
-              SELECT gc.id, gc.version, gc.generated_hook, gc.generated_caption,
-                     gc.generated_script, gc.clean_script_for_audio,
+              SELECT gc.id, gc.version, gc.generated_hook, gc.post_caption,
+                     gc.generated_script, gc.voiceover_script,
                      gc.scene_description, gc.created_at, gc.parent_id
               FROM generated_content gc
               JOIN chain ON gc.id = chain.parent_id
               WHERE gc.user_id = ${auth.user.id}
             )
-            SELECT id::int, version::int, generated_hook, generated_caption,
-                   generated_script, clean_script_for_audio, scene_description,
+            SELECT id::int, version::int, generated_hook, post_caption,
+                   generated_script, voiceover_script, scene_description,
                    created_at
             FROM chain
             ORDER BY version ASC
@@ -723,9 +723,9 @@ queueRouter.get(
             id: number;
             version: number;
             generated_hook: string | null;
-            generated_caption: string | null;
+            post_caption: string | null;
             generated_script: string | null;
-            clean_script_for_audio: string | null;
+            voiceover_script: string | null;
             scene_description: string | null;
             created_at: Date;
           }>
@@ -733,9 +733,9 @@ queueRouter.get(
           id: r.id,
           version: r.version,
           generatedHook: r.generated_hook,
-          generatedCaption: r.generated_caption,
+          postCaption: r.post_caption,
           generatedScript: r.generated_script,
-          cleanScriptForAudio: r.clean_script_for_audio,
+          voiceoverScript: r.voiceover_script,
           sceneDescription: r.scene_description,
           createdAt:
             r.created_at instanceof Date
@@ -872,9 +872,9 @@ queueRouter.post(
               sourceReelId: originalContent.sourceReelId,
               prompt: originalContent.prompt,
               generatedHook: originalContent.generatedHook,
-              generatedCaption: originalContent.generatedCaption,
+              postCaption: originalContent.postCaption,
               generatedScript: originalContent.generatedScript,
-              cleanScriptForAudio: originalContent.cleanScriptForAudio,
+              voiceoverScript: originalContent.voiceoverScript,
               sceneDescription: originalContent.sceneDescription,
               generatedMetadata: originalContent.generatedMetadata,
               outputType: originalContent.outputType,

@@ -120,7 +120,7 @@ Generate an original variation following the same viral structure.`;
       sourceReelId: reelId,
       prompt,
       generatedHook: parsed.hook ?? null,
-      generatedCaption: parsed.caption ?? null,
+      postCaption: parsed.caption ?? null,
       generatedScript: parsed.scriptNotes
         ? JSON.stringify(parsed.scriptNotes)
         : null,

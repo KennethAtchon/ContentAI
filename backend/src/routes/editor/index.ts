@@ -271,7 +271,7 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         autoTitle: editProjects.autoTitle,
         // From linked generated_content — null for blank projects
         generatedHook: generatedContent.generatedHook,
-        generatedCaption: generatedContent.generatedCaption,
+        postCaption: generatedContent.postCaption,
       })
       .from(editProjects)
       .leftJoin(

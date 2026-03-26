@@ -211,9 +211,9 @@ export const generatedContent = pgTable(
     prompt: text("prompt"),
     // AI-authored copy
     generatedHook: text("generated_hook"),
-    generatedCaption: text("generated_caption"),
+    postCaption: text("post_caption"),
     generatedScript: text("generated_script"),
-    cleanScriptForAudio: text("clean_script_for_audio"),
+    voiceoverScript: text("voiceover_script"),
     sceneDescription: text("scene_description"),
     generatedMetadata: jsonb("generated_metadata"),
     outputType: text("output_type").notNull().default("full"),

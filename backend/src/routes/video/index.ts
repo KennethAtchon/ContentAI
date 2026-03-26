@@ -449,7 +449,7 @@ async function fetchOwnedContent(
   prompt: string | null;
   generatedHook: string | null;
   generatedScript: string | null;
-  cleanScriptForAudio: string | null;
+  voiceoverScript: string | null;
   sceneDescription: string | null;
   generatedMetadata: Record<string, unknown> | null;
 } | null> {
@@ -459,7 +459,7 @@ async function fetchOwnedContent(
       prompt: generatedContent.prompt,
       generatedHook: generatedContent.generatedHook,
       generatedScript: generatedContent.generatedScript,
-      cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+      voiceoverScript: generatedContent.voiceoverScript,
       sceneDescription: generatedContent.sceneDescription,
       generatedMetadata: generatedContent.generatedMetadata,
     })
