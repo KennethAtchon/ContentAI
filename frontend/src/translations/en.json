@@ -1186,8 +1186,6 @@
   "audio_generate_errorProvider": "Voice generation failed. This usually resolves on retry.",
   "audio_generate_errorTextTooLong": "Your script exceeds the maximum length for voiceover generation (5,000 characters). Shorten it and try again.",
   "audio_generate_errorLimit": "You have reached your voiceover generation limit for this billing period.",
-  "audio_generate_mode_script": "Script",
-  "audio_generate_mode_hook": "Hook",
   "audio_generate_copy_script": "Copy script",
   "audio_generate_hook_fallback": "No script found — using hook text. Edit as needed.",
   "audio_generate_script_placeholder": "Write the text you want spoken aloud…",

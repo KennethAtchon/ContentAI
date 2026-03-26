@@ -278,9 +278,9 @@ export const DEV_USE_MOCK_REEL_SCRAPE = DEV_MOCK_EXTERNAL_INTEGRATIONS;
 export const DEV_MOCK_VIDEO_CLIP_DELAY_MS = (() => {
   if (!IS_DEVELOPMENT) return 0;
   const raw = process.env.DEV_MOCK_VIDEO_CLIP_DELAY_MS;
-  if (raw === undefined || raw === "") return 15_000;
+  if (raw === undefined || raw === "") return 5_000;
   const n = parseInt(raw, 10);
-  if (Number.isNaN(n)) return 15_000;
+  if (Number.isNaN(n)) return 5_000;
   return Math.max(0, n);
 })();
 

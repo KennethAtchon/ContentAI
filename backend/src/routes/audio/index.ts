@@ -22,24 +22,9 @@ import { debugLog } from "../../utils/debug/debug";
 import { VOICES, getVoiceById } from "../../config/voices";
 import { generateSpeech, type TTSSpeed } from "../../services/tts/elevenlabs";
 import { recordAiCost } from "../../lib/cost-tracker";
+import { sanitizeScriptForTTS } from "../../shared/services/tts-script-sanitize";
 
 const audioRouter = new Hono<HonoEnv>();
-
-/**
- * Strip production metadata from a script before sending to TTS.
- * Removes timing markers ([0-3s]), stage directions in parens, section labels,
- * bullet markers, and collapses excess whitespace.
- */
-function sanitizeScriptForTTS(text: string): string {
-  return text
-    .replace(/\[\d+[:\-]\d+s?\]/g, "")
-    .replace(/\([^)]*\)/g, "")
-    .replace(/\[[^\]]*\]/g, "")
-    .replace(/^\s*[-•*]\s*/gm, "")
-    .replace(/^\s*\w[\w\s]*:\s*$/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
 const ttsRequestSchema = z.object({
   generatedContentId: z.number().int().positive(),

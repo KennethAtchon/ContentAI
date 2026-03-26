@@ -21,6 +21,8 @@ import { VOICES, getVoiceById } from "../config/voices";
 import { OPENAI_API_KEY, FAL_API_KEY } from "../utils/config/envUtil";
 import { generateSpeech } from "../services/tts/elevenlabs";
 import { uploadFile, deleteFile } from "../services/storage/r2";
+import { buildVoiceoverTextForTts } from "../shared/services/voiceover-text-for-tts";
+import { sanitizeScriptForTTS } from "../shared/services/tts-script-sanitize";
 import { recordAiCost } from "./cost-tracker";
 import { videoJobService } from "../services/video/job.service";
 import {
@@ -832,7 +834,7 @@ export function createListVoicesTool(_context: ToolContext) {
 export function createGenerateVoiceoverTool(context: ToolContext) {
   return tool({
     description:
-      "Generate a voiceover for an existing draft using text-to-speech. Reads the draft's clean script, sends it to ElevenLabs, and attaches the resulting audio to the content. Call this when the user wants to add a voiceover to their content — after save_content has been called and a contentId exists. You must know the voiceId (call list_voices first if needed). Do NOT call this more than once per user request.",
+      "Generate a voiceover for an existing draft using text-to-speech. Composes spoken text from the draft's hook (prepended) and clean script body (deduped), sends it to ElevenLabs, and attaches the resulting audio to the content. Call this when the user wants to add a voiceover to their content — after save_content has been called and a contentId exists. You must know the voiceId (call list_voices first if needed). Do NOT call this more than once per user request.",
     inputSchema: z.object({
       contentId: z
         .number()
@@ -856,6 +858,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
           .select({
             id: generatedContent.id,
             cleanScriptForAudio: generatedContent.cleanScriptForAudio,
+            generatedHook: generatedContent.generatedHook,
           })
           .from(generatedContent)
           .where(
@@ -868,9 +871,13 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
 
         if (!content) return { success: false as const, reason: "not_found" };
 
-        const script = content.cleanScriptForAudio?.trim();
+        const composed = buildVoiceoverTextForTts({
+          generatedHook: content.generatedHook,
+          cleanScriptForAudio: content.cleanScriptForAudio,
+        });
+        const script = sanitizeScriptForTTS(composed);
         if (!script) {
-          return { success: false as const, reason: "no_clean_script" };
+          return { success: false as const, reason: "no_voiceover_text" };
         }
 
         const { audioBuffer, durationMs } = await generateSpeech(

@@ -14,6 +14,7 @@ import { SpeedToggle } from "./SpeedToggle";
 import { useVoices } from "../hooks/use-voices";
 import { useGenerateVoiceover } from "../hooks/use-generate-voiceover";
 import type { TTSSpeed } from "../types/audio.types";
+import { buildVoiceoverTextForTts } from "../utils/build-voiceover-text-for-tts";
 
 interface VoiceoverGeneratorProps {
   generatedContentId: number;
@@ -22,8 +23,6 @@ interface VoiceoverGeneratorProps {
   onSuccess: (audioUrl: string) => void;
   onCancel?: () => void;
 }
-
-type ScriptMode = "script" | "hook";
 
 export function VoiceoverGenerator({
   generatedContentId,
@@ -37,21 +36,19 @@ export function VoiceoverGenerator({
   const [speed, setSpeed] = useState<TTSSpeed>("normal");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [mode, setMode] = useState<ScriptMode>("script");
 
-  const canonical =
-    mode === "script"
-      ? (generatedScript ?? generatedHook ?? "")
-      : (generatedHook ?? "");
+  const canonical = buildVoiceoverTextForTts({
+    generatedHook,
+    cleanScriptForAudio: generatedScript,
+  });
   const [scriptValue, setScriptValue] = useState(canonical);
   const isModified = scriptValue !== canonical;
 
-  // Sync local value when mode changes
+  // Sync local value when canonical changes (e.g. props update)
   useEffect(() => {
     setScriptValue(canonical);
-  }, [mode, canonical]);
+  }, [canonical]);
 
-  const showModeToggle = !!generatedScript && !!generatedHook;
   const usingHookFallback = !generatedScript && !!generatedHook;
 
   const wordCount = scriptValue.trim().split(/\s+/).filter(Boolean).length;
@@ -142,30 +139,6 @@ export function VoiceoverGenerator({
             <label className="text-sm font-medium text-muted-foreground">
               {t("audio_generate_script_label")}
             </label>
-            {showModeToggle && (
-              <div className="flex items-center rounded-md border border-border/50 overflow-hidden">
-                <button
-                  onClick={() => setMode("script")}
-                  className={`text-sm px-2 py-0.5 transition-colors ${
-                    mode === "script"
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("audio_generate_mode_script")}
-                </button>
-                <button
-                  onClick={() => setMode("hook")}
-                  className={`text-sm px-2 py-0.5 transition-colors border-l border-border/50 ${
-                    mode === "hook"
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("audio_generate_mode_hook")}
-                </button>
-              </div>
-            )}
           </div>
           <button
             onClick={() => void handleCopy()}
