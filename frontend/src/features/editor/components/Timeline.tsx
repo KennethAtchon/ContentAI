@@ -159,6 +159,7 @@ export function Timeline({
 
   // Calculate paste position from right-click on track area
   const pastePositionRef = useRef<number>(0);
+  const headerColumnRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -167,7 +168,8 @@ export function Timeline({
     >
       {/* Track headers column */}
       <div
-        className="flex flex-col shrink-0 border-r border-overlay-sm bg-studio-surface z-10"
+        ref={headerColumnRef}
+        className="flex flex-col shrink-0 border-r border-overlay-sm bg-studio-surface z-10 overflow-y-hidden"
         style={{ width: 186 }}
       >
         <div className="h-8 border-b border-overlay-sm flex items-center px-3">
@@ -200,16 +202,23 @@ export function Timeline({
       {/* Scrollable track area */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden relative"
+        className="flex-1 overflow-x-auto overflow-y-auto relative"
+        onScroll={(e) => {
+          if (headerColumnRef.current) {
+            headerColumnRef.current.scrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+          }
+        }}
       >
         <div
           style={{ width: totalWidthPx, height: contentHeight, position: "relative" }}
         >
-          <TimelineRuler
-            totalWidthPx={totalWidthPx}
-            zoom={zoom}
-            onSeek={onSeek}
-          />
+          <div className="sticky top-0 z-20 bg-studio-surface">
+            <TimelineRuler
+              totalWidthPx={totalWidthPx}
+              zoom={zoom}
+              onSeek={onSeek}
+            />
+          </div>
 
           {tracks.map((track, trackIndex) => (
             <TrackAreaContextMenu

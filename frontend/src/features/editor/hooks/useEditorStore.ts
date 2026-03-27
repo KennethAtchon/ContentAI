@@ -10,13 +10,13 @@ import type {
   Transition,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
-import { clampMoveToFreeSpace } from "../utils/clip-constraints";
+import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
 
 const DEFAULT_TRACKS: Track[] = [
   {
     id: "video",
     type: "video",
-    name: "Video",
+    name: "Video 1",
     muted: false,
     locked: false,
     clips: [],
@@ -156,6 +156,77 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
             }
           : t
       );
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "ADD_CLIP_AUTO_PROMOTE": {
+      const { preferredTrackId, clip } = action;
+      const preferredTrack = state.tracks.find((t) => t.id === preferredTrackId);
+
+      // Non-video tracks: delegate to a plain ADD_CLIP (no promotion concept)
+      if (!preferredTrack || preferredTrack.type !== "video") {
+        const newTracks = state.tracks.map((t) =>
+          t.id === preferredTrackId
+            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true }] }
+            : t
+        );
+        return {
+          ...state,
+          past: [...state.past, state.tracks].slice(-50),
+          future: [],
+          tracks: newTracks,
+          durationMs: computeDuration(newTracks),
+        };
+      }
+
+      // Walk video tracks starting from the preferred one, then in order
+      const videoTracks = state.tracks.filter((t) => t.type === "video");
+      const preferredIdx = videoTracks.findIndex((t) => t.id === preferredTrackId);
+      const ordered = [
+        ...videoTracks.slice(preferredIdx),
+        ...videoTracks.slice(0, preferredIdx),
+      ];
+      const targetTrack = ordered.find(
+        (t) => !hasCollision(t, clip.startMs, clip.durationMs)
+      );
+
+      let newTracks: Track[];
+
+      if (targetTrack) {
+        newTracks = state.tracks.map((t) =>
+          t.id === targetTrack.id
+            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true }] }
+            : t
+        );
+      } else {
+        // Every existing video track collides → create a new one
+        const newTrack: Track = {
+          id: crypto.randomUUID(),
+          type: "video",
+          name: `Video ${videoTracks.length + 1}`,
+          muted: false,
+          locked: false,
+          clips: [{ ...clip, locallyModified: true }],
+          transitions: [],
+        };
+        // Insert immediately after the last video track in the array
+        const lastVideoIdx = state.tracks.reduce(
+          (last, t, i) => (t.type === "video" ? i : last),
+          0
+        );
+        newTracks = [
+          ...state.tracks.slice(0, lastVideoIdx + 1),
+          newTrack,
+          ...state.tracks.slice(lastVideoIdx + 1),
+        ];
+      }
+
       return {
         ...state,
         past: [...state.past, state.tracks].slice(-50),
@@ -819,18 +890,24 @@ export function useEditorReducer() {
     (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
     []
   );
+  const addClipAutoPromote = useCallback(
+    (preferredTrackId: string, clip: Clip) =>
+      dispatch({ type: "ADD_CLIP_AUTO_PROMOTE", preferredTrackId, clip }),
+    []
+  );
   const addVideoTrack = useCallback(() => {
+    const videoCount = state.tracks.filter((t) => t.type === "video").length;
     const track: Track = {
       id: crypto.randomUUID(),
       type: "video",
-      name: "Video",
+      name: `Video ${videoCount + 1}`,
       muted: false,
       locked: false,
       clips: [],
       transitions: [],
     };
     dispatch({ type: "ADD_TRACK", track });
-  }, []);
+  }, [state.tracks]);
   const removeTrack = useCallback(
     (trackId: string) => dispatch({ type: "REMOVE_TRACK", trackId }),
     []
@@ -867,6 +944,7 @@ export function useEditorReducer() {
     setTransition,
     removeTransition,
     reorderShots,
+    addClipAutoPromote,
     addVideoTrack,
     removeTrack,
   };

@@ -147,7 +147,7 @@ export function PreviewArea({
 
   const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
 
-  const videoTrack = tracks.find((t) => t.type === "video");
+  const videoTracks = tracks.filter((t) => t.type === "video");
   const audioTrack = tracks.find((t) => t.type === "audio");
   const musicTrack = tracks.find((t) => t.type === "music");
   const textTrack = tracks.find((t) => t.type === "text");
@@ -158,19 +158,21 @@ export function PreviewArea({
     ...(musicTrack?.clips ?? []).map((c) => ({ clip: c, track: musicTrack! })),
   ];
 
-  const videoClips = videoTrack?.clips ?? [];
-  const videoTransitions = videoTrack?.transitions ?? [];
-
-  // Active video clips at the current playhead position
-  const activeVideoClipIds = new Set(
-    videoClips
-      .filter(
-        (c) =>
-          c.enabled !== false &&
-          currentTimeMs >= c.startMs &&
-          currentTimeMs < c.startMs + c.durationMs
-      )
-      .map((c) => c.id)
+  // Per-track active clip ID sets (needed by useEffect sync + render)
+  const activeVideoClipIdsByTrack = new Map(
+    videoTracks.map((vt) => [
+      vt.id,
+      new Set(
+        vt.clips
+          .filter(
+            (c) =>
+              c.enabled !== false &&
+              currentTimeMs >= c.startMs &&
+              currentTimeMs < c.startMs + c.durationMs
+          )
+          .map((c) => c.id)
+      ),
+    ])
   );
 
   // Text clips active at current time
@@ -183,56 +185,61 @@ export function PreviewArea({
 
   // Sync all video elements to current playhead position
   useEffect(() => {
-    for (const clip of videoClips) {
-      const el = videoRefs.current.get(clip.id);
-      if (!el) continue;
+    for (const videoTrack of videoTracks) {
+      const trackTransitions = videoTrack.transitions ?? [];
+      const trackClips = videoTrack.clips;
+      const activeIds = activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();
 
-      // Mute if the whole track is muted
-      el.muted = videoTrack?.muted ?? false;
+      for (const clip of trackClips) {
+        const el = videoRefs.current.get(clip.id);
+        if (!el) continue;
 
-      const isActive = activeVideoClipIds.has(clip.id);
+        el.muted = videoTrack.muted;
 
-      // Check for incoming dissolve/wipe-right pre-render window
-      const incomingTransition = videoTransitions.find(
-        (t) => t.clipBId === clip.id && (t.type === "dissolve" || t.type === "wipe-right")
-      );
-      let isIncomingWindow = false;
-      if (incomingTransition) {
-        const clipA = videoClips.find((c) => c.id === incomingTransition.clipAId);
-        if (clipA) {
-          const clipAEnd = clipA.startMs + clipA.durationMs;
-          const windowStart = clipAEnd - incomingTransition.durationMs;
-          isIncomingWindow = currentTimeMs >= windowStart && currentTimeMs < clipAEnd;
+        const isActive = activeIds.has(clip.id);
+
+        // Check for incoming dissolve/wipe-right pre-render window
+        const incomingTransition = trackTransitions.find(
+          (t) => t.clipBId === clip.id && (t.type === "dissolve" || t.type === "wipe-right")
+        );
+        let isIncomingWindow = false;
+        if (incomingTransition) {
+          const clipA = trackClips.find((c) => c.id === incomingTransition.clipAId);
+          if (clipA) {
+            const clipAEnd = clipA.startMs + clipA.durationMs;
+            const windowStart = clipAEnd - incomingTransition.durationMs;
+            isIncomingWindow = currentTimeMs >= windowStart && currentTimeMs < clipAEnd;
+          }
         }
-      }
 
-      if (isActive) {
-        // Multiply timeline offset by clip.speed so the source position stays
-        // in sync with the playhead when speed != 1 (e.g. 2× plays 2s of source
-        // per 1s of timeline, so at timeline+5s we need source frame at 10s).
-        const targetTime =
-          ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
-          clip.trimStartMs / 1000;
-        if (Math.abs(el.currentTime - targetTime) > 0.1) {
-          el.currentTime = targetTime;
+        if (isActive) {
+          // Multiply timeline offset by clip.speed so the source position stays
+          // in sync with the playhead when speed != 1 (e.g. 2× plays 2s of source
+          // per 1s of timeline, so at timeline+5s we need source frame at 10s).
+          const targetTime =
+            ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
+            clip.trimStartMs / 1000;
+          if (Math.abs(el.currentTime - targetTime) > 0.1) {
+            el.currentTime = targetTime;
+          }
+          el.playbackRate = clip.speed || 1;
+          if (isPlaying && el.paused) el.play().catch(() => {});
+          if (!isPlaying && !el.paused) el.pause();
+        } else if (isIncomingWindow) {
+          // Pre-render incoming clip during dissolve/wipe: start from trimStart
+          const targetTime = clip.trimStartMs / 1000;
+          if (Math.abs(el.currentTime - targetTime) > 0.15) {
+            el.currentTime = targetTime;
+          }
+          el.playbackRate = clip.speed || 1;
+          if (isPlaying && el.paused) el.play().catch(() => {});
+          if (!isPlaying && !el.paused) el.pause();
+        } else {
+          if (!el.paused) el.pause();
         }
-        el.playbackRate = clip.speed || 1;
-        if (isPlaying && el.paused) el.play().catch(() => {});
-        if (!isPlaying && !el.paused) el.pause();
-      } else if (isIncomingWindow) {
-        // Pre-render incoming clip during dissolve/wipe: start from trimStart
-        const targetTime = clip.trimStartMs / 1000;
-        if (Math.abs(el.currentTime - targetTime) > 0.15) {
-          el.currentTime = targetTime;
-        }
-        el.playbackRate = clip.speed || 1;
-        if (isPlaying && el.paused) el.play().catch(() => {});
-        if (!isPlaying && !el.paused) el.pause();
-      } else {
-        if (!el.paused) el.pause();
       }
     }
-  }, [currentTimeMs, isPlaying, videoTrack, videoClips, videoTransitions, activeVideoClipIds]);
+  }, [currentTimeMs, isPlaying, videoTracks, activeVideoClipIdsByTrack]);
 
   // Sync all audio elements (voiceover + music) to current playhead position
   useEffect(() => {
@@ -291,7 +298,7 @@ export function PreviewArea({
     }
   }, [currentTimeMs, tracks, textTrack]);
 
-  const hasContent = (videoTrack?.clips.length ?? 0) > 0;
+  const hasContent = videoTracks.some((vt) => vt.clips.length > 0);
   const timecode = formatHHMMSSFF(currentTimeMs, fps);
   const position = formatMMSS(currentTimeMs);
   const total = formatMMSS(durationMs);
@@ -319,74 +326,88 @@ export function PreviewArea({
           ref={containerRef}
           className="absolute inset-x-3 inset-y-0 bg-black overflow-hidden flex items-center justify-center"
         >
-          {/* Stacked video elements — all rendered for preload, visibility via opacity */}
-          {videoClips.map((clip) => {
-            const isActive = activeVideoClipIds.has(clip.id);
-            const heavyPreload = videoClipNeedsHeavyPreload(
-              clip,
-              currentTimeMs,
-              videoTransitions,
-              videoClips,
-              activeVideoClipIds,
-            );
-            const isDisabled = clip.enabled === false;
-
-            // Merge effect hover preview (non-destructive, display only)
-            const preview =
-              effectPreviewOverride?.clipId === clip.id
-                ? effectPreviewOverride.patch
-                : null;
-            const contrast = preview?.contrast ?? clip.contrast;
-            const warmth = preview?.warmth ?? clip.warmth;
-            const baseOpacity = preview?.opacity ?? clip.opacity ?? 1;
-
-            const outgoing = getOutgoingTransitionStyle(clip, videoTransitions, currentTimeMs);
-            const incoming = getIncomingTransitionStyle(clip, videoTransitions, videoClips, currentTimeMs);
-
-            // Determine final opacity
-            let opacity: number;
-            if (isDisabled) {
-              opacity = 0;
-            } else if (outgoing.opacity !== undefined) {
-              opacity = outgoing.opacity as number;
-            } else if (incoming?.opacity !== undefined) {
-              opacity = incoming.opacity as number;
-            } else {
-              opacity = isActive ? baseOpacity : 0;
-            }
-
-            const clipPath = incoming?.clipPath as string | undefined;
-
-            const transform =
-              (outgoing.transform as string | undefined) ??
-              `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`;
-
-            const filterParts: string[] = [];
-            if (contrast !== undefined && contrast !== 0) {
-              filterParts.push(`contrast(${1 + contrast / 100})`);
-            }
-            if (warmth !== undefined && warmth !== 0) {
-              filterParts.push(buildWarmthFilter(warmth));
-            }
+          {/* Layered video tracks — Track 0 at bottom, Track N at top */}
+          {videoTracks.map((videoTrack, trackIdx) => {
+            const trackClips = videoTrack.clips;
+            const trackTransitions = videoTrack.transitions ?? [];
+            const activeIds = activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();
 
             return (
-              <video
-                key={clip.id}
-                ref={(el) => {
-                  if (el) videoRefs.current.set(clip.id, el);
-                  else videoRefs.current.delete(clip.id);
-                }}
-                src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
-                className="absolute inset-0 w-full h-full object-contain"
-                style={{
-                  opacity,
-                  clipPath,
-                  filter: filterParts.join(" ") || undefined,
-                  transform,
-                }}
-                playsInline
-                preload={heavyPreload ? "auto" : "metadata"}
-              />
+              <div
+                key={videoTrack.id}
+                className="absolute inset-0"
+                style={{ zIndex: trackIdx }}
+              >
+                {trackClips.map((clip) => {
+                  const isActive = activeIds.has(clip.id);
+                  const heavyPreload = videoClipNeedsHeavyPreload(
+                    clip,
+                    currentTimeMs,
+                    trackTransitions,
+                    trackClips,
+                    activeIds,
+                  );
+                  const isDisabled = clip.enabled === false;
+
+                  // Merge effect hover preview (non-destructive, display only)
+                  const preview =
+                    effectPreviewOverride?.clipId === clip.id
+                      ? effectPreviewOverride.patch
+                      : null;
+                  const contrast = preview?.contrast ?? clip.contrast;
+                  const warmth = preview?.warmth ?? clip.warmth;
+                  const baseOpacity = preview?.opacity ?? clip.opacity ?? 1;
+
+                  const outgoing = getOutgoingTransitionStyle(clip, trackTransitions, currentTimeMs);
+                  const incoming = getIncomingTransitionStyle(clip, trackTransitions, trackClips, currentTimeMs);
+
+                  // Determine final opacity
+                  let opacity: number;
+                  if (isDisabled) {
+                    opacity = 0;
+                  } else if (outgoing.opacity !== undefined) {
+                    opacity = outgoing.opacity as number;
+                  } else if (incoming?.opacity !== undefined) {
+                    opacity = incoming.opacity as number;
+                  } else {
+                    opacity = isActive ? baseOpacity : 0;
+                  }
+
+                  const clipPath = incoming?.clipPath as string | undefined;
+
+                  const transform =
+                    (outgoing.transform as string | undefined) ??
+                    `scale(${clip.scale ?? 1}) translate(${clip.positionX ?? 0}px, ${clip.positionY ?? 0}px) rotate(${clip.rotation ?? 0}deg)`;
+
+                  const filterParts: string[] = [];
+                  if (contrast !== undefined && contrast !== 0) {
+                    filterParts.push(`contrast(${1 + contrast / 100})`);
+                  }
+                  if (warmth !== undefined && warmth !== 0) {
+                    filterParts.push(buildWarmthFilter(warmth));
+                  }
+
+                  return (
+                    <video
+                      key={clip.id}
+                      ref={(el) => {
+                        if (el) videoRefs.current.set(clip.id, el);
+                        else videoRefs.current.delete(clip.id);
+                      }}
+                      src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
+                      className="absolute inset-0 w-full h-full object-contain"
+                      style={{
+                        opacity,
+                        clipPath,
+                        filter: filterParts.join(" ") || undefined,
+                        transform,
+                      }}
+                      playsInline
+                      preload={heavyPreload ? "auto" : "metadata"}
+                    />
+                  );
+                })}
+              </div>
             );
           })}
 

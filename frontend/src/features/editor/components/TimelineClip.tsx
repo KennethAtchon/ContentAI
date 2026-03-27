@@ -1,10 +1,11 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Clip, Track, TrackType } from "../types/editor";
-import { useWaveform } from "../hooks/use-waveform";
+import { useWaveformData } from "../hooks/use-waveform-data";
+import { WaveformBars } from "./WaveformBars";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import {
   collectSnapTargets,
@@ -77,21 +78,15 @@ export function TimelineClip({
   const assetUrlMap = useAssetUrlMap();
   const isAudioTrack = trackType === "audio" || trackType === "music";
   const hasWaveform = isAudioTrack || trackType === "video";
-  const [waveformContainerEl, setWaveformContainerEl] =
-    useState<HTMLDivElement | null>(null);
-  const onWaveformContainerRef = useCallback((el: HTMLDivElement | null) => {
-    setWaveformContainerEl(el);
-  }, []);
   const isDisabled = clip.enabled === false;
 
-  useWaveform({
-    audioUrl: hasWaveform
-      ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
-      : undefined,
-    container: waveformContainerEl,
-    waveColor: color,
-    height: 32,
-  });
+  const waveformUrl = hasWaveform
+    ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
+    : undefined;
+  const { peaks, loading: waveformLoading } = useWaveformData(
+    hasWaveform ? (clip.assetId ?? undefined) : undefined,
+    waveformUrl
+  );
 
   const handleDragStart = (e: React.MouseEvent) => {
     if (isLocked || clip.isPlaceholder) return;
@@ -274,10 +269,7 @@ export function TimelineClip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
       >
         {hasWaveform ? (
-          <div
-            ref={onWaveformContainerRef}
-            className="absolute inset-0 opacity-30 pointer-events-none"
-          />
+          <WaveformBars peaks={peaks} loading={waveformLoading} color={color} />
         ) : (
           <svg
             className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"

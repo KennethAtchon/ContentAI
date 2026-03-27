@@ -15,30 +15,6 @@ This spec covers a phased set of improvements that fix the broken handoffs, upgr
 
 ---
 
-
-### 1.4 Multiple Video Timeline Tracks (Prevent Stacking, Enable Layering)
-
-**What's happening:** Right now there is only one video track. If the user or the AI tries to place two clips at the same time (e.g., a background clip + a foreground overlay), there is nowhere for the second clip to go. The result is stacking (collision) with no visual feedback.
-
-**Why it matters:** Short-form creators commonly need at least two video layers — a background shot and a talking-head overlay, or a product shot with a reaction clip. Even if AI assembly does not use multiple layers initially, users manually want this capability. More importantly, preventing the stacking bug requires a structural answer.
-
-**The correct behavior:**
-- The video section of the timeline supports multiple video track lanes (minimum: Video 1, Video 2)
-- Each lane is a separate row in the timeline UI
-- Lanes are scrollable vertically if more are added (scales up to 4-5 lanes without UI collapse)
-- The "Add Video Track" button adds a new lane
-- The AI assembly pipeline defaults to Video Track 1 and never puts two clips on the same track at the same time
-- If a collision is detected on import/assembly, the second clip is automatically promoted to the next available track lane
-
-**User experience:**
-1. User opens editor — sees Video 1 track with their AI-generated shots in order
-2. User drags an uploaded clip from the media panel — can drop it onto Video 1 (at a gap) or Video 2 (for overlay)
-3. The two video tracks composite in the preview (Video 2 renders on top of Video 1)
-4. Vertical scrolling on the timeline lets users see all tracks if they've added several
-
-
----
-
 ### 1.6 Missing Waveforms on Voiceover and Shot Audio
 
 **What's happening:** The waveform visualization (the amplitude graph that shows where audio peaks) is absent from voiceover clips and shot clips with embedded audio. The clips display as flat colored blocks with no indication of where speech or audio events occur.
@@ -55,11 +31,6 @@ This spec covers a phased set of improvements that fix the broken handoffs, upgr
 
 ## Section 2 — Caption System Overhaul
 
-### 2.1 The Problem with "Text"
-
-The current "Text" tab in the media panel offers three options: Title, Subtitle, Caption. These are format options (size/position of a text element), not themes. Reel creators do not think "I want a Title" — they think "I want that bold yellow word-by-word caption style" or "I want the clean white text with a dark box behind it."
-
-The naming is wrong. The taxonomy is wrong. And the tab is called "Text" when the actual use case is almost exclusively captions.
 
 ### 2.2 What Creators Actually Use
 

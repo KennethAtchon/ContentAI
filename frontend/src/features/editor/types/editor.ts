@@ -136,6 +136,11 @@ export type EditorAction =
   | { type: "SET_ZOOM"; zoom: number }
   | { type: "SELECT_CLIP"; clipId: string | null }
   | { type: "ADD_CLIP"; trackId: string; clip: Clip }
+  | {
+      type: "ADD_CLIP_AUTO_PROMOTE";
+      preferredTrackId: string;
+      clip: Clip;
+    }
   | { type: "UPDATE_CLIP"; clipId: string; patch: Partial<Clip> }
   | { type: "REMOVE_CLIP"; clipId: string }
   | { type: "RIPPLE_DELETE_CLIP"; clipId: string }

@@ -1,6 +1,23 @@
 import type { Track, Clip } from "../types/editor";
 
 /**
+ * Returns true if placing a clip at [startMs, startMs+durationMs) would
+ * overlap any existing clip on the track (optionally excluding one clip by id).
+ */
+export function hasCollision(
+  track: Track,
+  startMs: number,
+  durationMs: number,
+  excludeClipId?: string
+): boolean {
+  const end = startMs + durationMs;
+  return track.clips.some((c) => {
+    if (excludeClipId && c.id === excludeClipId) return false;
+    return startMs < c.startMs + c.durationMs && end > c.startMs;
+  });
+}
+
+/**
  * Returns the nearest non-overlapping startMs for a clip being moved.
  * If the proposed position collides with another clip, snaps to just before
  * or just after the blocking clip — whichever is closer to the proposed position.

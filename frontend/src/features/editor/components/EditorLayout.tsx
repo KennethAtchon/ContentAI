@@ -290,8 +290,8 @@ export function EditorLayout({ project, onBack }: Props) {
 
   // ── Clip actions (trigger auto-save via tracks effect) ──────────────────────
   const handleAddClip = useCallback(
-    (trackId: string, clip: Clip) => store.addClip(trackId, clip),
-    [store.addClip]
+    (trackId: string, clip: Clip) => store.addClipAutoPromote(trackId, clip),
+    [store.addClipAutoPromote]
   );
 
   const handleUpdateClip = useCallback(
