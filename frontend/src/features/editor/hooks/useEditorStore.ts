@@ -587,7 +587,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
 
     case "REORDER_SHOTS": {
-      const videoTrack = state.tracks.find((t) => t.type === "video");
+      const videoTrack = state.tracks.find((t) => t.id === action.trackId);
       if (!videoTrack) return state;
 
       const clipMap = new Map(videoTrack.clips.map((c) => [c.id, c]));
@@ -615,7 +615,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       });
 
       const newTracks = state.tracks.map((t) =>
-        t.type === "video"
+        t.id === action.trackId
           ? { ...t, clips: reorderedClips, transitions: newTransitions }
           : t
       );
@@ -651,10 +651,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "MERGE_TRACKS_FROM_SERVER": {
       const serverTracks = action.tracks;
       const merged = state.tracks.map((localTrack) => {
-        // Match by id first (preserves user-added extra tracks), fall back to type
-        const serverTrack =
-          serverTracks.find((t) => t.id === localTrack.id) ??
-          serverTracks.find((t) => t.type === localTrack.type);
+        // Match by id only — type fallback would corrupt secondary video tracks
+        const serverTrack = serverTracks.find((t) => t.id === localTrack.id);
         if (!serverTrack) return localTrack;
 
         if (localTrack.type === "video") {
@@ -724,11 +722,32 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
 
     case "ADD_TRACK": {
+      let newTracks: Track[];
+      if (action.track.type === "video") {
+        let insertAt: number;
+        if (action.afterTrackId) {
+          const idx = state.tracks.findIndex((t) => t.id === action.afterTrackId);
+          insertAt = idx >= 0 ? idx + 1 : state.tracks.length;
+        } else {
+          const lastVideoIdx = state.tracks.reduce(
+            (last, t, i) => (t.type === "video" ? i : last),
+            -1,
+          );
+          insertAt = lastVideoIdx >= 0 ? lastVideoIdx + 1 : state.tracks.length;
+        }
+        newTracks = [
+          ...state.tracks.slice(0, insertAt),
+          action.track,
+          ...state.tracks.slice(insertAt),
+        ];
+      } else {
+        newTracks = [...state.tracks, action.track];
+      }
       return {
         ...state,
         past: [...state.past, state.tracks].slice(-50),
         future: [],
-        tracks: [...state.tracks, action.track],
+        tracks: newTracks,
       };
     }
 
@@ -745,6 +764,26 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           ?.clips.some((c) => c.id === state.selectedClipId)
           ? null
           : state.selectedClipId,
+      };
+    }
+
+    case "RENAME_TRACK": {
+      return {
+        ...state,
+        tracks: state.tracks.map((t) =>
+          t.id === action.trackId ? { ...t, name: action.name } : t
+        ),
+      };
+    }
+
+    case "REORDER_TRACKS": {
+      const trackMap = new Map(state.tracks.map((t) => [t.id, t]));
+      const newTracks = action.trackIds.map((id) => trackMap.get(id)!).filter(Boolean);
+      return {
+        ...state,
+        past: [...state.past, state.tracks].slice(-50),
+        future: [],
+        tracks: newTracks,
       };
     }
 
@@ -887,7 +926,8 @@ export function useEditorReducer() {
     []
   );
   const reorderShots = useCallback(
-    (clipIds: string[]) => dispatch({ type: "REORDER_SHOTS", clipIds }),
+    (trackId: string, clipIds: string[]) =>
+      dispatch({ type: "REORDER_SHOTS", trackId, clipIds }),
     []
   );
   const addClipAutoPromote = useCallback(
@@ -895,7 +935,7 @@ export function useEditorReducer() {
       dispatch({ type: "ADD_CLIP_AUTO_PROMOTE", preferredTrackId, clip }),
     []
   );
-  const addVideoTrack = useCallback(() => {
+  const addVideoTrack = useCallback((afterTrackId: string) => {
     const videoCount = state.tracks.filter((t) => t.type === "video").length;
     const track: Track = {
       id: crypto.randomUUID(),
@@ -906,10 +946,18 @@ export function useEditorReducer() {
       clips: [],
       transitions: [],
     };
-    dispatch({ type: "ADD_TRACK", track });
+    dispatch({ type: "ADD_TRACK", track, afterTrackId });
   }, [state.tracks]);
   const removeTrack = useCallback(
     (trackId: string) => dispatch({ type: "REMOVE_TRACK", trackId }),
+    []
+  );
+  const renameTrack = useCallback(
+    (trackId: string, name: string) => dispatch({ type: "RENAME_TRACK", trackId, name }),
+    []
+  );
+  const reorderTracks = useCallback(
+    (trackIds: string[]) => dispatch({ type: "REORDER_TRACKS", trackIds }),
     []
   );
 
@@ -947,6 +995,8 @@ export function useEditorReducer() {
     addClipAutoPromote,
     addVideoTrack,
     removeTrack,
+    renameTrack,
+    reorderTracks,
   };
 }
 

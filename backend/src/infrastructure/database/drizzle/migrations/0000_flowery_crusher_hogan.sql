@@ -88,6 +88,7 @@ CREATE TABLE "edit_project" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"status" text DEFAULT 'draft' NOT NULL,
 	"published_at" timestamp,
+	"user_has_edited" boolean DEFAULT false NOT NULL,
 	"parent_project_id" text
 );
 --> statement-breakpoint

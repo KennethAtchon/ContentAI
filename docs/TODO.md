@@ -68,3 +68,10 @@ HAVE to reload the page in order for my projects in /studio/generate to show, an
 their max size which makes no sense, we should just allow *duplicating* the clip onto the timeline. Every clip needs a max clip. Also a  
 bug: When duplicating clips, it causes them to overlap (we want to strictly enforce clips not overlapping in the same track, and fix it  
 when it happens, duplicates should append at the END) 
+
+
+
+alot bugs popped up when u were implementing: /home/kenneth/Documents/Workplace/ContentAI/docs/architecture/lld-multi-video-tracks.md  
+too, the add new track button is at the bottom...why? just put it in the side with the lock buttons...also the tracks need to be         
+scrollable...also when u add a new video track it supports to appear BELOW the existing one not at the end...also ensure video tracks    
+dont mess up each others state    

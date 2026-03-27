@@ -38,7 +38,10 @@ import { MediaPanel } from "./MediaPanel";
 import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
-import type { EditProject, Clip, Track } from "../types/editor";
+import type { EditProject, Clip, Track, TrackType } from "../types/editor";
+import type { TabKey } from "./MediaPanel";
+import { hasCollision } from "../utils/clip-constraints";
+import { toast } from "sonner";
 import {
   EDITOR_AUTOSAVE_DEBOUNCE_MS,
   EDITOR_AUTOSAVE_INTERVAL_MS,
@@ -92,6 +95,7 @@ export function EditorLayout({ project, onBack }: Props) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSavingPatchRef = useRef(false);
+  const isReadOnlyRef = useRef(store.state.isReadOnly);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const lastHandledServerUpdatedAt = useRef(project.updatedAt);
@@ -183,6 +187,8 @@ export function EditorLayout({ project, onBack }: Props) {
   // ── Auto-save ───────────────────────────────────────────────────────────────
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [mediaActiveTab, setMediaActiveTab] = useState<TabKey>("media");
+  const [pendingAdd, setPendingAdd] = useState<{ trackId: string; startMs: number } | null>(null);
 
   const {
     mutate: queueSave,
@@ -198,6 +204,7 @@ export function EditorLayout({ project, onBack }: Props) {
     },
   });
   isSavingPatchRef.current = isSavingPatch;
+  isReadOnlyRef.current = store.state.isReadOnly;
 
   const { mutateAsync: runPublish, isPending: isPublishing } = useMutation({
     mutationFn: () => publishEditorProject(project.id),
@@ -269,7 +276,19 @@ export function EditorLayout({ project, onBack }: Props) {
 
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (!saveTimerRef.current) return;
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      if (isReadOnlyRef.current) return;
+      // Flush the pending debounced save immediately so edits made within the
+      // last 2 s before navigating away are not silently dropped.
+      const snap = editorPublishStateRef.current;
+      queueSave({
+        tracks: stripLocallyModifiedFromTracks(snap.tracks),
+        durationMs: snap.durationMs,
+        title: snap.title,
+        resolution: snap.resolution,
+      });
     };
   }, []);
 
@@ -290,8 +309,16 @@ export function EditorLayout({ project, onBack }: Props) {
 
   // ── Clip actions (trigger auto-save via tracks effect) ──────────────────────
   const handleAddClip = useCallback(
-    (trackId: string, clip: Clip) => store.addClipAutoPromote(trackId, clip),
-    [store.addClipAutoPromote]
+    (trackId: string, clip: Clip) => {
+      const track = store.state.tracks.find((t) => t.id === trackId);
+      if (track && hasCollision(track, clip.startMs, clip.durationMs)) {
+        toast.error("There's already a clip at that position");
+        setPendingAdd(null);
+        return;
+      }
+      store.addClipAutoPromote(trackId, clip);
+    },
+    [store.addClipAutoPromote, store.state.tracks]
   );
 
   const handleUpdateClip = useCallback(
@@ -347,6 +374,16 @@ export function EditorLayout({ project, onBack }: Props) {
     (clipId: string, speed: number) =>
       store.updateClip(clipId, { speed }),
     [store.updateClip]
+  );
+
+  const handleFocusMediaForTrack = useCallback(
+    (trackType: TrackType, trackId: string, startMs: number) => {
+      setPendingAdd({ trackId, startMs });
+      setMediaActiveTab(
+        trackType === "audio" || trackType === "music" ? "audio" : "media"
+      );
+    },
+    []
   );
 
   const handleSelectTransition = useCallback(
@@ -959,6 +996,10 @@ export function EditorLayout({ project, onBack }: Props) {
             onReorder={store.reorderShots}
             onAddCaptionClip={store.addCaptionClip}
             readOnly={state.isReadOnly}
+            activeTab={mediaActiveTab}
+            onTabChange={setMediaActiveTab}
+            pendingAdd={pendingAdd}
+            onClearPendingAdd={() => setPendingAdd(null)}
           />
 
           <PreviewArea
@@ -1042,7 +1083,10 @@ export function EditorLayout({ project, onBack }: Props) {
               onClipSetSpeed={handleClipSetSpeed}
               onAddVideoTrack={store.addVideoTrack}
               onRemoveTrack={store.removeTrack}
+              onRenameTrack={store.renameTrack}
+              onReorderTracks={store.reorderTracks}
               scrollRef={timelineScrollRef}
+              onFocusMediaForTrack={handleFocusMediaForTrack}
             />
           </div>
         </div>

@@ -114,6 +114,8 @@ export function reconcileVideoClipsWithoutPlaceholders(
 ): TimelineClipJson[] {
   const sortedPool = [...videoPool].sort(sortVideoAssetsByShot);
   const consumedIds = new Set<string>();
+  // cursor is only applied to newly-inserted clips that have no prior position.
+  // For existing clips we preserve their startMs and advance cursor past them.
   let cursor = 0;
   const result: TimelineClipJson[] = [];
 
@@ -143,10 +145,12 @@ export function reconcileVideoClipsWithoutPlaceholders(
     if (existing) {
       const trimEnd = Math.min(Number(existing.trimEndMs ?? dur), dur);
       const trimStart = Math.min(Number(existing.trimStartMs ?? 0), trimEnd);
+      // Preserve the user's startMs — do NOT overwrite with cursor.
+      const preservedStartMs = Number(existing.startMs ?? cursor);
       result.push({
         ...existing,
         assetId: asset.id,
-        startMs: cursor,
+        startMs: preservedStartMs,
         durationMs: dur,
         trimStartMs: trimStart,
         trimEndMs: trimEnd,
@@ -156,7 +160,11 @@ export function reconcileVideoClipsWithoutPlaceholders(
             : genPrompt ??
               `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
       });
+      // Advance cursor past this clip so any new clips inserted after it
+      // don't land before or inside it.
+      cursor = Math.max(cursor, preservedStartMs + dur);
     } else {
+      // Genuinely new asset: place it at cursor (end of what we know so far).
       result.push({
         id: crypto.randomUUID(),
         assetId: asset.id,
@@ -178,8 +186,8 @@ export function reconcileVideoClipsWithoutPlaceholders(
         volume: 1,
         muted: false,
       });
+      cursor += dur;
     }
-    cursor += dur;
   }
   return result;
 }
@@ -270,11 +278,22 @@ export function mergePlaceholdersWithRealClips(
         (c) => typeof c.id === "string" && !c.id.startsWith("voiceover-"),
       );
       const dur = voiceover.durationMs ?? spanMs;
-      return {
-        ...track,
-        clips: [
-          ...nonVoiceoverClips,
-          {
+      // Preserve all user-edited fields if this is the same asset.
+      const existingVoiceover = track.clips.find(
+        (c) =>
+          typeof c.id === "string" &&
+          c.id.startsWith("voiceover-") &&
+          c.assetId === voiceover.id,
+      );
+      const voiceoverClip = existingVoiceover
+        ? {
+            ...existingVoiceover,
+            assetId: voiceover.id,
+            durationMs: dur,
+            trimStartMs: Math.min(Number(existingVoiceover.trimStartMs ?? 0), dur),
+            trimEndMs: Math.min(Number(existingVoiceover.trimEndMs ?? dur), dur),
+          }
+        : {
             id: `voiceover-${voiceover.id}`,
             assetId: voiceover.id,
             label: "Voiceover",
@@ -292,9 +311,8 @@ export function mergePlaceholdersWithRealClips(
             rotation: 0,
             volume: 1,
             muted: false,
-          },
-        ],
-      };
+          };
+      return { ...track, clips: [...nonVoiceoverClips, voiceoverClip] };
     }
 
     if (track.type === "music") {
@@ -303,11 +321,22 @@ export function mergePlaceholdersWithRealClips(
         (c) => typeof c.id === "string" && !c.id.startsWith("music-"),
       );
       const dur = music.durationMs ?? spanMs;
-      return {
-        ...track,
-        clips: [
-          ...nonMusicClips,
-          {
+      // Preserve all user-edited fields (volume, startMs, trim) if same asset.
+      const existingMusic = track.clips.find(
+        (c) =>
+          typeof c.id === "string" &&
+          c.id.startsWith("music-") &&
+          c.assetId === music.id,
+      );
+      const musicClip = existingMusic
+        ? {
+            ...existingMusic,
+            assetId: music.id,
+            durationMs: dur,
+            trimStartMs: Math.min(Number(existingMusic.trimStartMs ?? 0), dur),
+            trimEndMs: Math.min(Number(existingMusic.trimEndMs ?? dur), dur),
+          }
+        : {
             id: `music-${music.id}`,
             assetId: music.id,
             label: "Music",
@@ -325,9 +354,8 @@ export function mergePlaceholdersWithRealClips(
             rotation: 0,
             volume: 0.3,
             muted: false,
-          },
-        ],
-      };
+          };
+      return { ...track, clips: [...nonMusicClips, musicClip] };
     }
 
     return track;
@@ -404,6 +432,46 @@ export async function refreshEditorTimeline(
     const music = assetRows.find((a) => a.role === "background_music");
 
     const currentTracks = project.tracks as TimelineTrackJson[];
+
+    // Early-exit: skip the merge and DB write if no assets have changed.
+    const incomingVideoIds = new Set(videoClipRows.map((a) => a.id));
+    const incomingVoiceoverId = voiceover?.id ?? null;
+    const incomingMusicId = music?.id ?? null;
+
+    const videoTrack = currentTracks.find((t) => t.type === "video");
+    const audioTrack = currentTracks.find((t) => t.type === "audio");
+    const musicTrack = currentTracks.find((t) => t.type === "music");
+
+    const existingVideoIds = new Set(
+      (videoTrack?.clips ?? [])
+        .filter((c) => c.isPlaceholder !== true && typeof c.assetId === "string")
+        .map((c) => c.assetId as string),
+    );
+    const existingVoiceoverId =
+      audioTrack?.clips.find(
+        (c) => typeof c.id === "string" && c.id.startsWith("voiceover-"),
+      )?.assetId ?? null;
+    const existingMusicId =
+      musicTrack?.clips.find(
+        (c) => typeof c.id === "string" && c.id.startsWith("music-"),
+      )?.assetId ?? null;
+
+    const hasPlaceholders = (videoTrack?.clips ?? []).some(
+      (c) => c.isPlaceholder === true,
+    );
+    const videoIdsMatch =
+      incomingVideoIds.size === existingVideoIds.size &&
+      [...incomingVideoIds].every((id) => existingVideoIds.has(id));
+
+    if (
+      videoIdsMatch &&
+      incomingVoiceoverId === existingVoiceoverId &&
+      incomingMusicId === existingMusicId &&
+      !hasPlaceholders
+    ) {
+      return; // Nothing changed — skip merge and DB write.
+    }
+
     const updatedTracks = mergePlaceholdersWithRealClips(
       currentTracks,
       videoClipRows,

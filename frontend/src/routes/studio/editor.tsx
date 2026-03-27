@@ -92,12 +92,20 @@ function EditorPage() {
     },
   });
 
-  // Auto-trigger upsert when contentId is in the URL
+  // Auto-trigger upsert when contentId is in the URL.
+  // Wait for the projects list to finish loading before deciding whether to POST —
+  // otherwise an empty-while-loading list would incorrectly trigger a create.
   useEffect(() => {
-    if (contentId && !activeProject && !isOpeningContent) {
+    if (!contentId || activeProject || isOpeningContent || isLoading) return;
+    const existing = projects.find((p) => p.generatedContentId === contentId);
+    if (existing) {
+      // Project already exists — open it directly, no POST needed.
+      setActiveProject(existing);
+    } else {
+      // First time opening this content — upsert to build the initial timeline.
       openByContentId(contentId);
     }
-  }, [contentId]);
+  }, [contentId, isLoading, projects]);
 
   // Create blank project
   const { mutate: createProject, isPending: isCreating } = useMutation({

@@ -336,7 +336,7 @@ export function PreviewArea({
               <div
                 key={videoTrack.id}
                 className="absolute inset-0"
-                style={{ zIndex: trackIdx }}
+                style={{ zIndex: videoTracks.length - 1 - trackIdx }}
               >
                 {trackClips.map((clip) => {
                   const isActive = activeIds.has(clip.id);

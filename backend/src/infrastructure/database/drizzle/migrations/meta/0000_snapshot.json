@@ -1,5 +1,5 @@
 {
-  "id": "41be1187-cd0e-401f-bd4a-7e685a7d4f92",
+  "id": "59859bb1-2998-4f8e-b3ab-9c868e1ab737",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -873,6 +873,13 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "user_has_edited": {
+          "name": "user_has_edited",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "parent_project_id": {
           "name": "parent_project_id",

@@ -39,12 +39,16 @@ interface Props {
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
   onEffectPreview?: (patch: Partial<Clip> | null) => void;
   videoTrack?: Track;
-  onReorder?: (clipIds: string[]) => void;
+  onReorder?: (trackId: string, clipIds: string[]) => void;
   onAddCaptionClip?: (params: AddCaptionClipParams) => void;
   readOnly?: boolean;
+  activeTab: TabKey;
+  onTabChange: (tab: TabKey) => void;
+  pendingAdd: { trackId: string; startMs: number } | null;
+  onClearPendingAdd: () => void;
 }
 
-type TabKey = "media" | "effects" | "audio" | "text" | "shots";
+export type TabKey = "media" | "effects" | "audio" | "text" | "shots";
 
 const EFFECT_DEFINITIONS: {
   id: string;
@@ -125,10 +129,13 @@ export function MediaPanel({
   onReorder,
   onAddCaptionClip,
   readOnly,
+  activeTab,
+  onTabChange,
+  pendingAdd,
+  onClearPendingAdd,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
-  const [activeTab, setActiveTab] = useState<TabKey>("media");
   const [search, setSearch] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState("clean-white");
   const autoCaption = useAutoCaption();
@@ -163,21 +170,23 @@ export function MediaPanel({
     const clip = makeClip({
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
-      startMs: currentTimeMs,
+      startMs: pendingAdd?.startMs ?? currentTimeMs,
       durationMs: asset.durationMs ?? 5000,
     });
-    onAddClip("video", clip);
+    onAddClip(pendingAdd?.trackId ?? "video", clip);
+    onClearPendingAdd();
   };
 
   const addAudioClip = (asset: Asset) => {
-    const trackId = asset.type === "music" ? "music" : "audio";
+    const defaultTrackId = asset.type === "music" ? "music" : "audio";
     const clip = makeClip({
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
-      startMs: currentTimeMs,
+      startMs: pendingAdd?.startMs ?? currentTimeMs,
       durationMs: asset.durationMs ?? 30000,
     });
-    onAddClip(trackId, clip);
+    onAddClip(pendingAdd?.trackId ?? defaultTrackId, clip);
+    onClearPendingAdd();
   };
 
   const applyEffect = (effect: (typeof EFFECT_DEFINITIONS)[0]) => {
@@ -218,12 +227,27 @@ export function MediaPanel({
       className="flex flex-col h-full border-r border-overlay-sm bg-studio-surface"
       style={{ width: 220 }}
     >
+      {/* Pending add position banner */}
+      {pendingAdd !== null && (
+        <div className="px-3 py-1.5 bg-studio-accent/10 border-b border-studio-accent/30 flex items-center justify-between shrink-0">
+          <span className="text-[10px] text-studio-accent font-medium">
+            Pick an asset — placing at {(pendingAdd.startMs / 1000).toFixed(1)}s
+          </span>
+          <button
+            onClick={onClearPendingAdd}
+            className="text-studio-accent/60 hover:text-studio-accent text-[10px] border-0 bg-transparent cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex border-b border-overlay-sm shrink-0">
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => onTabChange(tab.key)}
             className={cn(
               "flex-1 py-2 text-[11px] font-medium border-0 cursor-pointer transition-colors bg-transparent border-b-2",
               activeTab === tab.key

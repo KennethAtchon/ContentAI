@@ -174,9 +174,11 @@ export type EditorAction =
       durationMs: number;
     }
   | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
-  | { type: "REORDER_SHOTS"; clipIds: string[] }
-  | { type: "ADD_TRACK"; track: Track }
+  | { type: "REORDER_SHOTS"; trackId: string; clipIds: string[] }
+  | { type: "ADD_TRACK"; track: Track; afterTrackId?: string }
   | { type: "REMOVE_TRACK"; trackId: string }
+  | { type: "RENAME_TRACK"; trackId: string; name: string }
+  | { type: "REORDER_TRACKS"; trackIds: string[] }
   | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] };
 
 export const TRACK_COLORS: Record<TrackType, string> = {

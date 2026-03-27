@@ -21,7 +21,7 @@ import type { Track, Clip } from "../types/editor";
 
 interface ShotOrderPanelProps {
   videoTrack: Track;
-  onReorder: (clipIds: string[]) => void;
+  onReorder: (trackId: string, clipIds: string[]) => void;
   readOnly?: boolean;
 }
 
@@ -98,7 +98,7 @@ export function ShotOrderPanel({
     const oldIndex = clipIds.indexOf(active.id as string);
     const newIndex = clipIds.indexOf(over.id as string);
     const newOrder = arrayMove(clipIds, oldIndex, newIndex);
-    onReorder(newOrder);
+    onReorder(videoTrack.id, newOrder);
   }
 
   if (clips.length === 0) {

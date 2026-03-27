@@ -366,18 +366,9 @@ app.post(
               ? { title: contentRow.generatedHook.slice(0, 60) }
               : {};
 
-          // Only rebuild the timeline if the project has no user content yet.
-          // If the user has already arranged clips, preserve their edits.
-          const existingTracks = existing.tracks as
-            | { clips?: unknown[] }[]
-            | null;
-          const hasUserTracks =
-            Array.isArray(existingTracks) &&
-            existingTracks.some(
-              (t) => Array.isArray(t.clips) && t.clips.length > 0,
-            );
-
-          if (!hasUserTracks) {
+          // Only rebuild the timeline if the user has never actively edited
+          // this project (i.e. never triggered an auto-save PATCH).
+          if (!existing.userHasEdited) {
             const { tracks, durationMs } = await buildInitialTimeline(
               generatedContentId,
               auth.user.id,
@@ -564,6 +555,7 @@ app.patch(
       }
 
       const updateData: Record<string, unknown> = {};
+      updateData.userHasEdited = true;
       if (parsed.data.title !== undefined) {
         updateData.title = parsed.data.title;
         if (parsed.data.title !== existing.title) {

@@ -9,7 +9,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shared/components/ui/context-menu";
-import type { Clip, Track, Transition } from "../types/editor";
+import type { Clip, Track, TrackType, Transition } from "../types/editor";
 
 // ── Clip context menu ──────────────────────────────────────────────────────────
 
@@ -134,25 +134,45 @@ export function PlaceholderContextMenu({
 
 // ── Track area context menu (right-click on empty track space) ─────────────────
 
+const ADD_CLIP_LABELS: Record<TrackType, string> = {
+  video: "Add Video Clip at Position",
+  audio: "Add Audio Clip at Position",
+  music: "Add Music Clip at Position",
+  text: "Add Text Clip at Position",
+};
+
 interface TrackAreaContextMenuProps {
   children: React.ReactNode;
+  trackType: TrackType;
   hasClipboard: boolean;
+  onAddClip: () => void;
   onPaste: () => void;
 }
 
 export function TrackAreaContextMenu({
   children,
+  trackType,
   hasClipboard,
+  onAddClip,
   onPaste,
 }: TrackAreaContextMenuProps) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
-        <ContextMenuItem onSelect={onPaste} disabled={!hasClipboard}>
-          Paste Here
-          <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+      <ContextMenuContent className="w-56">
+        <ContextMenuItem onSelect={onAddClip}>
+          {ADD_CLIP_LABELS[trackType]}
         </ContextMenuItem>
+
+        {hasClipboard && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={onPaste}>
+              Paste Clip Here
+              <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

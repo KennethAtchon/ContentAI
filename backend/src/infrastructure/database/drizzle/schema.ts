@@ -503,6 +503,7 @@ export const editProjects = pgTable(
     status: text("status").notNull().default("draft"),
     // "draft" | "published"
     publishedAt: timestamp("published_at"),
+    userHasEdited: boolean("user_has_edited").notNull().default(false),
     parentProjectId: text("parent_project_id").references(
       (): AnyPgColumn => editProjects.id,
       { onDelete: "cascade" },
