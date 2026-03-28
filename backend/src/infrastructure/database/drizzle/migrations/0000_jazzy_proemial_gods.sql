@@ -90,6 +90,7 @@ CREATE TABLE "edit_project" (
 	"published_at" timestamp,
 	"user_has_edited" boolean DEFAULT false NOT NULL,
 	"merged_asset_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"thumbnail_url" text,
 	"parent_project_id" text
 );
 --> statement-breakpoint

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ImagePlus } from "lucide-react";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
@@ -12,6 +13,7 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 import { useApp } from "@/shared/contexts/app-context";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import { EditorLayout } from "@/features/editor/components/EditorLayout";
+import { uploadProjectThumbnail } from "@/features/editor/services/editor-api";
 import type { EditProject } from "@/features/editor/types/editor";
 
 interface ProjectGroup {
@@ -55,6 +57,135 @@ function groupByVersion(projects: EditProject[]): ProjectGroup[] {
   });
 
   return result;
+}
+
+interface ProjectCardProps {
+  proj: EditProject;
+  vIdx: number;
+  groupVersionsLength: number;
+  onOpen: () => void;
+  onOpenInChat: () => void;
+  isLinking: boolean;
+  onDelete: () => void;
+  onThumbnailChange: (url: string) => void;
+  t: (key: string) => string;
+}
+
+function ProjectCard({
+  proj,
+  vIdx,
+  groupVersionsLength,
+  onOpen,
+  onOpenInChat,
+  isLinking,
+  onDelete,
+  onThumbnailChange,
+  t,
+}: ProjectCardProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const result = await uploadProjectThumbnail(proj.id, file);
+      onThumbnailChange(result.thumbnailUrl);
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  return (
+    <div className="group relative flex flex-col gap-3 p-4 rounded-xl bg-studio-surface border border-overlay-sm hover:border-overlay-md transition-colors">
+      {/* Thumbnail */}
+      <div className="relative aspect-video bg-overlay-sm rounded-lg overflow-hidden">
+        {proj.thumbnailUrl ? (
+          <img
+            src={proj.thumbnailUrl}
+            alt={proj.generatedHook ?? proj.title ?? "Project thumbnail"}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full">
+            <span className="text-2xl opacity-20">✂</span>
+          </div>
+        )}
+        {/* Change thumbnail button — visible on hover */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          title="Change thumbnail"
+          className={[
+            "absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md",
+            "bg-black/60 text-white text-[10px] opacity-0 group-hover:opacity-100",
+            "transition-opacity cursor-pointer border-0 disabled:opacity-40",
+          ].join(" ")}
+        >
+          <ImagePlus size={11} />
+          {isUploading ? "Uploading…" : "Change"}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+          <p className="text-sm font-medium text-dim-1 truncate">
+            {proj.generatedHook ?? proj.title ?? t("editor_untitled")}
+          </p>
+          {groupVersionsLength > 1 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-overlay-md text-dim-3 uppercase tracking-wide shrink-0">
+              v{vIdx + 1}
+            </span>
+          )}
+          {proj.status === "published" && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 uppercase tracking-wide shrink-0">
+              {t("editor_status_published")}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-dim-3 mt-0.5">
+          {new Date(proj.updatedAt).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+          {" · "}
+          {(proj.durationMs / 1000).toFixed(0)}s
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={onOpen}
+          className="flex-1 py-1.5 text-xs rounded-lg bg-studio-accent/10 text-studio-accent border border-studio-accent/20 cursor-pointer hover:bg-studio-accent/15 transition-colors"
+        >
+          {t("editor_open_project")}
+        </button>
+        <button
+          onClick={onOpenInChat}
+          disabled={isLinking}
+          className="py-1.5 px-2.5 text-xs rounded-lg bg-overlay-sm text-dim-2 border border-overlay-md cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-50"
+        >
+          {t("editor_open_in_ai_chat")}
+        </button>
+        <button
+          onClick={onDelete}
+          className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
+        >
+          {t("editor_delete_project")}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /** URL search uses string query params; coerce so refresh and deep links work. */
@@ -331,76 +462,37 @@ function EditorPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {groups.map((group) =>
                     group.versions.map((proj, vIdx) => (
-                      <div
+                      <ProjectCard
                         key={proj.id}
-                        className="group relative flex flex-col gap-3 p-4 rounded-xl bg-studio-surface border border-overlay-sm hover:border-overlay-md transition-colors"
-                      >
-                        {/* Thumbnail placeholder */}
-                        <div className="aspect-video bg-overlay-sm rounded-lg flex items-center justify-center">
-                          <span className="text-2xl opacity-20">✂</span>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                            <p className="text-sm font-medium text-dim-1 truncate">
-                              {proj.generatedHook ??
-                                proj.title ??
-                                t("editor_untitled")}
-                            </p>
-                            {group.versions.length > 1 && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-overlay-md text-dim-3 uppercase tracking-wide shrink-0">
-                                v{vIdx + 1}
-                              </span>
-                            )}
-                            {proj.status === "published" && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/15 text-green-400 uppercase tracking-wide shrink-0">
-                                {t("editor_status_published")}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-dim-3 mt-0.5">
-                            {new Date(proj.updatedAt).toLocaleDateString(
-                              undefined,
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              }
-                            )}
-                            {" · "}
-                            {(proj.durationMs / 1000).toFixed(0)}s
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => void fetchAndOpen(proj.id)}
-                            className="flex-1 py-1.5 text-xs rounded-lg bg-studio-accent/10 text-studio-accent border border-studio-accent/20 cursor-pointer hover:bg-studio-accent/15 transition-colors"
-                          >
-                            {t("editor_open_project")}
-                          </button>
-                          <button
-                            onClick={() => openInAIChat(proj)}
-                            disabled={isLinking}
-                            className="py-1.5 px-2.5 text-xs rounded-lg bg-overlay-sm text-dim-2 border border-overlay-md cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-50"
-                          >
-                            {t("editor_open_in_ai_chat")}
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  `Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`
-                                )
-                              )
-                                deleteProject(proj.id);
-                            }}
-                            className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
-                          >
-                            {t("editor_delete_project")}
-                          </button>
-                        </div>
-                      </div>
+                        proj={proj}
+                        vIdx={vIdx}
+                        groupVersionsLength={group.versions.length}
+                        onOpen={() => void fetchAndOpen(proj.id)}
+                        onOpenInChat={() => openInAIChat(proj)}
+                        isLinking={isLinking}
+                        onDelete={() => {
+                          if (
+                            confirm(
+                              `Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`
+                            )
+                          )
+                            deleteProject(proj.id);
+                        }}
+                        onThumbnailChange={(url) => {
+                          queryClient.setQueryData(
+                            queryKeys.api.editorProjects(),
+                            (old: { projects: EditProject[] } | undefined) => {
+                              if (!old) return old;
+                              return {
+                                projects: old.projects.map((p) =>
+                                  p.id === proj.id ? { ...p, thumbnailUrl: url } : p
+                                ),
+                              };
+                            }
+                          );
+                        }}
+                        t={t}
+                      />
                     ))
                   )}
                 </div>

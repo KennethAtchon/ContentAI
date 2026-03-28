@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
 import type { Clip, Track } from "../types/editor";
@@ -45,6 +45,7 @@ export function PreviewArea({
   effectPreviewOverride,
 }: Props) {
   const { t } = useTranslation();
+  const outerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -52,6 +53,30 @@ export function PreviewArea({
   const assetUrlMap = useAssetUrlMap();
 
   const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
+
+  // Compute preview box dimensions that fit within the available space
+  // while maintaining the correct aspect ratio (portrait, landscape, square).
+  const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el) return;
+    const compute = () => {
+      // Reserve ~40px for the label row above and bottom info row below
+      const availW = el.clientWidth;
+      const availH = el.clientHeight - 40;
+      if (availW <= 0 || availH <= 0) return;
+      const ratio = resW / resH;
+      if (availW / availH >= ratio) {
+        setPreviewSize({ w: availH * ratio, h: availH });
+      } else {
+        setPreviewSize({ w: availW, h: availW / ratio });
+      }
+    };
+    compute();
+    const obs = new ResizeObserver(compute);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [resW, resH]);
 
   const videoTracks = tracks.filter((t) => t.type === "video");
   const audioTrack = tracks.find((t) => t.type === "audio");
@@ -235,17 +260,17 @@ export function PreviewArea({
   const total = formatMMSS(durationMs);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0">
+    <div ref={outerRef} className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0">
       <p className="text-[10px] font-semibold text-dim-3 mb-2 tracking-widest uppercase">
         {t("editor_preview_label")}
       </p>
 
-      {/* Preview screen — aspect ratio derived from resolution string */}
+      {/* Preview screen — dimensions computed by ResizeObserver to correctly contain any aspect ratio */}
       <div
-        className="relative w-full"
+        className="relative"
         style={{
-          aspectRatio: `${resW}/${resH}`,
-          maxHeight: "calc(100% - 40px)",
+          width: previewSize?.w ?? 0,
+          height: previewSize?.h ?? 0,
         }}
       >
         {/* Preview screen */}

@@ -73,6 +73,18 @@ export async function syncEditorProjectAssets(
   }>(`/api/editor/${id}/sync-assets`, { method: "POST" });
 }
 
+export async function uploadProjectThumbnail(
+  id: string,
+  blob: Blob,
+): Promise<{ thumbnailUrl: string }> {
+  const form = new FormData();
+  form.append("file", blob, "thumbnail.jpg");
+  return authenticatedFetchJson<{ thumbnailUrl: string }>(
+    `/api/editor/${id}/thumbnail`,
+    { method: "POST", body: form },
+  );
+}
+
 export async function deleteEditorProject(id: string): Promise<void> {
   await authenticatedFetchJson<void>(`/api/editor/${id}`, { method: "DELETE" });
 }

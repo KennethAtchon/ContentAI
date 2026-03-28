@@ -292,6 +292,7 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
         createdAt: editProjects.createdAt,
         updatedAt: editProjects.updatedAt,
         autoTitle: editProjects.autoTitle,
+        thumbnailUrl: editProjects.thumbnailUrl,
         // From linked generated_content — null for blank projects
         generatedHook: generatedContent.generatedHook,
         postCaption: generatedContent.postCaption,
@@ -572,6 +573,61 @@ app.patch(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to update edit project" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/thumbnail ─────────────────────────────────────────
+
+app.post(
+  "/:id/thumbnail",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+
+      const [existing] = await db
+        .select({ id: editProjects.id })
+        .from(editProjects)
+        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)))
+        .limit(1);
+
+      if (!existing) {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
+
+      const formData = await c.req.formData().catch(() => null);
+      const file = formData?.get("file");
+      if (!file || !(file instanceof File)) {
+        return c.json({ error: "Missing file field" }, 400);
+      }
+      if (!file.type.startsWith("image/")) {
+        return c.json({ error: "File must be an image" }, 400);
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return c.json({ error: "Image must be under 5 MB" }, 400);
+      }
+
+      const ext = file.type === "image/png" ? "png" : "jpg";
+      const r2Key = `thumbnails/editor/${auth.user.id}/${id}.${ext}`;
+      const thumbnailUrl = await uploadFile(file, r2Key, file.type);
+
+      await db
+        .update(editProjects)
+        .set({ thumbnailUrl })
+        .where(and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)));
+
+      return c.json({ thumbnailUrl });
+    } catch (error) {
+      debugLog.error("Failed to upload project thumbnail", {
+        service: "editor-route",
+        operation: "uploadThumbnail",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to upload thumbnail" }, 500);
     }
   },
 );

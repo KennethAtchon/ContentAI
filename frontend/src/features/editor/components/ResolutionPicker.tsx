@@ -51,7 +51,7 @@ export function ResolutionPicker({ resolution, onChange }: Props) {
         {ASPECT_RATIO_OPTIONS.map(({ label, ratios }) => (
           <button
             key={label}
-            onClick={() => onChange(ratios[1] ?? ratios[0])}
+            onClick={() => onChange(ratios[0])}
             className={cn(
               "px-2 py-1 text-xs transition-colors cursor-pointer",
               activeRatio === label

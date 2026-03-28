@@ -505,6 +505,7 @@ export const editProjects = pgTable(
     publishedAt: timestamp("published_at"),
     userHasEdited: boolean("user_has_edited").notNull().default(false),
     mergedAssetIds: jsonb("merged_asset_ids").$type<string[]>().notNull().default([]),
+    thumbnailUrl: text("thumbnail_url"),
     parentProjectId: text("parent_project_id").references(
       (): AnyPgColumn => editProjects.id,
       { onDelete: "cascade" },

@@ -1,5 +1,5 @@
 {
-  "id": "deb4d1c3-62d8-4664-964a-e56879f5b2b2",
+  "id": "02569216-b2ab-4f54-94e2-f49a2b487de4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -887,6 +887,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "thumbnail_url": {
+          "name": "thumbnail_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "parent_project_id": {
           "name": "parent_project_id",

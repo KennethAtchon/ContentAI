@@ -19,6 +19,7 @@ import {
   FilePlus,
   Check,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -46,6 +47,7 @@ import { hasCollision } from "../utils/clip-constraints";
 import { toast } from "sonner";
 import { formatHHMMSSFF, parseTimecode } from "../utils/timecode";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
+import { uploadProjectThumbnail } from "../services/editor-api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,6 +98,8 @@ export function EditorLayout({ project, onBack }: Props) {
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [isCapturingThumbnail, setIsCapturingThumbnail] = useState(false);
+  const thumbnailCapturedRef = useRef(false);
 
   const {
     scriptResetPending,
@@ -126,6 +130,80 @@ export function EditorLayout({ project, onBack }: Props) {
     }
     return map;
   }, [assetsData, libraryData]);
+
+  // ── Thumbnail capture ───────────────────────────────────────────────────────
+
+  function captureVideoFrame(url: string, timeMs: number): Promise<Blob | null> {
+    return new Promise<Blob | null>((resolve) => {
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.preload = "metadata";
+      const cleanup = () => { video.src = ""; };
+      video.addEventListener("error", () => { cleanup(); resolve(null); }, { once: true });
+      video.addEventListener("seeked", () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 320;
+          canvas.height = video.videoHeight || 568;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { cleanup(); resolve(null); return; }
+          ctx.drawImage(video, 0, 0);
+          canvas.toBlob((blob) => { cleanup(); resolve(blob); }, "image/jpeg", 0.85);
+        } catch {
+          cleanup();
+          resolve(null);
+        }
+      }, { once: true });
+      video.addEventListener("loadedmetadata", () => {
+        video.currentTime = Math.max(0, timeMs / 1000);
+      }, { once: true });
+      video.src = url;
+    });
+  }
+
+  const captureThumbnail = useCallback(
+    async (atMs?: number) => {
+      const videoTrack = store.state.tracks.find((t) => t.type === "video");
+      const currentMs = atMs ?? store.state.currentTimeMs;
+      // Find the clip active at currentMs, or fall back to the first real video clip
+      const activeClip =
+        videoTrack?.clips.find(
+          (c) => !c.isPlaceholder && c.assetId && c.startMs <= currentMs && currentMs < c.startMs + c.durationMs
+        ) ?? videoTrack?.clips.find((c) => !c.isPlaceholder && c.assetId);
+      const url = activeClip?.assetId ? assetUrlMap.get(activeClip.assetId) : undefined;
+      if (!url) return;
+
+      const seekMs = activeClip
+        ? activeClip.trimStartMs + Math.max(0, currentMs - activeClip.startMs)
+        : 0;
+
+      setIsCapturingThumbnail(true);
+      try {
+        const blob = await captureVideoFrame(url, seekMs);
+        if (!blob) return;
+        await uploadProjectThumbnail(project.id, blob);
+        toast.success(t("editor_thumbnail_saved"));
+      } catch {
+        toast.error(t("editor_thumbnail_failed"));
+      } finally {
+        setIsCapturingThumbnail(false);
+      }
+    },
+    [store.state.tracks, store.state.currentTimeMs, assetUrlMap, project.id, t]
+  );
+
+  // Auto-generate thumbnail once on first editor open if the project has none
+  useEffect(() => {
+    if (thumbnailCapturedRef.current) return;
+    if (project.thumbnailUrl) { thumbnailCapturedRef.current = true; return; }
+    if (assetUrlMap.size === 0) return;
+    const videoTrack = store.state.tracks.find((t) => t.type === "video");
+    const firstClip = videoTrack?.clips.find((c) => !c.isPlaceholder && c.assetId);
+    if (!firstClip?.assetId) return;
+    thumbnailCapturedRef.current = true;
+    void captureThumbnail(0);
+  }, [assetUrlMap, store.state.tracks, project.thumbnailUrl, captureThumbnail]);
 
   const autosave = useEditorAutosave({
     projectId: project.id,
@@ -528,6 +606,24 @@ export function EditorLayout({ project, onBack }: Props) {
               toast.success(t("editor_resolution_changed", { resolution: label }));
             }}
           />
+
+          {!state.isReadOnly && (
+            <>
+              <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
+              <button
+                onClick={() => void captureThumbnail()}
+                disabled={isCapturingThumbnail}
+                title={t("editor_set_thumbnail")}
+                className="transport-btn disabled:opacity-40"
+              >
+                {isCapturingThumbnail ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Camera size={14} />
+                )}
+              </button>
+            </>
+          )}
 
           <div className="flex-1" />
 
