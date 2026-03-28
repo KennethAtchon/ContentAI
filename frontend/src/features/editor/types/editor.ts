@@ -88,6 +88,7 @@ export interface EditProject {
   status: "draft" | "published";
   publishedAt: string | null;
   parentProjectId: string | null;
+  mergedAssetIds?: string[];
   // From linked generated_content (null for blank / list-view responses)
   generatedHook?: string | null;
   postCaption?: string | null;

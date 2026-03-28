@@ -1,5 +1,5 @@
 {
-  "id": "59859bb1-2998-4f8e-b3ab-9c868e1ab737",
+  "id": "499ebf76-1a37-4833-9ef5-30d33026552d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -880,6 +880,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "merged_asset_ids": {
+          "name": "merged_asset_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "parent_project_id": {
           "name": "parent_project_id",

@@ -31,6 +31,7 @@ import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import type { MediaItem } from "@/features/media/types/media.types";
 import { useEditorReducer } from "../hooks/useEditorStore";
 import { usePlayback } from "../hooks/usePlayback";
+import { useAssetSync } from "../hooks/useAssetSync";
 import { Timeline } from "./Timeline";
 import { PreviewArea } from "./PreviewArea";
 import { Inspector } from "./Inspector";
@@ -263,6 +264,10 @@ export function EditorLayout({ project, onBack }: Props) {
     },
   });
 
+  const { syncAssets, isSyncing } = useAssetSync(project, (tracks, durationMs) => {
+    store.loadProject({ ...project, tracks, durationMs });
+  });
+
   const scheduleSave = useCallback(
     (patch: PatchProjectParams) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -452,6 +457,8 @@ export function EditorLayout({ project, onBack }: Props) {
   kbRemoveClipRef.current = handleRemoveClip;
   const kbRippleDeleteRef = useRef(handleClipRippleDelete);
   kbRippleDeleteRef.current = handleClipRippleDelete;
+  const kbFlushSaveRef = useRef(flushSave);
+  kbFlushSaveRef.current = flushSave;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -547,6 +554,20 @@ export function EditorLayout({ project, onBack }: Props) {
         if (s.selectedClipId) {
           e.preventDefault();
           st.duplicateClip(s.selectedClipId);
+        }
+      }
+
+      // Cmd/Ctrl+S — manual save
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (!s.isReadOnly) {
+          const snap = editorPublishStateRef.current;
+          void kbFlushSaveRef.current({
+            tracks: stripLocallyModifiedFromTracks(snap.tracks),
+            durationMs: snap.durationMs,
+            title: snap.title,
+            resolution: snap.resolution,
+          });
         }
       }
 
@@ -879,14 +900,30 @@ export function EditorLayout({ project, onBack }: Props) {
 
           {/* Save status indicator */}
           {!state.isReadOnly && (
-            <div className="flex items-center gap-1.5 mr-3 text-xs min-w-[110px] justify-end">
+            <div className="flex items-center gap-1.5 mr-3 text-xs">
               {isSavingPatch ? (
                 <span className="flex items-center gap-1 text-dim-3">
                   <Loader2 size={11} className="animate-spin" />
                   {t("editor_saving")}
                 </span>
               ) : isDirty ? (
-                <span className="text-amber-400">{t("editor_unsaved_changes")}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-amber-400">{t("editor_unsaved_changes")}</span>
+                  <button
+                    onClick={() => {
+                      const snap = editorPublishStateRef.current;
+                      void flushSave({
+                        tracks: stripLocallyModifiedFromTracks(snap.tracks),
+                        durationMs: snap.durationMs,
+                        title: snap.title,
+                        resolution: snap.resolution,
+                      });
+                    }}
+                    className="px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-amber-400 cursor-pointer hover:bg-amber-400/25 transition-colors"
+                  >
+                    {t("editor_save_now")}
+                  </button>
+                </div>
               ) : lastSavedAt ? (
                 <span className="flex items-center gap-1 text-dim-3">
                   <Check size={11} className="text-green-500" />
@@ -981,6 +1018,7 @@ export function EditorLayout({ project, onBack }: Props) {
         <div className="flex flex-1 overflow-hidden min-h-0">
           <MediaPanel
             generatedContentId={project.generatedContentId}
+            mergedAssetIds={project.mergedAssetIds ?? []}
             currentTimeMs={state.currentTimeMs}
             onAddClip={handleAddClip}
             selectedClipId={state.selectedClipId}
@@ -1000,6 +1038,8 @@ export function EditorLayout({ project, onBack }: Props) {
             onTabChange={setMediaActiveTab}
             pendingAdd={pendingAdd}
             onClearPendingAdd={() => setPendingAdd(null)}
+            onSyncAssets={syncAssets}
+            isSyncing={isSyncing}
           />
 
           <PreviewArea

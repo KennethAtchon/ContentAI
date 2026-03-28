@@ -46,9 +46,12 @@ interface Props {
   onTabChange: (tab: TabKey) => void;
   pendingAdd: { trackId: string; startMs: number } | null;
   onClearPendingAdd: () => void;
+  mergedAssetIds?: string[];
+  onSyncAssets?: () => void;
+  isSyncing?: boolean;
 }
 
-export type TabKey = "media" | "effects" | "audio" | "text" | "shots";
+export type TabKey = "media" | "effects" | "audio" | "text" | "shots" | "generate";
 
 const EFFECT_DEFINITIONS: {
   id: string;
@@ -133,6 +136,9 @@ export function MediaPanel({
   onTabChange,
   pendingAdd,
   onClearPendingAdd,
+  mergedAssetIds = [],
+  onSyncAssets,
+  isSyncing,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
@@ -158,12 +164,16 @@ export function MediaPanel({
     (item) => item.type === "video"
   );
 
+  const mergedSet = new Set(mergedAssetIds);
+  const newAssetCount = allAssets.filter((a) => !mergedSet.has(a.id)).length;
+
   const TABS: { key: TabKey; label: string }[] = [
     { key: "media", label: t("editor_media_tab") },
     { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
     { key: "text", label: t("editor_caption_tab") },
     { key: "shots", label: t("editor_shots_tab") },
+    ...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -605,6 +615,29 @@ export function MediaPanel({
           <p className="text-xs italic text-dim-3 text-center mt-4">
             {t("editor_shots_empty")}
           </p>
+        )}
+
+        {activeTab === "generate" && (
+          <div className="flex flex-col items-center gap-3 p-4 pt-6">
+            {newAssetCount > 0 ? (
+              <>
+                <p className="text-xs text-dim-2 text-center">
+                  {newAssetCount} {t("editor_generate_new_assets")}
+                </p>
+                <button
+                  onClick={() => onSyncAssets?.()}
+                  disabled={isSyncing || readOnly}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg bg-studio-accent/10 text-studio-accent border border-studio-accent/30 cursor-pointer hover:bg-studio-accent/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSyncing ? t("editor_generate_syncing") : t("editor_generate_sync_button")}
+                </button>
+              </>
+            ) : (
+              <p className="text-xs italic text-dim-3 text-center">
+                {t("editor_generate_up_to_date")}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

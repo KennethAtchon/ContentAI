@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
@@ -69,7 +69,23 @@ function EditorPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeProject, setActiveProject] = useState<EditProject | null>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [isSmallScreen] = useState(() => window.innerWidth < 1280);
+
+  const fetchAndOpen = useCallback(
+    async (id: string) => {
+      setIsLoadingProject(true);
+      try {
+        const res = await authenticatedFetchJson<{ project: EditProject }>(
+          `/api/editor/${id}`
+        );
+        setActiveProject(res.project);
+      } finally {
+        setIsLoadingProject(false);
+      }
+    },
+    [authenticatedFetchJson]
+  );
 
   // Load projects list
   const { data, isLoading } = useQuery({
@@ -79,8 +95,8 @@ function EditorPage() {
   });
   const projects = data?.projects ?? [];
 
-  // Get-or-create project for a given generatedContentId (upsert)
-  const { mutate: openByContentId, isPending: isOpeningContent } = useMutation({
+  // Create project for a generatedContentId (first time only)
+  const { mutate: createFromContent, isPending: isOpeningContent } = useMutation({
     mutationFn: (cId: number) =>
       authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
         method: "POST",
@@ -90,22 +106,28 @@ function EditorPage() {
       void invalidateEditorProjectsQueries(queryClient);
       setActiveProject(res.project);
     },
+    onError: async (err) => {
+      // 409: project already exists but wasn't in the local list yet (race on first load).
+      const status = (err as { status?: number }).status;
+      const body = (err as { body?: { existingProjectId?: string } }).body;
+      if (status === 409 && body?.existingProjectId) {
+        await invalidateEditorProjectsQueries(queryClient);
+        void fetchAndOpen(body.existingProjectId);
+      }
+    },
   });
 
-  // Auto-trigger upsert when contentId is in the URL.
-  // Wait for the projects list to finish loading before deciding whether to POST —
-  // otherwise an empty-while-loading list would incorrectly trigger a create.
+  // When contentId is in the URL, open the project directly if it exists in the
+  // loaded list, or create it (POST) for the first time.
   useEffect(() => {
-    if (!contentId || activeProject || isOpeningContent || isLoading) return;
+    if (!contentId || activeProject || isOpeningContent || isLoadingProject || isLoading) return;
     const existing = projects.find((p) => p.generatedContentId === contentId);
     if (existing) {
-      // Project already exists — open it directly, no POST needed.
-      setActiveProject(existing);
+      void fetchAndOpen(existing.id);
     } else {
-      // First time opening this content — upsert to build the initial timeline.
-      openByContentId(contentId);
+      createFromContent(contentId);
     }
-  }, [contentId, isLoading, projects]);
+  }, [contentId, isLoading, projects, fetchAndOpen]);
 
   // Create blank project
   const { mutate: createProject, isPending: isCreating } = useMutation({
@@ -166,15 +188,20 @@ function EditorPage() {
         <div className="flex flex-col h-screen overflow-hidden">
           <EditorLayout
             project={activeProject}
-            onBack={() => setActiveProject(null)}
+            onBack={() => {
+              setActiveProject(null);
+              if (contentId) {
+                void navigate({ to: "/studio/editor", search: {} });
+              }
+            }}
           />
         </div>
       </AuthGuard>
     );
   }
 
-  // Loading state while auto-opening from contentId
-  if (contentId && isOpeningContent) {
+  // Loading state while fetching or creating a project to open
+  if (isLoadingProject || (contentId && isOpeningContent)) {
     return (
       <AuthGuard authType="user">
         <div className="grid grid-rows-[48px_1fr] h-screen overflow-hidden">
@@ -289,7 +316,7 @@ function EditorPage() {
 
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setActiveProject(proj)}
+                            onClick={() => void fetchAndOpen(proj.id)}
                             className="flex-1 py-1.5 text-xs rounded-lg bg-studio-accent/10 text-studio-accent border border-studio-accent/20 cursor-pointer hover:bg-studio-accent/15 transition-colors"
                           >
                             {t("editor_open_project")}

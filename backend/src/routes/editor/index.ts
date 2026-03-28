@@ -23,10 +23,8 @@ import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { generateASS } from "./export/ass-generator";
 import { buildInitialTimeline } from "./services/build-initial-timeline";
-import {
-  resolveContentChainIds,
-  refreshEditorTimeline,
-} from "./services/refresh-editor-timeline";
+import { resolveContentChainIds } from "./services/refresh-editor-timeline";
+import { mergeNewAssetsIntoProject } from "./services/merge-new-assets";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
@@ -313,7 +311,7 @@ app.post(
 
       const { generatedContentId, title } = parsed.data;
 
-      // ── Upsert: if generatedContentId provided, find or update existing project ──
+      // ── If project already exists, return 409 with the existing project id ──
       if (generatedContentId) {
         const [ownedContent] = await db
           .select({
@@ -339,7 +337,7 @@ app.post(
         );
 
         const [existing] = await db
-          .select()
+          .select({ id: editProjects.id })
           .from(editProjects)
           .where(
             and(
@@ -351,49 +349,7 @@ app.post(
           .limit(1);
 
         if (existing) {
-          const [contentRow] = await db
-            .select({ generatedHook: generatedContent.generatedHook })
-            .from(generatedContent)
-            .where(
-              and(
-                eq(generatedContent.id, generatedContentId),
-                eq(generatedContent.userId, auth.user.id),
-              ),
-            )
-            .limit(1);
-          const titleUpdate =
-            existing.autoTitle && contentRow?.generatedHook
-              ? { title: contentRow.generatedHook.slice(0, 60) }
-              : {};
-
-          // Only rebuild the timeline if the user has never actively edited
-          // this project (i.e. never triggered an auto-save PATCH).
-          if (!existing.userHasEdited) {
-            const { tracks, durationMs } = await buildInitialTimeline(
-              generatedContentId,
-              auth.user.id,
-            );
-            const [updated] = await db
-              .update(editProjects)
-              .set({ generatedContentId, tracks, durationMs, ...titleUpdate })
-              .where(eq(editProjects.id, existing.id))
-              .returning();
-            return c.json({ project: updated }, 200);
-          }
-
-          // Update metadata first, then merge any new/resolved assets into
-          // the existing user-edited tracks without touching clip positions.
-          await db
-            .update(editProjects)
-            .set({ generatedContentId, ...titleUpdate })
-            .where(eq(editProjects.id, existing.id));
-          await refreshEditorTimeline(generatedContentId, auth.user.id);
-          const [refreshed] = await db
-            .select()
-            .from(editProjects)
-            .where(eq(editProjects.id, existing.id))
-            .limit(1);
-          return c.json({ project: refreshed }, 200);
+          return c.json({ error: "project_exists", existingProjectId: existing.id }, 409);
         }
       }
 
@@ -460,7 +416,7 @@ app.post(
             auth.user.id,
           );
           const [existing] = await db
-            .select()
+            .select({ id: editProjects.id })
             .from(editProjects)
             .where(
               and(
@@ -471,7 +427,7 @@ app.post(
             )
             .limit(1);
           if (existing) {
-            return c.json({ project: existing }, 200);
+            return c.json({ error: "project_exists", existingProjectId: existing.id }, 409);
           }
         }
       }
@@ -562,8 +518,16 @@ app.patch(
           updateData.autoTitle = false;
         }
       }
-      if (parsed.data.tracks !== undefined)
+      if (parsed.data.tracks !== undefined) {
         updateData.tracks = parsed.data.tracks;
+        updateData.mergedAssetIds = [
+          ...new Set(
+            parsed.data.tracks
+              .flatMap((t) => t.clips.map((c) => c.assetId))
+              .filter((id): id is string => typeof id === "string" && id.length > 0),
+          ),
+        ];
+      }
       if (parsed.data.durationMs !== undefined)
         updateData.durationMs = parsed.data.durationMs;
       if (parsed.data.fps !== undefined) updateData.fps = parsed.data.fps;
@@ -628,6 +592,33 @@ app.delete(
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json({ error: "Failed to delete edit project" }, 500);
+    }
+  },
+);
+
+// ─── POST /api/editor/:id/sync-assets ────────────────────────────────────────
+
+app.post(
+  "/:id/sync-assets",
+  rateLimiter("customer"),
+  csrfMiddleware(),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+      const result = await mergeNewAssetsIntoProject(id, auth.user.id);
+      return c.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Project not found") {
+        return c.json({ error: "Edit project not found" }, 404);
+      }
+      debugLog.error("Failed to sync assets", {
+        service: "editor-route",
+        operation: "syncAssets",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to sync assets" }, 500);
     }
   },
 );
