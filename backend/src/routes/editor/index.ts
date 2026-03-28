@@ -86,8 +86,8 @@ const clipDataSchema = z.object({
   speed: z.number().min(0.1).max(10),
   // Look
   opacity: z.number().min(0).max(1),
-  warmth: z.number().min(-1).max(1),
-  contrast: z.number().min(-1).max(1),
+  warmth: z.number().min(-100).max(100),
+  contrast: z.number().min(-100).max(100),
   // Transform
   positionX: z.number(),
   positionY: z.number(),
@@ -328,7 +328,7 @@ app.post(
       const body = await c.req.json().catch(() => ({}));
       const parsed = createProjectSchema.safeParse(body);
       if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
+        return c.json({ error: "Invalid request body", issues: parsed.error.issues }, 400);
       }
 
       const { generatedContentId, title } = parsed.data;
@@ -508,7 +508,7 @@ app.patch(
       const body = await c.req.json().catch(() => null);
       const parsed = patchProjectSchema.safeParse(body);
       if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
+        return c.json({ error: "Invalid request body", issues: parsed.error.issues }, 400);
       }
 
       const [existing] = await db
@@ -797,7 +797,7 @@ app.post(
       const body = await c.req.json().catch(() => ({}));
       const parsed = exportSchema.safeParse(body);
       if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
+        return c.json({ error: "Invalid request body", issues: parsed.error.issues }, 400);
       }
 
       const [project] = await db
@@ -1849,7 +1849,7 @@ app.post(
       const body = await c.req.json().catch(() => null);
       const parsed = aiAssembleRequestSchema.safeParse(body);
       if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
+        return c.json({ error: "Invalid request body", issues: parsed.error.issues }, 400);
       }
       const { platform } = parsed.data;
 

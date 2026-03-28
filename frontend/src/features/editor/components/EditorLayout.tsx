@@ -17,8 +17,6 @@ import {
   Upload,
   Lock,
   FilePlus,
-  Sparkles,
-  ChevronDown,
   Check,
   Loader2,
 } from "lucide-react";
@@ -58,12 +56,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/components/ui/dropdown-menu";
 
 const RESOLUTION_LABEL_MAP: Record<string, string> = {
   "720x1280": "9:16 SD (720p)",
@@ -160,8 +152,6 @@ export function EditorLayout({ project, onBack }: Props) {
     isPublishing,
     createNewDraft,
     isCreatingDraft,
-    aiAssemble,
-    isAiAssembling,
   } = useEditorLayoutMutations({
     project,
     store,
@@ -593,31 +583,6 @@ export function EditorLayout({ project, onBack }: Props) {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {project.generatedContentId != null && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      disabled={isAiAssembling}
-                      className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
-                    >
-                      <Sparkles size={13} />
-                      {t("editor_ai_assemble")}
-                      <ChevronDown size={11} />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-[168px]">
-                    {[
-                      { platform: "tiktok", label: t("editor_ai_assemble_tiktok") },
-                      { platform: "youtube-shorts", label: t("editor_ai_assemble_youtube") },
-                      { platform: "instagram", label: t("editor_ai_assemble_instagram") },
-                    ].map(({ platform, label }) => (
-                      <DropdownMenuItem key={platform} onClick={() => aiAssemble(platform)}>
-                        {label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
               <button
                 onClick={() => setShowExport(true)}
                 className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors"
@@ -644,15 +609,6 @@ export function EditorLayout({ project, onBack }: Props) {
             mergedAssetIds={project.mergedAssetIds ?? []}
             currentTimeMs={state.currentTimeMs}
             onAddClip={handleAddClip}
-            selectedClipId={state.selectedClipId}
-            onUpdateClip={handleUpdateClip}
-            onEffectPreview={(patch) =>
-              setEffectPreview(
-                patch && state.selectedClipId
-                  ? { clipId: state.selectedClipId, patch }
-                  : null
-              )
-            }
             readOnly={state.isReadOnly}
             activeTab={mediaActiveTab}
             onTabChange={setMediaActiveTab}
@@ -661,7 +617,6 @@ export function EditorLayout({ project, onBack }: Props) {
             onSyncAssets={syncAssets}
             isSyncing={isSyncing}
             tracks={state.tracks}
-            onReorderShots={store.reorderShots}
           />
 
           <PreviewArea
@@ -679,6 +634,13 @@ export function EditorLayout({ project, onBack }: Props) {
             tracks={state.tracks}
             selectedClipId={state.selectedClipId}
             onUpdateClip={handleUpdateClip}
+            onEffectPreview={(patch) =>
+              setEffectPreview(
+                patch && state.selectedClipId
+                  ? { clipId: state.selectedClipId, patch }
+                  : null
+              )
+            }
             onAddCaptionClip={store.addCaptionClip}
             selectedTransition={selectedTransition}
             onSetTransition={store.setTransition}

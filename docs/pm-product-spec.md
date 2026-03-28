@@ -16,51 +16,6 @@ This spec covers a phased set of improvements that fix the broken handoffs, upgr
 ---
 
 
-## Section 3 — Editor Core Quality
-
-These are the features that separate a toy editor from a professional tool. Without them, creators hit a ceiling and go back to CapCut.
-
-### 3.1 9:16 Preview (Vertical by Default)
-
-Every reel, TikTok, and YouTube Short is vertical (9:16). The current editor preview is 16:9 (horizontal). Creators are editing in the wrong shape. They cannot judge framing, text position, or caption placement accurately because the preview does not match what they will actually post.
-
-**The fix:** Default all editor previews, projects, and exports to 9:16 vertical. Existing projects get migrated. An aspect ratio toggle (9:16 / 16:9 / 1:1) allows horizontal content creators to change it. But 9:16 is the default, always.
-
-### 3.2 Split Clip
-
-The most basic timeline operation after trim. Press `S` with a clip selected and the playhead inside it — the clip splits at the playhead into two separate clips. Each inherits all the original's properties. Essential for removing a middle section (split, delete the middle segment, rejoin).
-
-### 3.3 Clip Snapping
-
-Dragging clips currently produces gaps and overlaps because there is no magnetic alignment. Clips should snap to: adjacent clip edges on any track, the playhead position, and time zero. Hold Shift to bypass snapping for fine positioning. A vertical snap line appears at the snap point as visual feedback.
-
-### 3.4 Drag-and-Drop from Media Panel
-
-Currently, adding a clip from the media panel requires clicking, which adds the clip at the playhead. Drag-and-drop is the intuitive behavior — drag a clip from the panel, drop it onto a track lane at the desired position. The drop target highlights to confirm the track accepts the asset type.
-
-### 3.5 Clip Duplication
-
-Select a clip, press `Cmd+D`. A copy of the clip appears immediately after the original. Same properties, new ID. Useful for repeating a shot or creating a variant.
-
----
-
-## Section 4 — Project Model and Data Layer
-
-### 4.2 One Editor Project Per Content Item
-
-Each piece of generated content should have exactly one editor project. Opening the editor from the queue should open *that project* — pre-populated with the AI-generated shots, voiceover, and music in the correct order — not a blank canvas.
-
-If the user makes edits and then goes back to the queue and reassembles (e.g., after generating a new shot), the editor project should update automatically to reflect the new assembly. The user should not have to manually rebuild.
-
-### 4.4 The Queue as a Live Dashboard
-
-The queue currently shows static state — it reflects the world as of when the assets were created and goes dark after assembly. It should show:
-- Whether an editor project exists and its status (draft / published)
-- Whether an export job is in progress or complete
-- A direct "Open in Editor" button that navigates to the pre-populated editor project
-
-The queue should be the place a creator goes to see the full state of everything they're working on, not just the generation pipeline phase.
-
 
 ## Section 6 — Effects and Transitions
 

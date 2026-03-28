@@ -10,6 +10,24 @@ function resolveRequestUrl(url: string): string {
   return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
 }
 
+/** Expected when chat pre-creates the editor project and the editor page POSTs the same content. */
+function isBenignEditorProjectExistsConflict(
+  method: string,
+  path: string,
+  status: number,
+  errorText: string
+): boolean {
+  if (method !== "POST" || status !== 409) return false;
+  const basePath = path.split("?")[0];
+  if (basePath !== "/api/editor") return false;
+  try {
+    const parsed = JSON.parse(errorText) as { error?: string };
+    return parsed.error === "project_exists";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Dev-only Sonner toast with full API error body so failed saves/loads are visible
  * without opening the network tab. Deduped by method + path + status for retries.
@@ -30,6 +48,10 @@ function toastDevBackendHttpError(
     path = full.replace(/^https?:\/\/[^/]+/, "");
   }
 
+  if (isBenignEditorProjectExistsConflict(method, path, status, errorText)) {
+    return;
+  }
+
   const title = `${method} ${path} → ${status}`;
   let description = errorText.trim() || "(empty response body)";
   try {
@@ -39,10 +61,34 @@ function toastDevBackendHttpError(
     description = errorText.slice(0, 8000);
   }
 
+  const copyText = `${title}\n\n${description}`;
+
   toast.error(title, {
     id: `dev-api-error:${method}:${path}:${status}`,
     description,
     duration: 14_000,
+    closeButton: true,
+    action: {
+      label: "Copy",
+      onClick: () => {
+        const write = navigator.clipboard?.writeText(copyText);
+        if (!write) {
+          toast.error("Clipboard unavailable", { duration: 2500 });
+          return;
+        }
+        void write.then(
+          () => {
+            toast.success("Copied to clipboard", {
+              id: `dev-api-error-copied:${method}:${path}:${status}`,
+              duration: 2000,
+            });
+          },
+          () => {
+            toast.error("Could not copy", { duration: 2500 });
+          }
+        );
+      },
+    },
   });
 }
 
@@ -379,13 +425,23 @@ export async function authenticatedFetchJson<T = unknown>(
 
     toastDevBackendHttpError(url, method, response.status, errorText);
 
-    throw new Error(
-      formatApiErrorForThrow(
-        response.status,
-        response.statusText,
-        errorText
-      )
+    const message = formatApiErrorForThrow(
+      response.status,
+      response.statusText,
+      errorText
     );
+    const err = new Error(message) as Error & {
+      status: number;
+      body?: unknown;
+    };
+    err.status = response.status;
+    try {
+      const trimmed = errorText.trim();
+      if (trimmed) err.body = JSON.parse(trimmed) as unknown;
+    } catch {
+      // non-JSON error body
+    }
+    throw err;
   }
 
   const jsonData = await response.json();

@@ -30,25 +30,13 @@ function GeneratePage() {
                 </p>
               </div>
             </div>
-          ) : projects !== undefined && projects.length > 0 ? (
+          ) : projects !== undefined ? (
             <ChatLayout
               projects={projects}
               onNewProject={handleNewProject}
               showNewProjectForm={showNewProjectForm}
               onHideNewProjectForm={() => setShowNewProjectForm(false)}
             />
-          ) : projects !== undefined ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <span className="text-5xl opacity-40">✦</span>
-                <p className="text-base font-semibold text-dim-2 mt-3">
-                  {t("studio_projects_empty")}
-                </p>
-                <p className="text-sm text-dim-3 mt-1">
-                  {t("studio_projects_emptyDescription")}
-                </p>
-              </div>
-            </div>
           ) : (
             // projects === undefined: error state or cache cleared — keep showing
             // loading rather than the misleading "No projects yet" empty state.

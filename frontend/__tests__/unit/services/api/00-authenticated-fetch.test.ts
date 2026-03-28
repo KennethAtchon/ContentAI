@@ -48,4 +48,33 @@ describe("authenticated-fetch", () => {
     );
     expect(data).toEqual({ id: 1 });
   });
+
+  it("authenticatedFetchJson throws with status and parsed JSON body on error", async () => {
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: "project_exists",
+            existingProjectId: "550e8400-e29b-41d4-a716-446655440000",
+          }),
+          {
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      ) as typeof fetch;
+
+    try {
+      await authenticatedFetchJson("https://api.example.com/me");
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(Error);
+      const err = e as Error & { status: number; body?: Record<string, unknown> };
+      expect(err.status).toBe(409);
+      expect(err.body).toEqual({
+        error: "project_exists",
+        existingProjectId: "550e8400-e29b-41d4-a716-446655440000",
+      });
+    }
+  });
 });

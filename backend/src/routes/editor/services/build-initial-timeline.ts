@@ -13,6 +13,13 @@ import {
   type TimelineTrackJson,
 } from "./refresh-editor-timeline";
 
+/** Mirror of frontend estimateReadingDurationMs — 2.5 words/sec, 2s minimum. */
+function estimateReadingDurationMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  if (words === 0) return 2000;
+  return Math.max(2000, Math.ceil(words / 2.5) * 1000);
+}
+
 /** Collapse whitespace for on-screen copy (hook / voiceover body). */
 function normalizeCopy(s: string | null | undefined): string {
   if (!s) return "";
@@ -23,6 +30,12 @@ function normalizeCopy(s: string | null | undefined): string {
  * On-screen overlay text: hook + voiceover body (voiceover_script, no
  * timestamp lines). Post caption is for the social post only — not shown here.
  * Omits duplicate body block when it only repeats the hook.
+ *
+ * @deprecated Single merged text block fed into one clip. TODO: replace with
+ * transcript-driven per-phrase clips — transcribe the voiceover audio, then
+ * create one text clip per phrase with start/duration matching the spoken word
+ * timings (CapCut-style). This function and {@link buildCaptionClip} will be
+ * removed once that path is implemented.
  */
 export function composeOverlayText(input: {
   generatedHook: string | null;
@@ -85,9 +98,16 @@ function emptyTracksFromVideo(
   ];
 }
 
+/**
+ * @deprecated Single-clip overlay approach. TODO: replace with per-phrase clips
+ * derived from voiceover transcript (like CapCut), where each phrase becomes its
+ * own text clip with start/duration matching the spoken word timings.
+ */
 function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
   const trimmed = text.trim();
-  const dur = Math.min(Math.max(spanMs, 1000), 180_000);
+  // Use the greater of the actual media span or a reading-time estimate so the
+  // clip is never shorter than what's needed to read the text.
+  const dur = Math.min(Math.max(spanMs, estimateReadingDurationMs(trimmed)), 180_000);
   const codePoints = [...trimmed];
   const label = codePoints.length > 40 ? `${codePoints.slice(0, 37).join("")}…` : trimmed;
   return {

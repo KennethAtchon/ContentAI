@@ -7,7 +7,6 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import { ShotOrderPanel } from "./ShotOrderPanel";
 import type { Clip, Track } from "../types/editor";
 
 interface Asset {
@@ -24,9 +23,6 @@ interface Props {
   generatedContentId: number | null;
   currentTimeMs: number;
   onAddClip: (trackId: string, clip: Clip) => void;
-  selectedClipId: string | null;
-  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
-  onEffectPreview?: (patch: Partial<Clip> | null) => void;
   readOnly?: boolean;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
@@ -36,60 +32,9 @@ interface Props {
   onSyncAssets?: () => void;
   isSyncing?: boolean;
   tracks?: Track[];
-  onReorderShots?: (trackId: string, clipIds: string[]) => void;
 }
 
-export type TabKey = "media" | "effects" | "audio" | "generate" | "shots";
-
-const EFFECT_DEFINITIONS: {
-  id: string;
-  labelKey: string;
-  contrast: number;
-  warmth: number;
-  opacity: number;
-  swatchStyle: string;
-}[] = [
-  {
-    id: "color-grade",
-    labelKey: "editor_effect_color_grade",
-    contrast: 20,
-    warmth: 10,
-    opacity: 1,
-    swatchStyle: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)",
-  },
-  {
-    id: "bw",
-    labelKey: "editor_effect_bw",
-    contrast: 10,
-    warmth: -100,
-    opacity: 1,
-    swatchStyle: "linear-gradient(135deg, #1a1a1a 0%, #888888 100%)",
-  },
-  {
-    id: "warm",
-    labelKey: "editor_effect_warm",
-    warmth: 40,
-    contrast: 5,
-    opacity: 1,
-    swatchStyle: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
-  },
-  {
-    id: "cool",
-    labelKey: "editor_effect_cool",
-    warmth: -40,
-    contrast: 5,
-    opacity: 1,
-    swatchStyle: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-  },
-  {
-    id: "vignette",
-    labelKey: "editor_effect_vignette",
-    opacity: 0.9,
-    contrast: 15,
-    warmth: 0,
-    swatchStyle: "radial-gradient(ellipse at center, #555 0%, #000 100%)",
-  },
-];
+export type TabKey = "media" | "audio" | "generate";
 
 
 function makeClip(overrides: Partial<Clip>): Clip {
@@ -119,9 +64,6 @@ export function MediaPanel({
   generatedContentId,
   currentTimeMs,
   onAddClip,
-  selectedClipId,
-  onUpdateClip,
-  onEffectPreview,
   readOnly,
   activeTab,
   onTabChange,
@@ -131,7 +73,6 @@ export function MediaPanel({
   onSyncAssets,
   isSyncing,
   tracks = [],
-  onReorderShots,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
@@ -158,14 +99,10 @@ export function MediaPanel({
   const mergedSet = new Set(mergedAssetIds);
   const newAssetCount = allAssets.filter((a) => !mergedSet.has(a.id)).length;
 
-  const videoTrack = tracks.find((tr) => tr.type === "video");
-
   const TABS: { key: TabKey; label: string }[] = [
     { key: "media", label: t("editor_media_tab") },
-    { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
-    { key: "shots", label: t("editor_shots_tab") },
-    ...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
+...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -192,16 +129,6 @@ export function MediaPanel({
     onAddClip(pendingAdd?.trackId ?? defaultTrackId, clip);
     onClearPendingAdd();
   };
-
-  const applyEffect = (effect: (typeof EFFECT_DEFINITIONS)[0]) => {
-    if (!selectedClipId) return;
-    onUpdateClip(selectedClipId, {
-      contrast: effect.contrast ?? 0,
-      warmth: effect.warmth ?? 0,
-      opacity: effect.opacity ?? 1,
-    });
-  };
-
 
   return (
     <div
@@ -389,41 +316,6 @@ export function MediaPanel({
           </>
         )}
 
-        {/* Effects tab */}
-        {activeTab === "effects" && (
-          <div className="flex flex-col gap-1.5">
-            {!selectedClipId && (
-              <p className="text-xs italic text-dim-3 text-center mt-2 mb-1">
-                {t("editor_effects_no_clip")}
-              </p>
-            )}
-            {EFFECT_DEFINITIONS.map((effect) => (
-              <button
-                key={effect.id}
-                onClick={() => applyEffect(effect)}
-                onMouseEnter={() =>
-                  selectedClipId &&
-                  onEffectPreview?.({
-                    contrast: effect.contrast ?? 0,
-                    warmth: effect.warmth ?? 0,
-                    opacity: effect.opacity ?? 1,
-                  })
-                }
-                onMouseLeave={() => onEffectPreview?.(null)}
-                className="text-left rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors overflow-hidden"
-              >
-                <div
-                  className="w-full h-10"
-                  style={{ background: effect.swatchStyle }}
-                />
-                <p className="text-xs font-medium text-dim-1 px-3 py-1.5">
-                  {t(effect.labelKey)}
-                </p>
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Audio tab */}
         {activeTab === "audio" && (
           <>
@@ -509,19 +401,6 @@ export function MediaPanel({
           </div>
         )}
 
-        {/* Shots tab */}
-        {activeTab === "shots" && videoTrack && onReorderShots && (
-          <ShotOrderPanel
-            videoTrack={videoTrack}
-            onReorder={onReorderShots}
-            readOnly={readOnly}
-          />
-        )}
-        {activeTab === "shots" && !videoTrack && (
-          <p className="text-xs italic text-dim-3 text-center mt-4 px-3">
-            {t("editor_shots_empty")}
-          </p>
-        )}
       </div>
     </div>
   );

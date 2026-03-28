@@ -13,7 +13,7 @@ import {
   SUBSCRIPTION_TIERS,
   SUBSCRIPTION_TRIAL_DAYS,
 } from "@/shared/constants/subscription.constants";
-import { Button } from "@/shared/components/ui/button";
+import { Switch } from "@/shared/components/ui/switch";
 import { Badge } from "@/shared/components/ui/badge";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
@@ -62,25 +62,13 @@ export function PricingToggle({
       >
         Monthly
       </span>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() =>
-          onBillingCycleChange(
-            billingCycle === "monthly" ? "annual" : "monthly"
-          )
+      <Switch
+        checked={billingCycle === "annual"}
+        onCheckedChange={(checked) =>
+          onBillingCycleChange(checked ? "annual" : "monthly")
         }
-        className="relative w-14 h-7 rounded-full"
         aria-label={`Switch to ${billingCycle === "monthly" ? "annual" : "monthly"} billing`}
-        aria-pressed={billingCycle === "annual"}
-      >
-        <span
-          className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-primary transition-transform ${
-            billingCycle === "annual" ? "translate-x-7" : "translate-x-0"
-          }`}
-          aria-hidden="true"
-        />
-      </Button>
+      />
       <div className="flex items-center gap-2">
         <span
           className={`text-base font-medium ${billingCycle === "annual" ? "text-foreground" : "text-muted-foreground"}`}

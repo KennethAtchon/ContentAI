@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Trash2, Loader2, Captions } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
+import { Switch } from "@/shared/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -22,10 +23,61 @@ interface AddCaptionClipParams {
   durationMs: number;
 }
 
+const EFFECT_DEFINITIONS: {
+  id: string;
+  labelKey: string;
+  contrast: number;
+  warmth: number;
+  opacity: number;
+  swatchStyle: string;
+}[] = [
+  {
+    id: "color-grade",
+    labelKey: "editor_effect_color_grade",
+    contrast: 20,
+    warmth: 10,
+    opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)",
+  },
+  {
+    id: "bw",
+    labelKey: "editor_effect_bw",
+    contrast: 10,
+    warmth: -100,
+    opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #1a1a1a 0%, #888888 100%)",
+  },
+  {
+    id: "warm",
+    labelKey: "editor_effect_warm",
+    warmth: 40,
+    contrast: 5,
+    opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
+  },
+  {
+    id: "cool",
+    labelKey: "editor_effect_cool",
+    warmth: -40,
+    contrast: 5,
+    opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+  },
+  {
+    id: "vignette",
+    labelKey: "editor_effect_vignette",
+    opacity: 0.9,
+    contrast: 15,
+    warmth: 0,
+    swatchStyle: "radial-gradient(ellipse at center, #555 0%, #000 100%)",
+  },
+];
+
 interface Props {
   tracks: Track[];
   selectedClipId: string | null;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  onEffectPreview?: (patch: Partial<Clip> | null) => void;
   onAddCaptionClip: (params: AddCaptionClipParams) => void;
   selectedTransition: Transition | null;
   onSetTransition: (
@@ -114,6 +166,7 @@ export function Inspector({
   tracks,
   selectedClipId,
   onUpdateClip,
+  onEffectPreview,
   onAddCaptionClip,
   selectedTransition,
   onSetTransition,
@@ -222,29 +275,12 @@ export function Inspector({
                     </Select>
                   </PropRow>
                   <PropRow label={t("inspector_prop_enabled")}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateClip(selectedClip!.id, {
-                          enabled: selectedClip!.enabled === false ? true : false,
-                        })
+                    <Switch
+                      checked={selectedClip.enabled !== false}
+                      onCheckedChange={(checked) =>
+                        onUpdateClip(selectedClip!.id, { enabled: checked })
                       }
-                      className={cn(
-                        "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
-                        selectedClip.enabled !== false
-                          ? "bg-studio-accent border border-studio-accent"
-                          : "bg-transparent border border-overlay-lg"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
-                          selectedClip.enabled !== false
-                            ? "bg-white translate-x-[1.375rem]"
-                            : "bg-dim-3 translate-x-0"
-                        )}
-                      />
-                    </button>
+                    />
                   </PropRow>
                 </Section>
 
@@ -304,7 +340,38 @@ export function Inspector({
                   />
                 </Section>
 
-                {/* 3. Transform */}
+                {/* 3. Effects — video clips only */}
+                {selectedTrack?.type === "video" && (
+                  <Section title={t("editor_effects_tab")}>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {EFFECT_DEFINITIONS.map((effect) => (
+                        <button
+                          key={effect.id}
+                          title={t(effect.labelKey)}
+                          onClick={() =>
+                            onUpdateClip(selectedClip!.id, {
+                              contrast: effect.contrast ?? 0,
+                              warmth: effect.warmth ?? 0,
+                              opacity: effect.opacity ?? 1,
+                            })
+                          }
+                          onMouseEnter={() =>
+                            onEffectPreview?.({
+                              contrast: effect.contrast ?? 0,
+                              warmth: effect.warmth ?? 0,
+                              opacity: effect.opacity ?? 1,
+                            })
+                          }
+                          onMouseLeave={() => onEffectPreview?.(null)}
+                          className="w-10 h-10 rounded border border-overlay-md hover:border-studio-accent/60 cursor-pointer transition-all hover:scale-105 border-0 p-0 overflow-hidden shrink-0"
+                          style={{ background: effect.swatchStyle }}
+                        />
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
+                {/* 4. Transform */}
                 <Section title={t("inspector_section_transform")}>
                   <PropRow label={t("inspector_prop_x")}>
                     <input
@@ -356,27 +423,12 @@ export function Inspector({
                       onChange={(v) => onUpdateClip(selectedClip!.id, { volume: v })}
                     />
                     <PropRow label={t("inspector_prop_mute")}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
+                      <Switch
+                        checked={selectedClip.muted ?? false}
+                        onCheckedChange={(checked) =>
+                          onUpdateClip(selectedClip!.id, { muted: checked })
                         }
-                        className={cn(
-                          "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
-                          selectedClip.muted
-                            ? "bg-studio-accent border border-studio-accent"
-                            : "bg-transparent border border-overlay-lg"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
-                            selectedClip.muted
-                              ? "bg-white translate-x-[1.375rem]"
-                              : "bg-dim-3 translate-x-0"
-                          )}
-                        />
-                      </button>
+                      />
                     </PropRow>
                   </Section>
                 )}
@@ -399,31 +451,12 @@ export function Inspector({
                 {selectedClip.textContent !== undefined && !hasTimedCaptionWords && (
                   <Section title={t("inspector_section_text_style")}>
                     <PropRow label={t("editor_text_smart_chunks")}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onUpdateClip(selectedClip!.id, {
-                            textAutoChunk:
-                              selectedClip.textAutoChunk === false ? true : false,
-                          })
+                      <Switch
+                        checked={selectedClip.textAutoChunk === true}
+                        onCheckedChange={(checked) =>
+                          onUpdateClip(selectedClip!.id, { textAutoChunk: checked })
                         }
-                        className={cn(
-                          "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
-                          selectedClip.textAutoChunk !== false
-                            ? "bg-studio-accent border border-studio-accent"
-                            : "bg-transparent border border-overlay-lg"
-                        )}
-                        aria-pressed={selectedClip.textAutoChunk !== false}
-                      >
-                        <span
-                          className={cn(
-                            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
-                            selectedClip.textAutoChunk !== false
-                              ? "bg-white translate-x-[1.375rem]"
-                              : "bg-dim-3 translate-x-0"
-                          )}
-                        />
-                      </button>
+                      />
                     </PropRow>
                     <p className="text-[10px] text-dim-3 -mt-1 mb-2">
                       {t("editor_text_smart_chunks_hint")}

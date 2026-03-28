@@ -416,6 +416,13 @@ export function ChatLayout({
         void invalidateChatProjectsQueries(queryClient);
       })
       .catch((err) => {
+        const status = (err as { status?: number }).status;
+        const body = (err as { body?: { error?: string } }).body;
+        if (status === 409 && body?.error === "project_exists") {
+          void invalidateEditorProjectsQueries(queryClient);
+          void invalidateChatProjectsQueries(queryClient);
+          return;
+        }
         debugLog.error("Failed to auto-create editor project", {
           service: "chat-layout",
           operation: "auto-create-editor",
