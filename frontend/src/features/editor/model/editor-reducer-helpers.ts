@@ -1,4 +1,13 @@
-import type { Track, Clip, EditorState } from "../types/editor";
+import type { Track, Clip, EditorState, EditorHistorySnapshot } from "../types/editor";
+
+export function snapshotEditorState(state: EditorState): EditorHistorySnapshot {
+  return {
+    tracks: state.tracks,
+    resolution: state.resolution,
+    title: state.title,
+    playbackRate: state.playbackRate,
+  };
+}
 
 export const DEFAULT_TRACKS: Track[] = [
   {
@@ -108,7 +117,7 @@ export function removeClipFromTracks(tracks: Track[], clipId: string): Track[] {
 
 export function pushPastTracks(state: EditorState, newTracks: Track[]): Pick<EditorState, "past" | "future" | "tracks"> {
   return {
-    past: [...state.past, state.tracks].slice(-50),
+    past: [...state.past, snapshotEditorState(state)].slice(-50),
     future: [],
     tracks: newTracks,
   };

@@ -133,6 +133,9 @@ export function Inspector({
     }
   }
 
+  const isTextClip = selectedTrack?.type === "text";
+  const isMediaClip = !isTextClip;
+
   /** Word-timed captions (preview canvas + generate-from-video exclusion). */
   const hasTimedCaptionWords = !!(selectedClip?.captionWords?.length);
   /** Caption preset UI applies to every text-track clip, not only after words exist. */
@@ -172,7 +175,7 @@ export function Inspector({
     >
       <div className="px-4 py-2 border-b border-overlay-sm shrink-0">
         <p className="text-xs font-semibold text-dim-2 tracking-wider uppercase">
-          Inspector
+          {t("inspector_title")}
         </p>
       </div>
 
@@ -189,17 +192,17 @@ export function Inspector({
             {selectedClip && (
               <>
                 {/* 1. Clip */}
-                <Section title="Clip">
-                  <PropRow label="Name">
+                <Section title={t("inspector_section_clip")}>
+                  <PropRow label={t("inspector_prop_name")}>
                     <ValuePill value={selectedClip.label} />
                   </PropRow>
-                  <PropRow label="Start">
+                  <PropRow label={t("inspector_prop_start")}>
                     <ValuePill value={`${(selectedClip.startMs / 1000).toFixed(2)}s`} />
                   </PropRow>
-                  <PropRow label="Duration">
+                  <PropRow label={t("inspector_prop_duration")}>
                     <ValuePill value={`${(selectedClip.durationMs / 1000).toFixed(2)}s`} />
                   </PropRow>
-                  <PropRow label="Speed">
+                  <PropRow label={t("inspector_prop_speed")}>
                     <Select
                       value={String(selectedClip.speed)}
                       onValueChange={(v) =>
@@ -218,7 +221,7 @@ export function Inspector({
                       </SelectContent>
                     </Select>
                   </PropRow>
-                  <PropRow label="Enabled">
+                  <PropRow label={t("inspector_prop_enabled")}>
                     <button
                       type="button"
                       onClick={() =>
@@ -274,9 +277,9 @@ export function Inspector({
                 )}
 
                 {/* 2. Look */}
-                <Section title="Look">
+                <Section title={t("inspector_section_look")}>
                   <SliderRow
-                    label="Opacity"
+                    label={t("inspector_prop_opacity")}
                     value={selectedClip.opacity ?? 1}
                     min={0}
                     max={1}
@@ -284,7 +287,7 @@ export function Inspector({
                     onChange={(v) => onUpdateClip(selectedClip!.id, { opacity: v })}
                   />
                   <SliderRow
-                    label="Warmth"
+                    label={t("inspector_prop_warmth")}
                     value={selectedClip.warmth ?? 0}
                     min={-100}
                     max={100}
@@ -292,7 +295,7 @@ export function Inspector({
                     onChange={(v) => onUpdateClip(selectedClip!.id, { warmth: v })}
                   />
                   <SliderRow
-                    label="Contrast"
+                    label={t("inspector_prop_contrast")}
                     value={selectedClip.contrast ?? 0}
                     min={-100}
                     max={100}
@@ -302,8 +305,8 @@ export function Inspector({
                 </Section>
 
                 {/* 3. Transform */}
-                <Section title="Transform">
-                  <PropRow label="X">
+                <Section title={t("inspector_section_transform")}>
+                  <PropRow label={t("inspector_prop_x")}>
                     <input
                       type="number"
                       className="w-16 text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border-0"
@@ -313,7 +316,7 @@ export function Inspector({
                       }
                     />
                   </PropRow>
-                  <PropRow label="Y">
+                  <PropRow label={t("inspector_prop_y")}>
                     <input
                       type="number"
                       className="w-16 text-xs bg-overlay-sm text-dim-1 px-2 py-0.5 rounded border-0"
@@ -324,7 +327,7 @@ export function Inspector({
                     />
                   </PropRow>
                   <SliderRow
-                    label="Scale"
+                    label={t("inspector_prop_scale")}
                     value={selectedClip.scale ?? 1}
                     min={0.1}
                     max={3}
@@ -332,7 +335,7 @@ export function Inspector({
                     onChange={(v) => onUpdateClip(selectedClip!.id, { scale: v })}
                   />
                   <SliderRow
-                    label="Rotation"
+                    label={t("inspector_prop_rotation")}
                     value={selectedClip.rotation ?? 0}
                     min={-180}
                     max={180}
@@ -341,58 +344,60 @@ export function Inspector({
                   />
                 </Section>
 
-                {/* 4. Sound */}
-                <Section title="Sound">
-                  <SliderRow
-                    label="Volume"
-                    value={selectedClip.volume ?? 1}
-                    min={0}
-                    max={2}
-                    step={0.05}
-                    onChange={(v) => onUpdateClip(selectedClip!.id, { volume: v })}
-                  />
-                  <PropRow label="Mute">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
-                      }
-                      className={cn(
-                        "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
-                        selectedClip.muted
-                          ? "bg-studio-accent border border-studio-accent"
-                          : "bg-transparent border border-overlay-lg"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
-                          selectedClip.muted
-                            ? "bg-white translate-x-[1.375rem]"
-                            : "bg-dim-3 translate-x-0"
-                        )}
-                      />
-                    </button>
-                  </PropRow>
-
-                  {selectedClip.textContent !== undefined && (
-                    <div className="mt-2">
-                      <p className="text-xs text-dim-3 mb-1">Text</p>
-                      <textarea
-                        className="w-full text-xs bg-overlay-sm text-dim-1 px-2 py-1.5 rounded border border-overlay-md resize-none"
-                        rows={3}
-                        value={selectedClip.textContent}
-                        onChange={(e) =>
-                          onUpdateClip(selectedClip!.id, { textContent: e.target.value })
+                {/* 4. Sound — not applicable to text clips */}
+                {isMediaClip && (
+                  <Section title={t("inspector_section_sound")}>
+                    <SliderRow
+                      label={t("inspector_prop_volume")}
+                      value={selectedClip.volume ?? 1}
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      onChange={(v) => onUpdateClip(selectedClip!.id, { volume: v })}
+                    />
+                    <PropRow label={t("inspector_prop_mute")}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateClip(selectedClip!.id, { muted: !selectedClip!.muted })
                         }
-                      />
-                    </div>
-                  )}
-                </Section>
+                        className={cn(
+                          "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                          selectedClip.muted
+                            ? "bg-studio-accent border border-studio-accent"
+                            : "bg-transparent border border-overlay-lg"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
+                            selectedClip.muted
+                              ? "bg-white translate-x-[1.375rem]"
+                              : "bg-dim-3 translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </PropRow>
+                  </Section>
+                )}
+
+                {/* 5. Text — only for text clips */}
+                {isTextClip && selectedClip.textContent !== undefined && (
+                  <Section title={t("inspector_section_text")}>
+                    <textarea
+                      className="w-full text-xs bg-overlay-sm text-dim-1 px-2 py-1.5 rounded border border-overlay-md resize-none"
+                      rows={3}
+                      value={selectedClip.textContent}
+                      onChange={(e) =>
+                        onUpdateClip(selectedClip!.id, { textContent: e.target.value })
+                      }
+                    />
+                  </Section>
+                )}
 
                 {/* 4b. Text Style — plain overlay copy (no word-timed captions) */}
                 {selectedClip.textContent !== undefined && !hasTimedCaptionWords && (
-                  <Section title="Text Style">
+                  <Section title={t("inspector_section_text_style")}>
                     <PropRow label={t("editor_text_smart_chunks")}>
                       <button
                         type="button"
@@ -424,7 +429,7 @@ export function Inspector({
                       {t("editor_text_smart_chunks_hint")}
                     </p>
                     <SliderRow
-                      label="Size"
+                      label={t("inspector_prop_text_font_size")}
                       value={selectedClip.textStyle?.fontSize ?? 32}
                       min={12}
                       max={120}
@@ -435,7 +440,7 @@ export function Inspector({
                         })
                       }
                     />
-                    <PropRow label="Weight">
+                    <PropRow label={t("inspector_prop_font_weight")}>
                       <button
                         type="button"
                         onClick={() =>
@@ -450,10 +455,10 @@ export function Inspector({
                             : "bg-overlay-sm border-overlay-md text-dim-2"
                         )}
                       >
-                        Bold
+                        {t("inspector_text_weight_bold")}
                       </button>
                     </PropRow>
-                    <PropRow label="Color">
+                    <PropRow label={t("inspector_prop_text_color")}>
                       <input
                         type="color"
                         value={selectedClip.textStyle?.color ?? "#ffffff"}
@@ -465,7 +470,7 @@ export function Inspector({
                         className="w-8 h-6 rounded cursor-pointer border-0 bg-transparent"
                       />
                     </PropRow>
-                    <PropRow label="Align">
+                    <PropRow label={t("inspector_prop_text_align")}>
                       <div className="flex gap-1">
                         {(["left", "center", "right"] as const).map((a) => (
                           <button
@@ -493,7 +498,7 @@ export function Inspector({
 
                 {/* 5. Captions — text track (preset applies to export / word-timed preview) */}
                 {showCaptionStyleUi && (
-                  <Section title="Captions">
+                  <Section title={t("editor_captions_generate_section")}>
                     {/* Preset picker */}
                     <div className="mb-2">
                       <p className="text-[10px] text-dim-3 mb-1.5">{t("editor_captions_style")}</p>
@@ -514,7 +519,7 @@ export function Inspector({
                       </div>
                     </div>
                     <SliderRow
-                      label="Position Y"
+                      label={t("inspector_prop_caption_position_y")}
                       value={selectedClip.captionPositionY ?? 80}
                       min={0}
                       max={100}
@@ -524,7 +529,7 @@ export function Inspector({
                       }
                     />
                     <SliderRow
-                      label="Font Size"
+                      label={t("inspector_prop_caption_font_size")}
                       value={selectedClip.captionFontSizeOverride ?? 48}
                       min={16}
                       max={120}
@@ -534,7 +539,7 @@ export function Inspector({
                       }
                     />
                     <SliderRow
-                      label="Group Size"
+                      label={t("inspector_prop_caption_group_size")}
                       value={selectedClip.captionGroupSize ?? 3}
                       min={1}
                       max={6}
@@ -567,14 +572,14 @@ export function Inspector({
 
                 const TRANSITION_OPTIONS: {
                   value: Transition["type"];
-                  label: string;
+                  labelKey: string;
                 }[] = [
-                  { value: "none", label: "Cut" },
-                  { value: "fade", label: "Fade" },
-                  { value: "slide-left", label: "Slide Left" },
-                  { value: "slide-up", label: "Slide Up" },
-                  { value: "dissolve", label: "Dissolve" },
-                  { value: "wipe-right", label: "Wipe Right" },
+                  { value: "none", labelKey: "editor_transitions_cut" },
+                  { value: "fade", labelKey: "editor_transitions_fade" },
+                  { value: "slide-left", labelKey: "editor_transitions_slide_left" },
+                  { value: "slide-up", labelKey: "editor_transitions_slide_up" },
+                  { value: "dissolve", labelKey: "editor_transitions_dissolve" },
+                  { value: "wipe-right", labelKey: "editor_transitions_wipe_right" },
                 ];
 
                 return (
@@ -596,7 +601,7 @@ export function Inspector({
                       >
                         {TRANSITION_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                            {t(opt.labelKey)}
                           </option>
                         ))}
                       </select>
@@ -630,7 +635,7 @@ export function Inspector({
                         className="mt-2 flex items-center gap-1 text-xs text-red-400 hover:text-red-300 bg-transparent border-0 cursor-pointer px-0"
                       >
                         <Trash2 size={11} />
-                        Remove Transition
+                        {t("editor_transitions_remove")}
                       </button>
                     )}
                   </Section>

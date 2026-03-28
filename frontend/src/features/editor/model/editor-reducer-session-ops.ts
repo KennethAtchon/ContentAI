@@ -3,6 +3,7 @@ import {
   alignTracksTrimInvariant,
   computeDuration,
   DEFAULT_TRACKS,
+  snapshotEditorState,
 } from "./editor-reducer-helpers";
 
 export function reduceSessionOps(
@@ -26,6 +27,7 @@ export function reduceSessionOps(
         fps: project.fps,
         resolution: project.resolution,
         tracks,
+        currentTimeMs: 0,
         selectedClipId: null,
         clipboardClip: null,
         clipboardSourceTrackId: null,
@@ -36,19 +38,34 @@ export function reduceSessionOps(
     }
 
     case "SET_TITLE":
-      return { ...state, title: action.title };
+      return {
+        ...state,
+        title: action.title,
+        past: [...state.past, snapshotEditorState(state)].slice(-50),
+        future: [],
+      };
 
     case "SET_RESOLUTION":
-      return { ...state, resolution: action.resolution };
+      return {
+        ...state,
+        resolution: action.resolution,
+        past: [...state.past, snapshotEditorState(state)].slice(-50),
+        future: [],
+      };
 
     case "SET_CURRENT_TIME":
-      return { ...state, currentTimeMs: Math.max(0, action.ms) };
+      return { ...state, currentTimeMs: Math.min(Math.max(0, action.ms), state.durationMs) };
 
     case "SET_PLAYING":
       return { ...state, isPlaying: action.playing };
 
     case "SET_PLAYBACK_RATE":
-      return { ...state, playbackRate: action.rate };
+      return {
+        ...state,
+        playbackRate: action.rate,
+        past: [...state.past, snapshotEditorState(state)].slice(-50),
+        future: [],
+      };
 
     case "SET_ZOOM":
       return { ...state, zoom: Math.max(5, Math.min(200, action.zoom)) };
@@ -62,9 +79,12 @@ export function reduceSessionOps(
       return {
         ...state,
         past: state.past.slice(0, -1),
-        future: [state.tracks, ...state.future],
-        tracks: previous,
-        durationMs: computeDuration(previous),
+        future: [snapshotEditorState(state), ...state.future].slice(0, 50),
+        tracks: previous.tracks,
+        resolution: previous.resolution,
+        title: previous.title,
+        playbackRate: previous.playbackRate,
+        durationMs: computeDuration(previous.tracks),
       };
     }
 
@@ -73,10 +93,13 @@ export function reduceSessionOps(
       const next = state.future[0];
       return {
         ...state,
-        past: [...state.past, state.tracks],
+        past: [...state.past, snapshotEditorState(state)].slice(-50),
         future: state.future.slice(1),
-        tracks: next,
-        durationMs: computeDuration(next),
+        tracks: next.tracks,
+        resolution: next.resolution,
+        title: next.title,
+        playbackRate: next.playbackRate,
+        durationMs: computeDuration(next.tracks),
       };
     }
 

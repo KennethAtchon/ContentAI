@@ -58,6 +58,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
+
+const RESOLUTION_LABEL_MAP: Record<string, string> = {
+  "720x1280": "9:16 SD (720p)",
+  "1080x1920": "9:16 HD (1080p)",
+  "2160x3840": "9:16 4K",
+  "1920x1080": "16:9 Landscape",
+  "1080x1080": "1:1 Square",
+};
 
 interface Props {
   project: EditProject;
@@ -80,7 +94,6 @@ export function EditorLayout({ project, onBack }: Props) {
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
-  const [showAiMenu, setShowAiMenu] = useState(false);
   const [timecodeEditing, setTimecodeEditing] = useState(false);
   const [timecodeInput, setTimecodeInput] = useState("");
   const [effectPreview, setEffectPreview] = useState<{ clipId: string; patch: Partial<Clip> } | null>(null);
@@ -519,7 +532,11 @@ export function EditorLayout({ project, onBack }: Props) {
           {/* Resolution picker */}
           <ResolutionPicker
             resolution={state.resolution}
-            onChange={store.setResolution}
+            onChange={(newResolution) => {
+              store.setResolution(newResolution);
+              const label = RESOLUTION_LABEL_MAP[newResolution] ?? newResolution;
+              toast.success(t("editor_resolution_changed", { resolution: label }));
+            }}
           />
 
           <div className="flex-1" />
@@ -577,49 +594,29 @@ export function EditorLayout({ project, onBack }: Props) {
           ) : (
             <div className="flex items-center gap-2">
               {project.generatedContentId != null && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowAiMenu((v) => !v)}
-                    disabled={isAiAssembling}
-                    className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
-                  >
-                    <Sparkles size={13} />
-                    {t("editor_ai_assemble")}
-                    <ChevronDown size={11} />
-                  </button>
-                  {showAiMenu && (
-                    <div
-                      className="absolute right-0 top-full mt-1 z-50 flex flex-col bg-studio-surface border border-overlay-md rounded-lg shadow-lg overflow-hidden min-w-[168px]"
-                      onMouseLeave={() => setShowAiMenu(false)}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isAiAssembling}
+                      className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
                     >
-                      {[
-                        {
-                          platform: "tiktok",
-                          label: t("editor_ai_assemble_tiktok"),
-                        },
-                        {
-                          platform: "youtube-shorts",
-                          label: t("editor_ai_assemble_youtube"),
-                        },
-                        {
-                          platform: "instagram",
-                          label: t("editor_ai_assemble_instagram"),
-                        },
-                      ].map(({ platform, label }) => (
-                        <button
-                          key={platform}
-                          onClick={() => {
-                            setShowAiMenu(false);
-                            aiAssemble(platform);
-                          }}
-                          className="text-left px-3 py-2 text-xs text-dim-1 hover:bg-overlay-sm cursor-pointer border-0 bg-transparent transition-colors"
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      <Sparkles size={13} />
+                      {t("editor_ai_assemble")}
+                      <ChevronDown size={11} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-[168px]">
+                    {[
+                      { platform: "tiktok", label: t("editor_ai_assemble_tiktok") },
+                      { platform: "youtube-shorts", label: t("editor_ai_assemble_youtube") },
+                      { platform: "instagram", label: t("editor_ai_assemble_instagram") },
+                    ].map(({ platform, label }) => (
+                      <DropdownMenuItem key={platform} onClick={() => aiAssemble(platform)}>
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               <button
                 onClick={() => setShowExport(true)}
@@ -663,6 +660,8 @@ export function EditorLayout({ project, onBack }: Props) {
             onClearPendingAdd={() => setPendingAdd(null)}
             onSyncAssets={syncAssets}
             isSyncing={isSyncing}
+            tracks={state.tracks}
+            onReorderShots={store.reorderShots}
           />
 
           <PreviewArea
@@ -759,6 +758,8 @@ export function EditorLayout({ project, onBack }: Props) {
         {showExport && state.editProjectId && (
           <ExportModal
             projectId={state.editProjectId}
+            initialResolution={state.resolution}
+            initialFps={state.fps as 24 | 30 | 60}
             onClose={() => setShowExport(false)}
           />
         )}

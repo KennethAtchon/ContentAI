@@ -27,6 +27,25 @@ export function formatMMSS(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * Display-only formatter: HH:MM:SS.d (tenths of a second).
+ * Used in the preview overlay where frame numbers would be misleading.
+ */
+export function formatHHMMSSd(ms: number): string {
+  const totalDs = Math.floor(ms / 100); // deciseconds
+  const d = totalDs % 10;
+  const totalSec = Math.floor(totalDs / 10);
+  const ss = totalSec % 60;
+  const totalMin = Math.floor(totalSec / 60);
+  const mm = totalMin % 60;
+  const hh = Math.floor(totalMin / 60);
+  return [
+    String(hh).padStart(2, "0"),
+    String(mm).padStart(2, "0"),
+    String(ss).padStart(2, "0"),
+  ].join(":") + "." + d;
+}
+
 /** Parse timecode string to milliseconds, or null if invalid. */
 export function parseTimecode(raw: string, fps: number): number | null {
   const parts = raw.trim().split(":").map(Number);

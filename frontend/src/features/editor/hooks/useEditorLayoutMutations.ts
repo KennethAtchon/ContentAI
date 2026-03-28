@@ -1,4 +1,6 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { publishEditorProject, type PatchProjectParams } from "../services/editor-api";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
@@ -18,6 +20,7 @@ export function useEditorLayoutMutations(options: {
   onBack: () => void;
   flushSave: (patch: PatchProjectParams) => Promise<unknown>;
 }) {
+  const { t } = useTranslation();
   const {
     project,
     store,
@@ -81,6 +84,10 @@ export function useEditorLayoutMutations(options: {
       } catch {
         // Autosave will retry on next edit; user may also use sync.
       }
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : t("editor_ai_assemble_error");
+      toast.error(msg);
     },
   });
 

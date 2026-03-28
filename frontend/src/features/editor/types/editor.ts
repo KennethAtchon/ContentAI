@@ -106,6 +106,14 @@ export interface ExportJobStatus {
   error?: string;
 }
 
+/** Single undo/redo snapshot (tracks + settings restored on undo). */
+export type EditorHistorySnapshot = {
+  tracks: Track[];
+  resolution: string;
+  title: string;
+  playbackRate: number;
+};
+
 // Editor state managed via useReducer
 export interface EditorState {
   editProjectId: string | null;
@@ -122,9 +130,9 @@ export interface EditorState {
   clipboardClip: Clip | null; // copy/paste
   /** Track id the copied clip came from (paste target when source clip was deleted). */
   clipboardSourceTrackId: string | null;
-  // Undo/redo
-  past: Track[][];
-  future: Track[][];
+  // Undo/redo — each snapshot stores tracks + editor settings that can be undone
+  past: EditorHistorySnapshot[];
+  future: EditorHistorySnapshot[];
   // Export
   exportJobId: string | null;
   exportStatus: ExportJobStatus | null;
@@ -181,6 +189,7 @@ export type EditorAction =
   | { type: "REMOVE_TRANSITION"; trackId: string; transitionId: string }
   | { type: "REORDER_SHOTS"; trackId: string; clipIds: string[] }
   | { type: "ADD_TRACK"; track: Track; afterTrackId?: string }
+  | { type: "ADD_VIDEO_TRACK"; afterTrackId: string }
   | { type: "REMOVE_TRACK"; trackId: string }
   | { type: "RENAME_TRACK"; trackId: string; name: string }
   | { type: "REORDER_TRACKS"; trackIds: string[] }

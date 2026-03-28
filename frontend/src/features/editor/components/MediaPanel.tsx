@@ -7,7 +7,8 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import type { Clip } from "../types/editor";
+import { ShotOrderPanel } from "./ShotOrderPanel";
+import type { Clip, Track } from "../types/editor";
 
 interface Asset {
   id: string;
@@ -34,9 +35,11 @@ interface Props {
   mergedAssetIds?: string[];
   onSyncAssets?: () => void;
   isSyncing?: boolean;
+  tracks?: Track[];
+  onReorderShots?: (trackId: string, clipIds: string[]) => void;
 }
 
-export type TabKey = "media" | "effects" | "audio" | "generate";
+export type TabKey = "media" | "effects" | "audio" | "generate" | "shots";
 
 const EFFECT_DEFINITIONS: {
   id: string;
@@ -44,6 +47,7 @@ const EFFECT_DEFINITIONS: {
   contrast: number;
   warmth: number;
   opacity: number;
+  swatchStyle: string;
 }[] = [
   {
     id: "color-grade",
@@ -51,6 +55,7 @@ const EFFECT_DEFINITIONS: {
     contrast: 20,
     warmth: 10,
     opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)",
   },
   {
     id: "bw",
@@ -58,6 +63,7 @@ const EFFECT_DEFINITIONS: {
     contrast: 10,
     warmth: -100,
     opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #1a1a1a 0%, #888888 100%)",
   },
   {
     id: "warm",
@@ -65,6 +71,7 @@ const EFFECT_DEFINITIONS: {
     warmth: 40,
     contrast: 5,
     opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
   },
   {
     id: "cool",
@@ -72,6 +79,7 @@ const EFFECT_DEFINITIONS: {
     warmth: -40,
     contrast: 5,
     opacity: 1,
+    swatchStyle: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
   },
   {
     id: "vignette",
@@ -79,6 +87,7 @@ const EFFECT_DEFINITIONS: {
     opacity: 0.9,
     contrast: 15,
     warmth: 0,
+    swatchStyle: "radial-gradient(ellipse at center, #555 0%, #000 100%)",
   },
 ];
 
@@ -121,6 +130,8 @@ export function MediaPanel({
   mergedAssetIds = [],
   onSyncAssets,
   isSyncing,
+  tracks = [],
+  onReorderShots,
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
@@ -147,11 +158,14 @@ export function MediaPanel({
   const mergedSet = new Set(mergedAssetIds);
   const newAssetCount = allAssets.filter((a) => !mergedSet.has(a.id)).length;
 
+  const videoTrack = tracks.find((tr) => tr.type === "video");
+
   const TABS: { key: TabKey; label: string }[] = [
     { key: "media", label: t("editor_media_tab") },
     { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
-...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
+    { key: "shots", label: t("editor_shots_tab") },
+    ...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -280,6 +294,7 @@ export function MediaPanel({
                           ),
                         })
                       );
+                      e.dataTransfer.setData(`application/x-contentai-type-${asset.type}`, "1");
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => addVideoClip(asset)}
@@ -340,6 +355,7 @@ export function MediaPanel({
                               label: item.name,
                             })
                           );
+                          e.dataTransfer.setData("application/x-contentai-type-video_clip", "1");
                           e.dataTransfer.effectAllowed = "copy";
                         }}
                         onClick={() =>
@@ -394,16 +410,14 @@ export function MediaPanel({
                   })
                 }
                 onMouseLeave={() => onEffectPreview?.(null)}
-                className="text-left px-3 py-2 rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors"
+                className="text-left rounded bg-overlay-sm hover:bg-overlay-md border-0 cursor-pointer transition-colors overflow-hidden"
               >
-                <p className="text-xs font-medium text-dim-1">
+                <div
+                  className="w-full h-10"
+                  style={{ background: effect.swatchStyle }}
+                />
+                <p className="text-xs font-medium text-dim-1 px-3 py-1.5">
                   {t(effect.labelKey)}
-                </p>
-                <p className="text-[10px] text-dim-3 mt-0.5">
-                  {Object.entries(effect)
-                    .filter(([k]) => k !== "id" && k !== "labelKey")
-                    .map(([k, v]) => `${k}: ${v}`)
-                    .join(" · ")}
                 </p>
               </button>
             ))}
@@ -443,6 +457,7 @@ export function MediaPanel({
                           ),
                         })
                       );
+                      e.dataTransfer.setData(`application/x-contentai-type-${asset.type}`, "1");
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => addAudioClip(asset)}
@@ -492,6 +507,20 @@ export function MediaPanel({
               </p>
             )}
           </div>
+        )}
+
+        {/* Shots tab */}
+        {activeTab === "shots" && videoTrack && onReorderShots && (
+          <ShotOrderPanel
+            videoTrack={videoTrack}
+            onReorder={onReorderShots}
+            readOnly={readOnly}
+          />
+        )}
+        {activeTab === "shots" && !videoTrack && (
+          <p className="text-xs italic text-dim-3 text-center mt-4 px-3">
+            {t("editor_shots_empty")}
+          </p>
         )}
       </div>
     </div>

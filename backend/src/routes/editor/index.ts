@@ -1116,14 +1116,29 @@ async function runExportJob(
     await setJobProgress(jobId, 20);
 
     // Build ffmpeg inputs and filtergraph
-    const videoTrack = tracks.find((t) => t.type === "video");
+    const videoTracks = tracks.filter((t) => t.type === "video");
     const audioTrack = tracks.find((t) => t.type === "audio" && !t.muted);
     const musicTrack = tracks.find((t) => t.type === "music" && !t.muted);
     const textTrack = tracks.find((t) => t.type === "text");
 
-    const videoClips = (videoTrack?.clips ?? []).filter(
-      (c) => c.assetId && assetsMap[c.assetId],
+    // Merge all video clips from all video tracks, sorted by startMs then track index
+    // (deterministic when two clips share the same startMs; lower index = bottom layer first)
+    const videoClipsWithTrack = videoTracks.flatMap((t, trackIndex) =>
+      t.clips
+        .filter((c) => c.assetId && assetsMap[c.assetId!])
+        .map((c) => ({ clip: c, trackIndex })),
     );
+    videoClipsWithTrack.sort((a, b) => {
+      if (a.clip.startMs !== b.clip.startMs)
+        return a.clip.startMs - b.clip.startMs;
+      return a.trackIndex - b.trackIndex;
+    });
+    const videoClips = videoClipsWithTrack.map((x) => x.clip);
+    const clipTrackIndex = new Map<string, number>();
+    for (const { clip, trackIndex } of videoClipsWithTrack) {
+      clipTrackIndex.set(clip.id, trackIndex);
+    }
+    const videoTransitions = videoTracks.flatMap((t) => t.transitions ?? []);
     const audioClips = (audioTrack?.clips ?? []).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
@@ -1221,7 +1236,6 @@ async function runExportJob(
     let latestVideoLabel = "";
 
     // Join clips with xfade (or hard cut if no transition)
-    const videoTransitions = videoTrack?.transitions ?? [];
 
     if (videoInputCount === 1) {
       latestVideoLabel = "v0";
@@ -1240,9 +1254,13 @@ async function runExportJob(
       for (let i = 1; i < videoClips.length; i++) {
         const clipA = videoClips[i - 1];
         const clipB = videoClips[i];
-        const trans = videoTransitions.find(
-          (t) => t.clipAId === clipA.id && t.clipBId === clipB.id,
-        );
+        const sameOriginalTrack =
+          clipTrackIndex.get(clipA.id) === clipTrackIndex.get(clipB.id);
+        const trans = sameOriginalTrack
+          ? videoTransitions.find(
+              (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id,
+            )
+          : undefined;
 
         const isLast = i === videoClips.length - 1;
         const outLabel = isLast ? "[vjoined]" : `[vx${i}]`;

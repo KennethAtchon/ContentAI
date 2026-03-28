@@ -1,4 +1,4 @@
-import type { EditorState, EditorAction, Clip, Transition } from "../types/editor";
+import type { EditorState, EditorAction, Clip, Track, Transition } from "../types/editor";
 import {
   computeDuration,
   pushPastTracks,
@@ -197,6 +197,27 @@ export function reduceTrackOps(
         ...state,
         tracks: merged,
         durationMs: computeDuration(merged),
+      };
+    }
+
+    case "ADD_VIDEO_TRACK": {
+      const videoCount = state.tracks.filter((t) => t.type === "video").length;
+      const track: Track = {
+        id: crypto.randomUUID(),
+        type: "video",
+        name: `Video ${videoCount + 1}`,
+        muted: false,
+        locked: false,
+        clips: [],
+        transitions: [],
+      };
+      const afterIdx = state.tracks.findIndex((t) => t.id === action.afterTrackId);
+      const newTracks = afterIdx >= 0
+        ? [...state.tracks.slice(0, afterIdx + 1), track, ...state.tracks.slice(afterIdx + 1)]
+        : [...state.tracks, track];
+      return {
+        ...state,
+        ...pushPastTracks(state, newTracks),
       };
     }
 

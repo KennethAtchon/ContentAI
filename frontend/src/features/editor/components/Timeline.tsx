@@ -124,6 +124,8 @@ export function Timeline({
 }: Props) {
   const { t } = useTranslation();
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const [rejectTargetTrackId, setRejectTargetTrackId] = useState<string | null>(null);
+  const [activeSnapMs, setActiveSnapMs] = useState<number | null>(null);
   const rulerScrollRef = useRef<HTMLDivElement>(null);
   const headersRef = useRef<HTMLDivElement>(null);
 
@@ -165,12 +167,29 @@ export function Timeline({
   const handleDragOver = (e: React.DragEvent, track: Track) => {
     if (!e.dataTransfer.types.includes("application/x-contentai-asset")) return;
     if (track.locked) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setDropTargetTrackId(track.id);
+
+    const assetType = ["video_clip", "assembled_video", "image", "voiceover", "music"].find(
+      (t) => e.dataTransfer.types.includes(`application/x-contentai-type-${t}`)
+    );
+    const expectedTrack = assetType ? ASSET_TYPE_TO_TRACK[assetType] : undefined;
+    const isValid = !expectedTrack || expectedTrack === track.type;
+
+    if (isValid) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setDropTargetTrackId(track.id);
+      setRejectTargetTrackId(null);
+    } else {
+      e.dataTransfer.dropEffect = "none";
+      setDropTargetTrackId(null);
+      setRejectTargetTrackId(track.id);
+    }
   };
 
-  const handleDragLeave = () => setDropTargetTrackId(null);
+  const handleDragLeave = () => {
+    setDropTargetTrackId(null);
+    setRejectTargetTrackId(null);
+  };
 
   const handleDrop = (e: React.DragEvent, track: Track) => {
     setDropTargetTrackId(null);
@@ -352,6 +371,12 @@ export function Timeline({
                       backgroundColor:
                         dropTargetTrackId === track.id
                           ? "rgba(139,92,246,0.08)"
+                          : rejectTargetTrackId === track.id
+                          ? "rgba(239,68,68,0.08)"
+                          : undefined,
+                      boxShadow:
+                        rejectTargetTrackId === track.id
+                          ? "inset 0 0 0 1px rgba(239,68,68,0.3)"
                           : undefined,
                     }}
                     onDragOver={(e) => handleDragOver(e, track)}
@@ -379,6 +404,7 @@ export function Timeline({
                         playheadMs={currentTimeMs}
                         hasClipboard={hasClipboard}
                         onSelect={() => onSelectClip(clip.id)}
+                        onSnapChange={setActiveSnapMs}
                         onMove={(newStartMs) =>
                           onUpdateClip(clip.id, { startMs: newStartMs })
                         }
@@ -437,6 +463,13 @@ export function Timeline({
                 </TrackAreaContextMenu>
               );
             })}
+
+            {activeSnapMs !== null && (
+              <div
+                className="absolute top-0 bottom-0 w-px bg-studio-accent/80 pointer-events-none z-20"
+                style={{ left: (activeSnapMs / 1000) * zoom }}
+              />
+            )}
 
             <Playhead
               currentTimeMs={currentTimeMs}

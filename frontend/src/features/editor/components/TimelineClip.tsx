@@ -46,6 +46,7 @@ interface Props {
   onRippleDelete: () => void;
   onDelete: () => void;
   onSetSpeed: (speed: number) => void;
+  onSnapChange?: (snapMs: number | null) => void;
 }
 
 export function TimelineClip({
@@ -70,6 +71,7 @@ export function TimelineClip({
   onRippleDelete,
   onDelete,
   onSetSpeed,
+  onSnapChange,
 }: Props) {
   const { t } = useTranslation();
   const left = (clip.startMs / 1000) * zoom;
@@ -120,7 +122,12 @@ export function TimelineClip({
       if (!ev.shiftKey) {
         const thresholdMs = (SNAP_THRESHOLD_PX / zoom) * 1000;
         const snapped = findNearestSnap(newStart, snapTargets, thresholdMs);
-        if (snapped !== null) newStart = snapped;
+        if (snapped !== null) {
+          newStart = snapped;
+          onSnapChange?.(snapped);
+        } else {
+          onSnapChange?.(null);
+        }
       }
 
       dragCurrentMs.current = newStart;
@@ -130,6 +137,7 @@ export function TimelineClip({
     };
 
     const onUp = () => {
+      onSnapChange?.(null);
       const finalMs = clampMoveToFreeSpace(track, clip.id, dragCurrentMs.current, clip.durationMs);
       onMove(finalMs);
       if (clipRef.current) {

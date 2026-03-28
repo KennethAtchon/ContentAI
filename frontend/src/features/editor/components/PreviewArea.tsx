@@ -4,7 +4,7 @@ import { Play } from "lucide-react";
 import type { Clip, Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { drawCaptionsOnCanvas } from "../hooks/useCaptionPreview";
-import { formatHHMMSSFF, formatMMSS } from "../utils/timecode";
+import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
 import {
   audioClipNeedsHeavyPreload,
@@ -215,8 +215,22 @@ export function PreviewArea({
     };
   }, [currentTimeMs, textTrack]);
 
+  // Prune stale entries from videoRefs/audioRefs after every render
+  const currentVideoClipIds = new Set(videoTracks.flatMap((vt) => vt.clips.map((c) => c.id)));
+  const currentAudioClipIds = new Set(
+    [...(audioTrack?.clips ?? []), ...(musicTrack?.clips ?? [])].map((c) => c.id)
+  );
+  useEffect(() => {
+    for (const id of videoRefs.current.keys()) {
+      if (!currentVideoClipIds.has(id)) videoRefs.current.delete(id);
+    }
+    for (const id of audioRefs.current.keys()) {
+      if (!currentAudioClipIds.has(id)) audioRefs.current.delete(id);
+    }
+  });
+
   const hasContent = videoTracks.some((vt) => vt.clips.length > 0);
-  const timecode = formatHHMMSSFF(currentTimeMs, fps);
+  const timecode = formatHHMMSSd(currentTimeMs);
   const position = formatMMSS(currentTimeMs);
   const total = formatMMSS(durationMs);
 
@@ -234,14 +248,10 @@ export function PreviewArea({
           maxHeight: "calc(100% - 40px)",
         }}
       >
-        {/* Film-strip edges */}
-        <div className="absolute left-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
-        <div className="absolute right-0 top-0 h-full w-3 bg-repeating-sprocket pointer-events-none z-10" />
-
         {/* Preview screen */}
         <div
           ref={containerRef}
-          className="absolute inset-x-3 inset-y-0 bg-black overflow-hidden flex items-center justify-center"
+          className="absolute inset-0 bg-black overflow-hidden flex items-center justify-center"
         >
           {/* Layered video tracks — Track 0 at bottom, Track N at top */}
           {videoTracks.map((videoTrack, trackIdx) => {
@@ -312,24 +322,30 @@ export function PreviewArea({
                     filterParts.push(buildWarmthFilter(warmth));
                   }
 
+                  const resolvedSrc = assetUrlMap.get(clip.assetId ?? "");
+
                   return (
-                    <video
-                      key={clip.id}
-                      ref={(el) => {
-                        if (el) videoRefs.current.set(clip.id, el);
-                        else videoRefs.current.delete(clip.id);
-                      }}
-                      src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
-                      className="absolute inset-0 w-full h-full object-contain"
-                      style={{
-                        opacity,
-                        clipPath,
-                        filter: filterParts.join(" ") || undefined,
-                        transform,
-                      }}
-                      playsInline
-                      preload={heavyPreload ? "auto" : "metadata"}
-                    />
+                    <div key={clip.id} className="absolute inset-0">
+                      <video
+                        ref={(el) => {
+                          if (el) videoRefs.current.set(clip.id, el);
+                          else videoRefs.current.delete(clip.id);
+                        }}
+                        {...(resolvedSrc ? { src: resolvedSrc } : {})}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        style={{
+                          opacity,
+                          clipPath,
+                          filter: filterParts.join(" ") || undefined,
+                          transform,
+                        }}
+                        playsInline
+                        preload={heavyPreload ? "auto" : "metadata"}
+                      />
+                      {!resolvedSrc && (
+                        <div className="absolute inset-0 bg-overlay-sm animate-pulse rounded" />
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -421,7 +437,7 @@ export function PreviewArea({
           {position} / {total}
         </span>
         <span className="text-xs text-dim-3">
-          {resW} × {resH} · {fps} fps
+          {resW} × {resH}
         </span>
       </div>
     </div>

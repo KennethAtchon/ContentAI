@@ -1,6 +1,5 @@
 import { useReducer, useCallback } from "react";
 import type {
-  Track,
   Clip,
   EditProject,
   ExportJobStatus,
@@ -157,19 +156,9 @@ export function useEditorReducer() {
   );
   const addVideoTrack = useCallback(
     (afterTrackId: string) => {
-      const videoCount = state.tracks.filter((t) => t.type === "video").length;
-      const track: Track = {
-        id: crypto.randomUUID(),
-        type: "video",
-        name: `Video ${videoCount + 1}`,
-        muted: false,
-        locked: false,
-        clips: [],
-        transitions: [],
-      };
-      dispatch({ type: "ADD_TRACK", track, afterTrackId });
+      dispatch({ type: "ADD_VIDEO_TRACK", afterTrackId });
     },
-    [state.tracks]
+    []
   );
   const removeTrack = useCallback(
     (trackId: string) => dispatch({ type: "REMOVE_TRACK", trackId }),

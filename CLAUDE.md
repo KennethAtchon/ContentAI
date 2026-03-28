@@ -2,168 +2,110 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project
+
+**ReelStudio** — AI-powered content intelligence platform. Users discover viral Instagram reels, get AI-generated breakdowns, then generate original hooks/captions/scripts and schedule them. SaaS with Firebase auth, Stripe subscriptions, PostgreSQL, and Anthropic Claude.
+
 ## Commands
 
-All commands use **Bun** (`bun@1.2.14`). Run from the respective `frontend/` or `backend/` directory.
+All commands run from the respective subdirectory.
 
-### Frontend (`frontend/`)
+### Frontend (`cd frontend`)
 ```bash
-bun dev                # Vite dev server (port 3000)
-bun build              # Production build
-bun lint               # ESLint (zero warnings allowed)
-bun format             # Prettier write
-bun test               # All tests
-bun test:unit          # Unit tests only
-bun test:integ         # Integration tests only
-bun test:watch         # Watch mode
-bun test:coverage      # Unit tests with coverage
+bun run dev          # Dev server on port 3000
+bun run build        # Production build
+bun run lint         # ESLint
+bun run type-check   # tsc --noEmit
+bun test             # All tests
+bun test __tests__/unit                    # Unit tests only
+bun test __tests__/unit/features/editor   # Single test folder
+bun test --watch     # Watch mode
 ```
 
-Run a single test file:
+### Backend (`cd backend`)
 ```bash
-bun test __tests__/unit/utils/date.test.ts
+bun run dev          # API server on port 3001 (hot reload)
+bun run build        # Bundle to dist/
+bun run lint         # ESLint
+bun test             # All tests
+bun test __tests__/unit   # Unit tests only
+bun run db:generate  # Generate Drizzle migrations after schema change
+bun run db:migrate   # Apply migrations
+bun run db:studio    # Open Drizzle Studio UI
+bun run db:reset     # Reset DB (dev only)
 ```
-
-### Backend (`backend/`)
-```bash
-bun dev                # Hot-reload dev server (port 3001)
-bun test               # All tests
-bun test:unit          # Unit tests only
-bun db:generate        # Drizzle generate (after schema changes)
-bun db:migrate         # Drizzle migrate
-bun db:studio          # Drizzle Studio GUI
-bun lint               # ESLint
-```
-
----
 
 ## Architecture
 
-This is a **monorepo** with two independent servers that share no code at runtime:
+Split monorepo: React SPA + Hono API server. No shared code between frontend and backend — they communicate over HTTP only.
 
-- **`frontend/`** — React 19 SPA (Vite + TanStack Router)
-- **`backend/`** — Hono API server (Bun runtime)
+### Frontend (`frontend/src/`)
 
-### Frontend Stack
+- **Routing**: TanStack Router with file-based routes in `src/routes/`. Route groups: `(public)/`, `(auth)/`, `(customer)/`, `studio/`, `admin/`.
+- **Features**: Domain logic lives in `src/features/<feature>/` (components, hooks, services, types). No cross-feature imports.
+- **Shared**: `src/shared/` — only for things used across multiple features. `shared/lib/query-keys.ts` is the single source of truth for all TanStack Query cache keys.
+- **Auth**: `AppContext` (`shared/contexts/`) holds `user`, `profile`, `isAdmin`. `AuthGuard` in `features/auth/` handles route protection. Firebase ID token is sent as `Authorization: Bearer <token>` on every API call via `useAuthenticatedFetch`.
+- **State**: TanStack Query for all server state. No global client state library — use local state or context for UI-only state.
+- **Constants**: `shared/constants/app.constants.ts` — product identity (APP_NAME, etc.). `shared/constants/subscription.constants.ts` — tier definitions, Stripe price IDs, limits.
 
-| Concern | Library |
-|---|---|
-| Routing | TanStack Router (file-based, `src/routes/`) |
-| Data fetching | TanStack Query (React Query v5) |
-| Auth | Firebase (client SDK) |
-| UI components | Radix UI + shadcn/ui (`src/shared/components/ui/`) |
-| Styling | Tailwind CSS v4 |
-| Forms | react-hook-form + zod |
-| i18n | react-i18next |
-| Animations | Framer Motion |
+### Backend (`backend/src/`)
 
-**Route groups** in `src/routes/`:
-- `(public)/` — unauthenticated pages
-- `(auth)/` — sign-in, sign-up
-- `(customer)/` — authenticated customer pages
-- `admin/` — admin dashboard
+Entry point: `src/index.ts` — mounts all routes at `/api/<resource>`.
 
-**Feature structure** (`src/features/<feature>/`): each feature contains `components/`, `hooks/`, `services/`, and `types/`.
+**Middleware stack per protected route** (in order):
+1. `rateLimiter()` — Redis-backed rate limiting
+2. `csrfMiddleware()` — CSRF token validation
+3. `authMiddleware("user" | "admin")` — Firebase token verification + DB user upsert → sets `c.get("auth")`
 
-**Shared code** lives in `src/shared/` and is used across features: `components/`, `hooks/`, `services/`, `utils/`, `constants/`, `lib/`.
+Route handlers call `c.get("auth")` to get the verified user. Never verify the token twice in a handler.
 
-### Backend Stack
+**Services** (`src/services/`) contain all business logic. Routes are thin — they validate input, call a service, return the result.
 
-| Concern | Library |
-|---|---|
-| HTTP framework | Hono |
-| Database | PostgreSQL via Drizzle ORM (schema: `src/infrastructure/database/drizzle/schema.ts`) |
-| Cache / rate limiting | Redis (ioredis) |
-| Auth | Firebase Admin SDK |
-| Payments | Stripe |
-| Email | Resend |
-| Storage | Cloudflare R2 (AWS S3-compatible) |
-| Observability | Prometheus (`prom-client`) |
+**Validation**: Use `@hono/zod-validator` middleware (`validateBody()` / `validateQuery()`) on routes. No manual body parsing.
 
-Routes in `src/routes/` are mounted on `/api/<resource>` in `src/index.ts`. Auth is enforced via `requireAuth`/`requireAdmin` middleware from `src/middleware/protection.ts`.
+### Database
 
----
+**ORM: Drizzle ORM** (not Prisma). Schema at `backend/src/infrastructure/database/drizzle/schema.ts`.
 
-## Code Patterns
+PostgreSQL tables: `user`, `order`, `contact_message`, `feature_usage`, `niche`, `reel`, `reel_analysis`, `generated_content`, `instagram_page`, `queue_item`.
 
-### API Calls & Data Fetching
+**Critical split**: Subscriptions live in **Firestore** (managed by the `ext-firestore-stripe-payments` Firebase extension), not PostgreSQL. Orders (one-time purchases) live in PostgreSQL. Never query PostgreSQL for subscription status — read from the Firebase custom claim `stripeRole` on the JWT.
 
-**NEVER use `fetch` directly.** Use the established patterns:
+### Billing / Subscriptions
 
-- **For GET requests with caching:** Use React Query with `useQueryFetcher`
-  ```typescript
-  const fetcher = useQueryFetcher();
-  const { data } = useQuery({
-    queryKey: queryKeys.api.someResource(),
-    queryFn: () => fetcher("/api/some-resource"),
-    enabled: !!user,
-  });
-  ```
-  Use `queryKeys` from `@/shared/lib/query-keys` for all cache keys.
+Subscription tier is encoded in the Firebase JWT as the `stripeRole` custom claim. The backend reads this claim on every request — no database call needed for tier checks.
 
-- **For authenticated API calls (mutations, POST/PUT/DELETE):** Use `useAuthenticatedFetch`
-  ```typescript
-  const { authenticatedFetch, authenticatedFetchJson } = useAuthenticatedFetch();
-  const data = await authenticatedFetchJson<Type>(url);
-  ```
+Checkout flow: frontend writes to Firestore → Firebase extension creates Stripe Checkout → extension sets `stripeRole` claim after payment. The app never directly calls Stripe during checkout. Plan changes go through the Stripe Customer Portal only.
 
-- **For server-side API calls:** Use `authenticatedFetchJson` from `@/shared/services/api/authenticated-fetch`
+Usage limits (AI generation count) are tracked in PostgreSQL (`feature_usage` table) and enforced server-side before every generation request.
 
-### Internationalization (i18n)
+### Editor System
 
-**ALWAYS use translations.** Never hardcode user-facing strings.
+The timeline editor is the most complex subsystem. Key concepts:
 
-- Use `useTranslation()` hook from `react-i18next` in components
-- Translation keys live in `frontend/src/translations/en.json`
-- Check existing keys before adding new ones
+- **Composition**: One per user+content pair. Holds the `timeline` (tracks: video, audio, text overlays, captions) and a `version` number. Persisted in PostgreSQL.
+- **Clip trim convention**: `trimStartMs` + `durationMs` + `trimEndMs` === `sourceMaxDurationMs`. `trimEndMs` is the unused tail (not an absolute timestamp). All server-side clip creation must follow this shape.
+- **Init flow**: `POST /api/editor/init` creates the composition on first visit (builds default timeline from assets); returns existing on subsequent visits. Frontend then GETs the composition to set the undo baseline.
+- **Local-first edits**: All edits update local React state immediately via `editorReducer` in `frontend/src/features/editor/model/`. Autosave debounces 800ms, hashes the timeline to detect real changes, sends to server.
+- **Conflict detection**: Every save includes `expectedVersion`. Server returns 409 if versions diverge (another tab saved). No auto-merge — user must refresh.
+- **Rendering**: Separate from saving. Uses the DB version (not local state). Redis lock prevents duplicate render jobs for the same version.
+- **Undo/redo**: Pure in-memory history stack. No network calls — autosave handles persistence.
 
+Reducer is split across files: `editor-reducer.ts` (dispatch), `editor-reducer-clip-ops.ts`, `editor-reducer-track-ops.ts`, `editor-reducer-session-ops.ts`, `editor-reducer-helpers.ts`.
+
+## Key Patterns
+
+**Backend route pattern:**
 ```typescript
-import { useTranslation } from "react-i18next";
-const { t } = useTranslation();
-// <p>{t("some.key")}</p>
+import { authMiddleware } from "../../middleware/...";
+// compose: rateLimiter, csrfMiddleware, authMiddleware, then handler
+const auth = c.get("auth"); // DecodedIdToken + db user
 ```
 
-### Environment Variables
+**Frontend API calls:** Always use `useAuthenticatedFetch` (from `features/auth/`) which attaches the Bearer token and CSRF header automatically.
 
-**NEVER use `process.env` or `import.meta.env` directly.** Always use `envUtil`.
+**Query keys:** Import from `shared/lib/query-keys.ts` — do not inline string keys.
 
-- **Frontend** (`src/shared/utils/config/envUtil.ts`): accesses `import.meta.env`, vars prefixed with `VITE_`
-- **Backend** (`src/utils/config/envUtil.ts`): accesses `process.env`, no prefix needed
-- Add new vars to `envUtil.ts` first, then use the exported constant
+**i18n:** All user-visible strings go through `react-i18next` (`t('key')`). Translation files at `frontend/src/translations/en.json`.
 
-```typescript
-// ❌ WRONG
-const apiUrl = import.meta.env.VITE_API_URL;
-
-// ✅ CORRECT
-import { API_URL } from "@/shared/utils/config/envUtil";
-```
-
-For constants that don't vary by environment, use regular `const` — not env vars.
-
-### General Principles
-
-- **Follow existing patterns** — read similar files before writing new code
-- **Feature-based organization** — new features go in `src/features/<feature>/`
-- **Update AI_Orchestrator docs** — when making code changes, update relevant docs in `docs/AI_Orchestrator/`
-
----
-
-## Testing
-
-Both frontend and backend use **Bun's built-in test runner**.
-
-### Frontend Tests
-
-Test setup is in `__tests__/setup/bun-preload.ts` (loaded automatically via `bunfig.toml`). It:
-- Registers Happy DOM (DOM environment for React Testing Library)
-- Sets test env vars
-- Mocks Firebase, auth middleware, rate limiters, and other heavy dependencies via `global.__testMocks__`
-
-To override a mock in a specific test, use `(global as any).__testMocks__.<service>.<method>.mockResolvedValue(...)`.
-
-### Backend Tests
-
-Test setup is in `__tests__/setup/bun-preload.ts`. Integration tests use a helper in `__tests__/helpers/create-test-app.ts` that builds a real Hono app with mocked middleware.
-
-Tests run with `concurrency = 1` (serial) to avoid race conditions.
+**Testing:** Bun's built-in test runner. Frontend unit tests in `frontend/__tests__/unit/`. Use `bun:test` imports (`describe`, `test`, `expect` from `"bun:test"`).

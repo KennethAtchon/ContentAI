@@ -107,4 +107,16 @@ describe("editorReducer golden paths", () => {
     s = editorReducer(s, { type: "SELECT_CLIP", clipId: "x" });
     expect(s.selectedClipId).toBe("x");
   });
+
+  test("SET_PLAYBACK_RATE then UNDO restores previous rate", () => {
+    let s = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject(),
+    });
+    expect(s.playbackRate).toBe(1);
+    s = editorReducer(s, { type: "SET_PLAYBACK_RATE", rate: -2 });
+    expect(s.playbackRate).toBe(-2);
+    s = editorReducer(s, { type: "UNDO" });
+    expect(s.playbackRate).toBe(1);
+  });
 });
