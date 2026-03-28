@@ -624,8 +624,13 @@ export function EditorLayout({ project, onBack }: Props) {
             s.currentTimeMs < clip.startMs + clip.durationMs
           ) {
             e.preventDefault();
+            const newDurationMs = s.currentTimeMs - clip.startMs;
             st.updateClip(clip.id, {
-              durationMs: s.currentTimeMs - clip.startMs,
+              durationMs: newDurationMs,
+              trimEndMs: Math.max(
+                0,
+                (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs,
+              ),
             });
           }
         }

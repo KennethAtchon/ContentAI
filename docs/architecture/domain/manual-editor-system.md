@@ -10,6 +10,8 @@ A "composition" is the saved state of a user's timeline edits for one piece of g
 
 The composition holds a `timeline` object — tracks for video clips, audio, text overlays, captions. Each video item in the timeline knows which asset it uses, where it starts and ends in time, and how it's trimmed. The composition also has a version number.
 
+**Media clip trim fields (video / voiceover / music):** The editor uses a single convention: `trimStartMs` is how far into the source file playback begins, `durationMs` is how long the clip runs on the timeline, and `trimEndMs` is the unused **tail** of the source (not an absolute timestamp). They satisfy `trimStartMs + durationMs + trimEndMs === sourceMaxDurationMs`, where `sourceMaxDurationMs` is the full source asset length. Server-side merge and preset code must write clips in this shape so edge-drag trimming cannot stretch past the file.
+
 When you close the editor and come back, you're returned to your exact previous state — every trim, every clip order, every text overlay. The composition is the persistent "work in progress" for your edit.
 
 ---

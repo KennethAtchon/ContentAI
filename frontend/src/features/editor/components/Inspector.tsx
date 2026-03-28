@@ -133,12 +133,16 @@ export function Inspector({
     }
   }
 
-  const isCaptionClip = !!(selectedClip?.captionWords?.length);
+  /** Word-timed captions (preview canvas + generate-from-video exclusion). */
+  const hasTimedCaptionWords = !!(selectedClip?.captionWords?.length);
+  /** Caption preset UI applies to every text-track clip, not only after words exist. */
+  const showCaptionStyleUi = selectedTrack?.type === "text";
+
   // Show generate button for any non-text track clip that has an asset and no captions yet
   const isGenerableClip =
     !!selectedClip?.assetId &&
     selectedTrack?.type !== "text" &&
-    !isCaptionClip;
+    !hasTimedCaptionWords;
 
   const handleGenerateText = async () => {
     if (!selectedClip?.assetId) return;
@@ -386,8 +390,8 @@ export function Inspector({
                   )}
                 </Section>
 
-                {/* 4b. Text Style — only for non-caption text clips */}
-                {selectedClip.textContent !== undefined && !isCaptionClip && (
+                {/* 4b. Text Style — plain overlay copy (no word-timed captions) */}
+                {selectedClip.textContent !== undefined && !hasTimedCaptionWords && (
                   <Section title="Text Style">
                     <PropRow label={t("editor_text_smart_chunks")}>
                       <button
@@ -487,8 +491,8 @@ export function Inspector({
                   </Section>
                 )}
 
-                {/* 5. Captions — only for caption clips */}
-                {isCaptionClip && (
+                {/* 5. Captions — text track (preset applies to export / word-timed preview) */}
+                {showCaptionStyleUi && (
                   <Section title="Captions">
                     {/* Preset picker */}
                     <div className="mb-2">
@@ -498,7 +502,9 @@ export function Inspector({
                           <CaptionPresetTile
                             key={p.id}
                             preset={p}
-                            selected={selectedClip.captionPresetId === p.id}
+                            selected={
+                              (selectedClip.captionPresetId ?? CAPTION_PRESETS[0]!.id) === p.id
+                            }
                             onClick={() =>
                               onUpdateClip(selectedClip!.id, { captionPresetId: p.id })
                             }

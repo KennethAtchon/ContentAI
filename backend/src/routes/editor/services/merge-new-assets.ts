@@ -5,7 +5,11 @@ import {
   contentAssets,
   editProjects,
 } from "../../../infrastructure/database/drizzle/schema";
-import type { TimelineClipJson, TimelineTrackJson } from "./refresh-editor-timeline";
+import {
+  normalizeMediaClipTrimFields,
+  type TimelineClipJson,
+  type TimelineTrackJson,
+} from "./refresh-editor-timeline";
 
 function computeDuration(tracks: TimelineTrackJson[]): number {
   let maxEnd = 0;
@@ -31,14 +35,11 @@ function makeVideoClip(assetId: string, durationMs: number, startMs: number, met
   const shotIdx = typeof meta.shotIndex === "number" ? meta.shotIndex : -1;
   const genPrompt = typeof meta.generationPrompt === "string" ? meta.generationPrompt : undefined;
   const dur = Math.max(1, durationMs);
-  return {
+  return normalizeMediaClipTrimFields(dur, {
     id: crypto.randomUUID(),
     assetId,
     label: genPrompt ?? (shotIdx >= 0 ? `Shot ${shotIdx + 1}` : "Video clip"),
     startMs,
-    durationMs: dur,
-    trimStartMs: 0,
-    trimEndMs: dur,
     speed: 1,
     opacity: 1,
     warmth: 0,
@@ -49,19 +50,16 @@ function makeVideoClip(assetId: string, durationMs: number, startMs: number, met
     rotation: 0,
     volume: 1,
     muted: false,
-  };
+  });
 }
 
 function makeAudioClip(assetId: string, durationMs: number, idPrefix: string, label: string, volume = 1): TimelineClipJson {
   const dur = Math.max(1, durationMs);
-  return {
+  return normalizeMediaClipTrimFields(dur, {
     id: `${idPrefix}-${assetId}`,
     assetId,
     label,
     startMs: 0,
-    durationMs: dur,
-    trimStartMs: 0,
-    trimEndMs: dur,
     speed: 1,
     opacity: 1,
     warmth: 0,
@@ -72,7 +70,7 @@ function makeAudioClip(assetId: string, durationMs: number, idPrefix: string, la
     rotation: 0,
     volume,
     muted: false,
-  };
+  });
 }
 
 export async function mergeNewAssetsIntoProject(
@@ -146,16 +144,14 @@ export async function mergeNewAssetsIntoProject(
       if (placeholderIdx >= 0) {
         const placeholder = videoTrack.clips[placeholderIdx];
         const dur = Math.max(1, asset.durationMs ?? Number(placeholder.durationMs ?? 5000));
-        videoTrack.clips[placeholderIdx] = {
+        videoTrack.clips[placeholderIdx] = normalizeMediaClipTrimFields(dur, {
           ...placeholder,
           assetId: asset.id,
-          durationMs: dur,
-          trimEndMs: dur,
           isPlaceholder: undefined,
           placeholderShotIndex: undefined,
           placeholderLabel: undefined,
           placeholderStatus: undefined,
-        };
+        });
       } else {
         const startMs = endOfTrack(videoTrack.clips);
         videoTrack.clips.push(

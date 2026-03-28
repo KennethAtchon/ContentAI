@@ -15,9 +15,9 @@ export function drawCaptionsOnCanvas(
   canvasW: number,
   canvasH: number
 ): void {
-  if (!clip.captionWords?.length || !clip.captionPresetId) return;
+  if (!clip.captionWords?.length) return;
 
-  const preset = getCaptionPreset(clip.captionPresetId);
+  const preset = getCaptionPreset(clip.captionPresetId ?? "hormozi");
   const relativeMs = currentTimeMs - clip.startMs;
   const groupSize = clip.captionGroupSize ?? preset.groupSize;
   const words = clip.captionWords;

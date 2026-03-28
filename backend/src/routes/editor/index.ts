@@ -23,7 +23,10 @@ import { join } from "path";
 import { unlinkSync, existsSync, writeFileSync } from "fs";
 import { generateASS } from "./export/ass-generator";
 import { buildInitialTimeline } from "./services/build-initial-timeline";
-import { resolveContentChainIds } from "./services/refresh-editor-timeline";
+import {
+  resolveContentChainIds,
+  normalizeMediaClipTrimFields,
+} from "./services/refresh-editor-timeline";
 import { mergeNewAssetsIntoProject } from "./services/merge-new-assets";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -1493,15 +1496,20 @@ function convertAIResponseToTracks(
   let cursor = 0;
   const videoClips = aiResponse.cuts.map((cut, i) => {
     const asset = shotAssets[cut.shotIndex];
-    const clipDuration = cut.trimEndMs - cut.trimStartMs;
-    const clip = {
+    const shotDuration = Math.max(1, asset.durationMs ?? 5000);
+    let t0 = Math.max(0, Math.floor(cut.trimStartMs));
+    let t1 = Math.floor(cut.trimEndMs);
+    if (t0 >= shotDuration) t0 = 0;
+    t1 = Math.min(Math.max(t1, t0 + 1), shotDuration);
+    if (t0 >= t1) t1 = Math.min(t0 + 1, shotDuration);
+    const clipDuration = t1 - t0;
+    const clip = normalizeMediaClipTrimFields(shotDuration, {
       id: `ai-clip-${i}`,
       assetId: asset.id,
       label: `Shot ${cut.shotIndex + 1}`,
       startMs: cursor,
+      trimStartMs: t0,
       durationMs: clipDuration,
-      trimStartMs: cut.trimStartMs,
-      trimEndMs: cut.trimEndMs,
       speed: 1,
       opacity: 1,
       warmth: 0,
@@ -1512,7 +1520,7 @@ function convertAIResponseToTracks(
       rotation: 0,
       volume: 1,
       muted: false,
-    };
+    });
     cursor += clipDuration;
     return clip;
   });
@@ -1520,17 +1528,14 @@ function convertAIResponseToTracks(
   const totalVideoMs = cursor;
   const spanMs = Math.max(totalVideoMs, aux.totalVideoMs, 1000);
 
-  const voiceDur = aux.voiceover?.durationMs ?? spanMs;
+  const voiceDur = Math.max(1, aux.voiceover?.durationMs ?? spanMs);
   const audioClips = aux.voiceover
     ? [
-        {
+        normalizeMediaClipTrimFields(voiceDur, {
           id: `voiceover-${aux.voiceover.id}`,
           assetId: aux.voiceover.id,
           label: "Voiceover",
           startMs: 0,
-          durationMs: voiceDur,
-          trimStartMs: 0,
-          trimEndMs: voiceDur,
           speed: 1,
           opacity: 1,
           warmth: 0,
@@ -1541,21 +1546,18 @@ function convertAIResponseToTracks(
           rotation: 0,
           volume: 1,
           muted: false,
-        },
+        }),
       ]
     : [];
 
-  const musicDur = aux.music?.durationMs ?? spanMs;
+  const musicDur = Math.max(1, aux.music?.durationMs ?? spanMs);
   const musicClips = aux.music
     ? [
-        {
+        normalizeMediaClipTrimFields(musicDur, {
           id: `music-${aux.music.id}`,
           assetId: aux.music.id,
           label: "Music",
           startMs: 0,
-          durationMs: musicDur,
-          trimStartMs: 0,
-          trimEndMs: musicDur,
           speed: 1,
           opacity: 1,
           warmth: 0,
@@ -1566,7 +1568,7 @@ function convertAIResponseToTracks(
           rotation: 0,
           volume: aiResponse.musicVolume,
           muted: false,
-        },
+        }),
       ]
     : [];
 
@@ -1584,7 +1586,8 @@ function convertAIResponseToTracks(
             startMs: 0,
             durationMs: totalVideoMs,
             trimStartMs: 0,
-            trimEndMs: totalVideoMs,
+            trimEndMs: 0,
+            sourceMaxDurationMs: totalVideoMs,
             speed: 1,
             opacity: 1,
             warmth: 0,
@@ -1664,14 +1667,11 @@ function buildStandardPresetTracks(
   let cursor = 0;
   const videoClips = shotAssets.map((asset, i) => {
     const durationMs = Math.max(1, asset.durationMs ?? 5000);
-    const clip = {
+    const clip = normalizeMediaClipTrimFields(durationMs, {
       id: `std-clip-${i}`,
       assetId: asset.id,
       label: `Shot ${i + 1}`,
       startMs: cursor,
-      durationMs,
-      trimStartMs: 0,
-      trimEndMs: durationMs,
       speed: 1,
       opacity: 1,
       warmth: 0,
@@ -1682,7 +1682,7 @@ function buildStandardPresetTracks(
       rotation: 0,
       volume: 1,
       muted: false,
-    };
+    });
     cursor += durationMs;
     return clip;
   });
@@ -1691,17 +1691,14 @@ function buildStandardPresetTracks(
   const spanMs = Math.max(totalVideoMs, 1000);
   const musicVol = aux?.musicVolume ?? 0.22;
 
-  const voiceDur = aux?.voiceover?.durationMs ?? spanMs;
+  const voiceDur = Math.max(1, aux?.voiceover?.durationMs ?? spanMs);
   const audioClips = aux?.voiceover
     ? [
-        {
+        normalizeMediaClipTrimFields(voiceDur, {
           id: `voiceover-${aux.voiceover.id}`,
           assetId: aux.voiceover.id,
           label: "Voiceover",
           startMs: 0,
-          durationMs: voiceDur,
-          trimStartMs: 0,
-          trimEndMs: voiceDur,
           speed: 1,
           opacity: 1,
           warmth: 0,
@@ -1712,21 +1709,18 @@ function buildStandardPresetTracks(
           rotation: 0,
           volume: 1,
           muted: false,
-        },
+        }),
       ]
     : [];
 
-  const musicDur = aux?.music?.durationMs ?? spanMs;
+  const musicDur = Math.max(1, aux?.music?.durationMs ?? spanMs);
   const musicClips = aux?.music
     ? [
-        {
+        normalizeMediaClipTrimFields(musicDur, {
           id: `music-${aux.music.id}`,
           assetId: aux.music.id,
           label: "Music",
           startMs: 0,
-          durationMs: musicDur,
-          trimStartMs: 0,
-          trimEndMs: musicDur,
           speed: 1,
           opacity: 1,
           warmth: 0,
@@ -1737,7 +1731,7 @@ function buildStandardPresetTracks(
           rotation: 0,
           volume: musicVol,
           muted: false,
-        },
+        }),
       ]
     : [];
 
@@ -1753,7 +1747,8 @@ function buildStandardPresetTracks(
             startMs: 0,
             durationMs: totalVideoMs,
             trimStartMs: 0,
-            trimEndMs: totalVideoMs,
+            trimEndMs: 0,
+            sourceMaxDurationMs: totalVideoMs,
             speed: 1,
             opacity: 1,
             warmth: 0,

@@ -1,9 +1,96 @@
+import { toast } from "sonner";
 import { auth } from "@/shared/services/firebase/config";
 import { safeFetch, SafeFetchOptions } from "./safe-fetch";
 import { debugLog } from "@/shared/utils/debug";
-import { API_URL } from "@/shared/utils/config/envUtil";
+import { API_URL, IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 
 const API_BASE_URL = API_URL;
+
+function resolveRequestUrl(url: string): string {
+  return url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+}
+
+/**
+ * Dev-only Sonner toast with full API error body so failed saves/loads are visible
+ * without opening the network tab. Deduped by method + path + status for retries.
+ */
+function toastDevBackendHttpError(
+  url: string,
+  method: string,
+  status: number,
+  errorText: string
+): void {
+  if (!IS_DEVELOPMENT) return;
+
+  const full = resolveRequestUrl(url);
+  let path: string;
+  try {
+    path = new URL(full).pathname + new URL(full).search;
+  } catch {
+    path = full.replace(/^https?:\/\/[^/]+/, "");
+  }
+
+  const title = `${method} ${path} → ${status}`;
+  let description = errorText.trim() || "(empty response body)";
+  try {
+    const parsed: unknown = JSON.parse(errorText);
+    description = JSON.stringify(parsed, null, 2);
+  } catch {
+    description = errorText.slice(0, 8000);
+  }
+
+  toast.error(title, {
+    id: `dev-api-error:${method}:${path}:${status}`,
+    description,
+    duration: 14_000,
+  });
+}
+
+/** Message attached to thrown Error (verbose in dev, short in prod). */
+function formatApiErrorForThrow(
+  status: number,
+  statusText: string,
+  errorText: string
+): string {
+  const trimmed = errorText.trim();
+  if (!trimmed) {
+    return statusText
+      ? `HTTP ${status} ${statusText}`
+      : `HTTP ${status}`;
+  }
+
+  try {
+    const body = JSON.parse(trimmed) as Record<string, unknown>;
+    const msg =
+      typeof body.error === "string"
+        ? body.error
+        : typeof body.message === "string"
+          ? body.message
+          : null;
+
+    if (!IS_DEVELOPMENT) {
+      return msg ?? `HTTP ${status}`;
+    }
+
+    if (msg && Object.keys(body).length <= 1) {
+      return msg;
+    }
+    return msg
+      ? `${msg}\n${JSON.stringify(
+          Object.fromEntries(
+            Object.entries(body).filter(([k]) => k !== "error" && k !== "message")
+          ),
+          null,
+          2
+        )}`.trim()
+      : JSON.stringify(body, null, 2);
+  } catch {
+    if (IS_DEVELOPMENT) {
+      return `HTTP ${status}\n${trimmed.slice(0, 8000)}`;
+    }
+    return `HTTP ${status}`;
+  }
+}
 
 const DEFAULT_HEADERS = {
   "Content-Type": "application/json",
@@ -154,8 +241,7 @@ export async function authenticatedFetch(
   requestInit: RequestInit = {},
   timeout?: number
 ): Promise<Response> {
-  // Construct full URL if relative path provided
-  const fullUrl = url.startsWith("http") ? url : `${API_BASE_URL}${url}`;
+  const fullUrl = resolveRequestUrl(url);
 
   const user = auth.currentUser;
 
@@ -278,16 +364,28 @@ export async function authenticatedFetchJson<T = unknown>(
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMessage = `HTTP ${response.status}`;
+    const method = (requestInit.method ?? "GET").toUpperCase();
 
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.error || errorMessage;
-    } catch {
-      errorMessage = response.statusText || errorMessage;
-    }
+    debugLog.error(
+      "Authenticated fetch JSON error response",
+      { service: "authenticated-fetch" },
+      {
+        url: resolveRequestUrl(url),
+        method,
+        status: response.status,
+        body: errorText.slice(0, 8000),
+      }
+    );
 
-    throw new Error(errorMessage);
+    toastDevBackendHttpError(url, method, response.status, errorText);
+
+    throw new Error(
+      formatApiErrorForThrow(
+        response.status,
+        response.statusText,
+        errorText
+      )
+    );
   }
 
   const jsonData = await response.json();

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-28
 **Priority:** P0 (blocks core editing workflow)
-**Status:** Open
+**Status:** Fixed (2026-03-28)
 
 ---
 

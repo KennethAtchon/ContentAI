@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
@@ -17,6 +17,7 @@ import {
   clampTrimEnd,
   clampTrimStart,
 } from "../utils/clip-constraints";
+import { slicePeaksForClipTrim } from "../utils/waveform-trim";
 import {
   ClipContextMenu,
   PlaceholderContextMenu,
@@ -86,6 +87,18 @@ export function TimelineClip({
   const { peaks, loading: waveformLoading } = useWaveformData(
     hasWaveform ? (clip.assetId ?? undefined) : undefined,
     waveformUrl
+  );
+
+  const trimmedPeaks = useMemo(
+    () => slicePeaksForClipTrim(peaks, clip),
+    [
+      peaks,
+      clip.trimStartMs,
+      clip.durationMs,
+      clip.trimEndMs,
+      clip.sourceMaxDurationMs,
+      clip.speed,
+    ]
   );
 
   const handleDragStart = (e: React.MouseEvent) => {
@@ -285,7 +298,11 @@ export function TimelineClip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
       >
         {hasWaveform ? (
-          <WaveformBars peaks={peaks} loading={waveformLoading} color={color} />
+          <WaveformBars
+            peaks={trimmedPeaks}
+            loading={waveformLoading}
+            color={color}
+          />
         ) : (
           <svg
             className="absolute inset-0 w-full h-full opacity-20 pointer-events-none"

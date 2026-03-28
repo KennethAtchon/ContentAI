@@ -34,6 +34,37 @@ export type AssetMergeRow = {
   metadata: unknown;
 };
 
+const MIN_CLIP_MS = 100;
+
+/**
+ * Frontend/editor invariant for media clips (video, voiceover, music):
+ * trimStartMs + durationMs + trimEndMs === sourceMaxDurationMs.
+ * trimEndMs is the unused tail of the source file (not an absolute out-point).
+ */
+export function normalizeMediaClipTrimFields(
+  sourceMaxMs: number,
+  clip: TimelineClipJson,
+): TimelineClipJson {
+  const max = Math.max(MIN_CLIP_MS, Math.round(Number(sourceMaxMs) || MIN_CLIP_MS));
+  let trimStart = Math.max(0, Math.floor(Number(clip.trimStartMs ?? 0)));
+  if (trimStart > max - MIN_CLIP_MS) trimStart = Math.max(0, max - MIN_CLIP_MS);
+
+  let durationMs = Math.max(MIN_CLIP_MS, Math.floor(Number(clip.durationMs ?? max - trimStart)));
+  if (trimStart + durationMs > max) {
+    durationMs = Math.max(MIN_CLIP_MS, max - trimStart);
+  }
+
+  const trimEndMs = Math.max(0, max - trimStart - durationMs);
+
+  return {
+    ...clip,
+    trimStartMs: trimStart,
+    durationMs,
+    trimEndMs,
+    sourceMaxDurationMs: max,
+  };
+}
+
 function metadataShotIndex(metadata: unknown): number {
   const m = metadata as Record<string, unknown> | null | undefined;
   if (!m || typeof m !== "object") return -1;
@@ -137,44 +168,39 @@ export function reconcileVideoClipsWithoutPlaceholders(
         ? meta.generationPrompt
         : undefined;
     const shotIdx = metadataShotIndex(asset.metadata);
-    const dur = Math.max(
+    const sourceDur = Math.max(
       1,
-      Number(existing?.durationMs ?? asset.durationMs ?? 5000),
+      Number(asset.durationMs ?? existing?.durationMs ?? 5000),
     );
 
     if (existing) {
-      const trimEnd = Math.min(Number(existing.trimEndMs ?? dur), dur);
-      const trimStart = Math.min(Number(existing.trimStartMs ?? 0), trimEnd);
-      // Preserve the user's startMs — do NOT overwrite with cursor.
       const preservedStartMs = Number(existing.startMs ?? cursor);
-      result.push({
+      const normalized = normalizeMediaClipTrimFields(sourceDur, {
         ...existing,
         assetId: asset.id,
         startMs: preservedStartMs,
-        durationMs: dur,
-        trimStartMs: trimStart,
-        trimEndMs: trimEnd,
         label:
           typeof existing.label === "string" && existing.label.trim() !== ""
             ? existing.label
             : genPrompt ??
               `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
       });
+      result.push(normalized);
       // Advance cursor past this clip so any new clips inserted after it
       // don't land before or inside it.
-      cursor = Math.max(cursor, preservedStartMs + dur);
+      cursor = Math.max(
+        cursor,
+        preservedStartMs + Number(normalized.durationMs ?? sourceDur),
+      );
     } else {
       // Genuinely new asset: place it at cursor (end of what we know so far).
-      result.push({
+      const row = normalizeMediaClipTrimFields(sourceDur, {
         id: crypto.randomUUID(),
         assetId: asset.id,
         label:
           genPrompt ??
           `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
         startMs: cursor,
-        durationMs: dur,
-        trimStartMs: 0,
-        trimEndMs: dur,
         speed: 1,
         opacity: 1,
         warmth: 0,
@@ -186,7 +212,8 @@ export function reconcileVideoClipsWithoutPlaceholders(
         volume: 1,
         muted: false,
       });
-      cursor += dur;
+      result.push(row);
+      cursor += Number(row.durationMs ?? sourceDur);
     }
   }
   return result;
@@ -252,7 +279,7 @@ export function mergePlaceholdersWithRealClips(
             : undefined;
         const dur = realAsset.durationMs ?? Number(clip.durationMs ?? 5000);
 
-        return {
+        return normalizeMediaClipTrimFields(dur, {
           ...clip,
           assetId: realAsset.id,
           label:
@@ -260,13 +287,11 @@ export function mergePlaceholdersWithRealClips(
             (typeof clip.placeholderLabel === "string"
               ? clip.placeholderLabel
               : `Shot ${shotIndex + 1}`),
-          durationMs: dur,
-          trimEndMs: dur,
           isPlaceholder: undefined,
           placeholderShotIndex: undefined,
           placeholderLabel: undefined,
           placeholderStatus: undefined,
-        };
+        });
       });
       const sequenced = sequentializeVideoClipStarts(updatedClips);
       return { ...track, clips: sequenced };
@@ -286,21 +311,15 @@ export function mergePlaceholdersWithRealClips(
           c.assetId === voiceover.id,
       );
       const voiceoverClip = existingVoiceover
-        ? {
+        ? normalizeMediaClipTrimFields(dur, {
             ...existingVoiceover,
             assetId: voiceover.id,
-            durationMs: dur,
-            trimStartMs: Math.min(Number(existingVoiceover.trimStartMs ?? 0), dur),
-            trimEndMs: Math.min(Number(existingVoiceover.trimEndMs ?? dur), dur),
-          }
-        : {
+          })
+        : normalizeMediaClipTrimFields(dur, {
             id: `voiceover-${voiceover.id}`,
             assetId: voiceover.id,
             label: "Voiceover",
             startMs: 0,
-            durationMs: dur,
-            trimStartMs: 0,
-            trimEndMs: dur,
             speed: 1,
             opacity: 1,
             warmth: 0,
@@ -311,7 +330,7 @@ export function mergePlaceholdersWithRealClips(
             rotation: 0,
             volume: 1,
             muted: false,
-          };
+          });
       return { ...track, clips: [...nonVoiceoverClips, voiceoverClip] };
     }
 
@@ -329,21 +348,15 @@ export function mergePlaceholdersWithRealClips(
           c.assetId === music.id,
       );
       const musicClip = existingMusic
-        ? {
+        ? normalizeMediaClipTrimFields(dur, {
             ...existingMusic,
             assetId: music.id,
-            durationMs: dur,
-            trimStartMs: Math.min(Number(existingMusic.trimStartMs ?? 0), dur),
-            trimEndMs: Math.min(Number(existingMusic.trimEndMs ?? dur), dur),
-          }
-        : {
+          })
+        : normalizeMediaClipTrimFields(dur, {
             id: `music-${music.id}`,
             assetId: music.id,
             label: "Music",
             startMs: 0,
-            durationMs: dur,
-            trimStartMs: 0,
-            trimEndMs: dur,
             speed: 1,
             opacity: 1,
             warmth: 0,
@@ -354,7 +367,7 @@ export function mergePlaceholdersWithRealClips(
             rotation: 0,
             volume: 0.3,
             muted: false,
-          };
+          });
       return { ...track, clips: [...nonMusicClips, musicClip] };
     }
 

@@ -40,15 +40,12 @@ export function applyFastCutPreset(tracks: EditorTrack[]): EditorTrack[] {
     let cursor = 0;
     const clips = track.clips.map((clip) => {
       const trimmedDuration = Math.min(clip.durationMs, MAX_CLIP_MS);
-      const newTrimEndMs = Math.min(
-        clip.trimEndMs,
-        clip.trimStartMs + trimmedDuration,
-      );
+      const removedRight = clip.durationMs - trimmedDuration;
       const updated = {
         ...clip,
         startMs: cursor,
         durationMs: trimmedDuration,
-        trimEndMs: newTrimEndMs,
+        trimEndMs: clip.trimEndMs + removedRight,
       };
       cursor += trimmedDuration;
       return updated;

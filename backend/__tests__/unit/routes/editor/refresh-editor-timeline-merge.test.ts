@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   mergePlaceholdersWithRealClips,
+  normalizeMediaClipTrimFields,
   reconcileVideoClipsWithoutPlaceholders,
 } from "../../../../src/routes/editor/services/refresh-editor-timeline";
 
@@ -90,9 +91,13 @@ describe("mergePlaceholdersWithRealClips", () => {
     expect(video.clips[0]!.assetId).toBe("asset-0");
     expect(video.clips[0]!.startMs).toBe(0);
     expect(video.clips[0]!.durationMs).toBe(3000);
+    expect(video.clips[0]!.trimEndMs).toBe(0);
+    expect(video.clips[0]!.sourceMaxDurationMs).toBe(3000);
     expect(video.clips[1]!.assetId).toBe("asset-1");
     expect(video.clips[1]!.startMs).toBe(3000);
     expect(video.clips[1]!.durationMs).toBe(4000);
+    expect(video.clips[1]!.trimEndMs).toBe(0);
+    expect(video.clips[1]!.sourceMaxDurationMs).toBe(4000);
   });
 
   test("reconciles empty video track from assets (no placeholders)", () => {
@@ -149,5 +154,37 @@ describe("mergePlaceholdersWithRealClips", () => {
     expect(second[0]!.assetId).toBe("only");
     expect(second[1]!.assetId).toBe("new");
     expect(second[1]!.startMs).toBe(1000);
+  });
+
+  test("normalizeMediaClipTrimFields repairs legacy tail field duplicated as source length", () => {
+    const out = normalizeMediaClipTrimFields(5000, {
+      id: "c1",
+      trimStartMs: 0,
+      durationMs: 5000,
+      trimEndMs: 5000,
+    });
+    expect(out.trimEndMs).toBe(0);
+    expect(out.sourceMaxDurationMs).toBe(5000);
+    expect(out.durationMs).toBe(5000);
+  });
+
+  test("reconcile normalizes stretched duration to asset source length", () => {
+    const out = reconcileVideoClipsWithoutPlaceholders(
+      [
+        {
+          id: "clip-1",
+          assetId: "a1",
+          startMs: 0,
+          durationMs: 30_000,
+          trimStartMs: 0,
+          trimEndMs: 20_000,
+        },
+      ],
+      [{ id: "a1", role: "video_clip", durationMs: 20_000, metadata: { shotIndex: 0 } }],
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.durationMs).toBe(20_000);
+    expect(out[0]!.trimEndMs).toBe(0);
+    expect(out[0]!.sourceMaxDurationMs).toBe(20_000);
   });
 });

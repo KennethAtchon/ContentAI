@@ -84,6 +84,24 @@ function computeDuration(tracks: Track[]): number {
   return max;
 }
 
+/** Reconcile trimEndMs with sourceMaxDurationMs when the server sends both (buffer model). */
+function alignClipTrimEndToInvariant(clip: Clip): Clip {
+  const sm = clip.sourceMaxDurationMs;
+  if (sm === undefined || clip.assetId == null || clip.isPlaceholder) return clip;
+  const ts = clip.trimStartMs ?? 0;
+  const d = clip.durationMs ?? 0;
+  const te = Math.max(0, sm - ts - d);
+  if (te === (clip.trimEndMs ?? 0)) return clip;
+  return { ...clip, trimEndMs: te };
+}
+
+function alignTracksTrimInvariant(tracks: Track[]): Track[] {
+  return tracks.map((t) => ({
+    ...t,
+    clips: t.clips.map(alignClipTrimEndToInvariant),
+  }));
+}
+
 function updateClipInTracks(
   tracks: Track[],
   clipId: string,
@@ -106,10 +124,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
     case "LOAD_PROJECT": {
       const { project } = action;
-      const tracks =
+      const rawTracks =
         project.tracks && project.tracks.length > 0
           ? project.tracks
           : DEFAULT_TRACKS;
+      const tracks = alignTracksTrimInvariant(rawTracks);
       return {
         ...state,
         editProjectId: project.id,
