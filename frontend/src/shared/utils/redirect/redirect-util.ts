@@ -19,6 +19,8 @@ export const REDIRECT_PATHS = {
   ACCOUNT: "/account",
   CHECKOUT: "/checkout",
   DASHBOARD: "/studio/discover",
+  STUDIO_GENERATE: "/studio/generate",
+  STUDIO_EDITOR: "/studio/editor",
   SIGN_IN: "/sign-in",
   SIGN_UP: "/sign-up",
   // Admin routes

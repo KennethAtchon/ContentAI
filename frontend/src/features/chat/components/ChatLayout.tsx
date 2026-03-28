@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryClient } from "@tanstack/react-query";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import {
   invalidateChatProjectsQueries,
   invalidateContentAssetsForGeneration,
@@ -54,11 +55,6 @@ export function ChatLayout({
   const { user } = useApp();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
-
-  const [selectedProject, setSelectedProject] = useState<Project | undefined>();
-  const [selectedSession, setSelectedSession] = useState<
-    ChatSession | undefined
-  >();
 
   const { hasEnterpriseAccess } = useSubscription();
   const sessionId = search.sessionId || "";
@@ -259,32 +255,34 @@ export function ChatLayout({
     };
   }, [sessionId, user, authenticatedFetchJson, sessionDraftsData?.drafts]);
 
-  // Update selected project from URL params
-  useEffect(() => {
-    if (search.projectId && projects) {
-      const project = projects.find((p) => p.id === search.projectId);
-      setSelectedProject(project);
+  // Derive selection from URL + loaded data so we never clear the project when
+  // `projects` is briefly empty or session loads before the list is ready.
+  const selectedProject = useMemo((): Project | undefined => {
+    if (!projects?.length) return undefined;
+    if (search.projectId) {
+      const fromUrl = projects.find((p) => p.id === search.projectId);
+      if (fromUrl) return fromUrl;
     }
-  }, [search.projectId, projects]);
+    const sessionPid = sessionData?.session?.projectId;
+    if (sessionPid) {
+      return projects.find((p) => p.id === sessionPid);
+    }
+    return undefined;
+  }, [projects, search.projectId, sessionData?.session?.projectId]);
 
-  // Update selected session from URL params
+  const selectedSession = sessionData?.session;
+  const isSessionResolving =
+    Boolean(sessionId) && sessionLoading && !sessionData;
+
+  const prevSessionIdForResetRef = useRef(sessionId);
   useEffect(() => {
-    if (sessionData && !sessionLoading) {
-      setSelectedSession(sessionData.session);
-      // Sync project when not already set (e.g. navigating from queue/editor with only sessionId)
-      if (!selectedProject && projects) {
-        const project = projects.find(
-          (p) => p.id === sessionData.session.projectId,
-        );
-        if (project) setSelectedProject(project);
-      }
-      // Reset state when switching sessions
-      setActiveReelRefs([]);
-      setActiveContentId(null);
-      setWorkspaceOpen(false);
-      setRequestAudioForContentId(null);
-    }
-  }, [sessionData, sessionLoading]);
+    if (prevSessionIdForResetRef.current === sessionId) return;
+    prevSessionIdForResetRef.current = sessionId;
+    setActiveReelRefs([]);
+    setActiveContentId(null);
+    setWorkspaceOpen(false);
+    setRequestAudioForContentId(null);
+  }, [sessionId]);
 
   const lastReelRefs = useMemo(() => {
     // During streaming, use the refs from the just-sent message so the reel
@@ -345,18 +343,15 @@ export function ChatLayout({
   }, [lastReelRefs, search.reelId]);
 
   const handleProjectSelect = (project: Project) => {
-    setSelectedProject(project);
-    setSelectedSession(undefined);
     navigate({
-      to: "/studio/generate",
+      to: REDIRECT_PATHS.STUDIO_GENERATE,
       search: { projectId: project.id, sessionId: undefined, reelId: undefined },
     });
   };
 
   const handleSessionSelect = (session: ChatSession) => {
-    setSelectedSession(session);
     navigate({
-      to: "/studio/generate",
+      to: REDIRECT_PATHS.STUDIO_GENERATE,
       search: { projectId: session.projectId, sessionId: session.id, reelId: undefined },
     });
   };
@@ -387,10 +382,8 @@ export function ChatLayout({
   };
 
   const handleSessionDeleted = () => {
-    // Clear the selected session and navigate to the project view
-    setSelectedSession(undefined);
     navigate({
-      to: "/studio/generate",
+      to: REDIRECT_PATHS.STUDIO_GENERATE,
       search: selectedProject
         ? { projectId: selectedProject.id, sessionId: undefined, reelId: undefined }
         : { sessionId: undefined, projectId: undefined, reelId: undefined },
@@ -582,7 +575,12 @@ export function ChatLayout({
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {selectedSession ? (
+        {isSessionResolving ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">{t("studio_loading")}</p>
+          </div>
+        ) : selectedSession ? (
           <>
             <div className="border-b px-5 py-3 shrink-0 flex items-center justify-between gap-3 min-w-0">
               <div className="min-w-0 flex-1">

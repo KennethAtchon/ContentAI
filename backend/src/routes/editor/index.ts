@@ -79,6 +79,7 @@ const clipDataSchema = z.object({
   durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  sourceMaxDurationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)).optional(),
   speed: z.number().min(0.1).max(10),
   // Look
   opacity: z.number().min(0).max(1),
@@ -95,6 +96,7 @@ const clipDataSchema = z.object({
   enabled: z.boolean().optional(),
   // Text-only
   textContent: z.string().max(2000).optional(),
+  textAutoChunk: z.boolean().optional(),
   textStyle: z
     .object({
       fontSize: z.number(),
@@ -396,7 +398,7 @@ app.post(
           )
           .limit(1);
         if (hookRow?.generatedHook) {
-          insertTitle = hookRow.generatedHook.slice(0, 60);
+          insertTitle = [...hookRow.generatedHook].slice(0, 60).join("");
           insertAutoTitle = true;
         }
       }

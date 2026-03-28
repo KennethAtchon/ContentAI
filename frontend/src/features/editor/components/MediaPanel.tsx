@@ -160,6 +160,7 @@ export function MediaPanel({
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: pendingAdd?.startMs ?? currentTimeMs,
       durationMs: asset.durationMs ?? 5000,
+      sourceMaxDurationMs: asset.durationMs ?? undefined,
     });
     onAddClip(pendingAdd?.trackId ?? "video", clip);
     onClearPendingAdd();
@@ -172,6 +173,7 @@ export function MediaPanel({
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: pendingAdd?.startMs ?? currentTimeMs,
       durationMs: asset.durationMs ?? 30000,
+      sourceMaxDurationMs: asset.durationMs ?? undefined,
     });
     onAddClip(pendingAdd?.trackId ?? defaultTrackId, clip);
     onClearPendingAdd();

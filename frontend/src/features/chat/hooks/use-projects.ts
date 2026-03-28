@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/shared/contexts/app-context";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
@@ -18,6 +18,7 @@ export const useProjects = () => {
     queryFn: () => chatService.getProjects(),
     enabled: !!user,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 };
 

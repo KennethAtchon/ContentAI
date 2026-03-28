@@ -8,7 +8,7 @@ import { useState } from "react";
 
 function GeneratePage() {
   const { t } = useTranslation();
-  const { data: projects, isLoading } = useProjects();
+  const { data: projects, isPending } = useProjects();
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
 
   const handleNewProject = () => {
@@ -21,7 +21,7 @@ function GeneratePage() {
         <StudioTopBar variant="studio" activeTab="generate" />
 
         <div className="min-h-0 overflow-hidden">
-          {isLoading ? (
+          {isPending && projects === undefined ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <span className="text-5xl opacity-40">✦</span>
@@ -30,14 +30,14 @@ function GeneratePage() {
                 </p>
               </div>
             </div>
-          ) : projects ? (
+          ) : projects !== undefined && projects.length > 0 ? (
             <ChatLayout
               projects={projects}
               onNewProject={handleNewProject}
               showNewProjectForm={showNewProjectForm}
               onHideNewProjectForm={() => setShowNewProjectForm(false)}
             />
-          ) : (
+          ) : projects !== undefined ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <span className="text-5xl opacity-40">✦</span>
@@ -46,6 +46,17 @@ function GeneratePage() {
                 </p>
                 <p className="text-sm text-dim-3 mt-1">
                   {t("studio_projects_emptyDescription")}
+                </p>
+              </div>
+            </div>
+          ) : (
+            // projects === undefined: error state or cache cleared — keep showing
+            // loading rather than the misleading "No projects yet" empty state.
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <span className="text-5xl opacity-40">✦</span>
+                <p className="text-base font-semibold text-dim-2 mt-3">
+                  {t("studio_loading")}
                 </p>
               </div>
             </div>

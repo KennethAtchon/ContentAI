@@ -146,10 +146,13 @@ export function TimelineClip({
       let newStart = Math.max(0, origStart + deltaMs);
       newStart = clampTrimStart(track, clip, newStart);
 
-      const used = newStart - origStart;
-      pendingDuration = Math.max(100, origDuration - used);
-      pendingTrimStart = Math.max(0, origTrimStart + used);
-      pendingStart = newStart;
+      const requestedUsed = newStart - origStart;
+      pendingTrimStart = Math.max(0, origTrimStart + requestedUsed);
+      // Derive actual movement from clamped trimStart so we never expand left
+      // past the source start boundary (trimStart can't go below 0).
+      const effectiveUsed = pendingTrimStart - origTrimStart;
+      pendingStart = origStart + effectiveUsed;
+      pendingDuration = Math.max(100, origDuration - effectiveUsed);
 
       if (clipRef.current) {
         clipRef.current.style.left = `${(pendingStart / 1000) * zoom}px`;
@@ -174,13 +177,23 @@ export function TimelineClip({
     const origDuration = clip.durationMs;
     let pendingDuration = origDuration;
 
+    // Hard cap: cannot stretch past source end.
+    // Primary source: sourceMaxDurationMs (persisted, accounts for trimStartMs offset).
+    // Fallback: trimEndMs buffer derived from invariant trimStartMs+durationMs+trimEndMs=sourceDuration.
+    const maxDuration: number | undefined =
+      clip.sourceMaxDurationMs !== undefined
+        ? clip.sourceMaxDurationMs - (clip.trimStartMs ?? 0)
+        : (clip.trimEndMs ?? 0) > 0
+          ? origDuration + (clip.trimEndMs ?? 0)
+          : undefined;
+
     const onMove_ = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;
       const deltaMs = (dx / zoom) * 1000;
       let newDuration = Math.max(100, origDuration + deltaMs);
       newDuration = clampTrimEnd(track, clip, newDuration);
-      if (clip.sourceMaxDurationMs !== undefined) {
-        newDuration = Math.min(newDuration, clip.sourceMaxDurationMs);
+      if (maxDuration !== undefined) {
+        newDuration = Math.min(newDuration, maxDuration);
       }
       pendingDuration = newDuration;
 

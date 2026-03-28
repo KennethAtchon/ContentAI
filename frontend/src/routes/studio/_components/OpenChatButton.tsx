@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 
 interface OpenChatButtonProps {
   sessionId: string | null;
@@ -25,7 +26,7 @@ export function OpenChatButton({
   const handleClick = async () => {
     if (sessionId && projectId) {
       void navigate({
-        to: "/studio/generate",
+        to: REDIRECT_PATHS.STUDIO_GENERATE,
         search: { sessionId, projectId, reelId: undefined },
       });
       return;
@@ -43,7 +44,7 @@ export function OpenChatButton({
         body: JSON.stringify({ generatedContentId }),
       });
       void navigate({
-        to: "/studio/generate",
+        to: REDIRECT_PATHS.STUDIO_GENERATE,
         search: { sessionId: result.sessionId, projectId: result.projectId, reelId: undefined },
       });
     } finally {

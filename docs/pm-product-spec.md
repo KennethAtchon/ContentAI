@@ -46,26 +46,11 @@ Select a clip, press `Cmd+D`. A copy of the clip appears immediately after the o
 
 ## Section 4 — Project Model and Data Layer
 
-### 4.1 The Disconnected Editor Problem
-
-Today the editor and the generation pipeline are two separate systems. You generate a reel in chat → the reel appears in the queue → to edit it in the editor, you open the editor and manually re-add all the clips. There is no automatic link.
-
-This breaks the product's core promise. The point of AI-generated clips is that they flow into a ready-to-edit timeline, not that you build the timeline from scratch yourself.
-
 ### 4.2 One Editor Project Per Content Item
 
 Each piece of generated content should have exactly one editor project. Opening the editor from the queue should open *that project* — pre-populated with the AI-generated shots, voiceover, and music in the correct order — not a blank canvas.
 
 If the user makes edits and then goes back to the queue and reassembles (e.g., after generating a new shot), the editor project should update automatically to reflect the new assembly. The user should not have to manually rebuild.
-
-### 4.3 Draft and Published States
-
-Right now, editor projects exist in permanent limbo — they are always editable, there is no concept of "done." Creators need a clear moment of finality:
-
-- **Draft** — work in progress. Editable. Only the creator can see it.
-- **Published** — finalized. Locked from further edits. A snapshot of what was posted. If changes are needed, the creator creates a new draft version (which copies the timeline as a starting point).
-
-Publishing requires a successful export. You cannot publish a reel that has not been rendered.
 
 ### 4.4 The Queue as a Live Dashboard
 
@@ -76,45 +61,6 @@ The queue currently shows static state — it reflects the world as of when the 
 
 The queue should be the place a creator goes to see the full state of everything they're working on, not just the generation pipeline phase.
 
-### 4.5 Eliminate localStorage for Job Tracking
-
-Video generation job state is currently stored in `localStorage`. This means:
-- Closing the browser tab loses the job state
-- Opening a second tab shows a different state
-- The queue and editor have no visibility into ongoing jobs
-
-Job state must live on the server (already exists in the `video_jobs` table). The frontend polls it via the existing `use-video-job` hook. `localStorage` is removed.
-
----
-
-## Section 5 — Assembly System
-
-### 5.1 Assemble Should Mean "Build My Timeline," Not "Produce My Final Video"
-
-The current "Assemble" button is a black box: click it, wait, get a final video. No control over timing, no ability to review before the render, no way to change a shot after assembly.
-
-The new model: "Assemble" means "take my AI-generated shots and put them on the editor timeline in order." The user then reviews the timeline in the editor, makes any adjustments, and exports when satisfied. The editor's export is the canonical render — not the assembly pipeline.
-
-This is a better product: the user always has a review step before the final render. It is also simpler engineering: one rendering system instead of two.
-
-### 5.2 Shot Order Management
-
-The timeline *is* the shot order. Dragging clips on the video track reorders shots. But for users who prefer a higher-level view, a "Shots" panel shows thumbnails of each shot that can be drag-reordered without touching the timeline. Reordering in the Shots panel automatically adjusts clip positions on the video track.
-
-### 5.3 Single Shot Regeneration
-
-After reviewing an assembled timeline, the user may find one shot is weak. They should be able to right-click that shot → "Regenerate this shot" → the AI generates a new clip for that shot position → the timeline clip is swapped in place without losing any other edits.
-
-### 5.4 Assembly Presets
-
-When the editor first opens for a piece of content, offer quick layout presets:
-- **Standard** — shots in order, voiceover full duration, music at 30% volume
-- **Fast Cut** — shots trimmed to 2-3 seconds each
-- **Cinematic** — 0.5s fade transitions between shots
-
-These set the initial timeline arrangement. The user can always adjust from there.
-
----
 
 ## Section 6 — Effects and Transitions
 
@@ -129,49 +75,3 @@ The preview shows an approximate CSS-animated version. Export uses ffmpeg's `xfa
 The existing Effects tab has presets defined but they are no-ops. Wire them to actually apply warmth, contrast, and opacity values to selected clips. This is a small engineering task (the sliders and reducer actions already exist — just need to connect them) but a visible quality upgrade.
 
 ---
-
-## Section 7 — Phasing and Priority
-
-| Priority | Initiative | Rationale |
-|---|---|---|
-| **P0 — Fix now** | Section 1 bugs (dead buttons, wrong tracks, stacking, offscreen toggles, missing waveforms) | Active regressions. Users encounter these immediately. |
-| **P1 — Next sprint** | Unified data layer (1.1, 4.1-4.5) | Foundational. Everything downstream depends on the editor opening pre-populated. |
-| **P2 — Following sprint** | Editor core quality (Section 3) | Makes the editor usable for real work. Without split, snap, and 9:16 it feels like a toy. |
-| **P3** | Caption system overhaul (Section 2) | Highest-value feature for creators. Locks in retention vs. CapCut. |
-| **P4** | Assembly system (Section 5) | Converts the "Assemble" black box into an editor-integrated workflow. |
-| **P5** | Effects and transitions (Section 6) | Polish. Adds competitive parity without unlocking new workflows. |
-
----
-
-## Success Metrics
-
-| Metric | Current | Target | How Measured |
-|---|---|---|---|
-| Editor open rate from queue | Unknown (button broken) | >60% of queue items | Click events on "Open in Editor" |
-| Reel completion rate (assembly → export) | Low (pipeline disconnected) | >40% of assembled projects exported | Export job creation events |
-| Caption adoption | 0% (feature missing) | >30% of exported reels use captions | Caption clip present in export |
-| Time to first preview (after assembly) | N/A (broken) | <5 seconds | Time from navigation to first frame rendered |
-| Editor NPS | Not measured | ≥40 | In-product survey after first export |
-
----
-
-## Non-Goals
-
-- **Collaborative editing** — multiple users editing the same project simultaneously
-- **Direct publishing to Instagram/TikTok** — social platform API integration is a separate product initiative
-- **AI re-editing via chat** ("make this punchier" edits the timeline) — long-term vision, not this cycle
-- **Multi-language caption translation** — transcription in English only for now
-- **LUT/professional color grading** — not the target audience
-- **Mobile editing** — desktop-only remains the constraint
-
----
-
-## Open Questions
-
-1. **TTS word timestamps:** Does our TTS provider (ElevenLabs or equivalent) return word-level timestamps in its response? If so, we skip the Whisper call for auto-captions and use the TTS timestamps directly. Needs engineering investigation.
-
-2. **Multiple video tracks and preview compositing:** Stacking two `<video>` elements works for preview. Does the ffmpeg export pipeline correctly composite multiple video tracks? Needs validation.
-
-3. **"Open AI Chat" routing:** Is the chat session ID stored on the `generated_content` row or looked up via `chat_messages`? Determine the correct lookup path to implement the button fix.
-
-4. **Assembly preset as default:** Should "Standard" always be the default assembly, or should the system detect content type (e.g., voiceover-heavy = Voiceover Focus preset)? Start with Standard, consider smart default in Phase 4b.

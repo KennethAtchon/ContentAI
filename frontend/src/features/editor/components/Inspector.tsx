@@ -389,6 +389,36 @@ export function Inspector({
                 {/* 4b. Text Style — only for non-caption text clips */}
                 {selectedClip.textContent !== undefined && !isCaptionClip && (
                   <Section title="Text Style">
+                    <PropRow label={t("editor_text_smart_chunks")}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateClip(selectedClip!.id, {
+                            textAutoChunk:
+                              selectedClip.textAutoChunk === false ? true : false,
+                          })
+                        }
+                        className={cn(
+                          "relative w-11 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                          selectedClip.textAutoChunk !== false
+                            ? "bg-studio-accent border border-studio-accent"
+                            : "bg-transparent border border-overlay-lg"
+                        )}
+                        aria-pressed={selectedClip.textAutoChunk !== false}
+                      >
+                        <span
+                          className={cn(
+                            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow transition-transform",
+                            selectedClip.textAutoChunk !== false
+                              ? "bg-white translate-x-[1.375rem]"
+                              : "bg-dim-3 translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </PropRow>
+                    <p className="text-[10px] text-dim-3 -mt-1 mb-2">
+                      {t("editor_text_smart_chunks_hint")}
+                    </p>
                     <SliderRow
                       label="Size"
                       value={selectedClip.textStyle?.fontSize ?? 32}

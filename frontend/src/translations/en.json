@@ -1086,6 +1086,8 @@
   "editor_track_audio": "Audio",
   "editor_track_music": "Music",
   "editor_track_text": "Text",
+  "editor_text_smart_chunks": "Smart on-screen chunks",
+  "editor_text_smart_chunks_hint": "Splits long text into short timed phrases in the preview. Turn off to show the full text for the whole clip.",
   "editor_new_project": "New Edit",
   "editor_no_projects": "No edit projects yet",
   "editor_open_project": "Open",

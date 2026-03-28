@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   splitTextIntoSegments,
   getActiveSegment,
+  getTextClipPreviewDisplay,
 } from "@/features/editor/utils/text-segments";
 
 describe("splitTextIntoSegments", () => {
@@ -66,5 +67,23 @@ describe("getActiveSegment", () => {
   test("clamps to last segment when elapsed exceeds duration", () => {
     const segs = splitTextIntoSegments("Hello world.", 3000);
     expect(getActiveSegment(segs, 9999)).toBe("Hello world.");
+  });
+});
+
+describe("getTextClipPreviewDisplay", () => {
+  const text = "Hello world. Go now.";
+
+  test("when textAutoChunk is false, returns full text at any elapsed time", () => {
+    expect(getTextClipPreviewDisplay(text, 6000, 0, false)).toBe(text);
+    expect(getTextClipPreviewDisplay(text, 6000, 5000, false)).toBe(text);
+  });
+
+  test("when textAutoChunk is undefined, uses timed segments", () => {
+    expect(getTextClipPreviewDisplay(text, 6000, 0, undefined)).toBe("Hello world.");
+    expect(getTextClipPreviewDisplay(text, 6000, 3500, undefined)).toBe("Go now.");
+  });
+
+  test("when textAutoChunk is true, uses timed segments", () => {
+    expect(getTextClipPreviewDisplay(text, 6000, 0, true)).toBe("Hello world.");
   });
 });

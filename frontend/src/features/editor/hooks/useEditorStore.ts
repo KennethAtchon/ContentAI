@@ -407,17 +407,14 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       for (const track of state.tracks) {
         const clip = track.clips.find((c) => c.id === action.clipId);
         if (!clip) continue;
-        const proposedStart = clip.startMs + clip.durationMs;
-        const clampedStart = clampMoveToFreeSpace(
-          track,
-          "new", // placeholder id that won't match any existing clip
-          proposedStart,
-          clip.durationMs
+        const trackEnd = track.clips.reduce(
+          (max, c) => Math.max(max, c.startMs + c.durationMs),
+          0
         );
         const copy: Clip = {
           ...clip,
           id: crypto.randomUUID(),
-          startMs: clampedStart,
+          startMs: trackEnd,
           locallyModified: true,
         };
         newTracks = state.tracks.map((t) =>

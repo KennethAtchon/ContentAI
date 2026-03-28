@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { ReelAsset } from "@/features/audio/types/audio.types";
 import type { SessionDraft } from "@/features/chat/types/chat.types";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 
 type ShotClip = ReelAsset & {
   shotIndex: number;
@@ -248,7 +249,7 @@ export function VideoWorkspacePanel({
           </button>
           {(shotClips.length > 0 || jobCompleted) && (
             <Link
-              to="/studio/editor"
+              to={REDIRECT_PATHS.STUDIO_EDITOR}
               search={editorSearch}
               className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-sm text-foreground/80 hover:bg-muted"
             >
@@ -383,7 +384,7 @@ export function VideoWorkspacePanel({
           {t("video_workspace_clips_ready")}
         </p>
         <Link
-          to="/studio/editor"
+          to={REDIRECT_PATHS.STUDIO_EDITOR}
           search={editorSearch}
           className="mt-2 inline-flex items-center gap-1 rounded border border-border/60 px-2 py-1 text-sm hover:bg-muted"
         >

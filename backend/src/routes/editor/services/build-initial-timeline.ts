@@ -88,7 +88,8 @@ function emptyTracksFromVideo(
 function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
   const trimmed = text.trim();
   const dur = Math.min(Math.max(spanMs, 1000), 180_000);
-  const label = trimmed.length > 40 ? `${trimmed.slice(0, 37)}…` : trimmed;
+  const codePoints = [...trimmed];
+  const label = codePoints.length > 40 ? `${codePoints.slice(0, 37).join("")}…` : trimmed;
   return {
     id: crypto.randomUUID(),
     assetId: null,

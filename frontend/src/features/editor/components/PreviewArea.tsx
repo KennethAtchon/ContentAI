@@ -6,7 +6,7 @@ import type { Clip, Track, Transition } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
 import { formatHHMMSSFF, formatMMSS } from "../utils/timecode";
-import { splitTextIntoSegments, getActiveSegment } from "../utils/text-segments";
+import { getTextClipPreviewDisplay } from "../utils/text-segments";
 
 interface Props {
   tracks: Track[];
@@ -432,9 +432,13 @@ export function PreviewArea({
           {/* Text clip overlays — rendered as DOM elements for correct CSS scaling */}
           {activeTextClips.map((clip) => {
             if (!clip.textContent) return null;
-            const segments = splitTextIntoSegments(clip.textContent, clip.durationMs);
             const elapsed = currentTimeMs - clip.startMs;
-            const displayText = getActiveSegment(segments, elapsed);
+            const displayText = getTextClipPreviewDisplay(
+              clip.textContent,
+              clip.durationMs,
+              elapsed,
+              clip.textAutoChunk
+            );
             return (
               <div
                 key={clip.id}
@@ -452,6 +456,9 @@ export function PreviewArea({
                   userSelect: "none",
                   textShadow: "0 2px 8px rgba(0,0,0,0.8)",
                   whiteSpace: "pre-wrap",
+                  // Explicit width so textAlign (left/center/right) has a line box wider than the glyphs;
+                  // shrink-wrapped blocks ignore horizontal text alignment.
+                  width: "80%",
                   maxWidth: "80%",
                   zIndex: 10,
                   lineHeight: 1.2,

@@ -10,6 +10,7 @@ import { invalidateQueueQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import {
   Select,
   SelectContent,
@@ -1233,7 +1234,7 @@ function DetailPanel({
           <div className="flex flex-wrap gap-2">
             {content?.id != null && (
               <Link
-                to="/studio/editor"
+                to={REDIRECT_PATHS.STUDIO_EDITOR}
                 search={{ contentId: content.id }}
                 className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-sm font-semibold text-studio-accent hover:bg-studio-accent/15 hover:border-studio-accent/50 transition-colors"
               >

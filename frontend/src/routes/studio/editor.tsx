@@ -10,6 +10,7 @@ import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import { EditorLayout } from "@/features/editor/components/EditorLayout";
 import type { EditProject } from "@/features/editor/types/editor";
 
@@ -56,14 +57,30 @@ function groupByVersion(projects: EditProject[]): ProjectGroup[] {
   return result;
 }
 
-const editorSearchSchema = z.object({
-  contentId: z.number().int().optional(),
-});
+/** URL search uses string query params; coerce so refresh and deep links work. */
+function parseEditorSearch(search: Record<string, unknown>) {
+  const rawPid = search.projectId;
+  const projectParsed =
+    typeof rawPid === "string"
+      ? z.string().uuid().safeParse(rawPid)
+      : { success: false as const };
+  const projectId = projectParsed.success ? projectParsed.data : undefined;
+
+  const contentParsed = z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .safeParse(search.contentId);
+  const contentId = contentParsed.success ? contentParsed.data : undefined;
+
+  return { projectId, contentId };
+}
 
 function EditorPage() {
   const { t } = useTranslation();
   const { user } = useApp();
-  const { contentId } = Route.useSearch();
+  const { contentId, projectId: projectIdFromUrl } = Route.useSearch();
   const fetcher = useQueryFetcher<{ projects: EditProject[] }>();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
@@ -71,6 +88,20 @@ function EditorPage() {
   const [activeProject, setActiveProject] = useState<EditProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [isSmallScreen] = useState(() => window.innerWidth < 1280);
+
+  const syncEditorUrl = useCallback(
+    (project: EditProject) => {
+      void navigate({
+        to: REDIRECT_PATHS.STUDIO_EDITOR,
+        search: {
+          projectId: project.id,
+          contentId: project.generatedContentId ?? undefined,
+        },
+        replace: true,
+      });
+    },
+    [navigate]
+  );
 
   const fetchAndOpen = useCallback(
     async (id: string) => {
@@ -80,11 +111,12 @@ function EditorPage() {
           `/api/editor/${id}`
         );
         setActiveProject(res.project);
+        syncEditorUrl(res.project);
       } finally {
         setIsLoadingProject(false);
       }
     },
-    [authenticatedFetchJson]
+    [authenticatedFetchJson, syncEditorUrl]
   );
 
   // Load projects list
@@ -105,6 +137,7 @@ function EditorPage() {
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
       setActiveProject(res.project);
+      syncEditorUrl(res.project);
     },
     onError: async (err) => {
       // 409: project already exists but wasn't in the local list yet (race on first load).
@@ -117,17 +150,40 @@ function EditorPage() {
     },
   });
 
-  // When contentId is in the URL, open the project directly if it exists in the
-  // loaded list, or create it (POST) for the first time.
+  // Open from URL: projectId (refresh-safe) or contentId (deep link from queue / workspace).
   useEffect(() => {
-    if (!contentId || activeProject || isOpeningContent || isLoadingProject || isLoading) return;
+    if (!user) return;
+    if (isLoadingProject || isOpeningContent) return;
+
+    if (projectIdFromUrl) {
+      if (activeProject?.id === projectIdFromUrl) return;
+      void fetchAndOpen(projectIdFromUrl);
+      return;
+    }
+
+    if (activeProject) return;
+
+    if (contentId === undefined) return;
+    if (isLoading) return;
+
     const existing = projects.find((p) => p.generatedContentId === contentId);
     if (existing) {
       void fetchAndOpen(existing.id);
     } else {
       createFromContent(contentId);
     }
-  }, [contentId, isLoading, projects, fetchAndOpen]);
+  }, [
+    user,
+    projectIdFromUrl,
+    contentId,
+    activeProject,
+    isLoadingProject,
+    isOpeningContent,
+    isLoading,
+    projects,
+    fetchAndOpen,
+    createFromContent,
+  ]);
 
   // Create blank project
   const { mutate: createProject, isPending: isCreating } = useMutation({
@@ -139,6 +195,7 @@ function EditorPage() {
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
       setActiveProject(res.project);
+      syncEditorUrl(res.project);
     },
   });
 
@@ -173,7 +230,7 @@ function EditorPage() {
     },
     onSuccess: (result) => {
       void navigate({
-        to: "/studio/generate",
+        to: REDIRECT_PATHS.STUDIO_GENERATE,
         search: { sessionId: result.sessionId, projectId: result.projectId, reelId: undefined },
       });
     },
@@ -190,9 +247,10 @@ function EditorPage() {
             project={activeProject}
             onBack={() => {
               setActiveProject(null);
-              if (contentId) {
-                void navigate({ to: "/studio/editor", search: {} });
-              }
+              void navigate({
+                to: REDIRECT_PATHS.STUDIO_EDITOR,
+                search: {},
+              });
             }}
           />
         </div>
@@ -357,6 +415,6 @@ function EditorPage() {
 
 export const Route = createFileRoute("/studio/editor")({
   validateSearch: (search: Record<string, unknown>) =>
-    editorSearchSchema.parse(search),
+    parseEditorSearch(search),
   component: EditorPage,
 });

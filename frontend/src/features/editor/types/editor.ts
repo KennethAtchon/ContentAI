@@ -44,6 +44,8 @@ export interface Clip {
   muted: boolean;
   // Text-only
   textContent?: string;
+  /** When false, preview shows full text for the whole clip; when true/undefined, text is split into timed on-screen chunks. */
+  textAutoChunk?: boolean;
   textStyle?: TextStyle;
   /** Reading-time ceiling for text clips; trim-right cannot exceed this. */
   sourceMaxDurationMs?: number;

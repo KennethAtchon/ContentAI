@@ -108,3 +108,15 @@ export function getActiveSegment(
   // Clamp to last segment when at/past end
   return segments[segments.length - 1]?.text ?? "";
 }
+
+/** Preview-only: full text when `textAutoChunk === false`, else timed chunks from {@link splitTextIntoSegments}. */
+export function getTextClipPreviewDisplay(
+  text: string,
+  durationMs: number,
+  elapsedMs: number,
+  textAutoChunk?: boolean
+): string {
+  if (textAutoChunk === false) return text;
+  const segments = splitTextIntoSegments(text, durationMs);
+  return getActiveSegment(segments, elapsedMs);
+}

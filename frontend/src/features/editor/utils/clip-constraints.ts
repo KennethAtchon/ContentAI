@@ -31,15 +31,21 @@ export function clampMoveToFreeSpace(
   const others = track.clips.filter((c) => c.id !== movingClipId);
   let start = Math.max(0, proposedStartMs);
 
-  for (const other of others) {
-    const otherEnd = other.startMs + other.durationMs;
-    if (start < otherEnd && start + durationMs > other.startMs) {
-      const snapBefore = Math.max(0, other.startMs - durationMs);
-      const snapAfter = otherEnd;
-      const distBefore = Math.abs(proposedStartMs - snapBefore);
-      const distAfter = Math.abs(proposedStartMs - snapAfter);
-      start = distBefore <= distAfter ? snapBefore : snapAfter;
+  for (let i = 0; i < others.length; i++) {
+    let collisionFound = false;
+    for (const other of others) {
+      const otherEnd = other.startMs + other.durationMs;
+      if (start < otherEnd && start + durationMs > other.startMs) {
+        const snapBefore = Math.max(0, other.startMs - durationMs);
+        const snapAfter = otherEnd;
+        const distBefore = Math.abs(proposedStartMs - snapBefore);
+        const distAfter = Math.abs(proposedStartMs - snapAfter);
+        start = distBefore <= distAfter ? snapBefore : snapAfter;
+        collisionFound = true;
+        break;
+      }
     }
+    if (!collisionFound) break;
   }
 
   return start;

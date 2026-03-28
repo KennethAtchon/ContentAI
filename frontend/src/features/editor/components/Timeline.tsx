@@ -192,6 +192,7 @@ export function Timeline({
       label: asset.label,
       startMs,
       durationMs: asset.durationMs ?? 5000,
+      sourceMaxDurationMs: asset.durationMs ?? undefined,
       trimStartMs: 0,
       trimEndMs: 0,
       speed: 1,
@@ -384,7 +385,15 @@ export function Timeline({
                           })
                         }
                         onTrimEnd={(newDurationMs) =>
-                          onUpdateClip(clip.id, { durationMs: newDurationMs })
+                          onUpdateClip(clip.id, {
+                            durationMs: newDurationMs,
+                            // Maintain invariant: trimStartMs + durationMs + trimEndMs = sourceDuration.
+                            // Shrinking adds to the cut buffer; expanding consumes from it.
+                            trimEndMs: Math.max(
+                              0,
+                              (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs
+                            ),
+                          })
                         }
                         onSplit={() => onClipSplit(clip.id)}
                         onDuplicate={() => onClipDuplicate(clip.id)}
