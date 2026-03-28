@@ -11,7 +11,7 @@ import {
 import type { Clip, Track, Transition, CaptionWord } from "../types/editor";
 import { CAPTION_PRESETS } from "../constants/caption-presets";
 import { CaptionPresetTile } from "./CaptionPresetTile";
-import { useAutoCaption } from "../hooks/use-captions";
+import { useAutoCaption } from "../hooks/useCaptions";
 
 interface AddCaptionClipParams {
   captionId: string;

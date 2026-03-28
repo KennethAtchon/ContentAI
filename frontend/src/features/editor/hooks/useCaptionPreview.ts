@@ -6,7 +6,8 @@ import { getCaptionPreset } from "../constants/caption-presets";
  *
  * Performance: Linear scan of all words to find the active index.
  * For a 60s voiceover (~150 words) at 60fps, this is O(150) per frame
- * = ~9,000 comparisons/sec. No optimization needed.
+ * = ~9,000 comparisons/sec. Preview batches draws to requestAnimationFrame
+ * (see PreviewArea) to avoid stacking with other per-frame effects.
  */
 export function drawCaptionsOnCanvas(
   ctx: CanvasRenderingContext2D,
@@ -22,19 +23,14 @@ export function drawCaptionsOnCanvas(
   const groupSize = clip.captionGroupSize ?? preset.groupSize;
   const words = clip.captionWords;
 
-  // Find the word whose time range contains the current playhead
   const activeIdx = words.findIndex(
     (w) => relativeMs >= w.startMs && relativeMs < w.endMs
   );
   if (activeIdx === -1) return;
 
-  // Determine which group the active word belongs to
   const groupStart = Math.floor(activeIdx / groupSize) * groupSize;
   const group = words.slice(groupStart, groupStart + groupSize);
 
-  // Apply display-only textTransform — never mutates stored captionWords data.
-  // This mirrors CSS text-transform: the DOM retains original casing; the
-  // browser (here: canvas) applies the transform only at paint time.
   const displayGroup =
     preset.textTransform === "uppercase"
       ? group.map((w) => ({ ...w, word: w.word.toUpperCase() }))
@@ -47,11 +43,8 @@ export function drawCaptionsOnCanvas(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  // fullText derived from displayGroup so background box sizing is correct
-  // for uppercase text (uppercase letters are wider than lowercase)
   const fullText = displayGroup.map((w) => w.word).join(" ");
 
-  // Draw background box if preset has one
   if (preset.backgroundColor) {
     const metrics = ctx.measureText(fullText);
     const pad = preset.backgroundPadding ?? 12;

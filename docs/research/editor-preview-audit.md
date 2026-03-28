@@ -46,11 +46,6 @@
 - **Root cause:** The resolution picker changes a setting that only matters at export time (output pixel dimensions), not preview time. No toast, no visual indicator, no animation acknowledges the change. The select dropdown does show the new value, but the preview area looks identical.
 - **Recommendation:** Show a brief toast "Resolution set to 4K (2160x3840)" on change. Or add a visible quality badge overlay on the preview that flashes when changed.
 
-### UX-003: Enabled/Mute toggle buttons render off-screen when toggled off
-- **File:** `frontend/src/features/editor/components/Inspector.tsx:218-241` (Enabled toggle), lines 351-372 (Mute toggle)
-- **What's broken:** As noted in TODO.md: "the enabled button appears offscreen when its turned off (so does mute button)." The toggle buttons use `translate-x-[1.375rem]` for the ON state and `translate-x-0` for OFF. The button container is `w-11` (44px) which should be sufficient, but the issue is that the toggle is placed inside a `PropRow` flex container with `justify-between` and `shrink-0`. When the toggle is in the OFF state (the thumb is at the left edge, `bg-transparent border border-overlay-lg`), the transparent background makes the button nearly invisible -- it looks like it disappeared off-screen because the border color (`overlay-lg`) is extremely subtle against the dark panel background.
-- **Root cause:** The OFF state uses `bg-transparent` with a barely-visible border color. It's not actually off-screen -- it's just visually invisible. The fix is to give the OFF state a visible background (e.g., `bg-overlay-sm`) instead of transparent.
-
 ### UX-004: Preview area does not show video for clips without a resolved asset URL
 - **File:** `frontend/src/features/editor/components/PreviewArea.tsx:398`
 - **What's broken:** `src={assetUrlMap.get(clip.assetId ?? "") ?? ""}` -- when assetUrlMap doesn't have the assetId (common during initial load, or for library items not yet fetched), the video element gets `src=""`. An empty `src` on a `<video>` element triggers a network request to the current page URL, which fails silently. The clip shows as a blank/black rectangle with no loading indicator. The user doesn't know if the clip is broken or still loading.

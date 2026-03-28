@@ -1054,6 +1054,12 @@ async function setJobProgress(
     .where(eq(exportJobs.id, jobId));
 }
 
+/**
+ * FFmpeg export pipeline — timeline semantics (trim, per-clip speed via setpts,
+ * transitions) should stay aligned with the SPA preview module
+ * `frontend/src/features/editor/utils/editor-composition.ts` and preview hooks;
+ * update both sides when changing how clips map from timeline time to media time.
+ */
 async function runExportJob(
   jobId: string,
   project: {

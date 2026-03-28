@@ -24,3 +24,4 @@ Each ADR follows the format:
 | [ADR-006](./ADR-006-railway-hosting.md) | Host on Railway | Accepted |
 | [ADR-007](./ADR-007-react-query.md) | Use React Query (TanStack Query) for Data Fetching | Accepted |
 | [ADR-008](./ADR-008-token-storage.md) | Keep Firebase Token Storage in IndexedDB | Accepted |
+| [ADR-009](./ADR-009-editor-playback-preview.md) | Editor timeline playback vs HTML media preview | Accepted |

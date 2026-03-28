@@ -104,3 +104,21 @@ If you have the editor open in two browser tabs and both try to save, here's wha
 Tab A saves first. Version goes from 3 → 4. Tab B tries to save with `expectedVersion: 3`. Server rejects with 409. Tab B shows an error. Tab B's edits are not lost (they're still in local state), but the user has to manually refresh to reconcile with the server state.
 
 There's no background conflict resolution. The 409 is intentional — silent overwrites would be worse.
+
+---
+
+## SPA implementation notes (React editor)
+
+The in-app editor (`frontend/src/features/editor/`) complements this document with concrete modules:
+
+- **`utils/editor-composition.ts`** — Pure helpers for active clips at a timeline time, source-time mapping (`trimStartMs` / `speed`), transition styling, and preload windows. Preview uses these today; server export should reuse or mirror them to avoid drift.
+- **`hooks/useEditorAutosave.ts`** — Debounced PATCH, resolution-only saves, unmount flush, and periodic heartbeat; keeps `EditorLayout` focused on wiring.
+- **`hooks/useEditorKeyboard.ts`** — Global transport/editing shortcuts (space, arrows, JKL, undo, trim brackets, etc.) with refs so playback ticks do not re-register listeners.
+- **`hooks/useEditorProjectPoll.ts`** — Poll + merge when placeholders exist; script-iteration conflict dialog.
+- **`hooks/useEditorLayoutMutations.ts`** — Publish, new draft, AI assemble (keeps `EditorLayout` thinner).
+- **`hooks/useCaptionPreview.ts`**, **`useWaveformData.ts`**, **`useCaptions.ts`** — Preview / waveform / caption API hooks (camelCase filenames alongside `useEditorStore`).
+- **`model/editor-reducer*.ts`** — Document reducer split: session ops, clip ops, track ops, composed in `model/editor-reducer.ts`.
+- **`utils/timeline-asset-drag-payload.ts`** — Zod-validated drag payload from the media panel onto the timeline.
+- **`docs/adr/ADR-009-editor-playback-preview.md`** — JKL transport rate × per-clip speed, seek vs `playbackRate`, export parity expectations.
+
+On **`LOAD_PROJECT`**, client `durationMs` is set to `max(server durationMs, extent computed from clips)` so the ruler and playhead cap cannot sit inside the last clip when the server field is stale.

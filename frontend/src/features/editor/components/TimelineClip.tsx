@@ -4,7 +4,7 @@ import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Clip, Track, TrackType } from "../types/editor";
-import { useWaveformData } from "../hooks/use-waveform-data";
+import { useWaveformData } from "../hooks/useWaveformData";
 import { WaveformBars } from "./WaveformBars";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import {
@@ -22,6 +22,7 @@ import {
   ClipContextMenu,
   PlaceholderContextMenu,
 } from "./ClipContextMenu";
+import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
 
 interface Props {
   clip: Clip;
@@ -80,6 +81,7 @@ export function TimelineClip({
   const isAudioTrack = trackType === "audio" || trackType === "music";
   const hasWaveform = isAudioTrack || trackType === "video";
   const isDisabled = clip.enabled === false;
+  const playheadInsideClip = isClipActiveAtTimelineTime(clip, playheadMs);
 
   const waveformUrl = hasWaveform
     ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
@@ -283,6 +285,7 @@ export function TimelineClip({
           "absolute top-[7px] rounded select-none cursor-grab active:cursor-grabbing",
           "overflow-hidden flex flex-col justify-between",
           isSelected ? "ring-2 ring-studio-accent" : "",
+          playheadInsideClip && !isSelected ? "ring-1 ring-white/35" : "",
           isDisabled ? "opacity-40" : "",
         ].join(" ")}
         style={{

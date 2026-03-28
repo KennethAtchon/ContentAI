@@ -1077,6 +1077,7 @@
   "editor_saved": "Saved",
   "editor_unsaved_changes": "Unsaved changes",
   "editor_save_now": "Save",
+  "editor_clip_collision": "There's already a clip at that position",
   "editor_export_button": "Export",
   "editor_export_modal_title": "Export Video",
   "editor_export_rendering": "Rendering…",

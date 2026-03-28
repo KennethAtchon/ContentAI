@@ -13,7 +13,12 @@ interface PlaybackOptions {
  * Drives the editor playhead via requestAnimationFrame.
  * Calls onTick with the new currentTimeMs every frame while playing.
  * Calls onEnd when the playhead reaches durationMs (or 0 when playing in reverse).
- * Respects playbackRate for JKL scrubbing and per-clip speed display.
+ *
+ * **Model:** `playbackRate` here is the **timeline transport** rate (JKL). Per-clip
+ * `speed` is applied separately: preview sets `HTMLMediaElement.playbackRate` to
+ * `effectiveHtmlMediaPlaybackRate(playbackRate, clip.speed)` (see
+ * `utils/editor-composition.ts` and `docs/adr/ADR-009-editor-playback-preview.md`).
+ * Reverse / very high rates remain seek-limited where browsers or codecs disagree.
  */
 export function usePlayback({
   isPlaying,

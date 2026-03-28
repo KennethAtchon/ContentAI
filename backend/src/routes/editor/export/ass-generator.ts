@@ -158,7 +158,7 @@ function msToASSTime(ms: number): string {
  *   color and the active word uses the bright activeColor.
  *
  * textTransform is applied per-word before building the ASS text, mirroring
- * the canvas renderer behavior in use-caption-preview.ts.
+ * the canvas renderer in frontend `hooks/useCaptionPreview.ts` (keep in sync).
  */
 export function generateASS(
   words: CaptionWord[],
@@ -190,7 +190,7 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
   for (let i = 0; i < words.length; i += groupSize) {
     const group = words.slice(i, i + groupSize);
 
-    // Apply textTransform — mirrors canvas renderer in use-caption-preview.ts.
+    // Apply textTransform — mirrors canvas renderer in useCaptionPreview.ts.
     // Spread preserves startMs/endMs for timing; only word string is transformed.
     const displayGroup =
       preset.textTransform === "uppercase"

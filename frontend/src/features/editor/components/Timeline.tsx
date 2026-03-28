@@ -24,9 +24,15 @@ import { Playhead } from "./Playhead";
 import type { Track, Clip, TrackType } from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
+import { parseTimelineAssetDragPayload } from "../utils/timeline-asset-drag-payload";
 
 const TRACK_HEIGHT = 56; // px per track
 const RULER_HEIGHT = 32; // px
+
+/** Extra px past timeline end so the scroll area stays usable (playhead margin, drop room). */
+const TIMELINE_SCROLL_PADDING_PX = 4000;
+/** Minimum scrollable width so short projects still have a workable ruler area. */
+const TIMELINE_MIN_CONTENT_WIDTH_PX = 4000;
 
 const ASSET_TYPE_TO_TRACK: Record<string, TrackType> = {
   video_clip: "video",
@@ -136,7 +142,10 @@ export function Timeline({
     const newIndex = ids.indexOf(over.id as string);
     onReorderTracks(arrayMove(ids, oldIndex, newIndex));
   };
-  const totalWidthPx = Math.max((durationMs / 1000) * zoom + 4000, 4000);
+  const totalWidthPx = Math.max(
+    (durationMs / 1000) * zoom + TIMELINE_SCROLL_PADDING_PX,
+    TIMELINE_MIN_CONTENT_WIDTH_PX
+  );
   const tracksContentHeight = tracks.length * TRACK_HEIGHT;
 
   // Auto-scroll to follow playhead during playback (horizontal only)
@@ -172,12 +181,8 @@ export function Timeline({
     const raw = e.dataTransfer.getData("application/x-contentai-asset");
     if (!raw) return;
 
-    let asset: { assetId: string; type: string; durationMs: number | null; label: string };
-    try {
-      asset = JSON.parse(raw);
-    } catch {
-      return;
-    }
+    const asset = parseTimelineAssetDragPayload(raw);
+    if (!asset) return;
 
     const expectedTrack = ASSET_TYPE_TO_TRACK[asset.type];
     if (expectedTrack && expectedTrack !== track.type) return;
@@ -191,8 +196,8 @@ export function Timeline({
       assetId: asset.assetId,
       label: asset.label,
       startMs,
-      durationMs: asset.durationMs ?? 5000,
-      sourceMaxDurationMs: asset.durationMs ?? undefined,
+      durationMs: asset.durationMs,
+      sourceMaxDurationMs: asset.durationMs,
       trimStartMs: 0,
       trimEndMs: 0,
       speed: 1,

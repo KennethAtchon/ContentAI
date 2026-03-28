@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Undo2,
@@ -26,10 +26,13 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import type { MediaItem } from "@/features/media/types/media.types";
 import { useEditorReducer } from "../hooks/useEditorStore";
+import { useEditorAutosave } from "../hooks/useEditorAutosave";
+import { useEditorKeyboard } from "../hooks/useEditorKeyboard";
+import { useEditorProjectPoll } from "../hooks/useEditorProjectPoll";
+import { useEditorLayoutMutations } from "../hooks/useEditorLayoutMutations";
 import { usePlayback } from "../hooks/usePlayback";
 import { useAssetSync } from "../hooks/useAssetSync";
 import { Timeline } from "./Timeline";
@@ -39,19 +42,10 @@ import { MediaPanel } from "./MediaPanel";
 import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
-import type { EditProject, Clip, Track, TrackType } from "../types/editor";
+import type { EditProject, Clip, TrackType } from "../types/editor";
 import type { TabKey } from "./MediaPanel";
 import { hasCollision } from "../utils/clip-constraints";
 import { toast } from "sonner";
-import {
-  EDITOR_AUTOSAVE_DEBOUNCE_MS,
-  EDITOR_AUTOSAVE_INTERVAL_MS,
-} from "../constants/editor";
-import {
-  patchEditorProject,
-  publishEditorProject,
-  type PatchProjectParams,
-} from "../services/editor-api";
 import { formatHHMMSSFF, parseTimecode } from "../utils/timecode";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import {
@@ -90,76 +84,19 @@ export function EditorLayout({ project, onBack }: Props) {
   const [timecodeEditing, setTimecodeEditing] = useState(false);
   const [timecodeInput, setTimecodeInput] = useState("");
   const [effectPreview, setEffectPreview] = useState<{ clipId: string; patch: Partial<Clip> } | null>(null);
+  /** Ephemeral UI selection for transition inspector; not serialized in editor state. */
   const [selectedTransitionKey, setSelectedTransitionKey] = useState<
     [string, string, string] | null
   >(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isSavingPatchRef = useRef(false);
-  const isReadOnlyRef = useRef(store.state.isReadOnly);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
-  const lastHandledServerUpdatedAt = useRef(project.updatedAt);
-  const [pollIntervalMs, setPollIntervalMs] = useState(2000);
-  const [scriptResetPending, setScriptResetPending] =
-    useState<EditProject | null>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
-  const hasPlaceholders =
-    store.state.tracks
-      .find((t) => t.type === "video")
-      ?.clips.some((c) => c.isPlaceholder) ?? false;
-
-  useEffect(() => {
-    if (!hasPlaceholders) setPollIntervalMs(2000);
-  }, [hasPlaceholders]);
-
-  const projectFetcher = useQueryFetcher<{ project: EditProject }>();
-  const { data: polledPayload } = useQuery({
-    queryKey: queryKeys.api.editorProject(project.id),
-    queryFn: () => projectFetcher(`/api/editor/${project.id}`),
-    enabled: !!project.id,
-    refetchInterval: hasPlaceholders ? pollIntervalMs : false,
-  });
-
-  useEffect(() => {
-    store.loadProject(project);
-    lastHandledServerUpdatedAt.current = project.updatedAt;
-  }, [project.id]);
-
-  const editorStoreRef = useRef(store);
-  editorStoreRef.current = store;
-
-  useEffect(() => {
-    const serverP = polledPayload?.project;
-    if (!serverP) return;
-    if (serverP.updatedAt === lastHandledServerUpdatedAt.current) return;
-
-    setPollIntervalMs((p) => Math.min(p * 2, 15000));
-
-    const serverVideo = serverP.tracks.find((t) => t.type === "video");
-    const localVideo = editorStoreRef.current.state.tracks.find(
-      (t) => t.type === "video",
-    );
-    const serverAllPlaceholders =
-      !!serverVideo &&
-      serverVideo.clips.length > 0 &&
-      serverVideo.clips.every((c) => c.isPlaceholder);
-    const localHasRealClip = localVideo?.clips.some(
-      (c) => Boolean(c.assetId) && !c.isPlaceholder,
-    );
-
-    if (serverAllPlaceholders && localHasRealClip) {
-      setScriptResetPending(serverP);
-      return;
-    }
-
-    lastHandledServerUpdatedAt.current = serverP.updatedAt;
-    editorStoreRef.current.dispatch({
-      type: "MERGE_TRACKS_FROM_SERVER",
-      tracks: serverP.tracks as Track[],
-    });
-  }, [polledPayload?.project]);
+  const {
+    scriptResetPending,
+    onScriptIterationDialogOpenChange,
+    confirmScriptIteration,
+  } = useEditorProjectPoll({ project, store });
 
   // ── Asset URL Map ───────────────────────────────────────────────────────────
   // Fetch project assets to build assetId → URL map for PreviewArea and waveforms.
@@ -185,117 +122,45 @@ export function EditorLayout({ project, onBack }: Props) {
     return map;
   }, [assetsData, libraryData]);
 
-  // ── Auto-save ───────────────────────────────────────────────────────────────
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const autosave = useEditorAutosave({
+    projectId: project.id,
+    isReadOnly: store.state.isReadOnly,
+    tracks: store.state.tracks,
+    durationMs: store.state.durationMs,
+    title: store.state.title,
+    resolution: store.state.resolution,
+  });
+  const {
+    lastSavedAt,
+    isDirty,
+    isSavingPatch,
+    flushSave,
+    saveTimerRef,
+    editorPublishStateRef,
+  } = autosave;
+
   const [mediaActiveTab, setMediaActiveTab] = useState<TabKey>("media");
   const [pendingAdd, setPendingAdd] = useState<{ trackId: string; startMs: number } | null>(null);
 
   const {
-    mutate: queueSave,
-    mutateAsync: flushSave,
-    isPending: isSavingPatch,
-  } = useMutation({
-    mutationFn: (patch: PatchProjectParams) =>
-      patchEditorProject(project.id, patch),
-    onSuccess: () => {
-      setLastSavedAt(new Date());
-      setIsDirty(false);
-      void invalidateEditorProjectsQueries(queryClient);
-    },
-  });
-  isSavingPatchRef.current = isSavingPatch;
-  isReadOnlyRef.current = store.state.isReadOnly;
-
-  const { mutateAsync: runPublish, isPending: isPublishing } = useMutation({
-    mutationFn: () => publishEditorProject(project.id),
-    onSuccess: (res) => {
-      void invalidateEditorProjectsQueries(queryClient);
-      store.loadProject({
-        ...project,
-        tracks: store.state.tracks,
-        status: res.status as "published",
-        publishedAt: res.publishedAt,
-      });
-    },
-  });
-
-  const { mutate: createNewDraft, isPending: isCreatingDraft } = useMutation({
-    mutationFn: () =>
-      authenticatedFetchJson<{ project: EditProject }>(
-        `/api/editor/${project.id}/new-draft`,
-        {
-          method: "POST",
-        }
-      ),
-    onSuccess: () => {
-      void invalidateEditorProjectsQueries(queryClient);
-      onBack();
-    },
-  });
-
-  const { mutate: aiAssemble, isPending: isAiAssembling } = useMutation({
-    mutationFn: (platform: string) =>
-      authenticatedFetchJson<{
-        timeline: EditProject["tracks"];
-        fallback: boolean;
-      }>(`/api/editor/${project.id}/ai-assemble`, {
-        method: "POST",
-        body: JSON.stringify({ platform }),
-      }),
-    onSuccess: async (res) => {
-      const merged: EditProject = { ...project, tracks: res.timeline };
-      store.loadProject(merged);
-      let durationMs = 0;
-      for (const tr of res.timeline) {
-        for (const c of tr.clips) {
-          durationMs = Math.max(durationMs, c.startMs + c.durationMs);
-        }
-      }
-      try {
-        await flushSave({
-          tracks: stripLocallyModifiedFromTracks(res.timeline),
-          durationMs,
-          title: merged.title ?? undefined,
-        });
-      } catch {
-        // Autosave will retry on next edit; user may also use sync.
-      }
-    },
+    runPublish,
+    isPublishing,
+    createNewDraft,
+    isCreatingDraft,
+    aiAssemble,
+    isAiAssembling,
+  } = useEditorLayoutMutations({
+    project,
+    store,
+    queryClient,
+    authenticatedFetchJson,
+    onBack,
+    flushSave,
   });
 
   const { syncAssets, isSyncing } = useAssetSync(project, (tracks, durationMs) => {
     store.loadProject({ ...project, tracks, durationMs });
   });
-
-  const scheduleSave = useCallback(
-    (patch: PatchProjectParams) => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(
-        () => queueSave(patch),
-        EDITOR_AUTOSAVE_DEBOUNCE_MS
-      );
-    },
-    [queueSave]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (!saveTimerRef.current) return;
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-      if (isReadOnlyRef.current) return;
-      // Flush the pending debounced save immediately so edits made within the
-      // last 2 s before navigating away are not silently dropped.
-      const snap = editorPublishStateRef.current;
-      queueSave({
-        tracks: stripLocallyModifiedFromTracks(snap.tracks),
-        durationMs: snap.durationMs,
-        title: snap.title,
-        resolution: snap.resolution,
-      });
-    };
-  }, []);
 
   // ── Playback ────────────────────────────────────────────────────────────────
   const onTick = useCallback(
@@ -317,13 +182,13 @@ export function EditorLayout({ project, onBack }: Props) {
     (trackId: string, clip: Clip) => {
       const track = store.state.tracks.find((t) => t.id === trackId);
       if (track && hasCollision(track, clip.startMs, clip.durationMs)) {
-        toast.error("There's already a clip at that position");
+        toast.error(t("editor_clip_collision"));
         setPendingAdd(null);
         return;
       }
       store.addClipAutoPromote(trackId, clip);
     },
-    [store.addClipAutoPromote, store.state.tracks]
+    [store.addClipAutoPromote, store.state.tracks, t]
   );
 
   const handleUpdateClip = useCallback(
@@ -420,226 +285,13 @@ export function EditorLayout({ project, onBack }: Props) {
     }
   }, [store.state.selectedClipId]);
 
-  // Save whenever tracks or title change (skip when read-only)
-  const tracksRef = useRef(store.state.tracks);
-  useEffect(() => {
-    if (tracksRef.current === store.state.tracks) return;
-    tracksRef.current = store.state.tracks;
-    if (!store.state.isReadOnly) {
-      setIsDirty(true);
-      scheduleSave({
-        tracks: stripLocallyModifiedFromTracks(store.state.tracks),
-        durationMs: store.state.durationMs,
-        title: store.state.title,
-      });
-    }
-  }, [store.state.tracks, store.state.title]);
-
-  // Save when resolution changes (skip when read-only)
-  const resolutionRef = useRef(store.state.resolution);
-  useEffect(() => {
-    if (resolutionRef.current === store.state.resolution) return;
-    resolutionRef.current = store.state.resolution;
-    if (!store.state.isReadOnly) {
-      setIsDirty(true);
-      scheduleSave({ resolution: store.state.resolution });
-    }
-  }, [store.state.resolution]);
-
-  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
-  // Use refs for volatile state values so the effect never needs to re-run
-  // (and re-register the listener) on playback ticks.
-  const kbStateRef = useRef(store.state);
-  kbStateRef.current = store.state;
-  const kbStoreRef = useRef(store);
-  kbStoreRef.current = store;
-  const kbRemoveClipRef = useRef(handleRemoveClip);
-  kbRemoveClipRef.current = handleRemoveClip;
-  const kbRippleDeleteRef = useRef(handleClipRippleDelete);
-  kbRippleDeleteRef.current = handleClipRippleDelete;
-  const kbFlushSaveRef = useRef(flushSave);
-  kbFlushSaveRef.current = flushSave;
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-      const s = kbStateRef.current;
-      const st = kbStoreRef.current;
-
-      // Space — play/pause
-      if (e.code === "Space") {
-        e.preventDefault();
-        st.setPlaying(!s.isPlaying);
-      }
-
-      // Arrow keys — step one frame
-      if (e.code === "ArrowLeft") {
-        e.preventDefault();
-        st.setCurrentTime(Math.max(0, s.currentTimeMs - 1000 / s.fps));
-      }
-      if (e.code === "ArrowRight") {
-        e.preventDefault();
-        st.setCurrentTime(Math.min(s.durationMs, s.currentTimeMs + 1000 / s.fps));
-      }
-
-      // JKL scrubbing
-      if (e.code === "KeyJ" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        // J: reverse playback at 1×; if already playing in reverse, increase speed
-        const newRate = s.isPlaying && s.playbackRate < 0
-          ? Math.max(s.playbackRate * 2, -8)
-          : -1;
-        st.setPlaybackRate(newRate);
-        st.setPlaying(true);
-      }
-      if (e.code === "KeyK" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        // K: stop and reset rate to 1×
-        st.setPlaying(false);
-        st.setPlaybackRate(1);
-      }
-      if (e.code === "KeyL" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        // L: forward 1×; if already playing forward, increase speed
-        const newRate = s.isPlaying && s.playbackRate > 0
-          ? Math.min(s.playbackRate * 2, 8)
-          : 1;
-        st.setPlaybackRate(newRate);
-        st.setPlaying(true);
-      }
-
-      // Undo/Redo
-      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        st.undo();
-      }
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        (e.key === "y" || (e.key === "z" && e.shiftKey))
-      ) {
-        e.preventDefault();
-        st.redo();
-      }
-
-      // Delete / Backspace — delete selected clip
-      if (e.code === "Delete" || e.code === "Backspace") {
-        if (s.selectedClipId) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            // Shift+Delete — ripple delete
-            kbRippleDeleteRef.current(s.selectedClipId);
-          } else {
-            kbRemoveClipRef.current(s.selectedClipId);
-          }
-        }
-      }
-
-      // Escape — deselect
-      if (e.code === "Escape") {
-        st.selectClip(null);
-      }
-
-      // S — split at playhead
-      if (e.code === "KeyS" && !e.metaKey && !e.ctrlKey) {
-        if (s.selectedClipId) {
-          e.preventDefault();
-          st.splitClip(s.selectedClipId, s.currentTimeMs);
-        }
-      }
-
-      // Cmd/Ctrl+D — duplicate
-      if ((e.metaKey || e.ctrlKey) && e.key === "d") {
-        if (s.selectedClipId) {
-          e.preventDefault();
-          st.duplicateClip(s.selectedClipId);
-        }
-      }
-
-      // Cmd/Ctrl+S — manual save
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        if (!s.isReadOnly) {
-          const snap = editorPublishStateRef.current;
-          void kbFlushSaveRef.current({
-            tracks: stripLocallyModifiedFromTracks(snap.tracks),
-            durationMs: snap.durationMs,
-            title: snap.title,
-            resolution: snap.resolution,
-          });
-        }
-      }
-
-      // Cmd/Ctrl+C — copy selected clip
-      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-        if (s.selectedClipId) {
-          e.preventDefault();
-          st.copyClip(s.selectedClipId);
-        }
-      }
-
-      // Cmd/Ctrl+V — paste at current playhead
-      if ((e.metaKey || e.ctrlKey) && e.key === "v") {
-        if (s.clipboardClip) {
-          e.preventDefault();
-          const ownerTrack = s.tracks.find((t) =>
-            t.clips.some((c) => c.id === s.clipboardClip?.id)
-          );
-          const trackId =
-            s.clipboardSourceTrackId ??
-            ownerTrack?.id ??
-            "video";
-          st.pasteClip(trackId, s.currentTimeMs);
-        }
-      }
-
-      // [ — set in-point: trim clip start to current playhead
-      if (e.code === "BracketLeft" && !e.metaKey && !e.ctrlKey) {
-        if (s.selectedClipId) {
-          const clip = s.tracks.flatMap((t) => t.clips).find((c) => c.id === s.selectedClipId);
-          if (
-            clip &&
-            s.currentTimeMs > clip.startMs &&
-            s.currentTimeMs < clip.startMs + clip.durationMs
-          ) {
-            e.preventDefault();
-            const delta = s.currentTimeMs - clip.startMs;
-            st.updateClip(clip.id, {
-              startMs: s.currentTimeMs,
-              trimStartMs: clip.trimStartMs + delta,
-              durationMs: clip.durationMs - delta,
-            });
-          }
-        }
-      }
-
-      // ] — set out-point: trim clip end to current playhead
-      if (e.code === "BracketRight" && !e.metaKey && !e.ctrlKey) {
-        if (s.selectedClipId) {
-          const clip = s.tracks.flatMap((t) => t.clips).find((c) => c.id === s.selectedClipId);
-          if (
-            clip &&
-            s.currentTimeMs > clip.startMs &&
-            s.currentTimeMs < clip.startMs + clip.durationMs
-          ) {
-            e.preventDefault();
-            const newDurationMs = s.currentTimeMs - clip.startMs;
-            st.updateClip(clip.id, {
-              durationMs: newDurationMs,
-              trimEndMs: Math.max(
-                0,
-                (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs,
-              ),
-            });
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []); // empty deps — handler reads live values via refs
+  useEditorKeyboard({
+    store,
+    flushSave,
+    editorPublishStateRef,
+    removeClip: store.removeClip,
+    rippleDeleteClip: store.rippleDeleteClip,
+  });
 
   const { state } = store;
   const timecode = formatHHMMSSFF(state.currentTimeMs, state.fps);
@@ -667,37 +319,6 @@ export function EditorLayout({ project, onBack }: Props) {
       state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
     store.setZoom(newZoom);
   };
-
-  const editorPublishStateRef = useRef({
-    tracks: state.tracks,
-    durationMs: state.durationMs,
-    title: state.title,
-    resolution: state.resolution,
-  });
-  editorPublishStateRef.current = {
-    tracks: state.tracks,
-    durationMs: state.durationMs,
-    title: state.title,
-    resolution: state.resolution,
-  };
-
-  // Periodic heartbeat save — fires every 30 s regardless of debounce activity
-  useEffect(() => {
-    intervalTimerRef.current = setInterval(() => {
-      if (!state.isReadOnly && !isSavingPatchRef.current) {
-        const snap = editorPublishStateRef.current;
-        void flushSave({
-          tracks: stripLocallyModifiedFromTracks(snap.tracks),
-          durationMs: snap.durationMs,
-          title: snap.title,
-          resolution: snap.resolution,
-        });
-      }
-    }, EDITOR_AUTOSAVE_INTERVAL_MS);
-    return () => {
-      if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
-    };
-  }, [flushSave]);
 
   const handleConfirmPublish = useCallback(async () => {
     setPublishDialogOpen(false);
@@ -1048,6 +669,7 @@ export function EditorLayout({ project, onBack }: Props) {
             tracks={state.tracks}
             currentTimeMs={state.currentTimeMs}
             isPlaying={state.isPlaying}
+            playbackRate={state.playbackRate}
             durationMs={state.durationMs}
             fps={state.fps}
             resolution={state.resolution}
@@ -1143,13 +765,7 @@ export function EditorLayout({ project, onBack }: Props) {
 
         <AlertDialog
           open={!!scriptResetPending}
-          onOpenChange={(open) => {
-            if (!open && scriptResetPending) {
-              lastHandledServerUpdatedAt.current =
-                scriptResetPending.updatedAt;
-              setScriptResetPending(null);
-            }
-          }}
+          onOpenChange={onScriptIterationDialogOpenChange}
         >
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1162,15 +778,7 @@ export function EditorLayout({ project, onBack }: Props) {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (!scriptResetPending) return;
-                  lastHandledServerUpdatedAt.current =
-                    scriptResetPending.updatedAt;
-                  store.loadProject(scriptResetPending);
-                  setScriptResetPending(null);
-                }}
-              >
+              <AlertDialogAction onClick={() => confirmScriptIteration()}>
                 {t("editor_script_iteration_confirm")}
               </AlertDialogAction>
             </AlertDialogFooter>

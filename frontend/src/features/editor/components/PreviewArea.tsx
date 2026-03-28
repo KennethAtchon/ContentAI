@@ -1,17 +1,32 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
-import type { CSSProperties } from "react";
-import type { Clip, Track, Transition } from "../types/editor";
+import type { Clip, Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
-import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
+import { drawCaptionsOnCanvas } from "../hooks/useCaptionPreview";
 import { formatHHMMSSFF, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
+import {
+  audioClipNeedsHeavyPreload,
+  buildActiveVideoClipIdsByTrackMap,
+  buildWarmthFilter,
+  effectiveHtmlMediaPlaybackRate,
+  getClipSourceTimeSecondsAtTimelineTime,
+  getIncomingTransitionStyle,
+  getOutgoingTransitionStyle,
+  isClipActiveAtTimelineTime,
+  isIncomingDissolveOrWipePrerenderWindow,
+  videoClipNeedsHeavyPreload,
+  VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
+  VIDEO_SYNC_SEEK_THRESHOLD_SEC,
+} from "../utils/editor-composition";
 
 interface Props {
   tracks: Track[];
   currentTimeMs: number;
   isPlaying: boolean;
+  /** Global transport rate from JKL / transport (1 = normal). Multiplied with clip speed on media elements. */
+  playbackRate: number;
   durationMs: number;
   fps: number;
   resolution: string;
@@ -19,121 +34,11 @@ interface Props {
   effectPreviewOverride?: { clipId: string; patch: Partial<Clip> } | null;
 }
 
-const PRELOAD_WINDOW_MS = 45_000;
-
-function videoClipNeedsHeavyPreload(
-  clip: Clip,
-  currentTimeMs: number,
-  videoTransitions: Transition[],
-  videoClips: Clip[],
-  activeIds: Set<string>,
-): boolean {
-  if (activeIds.has(clip.id)) return true;
-  const incomingTransition = videoTransitions.find(
-    (tr) =>
-      tr.clipBId === clip.id &&
-      (tr.type === "dissolve" || tr.type === "wipe-right"),
-  );
-  if (incomingTransition) {
-    const clipA = videoClips.find((c) => c.id === incomingTransition.clipAId);
-    if (clipA) {
-      const clipAEnd = clipA.startMs + clipA.durationMs;
-      const windowStart = clipAEnd - incomingTransition.durationMs;
-      if (currentTimeMs >= windowStart && currentTimeMs < clipAEnd) return true;
-    }
-  }
-  const end = clip.startMs + clip.durationMs;
-  return (
-    currentTimeMs >= clip.startMs - PRELOAD_WINDOW_MS &&
-    currentTimeMs <= end + PRELOAD_WINDOW_MS
-  );
-}
-
-function audioClipNeedsHeavyPreload(clip: Clip, currentTimeMs: number): boolean {
-  const end = clip.startMs + clip.durationMs;
-  if (currentTimeMs >= clip.startMs && currentTimeMs < end) return true;
-  return (
-    currentTimeMs >= clip.startMs - PRELOAD_WINDOW_MS &&
-    currentTimeMs <= end + PRELOAD_WINDOW_MS
-  );
-}
-
-/** Style for the outgoing clip (clipA) during a transition. */
-function getOutgoingTransitionStyle(
-  clip: Clip,
-  transitions: Transition[],
-  currentTimeMs: number
-): CSSProperties {
-  const transition = transitions.find((t) => t.clipAId === clip.id);
-  if (!transition || transition.type === "none") return {};
-
-  const clipEnd = clip.startMs + clip.durationMs;
-  const windowStart = clipEnd - transition.durationMs;
-  if (currentTimeMs < windowStart || currentTimeMs > clipEnd) return {};
-
-  const progress = (currentTimeMs - windowStart) / transition.durationMs;
-
-  switch (transition.type) {
-    case "fade":
-    case "dissolve":
-      return { opacity: 1 - progress };
-    case "slide-left":
-      return {
-        transform: `translateX(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)`,
-      };
-    case "slide-up":
-      return {
-        transform: `translateY(${-progress * 100}%) scale(${clip.scale ?? 1}) rotate(${clip.rotation ?? 0}deg)`,
-      };
-    default:
-      return {};
-  }
-}
-
-/**
- * Style for the incoming clip (clipB) during dissolve/wipe-right.
- * Returns null if the clip is not in an incoming transition window.
- */
-function getIncomingTransitionStyle(
-  clip: Clip,
-  transitions: Transition[],
-  allClips: Clip[],
-  currentTimeMs: number
-): CSSProperties | null {
-  const transition = transitions.find((t) => t.clipBId === clip.id);
-  if (!transition || (transition.type !== "dissolve" && transition.type !== "wipe-right")) {
-    return null;
-  }
-
-  const clipA = allClips.find((c) => c.id === transition.clipAId);
-  if (!clipA) return null;
-
-  const clipAEnd = clipA.startMs + clipA.durationMs;
-  const windowStart = clipAEnd - transition.durationMs;
-  if (currentTimeMs < windowStart || currentTimeMs > clipAEnd) return null;
-
-  const progress = (currentTimeMs - windowStart) / transition.durationMs;
-
-  if (transition.type === "dissolve") {
-    return { opacity: progress };
-  }
-  // wipe-right: reveal from left to right
-  return { clipPath: `inset(0 ${(1 - progress) * 100}% 0 0)`, opacity: 1 };
-}
-
-/** Improved warmth filter using hue-rotate instead of sepia. */
-function buildWarmthFilter(warmth: number): string {
-  if (warmth === 0) return "";
-  // Positive = warm (shift hue towards orange), negative = cool (shift towards blue)
-  const deg = -(warmth * 0.3);
-  const sat = 1 + warmth * 0.005;
-  return `hue-rotate(${deg}deg) saturate(${sat})`;
-}
-
 export function PreviewArea({
   tracks,
   currentTimeMs,
   isPlaying,
+  playbackRate,
   durationMs,
   fps,
   resolution,
@@ -153,43 +58,45 @@ export function PreviewArea({
   const musicTrack = tracks.find((t) => t.type === "music");
   const textTrack = tracks.find((t) => t.type === "text");
 
-  // Combined audio clips with their parent tracks for mute propagation
-  const audioClips = [
-    ...(audioTrack?.clips ?? []).map((c) => ({ clip: c, track: audioTrack! })),
-    ...(musicTrack?.clips ?? []).map((c) => ({ clip: c, track: musicTrack! })),
-  ];
+  const activeVideoClipIdsByTrack = useMemo(
+    () => buildActiveVideoClipIdsByTrackMap(videoTracks, currentTimeMs),
+    [videoTracks, currentTimeMs]
+  );
 
-  // Per-track active clip ID sets (needed by useEffect sync + render)
-  const activeVideoClipIdsByTrack = new Map(
-    videoTracks.map((vt) => [
-      vt.id,
-      new Set(
-        vt.clips
-          .filter(
-            (c) =>
-              c.enabled !== false &&
-              currentTimeMs >= c.startMs &&
-              currentTimeMs < c.startMs + c.durationMs
-          )
-          .map((c) => c.id)
+  const activeTextClips = useMemo(
+    () =>
+      (textTrack?.clips ?? []).filter((c) =>
+        isClipActiveAtTimelineTime(c, currentTimeMs)
       ),
-    ])
+    [textTrack?.clips, currentTimeMs]
   );
 
-  // Text clips active at current time
-  const activeTextClips = (textTrack?.clips ?? []).filter(
-    (c) =>
-      c.enabled !== false &&
-      currentTimeMs >= c.startMs &&
-      currentTimeMs < c.startMs + c.durationMs
+  const audioClips = useMemo(
+    () => [
+      ...(audioTrack?.clips ?? []).map((c) => ({
+        clip: c,
+        track: audioTrack!,
+      })),
+      ...(musicTrack?.clips ?? []).map((c) => ({
+        clip: c,
+        track: musicTrack!,
+      })),
+    ],
+    [audioTrack, musicTrack]
   );
 
-  // Sync all video elements to current playhead position
+  // Depends only on time + track data — not on derived Maps — so unrelated
+  // re-renders (e.g. selection) do not re-run sync; still updates every frame while playing.
   useEffect(() => {
+    const activeByTrack = buildActiveVideoClipIdsByTrackMap(
+      videoTracks,
+      currentTimeMs
+    );
     for (const videoTrack of videoTracks) {
       const trackTransitions = videoTrack.transitions ?? [];
       const trackClips = videoTrack.clips;
-      const activeIds = activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();
+      const activeIds =
+        activeByTrack.get(videoTrack.id) ?? new Set<string>();
 
       for (const clip of trackClips) {
         const el = videoRefs.current.get(clip.id);
@@ -198,41 +105,39 @@ export function PreviewArea({
         el.muted = videoTrack.muted;
 
         const isActive = activeIds.has(clip.id);
-
-        // Check for incoming dissolve/wipe-right pre-render window
-        const incomingTransition = trackTransitions.find(
-          (t) => t.clipBId === clip.id && (t.type === "dissolve" || t.type === "wipe-right")
+        const isIncomingWindow = isIncomingDissolveOrWipePrerenderWindow(
+          clip,
+          trackTransitions,
+          trackClips,
+          currentTimeMs
         );
-        let isIncomingWindow = false;
-        if (incomingTransition) {
-          const clipA = trackClips.find((c) => c.id === incomingTransition.clipAId);
-          if (clipA) {
-            const clipAEnd = clipA.startMs + clipA.durationMs;
-            const windowStart = clipAEnd - incomingTransition.durationMs;
-            isIncomingWindow = currentTimeMs >= windowStart && currentTimeMs < clipAEnd;
-          }
-        }
 
         if (isActive) {
-          // Multiply timeline offset by clip.speed so the source position stays
-          // in sync with the playhead when speed != 1 (e.g. 2× plays 2s of source
-          // per 1s of timeline, so at timeline+5s we need source frame at 10s).
-          const targetTime =
-            ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
-            clip.trimStartMs / 1000;
-          if (Math.abs(el.currentTime - targetTime) > 0.1) {
+          const targetTime = getClipSourceTimeSecondsAtTimelineTime(
+            clip,
+            currentTimeMs
+          );
+          if (Math.abs(el.currentTime - targetTime) > VIDEO_SYNC_SEEK_THRESHOLD_SEC) {
             el.currentTime = targetTime;
           }
-          el.playbackRate = clip.speed || 1;
+          el.playbackRate = effectiveHtmlMediaPlaybackRate(
+            playbackRate,
+            clip.speed || 1
+          );
           if (isPlaying && el.paused) el.play().catch(() => {});
           if (!isPlaying && !el.paused) el.pause();
         } else if (isIncomingWindow) {
-          // Pre-render incoming clip during dissolve/wipe: start from trimStart
           const targetTime = clip.trimStartMs / 1000;
-          if (Math.abs(el.currentTime - targetTime) > 0.15) {
+          if (
+            Math.abs(el.currentTime - targetTime) >
+            VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC
+          ) {
             el.currentTime = targetTime;
           }
-          el.playbackRate = clip.speed || 1;
+          el.playbackRate = effectiveHtmlMediaPlaybackRate(
+            playbackRate,
+            clip.speed || 1
+          );
           if (isPlaying && el.paused) el.play().catch(() => {});
           if (!isPlaying && !el.paused) el.pause();
         } else {
@@ -240,64 +145,75 @@ export function PreviewArea({
         }
       }
     }
-  }, [currentTimeMs, isPlaying, videoTracks, activeVideoClipIdsByTrack]);
+  }, [currentTimeMs, isPlaying, playbackRate, videoTracks]);
 
-  // Sync all audio elements (voiceover + music) to current playhead position
   useEffect(() => {
-    for (const { clip, track } of audioClips) {
-      const el = audioRefs.current.get(clip.id);
-      if (!el) continue;
+    const runForTrack = (track: Track | undefined) => {
+      if (!track) return;
+      for (const clip of track.clips) {
+        const el = audioRefs.current.get(clip.id);
+        if (!el) continue;
 
-      const isActive =
-        currentTimeMs >= clip.startMs &&
-        currentTimeMs < clip.startMs + clip.durationMs;
+        const isActive = isClipActiveAtTimelineTime(clip, currentTimeMs);
 
-      if (isActive) {
-        const targetTime =
-          ((currentTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
-          (clip.trimStartMs ?? 0) / 1000;
-        if (Math.abs(el.currentTime - targetTime) > 0.1) {
-          el.currentTime = targetTime;
+        if (isActive) {
+          const targetTime = getClipSourceTimeSecondsAtTimelineTime(
+            clip,
+            currentTimeMs
+          );
+          if (Math.abs(el.currentTime - targetTime) > VIDEO_SYNC_SEEK_THRESHOLD_SEC) {
+            el.currentTime = targetTime;
+          }
+          el.playbackRate = effectiveHtmlMediaPlaybackRate(
+            playbackRate,
+            clip.speed || 1
+          );
+          el.volume = Math.min(1, Math.max(0, clip.volume ?? 1));
+          el.muted = (clip.muted ?? false) || track.muted;
+          if (isPlaying && el.paused) el.play().catch(() => {});
+          if (!isPlaying && !el.paused) el.pause();
+        } else {
+          if (!el.paused) el.pause();
         }
-        el.playbackRate = clip.speed || 1;
-        el.volume = Math.min(1, Math.max(0, clip.volume ?? 1));
-        // Mute if clip is muted OR the parent track is muted
-        el.muted = (clip.muted ?? false) || track.muted;
-        if (isPlaying && el.paused) el.play().catch(() => {});
-        if (!isPlaying && !el.paused) el.pause();
-      } else {
-        if (!el.paused) el.pause();
       }
-    }
-  }, [currentTimeMs, isPlaying, audioClips]);
+    };
+    runForTrack(audioTrack);
+    runForTrack(musicTrack);
+  }, [currentTimeMs, isPlaying, playbackRate, audioTrack, musicTrack]);
 
-  // Caption canvas rendering — redraws on every currentTimeMs change
   useEffect(() => {
-    const canvas = captionCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    let rafId = 0;
+    let cancelled = false;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const paint = () => {
+      if (cancelled) return;
+      const canvas = captionCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    if (!textTrack) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!textTrack) return;
 
-    for (const clip of textTrack.clips) {
-      if (!clip.captionWords?.length) continue;
-      const isActive =
-        currentTimeMs >= clip.startMs &&
-        currentTimeMs < clip.startMs + clip.durationMs;
-      if (!isActive) continue;
+      for (const clip of textTrack.clips) {
+        if (!clip.captionWords?.length) continue;
+        if (!isClipActiveAtTimelineTime(clip, currentTimeMs)) continue;
+        drawCaptionsOnCanvas(
+          ctx,
+          clip,
+          currentTimeMs,
+          canvas.width,
+          canvas.height
+        );
+      }
+    };
 
-      drawCaptionsOnCanvas(
-        ctx,
-        clip,
-        currentTimeMs,
-        canvas.width,
-        canvas.height
-      );
-    }
-  }, [currentTimeMs, tracks, textTrack]);
+    rafId = requestAnimationFrame(paint);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+    };
+  }, [currentTimeMs, textTrack]);
 
   const hasContent = videoTracks.some((vt) => vt.clips.length > 0);
   const timecode = formatHHMMSSFF(currentTimeMs, fps);
@@ -331,7 +247,8 @@ export function PreviewArea({
           {videoTracks.map((videoTrack, trackIdx) => {
             const trackClips = videoTrack.clips;
             const trackTransitions = videoTrack.transitions ?? [];
-            const activeIds = activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();
+            const activeIds =
+              activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();
 
             return (
               <div
@@ -346,11 +263,10 @@ export function PreviewArea({
                     currentTimeMs,
                     trackTransitions,
                     trackClips,
-                    activeIds,
+                    activeIds
                   );
                   const isDisabled = clip.enabled === false;
 
-                  // Merge effect hover preview (non-destructive, display only)
                   const preview =
                     effectPreviewOverride?.clipId === clip.id
                       ? effectPreviewOverride.patch
@@ -359,10 +275,18 @@ export function PreviewArea({
                   const warmth = preview?.warmth ?? clip.warmth;
                   const baseOpacity = preview?.opacity ?? clip.opacity ?? 1;
 
-                  const outgoing = getOutgoingTransitionStyle(clip, trackTransitions, currentTimeMs);
-                  const incoming = getIncomingTransitionStyle(clip, trackTransitions, trackClips, currentTimeMs);
+                  const outgoing = getOutgoingTransitionStyle(
+                    clip,
+                    trackTransitions,
+                    currentTimeMs
+                  );
+                  const incoming = getIncomingTransitionStyle(
+                    clip,
+                    trackTransitions,
+                    trackClips,
+                    currentTimeMs
+                  );
 
-                  // Determine final opacity
                   let opacity: number;
                   if (isDisabled) {
                     opacity = 0;
@@ -412,7 +336,6 @@ export function PreviewArea({
             );
           })}
 
-          {/* Hidden audio elements for voiceover + music tracks */}
           {audioClips.map(({ clip }) => (
             <audio
               key={clip.id}
@@ -429,7 +352,6 @@ export function PreviewArea({
             />
           ))}
 
-          {/* Text clip overlays — rendered as DOM elements for correct CSS scaling */}
           {activeTextClips.map((clip) => {
             if (!clip.textContent) return null;
             const elapsed = currentTimeMs - clip.startMs;
@@ -456,8 +378,6 @@ export function PreviewArea({
                   userSelect: "none",
                   textShadow: "0 2px 8px rgba(0,0,0,0.8)",
                   whiteSpace: "pre-wrap",
-                  // Explicit width so textAlign (left/center/right) has a line box wider than the glyphs;
-                  // shrink-wrapped blocks ignore horizontal text alignment.
                   width: "80%",
                   maxWidth: "80%",
                   zIndex: 10,
@@ -469,7 +389,6 @@ export function PreviewArea({
             );
           })}
 
-          {/* Caption canvas overlay — dimensions match resolution for correct positioning */}
           <canvas
             ref={captionCanvasRef}
             width={resW}
@@ -478,7 +397,6 @@ export function PreviewArea({
             style={{ pointerEvents: "none", zIndex: 11 }}
           />
 
-          {/* Empty state */}
           {!hasContent && (
             <div className="flex flex-col items-center gap-2">
               <Play size={32} className="text-white/40" />
@@ -488,19 +406,16 @@ export function PreviewArea({
             </div>
           )}
 
-          {/* Timecode overlay */}
           <div className="absolute bottom-2 left-3 font-mono text-xs italic text-white/70 select-none">
             {timecode}
           </div>
 
-          {/* Resolution badge */}
           <div className="absolute top-2 right-3 text-[10px] bg-black/60 text-white/60 px-1.5 py-0.5 rounded">
             {resolution}
           </div>
         </div>
       </div>
 
-      {/* Meta row */}
       <div className="w-full flex justify-between mt-1 px-3">
         <span className="text-xs text-dim-3">
           {position} / {total}
