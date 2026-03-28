@@ -16,6 +16,7 @@ interface ASSPresetConfig {
   positionY: number; // percentage (0-100)
   animation: "none" | "highlight" | "karaoke";
   activeColor?: string; // ASS &HAABBGGRR for highlight/karaoke active word
+  textTransform: "none" | "uppercase";
 }
 
 /**
@@ -52,17 +53,59 @@ function cssToASS(hex: string, alpha = 0): string {
  * Map frontend preset IDs to ASS style configurations.
  */
 const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
-  "clean-white": {
+  hormozi: {
     fontFamily: "Inter",
-    fontSize: 48,
+    fontSize: 56,
     bold: true,
     primaryColor: cssToASS("#FFFFFF"),
     outlineColor: cssToASS("#000000"),
-    outlineWidth: 0,
+    outlineWidth: 2,
+    backColor: cssToASS("#000000", 128),
+    borderStyle: 1,
+    positionY: 80,
+    animation: "highlight",
+    activeColor: cssToASS("#FACC15"),
+    textTransform: "uppercase",
+  },
+  "clean-minimal": {
+    fontFamily: "Inter",
+    fontSize: 44,
+    bold: true,
+    primaryColor: cssToASS("#FFFFFF"),
+    outlineColor: cssToASS("#000000"),
+    outlineWidth: 1,
     backColor: cssToASS("#000000", 128),
     borderStyle: 1,
     positionY: 80,
     animation: "none",
+    textTransform: "none",
+  },
+  "dark-box": {
+    fontFamily: "Inter",
+    fontSize: 44,
+    bold: true,
+    primaryColor: cssToASS("#FFFFFF"),
+    outlineColor: cssToASS("#000000"),
+    outlineWidth: 0,
+    backColor: cssToASS("#000000", 100),
+    borderStyle: 3,
+    positionY: 80,
+    animation: "none",
+    textTransform: "none",
+  },
+  karaoke: {
+    fontFamily: "Inter",
+    fontSize: 48,
+    bold: true,
+    primaryColor: cssToASS("#FFFFFF", 153), // rgba(255,255,255,0.4) → alpha 153
+    outlineColor: cssToASS("#000000"),
+    outlineWidth: 2,
+    backColor: cssToASS("#000000", 128),
+    borderStyle: 1,
+    positionY: 80,
+    animation: "karaoke",
+    activeColor: cssToASS("#FFFFFF"),
+    textTransform: "none",
   },
   "bold-outline": {
     fontFamily: "Inter",
@@ -75,61 +118,26 @@ const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
     borderStyle: 1,
     positionY: 80,
     animation: "none",
-  },
-  "box-dark": {
-    fontFamily: "Inter",
-    fontSize: 44,
-    bold: true,
-    primaryColor: cssToASS("#FFFFFF"),
-    outlineColor: cssToASS("#000000"),
-    outlineWidth: 0,
-    backColor: cssToASS("#000000", 100),
-    borderStyle: 3,
-    positionY: 80,
-    animation: "none",
-  },
-  "box-accent": {
-    fontFamily: "Inter",
-    fontSize: 44,
-    bold: true,
-    primaryColor: cssToASS("#111111"),
-    outlineColor: cssToASS("#111111"),
-    outlineWidth: 0,
-    backColor: cssToASS("#FACC15"),
-    borderStyle: 3,
-    positionY: 80,
-    animation: "none",
-  },
-  highlight: {
-    fontFamily: "Inter",
-    fontSize: 48,
-    bold: true,
-    primaryColor: cssToASS("#FFFFFF"),
-    outlineColor: cssToASS("#000000"),
-    outlineWidth: 2,
-    backColor: cssToASS("#000000", 128),
-    borderStyle: 1,
-    positionY: 80,
-    animation: "highlight",
-    activeColor: cssToASS("#FACC15"),
-  },
-  karaoke: {
-    fontFamily: "Inter",
-    fontSize: 48,
-    bold: true,
-    primaryColor: cssToASS("#FFFFFF", 153), // 60% transparent for inactive
-    outlineColor: cssToASS("#000000"),
-    outlineWidth: 2,
-    backColor: cssToASS("#000000", 128),
-    borderStyle: 1,
-    positionY: 80,
-    animation: "karaoke",
-    activeColor: cssToASS("#FFFFFF"),
+    textTransform: "none",
   },
 };
 
+/**
+ * Maps preset IDs from before the 2026-03 style theme overhaul to their
+ * current equivalents. Mirrors LEGACY_ID_MAP in frontend caption-presets.ts.
+ *
+ * DO NOT remove entries. Add new entries when IDs are renamed or removed.
+ */
+const LEGACY_ASS_ID_MAP: Readonly<Record<string, string>> = {
+  "clean-white": "clean-minimal",
+  "box-dark": "dark-box",
+  "box-accent": "dark-box",
+  "highlight": "hormozi",
+};
+
 function getASSPreset(presetId: string): ASSPresetConfig {
-  return PRESET_TO_ASS[presetId] ?? PRESET_TO_ASS["clean-white"];
+  const resolved = LEGACY_ASS_ID_MAP[presetId] ?? presetId;
+  return PRESET_TO_ASS[resolved] ?? PRESET_TO_ASS["hormozi"];
 }
 
 function msToASSTime(ms: number): string {
@@ -148,6 +156,9 @@ function msToASSTime(ms: number): string {
  *   ASS override tags to change its color inline.
  * For "karaoke": same as highlight but inactive words use the dim primary
  *   color and the active word uses the bright activeColor.
+ *
+ * textTransform is applied per-word before building the ASS text, mirroring
+ * the canvas renderer behavior in use-caption-preview.ts.
  */
 export function generateASS(
   words: CaptionWord[],
@@ -178,8 +189,18 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
 
   for (let i = 0; i < words.length; i += groupSize) {
     const group = words.slice(i, i + groupSize);
-    const start = msToASSTime(group[0].startMs + clipStartMs);
-    const end = msToASSTime(group[group.length - 1].endMs + clipStartMs);
+
+    // Apply textTransform — mirrors canvas renderer in use-caption-preview.ts.
+    // Spread preserves startMs/endMs for timing; only word string is transformed.
+    const displayGroup =
+      preset.textTransform === "uppercase"
+        ? group.map((w) => ({ ...w, word: w.word.toUpperCase() }))
+        : group;
+
+    const start = msToASSTime(displayGroup[0].startMs + clipStartMs);
+    const end = msToASSTime(
+      displayGroup[displayGroup.length - 1].endMs + clipStartMs,
+    );
 
     let text: string;
 
@@ -187,14 +208,14 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
       const activeColor = preset.activeColor ?? preset.primaryColor;
       const tag = preset.animation === "karaoke" ? "kf" : "k";
 
-      const parts = group.map((w) => {
+      const parts = displayGroup.map((w) => {
         const durationCs = Math.round((w.endMs - w.startMs) / 10);
         return `{\\${tag}${durationCs}}${w.word}`;
       });
 
       text = `{\\1c${preset.primaryColor}\\2c${activeColor}}` + parts.join(" ");
     } else {
-      text = group.map((w) => w.word).join(" ");
+      text = displayGroup.map((w) => w.word).join(" ");
     }
 
     events.push(`Dialogue: 0,${start},${end},Default,,0,0,0,,${text}`);

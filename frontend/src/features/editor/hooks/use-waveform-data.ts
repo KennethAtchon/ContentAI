@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
+import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 
 /** Number of amplitude samples stored per asset. */
 const PEAK_COUNT = 200;
+
+type DecodedAudio = Awaited<
+  ReturnType<InstanceType<typeof globalThis.AudioContext>["decodeAudioData"]>
+>;
 
 /**
  * Module-level cache keyed by assetId (stable across signed URL rotations).
@@ -17,41 +22,20 @@ const peakCache = new Map<string, Float32Array>();
 const pendingDecodes = new Map<string, Promise<Float32Array>>();
 
 /**
- * Fetches an audio/video file by URL, decodes it with the Web Audio API,
- * and returns an RMS-normalized Float32Array of PEAK_COUNT amplitude samples.
- *
- * Works for:
- *  - Audio files: .mp3, .wav, .aac, .ogg (voiceover, music)
- *  - Video files: .mp4, .webm (shot clips — extracts the embedded audio track)
- *
- * Throws on network error, CORS error, or unsupported codec.
+ * Decodes raw audio/video bytes with the Web Audio API and returns an
+ * RMS-normalized Float32Array of PEAK_COUNT amplitude samples.
  */
-async function decodePeaks(audioUrl: string): Promise<Float32Array> {
-  const response = await fetch(audioUrl, {
-    credentials: "omit", // R2 signed URLs don't need credentials
-    cache: "force-cache", // reuse cached response if browser has it
-  });
-
-  if (!response.ok) {
-    throw new Error(`waveform fetch failed: HTTP ${response.status} — ${audioUrl}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-
-  // AudioContext is used only for decoding — not for playback.
-  // Close immediately after decode to release resources.
-  const ctx = new AudioContext();
-  let decoded: AudioBuffer;
+async function decodePeaksFromArrayBuffer(
+  arrayBuffer: ArrayBuffer
+): Promise<Float32Array> {
+  const ctx = new globalThis.AudioContext();
+  let decoded: DecodedAudio;
   try {
-    decoded = await ctx.decodeAudioData(arrayBuffer);
+    decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
   } finally {
-    // Non-blocking — do not await, fire and forget.
     ctx.close().catch(() => {});
   }
 
-  // Use channel 0 (left/mono). Stereo files are fine — we only need one channel
-  // to compute amplitude. The RMS across both channels would be more accurate,
-  // but the visual difference is imperceptible for timeline thumbnails.
   const channelData = decoded.getChannelData(0);
   const totalSamples = channelData.length;
   const blockSize = Math.max(1, Math.floor(totalSamples / PEAK_COUNT));
@@ -62,12 +46,11 @@ async function decodePeaks(audioUrl: string): Promise<Float32Array> {
     const end = Math.min(start + blockSize, totalSamples);
     let sum = 0;
     for (let j = start; j < end; j++) {
-      sum += channelData[j] * channelData[j]; // squared for RMS
+      sum += channelData[j] * channelData[j];
     }
     peaks[i] = Math.sqrt(sum / (end - start));
   }
 
-  // Normalize to [0, 1]. If the file is entirely silent, leave as zeros.
   let max = 0;
   for (let i = 0; i < PEAK_COUNT; i++) {
     if (peaks[i] > max) max = peaks[i];
@@ -77,6 +60,49 @@ async function decodePeaks(audioUrl: string): Promise<Float32Array> {
   }
 
   return peaks;
+}
+
+type AuthFetch = (
+  url: string,
+  init?: RequestInit,
+  timeout?: number
+) => Promise<Response>;
+
+/**
+ * Prefer same-origin API stream (no R2 CORS). Falls back to signed URL fetch
+ * when the asset is not owned by the user (e.g. some shared library rows).
+ */
+async function decodePeaksForAsset(
+  assetId: string,
+  signedUrl: string,
+  authenticatedFetch: AuthFetch
+): Promise<Float32Array> {
+  try {
+    const proxyRes = await authenticatedFetch(
+      `/api/assets/${assetId}/media-for-decode`,
+      { method: "GET" },
+      0
+    );
+    if (proxyRes.ok) {
+      return decodePeaksFromArrayBuffer(await proxyRes.arrayBuffer());
+    }
+  } catch {
+    // Auth/network errors — try signed URL below.
+  }
+
+  // Signed R2 URL: must use cross-origin fetch (not authenticatedFetch). Works when bucket CORS allows the SPA origin.
+  const response = await globalThis.fetch(signedUrl, {
+    credentials: "omit",
+    cache: "force-cache",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `waveform fetch failed: HTTP ${response.status} — ${signedUrl}`
+    );
+  }
+
+  return decodePeaksFromArrayBuffer(await response.arrayBuffer());
 }
 
 export interface UseWaveformDataResult {
@@ -97,12 +123,14 @@ export interface UseWaveformDataResult {
  *   the decode result is still stored in the cache for future mounts.
  *
  * @param assetId  Stable asset identifier (clip.assetId). Used as the cache key.
- * @param audioUrl Resolved URL to the audio/video file. Used only for fetching.
+ * @param audioUrl Resolved URL to the audio/video file (fallback if API proxy misses).
  */
 export function useWaveformData(
   assetId: string | undefined,
   audioUrl: string | undefined
 ): UseWaveformDataResult {
+  const { authenticatedFetch } = useAuthenticatedFetch();
+
   // Initialise from cache synchronously so clips that were decoded earlier in
   // this session render instantly without a loading flash.
   const [peaks, setPeaks] = useState<Float32Array | null>(() =>
@@ -129,7 +157,7 @@ export function useWaveformData(
     // Coalesce: if another mount is already decoding this asset, attach to its promise.
     let promise = pendingDecodes.get(assetId);
     if (!promise) {
-      promise = decodePeaks(audioUrl)
+      promise = decodePeaksForAsset(assetId, audioUrl, authenticatedFetch)
         .then((result) => {
           peakCache.set(assetId, result);
           pendingDecodes.delete(assetId);
@@ -161,7 +189,7 @@ export function useWaveformData(
     return () => {
       cancelled = true;
     };
-  }, [assetId, audioUrl]);
+  }, [assetId, audioUrl, authenticatedFetch]);
 
   return { peaks, loading };
 }

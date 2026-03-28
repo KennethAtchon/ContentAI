@@ -40,7 +40,7 @@ Respond ONLY with a JSON object in this exact structure, no explanation:
       "transition": "cut" | "fade" | "slide-left" | "dissolve"
     }
   ],
-  "captionStyle": "bold-outline" | "clean-white" | "highlight",
+  "captionStyle": "hormozi" | "clean-minimal" | "dark-box" | "karaoke" | "bold-outline",
   "captionGroupSize": 3,
   "musicVolume": 0.25,
   "totalDuration": number

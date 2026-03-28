@@ -5,6 +5,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Upload } from "@aws-sdk/lib-storage";
+import { Readable } from "node:stream";
 import {
   R2_ACCOUNT_ID,
   R2_ACCESS_KEY_ID,
@@ -92,6 +93,65 @@ export async function deleteFile(key: string): Promise<void> {
     );
     throw new Error("Failed to delete file from R2 storage");
   }
+}
+
+/**
+ * Streams an R2 object for same-origin proxying (e.g. editor waveform decode
+ * without requiring CORS on the public R2 endpoint for the SPA origin).
+ */
+export async function getObjectWebStream(key: string): Promise<{
+  stream: ReadableStream<Uint8Array>;
+  contentType: string | undefined;
+}> {
+  if (!R2_BUCKET_NAME) {
+    throw new Error("R2_BUCKET_NAME is not configured");
+  }
+
+  const finalKey = APP_ENV === "development" ? `testing/${key}` : key;
+
+  const out = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: finalKey,
+    }),
+  );
+
+  if (!out.Body) {
+    throw new Error("Empty R2 object body");
+  }
+
+  const body = out.Body as unknown;
+  let stream: ReadableStream<Uint8Array>;
+
+  if (body instanceof Readable) {
+    stream = Readable.toWeb(body) as unknown as ReadableStream<Uint8Array>;
+  } else if (
+    body &&
+    typeof body === "object" &&
+    Symbol.asyncIterator in (body as object)
+  ) {
+    const iterable = body as AsyncIterable<Uint8Array | Buffer>;
+    stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const chunk of iterable) {
+            const u8 =
+              chunk instanceof Uint8Array
+                ? chunk
+                : new Uint8Array(chunk as Buffer);
+            controller.enqueue(u8);
+          }
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
+  } else {
+    throw new Error("Unsupported R2 body stream type");
+  }
+
+  return { stream, contentType: out.ContentType };
 }
 
 export async function getFileUrl(

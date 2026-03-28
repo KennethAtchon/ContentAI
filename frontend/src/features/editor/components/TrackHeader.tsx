@@ -21,7 +21,7 @@ interface Props {
   onRemove?: () => void;
   onAddVideoTrack?: () => void;
   isDragging?: boolean;
-  gripProps?: React.HTMLAttributes<HTMLSpanElement>;
+  gripProps?: React.HTMLAttributes<HTMLElement>;
 }
 
 export function TrackHeader({

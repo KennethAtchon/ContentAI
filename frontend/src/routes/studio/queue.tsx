@@ -980,7 +980,6 @@ function DetailPanel({
   const voiceoverUrl = voiceover?.r2Url ?? content?.voiceoverUrl ?? null;
   const musicUrl = music?.r2Url ?? content?.backgroundAudioUrl ?? null;
   const hasAudioContent = Boolean(voiceoverUrl ?? musicUrl);
-  const hasVideoContent = Boolean(finalVideoUrl);
   const hasCopyContent =
     content?.postCaption ||
     content?.sceneDescription ||

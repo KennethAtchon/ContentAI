@@ -32,6 +32,14 @@ export function drawCaptionsOnCanvas(
   const groupStart = Math.floor(activeIdx / groupSize) * groupSize;
   const group = words.slice(groupStart, groupStart + groupSize);
 
+  // Apply display-only textTransform — never mutates stored captionWords data.
+  // This mirrors CSS text-transform: the DOM retains original casing; the
+  // browser (here: canvas) applies the transform only at paint time.
+  const displayGroup =
+    preset.textTransform === "uppercase"
+      ? group.map((w) => ({ ...w, word: w.word.toUpperCase() }))
+      : group;
+
   const fontSize = clip.captionFontSizeOverride ?? preset.fontSize;
   const y = canvasH * ((clip.captionPositionY ?? preset.positionY) / 100);
 
@@ -39,7 +47,9 @@ export function drawCaptionsOnCanvas(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const fullText = group.map((w) => w.word).join(" ");
+  // fullText derived from displayGroup so background box sizing is correct
+  // for uppercase text (uppercase letters are wider than lowercase)
+  const fullText = displayGroup.map((w) => w.word).join(" ");
 
   // Draw background box if preset has one
   if (preset.backgroundColor) {
@@ -58,7 +68,7 @@ export function drawCaptionsOnCanvas(
   }
 
   if (preset.animation === "highlight" || preset.animation === "karaoke") {
-    drawWordByWord(ctx, group, relativeMs, preset, canvasW, y, fontSize);
+    drawWordByWord(ctx, displayGroup, relativeMs, preset, canvasW, y, fontSize);
   } else {
     drawSimpleText(ctx, fullText, preset, canvasW, y);
   }

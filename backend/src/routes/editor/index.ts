@@ -55,6 +55,14 @@ function buildFfmpegAtempoChain(speed: number): string {
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
+/** Clients may send fractional ms (e.g. split at sub-frame playhead); normalize for Zod int + DB. */
+function roundFiniteMs(val: unknown): unknown {
+  if (typeof val === "number" && Number.isFinite(val)) {
+    return Math.round(val);
+  }
+  return val;
+}
+
 const resolutionEnum = z.enum([
   "1080x1920",
   "720x1280",
@@ -67,10 +75,10 @@ const clipDataSchema = z.object({
   id: z.string().min(1),
   assetId: z.string().nullable(),
   label: z.string().max(200),
-  startMs: z.number().int().min(0),
-  durationMs: z.number().int().min(0),
-  trimStartMs: z.number().int().min(0),
-  trimEndMs: z.number().int().min(0),
+  startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   speed: z.number().min(0.1).max(10),
   // Look
   opacity: z.number().min(0).max(1),
@@ -84,6 +92,7 @@ const clipDataSchema = z.object({
   // Sound
   volume: z.number().min(0).max(2),
   muted: z.boolean(),
+  enabled: z.boolean().optional(),
   // Text-only
   textContent: z.string().max(2000).optional(),
   textStyle: z
@@ -100,8 +109,8 @@ const clipDataSchema = z.object({
     .array(
       z.object({
         word: z.string(),
-        startMs: z.number().int().min(0),
-        endMs: z.number().int().min(0),
+        startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+        endMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
       }),
     )
     .optional(),
@@ -121,7 +130,10 @@ const transitionSchema = z.object({
     "wipe-right",
     "none",
   ]),
-  durationMs: z.number().int().min(200).max(2000),
+  durationMs: z.preprocess(
+    roundFiniteMs,
+    z.number().int().min(200).max(2000),
+  ),
   clipAId: z.string().min(1),
   clipBId: z.string().min(1),
 });
@@ -137,10 +149,15 @@ const trackDataSchema = z.object({
 });
 
 const patchProjectSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
+  title: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.optional(z.string().min(1).max(200)),
+  ),
   tracks: z.array(trackDataSchema).optional(),
-  durationMs: z.number().int().min(0).optional(),
-  fps: z.number().int().min(1).max(120).optional(),
+  durationMs: z.optional(
+    z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  ),
+  fps: z.optional(z.preprocess(roundFiniteMs, z.number().int().min(1).max(120))),
   resolution: resolutionEnum.optional(),
 });
 
@@ -164,7 +181,7 @@ const aiAssemblyResponseSchema = z.object({
       transition: z.enum(["cut", "fade", "slide-left", "dissolve"]),
     }),
   ),
-  captionStyle: z.enum(["bold-outline", "clean-white", "highlight"]).optional(),
+  captionStyle: z.enum(["hormozi", "clean-minimal", "dark-box", "karaoke", "bold-outline"]).optional(),
   captionGroupSize: z.number().int().min(1).max(6).optional(),
   musicVolume: z.number().min(0).max(1),
   totalDuration: z.number().int().min(1000).max(120000),
@@ -1455,9 +1472,7 @@ async function loadProjectShotAssets(
 function mapCaptionStyleToPresetId(
   style: z.infer<typeof aiAssemblyResponseSchema>["captionStyle"],
 ): string {
-  if (style === "clean-white") return "clean-white";
-  if (style === "highlight") return "highlight";
-  return "bold-outline";
+  return style ?? "hormozi";
 }
 
 function convertAIResponseToTracks(
@@ -1555,7 +1570,7 @@ function convertAIResponseToTracks(
 
   const captionPresetId = aiResponse.captionStyle
     ? mapCaptionStyleToPresetId(aiResponse.captionStyle)
-    : "bold-outline";
+    : "hormozi";
   const captionGroupSize = aiResponse.captionGroupSize ?? 3;
   const textClips =
     totalVideoMs > 0
@@ -1724,7 +1739,7 @@ function buildStandardPresetTracks(
       ]
     : [];
 
-  const capPreset = aux?.captionPresetId ?? "bold-outline";
+  const capPreset = aux?.captionPresetId ?? "hormozi";
   const capGroup = aux?.captionGroupSize ?? 3;
   const textClips =
     totalVideoMs > 0
@@ -1940,7 +1955,7 @@ app.post(
           voiceover: auxPack.voiceover,
           music: auxPack.music,
           musicVolume: 0.22,
-          captionPresetId: "bold-outline",
+          captionPresetId: "hormozi",
           captionGroupSize: 3,
         });
         return c.json({

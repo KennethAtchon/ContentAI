@@ -9,6 +9,7 @@ import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
 import { ShotOrderPanel } from "./ShotOrderPanel";
 import { CAPTION_PRESETS } from "../constants/caption-presets";
+import { CaptionPresetTile } from "./CaptionPresetTile";
 import { useAutoCaption } from "../hooks/use-captions";
 import type { Clip, Track, CaptionWord } from "../types/editor";
 
@@ -143,7 +144,7 @@ export function MediaPanel({
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [search, setSearch] = useState("");
-  const [selectedPresetId, setSelectedPresetId] = useState("clean-white");
+  const [selectedPresetId, setSelectedPresetId] = useState("hormozi");
   const autoCaption = useAutoCaption();
 
   const { data: assetsData } = useQuery({
@@ -234,7 +235,7 @@ export function MediaPanel({
 
   return (
     <div
-      className="flex flex-col h-full border-r border-overlay-sm bg-studio-surface"
+      className="flex min-h-0 shrink-0 flex-col h-full border-r border-overlay-sm bg-studio-surface"
       style={{ width: 220 }}
     >
       {/* Pending add position banner */}
@@ -252,22 +253,25 @@ export function MediaPanel({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-overlay-sm shrink-0">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => onTabChange(tab.key)}
-            className={cn(
-              "flex-1 py-2 text-[11px] font-medium border-0 cursor-pointer transition-colors bg-transparent border-b-2",
-              activeTab === tab.key
-                ? "text-studio-accent border-b-studio-accent"
-                : "text-dim-3 border-b-transparent hover:text-dim-1"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs — horizontal scroll so labels stay readable in narrow panel */}
+      <div className="shrink-0 overflow-x-auto overflow-y-hidden overscroll-x-contain border-b border-overlay-sm">
+        <div className="flex w-max min-w-full flex-nowrap">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onTabChange(tab.key)}
+              className={cn(
+                "shrink-0 whitespace-nowrap px-2.5 py-2 text-[11px] font-medium border-0 cursor-pointer transition-colors bg-transparent border-b-2",
+                activeTab === tab.key
+                  ? "text-studio-accent border-b-studio-accent"
+                  : "text-dim-3 border-b-transparent hover:text-dim-1"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Search (media + audio only) */}
@@ -555,51 +559,16 @@ export function MediaPanel({
             <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold px-0.5">
               {t("editor_captions_style")}
             </p>
-            {CAPTION_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => setSelectedPresetId(preset.id)}
-                className={cn(
-                  "text-left px-3 py-2.5 rounded border-0 cursor-pointer transition-colors",
-                  selectedPresetId === preset.id
-                    ? "bg-studio-accent/20 ring-1 ring-studio-accent"
-                    : "bg-overlay-sm hover:bg-overlay-md"
-                )}
-              >
-                <p
-                  className="truncate leading-tight"
-                  style={{
-                    fontFamily: preset.fontFamily,
-                    fontSize: 13,
-                    fontWeight: preset.fontWeight,
-                    color: preset.color === "#111111" ? "#e5e7eb" : preset.color,
-                    WebkitTextStroke:
-                      preset.outlineWidth > 0
-                        ? `${preset.outlineWidth * 0.4}px ${preset.outlineColor ?? "#000"}`
-                        : undefined,
-                    backgroundColor:
-                      preset.backgroundColor &&
-                      !preset.backgroundColor.startsWith("rgba")
-                        ? preset.backgroundColor
-                        : undefined,
-                    padding:
-                      preset.backgroundPadding
-                        ? `1px ${preset.backgroundPadding / 4}px`
-                        : undefined,
-                    borderRadius: preset.backgroundRadius
-                      ? preset.backgroundRadius / 2
-                      : undefined,
-                  }}
-                >
-                  {preset.name}
-                </p>
-                {preset.animation !== "none" && (
-                  <p className="text-[10px] text-dim-3 mt-0.5">
-                    {preset.animation}
-                  </p>
-                )}
-              </button>
-            ))}
+            <div className="grid grid-cols-2 gap-1.5">
+              {CAPTION_PRESETS.map((preset) => (
+                <CaptionPresetTile
+                  key={preset.id}
+                  preset={preset}
+                  selected={selectedPresetId === preset.id}
+                  onClick={() => setSelectedPresetId(preset.id)}
+                />
+              ))}
+            </div>
           </div>
         )}
 

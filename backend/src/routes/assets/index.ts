@@ -13,7 +13,12 @@ import {
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, notInArray } from "drizzle-orm";
-import { deleteFile, getFileUrl, uploadFile } from "../../services/storage/r2";
+import {
+  deleteFile,
+  getFileUrl,
+  getObjectWebStream,
+  uploadFile,
+} from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 
 const app = new Hono<HonoEnv>();
@@ -132,6 +137,47 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
     return c.json({ error: "Failed to fetch assets" }, 500);
   }
 });
+
+// GET /api/assets/:id/media-for-decode — same-origin binary stream for editor
+// waveform decode (avoids browser CORS on signed R2 URLs).
+app.get(
+  "/:id/media-for-decode",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    try {
+      const auth = c.get("auth");
+      const { id } = c.req.param();
+
+      const [row] = await db
+        .select({
+          r2Key: assets.r2Key,
+          mimeType: assets.mimeType,
+        })
+        .from(assets)
+        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)))
+        .limit(1);
+
+      if (!row?.r2Key) {
+        return c.json({ error: "Asset not found" }, 404);
+      }
+
+      const { stream, contentType } = await getObjectWebStream(row.r2Key);
+      return c.body(stream, 200, {
+        "Content-Type":
+          contentType ?? row.mimeType ?? "application/octet-stream",
+        "Cache-Control": "private, max-age=120",
+      });
+    } catch (error) {
+      debugLog.error("Failed to stream asset for decode", {
+        service: "assets-route",
+        operation: "mediaForDecode",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to load media" }, 502);
+    }
+  },
+);
 
 // POST /api/assets/upload
 app.post(

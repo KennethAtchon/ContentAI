@@ -10,6 +10,7 @@ import {
 } from "@/shared/components/ui/select";
 import type { Clip, Track, Transition } from "../types/editor";
 import { CAPTION_PRESETS } from "../constants/caption-presets";
+import { CaptionPresetTile } from "./CaptionPresetTile";
 
 interface Props {
   tracks: Track[];
@@ -324,20 +325,15 @@ export function Inspector({
                       <p className="text-[10px] text-dim-3 mb-1.5">{t("editor_captions_style")}</p>
                       <div className="grid grid-cols-2 gap-1">
                         {CAPTION_PRESETS.map((p) => (
-                          <button
+                          <CaptionPresetTile
                             key={p.id}
+                            preset={p}
+                            selected={selectedClip.captionPresetId === p.id}
                             onClick={() =>
                               onUpdateClip(selectedClip!.id, { captionPresetId: p.id })
                             }
-                            className={cn(
-                              "text-left px-2 py-1.5 rounded text-[11px] border-0 cursor-pointer transition-colors truncate",
-                              selectedClip.captionPresetId === p.id
-                                ? "bg-studio-accent/20 text-studio-accent ring-1 ring-studio-accent"
-                                : "bg-overlay-sm text-dim-2 hover:bg-overlay-md"
-                            )}
-                          >
-                            {p.name}
-                          </button>
+                            compact
+                          />
                         ))}
                       </div>
                     </div>
