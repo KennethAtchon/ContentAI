@@ -8,6 +8,7 @@ import { validateCSRFToken } from "../services/csrf/csrf-protection";
 import { checkRateLimit } from "../services/rate-limit/rate-limit-redis";
 import { getRateLimitConfig } from "../constants/rate-limit.config";
 import { debugLog } from "../utils/debug/debug";
+import { IS_DEVELOPMENT } from "../utils/config/envUtil";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,11 @@ export function rateLimiter(
   type: RateLimitType = "public",
 ): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
+    // Match comprehensive-rate-limiter: avoid Redis IP buckets starving local SPA loads (parallel queries).
+    if (IS_DEVELOPMENT) {
+      await next();
+      return;
+    }
     try {
       const config = getRateLimitConfig(type);
       const ip =

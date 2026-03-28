@@ -1030,9 +1030,6 @@ export function EditorLayout({ project, onBack }: Props) {
                   : null
               )
             }
-            videoTrack={state.tracks.find((t) => t.type === "video")}
-            onReorder={store.reorderShots}
-            onAddCaptionClip={store.addCaptionClip}
             readOnly={state.isReadOnly}
             activeTab={mediaActiveTab}
             onTabChange={setMediaActiveTab}
@@ -1056,6 +1053,7 @@ export function EditorLayout({ project, onBack }: Props) {
             tracks={state.tracks}
             selectedClipId={state.selectedClipId}
             onUpdateClip={handleUpdateClip}
+            onAddCaptionClip={store.addCaptionClip}
             selectedTransition={selectedTransition}
             onSetTransition={store.setTransition}
             onRemoveTransition={store.removeTransition}

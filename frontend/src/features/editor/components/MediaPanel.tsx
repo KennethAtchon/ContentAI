@@ -1,26 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Music, Mic, Loader2, Captions } from "lucide-react";
+import { Music, Mic } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import { ShotOrderPanel } from "./ShotOrderPanel";
-import { CAPTION_PRESETS } from "../constants/caption-presets";
-import { CaptionPresetTile } from "./CaptionPresetTile";
-import { useAutoCaption } from "../hooks/use-captions";
-import type { Clip, Track, CaptionWord } from "../types/editor";
-
-type AddCaptionClipParams = {
-  captionId: string;
-  captionWords: CaptionWord[];
-  assetId: string;
-  presetId: string;
-  startMs: number;
-  durationMs: number;
-};
+import type { Clip } from "../types/editor";
 
 interface Asset {
   id: string;
@@ -39,9 +26,6 @@ interface Props {
   selectedClipId: string | null;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
   onEffectPreview?: (patch: Partial<Clip> | null) => void;
-  videoTrack?: Track;
-  onReorder?: (trackId: string, clipIds: string[]) => void;
-  onAddCaptionClip?: (params: AddCaptionClipParams) => void;
   readOnly?: boolean;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
@@ -52,7 +36,7 @@ interface Props {
   isSyncing?: boolean;
 }
 
-export type TabKey = "media" | "effects" | "audio" | "text" | "shots" | "generate";
+export type TabKey = "media" | "effects" | "audio" | "generate";
 
 const EFFECT_DEFINITIONS: {
   id: string;
@@ -129,9 +113,6 @@ export function MediaPanel({
   selectedClipId,
   onUpdateClip,
   onEffectPreview,
-  videoTrack,
-  onReorder,
-  onAddCaptionClip,
   readOnly,
   activeTab,
   onTabChange,
@@ -144,8 +125,6 @@ export function MediaPanel({
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [search, setSearch] = useState("");
-  const [selectedPresetId, setSelectedPresetId] = useState("hormozi");
-  const autoCaption = useAutoCaption();
 
   const { data: assetsData } = useQuery({
     queryKey: queryKeys.api.contentAssets(generatedContentId ?? 0),
@@ -172,9 +151,7 @@ export function MediaPanel({
     { key: "media", label: t("editor_media_tab") },
     { key: "effects", label: t("editor_effects_tab") },
     { key: "audio", label: t("editor_audio_tab") },
-    { key: "text", label: t("editor_caption_tab") },
-    { key: "shots", label: t("editor_shots_tab") },
-    ...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
+...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -209,29 +186,6 @@ export function MediaPanel({
     });
   };
 
-  const voiceoverAsset = allAssets.find((a) => a.type === "voiceover");
-
-  const handleAutoCaption = async () => {
-    if (!voiceoverAsset || !onAddCaptionClip) return;
-    try {
-      const result = await autoCaption.mutateAsync(voiceoverAsset.id);
-      const durationMs =
-        voiceoverAsset.durationMs ??
-        (result.words.length > 0
-          ? result.words[result.words.length - 1].endMs
-          : 30000);
-      onAddCaptionClip({
-        captionId: result.captionId,
-        captionWords: result.words,
-        assetId: voiceoverAsset.id,
-        presetId: selectedPresetId,
-        startMs: 0,
-        durationMs,
-      });
-    } catch {
-      // error is visible via autoCaption.isError
-    }
-  };
 
   return (
     <div
@@ -515,78 +469,7 @@ export function MediaPanel({
           </>
         )}
 
-        {/* Caption tab */}
-        {activeTab === "text" && (
-          <div className="flex flex-col gap-2">
-            {/* Auto-generate from voiceover */}
-            <div className="rounded bg-overlay-sm p-2.5">
-              <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-2">
-                {t("editor_captions_auto_generate")}
-              </p>
-              {!voiceoverAsset ? (
-                <p className="text-[11px] italic text-dim-3">
-                  {t("editor_captions_no_voiceover")}
-                </p>
-              ) : (
-                <>
-                  {autoCaption.isError && (
-                    <p className="text-[11px] text-red-400 mb-1.5">
-                      {t("editor_captions_failed")}
-                    </p>
-                  )}
-                  <button
-                    onClick={handleAutoCaption}
-                    disabled={autoCaption.isPending || readOnly}
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-studio-accent text-white text-xs font-semibold border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {autoCaption.isPending ? (
-                      <>
-                        <Loader2 size={12} className="animate-spin" />
-                        {t("editor_captions_generating")}
-                      </>
-                    ) : (
-                      <>
-                        <Captions size={12} />
-                        {t("editor_captions_auto_generate")}
-                      </>
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Style presets */}
-            <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold px-0.5">
-              {t("editor_captions_style")}
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {CAPTION_PRESETS.map((preset) => (
-                <CaptionPresetTile
-                  key={preset.id}
-                  preset={preset}
-                  selected={selectedPresetId === preset.id}
-                  onClick={() => setSelectedPresetId(preset.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Shots tab */}
-        {activeTab === "shots" && videoTrack && onReorder && (
-          <ShotOrderPanel
-            videoTrack={videoTrack}
-            onReorder={onReorder}
-            readOnly={readOnly}
-          />
-        )}
-        {activeTab === "shots" && (!videoTrack || !onReorder) && (
-          <p className="text-xs italic text-dim-3 text-center mt-4">
-            {t("editor_shots_empty")}
-          </p>
-        )}
-
-        {activeTab === "generate" && (
+{activeTab === "generate" && (
           <div className="flex flex-col items-center gap-3 p-4 pt-6">
             {newAssetCount > 0 ? (
               <>

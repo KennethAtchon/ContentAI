@@ -7,6 +7,7 @@ import { debugLog } from "@/shared/utils/debug/debug";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  invalidateChatProjectsQueries,
   invalidateContentAssetsForGeneration,
   invalidateEditorProjectsQueries,
   invalidateQueueQueries,
@@ -419,6 +420,7 @@ export function ChatLayout({
     })
       .then(() => {
         void invalidateEditorProjectsQueries(queryClient);
+        void invalidateChatProjectsQueries(queryClient);
       })
       .catch((err) => {
         debugLog.error("Failed to auto-create editor project", {

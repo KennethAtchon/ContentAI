@@ -1417,6 +1417,8 @@
   "editor_media_upload": "Upload to library",
   "editor_captions_auto_generate": "Auto Captions",
   "editor_captions_generating": "Generating captions...",
+  "editor_captions_generate_section": "Captions",
+  "editor_captions_generate_for_clip": "Generate Text for Clip",
   "editor_captions_style": "Caption style",
   "editor_captions_group_size": "Words per group",
   "editor_captions_font_size": "Font size",

@@ -12,8 +12,7 @@ function normalizeCopy(s: string | null | undefined): string {
 
 /**
  * Compose default spoken TTS text: hook (if present) prepended to clean body
- * (deduped). Does NOT include post_caption — overlay track uses that
- * separately via composeOverlayText.
+ * (deduped). Does NOT include post_caption (social-only; never on overlay text).
  *
  * Rules:
  * - Both hook and body: "hook\n\nbody" (deduped: body omitted when equal to hook)

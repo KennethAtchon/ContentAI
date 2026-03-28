@@ -6,6 +6,7 @@ import type { Clip, Track, Transition } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { drawCaptionsOnCanvas } from "../hooks/use-caption-preview";
 import { formatHHMMSSFF, formatMMSS } from "../utils/timecode";
+import { splitTextIntoSegments, getActiveSegment } from "../utils/text-segments";
 
 interface Props {
   tracks: Track[];
@@ -431,6 +432,9 @@ export function PreviewArea({
           {/* Text clip overlays — rendered as DOM elements for correct CSS scaling */}
           {activeTextClips.map((clip) => {
             if (!clip.textContent) return null;
+            const segments = splitTextIntoSegments(clip.textContent, clip.durationMs);
+            const elapsed = currentTimeMs - clip.startMs;
+            const displayText = getActiveSegment(segments, elapsed);
             return (
               <div
                 key={clip.id}
@@ -453,7 +457,7 @@ export function PreviewArea({
                   lineHeight: 1.2,
                 }}
               >
-                {clip.textContent}
+                {displayText}
               </div>
             );
           })}

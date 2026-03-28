@@ -2,51 +2,46 @@ import { describe, expect, test } from "bun:test";
 import { composeOverlayText } from "../../../../src/routes/editor/services/build-initial-timeline";
 
 describe("composeOverlayText", () => {
-  test("joins hook and caption with blank line", () => {
+  test("uses hook when no voiceover body", () => {
     expect(
       composeOverlayText({
         generatedHook: "Hook line",
-        postCaption: "Social caption",
         voiceoverScript: null,
       }),
-    ).toBe("Hook line\n\nSocial caption");
+    ).toBe("Hook line");
   });
 
-  test("inserts clean script between hook and caption", () => {
+  test("joins hook and clean voiceover body", () => {
     expect(
       composeOverlayText({
         generatedHook: "Open",
-        postCaption: "CTA",
         voiceoverScript: "Middle body for TTS.",
       }),
-    ).toBe("Open\n\nMiddle body for TTS.\n\nCTA");
+    ).toBe("Open\n\nMiddle body for TTS.");
   });
 
   test("skips clean when identical to hook", () => {
     expect(
       composeOverlayText({
         generatedHook: "Same text",
-        postCaption: "Cap",
         voiceoverScript: "Same text",
       }),
-    ).toBe("Same text\n\nCap");
+    ).toBe("Same text");
   });
 
-  test("uses clean alone when hook and caption empty", () => {
+  test("uses clean alone when hook empty", () => {
     expect(
       composeOverlayText({
         generatedHook: null,
-        postCaption: null,
         voiceoverScript: "Narration only",
       }),
     ).toBe("Narration only");
   });
 
-  test("returns empty when all absent", () => {
+  test("returns empty when hook and voiceover absent", () => {
     expect(
       composeOverlayText({
         generatedHook: null,
-        postCaption: null,
         voiceoverScript: null,
       }),
     ).toBe("");

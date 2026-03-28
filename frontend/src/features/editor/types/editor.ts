@@ -45,6 +45,8 @@ export interface Clip {
   // Text-only
   textContent?: string;
   textStyle?: TextStyle;
+  /** Reading-time ceiling for text clips; trim-right cannot exceed this. */
+  sourceMaxDurationMs?: number;
   // Caption-only
   captionId?: string;
   captionWords?: CaptionWord[];

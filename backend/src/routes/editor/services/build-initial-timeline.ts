@@ -13,7 +13,7 @@ import {
   type TimelineTrackJson,
 } from "./refresh-editor-timeline";
 
-/** Collapse whitespace for on-screen copy (hook / voiceover body / post caption). */
+/** Collapse whitespace for on-screen copy (hook / voiceover body). */
 function normalizeCopy(s: string | null | undefined): string {
   if (!s) return "";
   return s.replace(/\s+/g, " ").trim();
@@ -21,16 +21,14 @@ function normalizeCopy(s: string | null | undefined): string {
 
 /**
  * On-screen overlay text: hook + voiceover body (voiceover_script, no
- * timestamp lines) + post caption. Omits duplicate body block when it only
- * repeats the hook.
+ * timestamp lines). Post caption is for the social post only — not shown here.
+ * Omits duplicate body block when it only repeats the hook.
  */
 export function composeOverlayText(input: {
   generatedHook: string | null;
-  postCaption: string | null;
   voiceoverScript: string | null;
 }): string {
   const hook = normalizeCopy(input.generatedHook);
-  const caption = normalizeCopy(input.postCaption);
   const clean = normalizeCopy(
     extractCaptionSourceText({
       voiceoverScript: input.voiceoverScript,
@@ -41,7 +39,6 @@ export function composeOverlayText(input: {
   const parts: string[] = [];
   if (hook) parts.push(hook);
   if (clean && clean !== hook) parts.push(clean);
-  if (caption) parts.push(caption);
   return parts.join("\n\n");
 }
 
@@ -115,8 +112,8 @@ function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
 }
 
 /**
- * Builds editor tracks from linked assets plus overlay copy from hook,
- * voiceover_script, and post_caption. Does not read generated_script
+ * Builds editor tracks from linked assets plus overlay copy from hook and
+ * voiceover_script (not post_caption). Does not read generated_script
  * (that stays in the video job / parseScriptShots only).
  */
 export async function buildInitialTimeline(
@@ -125,9 +122,7 @@ export async function buildInitialTimeline(
 ): Promise<{ tracks: TimelineTrackJson[]; durationMs: number }> {
   const [content] = await db
     .select({
-      id: generatedContent.id,
       generatedHook: generatedContent.generatedHook,
-      postCaption: generatedContent.postCaption,
       voiceoverScript: generatedContent.voiceoverScript,
     })
     .from(generatedContent)
@@ -217,7 +212,6 @@ export async function buildInitialTimeline(
 
   const overlayText = composeOverlayText({
     generatedHook: content.generatedHook,
-    postCaption: content.postCaption,
     voiceoverScript: content.voiceoverScript,
   });
   if (overlayText.length > 0) {

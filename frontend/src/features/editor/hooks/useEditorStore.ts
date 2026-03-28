@@ -11,6 +11,7 @@ import type {
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
+import { estimateReadingDurationMs } from "../utils/text-segments";
 
 const DEFAULT_TRACKS: Track[] = [
   {
@@ -237,10 +238,17 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
 
     case "UPDATE_CLIP": {
-      const newTracks = updateClipInTracks(state.tracks, action.clipId, {
-        ...action.patch,
-        locallyModified: true,
-      });
+      let patch: Partial<Clip> = { ...action.patch, locallyModified: true };
+
+      // When text content changes, recalculate the reading-time ceiling and
+      // auto-fit the clip duration to match it.
+      if ("textContent" in action.patch) {
+        const maxMs = estimateReadingDurationMs(action.patch.textContent ?? "");
+        patch.sourceMaxDurationMs = maxMs;
+        if (maxMs !== undefined) patch.durationMs = maxMs;
+      }
+
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, patch);
       return {
         ...state,
         past: [...state.past, state.tracks].slice(-50),

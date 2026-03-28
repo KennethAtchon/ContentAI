@@ -179,6 +179,9 @@ export function TimelineClip({
       const deltaMs = (dx / zoom) * 1000;
       let newDuration = Math.max(100, origDuration + deltaMs);
       newDuration = clampTrimEnd(track, clip, newDuration);
+      if (clip.sourceMaxDurationMs !== undefined) {
+        newDuration = Math.min(newDuration, clip.sourceMaxDurationMs);
+      }
       pendingDuration = newDuration;
 
       if (clipRef.current) {

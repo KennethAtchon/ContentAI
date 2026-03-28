@@ -17,6 +17,7 @@ export const useProjects = () => {
     queryKey: queryKeys.api.projects(),
     queryFn: () => chatService.getProjects(),
     enabled: !!user,
+    staleTime: 30_000,
   });
 };
 

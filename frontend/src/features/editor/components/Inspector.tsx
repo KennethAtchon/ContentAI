@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2, Captions } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import {
   Select,
@@ -8,14 +8,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import type { Clip, Track, Transition } from "../types/editor";
+import type { Clip, Track, Transition, CaptionWord } from "../types/editor";
 import { CAPTION_PRESETS } from "../constants/caption-presets";
 import { CaptionPresetTile } from "./CaptionPresetTile";
+import { useAutoCaption } from "../hooks/use-captions";
+
+interface AddCaptionClipParams {
+  captionId: string;
+  captionWords: CaptionWord[];
+  assetId: string;
+  presetId: string;
+  startMs: number;
+  durationMs: number;
+}
 
 interface Props {
   tracks: Track[];
   selectedClipId: string | null;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  onAddCaptionClip: (params: AddCaptionClipParams) => void;
   selectedTransition: Transition | null;
   onSetTransition: (
     trackId: string,
@@ -103,22 +114,52 @@ export function Inspector({
   tracks,
   selectedClipId,
   onUpdateClip,
+  onAddCaptionClip,
   selectedTransition,
   onSetTransition,
   onRemoveTransition,
 }: Props) {
   const { t } = useTranslation();
+  const autoCaption = useAutoCaption();
 
   let selectedClip: Clip | undefined;
+  let selectedTrack: Track | undefined;
   for (const track of tracks) {
     const found = track.clips.find((c) => c.id === selectedClipId);
     if (found) {
       selectedClip = found;
+      selectedTrack = track;
       break;
     }
   }
 
   const isCaptionClip = !!(selectedClip?.captionWords?.length);
+  // Show generate button for any non-text track clip that has an asset and no captions yet
+  const isGenerableClip =
+    !!selectedClip?.assetId &&
+    selectedTrack?.type !== "text" &&
+    !isCaptionClip;
+
+  const handleGenerateText = async () => {
+    if (!selectedClip?.assetId) return;
+    try {
+      const result = await autoCaption.mutateAsync(selectedClip.assetId);
+      const durationMs =
+        result.words.length > 0
+          ? result.words[result.words.length - 1].endMs
+          : selectedClip.durationMs;
+      onAddCaptionClip({
+        captionId: result.captionId,
+        captionWords: result.words,
+        assetId: selectedClip.assetId,
+        presetId: "hormozi",
+        startMs: selectedClip.startMs,
+        durationMs,
+      });
+    } catch {
+      // error surfaced via autoCaption.isError below
+    }
+  };
 
   return (
     <div
@@ -199,6 +240,34 @@ export function Inspector({
                     </button>
                   </PropRow>
                 </Section>
+
+                {/* Generate text — video/audio clips only */}
+                {isGenerableClip && (
+                  <Section title={t("editor_captions_generate_section")}>
+                    {autoCaption.isError && (
+                      <p className="text-[11px] text-red-400 mb-2">
+                        {t("editor_captions_failed")}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleGenerateText}
+                      disabled={autoCaption.isPending}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-studio-accent/10 text-studio-accent text-xs font-semibold border border-studio-accent/30 cursor-pointer hover:bg-studio-accent/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {autoCaption.isPending ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          {t("editor_captions_generating")}
+                        </>
+                      ) : (
+                        <>
+                          <Captions size={12} />
+                          {t("editor_captions_generate_for_clip")}
+                        </>
+                      )}
+                    </button>
+                  </Section>
+                )}
 
                 {/* 2. Look */}
                 <Section title="Look">
@@ -316,6 +385,77 @@ export function Inspector({
                     </div>
                   )}
                 </Section>
+
+                {/* 4b. Text Style — only for non-caption text clips */}
+                {selectedClip.textContent !== undefined && !isCaptionClip && (
+                  <Section title="Text Style">
+                    <SliderRow
+                      label="Size"
+                      value={selectedClip.textStyle?.fontSize ?? 32}
+                      min={12}
+                      max={120}
+                      step={2}
+                      onChange={(v) =>
+                        onUpdateClip(selectedClip!.id, {
+                          textStyle: { ...selectedClip!.textStyle, fontSize: v, fontWeight: selectedClip!.textStyle?.fontWeight ?? "normal", color: selectedClip!.textStyle?.color ?? "#ffffff", align: selectedClip!.textStyle?.align ?? "center" },
+                        })
+                      }
+                    />
+                    <PropRow label="Weight">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateClip(selectedClip!.id, {
+                            textStyle: { fontSize: selectedClip!.textStyle?.fontSize ?? 32, fontWeight: selectedClip!.textStyle?.fontWeight === "bold" ? "normal" : "bold", color: selectedClip!.textStyle?.color ?? "#ffffff", align: selectedClip!.textStyle?.align ?? "center" },
+                          })
+                        }
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded border cursor-pointer transition-colors",
+                          selectedClip.textStyle?.fontWeight === "bold"
+                            ? "bg-studio-accent/20 border-studio-accent text-studio-accent"
+                            : "bg-overlay-sm border-overlay-md text-dim-2"
+                        )}
+                      >
+                        Bold
+                      </button>
+                    </PropRow>
+                    <PropRow label="Color">
+                      <input
+                        type="color"
+                        value={selectedClip.textStyle?.color ?? "#ffffff"}
+                        onChange={(e) =>
+                          onUpdateClip(selectedClip!.id, {
+                            textStyle: { fontSize: selectedClip!.textStyle?.fontSize ?? 32, fontWeight: selectedClip!.textStyle?.fontWeight ?? "normal", color: e.target.value, align: selectedClip!.textStyle?.align ?? "center" },
+                          })
+                        }
+                        className="w-8 h-6 rounded cursor-pointer border-0 bg-transparent"
+                      />
+                    </PropRow>
+                    <PropRow label="Align">
+                      <div className="flex gap-1">
+                        {(["left", "center", "right"] as const).map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() =>
+                              onUpdateClip(selectedClip!.id, {
+                                textStyle: { fontSize: selectedClip!.textStyle?.fontSize ?? 32, fontWeight: selectedClip!.textStyle?.fontWeight ?? "normal", color: selectedClip!.textStyle?.color ?? "#ffffff", align: a },
+                              })
+                            }
+                            className={cn(
+                              "text-xs px-2 py-0.5 rounded border cursor-pointer transition-colors capitalize",
+                              (selectedClip.textStyle?.align ?? "center") === a
+                                ? "bg-studio-accent/20 border-studio-accent text-studio-accent"
+                                : "bg-overlay-sm border-overlay-md text-dim-2"
+                            )}
+                          >
+                            {a[0].toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </PropRow>
+                  </Section>
+                )}
 
                 {/* 5. Captions — only for caption clips */}
                 {isCaptionClip && (

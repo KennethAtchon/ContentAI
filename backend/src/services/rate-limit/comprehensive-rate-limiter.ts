@@ -12,6 +12,7 @@ import {
   shouldAlertOnExceed,
   type RateLimitType,
 } from "@/constants/rate-limit.config";
+import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
 
 // Re-export RateLimitType for convenience
 export type { RateLimitType };
@@ -89,6 +90,7 @@ export async function applyRateLimit(
   customType?: RateLimitType,
   customConfig?: { window?: number; maxRequests?: number; keyPrefix?: string },
 ): Promise<Response | null> {
+  if (IS_DEVELOPMENT) return null;
   try {
     const rateLimitKey = await getRateLimitKey(request);
     const securityIp = getSecurityIp(request);
