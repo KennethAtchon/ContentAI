@@ -267,33 +267,17 @@ Run these checks before declaring done:
 
 ---
 
-## Migration Note for Existing Compositions
+## No Migration. The DB Is Wiped.
 
-Compositions in the DB saved before v2 will have clips with old `caption*` fields. These must be handled during load:
+`bun run db:reset` has been run. Docker containers have been torn down. The database is empty. There is no old data.
 
-```typescript
-// In build-initial-timeline.ts or a migration utility:
-function migrateLegacyCaptionClip(oldClip: LegacyClip): CaptionClip | null {
-  if (!oldClip.captionId) return null;
-  return {
-    id: oldClip.id,
-    type: "caption",
-    startMs: oldClip.startMs,
-    durationMs: oldClip.durationMs,
-    captionDocId: oldClip.captionId,   // captionId was the caption_doc ID
-    stylePresetId: oldClip.captionPresetId ?? "hormozi",
-    styleOverrides: {
-      positionY: oldClip.captionPositionY,
-      fontSize: oldClip.captionFontSizeOverride,
-    },
-    groupingMs: oldClip.captionGroupSize
-      ? oldClip.captionGroupSize * 400   // rough conversion: groupSize 3 ≈ 1200ms
-      : 0,
-  };
-}
-```
+This eliminates an entire category of work. Do not write:
+- Migration functions
+- Legacy ID resolvers
+- On-read conversion logic
+- Compatibility shims of any kind
 
-This migration function runs when loading a composition that contains a text track clip with `captionId` set. It is a one-way conversion — old compositions are read and converted on load. They are re-saved in the new format on the next autosave.
+The schema is defined fresh from the new Drizzle schema. The first composition written to the DB will be in the new format. That is the only format that exists.
 
 ---
 
@@ -301,8 +285,8 @@ This migration function runs when loading a composition that contains a text tra
 
 | Risk | Mitigation |
 |------|-----------|
-| The `caption` → `caption_doc` table rename breaks existing API clients | The rename is internal to the backend only. External API shape changes only at `captionId` → `captionDocId` in responses. Old clients that ignore unknown fields are unaffected. |
-| Legacy compositions stored in DB with old `captionWords` embedded in the clip JSON | The migration function above handles on-read conversion. The words are already in `caption_doc` — the embedded copy is simply ignored. |
+| The `caption` → `caption_doc` table rename breaks existing data | Non-issue. DB is wiped. Schema is created fresh. |
+| Legacy compositions with old `captionWords` embedded in clip JSON | Non-issue. DB is wiped. No old compositions exist. |
 | Backend and frontend preset registries drift out of sync | A test in each package compares preset IDs. CI fails if they diverge. |
 | `buildPages()` logic diverges between frontend and backend copies | Same test suite run in both packages validates identical output for identical input. |
 | Font loading fails in certain browser environments | `FontLoader` catches rejection and falls back to system sans-serif. Caption renders correctly (at wrong font) rather than failing to render. |

@@ -1,6 +1,4 @@
-import { db } from "../services/db/db";
-import { niches } from "../infrastructure/database/drizzle/schema";
-import { eq } from "drizzle-orm";
+import { adminRepository } from "../domain/singletons";
 import { queueService } from "../services/queue.service";
 import { debugLog } from "../utils/debug/debug";
 
@@ -12,10 +10,7 @@ function sleep(ms: number): Promise<void> {
 
 async function runDailyScan(): Promise<void> {
   try {
-    const activeNiches = await db
-      .select({ id: niches.id, name: niches.name })
-      .from(niches)
-      .where(eq(niches.isActive, true));
+    const activeNiches = await adminRepository.listActiveNichesForDailyScan();
 
     for (const niche of activeNiches) {
       await queueService.enqueue(niche.id, niche.name);

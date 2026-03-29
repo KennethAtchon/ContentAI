@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { count, eq, isNotNull } from "drizzle-orm";
 import { users } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
@@ -13,6 +13,17 @@ export interface IAuthRepository {
 
   /** Lightweight read so health checks can verify the users table is reachable. */
   pingUsersTable(): Promise<void>;
+
+  /** Users linked to Firebase (bulk admin sync to Auth). */
+  listUsersWithFirebaseUid(): Promise<
+    Array<{
+      firebaseUid: string;
+      email: string;
+      name: string | null;
+      isActive: boolean | null;
+      role: string;
+    }>
+  >;
 }
 
 export class AuthRepository implements IAuthRepository {
@@ -58,5 +69,37 @@ export class AuthRepository implements IAuthRepository {
 
   async pingUsersTable(): Promise<void> {
     await this.db.select({ cnt: count() }).from(users).limit(1);
+  }
+
+  async listUsersWithFirebaseUid() {
+    const rows = await this.db
+      .select({
+        firebaseUid: users.firebaseUid,
+        email: users.email,
+        name: users.name,
+        isActive: users.isActive,
+        role: users.role,
+      })
+      .from(users)
+      .where(isNotNull(users.firebaseUid));
+
+    const out: Array<{
+      firebaseUid: string;
+      email: string;
+      name: string | null;
+      isActive: boolean | null;
+      role: string;
+    }> = [];
+    for (const r of rows) {
+      if (!r.firebaseUid) continue;
+      out.push({
+        firebaseUid: r.firebaseUid,
+        email: r.email,
+        name: r.name,
+        isActive: r.isActive,
+        role: r.role,
+      });
+    }
+    return out;
   }
 }

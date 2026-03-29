@@ -1,7 +1,6 @@
 # Backend Reorganization Plan
 
 > **Scope:** `backend/src/` — full structural overhaul for long-term maintainability.
-> **Backwards compatibility:** Not a concern. All internal structure is fair game.
 > **Goal:** Routes that are thin HTTP adapters. Services that contain all business logic. Repositories that own all database access. A structure where adding a feature means adding one file in a predictable place, not hunting across 4 directories.
 
 ---
@@ -796,7 +795,7 @@ services/
 
 ### 9.2 Firebase Auth Sync
 
-`services/firebase/sync.ts` (311 lines) syncs Firebase users to Postgres. This is currently called inside `authMiddleware`. The sync logic is business logic (determining the right role, handling first login, updating DB) and belongs in `domain/auth/auth.service.ts`. The Firebase admin SDK call (`adminAuth.verifyIdToken()`) stays in `services/firebase/`.
+Firebase user sync orchestration lives in `domain/auth/` (`auth.service`, `firebase-user-sync.ts`). The Firebase Admin SDK (`adminAuth`, etc.) stays under `services/firebase/`.
 
 Split:
 - `services/firebase/admin.ts` — SDK initialization (unchanged)
@@ -891,7 +890,7 @@ These changes are purely structural and do not touch business logic.
 
 16. **Video generation providers** — keep under `services/video-generation/providers/`; **`provider-selector.ts`** owns selection (✅). Optional: introduce thin `domain/video/video.service.ts` for job orchestration only.
 
-17. **Auth / Firebase** — session establishment and upsert logic live in **`domain/auth/auth.service.ts`** + **`domain/auth/auth.repository.ts`** (✅ partial). Remaining: trim any duplicate sync paths in `services/firebase/` until verify-only + admin SDK remain per §9.2.
+17. **Auth / Firebase** — session establishment and upsert logic live in **`domain/auth/auth.service.ts`** + **`domain/auth/auth.repository.ts`** (✅ partial). Bulk Auth alignment uses **`auth.repository.listUsersWithFirebaseUid`** + **`authService.syncAllFirebaseUsers`** (**`firebase-user-sync`** no longer queries Postgres). Remaining: trim any duplicate sync paths in `services/firebase/` until verify-only + admin SDK remain per §9.2.
 
 18. **Audit and delete dead code** identified in section 10.
 
@@ -901,14 +900,16 @@ These changes are purely structural and do not touch business logic.
 
 **Phase 2 (repositories) — progress:**
 
-- **`domain/editor/editor.repository.ts`** — Large surface: list/create/patch meta, fork/restore/snapshot flows, link-blank-project transaction (`generated_content` + `edit_project` + `queue_item`), export job helpers, timeline-merge transaction helpers (`resolveContentParentIdChainInTx`, `lockRootEditProjectForContentChainInTx`, `setProjectTracksInTx`), export-status lookups for queue detail (`findLatestExportStatusForRootProjectByContentId`, `findLatestDoneExportOutputR2ForRootProjectByContentId`), etc.
+- **`domain/editor/editor.repository.ts`** — Large surface: list/create/patch meta, fork/restore/snapshot flows, link-blank-project transaction (`generated_content` + `edit_project` + `queue_item`), export job helpers, timeline-merge transaction helpers (`resolveContentParentIdChainInTx`, `lockRootEditProjectForContentChainInTx`, `setProjectTracksInTx`, **`refreshEditorTimeline`**), export-status lookups for queue detail (`findLatestExportStatusForRootProjectByContentId`, `findLatestDoneExportOutputR2ForRootProjectByContentId`), etc.
 - **`domain/queue/queue.repository.ts`** — includes `markDraftOrScheduledReadyByContent` (publish path), **queue list page** (`listQueueItemsPage` + asset/root/version batch queries), **create draft** (`createDraftQueueItemAndMarkContentQueued`), and **items CRUD/detail** helpers (`duplicateQueueItemForUser`, `deleteQueueItemForUser`, etc.).
 - **`domain/queue/queue.service.ts`** — **`listQueueItemsPage`**, **`createDraftQueueItem`** (maps `QueueChainError` → `AppError`), **`getQueueItemDetail`**, **`duplicateQueueItem`**, **`updateQueueItem`** / **`deleteQueueItem`** (transition rules in **`queue-transitions.ts`**).
-- **`domain/content/content.repository.ts`** — `findIdAndHookForUser` includes `parentId` (editor create flow); **`resolveContentAncestorChainIds`** replaces the old `resolveContentChainIds` helper (parent walk for root-project uniqueness).
+- **`domain/content/content.repository.ts`** — `findIdAndHookForUser` includes `parentId` (editor create flow); **`resolveContentAncestorChainIds`** replaces the old `resolveContentChainIds` helper (parent walk for root-project uniqueness). **`findOwnedGeneratedContentId`** + **`insertContentAssetLink`** support **`POST /api/assets/upload`** without route-level Drizzle. **`insertGeneratedVideoClipAndLink`** + **`replaceGeneratedVideoClipForShot`** back **`routes/video/reel-job-runner.ts`** (phase-4 / shot regenerate). **`resolveGeneratedContentChainTip`** (exported) is the single implementation for chain-tip walks; **`domain/queue/pipeline/content-chain.ts`** re-exports **`resolveChainTip(startId, userId, database)`**. **`listVideoClipAssetsForAiAssembly`** backs **`loadProjectShotAssets`** in **`domain/editor/timeline/ai-assembly-tracks.ts`** (no direct Drizzle there).
+- **`domain/content/content.service.ts`** — **`createUserUploadForGeneratedContent`** (owns **`assetsRepository.insertAsset`** + content link); wired from **`singletons`** with **`assetsRepository`**.
+- **`domain/admin/admin.repository.ts` / `admin.service.ts`** — batch-1 additions: DB ping, dynamic table page/count (admin schema export), Firebase UID user lookup, monthly generation usage count, niche scrape job insert, platform music create + delete (track + asset), used by **`routes/admin/*`** and subscriptions list enrichment.
 - **`domain/editor/editor.service.ts`** — includes **`createEditorProject`** (pre-check + `buildInitialTimeline` + insert + `23505`), **`syncNewAssetsIntoProject`**; list/get/patch/delete/publish/new-draft/thumbnail as before. **`routes/editor/editor-projects.router.ts`** is a thin mount (~**200 lines**).
 - **`domain/editor/build-initial-timeline.ts`** — `buildInitialTimeline(contentRepo, …)`, **`composeOverlayText`**; uses **`content.findHookAndVoiceoverForUser`** + **`listAssetsLinkedToGeneratedContent`** + **`mergePlaceholdersWithRealClips`** from **`timeline/merge-placeholders-with-assets.ts`**.
 - **`domain/editor/merge-new-assets.ts`** — `mergeNewAssetsIntoProject(editor, content, …)` (no route singletons).
-- **`domain/editor/timeline/merge-placeholders-with-assets.ts`** — `mergePlaceholdersWithRealClips`, `reconcileVideoClipsWithoutPlaceholders`, track/asset types; **`refresh-editor-timeline.ts`** re-exports for existing importers.
+- **`domain/editor/timeline/merge-placeholders-with-assets.ts`** — `mergePlaceholdersWithRealClips`, `reconcileVideoClipsWithoutPlaceholders`, track/asset types; **`routes/editor/services/refresh-editor-timeline.ts`** re-exports merge helpers and delegates **`refreshEditorTimeline`** to **`editorRepository`**.
 - **`domain/assets/assets.repository.ts`** — `findR2FieldsByIdForUser` (export status output asset, user-scoped); **`findByIdForUser`**, **`findManyByIdsForUser`**, **`insertAsset`** (export output + captions asset reads).
 - **`domain/editor/captions.repository.ts`** — `findByAssetAndUser`, `insert`; **`captions.service.ts`** — Whisper + R2 + repos, **`AppError` / `Errors`**; **`singletons`** wires **`captionsService`**.
 - **`domain/editor/run-export-job.ts`** — full FFmpeg pipeline; **`export/ass-generator.ts`** (ASS presets); **`routes/editor/export-worker.ts`** delegates with **`editorRepository.updateExportJob`** + **`assetsRepository`**.
@@ -918,13 +919,13 @@ These changes are purely structural and do not touch business logic.
 - **`domain/reels/reels.repository.ts`** — usage counts, niches, filtered list + totals, analysis id sets (**`inArray`**), bulk/detail/export viral queries; **`reels.service.ts`** — dashboard payload, presigned media (**`AppError`** for missing reel/video), CSV/JSON export, **`analyzeReel`** + usage.
 - **`domain/public/public.repository.ts`** — paginated **`contact_message`** list + insert; **`public.service.ts`** — decrypt for admin list, encrypt + spam heuristics on create (**`AppError`**); **`routes/public/index.ts`** has no **`db`** for contact routes (email + upload handlers unchanged).
 - **`domain/queue/queue-editor-join.ts`** — shared `rootEditProjectJoinQueueItems` for queue list `LEFT JOIN` to root edit project.
-- **Still not done:** Routes that **still import `services/db/db`** are listed under **§11 → Remaining work → Routes still using `db` (snapshot)**. Editor **`refresh-editor-timeline.ts`** also uses **`db`** (under `routes/editor/services/` — candidate to fold into **`domain/editor`**). Wider **§4 Rule 2** (constructors + mocked repos in tests) remains partial.
+- **Still not done:** Under **`src/routes/`**, only **`health/index.ts`** imports **`services/db/db`** (intentional DB ping). **`lib/chat-tools.ts`**, **`jobs/daily-scan.ts`**, and **`services/config/*`** still use **`db`** directly — next consolidation targets. **§4 Rule 2** (constructors + mocked repos in tests) remains partial.
 
 **Phase 3 (route shrinkage):**
 
 - **Editor** — `routes/editor/index.ts` is a thin mount. **AI:** split into `editor-ai.router.ts` (mount only), `editor-ai-assembly.router.ts` (~185 lines), `editor-link-content.router.ts`. **Shared:** `routes/editor/zod-validation-hook.ts`. **Projects / fork / export / link** delegate heavily to `editorRepository`.
 - **Timeline domain:** `domain/editor/timeline/clip-trim.ts` (`normalizeMediaClipTrimFields`), `ai-assembly-tracks.ts`, existing `composition.ts` (FFmpeg chain).
-- **Still large / not fully extracted:** **Editor projects** router ~**230 lines** (create + sync still in-route). **Captions / export-worker** are thin; logic lives in **`captions.service`** and **`run-export-job`**. **`assets.router.ts`**, **`editor-ai-assembly.router.ts`**, and **`refresh-editor-timeline.ts`** still embed **`db`**. **Queue:** thin routers + **`queueService`**.
+- **Still large / not fully extracted:** **Editor projects** router ~**230 lines** (create + sync still in-route). **Captions / export-worker** are thin; logic lives in **`captions.service`** and **`run-export-job`**. **`lib/chat-tools.ts`** still uses **`db`** heavily; chain-tip logic is deduped via **`resolveChainTip`** + **`content.repository`**. **`usage-gate`** / **`recordUsage`** delegate to **`customerRepository`**; **`cost-tracker`** to **`adminRepository.insertAiCostLedgerRow`**; **`queue-chain-guard`** uses **`AppDb`** only (no **`db`** import). **Queue:** thin routers + **`queueService`**.
 
 **Phase 4 (validation):**
 
@@ -939,8 +940,9 @@ These changes are purely structural and do not touch business logic.
 
 **Phase 6 (infrastructure):**
 
-- **`services/video-generation/provider-selector.ts`** — `getVideoGenerationProvider` + provider map; **`services/video-generation/index.ts`** re-exports and keeps `generateVideoClip` / cost ledger.
-- **`services/` = adapters only**, Firebase sync → **`domain/auth/auth.service`**, **`domain/video/video.service`**, full **§10** dead-code pass — **not done**.
+- **`services/video-generation/provider-selector.ts`** — `getVideoGenerationProvider` + provider map; **`services/video-generation/index.ts`** — `generateVideoClip` + **`recordMediaCost`** via **`adminRepository.insertAiCostLedgerRow`** (no local Drizzle handle).
+- **`services/firebase/sync.ts`** — **removed**; import **`FirebaseUserSync`** from **`domain/auth/firebase-user-sync.ts`**; bulk align uses **`authService.syncAllFirebaseUsers()`**.
+- **`services/` = adapters only**, full **§10** dead-code pass, optional **`domain/video/video.service.ts`** — **not done**.
 
 ---
 
@@ -955,33 +957,27 @@ Use this as the authoritative gap list; verify with grep/tree before picking up 
 - [x] **Editor captions / export worker:** **`captions.repository`**, **`captions.service`**, **`run-export-job`** + **`export/ass-generator`**; **`captions.ts`** / **`export-worker.ts`** are thin wrappers wired from **`singletons`**.
 - [x] **Music (`routes/music`):** **`musicRepository`** + **`musicService`**; no **`db`** in the router.
 - [x] **Audio (`routes/audio`):** **`audioRepository`** + **`audioService`** (uses **`assetsRepository`** for TTS inserts); no **`db`** in the router.
-- [x] **Reels (`routes/reels`):** **`reelsRepository`** + **`reelsService`** (usage, niches, list/bulk/detail/media-url, export, analyze + **`recordUsage`**); no **`db`** in the router. **`GET /export`** is registered **before** **`GET /:id`** so export is reachable.
+- [x] **Reels (`routes/reels`):** **`reelsRepository`** + **`reelsService`** (usage, niches, list/bulk/detail/media-url, export, analyze + **`customerRepository.insertFeatureUsage`** for reel analysis); no **`db`** in the router. **`GET /export`** is registered **before** **`GET /:id`** so export is reachable.
 - [x] **Public / shared (`routes/public`):** **`publicRepository`** + **`publicService`** for **`contact-messages`** (GET list + POST create); no **`db`** in that router.
 - [ ] **Inject repositories into domain services** (constructors / factories); routes and `singletons.ts` wire instances; unit tests mock interfaces (**§4**).
+- [ ] **Non-route Drizzle:** move queries out of **`lib/chat-tools.ts`**, **`jobs/daily-scan.ts`**, and **`services/config/*.ts`** into appropriate **`domain/*` repositories** (or a small **`domain/config`** module), then inject from **`singletons`**.
 
-**Routes still using `db` (snapshot — verify with `rg 'services/db/db' src/routes` from `backend/`):**
+**Routes under `src/routes/` importing `services/db/db` (verify: `rg 'services/db/db' src/routes` from `backend/`):**
 
 | Path | Notes |
 |------|--------|
-| `routes/auth/index.ts` | Auth bootstrap / user upsert — candidate for **`domain/auth`** consolidation. |
-| `routes/chat/index.ts` | Chat sessions/messages — **`domain/chat`** repo + service. |
-| `routes/customer/index.ts` | Usage, profile, orders, Stripe checkout order creation — **`domain/customer`**. |
-| `routes/users/index.ts` | Admin CRUD + self-service account — **`domain/users`** (or extend **`auth`**). |
-| `routes/generation/index.ts` | Generated content flows — align with **`domain/content`** or **`domain/generation`**. |
-| `routes/subscriptions/index.ts` | Subscription reads — often Firestore/JWT; trim **`db`** if only orders/profile overlap. |
-| `routes/projects/index.ts` | Legacy/alternate projects surface — audit vs editor **`projects`**. |
-| `routes/assets/index.ts` | Media library — extend **`assetsRepository`** / **`assetsService`**. |
-| `routes/video/reel-job-runner.ts` | Job pipeline — **`domain/video`** + thin worker route. |
-| `routes/video/phase4-metadata.ts` | Metadata step — same. |
-| `routes/video/timeline-validation.ts` | Validation step — same. |
-| `routes/admin/system.router.ts` | System/config SQL — **`domain/admin`**. |
-| `routes/admin/music.ts` | Admin music CRUD — **`domain/admin`** or shared music repo. |
-| `routes/admin/subscriptions.router.ts` | Admin subscription tooling. |
-| `routes/admin/niches.ts` | Niche admin — **`domain/admin`** or **`domain/niches`**. |
-| `routes/editor/assets.router.ts` | Editor assets — **`editorRepository`** / **`assetsRepository`**. |
-| `routes/editor/editor-ai-assembly.router.ts` | AI assembly DB touches — **`editorService`** or dedicated domain helper. |
-| `routes/editor/services/refresh-editor-timeline.ts` | Not a mount file but lives under **`routes/`**; move to **`domain/editor`** and inject **`db`** only there. |
-| `routes/health/index.ts` | DB ping — acceptable to keep **`db`** or use a tiny **`health`** module; document intentional exception. |
+| `routes/health/index.ts` | **Only remaining route** — Postgres (and Redis) health checks; **`db`** import is intentional. Optional later: delegate ping to **`authRepository.pingUsersTable()`**-style helper for symmetry. |
+
+All other route modules listed in earlier revisions (**`auth`**, **`chat`**, **`customer`**, **`users`**, **`generation`**, **`subscriptions`**, **`projects`**, **`assets`**, **`video/*`**, **`admin/*`**, **`editor/*`** except health) **no longer** import **`services/db/db`** as of this doc refresh.
+
+**Non-route `db` imports** (still to fold into repositories when you pick them up):
+
+| Area | Files (representative) |
+|------|-------------------------|
+| Wiring | `domain/singletons.ts` |
+| Chat tools | `lib/chat-tools.ts` |
+| Jobs | `jobs/daily-scan.ts` |
+| Config / system settings | `services/config/config-seed.ts`, `user-settings.service.ts`, `system-config.service.ts` |
 
 #### Phase 3 — Route size & domain logic
 
@@ -1014,7 +1010,7 @@ Use this as the authoritative gap list; verify with grep/tree before picking up 
 | Goal | Status |
 |------|--------|
 | Route files **&lt; ~200 lines** each | **Partial** — **captions**, **export-worker**, **music**, **audio**, **reels**, **public** (contact) are thin; **editor** AI assembly ~OK; **projects**, **queue** core OK; **customer**, **users**, **chat**, **generation**, **admin**, **video** workers, **assets**, **subscriptions** often still large. |
-| **All Drizzle in repositories** | **Partial** — **queue**, **editor** (projects/fork/link/export helpers), **captions**, **music**, **audio**, **reels**, **public** (contact) have no route-level **`db`**; remaining imports are listed in **§11 → Routes still using `db` (snapshot)**. |
+| **All Drizzle in repositories** | **Partial** — **All `src/routes/*` except `health`** avoid **`db`**; **`singletons`**, **`lib/chat-tools`**, **`jobs/daily-scan`**, and **`services/config/*`** still open **`db`** directly (see **§11 non-route table**). |
 | **Business logic in `domain/` services** | **Partial** — orchestration lives in **`domain/`** for the slices above; **customer**, **users**, **chat**, **generation**, **admin**, **video** pipelines, **auth**, **assets** route still mix HTTP + SQL. |
 | **Bodies/query/params via `zValidator`** | **Done** (except intentional form-data gaps). |
 | **Timeline JSONB validated on read** | **Strong for editor pipeline**; queue list exposes tracks without parse — **decide policy**. |
@@ -1044,6 +1040,8 @@ Use this as a quick map when navigating the partial migration:
 | Area | Notable files |
 |------|----------------|
 | Auth | `auth.service.ts`, `auth.repository.ts`, `firebase-user-sync.ts` |
+| Customer | `customer.service.ts`, `customer.repository.ts`, `customer.schemas.ts` (usage insert, profile, orders, etc.) |
+| Chat | `chat.service.ts`, `chat.repository.ts` (routes delegate; **`lib/chat-tools.ts`** still uses **`db`**) |
 | Admin | `admin.service.ts`, `admin.repository.ts`, `admin.schemas.ts` |
 | Editor | `editor.repository.ts`, `editor.service.ts`, `editor.schemas.ts`, `validate-stored-tracks.ts`, `run-export-job.ts`, `captions.repository.ts`, `captions.service.ts`, `export/ass-generator.ts`, `timeline/*`, `build-initial-timeline.ts`, `merge-new-assets.ts` |
 | Queue | `queue.repository.ts`, `queue.service.ts`, `queue.schemas.ts`, `queue-transitions.ts`, `queue-editor-join.ts`, `pipeline/stage-derivation.ts`, `pipeline/content-chain.ts`, `pipeline/asset-display.ts` |
@@ -1053,15 +1051,18 @@ Use this as a quick map when navigating the partial migration:
 | Public | `public.repository.ts`, `public.service.ts`, `public.schemas.ts` |
 | Wiring | `singletons.ts` — central place to see how services/repos are constructed |
 
-Schemas exist for many domains (`music`, `audio`, `video`, `customer`, `users`, `public`, `analytics`, `reels`, `subscriptions`, `content`, …). **Repositories/services** are still thin or missing for **customer**, **users**, **chat**, **generation**, **subscriptions** (as of the §11 snapshot).
+Schemas exist for many domains (`music`, `audio`, `video`, `customer`, `users`, `public`, `analytics`, `reels`, `subscriptions`, `content`, …). **Customer** and **chat** have **`domain/*/repository` + `service`** wired from routes; **users**, **generation**, and **subscriptions** still mix larger HTTP layers with partial domain extraction (see **§11 Remaining work**).
 
 ### 12.3 Verification commands
 
 Run from `backend/` when scoping remaining work:
 
 ```bash
-# Drizzle entrypoint usage in routes (should trend toward zero over time)
+# Routes: only health should import db when route-layer Drizzle is “done”
 rg 'services/db/db' src/routes
+
+# Full src (singletons, lib, jobs, config services still legitimate)
+rg 'services/db/db' src
 
 # editProjects / tracks reads (validation policy audit)
 rg 'editProjects|\.tracks' src/routes src/domain

@@ -7,12 +7,6 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import {
-  musicTracks,
-  assets,
-} from "../../infrastructure/database/drizzle/schema";
-import { eq } from "drizzle-orm";
 import { uploadFile, deleteFile } from "../../services/storage/r2";
 import { Errors } from "../../utils/errors/app-error";
 import { adminService } from "../../domain/singletons";
@@ -98,42 +92,18 @@ musicAdminRouter.post(
     // Estimate duration from file size (128kbps mp3 ≈ 16000 bytes/sec)
     const durationSeconds = Math.round(buffer.length / 16000);
 
-    // Create platform asset first, then link to music track
-    const [asset] = await db
-      .insert(assets)
-      .values({
-        id: trackId,
-        userId: null, // platform asset — not owned by any user
-        type: "audio",
-        source: "platform",
-        name: name.trim(),
-        mimeType: "audio/mpeg",
-        r2Key,
-        r2Url,
-        sizeBytes: file.size,
-        durationMs: durationSeconds * 1000,
-        metadata: {
-          artistName: artistName?.trim() || null,
-          mood,
-          genre: genre?.trim() || null,
-        },
-      })
-      .returning();
-
-    const [track] = await db
-      .insert(musicTracks)
-      .values({
-        id: trackId,
-        assetId: asset.id,
-        name: name.trim(),
-        artistName: artistName?.trim() || null,
-        durationSeconds,
-        mood,
-        genre: genre?.trim() || null,
-        isActive: true,
-        uploadedBy: auth.user.id,
-      })
-      .returning();
+    const { track } = await adminService.createPlatformMusicTrack({
+      trackId,
+      adminUserId: auth.user.id,
+      name: name.trim(),
+      artistName: artistName?.trim() || null,
+      mood,
+      genre: genre?.trim() || null,
+      r2Key,
+      r2Url,
+      fileSize: file.size,
+      durationSeconds,
+    });
 
     return c.json({ track }, 201);
   },
@@ -177,28 +147,18 @@ musicAdminRouter.delete(
   async (c) => {
     const { id } = c.req.valid("param");
 
-    const [existing] = await db
-      .select({
-        trackId: musicTracks.id,
-        assetId: musicTracks.assetId,
-        r2Key: assets.r2Key,
-      })
-      .from(musicTracks)
-      .innerJoin(assets, eq(musicTracks.assetId, assets.id))
-      .where(eq(musicTracks.id, id))
-      .limit(1);
+    const existing = await adminService.prepareDeletePlatformMusicTrack(id);
 
-    if (!existing) {
-      throw Errors.notFound("Track");
+    if (existing.r2Key) {
+      await deleteFile(existing.r2Key).catch(() => {
+        // Best-effort R2 deletion
+      });
     }
 
-    await deleteFile(existing.r2Key).catch(() => {
-      // Best-effort R2 deletion
-    });
-
-    // FK onDelete: "restrict" on assets — delete music track first
-    await db.delete(musicTracks).where(eq(musicTracks.id, id));
-    await db.delete(assets).where(eq(assets.id, existing.assetId));
+    await adminService.finalizeDeletePlatformMusicTrack(
+      existing.trackId,
+      existing.assetId,
+    );
 
     return c.body(null, 204);
   },

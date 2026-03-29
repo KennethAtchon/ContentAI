@@ -1,7 +1,6 @@
 # Frontend Reorganization Plan
 
 > **Scope:** `frontend/src/` — full structural overhaul for long-term maintainability.
-> **Backwards compatibility:** Not a concern. Every file/import path is fair game to change.
 > **Goal:** A codebase where a competent engineer can find anything in <30 seconds, change anything without fear, and delete a feature without leaving corpses.
 
 ---

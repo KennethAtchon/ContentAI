@@ -259,17 +259,11 @@ export const VIRAL_VIEWS_THRESHOLD = parseInt(
  * Development-only: mock outbound integrations (reel scrape, video clip gen, ElevenLabs TTS)
  * using bundled fixtures under `backend/fixtures/media/`. See `docs/plans/dev-mock-external-integrations.md`.
  *
- * When unset, defaults to the legacy scrape flag default so existing `.env` behavior is preserved.
+ * When unset in development, defaults to `true` (same as `IS_DEVELOPMENT`).
  */
 export const DEV_MOCK_EXTERNAL_INTEGRATIONS =
   IS_DEVELOPMENT &&
-  getEnvVarAsBoolean(
-    "DEV_MOCK_EXTERNAL_INTEGRATIONS",
-    getEnvVarAsBoolean("DEV_USE_MOCK_REEL_SCRAPE", IS_DEVELOPMENT),
-  );
-
-/** @deprecated Alias of `DEV_MOCK_EXTERNAL_INTEGRATIONS` — use the new name in `.env`. */
-export const DEV_USE_MOCK_REEL_SCRAPE = DEV_MOCK_EXTERNAL_INTEGRATIONS;
+  getEnvVarAsBoolean("DEV_MOCK_EXTERNAL_INTEGRATIONS", IS_DEVELOPMENT);
 
 /**
  * Milliseconds to wait inside mocked `generateVideoClip` before uploading the fixture (simulates provider latency).

@@ -1,10 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import type { z } from "zod";
-import { db } from "../../../services/db/db";
-import {
-  assets,
-  contentAssets,
-} from "../../../infrastructure/database/drizzle/schema";
+import { contentRepository } from "../../singletons";
 import { aiAssemblyResponseSchema } from "../editor.schemas";
 import { normalizeMediaClipTrimFields } from "./clip-trim";
 
@@ -12,27 +7,10 @@ export async function loadProjectShotAssets(
   userId: string,
   generatedContentId: number,
 ) {
-  const rows = await db
-    .select({
-      id: assets.id,
-      durationMs: assets.durationMs,
-      metadata: assets.metadata,
-    })
-    .from(contentAssets)
-    .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-    .where(
-      and(
-        eq(contentAssets.generatedContentId, generatedContentId),
-        eq(assets.userId, userId),
-        eq(contentAssets.role, "video_clip"),
-      ),
-    );
-
-  return rows.sort((a, b) => {
-    const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
-    const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
-    return ai - bi;
-  });
+  return contentRepository.listVideoClipAssetsForAiAssembly(
+    userId,
+    generatedContentId,
+  );
 }
 
 export function mapCaptionStyleToPresetId(

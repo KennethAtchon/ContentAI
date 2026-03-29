@@ -24,7 +24,7 @@ export async function getVideoGenerationProvider(
   } else {
     try {
       const { systemConfigService } =
-        await import("@/services/config/system-config.service");
+        await import("@/domain/singletons");
       const dbProvider = await systemConfigService.get(
         "video",
         "default_provider",
@@ -53,7 +53,7 @@ export async function getVideoGenerationProvider(
     ];
     try {
       const { systemConfigService } =
-        await import("@/services/config/system-config.service");
+        await import("@/domain/singletons");
       fallbackOrder = await systemConfigService.getJson<VideoProvider[]>(
         "video",
         "fallback_order",

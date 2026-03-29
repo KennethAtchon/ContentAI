@@ -6,10 +6,6 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import { queueItems } from "../../infrastructure/database/drizzle/schema";
-import { eq, and } from "drizzle-orm";
-import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { generateContent } from "../../services/reels/content-generator";
 import {
   generateContentSchema,
@@ -18,7 +14,7 @@ import {
   generationListQuerySchema,
   queueGeneratedContentSchema,
 } from "../../domain/content/content.schemas";
-import { contentService } from "../../domain/singletons";
+import { contentService, queueService } from "../../domain/singletons";
 import { AppError, Errors } from "../../utils/errors/app-error";
 
 const generationRouter = new Hono<HonoEnv>();
@@ -174,19 +170,11 @@ generationRouter.post(
       );
     }
 
-    await contentService.updateGeneratedContentStatus(id, auth.user.id, "queued");
-
-    await assertNoChainQueueItem(db, id, scheduledDate);
-
-    const [queueItem] = await db
-      .insert(queueItems)
-      .values({
-        userId: auth.user.id,
-        contentId: id,
-        scheduledFor: scheduledDate,
-        status: "pending",
-      })
-      .returning();
+    const { queueItem } = await queueService.createScheduledQueueItem(
+      auth.user.id,
+      id,
+      scheduledDate,
+    );
 
     return c.json({ success: true, queueItem });
   },

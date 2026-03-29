@@ -1,8 +1,11 @@
+import type { SQL } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
 import {
   getMonthBoundaries,
   calculatePercentChange,
 } from "../../utils/helpers/date";
 import { formatOrderResponse } from "../../utils/helpers/order-helpers";
+import { Errors } from "../../utils/errors/app-error";
 import type { IAdminRepository } from "./admin.repository";
 
 export class AdminService {
@@ -310,7 +313,7 @@ export class AdminService {
   }
 
   async updateNiche(
-    id: string,
+    id: number,
     data: { name?: string; description?: string; isActive?: boolean },
   ) {
     const niche = await this.repo.updateNiche(id, data);
@@ -321,7 +324,7 @@ export class AdminService {
   }
 
   async updateNicheConfig(
-    id: string,
+    id: number,
     data: {
       scrapeLimit?: number;
       scrapeMinViews?: number;
@@ -336,7 +339,7 @@ export class AdminService {
     return { niche };
   }
 
-  async deleteNiche(id: string) {
+  async deleteNiche(id: number) {
     const deleted = await this.repo.deleteNiche(id);
     if (!deleted) {
       throw new Error("Niche not found");
@@ -345,7 +348,7 @@ export class AdminService {
   }
 
   async getNicheReels(
-    nicheId: string,
+    nicheId: number,
     options: {
       page: number;
       limit: number;
@@ -359,8 +362,84 @@ export class AdminService {
     return result;
   }
 
-  async dedupeNicheReels(nicheId: string) {
+  async dedupeNicheReels(nicheId: number) {
     const result = await this.repo.dedupeNicheReels(nicheId);
     return result;
+  }
+
+  async pingDatabase() {
+    await this.repo.pingDatabase();
+  }
+
+  async queryAdminTablePage(params: {
+    table: PgTable;
+    whereClause: SQL | undefined;
+    page: number;
+    limit: number;
+  }) {
+    const offset = (params.page - 1) * params.limit;
+    const [rows, total] = await Promise.all([
+      this.repo.selectDynamicTableRows(
+        params.table,
+        params.whereClause,
+        params.limit,
+        offset,
+      ),
+      this.repo.countDynamicTableRows(params.table, params.whereClause),
+    ]);
+    return { rows, total };
+  }
+
+  async triggerNicheScrapeJob(nicheId: number) {
+    const niche = await this.repo.findNicheForScrapeJob(nicheId);
+    if (!niche) throw Errors.notFound("Niche");
+    if (!niche.isActive) throw Errors.badRequest("Cannot scan inactive niche");
+    const job = await this.repo.insertNicheScrapeJob({
+      nicheId,
+      limit: niche.scrapeLimit ?? 50,
+      minViews: niche.scrapeMinViews ?? 1000,
+      maxDaysOld: niche.scrapeMaxDaysOld ?? 30,
+      viralOnly: niche.scrapeIncludeViralOnly ?? false,
+    });
+    return { jobId: job.id, message: "Scan job created" };
+  }
+
+  async createPlatformMusicTrack(params: {
+    trackId: string;
+    adminUserId: string;
+    name: string;
+    artistName: string | null;
+    mood: string;
+    genre: string | null;
+    r2Key: string;
+    r2Url: string;
+    fileSize: number;
+    durationSeconds: number;
+  }) {
+    return this.repo.insertPlatformMusicTrack(params);
+  }
+
+  async prepareDeletePlatformMusicTrack(id: string) {
+    const row = await this.repo.findMusicTrackForPlatformDelete(id);
+    if (!row) throw Errors.notFound("Track");
+    return row;
+  }
+
+  async finalizeDeletePlatformMusicTrack(trackId: string, assetId: string) {
+    await this.repo.deletePlatformMusicTrackAndAsset(trackId, assetId);
+  }
+
+  findUserByFirebaseUid(firebaseUid: string) {
+    return this.repo.findUserByFirebaseUid(firebaseUid);
+  }
+
+  countGenerationUsagesThisMonth(userId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return this.repo.countFeatureUsagesSince(
+      userId,
+      "generation",
+      startOfMonth,
+    );
   }
 }

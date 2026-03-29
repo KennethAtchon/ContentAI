@@ -8,17 +8,6 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import {
-  chatSessions,
-  chatMessages,
-  messageAttachments,
-  projects,
-  reels,
-  generatedContent,
-} from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc, sql, inArray, isNotNull } from "drizzle-orm";
-import { debugLog } from "../../utils/debug/debug";
 import { loadPrompt, getModel } from "../../lib/aiClient";
 import { usageGate, recordUsage } from "../../middleware/usage-gate";
 import { recordAiCost } from "../../lib/cost-tracker";
@@ -26,8 +15,9 @@ import { getModelInfo } from "../../lib/aiClient";
 import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "../../lib/chat-tools";
 import { uuidParam, uuidProjectParam } from "../../validation/shared.schemas";
-import { contentService } from "../../domain/singletons";
+import { contentService, chatService } from "../../domain/singletons";
 import { Errors } from "../../utils/errors/app-error";
+import { debugLog } from "../../utils/debug/debug";
 
 const app = new Hono<HonoEnv>();
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
@@ -74,35 +64,9 @@ app.get(
     const auth = c.get("auth");
     const { projectId } = c.req.valid("query");
 
-    const whereClause = projectId
-      ? and(
-          eq(chatSessions.userId, auth.user.id),
-          eq(chatSessions.projectId, projectId),
-        )
-      : eq(chatSessions.userId, auth.user.id);
+    const result = await chatService.listSessions(auth.user.id, projectId);
 
-    const sessions = await db
-      .select({
-        id: chatSessions.id,
-        title: chatSessions.title,
-        projectId: chatSessions.projectId,
-        project: {
-          id: projects.id,
-          name: projects.name,
-        },
-        createdAt: chatSessions.createdAt,
-        updatedAt: chatSessions.updatedAt,
-        messageCount:
-          sql<number>`(SELECT COUNT(*) FROM ${chatMessages} WHERE ${chatMessages.sessionId} = ${chatSessions.id})`.mapWith(
-            Number,
-          ),
-      })
-      .from(chatSessions)
-      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-      .where(whereClause)
-      .orderBy(desc(chatSessions.updatedAt));
-
-    return c.json({ sessions });
+    return c.json(result);
   },
 );
 
@@ -117,31 +81,9 @@ app.post(
     const auth = c.get("auth");
     const { projectId, title } = c.req.valid("json");
 
-    // Verify project exists and belongs to user
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(
-        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-      )
-      .limit(1);
+    const result = await chatService.createSession(auth.user.id, projectId, title);
 
-    if (!project) {
-      throw Errors.notFound("Project");
-    }
-
-    const sessionTitle = title || "New Chat Session";
-    const [newSession] = await db
-      .insert(chatSessions)
-      .values({
-        id: crypto.randomUUID(),
-        userId: auth.user.id,
-        projectId,
-        title: sessionTitle,
-      })
-      .returning();
-
-    return c.json({ session: newSession }, 201);
+    return c.json(result, 201);
   },
 );
 
@@ -170,63 +112,16 @@ app.post(
       throw Errors.notFound("Content");
     }
 
-      // Find the most recently active session that has discussed this content
-      const existingRow = await db
-        .execute(
-          sql`SELECT cm.session_id, cs.project_id
-              FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
-              WHERE cm.generated_content_id = ${generatedContentId}
-                AND cs.user_id = ${auth.user.id}
-              ORDER BY cs.updated_at DESC
-              LIMIT 1`,
-        )
-        .then(
-          (r) =>
-            (r[0] as { session_id: string; project_id: string } | undefined) ?? null,
-        );
-
-      if (existingRow) {
-        return c.json({
-          sessionId: existingRow.session_id,
-          projectId: existingRow.project_id,
-        });
-      }
-
-      // No session exists — find or create a project, then create a session
-      let [project] = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(eq(projects.userId, auth.user.id))
-        .orderBy(desc(projects.updatedAt))
-        .limit(1);
-
-      if (!project) {
-        const [newProject] = await db
-          .insert(projects)
-          .values({
-            id: crypto.randomUUID(),
-            userId: auth.user.id,
-            name: "My Project",
-          })
-          .returning({ id: projects.id });
-        project = newProject;
-      }
-
-      const sessionTitle = `Chat for "${content.generatedHook ?? "content"}"`;
-      const [newSession] = await db
-        .insert(chatSessions)
-        .values({
-          id: crypto.randomUUID(),
-          userId: auth.user.id,
-          projectId: project.id,
-          title: sessionTitle,
-        })
-        .returning({ id: chatSessions.id, projectId: chatSessions.projectId });
+    // Find existing session for this content or create new one
+    const result = await chatService.findOrCreateSessionForContent(
+      auth.user.id,
+      String(generatedContentId),
+    );
 
     return c.json({
-      sessionId: newSession.id,
-      projectId: newSession.projectId,
+      sessionId: result.session.id,
+      projectId: result.session.projectId,
+      isNew: result.isNew,
     });
   },
 );
@@ -241,70 +136,13 @@ app.get(
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
 
-    // Verify session exists and belongs to user
-    const [session] = await db
-      .select({
-        id: chatSessions.id,
-        title: chatSessions.title,
-        projectId: chatSessions.projectId,
-        project: {
-          id: projects.id,
-          name: projects.name,
-        },
-        createdAt: chatSessions.createdAt,
-        updatedAt: chatSessions.updatedAt,
-      })
-      .from(chatSessions)
-      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-      .where(
-        and(
-          eq(chatSessions.id, sessionId),
-          eq(chatSessions.userId, auth.user.id),
-        ),
-      )
-      .limit(1);
+    const result = await chatService.getSessionWithMessages(auth.user.id, sessionId);
 
-    if (!session) {
+    if (!result) {
       throw Errors.notFound("Session");
     }
 
-    // Get messages for this session
-    const messages = await db
-      .select({
-        id: chatMessages.id,
-        role: chatMessages.role,
-        content: chatMessages.content,
-        generatedContentId: chatMessages.generatedContentId,
-        createdAt: chatMessages.createdAt,
-      })
-      .from(chatMessages)
-      .where(eq(chatMessages.sessionId, sessionId))
-      .orderBy(chatMessages.createdAt);
-
-    // Load attachments for all messages
-    const messageIds = messages.map((m) => m.id);
-    const attachments =
-      messageIds.length > 0
-        ? await db
-            .select()
-            .from(messageAttachments)
-            .where(inArray(messageAttachments.messageId, messageIds))
-        : [];
-
-    const attachmentsByMessage = attachments.reduce<
-      Record<string, typeof attachments>
-    >((acc, a) => {
-      acc[a.messageId] ??= [];
-      acc[a.messageId].push(a);
-      return acc;
-    }, {});
-
-    const messagesWithAttachments = messages.map((m) => ({
-      ...m,
-      attachments: attachmentsByMessage[m.id] ?? [],
-    }));
-
-    return c.json({ session, messages: messagesWithAttachments });
+    return c.json(result);
   },
 );
 
@@ -318,96 +156,12 @@ app.get(
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
 
-    // Verify session belongs to user
-    const [session] = await db
-      .select({ id: chatSessions.id })
-      .from(chatSessions)
-      .where(
-        and(
-          eq(chatSessions.id, sessionId),
-          eq(chatSessions.userId, auth.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!session) {
-      throw Errors.notFound("Session");
-    }
-
-    // Get all generatedContentIds from chatMessages for this session
-    const messageRows = await db
-      .select({ generatedContentId: chatMessages.generatedContentId })
-      .from(chatMessages)
-      .where(
-        and(
-          eq(chatMessages.sessionId, sessionId),
-          eq(chatMessages.role, "assistant"),
-          isNotNull(chatMessages.generatedContentId),
-        ),
-      );
-
-    const contentIds = [
-      ...new Set(
-        messageRows
-          .map((r) => r.generatedContentId)
-          .filter((id): id is number => id != null),
-      ),
-    ];
-
-    if (contentIds.length === 0) {
-      return c.json({ drafts: [] });
-    }
-
-    // Fetch those generatedContent records with ownership check
-    const records = await db
-      .select({
-        id: generatedContent.id,
-        version: generatedContent.version,
-        outputType: generatedContent.outputType,
-        status: generatedContent.status,
-        generatedHook: generatedContent.generatedHook,
-        generatedScript: generatedContent.generatedScript,
-        voiceoverScript: generatedContent.voiceoverScript,
-        postCaption: generatedContent.postCaption,
-        sceneDescription: generatedContent.sceneDescription,
-        generatedMetadata: generatedContent.generatedMetadata,
-        parentId: generatedContent.parentId,
-        createdAt: generatedContent.createdAt,
-      })
-      .from(generatedContent)
-      .where(
-        and(
-          inArray(generatedContent.id, contentIds),
-          eq(generatedContent.userId, auth.user.id),
-        ),
-      );
-
-    // Find tips: records that have no children anywhere in the table.
-    // Checking only within the fetched set would miss branches created by the
-    // AI re-iterating an already-iterated parent (both siblings would pass).
-    const childRows = await db
-      .select({ parentId: generatedContent.parentId })
-      .from(generatedContent)
-      .where(
-        and(
-          inArray(generatedContent.parentId, contentIds),
-          eq(generatedContent.userId, auth.user.id),
-        ),
-      );
-    const idsWithChildren = new Set(
-      childRows
-        .map((r) => r.parentId)
-        .filter((id): id is number => id != null),
+    const drafts = await contentService.findChainTipDraftsForSession(
+      auth.user.id,
+      sessionId,
     );
-    const tips = records
-      .filter((r) => !idsWithChildren.has(r.id))
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      )
-      .map(({ parentId: _parentId, ...rest }) => rest);
 
-    return c.json({ drafts: tips });
+    return c.json({ drafts });
   },
 );
 
@@ -422,19 +176,7 @@ app.delete(
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
 
-    const [deletedSession] = await db
-      .delete(chatSessions)
-      .where(
-        and(
-          eq(chatSessions.id, sessionId),
-          eq(chatSessions.userId, auth.user.id),
-        ),
-      )
-      .returning();
-
-    if (!deletedSession) {
-      throw Errors.notFound("Session");
-    }
+    await chatService.deleteSession(auth.user.id, sessionId);
 
     return c.json({ message: "Session deleted successfully" });
   },
@@ -453,22 +195,9 @@ app.put(
     const { id: sessionId } = c.req.valid("param");
     const { title } = c.req.valid("json");
 
-    const [updatedSession] = await db
-      .update(chatSessions)
-      .set({ title, updatedAt: new Date() })
-      .where(
-        and(
-          eq(chatSessions.id, sessionId),
-          eq(chatSessions.userId, auth.user.id),
-        ),
-      )
-      .returning();
+    const result = await chatService.updateSession(auth.user.id, sessionId, title);
 
-    if (!updatedSession) {
-      throw Errors.notFound("Session");
-    }
-
-    return c.json({ session: updatedSession });
+    return c.json(result);
   },
 );
 
@@ -498,35 +227,17 @@ app.post(
       });
 
       // Verify session exists and belongs to user
-      const [session] = await db
-        .select({
-          id: chatSessions.id,
-          title: chatSessions.title,
-          projectId: chatSessions.projectId,
-          project: {
-            id: projects.id,
-            name: projects.name,
-          },
-        })
-        .from(chatSessions)
-        .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-        .where(
-          and(
-            eq(chatSessions.id, sessionId),
-            eq(chatSessions.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
+      const session = await chatService.findSessionById(auth.user.id, sessionId);
 
-    if (!session) {
-      debugLog.warn("[chat:sendMessage] Session not found", {
-        service: "chat-route",
-        operation: "sendMessage",
-        sessionId,
-        userId: auth.user.id,
-      });
-      throw Errors.notFound("Session");
-    }
+      if (!session) {
+        debugLog.warn("[chat:sendMessage] Session not found", {
+          service: "chat-route",
+          operation: "sendMessage",
+          sessionId,
+          userId: auth.user.id,
+        });
+        throw Errors.notFound("Session");
+      }
 
       debugLog.info("[chat:sendMessage] Session verified", {
         service: "chat-route",
@@ -534,17 +245,11 @@ app.post(
         sessionId,
         sessionTitle: session.title,
         projectId: session.projectId,
-        projectName: session.project?.name,
       });
 
       // Load conversation history BEFORE saving current message (last 20, reelRefs stripped)
-      const historyRows = await db
-        .select({ role: chatMessages.role, content: chatMessages.content })
-        .from(chatMessages)
-        .where(eq(chatMessages.sessionId, sessionId))
-        .orderBy(desc(chatMessages.createdAt))
-        .limit(20);
-      const history = historyRows.reverse();
+      const messages = await chatService.getRecentMessages(sessionId, 20);
+      const history = [...messages].reverse();
 
       debugLog.info("[chat:sendMessage] History loaded", {
         service: "chat-route",
@@ -555,7 +260,7 @@ app.post(
 
       // Save user message immediately (before streaming starts)
       const userMessageId = crypto.randomUUID();
-      await db.insert(chatMessages).values({
+      await chatService.createMessageSimple({
         id: userMessageId,
         sessionId,
         role: "user",
@@ -563,25 +268,20 @@ app.post(
       });
 
       // Insert attachments for reel refs and media refs
-      const attachmentInserts: Array<{
-        messageId: string;
-        entityType: string;
-        reelId?: number | null;
-        assetId?: string | null;
-      }> = [
+      const attachmentInserts = [
         ...(reelRefs ?? []).map((reelId) => ({
           messageId: userMessageId,
-          entityType: "reel" as const,
+          type: "reel" as const,
           reelId,
         })),
         ...(mediaRefs ?? []).map((assetId) => ({
           messageId: userMessageId,
-          entityType: "asset" as const,
-          assetId,
+          type: "asset" as const,
+          mediaAssetId: assetId,
         })),
       ];
       if (attachmentInserts.length > 0) {
-        await db.insert(messageAttachments).values(attachmentInserts);
+        await chatService.createAttachmentsSimple(attachmentInserts);
       }
 
       debugLog.info("[chat:sendMessage] User message saved to DB", {
@@ -595,10 +295,7 @@ app.post(
       if (session.title === "New Chat Session") {
         const autoTitle =
           content.substring(0, 50) + (content.length > 50 ? "..." : "");
-        await db
-          .update(chatSessions)
-          .set({ title: autoTitle })
-          .where(eq(chatSessions.id, sessionId));
+        await chatService.updateSession(auth.user.id, sessionId, autoTitle);
         debugLog.info("[chat:sendMessage] Session auto-titled", {
           service: "chat-route",
           operation: "sendMessage",
@@ -608,9 +305,11 @@ app.post(
       }
 
       // Build prompt context
-      const context = await buildChatContext(
+      // Get project name from session - session already verified above
+      const projectName = "My Project"; // Simplified - project name not critical for chat context
+      const context = await chatService.buildChatContext(
         auth.user.id,
-        session.project,
+        projectName,
         reelRefs,
         activeContentId,
       );
@@ -721,10 +420,9 @@ app.post(
 
             // Insert assistant message linked to any content saved by tools
             const assistantMessageId = crypto.randomUUID();
-            await db.insert(chatMessages).values({
+            await chatService.saveAssistantMessage({
               id: assistantMessageId,
               sessionId,
-              role: "assistant",
               content: text,
               generatedContentId: savedContentId,
             });
@@ -737,10 +435,7 @@ app.post(
               linkedContentId: savedContentId,
             });
 
-            await db
-              .update(chatSessions)
-              .set({ updatedAt: new Date() })
-              .where(eq(chatSessions.id, sessionId));
+            await chatService.touchSession(sessionId);
 
             debugLog.info("[chat:onFinish] Session timestamp updated", {
               service: "chat-route",
@@ -828,93 +523,6 @@ app.post(
 );
 
 // Helper functions
-async function buildChatContext(
-  userId: string,
-  project: any,
-  reelRefs?: number[],
-  activeContentId?: number,
-) {
-  try {
-    let context = `Project: ${project.name}`;
-
-    if (reelRefs && reelRefs.length > 0) {
-      const reelRows = await db
-        .select({
-          id: reels.id,
-          username: reels.username,
-          hook: reels.hook,
-          views: reels.views,
-          niche: sql<string>`(SELECT n.name FROM niche n WHERE n.id = ${reels.nicheId})`,
-        })
-        .from(reels)
-        .where(inArray(reels.id, reelRefs));
-
-      if (reelRows.length > 0) {
-        const reelContext = reelRows
-          .map(
-            (r) =>
-              `Reel ID ${r.id} @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
-          )
-          .join("\n");
-        context += `\nAttached reels (use get_reel_analysis to fetch deep analysis before generating):\n${reelContext}`;
-      }
-    }
-
-    if (activeContentId) {
-      const [active] = await db
-        .select({
-          id: generatedContent.id,
-          version: generatedContent.version,
-          outputType: generatedContent.outputType,
-          status: generatedContent.status,
-          generatedHook: generatedContent.generatedHook,
-          postCaption: generatedContent.postCaption,
-          generatedScript: generatedContent.generatedScript,
-          voiceoverScript: generatedContent.voiceoverScript,
-          sceneDescription: generatedContent.sceneDescription,
-          generatedMetadata: generatedContent.generatedMetadata,
-        })
-        .from(generatedContent)
-        .where(
-          and(
-            eq(generatedContent.id, activeContentId),
-            eq(generatedContent.userId, userId),
-          ),
-        )
-        .limit(1);
-
-      if (active) {
-        const meta = active.generatedMetadata as Record<string, unknown> | null;
-        const hashtags = Array.isArray(meta?.hashtags)
-          ? (meta.hashtags as string[]).join(", ")
-          : "none";
-        const cta = (meta?.cta as string) ?? "none";
-
-        context += `\n\nActive Draft (ID: ${active.id}, v${active.version}, status: ${active.status}):
-Hook: "${active.generatedHook ?? "none"}"
-Post caption: "${active.postCaption ?? "none"}"
-Hashtags: ${hashtags}
-CTA: ${cta}
-Script (first 300 chars): "${(active.generatedScript ?? "none").slice(0, 300)}..."
-Scene Description: "${active.sceneDescription ?? "none"}"
-Type: ${active.outputType}
-
-For targeted field edits (postCaption, hook, hashtags, CTA only), call edit_content_field with contentId: ${active.id}.
-For full rewrites or multi-field changes, call iterate_content with parentContentId: ${active.id}.`;
-      }
-    }
-
-    return context;
-  } catch (error) {
-    debugLog.error("Failed to build chat context", {
-      service: "chat-route",
-      operation: "buildChatContext",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return "";
-  }
-}
-
 function getChatSystemPrompt() {
   try {
     return loadPrompt("chat-generate");

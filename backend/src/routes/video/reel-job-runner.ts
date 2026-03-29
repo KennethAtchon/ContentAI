@@ -1,6 +1,3 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { assets, contentAssets } from "../../infrastructure/database/drizzle/schema";
-import { db } from "../../services/db/db";
 import { generateVideoClip } from "../../services/video-generation";
 import type { VideoProvider } from "../../services/video-generation";
 import {
@@ -10,6 +7,7 @@ import {
 } from "../../services/video/job.service";
 import { debugLog } from "../../utils/debug/debug";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
+import { contentService } from "../../domain/singletons";
 import { refreshEditorTimeline } from "../editor/services/refresh-editor-timeline";
 import {
   buildMockDevReelShots,
@@ -164,30 +162,15 @@ export async function runReelGeneration(input: {
         continue;
       }
 
-      const [clipAsset] = await db
-        .insert(assets)
-        .values({
-          userId: job.userId,
-          type: "video_clip",
-          source: "generated",
-          r2Key: clip.r2Key,
-          r2Url: clip.r2Url,
-          durationMs: durationSecondsToMs(clip.durationSeconds),
-          metadata: {
-            shotIndex: shot.shotIndex,
-            sourceType: "ai_generated",
-            provider: clip.provider,
-            generationPrompt: shot.description,
-            hasEmbeddedAudio: false,
-            useClipAudio: false,
-          },
-        })
-        .returning();
-
-      await db.insert(contentAssets).values({
+      const clipAsset = await contentService.insertGeneratedVideoClipAndLink({
+        userId: job.userId,
         generatedContentId: job.generatedContentId,
-        assetId: clipAsset.id,
-        role: "video_clip",
+        r2Key: clip.r2Key,
+        r2Url: clip.r2Url,
+        durationMs: durationSecondsToMs(clip.durationSeconds),
+        shotIndex: shot.shotIndex,
+        provider: clip.provider,
+        generationPrompt: shot.description,
       });
 
       createdShots.push({
@@ -293,69 +276,19 @@ export async function runShotRegenerate(input: {
       },
     });
 
-    const allExistingClips = await db
-      .select({
-        assetId: contentAssets.assetId,
-        metadata: assets.metadata,
-      })
-      .from(contentAssets)
-      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-      .where(
-        and(
-          eq(contentAssets.generatedContentId, job.generatedContentId),
-          eq(contentAssets.role, "video_clip"),
-          eq(assets.userId, job.userId),
-        ),
-      );
-    const staleIds = allExistingClips
-      .filter(
-        (a) =>
-          Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) ===
-          input.shotIndex,
-      )
-      .map((a) => a.assetId);
-    if (staleIds.length > 0) {
-      await db
-        .delete(contentAssets)
-        .where(
-          and(
-            eq(contentAssets.generatedContentId, job.generatedContentId),
-            inArray(contentAssets.assetId, staleIds),
-          ),
-        );
-      for (const assetId of staleIds) {
-        await db
-          .delete(assets)
-          .where(eq(assets.id, assetId))
-          .catch(() => {});
-      }
-    }
-
-    const [clipAsset] = await db
-      .insert(assets)
-      .values({
+    const { assetId: clipAssetId } =
+      await contentService.replaceGeneratedVideoClipForShot({
         userId: job.userId,
-        type: "video_clip",
-        source: "generated",
-        r2Key: clip.r2Key,
-        r2Url: clip.r2Url,
-        durationMs: durationSecondsToMs(clip.durationSeconds),
-        metadata: {
-          shotIndex: input.shotIndex,
-          sourceType: "ai_generated",
+        generatedContentId: job.generatedContentId,
+        shotIndex: input.shotIndex,
+        newClip: {
+          r2Key: clip.r2Key,
+          r2Url: clip.r2Url,
+          durationMs: durationSecondsToMs(clip.durationSeconds),
           provider: clip.provider,
           generationPrompt: input.prompt,
-          hasEmbeddedAudio: false,
-          useClipAudio: false,
         },
-      })
-      .returning();
-
-    await db.insert(contentAssets).values({
-      generatedContentId: job.generatedContentId,
-      assetId: clipAsset.id,
-      role: "video_clip",
-    });
+      });
 
     await refreshEditorTimeline(job.generatedContentId, job.userId).catch(
       (err) =>
@@ -369,7 +302,7 @@ export async function runShotRegenerate(input: {
       status: "completed",
       completedAt: new Date().toISOString(),
       result: {
-        clipAssetId: clipAsset.id,
+        clipAssetId: clipAssetId,
         provider: clip.provider,
         durationSeconds: clip.durationSeconds,
       },

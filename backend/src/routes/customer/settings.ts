@@ -6,7 +6,10 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { userSettingsService } from "../../services/config/user-settings.service";
+import {
+  systemConfigService,
+  userSettingsService,
+} from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import { updateCustomerSettingsSchema } from "../../domain/customer/customer.schemas";
 
@@ -245,8 +248,6 @@ userSettingsRouter.get(
         await import("../../services/video-generation/providers/runway");
       const { imageKenBurnsProvider } =
         await import("../../services/video-generation/providers/image-ken-burns");
-      const { systemConfigService } =
-        await import("../../services/config/system-config.service");
 
       const PROVIDERS = [
         {

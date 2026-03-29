@@ -128,6 +128,12 @@ export interface IQueueRepository {
     generatedContentId: number,
   ): Promise<QueueItemRow>;
 
+  createScheduledQueueItem(
+    userId: string,
+    generatedContentId: number,
+    scheduledFor: Date | null,
+  ): Promise<QueueItemRow>;
+
   findQueueItemByIdForUser(
     id: number,
     userId: string,
@@ -475,6 +481,37 @@ export class QueueRepository implements IQueueRepository {
           userId,
           generatedContentId,
           status: "draft",
+        })
+        .returning();
+
+      await tx
+        .update(generatedContent)
+        .set({ status: "queued" })
+        .where(eq(generatedContent.id, generatedContentId));
+
+      return queueItem;
+    });
+  }
+
+  async createScheduledQueueItem(
+    userId: string,
+    generatedContentId: number,
+    scheduledFor: Date | null,
+  ): Promise<QueueItemRow> {
+    return this.db.transaction(async (tx) => {
+      await assertNoChainQueueItem(
+        tx,
+        generatedContentId,
+        userId,
+        "generation_queue_endpoint",
+      );
+      const [queueItem] = await tx
+        .insert(queueItems)
+        .values({
+          userId,
+          generatedContentId,
+          scheduledFor,
+          status: scheduledFor ? "scheduled" : "pending",
         })
         .returning();
 

@@ -6,7 +6,7 @@ import {
   estimateMp3DurationMsFromBufferSize,
   getDevMockVoiceBuffer,
 } from "../media/dev-fixtures/load-fixtures";
-import { systemConfigService } from "../../services/config/system-config.service";
+import { systemConfigService } from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import type { VoiceConfig } from "../../config/voices";
 

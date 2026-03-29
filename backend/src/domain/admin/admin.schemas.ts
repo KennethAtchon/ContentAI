@@ -80,10 +80,10 @@ export const adminScanNicheBodySchema = z.object({
 });
 
 export const adminUpdateNicheConfigBodySchema = z.object({
-  limit: z.number().int().min(1).max(10000).optional(),
-  minViews: z.number().int().min(0).optional(),
-  maxDaysOld: z.number().int().min(1).max(365).optional(),
-  viralOnly: z.boolean().optional(),
+  scrapeLimit: z.number().int().min(1).max(10000).optional(),
+  scrapeMinViews: z.number().int().min(0).optional(),
+  scrapeMaxDaysOld: z.number().int().min(1).max(365).optional(),
+  scrapeIncludeViralOnly: z.boolean().optional(),
 });
 
 export const adminNichesQuerySchema = z.object({

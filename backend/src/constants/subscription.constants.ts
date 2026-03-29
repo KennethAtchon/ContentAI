@@ -23,7 +23,7 @@ export const SUBSCRIPTION_TRIAL_DAYS = 14;
 export async function getSubscriptionTrialDays(): Promise<number> {
   try {
     const { systemConfigService } =
-      await import("@/services/config/system-config.service");
+      await import("@/domain/singletons");
     return await systemConfigService.getNumber(
       "subscription",
       "trial_days",
@@ -173,7 +173,7 @@ export async function getFeatureLimitsForStripeRoleAsync(
 }> {
   try {
     const { systemConfigService } =
-      await import("@/services/config/system-config.service");
+      await import("@/domain/singletons");
     const tier = stripeRole as SubscriptionTier | undefined;
 
     if (tier === SUBSCRIPTION_TIERS.ENTERPRISE) {

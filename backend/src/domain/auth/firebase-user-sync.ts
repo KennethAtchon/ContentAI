@@ -1,7 +1,4 @@
 import { adminAuth } from "../../services/firebase/admin";
-import { db } from "../../services/db/db";
-import { users } from "../../infrastructure/database/drizzle/schema";
-import { isNotNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 
 export interface SyncResult {
@@ -22,7 +19,7 @@ export class FirebaseUserSync {
       email?: string;
       name?: string;
       role?: string;
-      isActive?: boolean;
+      isActive?: boolean | null;
     },
   ): Promise<SyncResult> {
     if (!firebaseUid || firebaseUid.trim() === "") {
@@ -39,8 +36,10 @@ export class FirebaseUserSync {
 
       if (updates.email) updateData.email = updates.email;
       if (updates.name) updateData.displayName = updates.name;
-      if (updates.isActive !== undefined)
-        updateData.disabled = !updates.isActive;
+      if (updates.isActive !== undefined) {
+        updateData.disabled =
+          updates.isActive === null ? true : !updates.isActive;
+      }
 
       if (Object.keys(updateData).length > 0) {
         await adminAuth.updateUser(firebaseUid, updateData);
@@ -151,77 +150,6 @@ export class FirebaseUserSync {
         action: "create",
         error: error instanceof Error ? error.message : "Unknown error",
       };
-    }
-  }
-
-  static async syncAllUsers(): Promise<SyncResult[]> {
-    try {
-      const dbUsers = await db
-        .select()
-        .from(users)
-        .where(isNotNull(users.firebaseUid));
-
-      const results: SyncResult[] = [];
-
-      for (const user of dbUsers) {
-        if (!user.firebaseUid) continue;
-
-        try {
-          const firebaseUser = await adminAuth.getUser(user.firebaseUid);
-
-          const needsUpdate =
-            firebaseUser.email !== user.email ||
-            firebaseUser.displayName !== user.name ||
-            firebaseUser.disabled === user.isActive ||
-            firebaseUser.customClaims?.role !== user.role;
-
-          if (needsUpdate) {
-            const result = await this.syncUserUpdate(user.firebaseUid, {
-              email: user.email,
-              name: user.name,
-              role: user.role,
-              isActive: user.isActive,
-            });
-            results.push(result);
-          }
-        } catch (error) {
-          if (
-            error &&
-            typeof error === "object" &&
-            "code" in error &&
-            error.code === "auth/user-not-found"
-          ) {
-            results.push({
-              success: false,
-              action: "sync",
-              firebaseUid: user.firebaseUid,
-              error: "Firebase user not found",
-            });
-          } else {
-            results.push({
-              success: false,
-              action: "sync",
-              firebaseUid: user.firebaseUid,
-              error: error instanceof Error ? error.message : "Unknown error",
-            });
-          }
-        }
-      }
-
-      return results;
-    } catch (error) {
-      debugLog.error(
-        "Error in bulk sync",
-        { service: "firebase-sync", action: "bulk_sync" },
-        error,
-      );
-      return [
-        {
-          success: false,
-          action: "bulk_sync",
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      ];
     }
   }
 }

@@ -31,8 +31,16 @@ import { UsersRepository } from "./users/users.repository";
 import { UsersService } from "./users/users.service";
 import { ChatRepository } from "./chat/chat.repository";
 import { ChatService } from "./chat/chat.service";
+import { ChatToolsRepository } from "./chat/chat-tools.repository";
 import { ProjectsRepository } from "./projects/projects.repository";
 import { ProjectsService } from "./projects/projects.service";
+import { ConfigRepository } from "./config/config.repository";
+import { SystemConfigService } from "../services/config/system-config.service";
+import { UserSettingsService } from "../services/config/user-settings.service";
+
+export const configRepository = new ConfigRepository(db);
+export const systemConfigService = new SystemConfigService(configRepository);
+export const userSettingsService = new UserSettingsService(configRepository);
 
 export const authRepository = new AuthRepository(db);
 export const authService = new AuthService(authRepository);
@@ -47,7 +55,10 @@ export const captionsService = new CaptionsService(
 );
 
 export const contentRepository = new ContentRepository(db);
-export const contentService = new ContentService(contentRepository);
+export const contentService = new ContentService(
+  contentRepository,
+  assetsRepository,
+);
 
 export const musicRepository = new MusicRepository(db);
 export const musicService = new MusicService(musicRepository);
@@ -69,19 +80,23 @@ export const editorService = new EditorService(
 export const adminRepository = new AdminRepository(db);
 export const adminService = new AdminService(adminRepository);
 
+export const customerRepository = new CustomerRepository(db);
+export const customerService = new CustomerService(customerRepository);
+
 export const reelsRepository = new ReelsRepository(db);
-export const reelsService = new ReelsService(reelsRepository);
+export const reelsService = new ReelsService(
+  reelsRepository,
+  customerRepository,
+);
 
 export const publicRepository = new PublicRepository(db);
 export const publicService = new PublicService(publicRepository);
-
-export const customerRepository = new CustomerRepository(db);
-export const customerService = new CustomerService(customerRepository);
 
 export const usersRepository = new UsersRepository(db);
 export const usersService = new UsersService(usersRepository);
 
 export const chatRepository = new ChatRepository(db);
+export const chatToolsRepository = new ChatToolsRepository(db);
 export const chatService = new ChatService(chatRepository);
 
 export const projectsRepository = new ProjectsRepository(db);

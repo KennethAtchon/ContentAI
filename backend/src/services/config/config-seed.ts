@@ -4,8 +4,7 @@
  * ENV values are used as initial defaults so nothing breaks after first deploy.
  */
 
-import { db } from "@/services/db/db";
-import { systemConfig } from "@/infrastructure/database/drizzle/schema";
+import { configRepository } from "@/domain/singletons";
 import { encrypt } from "@/utils/crypto/encryption";
 import { debugLog } from "@/utils/debug/debug";
 import {
@@ -384,18 +383,15 @@ export async function seedSystemConfig(): Promise<void> {
     const entries = buildSeedEntries();
 
     for (const entry of entries) {
-      await db
-        .insert(systemConfig)
-        .values({
-          category: entry.category,
-          key: entry.key,
-          value: entry.value ?? null,
-          encryptedValue: entry.encryptedValue ?? null,
-          valueType: entry.valueType,
-          isSecret: entry.isSecret ?? false,
-          description: entry.description ?? null,
-        })
-        .onConflictDoNothing();
+      await configRepository.insertSystemConfigSeedIfMissing({
+        category: entry.category,
+        key: entry.key,
+        value: entry.value ?? null,
+        encryptedValue: entry.encryptedValue ?? null,
+        valueType: entry.valueType,
+        isSecret: entry.isSecret ?? false,
+        description: entry.description ?? null,
+      });
     }
 
     debugLog.info(`System config seeded (${entries.length} entries)`, {

@@ -138,8 +138,7 @@ debugLog.info(`Hono backend starting on port ${port}`, {
 // Seed system config defaults, then start cron jobs based on DB flag
 seedSystemConfig()
   .then(async () => {
-    const { systemConfigService } =
-      await import("./services/config/system-config.service");
+    const { systemConfigService } = await import("./domain/singletons");
     const cronEnabled = await systemConfigService.getBoolean(
       "feature_flags",
       "cron_jobs_enabled",

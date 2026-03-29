@@ -1,7 +1,12 @@
+import { Errors } from "../../utils/errors/app-error";
+import type { IAssetsRepository, NewAssetRow } from "../assets/assets.repository";
 import type { IContentRepository } from "./content.repository";
 
 export class ContentService {
-  constructor(private readonly content: IContentRepository) {}
+  constructor(
+    private readonly content: IContentRepository,
+    private readonly assets: IAssetsRepository,
+  ) {}
 
   getOwnedContentHook(generatedContentId: number, userId: string) {
     return this.content.findIdAndHookForUser(generatedContentId, userId);
@@ -69,6 +74,11 @@ export class ContentService {
     return this.content.listContentAssetsForUser(userId, generatedContentId, options);
   }
 
+  // Chat content operations
+  findChainTipDraftsForSession(userId: string, sessionId: string) {
+    return this.content.findChainTipDraftsForSession(userId, sessionId);
+  }
+
   // Generation operations
   listGenerationHistory(userId: string, page: number, limit: number) {
     return this.content.listGenerationHistory(userId, page, limit);
@@ -84,5 +94,52 @@ export class ContentService {
 
   updateGeneratedContentStatus(id: number, userId: string, status: string) {
     return this.content.updateGeneratedContentStatus(id, userId, status);
+  }
+
+  async createUserUploadForGeneratedContent(
+    userId: string,
+    generatedContentId: number,
+    assetRow: NewAssetRow,
+    role: "video_clip" | "image",
+  ) {
+    const ownedId = await this.content.findOwnedGeneratedContentId(
+      userId,
+      generatedContentId,
+    );
+    if (ownedId === null) throw Errors.notFound("Content");
+
+    const asset = await this.assets.insertAsset(assetRow);
+    await this.content.insertContentAssetLink({
+      generatedContentId,
+      assetId: asset.id,
+      role,
+    });
+    return asset;
+  }
+
+  insertGeneratedVideoClipAndLink(
+    params: Parameters<
+      IContentRepository["insertGeneratedVideoClipAndLink"]
+    >[0],
+  ) {
+    return this.content.insertGeneratedVideoClipAndLink(params);
+  }
+
+  replaceGeneratedVideoClipForShot(
+    params: Parameters<
+      IContentRepository["replaceGeneratedVideoClipForShot"]
+    >[0],
+  ) {
+    return this.content.replaceGeneratedVideoClipForShot(params);
+  }
+
+  listVideoClipAssetsForAiAssembly(
+    userId: string,
+    generatedContentId: number,
+  ) {
+    return this.content.listVideoClipAssetsForAiAssembly(
+      userId,
+      generatedContentId,
+    );
   }
 }

@@ -7,6 +7,54 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
+const MAX_CONTENT_CHAIN_DEPTH = 50;
+
+/** Walk `parent_id` from `startId` to the newest child (chain tip). */
+export async function resolveGeneratedContentChainTip(
+  database: AppDb,
+  startId: number,
+  userId: string,
+): Promise<typeof generatedContent.$inferSelect> {
+  const visitedIds = new Set<number>();
+  let current = await database
+    .select()
+    .from(generatedContent)
+    .where(
+      and(
+        eq(generatedContent.id, startId),
+        eq(generatedContent.userId, userId),
+      ),
+    )
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!current) throw new Error("Content not found");
+
+  visitedIds.add(current.id);
+  let depth = 0;
+
+  while (depth < MAX_CONTENT_CHAIN_DEPTH) {
+    const [child] = await database
+      .select()
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.parentId, current.id),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .orderBy(desc(generatedContent.createdAt))
+      .limit(1);
+
+    if (!child || visitedIds.has(child.id)) break;
+    visitedIds.add(child.id);
+    current = child;
+    depth++;
+  }
+
+  return current;
+}
+
 export interface IContentRepository {
   findIdAndHookForUser(
     contentId: number,
@@ -122,6 +170,26 @@ export interface IContentRepository {
     }>
   >;
 
+  // Chat content operations
+  findChainTipDraftsForSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<
+    Array<{
+      id: number;
+      version: number;
+      outputType: string | null;
+      status: string | null;
+      generatedHook: string | null;
+      generatedScript: string | null;
+      voiceoverScript: string | null;
+      postCaption: string | null;
+      sceneDescription: string | null;
+      generatedMetadata: unknown;
+      createdAt: Date | null;
+    }>
+  >;
+
   // Generation operations
   listGenerationHistory(
     userId: string,
@@ -156,6 +224,49 @@ export interface IContentRepository {
     userId: string,
     status: string,
   ): Promise<typeof generatedContent.$inferSelect | null>;
+
+  findOwnedGeneratedContentId(
+    userId: string,
+    generatedContentId: number,
+  ): Promise<number | null>;
+
+  insertContentAssetLink(params: {
+    generatedContentId: number;
+    assetId: string;
+    role: string;
+  }): Promise<void>;
+
+  insertGeneratedVideoClipAndLink(params: {
+    userId: string;
+    generatedContentId: number;
+    r2Key: string;
+    r2Url: string;
+    durationMs: number;
+    shotIndex: number;
+    provider: string;
+    generationPrompt: string;
+  }): Promise<{ id: string }>;
+
+  replaceGeneratedVideoClipForShot(params: {
+    userId: string;
+    generatedContentId: number;
+    shotIndex: number;
+    newClip: {
+      r2Key: string;
+      r2Url: string;
+      durationMs: number;
+      provider: string;
+      generationPrompt: string;
+    };
+  }): Promise<{ assetId: string }>;
+
+  /** Video clips for a user's content, ordered by `metadata.shotIndex` (AI assembly). */
+  listVideoClipAssetsForAiAssembly(
+    userId: string,
+    generatedContentId: number,
+  ): Promise<
+    Array<{ id: string; durationMs: number | null; metadata: unknown }>
+  >;
 }
 
 export type VideoRouteOwnedContent = {
@@ -448,6 +559,87 @@ export class ContentRepository implements IContentRepository {
       .where(and(...conditions));
   }
 
+  async findChainTipDraftsForSession(
+    userId: string,
+    sessionId: string,
+  ): ReturnType<IContentRepository["findChainTipDraftsForSession"]> {
+    // Get all generatedContentIds from chatMessages for this session
+    const messageRows = await this.db
+      .select({ generatedContentId: chatMessages.generatedContentId })
+      .from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.sessionId, sessionId),
+          eq(chatMessages.role, "assistant"),
+          isNotNull(chatMessages.generatedContentId),
+        ),
+      );
+
+    const contentIds = [
+      ...new Set(
+        messageRows
+          .map((r) => r.generatedContentId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+
+    if (contentIds.length === 0) {
+      return [];
+    }
+
+    // Fetch those generatedContent records with ownership check
+    const records = await this.db
+      .select({
+        id: generatedContent.id,
+        version: generatedContent.version,
+        outputType: generatedContent.outputType,
+        status: generatedContent.status,
+        generatedHook: generatedContent.generatedHook,
+        generatedScript: generatedContent.generatedScript,
+        voiceoverScript: generatedContent.voiceoverScript,
+        postCaption: generatedContent.postCaption,
+        sceneDescription: generatedContent.sceneDescription,
+        generatedMetadata: generatedContent.generatedMetadata,
+        parentId: generatedContent.parentId,
+        createdAt: generatedContent.createdAt,
+      })
+      .from(generatedContent)
+      .where(
+        and(
+          inArray(generatedContent.id, contentIds),
+          eq(generatedContent.userId, userId),
+        ),
+      );
+
+    // Find tips: records that have no children anywhere in the table.
+    const childRows = await this.db
+      .select({ parentId: generatedContent.parentId })
+      .from(generatedContent)
+      .where(
+        and(
+          inArray(generatedContent.parentId, contentIds),
+          eq(generatedContent.userId, userId),
+        ),
+      );
+
+    const idsWithChildren = new Set(
+      childRows
+        .map((r) => r.parentId)
+        .filter((id): id is number => id != null),
+    );
+
+    const tips = records
+      .filter((r) => !idsWithChildren.has(r.id))
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt ?? 0).getTime() -
+          new Date(b.createdAt ?? 0).getTime(),
+      )
+      .map(({ parentId: _parentId, ...rest }) => rest);
+
+    return tips;
+  }
+
   async listGenerationHistory(
     userId: string,
     page: number,
@@ -529,5 +721,182 @@ export class ContentRepository implements IContentRepository {
       .returning();
 
     return updated ?? null;
+  }
+
+  async findOwnedGeneratedContentId(
+    userId: string,
+    generatedContentId: number,
+  ): Promise<number | null> {
+    const [row] = await this.db
+      .select({ id: generatedContent.id })
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.id, generatedContentId),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .limit(1);
+    return row?.id ?? null;
+  }
+
+  async insertContentAssetLink(params: {
+    generatedContentId: number;
+    assetId: string;
+    role: string;
+  }) {
+    await this.db.insert(contentAssets).values({
+      generatedContentId: params.generatedContentId,
+      assetId: params.assetId,
+      role: params.role,
+    });
+  }
+
+  async insertGeneratedVideoClipAndLink(params: {
+    userId: string;
+    generatedContentId: number;
+    r2Key: string;
+    r2Url: string;
+    durationMs: number;
+    shotIndex: number;
+    provider: string;
+    generationPrompt: string;
+  }) {
+    const [clipAsset] = await this.db
+      .insert(assets)
+      .values({
+        userId: params.userId,
+        type: "video_clip",
+        source: "generated",
+        r2Key: params.r2Key,
+        r2Url: params.r2Url,
+        durationMs: params.durationMs,
+        metadata: {
+          shotIndex: params.shotIndex,
+          sourceType: "ai_generated",
+          provider: params.provider,
+          generationPrompt: params.generationPrompt,
+          hasEmbeddedAudio: false,
+          useClipAudio: false,
+        },
+      })
+      .returning();
+    if (!clipAsset) throw new Error("Failed to insert clip asset");
+    await this.db.insert(contentAssets).values({
+      generatedContentId: params.generatedContentId,
+      assetId: clipAsset.id,
+      role: "video_clip",
+    });
+    return { id: clipAsset.id };
+  }
+
+  async replaceGeneratedVideoClipForShot(params: {
+    userId: string;
+    generatedContentId: number;
+    shotIndex: number;
+    newClip: {
+      r2Key: string;
+      r2Url: string;
+      durationMs: number;
+      provider: string;
+      generationPrompt: string;
+    };
+  }) {
+    return this.db.transaction(async (tx) => {
+      const allExistingClips = await tx
+        .select({
+          assetId: contentAssets.assetId,
+          metadata: assets.metadata,
+        })
+        .from(contentAssets)
+        .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+        .where(
+          and(
+            eq(contentAssets.generatedContentId, params.generatedContentId),
+            eq(contentAssets.role, "video_clip"),
+            eq(assets.userId, params.userId),
+          ),
+        );
+
+      const staleIds = allExistingClips
+        .filter(
+          (a) =>
+            Number((a.metadata as Record<string, unknown>)?.shotIndex ?? -1) ===
+            params.shotIndex,
+        )
+        .map((a) => a.assetId);
+
+      if (staleIds.length > 0) {
+        await tx
+          .delete(contentAssets)
+          .where(
+            and(
+              eq(contentAssets.generatedContentId, params.generatedContentId),
+              inArray(contentAssets.assetId, staleIds),
+            ),
+          );
+        for (const assetId of staleIds) {
+          try {
+            await tx.delete(assets).where(eq(assets.id, assetId));
+          } catch {
+            /* best-effort, matches route behavior */
+          }
+        }
+      }
+
+      const [clipAsset] = await tx
+        .insert(assets)
+        .values({
+          userId: params.userId,
+          type: "video_clip",
+          source: "generated",
+          r2Key: params.newClip.r2Key,
+          r2Url: params.newClip.r2Url,
+          durationMs: params.newClip.durationMs,
+          metadata: {
+            shotIndex: params.shotIndex,
+            sourceType: "ai_generated",
+            provider: params.newClip.provider,
+            generationPrompt: params.newClip.generationPrompt,
+            hasEmbeddedAudio: false,
+            useClipAudio: false,
+          },
+        })
+        .returning();
+      if (!clipAsset) throw new Error("Failed to insert clip asset");
+      await tx.insert(contentAssets).values({
+        generatedContentId: params.generatedContentId,
+        assetId: clipAsset.id,
+        role: "video_clip",
+      });
+      return { assetId: clipAsset.id };
+    });
+  }
+
+  async listVideoClipAssetsForAiAssembly(
+    userId: string,
+    generatedContentId: number,
+  ) {
+    const rows = await this.db
+      .select({
+        id: assets.id,
+        durationMs: assets.durationMs,
+        metadata: assets.metadata,
+      })
+      .from(contentAssets)
+      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
+      .where(
+        and(
+          eq(contentAssets.generatedContentId, generatedContentId),
+          eq(assets.userId, userId),
+          eq(contentAssets.role, "video_clip"),
+        ),
+      );
+
+    return rows.sort((a, b) => {
+      const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+      const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+      return ai - bi;
+    });
   }
 }

@@ -4,6 +4,25 @@ This document records the root-cause analysis of the current caption system. The
 
 ---
 
+## Nuclear Reset. Nothing Is Preserved.
+
+The database is being wiped (`bun run db:reset`). Docker containers are being torn down. Every saved composition, every caption record, every exported file — gone. We are starting from a clean schema on a clean database.
+
+This means there is no backwards compatibility problem to solve. There is no old data to read. There are no legacy compositions to handle. The question "what do we do with old caption clips?" has one answer: **it doesn't matter, they don't exist.**
+
+Concretely, this rules out entire categories of work:
+
+- **No `LEGACY_ID_MAP`.** Old preset IDs do not exist in the new codebase. Not even as comments.
+- **No migration functions.** There is no data to migrate. `migrateLegacyCaptionClip()` is never written.
+- **No adapter layers.** No wrapper that makes the old interface look like the new one. The old interface is deleted.
+- **No `@deprecated` annotations.** Nothing is deprecated — it is deleted.
+- **No "V2" naming.** There is no `useCaptionsV2` or `CaptionPresetNew`. The new thing has the canonical name.
+- **No "keep the old file for reference."** Old files are deleted from the repo, not renamed or archived.
+
+The database is empty. The codebase does not compile mid-rewrite. Both are correct. Work through them.
+
+---
+
 ## The Current System at a Glance
 
 The caption engine spans:

@@ -24,7 +24,7 @@ import {
  */
 export async function getProviderInstanceAsync(providerId: ProviderId) {
   const { systemConfigService } =
-    await import("../../services/config/system-config.service");
+    await import("../../domain/singletons");
 
   const def = PROVIDER_REGISTRY[providerId];
   const key = await systemConfigService.getApiKey(

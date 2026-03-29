@@ -592,24 +592,6 @@ A colored box highlights behind the active word. The box moves word-to-word.
 
 ---
 
-## Legacy ID Map
-
-For backward compatibility with clips saved before v2:
-
-```typescript
-export const LEGACY_ID_MAP: Record<string, string> = {
-  // Pre-2026-03 IDs
-  "clean-white": "clean-minimal",
-  "box-dark": "dark-box",
-  "box-accent": "dark-box",
-  "highlight": "hormozi",
-  // Pre-v2 IDs (flat to new IDs — same meaning, same render)
-  // (none needed — v1 IDs map to v2 IDs of the same name)
-};
-```
-
----
-
 ## Default Preset
 
 `"hormozi"` is the default. It is `BUILTIN_PRESETS[0]`. When a `stylePresetId` is missing or unresolvable, `getPreset()` returns `BUILTIN_PRESETS[0]`.

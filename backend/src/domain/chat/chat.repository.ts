@@ -83,7 +83,7 @@ export interface IChatRepository {
   deleteSession(sessionId: string, userId: string): Promise<void>;
 
   // Messages
-  listMessages(sessionId: string): Promise<
+  listMessages(sessionId: string, limit?: number): Promise<
     {
       id: string;
       sessionId: string;
@@ -113,6 +113,15 @@ export interface IChatRepository {
     createdAt: Date;
   }>;
 
+  createAssistantMessage(data: {
+    id: string;
+    sessionId: string;
+    content: string;
+    generatedContentId: number | null;
+  }): Promise<void>;
+
+  updateSessionTimestamp(sessionId: string): Promise<void>;
+
   // Attachments
   createAttachments(
     attachments: {
@@ -123,6 +132,19 @@ export interface IChatRepository {
       generatedContentId?: number | null;
     }[],
   ): Promise<void>;
+
+  listAttachmentsForMessages(
+    messageIds: string[],
+  ): Promise<
+    Array<{
+      id: string;
+      messageId: string;
+      type: string;
+      reelId: number | null;
+      mediaAssetId: string | null;
+      generatedContentId: number | null;
+    }>
+  >;
 
   // Project verification
   findProjectById(
@@ -137,6 +159,12 @@ export interface IChatRepository {
     | undefined
   >;
 
+  createProject(data: {
+    id: string;
+    userId: string;
+    name: string;
+  }): Promise<{ id: string; userId: string; name: string }>;
+
   // Content and reels lookup
   findContentById(
     contentId: number,
@@ -145,8 +173,7 @@ export interface IChatRepository {
     | {
         id: number;
         userId: string;
-        projectId: string | null;
-        hook: string | null;
+        generatedHook: string | null;
       }
     | undefined
   >;
@@ -157,9 +184,41 @@ export interface IChatRepository {
   ): Promise<
     {
       id: number;
-      reelId: string;
+      hook: string | null;
       videoUrl: string | null;
     }[]
+  >;
+
+  findReelsWithContext(
+    reelIds: number[],
+    userId: string,
+  ): Promise<
+    {
+      id: number;
+      username: string;
+      hook: string | null;
+      views: number;
+      niche: string | null;
+    }[]
+  >;
+
+  findContentForChatContext(
+    contentId: number,
+    userId: string,
+  ): Promise<
+    | {
+        id: number;
+        version: number;
+        outputType: string;
+        status: string;
+        generatedHook: string | null;
+        postCaption: string | null;
+        generatedScript: string | null;
+        voiceoverScript: string | null;
+        sceneDescription: string | null;
+        generatedMetadata: unknown;
+      }
+    | undefined
   >;
 
   findGeneratedContentByIds(
@@ -168,9 +227,7 @@ export interface IChatRepository {
   ): Promise<
     {
       id: number;
-      script: string | null;
-      imageUrl: string | null;
-      voiceOverUrl: string | null;
+      generatedScript: string | null;
     }[]
   >;
 }
@@ -226,6 +283,7 @@ export class ChatRepository implements IChatRepository {
   }
 
   async findSessionByContentId(userId: string, contentId: string) {
+    // Find sessions that have messages referencing this content
     const [session] = await this.db
       .select({
         id: chatSessions.id,
@@ -237,16 +295,16 @@ export class ChatRepository implements IChatRepository {
       })
       .from(chatSessions)
       .innerJoin(
-        generatedContent,
-        eq(chatSessions.projectId, generatedContent.projectId),
+        chatMessages,
+        eq(chatSessions.id, chatMessages.sessionId),
       )
       .where(
         and(
-          eq(generatedContent.id, Number(contentId)),
-          eq(generatedContent.userId, userId),
+          eq(chatMessages.generatedContentId, Number(contentId)),
           eq(chatSessions.userId, userId),
         ),
       )
+      .orderBy(desc(chatSessions.updatedAt))
       .limit(1);
 
     return session;
@@ -313,8 +371,8 @@ export class ChatRepository implements IChatRepository {
       .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
   }
 
-  async listMessages(sessionId: string) {
-    const messages = await this.db
+  async listMessages(sessionId: string, limit?: number) {
+    let query = this.db
       .select({
         id: chatMessages.id,
         sessionId: chatMessages.sessionId,
@@ -326,6 +384,12 @@ export class ChatRepository implements IChatRepository {
       .where(eq(chatMessages.sessionId, sessionId))
       .orderBy(chatMessages.createdAt);
 
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const messages = await query;
+
     // Fetch attachments for all messages
     const messageIds = messages.map((m) => m.id);
     if (messageIds.length === 0) {
@@ -336,10 +400,10 @@ export class ChatRepository implements IChatRepository {
       .select({
         id: messageAttachments.id,
         messageId: messageAttachments.messageId,
-        type: messageAttachments.type,
+        type: messageAttachments.entityType,
         reelId: messageAttachments.reelId,
-        mediaAssetId: messageAttachments.mediaAssetId,
-        generatedContentId: messageAttachments.generatedContentId,
+        mediaAssetId: messageAttachments.assetId,
+        generatedContentId: sql<null>`NULL`,
       })
       .from(messageAttachments)
       .where(inArray(messageAttachments.messageId, messageIds));
@@ -387,6 +451,28 @@ export class ChatRepository implements IChatRepository {
     return message;
   }
 
+  async createAssistantMessage(data: {
+    id: string;
+    sessionId: string;
+    content: string;
+    generatedContentId: number | null;
+  }): Promise<void> {
+    await this.db.insert(chatMessages).values({
+      id: data.id,
+      sessionId: data.sessionId,
+      role: "assistant",
+      content: data.content,
+      generatedContentId: data.generatedContentId,
+    });
+  }
+
+  async updateSessionTimestamp(sessionId: string): Promise<void> {
+    await this.db
+      .update(chatSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(chatSessions.id, sessionId));
+  }
+
   async createAttachments(
     attachments: {
       messageId: string;
@@ -401,12 +487,29 @@ export class ChatRepository implements IChatRepository {
     await this.db.insert(messageAttachments).values(
       attachments.map((a) => ({
         messageId: a.messageId,
-        type: a.type,
+        entityType: a.type,
         reelId: a.reelId ?? null,
-        mediaAssetId: a.mediaAssetId ?? null,
-        generatedContentId: a.generatedContentId ?? null,
+        assetId: a.mediaAssetId ?? null,
       })),
     );
+  }
+
+  async listAttachmentsForMessages(
+    messageIds: string[],
+  ): ReturnType<IChatRepository["listAttachmentsForMessages"]> {
+    if (messageIds.length === 0) return [];
+
+    return this.db
+      .select({
+        id: messageAttachments.id,
+        messageId: messageAttachments.messageId,
+        type: messageAttachments.entityType,
+        reelId: messageAttachments.reelId,
+        mediaAssetId: messageAttachments.assetId,
+        generatedContentId: sql<null>`NULL`,
+      })
+      .from(messageAttachments)
+      .where(inArray(messageAttachments.messageId, messageIds));
   }
 
   async findProjectById(projectId: string, userId: string) {
@@ -423,13 +526,33 @@ export class ChatRepository implements IChatRepository {
     return project;
   }
 
+  async createProject(data: {
+    id: string;
+    userId: string;
+    name: string;
+  }): Promise<{ id: string; userId: string; name: string }> {
+    const [project] = await this.db
+      .insert(projects)
+      .values({
+        id: data.id,
+        userId: data.userId,
+        name: data.name,
+      })
+      .returning({
+        id: projects.id,
+        userId: projects.userId,
+        name: projects.name,
+      });
+
+    return project;
+  }
+
   async findContentById(contentId: number, userId: string) {
     const [content] = await this.db
       .select({
         id: generatedContent.id,
         userId: generatedContent.userId,
-        projectId: generatedContent.projectId,
-        hook: generatedContent.hook,
+        generatedHook: generatedContent.generatedHook,
       })
       .from(generatedContent)
       .where(
@@ -443,17 +566,58 @@ export class ChatRepository implements IChatRepository {
     return content;
   }
 
-  async findReelsByIds(reelIds: number[], userId: string) {
+  async findReelsByIds(reelIds: number[], _userId: string) {
     if (reelIds.length === 0) return [];
 
     return this.db
       .select({
         id: reels.id,
-        reelId: reels.reelId,
+        hook: reels.hook,
         videoUrl: reels.videoUrl,
       })
       .from(reels)
-      .where(and(inArray(reels.id, reelIds), eq(reels.userId, userId)));
+      .where(inArray(reels.id, reelIds));
+  }
+
+  async findReelsWithContext(reelIds: number[], _userId: string) {
+    if (reelIds.length === 0) return [];
+
+    return this.db
+      .select({
+        id: reels.id,
+        username: reels.username,
+        hook: reels.hook,
+        views: reels.views,
+        niche: sql<string | null>`(SELECT n.name FROM niche n WHERE n.id = ${reels.nicheId})`,
+      })
+      .from(reels)
+      .where(inArray(reels.id, reelIds));
+  }
+
+  async findContentForChatContext(contentId: number, userId: string) {
+    const [content] = await this.db
+      .select({
+        id: generatedContent.id,
+        version: generatedContent.version,
+        outputType: generatedContent.outputType,
+        status: generatedContent.status,
+        generatedHook: generatedContent.generatedHook,
+        postCaption: generatedContent.postCaption,
+        generatedScript: generatedContent.generatedScript,
+        voiceoverScript: generatedContent.voiceoverScript,
+        sceneDescription: generatedContent.sceneDescription,
+        generatedMetadata: generatedContent.generatedMetadata,
+      })
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.id, contentId),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .limit(1);
+
+    return content;
   }
 
   async findGeneratedContentByIds(contentIds: number[], userId: string) {
@@ -462,9 +626,7 @@ export class ChatRepository implements IChatRepository {
     return this.db
       .select({
         id: generatedContent.id,
-        script: generatedContent.script,
-        imageUrl: generatedContent.imageUrl,
-        voiceOverUrl: generatedContent.voiceOverUrl,
+        generatedScript: generatedContent.generatedScript,
       })
       .from(generatedContent)
       .where(

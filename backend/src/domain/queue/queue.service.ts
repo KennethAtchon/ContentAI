@@ -145,6 +145,35 @@ export class QueueService {
     }
   }
 
+  async createScheduledQueueItem(
+    userId: string,
+    generatedContentId: number,
+    scheduledFor: Date | null,
+  ) {
+    const content = await this.queue.findGeneratedContentForUser(
+      userId,
+      generatedContentId,
+    );
+    if (!content) throw Errors.notFound("Content");
+
+    try {
+      const queueItem = await this.queue.createScheduledQueueItem(
+        userId,
+        generatedContentId,
+        scheduledFor,
+      );
+      return { queueItem };
+    } catch (e) {
+      if (e instanceof QueueChainError) {
+        throw Errors.conflict(
+          "This content chain already has a queue item — update that item instead",
+          "QUEUE_CHAIN_GUARD",
+        );
+      }
+      throw e;
+    }
+  }
+
   async getQueueItemDetail(userId: string, queueItemId: number) {
     const item = await this.queue.findQueueItemByIdForUser(
       queueItemId,

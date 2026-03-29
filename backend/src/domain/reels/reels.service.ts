@@ -1,8 +1,8 @@
 import { analyzeReel } from "../../services/reels/reel-analyzer";
-import { recordUsage } from "../../middleware/usage-gate";
 import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
 import { VIRAL_VIEWS_THRESHOLD } from "../../utils/config/envUtil";
 import { AppError, Errors } from "../../utils/errors/app-error";
+import type { ICustomerRepository } from "../customer/customer.repository";
 import type { IReelsRepository } from "./reels.repository";
 import type { z } from "zod";
 import type {
@@ -16,7 +16,10 @@ type ReelsExportQuery = z.infer<typeof reelsExportQuerySchema>;
 type BulkReelsBody = z.infer<typeof bulkReelsSchema>;
 
 export class ReelsService {
-  constructor(private readonly reels: IReelsRepository) {}
+  constructor(
+    private readonly reels: IReelsRepository,
+    private readonly customer: Pick<ICustomerRepository, "insertFeatureUsage">,
+  ) {}
 
   async getUsageDashboard(userId: string) {
     const counts = await this.reels.getUserReelsUsageCounts(userId);
@@ -116,12 +119,14 @@ export class ReelsService {
 
   async analyzeReelForUser(reelId: number, userId: string) {
     const analysis = await analyzeReel(reelId, userId);
-    await recordUsage(
-      userId,
-      "reel_analysis",
-      { reelId },
-      { analysisId: analysis.id },
-    ).catch(() => {});
+    await this.customer
+      .insertFeatureUsage({
+        userId,
+        featureType: "reel_analysis",
+        inputData: { reelId },
+        resultData: { analysisId: analysis.id },
+      })
+      .catch(() => {});
     return { analysis };
   }
 

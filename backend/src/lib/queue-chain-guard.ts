@@ -12,13 +12,13 @@
 
 import { and, eq } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
-import { db as defaultDb } from "../services/db/db";
 import {
   generatedContent,
   queueItems,
 } from "../infrastructure/database/drizzle/schema";
+import type { AppDb } from "../domain/database.types";
 
-type AnyDb = typeof defaultDb | PgTransaction<any, any, any>;
+type AnyDb = AppDb | PgTransaction<any, any, any>;
 
 const MAX_WALK_DEPTH = 50;
 
@@ -45,7 +45,7 @@ export async function findChainQueueItem(
   while (currentId !== null && depth < MAX_WALK_DEPTH) {
     depth++;
 
-    const [row] = await (db as typeof defaultDb)
+    const [row] = await (db as AppDb)
       .select({
         id: generatedContent.id,
         parentId: generatedContent.parentId,
@@ -61,7 +61,7 @@ export async function findChainQueueItem(
 
     if (!row) break;
 
-    const [existing] = await (db as typeof defaultDb)
+    const [existing] = await (db as AppDb)
       .select({ id: queueItems.id })
       .from(queueItems)
       .where(

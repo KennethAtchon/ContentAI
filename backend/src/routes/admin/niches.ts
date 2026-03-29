@@ -6,9 +6,6 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import { niches, reels, reelAnalyses } from "../../infrastructure/database/drizzle/schema";
-import { eq, sql, and, desc, isNotNull } from "drizzle-orm";
 import { Errors } from "../../utils/errors/app-error";
 import { adminService } from "../../domain/singletons";
 import {
@@ -87,7 +84,7 @@ nichesRouter.put(
       throw Errors.badRequest("No fields to update");
     }
 
-    const result = await adminService.updateNiche(id, updates);
+    const result = await adminService.updateNiche(Number(id), updates);
     return c.json(result);
   },
 );
@@ -105,7 +102,7 @@ nichesRouter.patch(
     const { id } = c.req.valid("param");
     const config = c.req.valid("json");
 
-    const result = await adminService.updateNicheConfig(id, config);
+    const result = await adminService.updateNicheConfig(Number(id), config);
     return c.json(result);
   },
 );
@@ -120,7 +117,7 @@ nichesRouter.delete(
   zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
-    const result = await adminService.deleteNiche(id);
+    const result = await adminService.deleteNiche(Number(id));
     return c.json(result);
   },
 );
@@ -139,11 +136,11 @@ nichesRouter.get(
 
     // Verify niche exists
     const niche = await adminService.listNiches();
-    if (!niche.niches.find((n) => n.id === id)) {
+    if (!niche.niches.find((n) => n.id === Number(id))) {
       throw Errors.notFound("Niche");
     }
 
-    const result = await adminService.getNicheReels(id, {
+    const result = await adminService.getNicheReels(Number(id), {
       page,
       limit,
       sortBy,
@@ -174,7 +171,7 @@ nichesRouter.post(
       throw Errors.notFound("Niche");
     }
 
-    const result = await adminService.dedupeNicheReels(id);
+    const result = await adminService.dedupeNicheReels(Number(id));
     return c.json(result);
   },
 );
@@ -187,48 +184,11 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
-
-    // Get niche with config
-    const [niche] = await db
-      .select({
-        id: niches.id,
-        name: niches.name,
-        scrapeLimit: niches.scrapeLimit,
-        scrapeMinViews: niches.scrapeMinViews,
-        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
-        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
-        isActive: niches.isActive,
-      })
-      .from(niches)
-      .where(eq(niches.id, id))
-      .limit(1);
-
-    if (!niche) {
-      throw Errors.notFound("Niche");
-    }
-
-    if (!niche.isActive) {
-      throw Errors.badRequest("Cannot scan inactive niche");
-    }
-
-    // Create scan job
-    const [job] = await db
-      .insert(reelAnalyses)
-      .values({
-        nicheId: id,
-        status: "pending",
-        config: {
-          limit: niche.scrapeLimit ?? 50,
-          minViews: niche.scrapeMinViews ?? 1000,
-          maxDaysOld: niche.scrapeMaxDaysOld ?? 30,
-          viralOnly: niche.scrapeIncludeViralOnly ?? false,
-        },
-      })
-      .returning({ id: reelAnalyses.id });
-
-    return c.json({ jobId: job.id, message: "Scan job created" }, 201);
+    const result = await adminService.triggerNicheScrapeJob(Number(id));
+    return c.json(result, 201);
   },
 );
 

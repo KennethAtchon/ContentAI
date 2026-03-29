@@ -6,7 +6,7 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { systemConfigService } from "../../services/config/system-config.service";
+import { systemConfigService } from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import {
   adminConfigInvalidateBodySchema,
@@ -182,7 +182,7 @@ configAdminRouter.get(
       const { imageKenBurnsProvider } =
         await import("../../services/video-generation/providers/image-ken-burns");
       const { systemConfigService } =
-        await import("../../services/config/system-config.service");
+        await import("../../domain/singletons");
 
       const ALL_VIDEO_PROVIDERS = [
         {

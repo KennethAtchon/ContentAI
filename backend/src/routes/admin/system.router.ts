@@ -6,17 +6,17 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
 import { debugLog } from "../../utils/debug/debug";
 import * as allSchema from "../../infrastructure/database/drizzle/schema";
-import { eq, sql, is } from "drizzle-orm";
+import { eq, is } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
-import { FirebaseUserSync } from "../../services/firebase/sync";
+import { authService } from "../../domain/singletons";
 import { Errors } from "../../utils/errors/app-error";
 import {
   adminSystemExportNameParamSchema,
   adminSystemExportQuerySchema,
 } from "../../domain/admin/admin.schemas";
+import { adminService } from "../../domain/singletons";
 
 const systemRouter = new Hono<HonoEnv>();
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
@@ -40,7 +40,7 @@ systemRouter.post(
   csrfMiddleware(),
   authMiddleware("admin"),
   async (c) => {
-    const results = await FirebaseUserSync.syncAllUsers();
+    const results = await authService.syncAllFirebaseUsers();
 
     const summary = {
       total: results.length,
@@ -61,7 +61,7 @@ systemRouter.get(
   authMiddleware("admin"),
   async (c) => {
     try {
-      await db.execute(sql`SELECT 1`);
+      await adminService.pingDatabase();
       return c.json({ status: "healthy", database: "connected" });
     } catch (error) {
       return c.json(
@@ -128,23 +128,18 @@ systemRouter.get(
     }
 
     const table = tableEntry[1] as PgTable;
-    const offset = (page - 1) * limit;
-
     const hasIsDeleted = "isDeleted" in table;
     const whereClause =
       !includeDeleted && hasIsDeleted
         ? eq((table as any).isDeleted, false)
         : undefined;
 
-    const [rows, countResult] = await Promise.all([
-      db.select().from(table).where(whereClause).limit(limit).offset(offset),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(table)
-        .where(whereClause),
-    ]);
-
-    const total = countResult[0]?.count ?? 0;
+    const { rows, total } = await adminService.queryAdminTablePage({
+      table,
+      whereClause,
+      page,
+      limit,
+    });
 
     return c.json({
       data: rows,

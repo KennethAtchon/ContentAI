@@ -8,7 +8,7 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { usersService } from "../../domain/singletons";
 import { adminAuth } from "../../services/firebase/admin";
-import { FirebaseUserSync } from "../../services/firebase/sync";
+import { FirebaseUserSync } from "../../domain/auth/firebase-user-sync";
 import { Errors } from "../../utils/errors/app-error";
 import {
   createUserBodySchema,

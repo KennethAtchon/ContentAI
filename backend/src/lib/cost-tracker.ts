@@ -1,7 +1,6 @@
-import { db } from "../services/db/db";
-import { aiCostLedger } from "../infrastructure/database/drizzle/schema";
 import { calculateAiCost } from "../constants/ai-pricing.constants";
 import { debugLog } from "../utils/debug/debug";
+import { adminRepository } from "../domain/singletons";
 
 import type { ProviderId } from "./ai/providers";
 
@@ -28,7 +27,7 @@ export async function recordAiCost(params: AiCostParams): Promise<void> {
       params.outputTokens,
     );
 
-    await db.insert(aiCostLedger).values({
+    await adminRepository.insertAiCostLedgerRow({
       userId: params.userId ?? null,
       provider: params.provider,
       model: params.model,

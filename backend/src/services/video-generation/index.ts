@@ -1,5 +1,4 @@
-import { db } from "@/services/db/db";
-import { aiCostLedger } from "@/infrastructure/database/drizzle/schema";
+import { adminRepository } from "@/domain/singletons";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
   DEV_MOCK_VIDEO_CLIP_DELAY_MS,
@@ -130,7 +129,7 @@ async function recordMediaCost(params: {
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   try {
-    await db.insert(aiCostLedger).values({
+    await adminRepository.insertAiCostLedgerRow({
       userId: params.userId ?? null,
       provider: params.provider,
       model: params.provider,

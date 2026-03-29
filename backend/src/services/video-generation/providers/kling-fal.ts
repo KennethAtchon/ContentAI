@@ -3,7 +3,7 @@ import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, KLING_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
-import { systemConfigService } from "@/services/config/system-config.service";
+import { systemConfigService } from "@/domain/singletons";
 import type {
   GenerateVideoClipParams,
   VideoClipResult,

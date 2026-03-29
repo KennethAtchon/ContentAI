@@ -1,10 +1,8 @@
 import type { MiddlewareHandler } from "hono";
 import type { HonoEnv } from "../types/hono.types";
-import { db } from "../services/db/db";
-import { featureUsages } from "../infrastructure/database/drizzle/schema";
-import { eq, and, gte, sql } from "drizzle-orm";
 import { getFeatureLimitsForStripeRoleAsync } from "../constants/subscription.constants";
 import { debugLog } from "../utils/debug/debug";
+import { customerRepository } from "../domain/singletons";
 
 type GatedFeature = "generation" | "analysis";
 
@@ -41,18 +39,11 @@ export function usageGate(feature: GatedFeature): MiddlewareHandler<HonoEnv> {
       const featureType =
         feature === "analysis" ? "reel_analysis" : "generation";
 
-      const [row] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(featureUsages)
-        .where(
-          and(
-            eq(featureUsages.userId, userId),
-            eq(featureUsages.featureType, featureType),
-            gte(featureUsages.createdAt, monthStart),
-          ),
-        );
-
-      const used = row?.count ?? 0;
+      const used = await customerRepository.getFeatureUsageCount(
+        userId,
+        featureType,
+        monthStart,
+      );
 
       if (used >= limit) {
         return c.json(
@@ -91,11 +82,10 @@ export async function recordUsage(
   inputData: Record<string, unknown> = {},
   resultData: Record<string, unknown> = {},
 ): Promise<void> {
-  await db.insert(featureUsages).values({
+  await customerRepository.insertFeatureUsage({
     userId,
     featureType,
     inputData,
     resultData,
-    usageTimeMs: 0,
   });
 }

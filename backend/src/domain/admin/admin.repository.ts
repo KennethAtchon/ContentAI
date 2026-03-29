@@ -10,6 +10,8 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
 import {
   users,
   orders,
@@ -215,32 +217,32 @@ export interface IAdminRepository {
   // Niches management
   listNiches(search?: string, activeOnly?: boolean): Promise<
     {
-      id: string;
+      id: number;
       name: string;
       description: string | null;
-      isActive: boolean | null;
-      createdAt: Date | null;
-      updatedAt: Date | null;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
       reelCount: number;
-      scrapeLimit: number | null;
-      scrapeMinViews: number | null;
-      scrapeMaxDaysOld: number | null;
-      scrapeIncludeViralOnly: boolean | null;
+      scrapeLimit: number;
+      scrapeMinViews: number;
+      scrapeMaxDaysOld: number;
+      scrapeIncludeViralOnly: boolean;
     }[]
   >;
 
-  findNicheById(id: string): Promise<
+  findNicheById(id: number): Promise<
     | {
-        id: string;
+        id: number;
         name: string;
         description: string | null;
-        isActive: boolean | null;
-        createdAt: Date | null;
-        updatedAt: Date | null;
-        scrapeLimit: number | null;
-        scrapeMinViews: number | null;
-        scrapeMaxDaysOld: number | null;
-        scrapeIncludeViralOnly: boolean | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        scrapeLimit: number;
+        scrapeMinViews: number;
+        scrapeMaxDaysOld: number;
+        scrapeIncludeViralOnly: boolean;
       }
     | undefined
   >;
@@ -249,16 +251,16 @@ export interface IAdminRepository {
     name: string;
     description?: string;
   }): Promise<{
-    id: string;
+    id: number;
     name: string;
     description: string | null;
-    isActive: boolean | null;
-    createdAt: Date | null;
-    updatedAt: Date | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }>;
 
   updateNiche(
-    id: string,
+    id: number,
     data: {
       name?: string;
       description?: string;
@@ -266,18 +268,18 @@ export interface IAdminRepository {
     },
   ): Promise<
     | {
-        id: string;
+        id: number;
         name: string;
         description: string | null;
-        isActive: boolean | null;
-        createdAt: Date | null;
-        updatedAt: Date | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
       }
     | undefined
   >;
 
   updateNicheConfig(
-    id: string,
+    id: number,
     data: {
       scrapeLimit?: number;
       scrapeMinViews?: number;
@@ -286,24 +288,24 @@ export interface IAdminRepository {
     },
   ): Promise<
     | {
-        id: string;
+        id: number;
         name: string;
         description: string | null;
-        isActive: boolean | null;
-        createdAt: Date | null;
-        updatedAt: Date | null;
-        scrapeLimit: number | null;
-        scrapeMinViews: number | null;
-        scrapeMaxDaysOld: number | null;
-        scrapeIncludeViralOnly: boolean | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        scrapeLimit: number;
+        scrapeMinViews: number;
+        scrapeMaxDaysOld: number;
+        scrapeIncludeViralOnly: boolean;
       }
     | undefined
   >;
 
-  deleteNiche(id: string): Promise<boolean>;
+  deleteNiche(id: number): Promise<boolean>;
 
   listNicheReels(
-    nicheId: string,
+    nicheId: number,
     options: {
       page: number;
       limit: number;
@@ -315,15 +317,22 @@ export interface IAdminRepository {
   ): Promise<{
     reels: Array<{
       id: number;
-      reelId: string | null;
-      nicheId: string | null;
+      externalId: string | null;
+      username: string;
+      nicheId: number;
+      views: number;
+      likes: number;
+      comments: number;
+      engagementRate: string | null;
+      hook: string | null;
+      caption: string | null;
+      audioName: string | null;
+      videoUrl: string | null;
       videoR2Url: string | null;
-      views: number | null;
-      likes: number | null;
-      engagementRate: number | null;
-      isViral: boolean | null;
+      isViral: boolean;
       postedAt: Date | null;
-      scrapedAt: Date | null;
+      scrapedAt: Date;
+      createdAt: Date;
       hasAnalysis: boolean;
     }>;
     total: number;
@@ -332,7 +341,89 @@ export interface IAdminRepository {
     totalPages: number;
   }>;
 
-  dedupeNicheReels(nicheId: string): Promise<{ deletedCount: number }>;
+  dedupeNicheReels(nicheId: number): Promise<{ deletedCount: number }>;
+
+  pingDatabase(): Promise<void>;
+
+  selectDynamicTableRows(
+    table: PgTable,
+    whereClause: SQL | undefined,
+    limit: number,
+    offset: number,
+  ): Promise<unknown[]>;
+
+  countDynamicTableRows(
+    table: PgTable,
+    whereClause: SQL | undefined,
+  ): Promise<number>;
+
+  findUserByFirebaseUid(
+    firebaseUid: string,
+  ): Promise<{ id: string; name: string | null; email: string | null } | null>;
+
+  countFeatureUsagesSince(
+    userId: string,
+    featureType: string,
+    since: Date,
+  ): Promise<number>;
+
+  findNicheForScrapeJob(id: number): Promise<{
+    id: number;
+    name: string;
+    scrapeLimit: number;
+    scrapeMinViews: number;
+    scrapeMaxDaysOld: number;
+    scrapeIncludeViralOnly: boolean;
+    isActive: boolean;
+  } | null>;
+
+  listActiveNichesForDailyScan(): Promise<{ id: number; name: string }[]>;
+
+  insertNicheScrapeJob(params: {
+    nicheId: number;
+    limit: number;
+    minViews: number;
+    maxDaysOld: number;
+    viralOnly: boolean;
+  }): Promise<{ id: string }>;
+
+  insertPlatformMusicTrack(params: {
+    trackId: string;
+    adminUserId: string;
+    name: string;
+    artistName: string | null;
+    mood: string;
+    genre: string | null;
+    r2Key: string;
+    r2Url: string;
+    fileSize: number;
+    durationSeconds: number;
+  }): Promise<{ track: typeof musicTracks.$inferSelect }>;
+
+  findMusicTrackForPlatformDelete(id: string): Promise<{
+    trackId: string;
+    assetId: string;
+    r2Key: string | null;
+  } | null>;
+
+  deletePlatformMusicTrackAndAsset(
+    trackId: string,
+    assetId: string,
+  ): Promise<void>;
+
+  insertAiCostLedgerRow(values: {
+    userId: string | null;
+    provider: string;
+    model: string;
+    featureType: string;
+    inputTokens: number;
+    outputTokens: number;
+    inputCost: string;
+    outputCost: string;
+    totalCost: string;
+    durationMs: number;
+    metadata: Record<string, unknown> | null;
+  }): Promise<void>;
 }
 
 export class AdminRepository implements IAdminRepository {
@@ -779,8 +870,9 @@ export class AdminRepository implements IAdminRepository {
   async deleteMusicTrack(id: string): Promise<boolean> {
     const result = await this.db
       .delete(musicTracks)
-      .where(eq(musicTracks.id, id));
-    return result.rowCount > 0;
+      .where(eq(musicTracks.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Niches management
@@ -809,7 +901,7 @@ export class AdminRepository implements IAdminRepository {
       .orderBy(desc(niches.createdAt));
   }
 
-  async findNicheById(id: string) {
+  async findNicheById(id: number) {
     const [niche] = await this.db
       .select({
         id: niches.id,
@@ -852,7 +944,7 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async updateNiche(
-    id: string,
+    id: number,
     data: { name?: string; description?: string; isActive?: boolean },
   ) {
     const [updated] = await this.db
@@ -872,7 +964,7 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async updateNicheConfig(
-    id: string,
+    id: number,
     data: {
       scrapeLimit?: number;
       scrapeMinViews?: number;
@@ -900,13 +992,13 @@ export class AdminRepository implements IAdminRepository {
     return updated;
   }
 
-  async deleteNiche(id: string): Promise<boolean> {
-    const result = await this.db.delete(niches).where(eq(niches.id, id));
-    return result.rowCount > 0;
+  async deleteNiche(id: number): Promise<boolean> {
+    const result = await this.db.delete(niches).where(eq(niches.id, id)).returning();
+    return result.length > 0;
   }
 
   async listNicheReels(
-    nicheId: string,
+    nicheId: number,
     options: {
       page: number;
       limit: number;
@@ -966,7 +1058,7 @@ export class AdminRepository implements IAdminRepository {
     };
   }
 
-  async dedupeNicheReels(nicheId: string) {
+  async dedupeNicheReels(nicheId: number) {
     const result = await this.db.execute(sql`
       DELETE FROM "reel"
       WHERE id IN (
@@ -979,6 +1071,211 @@ export class AdminRepository implements IAdminRepository {
       )
     `);
 
-    return { deletedCount: result.rowCount || 0 };
+    return { deletedCount: 0 };
+  }
+
+  async pingDatabase() {
+    await this.db.execute(sql`SELECT 1`);
+  }
+
+  async selectDynamicTableRows(
+    table: PgTable,
+    whereClause: SQL | undefined,
+    limit: number,
+    offset: number,
+  ) {
+    if (whereClause !== undefined) {
+      return this.db
+        .select()
+        .from(table as never)
+        .where(whereClause)
+        .limit(limit)
+        .offset(offset);
+    }
+    return this.db.select().from(table as never).limit(limit).offset(offset);
+  }
+
+  async countDynamicTableRows(table: PgTable, whereClause: SQL | undefined) {
+    if (whereClause !== undefined) {
+      const [row] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(table as never)
+        .where(whereClause);
+      return row?.count ?? 0;
+    }
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(table as never);
+    return row?.count ?? 0;
+  }
+
+  async findUserByFirebaseUid(firebaseUid: string) {
+    const [row] = await this.db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.firebaseUid, firebaseUid))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async countFeatureUsagesSince(
+    userId: string,
+    featureType: string,
+    since: Date,
+  ) {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(featureUsages)
+      .where(
+        and(
+          eq(featureUsages.userId, userId),
+          eq(featureUsages.featureType, featureType),
+          gte(featureUsages.createdAt, since),
+        ),
+      );
+    return row?.count ?? 0;
+  }
+
+  async findNicheForScrapeJob(id: number) {
+    const [niche] = await this.db
+      .select({
+        id: niches.id,
+        name: niches.name,
+        scrapeLimit: niches.scrapeLimit,
+        scrapeMinViews: niches.scrapeMinViews,
+        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+        isActive: niches.isActive,
+      })
+      .from(niches)
+      .where(eq(niches.id, id))
+      .limit(1);
+    return niche ?? null;
+  }
+
+  async listActiveNichesForDailyScan(): Promise<{ id: number; name: string }[]> {
+    return this.db
+      .select({ id: niches.id, name: niches.name })
+      .from(niches)
+      .where(eq(niches.isActive, true));
+  }
+
+  async insertNicheScrapeJob(params: {
+    nicheId: number;
+    limit: number;
+    minViews: number;
+    maxDaysOld: number;
+    viralOnly: boolean;
+  }) {
+    const [job] = await this.db
+      .insert(reelAnalyses)
+      .values({
+        nicheId: params.nicheId,
+        status: "pending",
+        config: {
+          limit: params.limit,
+          minViews: params.minViews,
+          maxDaysOld: params.maxDaysOld,
+          viralOnly: params.viralOnly,
+        },
+      } as never)
+      .returning({ id: reelAnalyses.id });
+    if (!job) throw new Error("Failed to create scan job");
+    return job;
+  }
+
+  async insertPlatformMusicTrack(params: {
+    trackId: string;
+    adminUserId: string;
+    name: string;
+    artistName: string | null;
+    mood: string;
+    genre: string | null;
+    r2Key: string;
+    r2Url: string;
+    fileSize: number;
+    durationSeconds: number;
+  }) {
+    const [asset] = await this.db
+      .insert(assets)
+      .values({
+        id: params.trackId,
+        userId: null,
+        type: "audio",
+        source: "platform",
+        name: params.name.trim(),
+        mimeType: "audio/mpeg",
+        r2Key: params.r2Key,
+        r2Url: params.r2Url,
+        sizeBytes: params.fileSize,
+        durationMs: params.durationSeconds * 1000,
+        metadata: {
+          artistName: params.artistName,
+          mood: params.mood,
+          genre: params.genre,
+        },
+      })
+      .returning();
+
+    if (!asset) throw new Error("Failed to insert music asset");
+
+    const [track] = await this.db
+      .insert(musicTracks)
+      .values({
+        id: params.trackId,
+        assetId: asset.id,
+        name: params.name.trim(),
+        artistName: params.artistName,
+        durationSeconds: params.durationSeconds,
+        mood: params.mood,
+        genre: params.genre,
+        isActive: true,
+        uploadedBy: params.adminUserId,
+      })
+      .returning();
+
+    if (!track) throw new Error("Failed to insert music track");
+    return { track };
+  }
+
+  async findMusicTrackForPlatformDelete(id: string) {
+    const [existing] = await this.db
+      .select({
+        trackId: musicTracks.id,
+        assetId: musicTracks.assetId,
+        r2Key: assets.r2Key,
+      })
+      .from(musicTracks)
+      .innerJoin(assets, eq(musicTracks.assetId, assets.id))
+      .where(eq(musicTracks.id, id))
+      .limit(1);
+
+    if (!existing) return null;
+    return {
+      trackId: existing.trackId,
+      assetId: existing.assetId,
+      r2Key: existing.r2Key,
+    };
+  }
+
+  async deletePlatformMusicTrackAndAsset(trackId: string, assetId: string) {
+    await this.db.delete(musicTracks).where(eq(musicTracks.id, trackId));
+    await this.db.delete(assets).where(eq(assets.id, assetId));
+  }
+
+  async insertAiCostLedgerRow(values: {
+    userId: string | null;
+    provider: string;
+    model: string;
+    featureType: string;
+    inputTokens: number;
+    outputTokens: number;
+    inputCost: string;
+    outputCost: string;
+    totalCost: string;
+    durationMs: number;
+    metadata: Record<string, unknown> | null;
+  }) {
+    await this.db.insert(aiCostLedger).values(values);
   }
 }

@@ -3,7 +3,7 @@ import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, FLUX_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
-import { systemConfigService } from "@/services/config/system-config.service";
+import { systemConfigService } from "@/domain/singletons";
 import { tmpdir } from "os";
 import { join } from "path";
 import { unlinkSync, existsSync } from "fs";

@@ -2,19 +2,13 @@ import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import { users, featureUsages } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { adminDb } from "../../services/firebase/admin";
+import { adminService } from "../../domain/singletons";
 import {
   extractSubscriptionTier,
 } from "../../services/firebase/subscription-helpers";
 import { getTierConfig } from "../../constants/subscription.constants";
-import { Errors } from "../../utils/errors/app-error";
-import {
-  adminSubscriptionIdParamSchema,
-  adminSubscriptionsQuerySchema,
-} from "../../domain/admin/admin.schemas";
+import { adminSubscriptionsQuerySchema } from "../../domain/admin/admin.schemas";
 
 const subscriptionsRouter = new Hono<HonoEnv>();
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
@@ -51,11 +45,7 @@ subscriptionsRouter.get(
       for (const subDoc of subscriptionsSnapshot.docs) {
         const subData = subDoc.data();
 
-        const [dbUser] = await db
-          .select({ id: users.id, name: users.name, email: users.email })
-          .from(users)
-          .where(eq(users.firebaseUid, customerDoc.id))
-          .limit(1);
+        const dbUser = await adminService.findUserByFirebaseUid(customerDoc.id);
 
         const tierFromMetadata = extractSubscriptionTier(subData);
 
@@ -70,25 +60,9 @@ subscriptionsRouter.get(
               ? null
               : tierConfig.features.maxGenerationsPerMonth;
 
-          const now = new Date();
-          const startOfMonth = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            1,
+          usageCount = await adminService.countGenerationUsagesThisMonth(
+            dbUser.id,
           );
-
-          const [usageResult] = await db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(featureUsages)
-            .where(
-              and(
-                eq(featureUsages.userId, dbUser.id),
-                eq(featureUsages.featureType, "generation"),
-                gte(featureUsages.createdAt, startOfMonth),
-              ),
-            );
-
-          usageCount = usageResult?.count ?? 0;
         }
 
         allSubscriptions.push({

@@ -1,22 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { db } from "../services/db/db";
-import {
-  generatedContent,
-  queueItems,
-  reelAnalyses,
-  musicTracks,
-  assets,
-  contentAssets,
-  reels,
-} from "../infrastructure/database/drizzle/schema";
-import { eq, and, or, ilike, desc, gte, isNotNull, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
 import type { HonoEnv } from "../types/hono.types";
-import {
-  assertNoChainQueueItem,
-  findChainQueueItem,
-} from "./queue-chain-guard";
+import { resolveChainTip } from "../domain/queue/pipeline/content-chain";
+import { chatToolsRepository } from "../domain/singletons";
 import { VOICES, getVoiceById } from "../config/voices";
 import { OPENAI_API_KEY, FAL_API_KEY } from "../utils/config/envUtil";
 import { generateSpeech } from "../services/tts/elevenlabs";
@@ -109,39 +96,16 @@ export function createSaveContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const row = await db.transaction(async (tx) => {
-          const [inserted] = await tx
-            .insert(generatedContent)
-            .values({
-              userId: context.auth.user.id,
-              prompt: context.content,
-              generatedHook: hook,
-              postCaption,
-              generatedScript: script,
-              voiceoverScript,
-              sceneDescription,
-              generatedMetadata: { hashtags, cta, contentType },
-              outputType: contentType,
-              status: "draft",
-              version: 1,
-            })
-            .returning();
-
-          // v1 brand-new content — no chain exists yet, but guard anyway so any
-          // future regression blows up loudly instead of silently duplicating.
-          await assertNoChainQueueItem(
-            tx,
-            inserted.id,
-            context.auth.user.id,
-            "save_content",
-          );
-          await tx.insert(queueItems).values({
-            userId: context.auth.user.id,
-            generatedContentId: inserted.id,
-            status: "draft",
-          });
-
-          return inserted;
+        const row = await chatToolsRepository.saveNewDraftContentWithQueueItem({
+          userId: context.auth.user.id,
+          prompt: context.content,
+          hook,
+          postCaption,
+          script,
+          voiceoverScript,
+          sceneDescription,
+          generatedMetadata: { hashtags, cta, contentType },
+          outputType: contentType,
         });
 
         context.savedContentId = row.id;
@@ -195,22 +159,9 @@ export function createGetReelAnalysisTool(context: ToolContext) {
         return { error: "reel_not_in_context" };
       }
       try {
-        const [analysis] = await db
-          .select({
-            hookCategory: reelAnalyses.hookCategory,
-            emotionalTrigger: reelAnalyses.emotionalTrigger,
-            formatPattern: reelAnalyses.formatPattern,
-            ctaType: reelAnalyses.ctaType,
-            remixSuggestion: reelAnalyses.remixSuggestion,
-            captionFramework: reelAnalyses.captionFramework,
-            curiosityGapStyle: reelAnalyses.curiosityGapStyle,
-            replicabilityScore: reelAnalyses.replicabilityScore,
-            commentBaitStyle: reelAnalyses.commentBaitStyle,
-            engagementDrivers: reelAnalyses.engagementDrivers,
-          })
-          .from(reelAnalyses)
-          .where(eq(reelAnalyses.reelId, reelId))
-          .limit(1);
+        const analysis = await chatToolsRepository.findReelAnalysisForTool(
+          reelId,
+        );
         if (!analysis) {
           debugLog.info("[tool:get_reel_analysis] No analysis found for reel", {
             service: "chat-tools",
@@ -258,29 +209,10 @@ export function createGetContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const [row] = await db
-          .select({
-            id: generatedContent.id,
-            version: generatedContent.version,
-            outputType: generatedContent.outputType,
-            status: generatedContent.status,
-            generatedHook: generatedContent.generatedHook,
-            postCaption: generatedContent.postCaption,
-            generatedScript: generatedContent.generatedScript,
-            voiceoverScript: generatedContent.voiceoverScript,
-            sceneDescription: generatedContent.sceneDescription,
-            generatedMetadata: generatedContent.generatedMetadata,
-            parentId: generatedContent.parentId,
-            createdAt: generatedContent.createdAt,
-          })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const row = await chatToolsRepository.findContentForGetTool(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!row) {
           return { error: "not_found" };
@@ -373,84 +305,48 @@ export function createEditContentFieldTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        // Ownership check
-        const [parent] = await db
-          .select()
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const parent = await chatToolsRepository.findFullGeneratedContentForUser(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!parent) {
           return { error: "not_found" };
         }
 
-        // Resolve to the chain tip with a single recursive-style query
-        const tip = await resolveChainTip(parent.id, context.auth.user.id);
+        const tip = await resolveChainTip(
+          parent.id,
+          context.auth.user.id,
+          chatToolsRepository.client,
+        );
 
         const parentMeta = tip.generatedMetadata as Record<
           string,
           unknown
         > | null;
 
-        // Merge: only override fields that are explicitly provided
         const newMetadata = {
           hashtags: edits.hashtags ?? parentMeta?.hashtags,
           cta: edits.cta ?? parentMeta?.cta,
           changeDescription,
         };
 
-        const row = await db.transaction(async (tx) => {
-          const [inserted] = await tx
-            .insert(generatedContent)
-            .values({
-              userId: context.auth.user.id,
-              prompt: context.content,
-              sourceReelId: tip.sourceReelId,
-              generatedHook: edits.hook ?? tip.generatedHook,
-              postCaption: edits.postCaption ?? tip.postCaption,
-              generatedScript: edits.script ?? tip.generatedScript,
-              voiceoverScript: edits.voiceoverScript ?? tip.voiceoverScript,
-              sceneDescription: edits.sceneDescription ?? tip.sceneDescription,
-              generatedMetadata: newMetadata,
-              outputType: tip.outputType,
-              status: "draft",
-              version: tip.version + 1,
-              parentId: tip.id,
-            })
-            .returning();
-
-          // Walk the full chain to find any existing queue item (handles stranded
-          // items at grandparent levels), then move it forward. Never insert new.
-          const existing = await findChainQueueItem(
-            tx,
-            tip.id,
-            context.auth.user.id,
-          );
-          if (existing) {
-            await tx
-              .update(queueItems)
-              .set({ generatedContentId: inserted.id })
-              .where(eq(queueItems.id, existing.queueItemId));
-          } else {
-            await assertNoChainQueueItem(
-              tx,
-              inserted.id,
-              context.auth.user.id,
-              "edit_content_field",
-            );
-            await tx.insert(queueItems).values({
-              userId: context.auth.user.id,
-              generatedContentId: inserted.id,
-              status: "draft",
-            });
-          }
-
-          return inserted;
+        const row = await chatToolsRepository.transactionEditContentNewVersion({
+          userId: context.auth.user.id,
+          prompt: context.content,
+          tip,
+          values: {
+            sourceReelId: tip.sourceReelId,
+            generatedHook: edits.hook ?? tip.generatedHook,
+            postCaption: edits.postCaption ?? tip.postCaption,
+            generatedScript: edits.script ?? tip.generatedScript,
+            voiceoverScript: edits.voiceoverScript ?? tip.voiceoverScript,
+            sceneDescription: edits.sceneDescription ?? tip.sceneDescription,
+            generatedMetadata: newMetadata,
+            outputType: tip.outputType,
+            version: tip.version + 1,
+            parentId: tip.id,
+          },
         });
 
         context.savedContentId = row.id;
@@ -534,17 +430,10 @@ export function createIterateContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        // Ownership check: verify parentContentId belongs to this user
-        const [parent] = await db
-          .select()
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, parentContentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const parent = await chatToolsRepository.findFullGeneratedContentForUser(
+          context.auth.user.id,
+          parentContentId,
+        );
 
         if (!parent) {
           debugLog.warn(
@@ -559,10 +448,10 @@ export function createIterateContentTool(context: ToolContext) {
           return { error: "not_found" };
         }
 
-        // Resolve to the chain tip in a single DB round trip
         const effectiveParent = await resolveChainTip(
           parent.id,
           context.auth.user.id,
+          chatToolsRepository.client,
         );
 
         debugLog.info(
@@ -582,59 +471,18 @@ export function createIterateContentTool(context: ToolContext) {
           unknown
         > | null;
 
-        const row = await db.transaction(async (tx) => {
-          const [inserted] = await tx
-            .insert(generatedContent)
-            .values({
-              userId: context.auth.user.id,
-              prompt: context.content,
-              sourceReelId: effectiveParent.sourceReelId,
-              generatedHook: hook ?? effectiveParent.generatedHook,
-              postCaption: postCaption ?? effectiveParent.postCaption,
-              generatedScript: script ?? effectiveParent.generatedScript,
-              voiceoverScript: voiceoverScript ?? effectiveParent.voiceoverScript,
-              sceneDescription:
-                sceneDescription ?? effectiveParent.sceneDescription,
-              generatedMetadata: {
-                hashtags: hashtags ?? parentMeta?.hashtags,
-                cta: cta ?? parentMeta?.cta,
-                changeDescription,
-              },
-              outputType: effectiveParent.outputType,
-              status: "draft",
-              version: effectiveParent.version + 1,
-              parentId: effectiveParent.id,
-            })
-            .returning();
-
-          // Walk the full chain to find any existing queue item (handles stranded
-          // items at grandparent levels), then move it forward. Never insert new.
-          const existing = await findChainQueueItem(
-            tx,
-            effectiveParent.id,
-            context.auth.user.id,
-          );
-          if (existing) {
-            await tx
-              .update(queueItems)
-              .set({ generatedContentId: inserted.id })
-              .where(eq(queueItems.id, existing.queueItemId));
-          } else {
-            await assertNoChainQueueItem(
-              tx,
-              inserted.id,
-              context.auth.user.id,
-              "iterate_content",
-            );
-            await tx.insert(queueItems).values({
-              userId: context.auth.user.id,
-              generatedContentId: inserted.id,
-              status: "draft",
-            });
-          }
-
-          return inserted;
-        });
+        const row = await chatToolsRepository.transactionIterateContentNewVersion(
+          {
+            userId: context.auth.user.id,
+            prompt: context.content,
+            effectiveParent,
+            generatedMetadata: {
+              hashtags: hashtags ?? parentMeta?.hashtags,
+              cta: cta ?? parentMeta?.cta,
+              changeDescription,
+            },
+          },
+        );
 
         context.savedContentId = row.id;
 
@@ -683,27 +531,14 @@ export function createUpdateContentStatusTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const [updated] = await db
-          .update(generatedContent)
-          .set({ status })
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .returning({ id: generatedContent.id });
+        const updated = await chatToolsRepository.updateContentStatusForUser(
+          context.auth.user.id,
+          contentId,
+          status,
+        );
 
         if (!updated) {
           return { error: "not_found" };
-        }
-
-        // Sync queue item status for draft/queued transitions
-        if (status === "queued" || status === "draft") {
-          await db
-            .update(queueItems)
-            .set({ status })
-            .where(eq(queueItems.generatedContentId, contentId));
         }
 
         debugLog.info("[tool:update_content_status] Status updated", {
@@ -763,35 +598,12 @@ export function createSearchContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const conditions = [eq(generatedContent.userId, context.auth.user.id)];
-
-        if (status) {
-          conditions.push(eq(generatedContent.status, status));
-        }
-
-        if (query) {
-          conditions.push(
-            or(
-              ilike(generatedContent.generatedHook, `%${query}%`),
-              ilike(generatedContent.postCaption, `%${query}%`),
-            )!,
-          );
-        }
-
-        const rows = await db
-          .select({
-            id: generatedContent.id,
-            version: generatedContent.version,
-            outputType: generatedContent.outputType,
-            status: generatedContent.status,
-            hook: generatedContent.generatedHook,
-            postCaption: generatedContent.postCaption,
-            createdAt: generatedContent.createdAt,
-          })
-          .from(generatedContent)
-          .where(and(...conditions))
-          .orderBy(desc(generatedContent.createdAt))
-          .limit(limit);
+        const rows = await chatToolsRepository.searchUserGeneratedContent({
+          userId: context.auth.user.id,
+          query,
+          status,
+          limit,
+        });
 
         debugLog.info("[tool:search_content] Results returned", {
           service: "chat-tools",
@@ -853,20 +665,10 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
           return { success: false as const, reason: "voice_not_found" };
         }
 
-        const [content] = await db
-          .select({
-            id: generatedContent.id,
-            voiceoverScript: generatedContent.voiceoverScript,
-            generatedHook: generatedContent.generatedHook,
-          })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const content = await chatToolsRepository.findContentVoiceoverSource(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!content) return { success: false as const, reason: "not_found" };
 
@@ -888,59 +690,28 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
         const r2Key = `voiceovers/${context.auth.user.id}/${contentId}/${Date.now()}.mp3`;
         const r2Url = await uploadFile(audioBuffer, r2Key, "audio/mpeg");
 
-        // Delete existing voiceover asset if present
-        const [existingLink] = await db
-          .select({ assetId: contentAssets.assetId })
-          .from(contentAssets)
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "voiceover"),
-            ),
-          )
-          .limit(1);
-
-        if (existingLink) {
-          const [existingAsset] = await db
-            .select({ r2Key: assets.r2Key })
-            .from(assets)
-            .where(eq(assets.id, existingLink.assetId))
-            .limit(1);
-          if (existingAsset?.r2Key) {
-            await deleteFile(existingAsset.r2Key).catch(() => {});
+        const existing = await chatToolsRepository.getVoiceoverAttachmentForContent(
+          contentId,
+        );
+        if (existing) {
+          if (existing.r2Key) {
+            await deleteFile(existing.r2Key).catch(() => {});
           }
-          await db
-            .delete(contentAssets)
-            .where(
-              and(
-                eq(contentAssets.generatedContentId, contentId),
-                eq(contentAssets.role, "voiceover"),
-              ),
-            );
-          await db
-            .delete(assets)
-            .where(eq(assets.id, existingLink.assetId))
+          await chatToolsRepository.deleteVoiceoverLinksForContent(contentId);
+          await chatToolsRepository
+            .deleteAssetById(existing.assetId)
             .catch(() => {});
         }
 
-        const [asset] = await db
-          .insert(assets)
-          .values({
-            userId: context.auth.user.id,
-            type: "voiceover",
-            source: "tts",
-            r2Key,
-            r2Url,
-            durationMs,
-            metadata: { voiceId, speed },
-          })
-          .returning({ id: assets.id });
-
-        await db.insert(contentAssets).values({
-          generatedContentId: contentId,
-          assetId: asset.id,
-          role: "voiceover",
+        const asset = await chatToolsRepository.insertVoiceoverAsset({
+          userId: context.auth.user.id,
+          r2Key,
+          r2Url,
+          durationMs,
+          metadata: { voiceId, speed },
         });
+
+        await chatToolsRepository.linkVoiceoverAsset(contentId, asset.id);
 
         const { refreshEditorTimeline } = await import(
           "../routes/editor/services/refresh-editor-timeline"
@@ -1008,32 +779,11 @@ export function createSearchMusicTool(_context: ToolContext) {
     }),
     execute: async ({ mood, search, limit }) => {
       try {
-        const conditions: ReturnType<typeof eq>[] = [
-          eq(musicTracks.isActive, true),
-        ];
-        if (mood) conditions.push(eq(musicTracks.mood, mood));
-        if (search) {
-          conditions.push(
-            or(
-              ilike(musicTracks.name, `%${search}%`),
-              ilike(musicTracks.artistName, `%${search}%`),
-            ) as ReturnType<typeof eq>,
-          );
-        }
-
-        const tracks = await db
-          .select({
-            id: musicTracks.id,
-            name: musicTracks.name,
-            artistName: musicTracks.artistName,
-            durationSeconds: musicTracks.durationSeconds,
-            mood: musicTracks.mood,
-            genre: musicTracks.genre,
-          })
-          .from(musicTracks)
-          .where(and(...conditions))
-          .orderBy(desc(musicTracks.createdAt))
-          .limit(limit);
+        const tracks = await chatToolsRepository.searchActiveMusicTracks({
+          mood,
+          search,
+          limit,
+        });
 
         return { tracks };
       } catch (err) {
@@ -1062,54 +812,27 @@ export function createAttachMusicTool(context: ToolContext) {
     }),
     execute: async ({ contentId, musicTrackId }) => {
       try {
-        const [content] = await db
-          .select({ id: generatedContent.id })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const content = await chatToolsRepository.findOwnedContentId(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!content)
           return { success: false as const, reason: "content_not_found" };
 
-        const [track] = await db
-          .select({
-            id: musicTracks.id,
-            name: musicTracks.name,
-            artistName: musicTracks.artistName,
-            assetId: musicTracks.assetId,
-          })
-          .from(musicTracks)
-          .where(
-            and(
-              eq(musicTracks.id, musicTrackId),
-              eq(musicTracks.isActive, true),
-            ),
-          )
-          .limit(1);
+        const track = await chatToolsRepository.findActiveMusicTrackById(
+          musicTrackId,
+        );
 
         if (!track)
           return { success: false as const, reason: "track_not_found" };
 
-        // Replace existing background_music link if present (shared platform asset — no R2 delete)
-        await db
-          .delete(contentAssets)
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "background_music"),
-            ),
-          );
+        await chatToolsRepository.deleteBackgroundMusicLinks(contentId);
 
-        await db.insert(contentAssets).values({
-          generatedContentId: contentId,
-          assetId: track.assetId,
-          role: "background_music",
-        });
+        await chatToolsRepository.insertBackgroundMusicLink(
+          contentId,
+          track.assetId,
+        );
 
         const { refreshEditorTimeline } = await import(
           "../routes/editor/services/refresh-editor-timeline"
@@ -1175,20 +898,10 @@ export function createGenerateVideoReelTool(context: ToolContext) {
       provider,
     }) => {
       try {
-        const [content] = await db
-          .select({
-            id: generatedContent.id,
-            generatedHook: generatedContent.generatedHook,
-            prompt: generatedContent.prompt,
-          })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const content = await chatToolsRepository.findContentForVideoPrompt(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!content) return { success: false as const, reason: "not_found" };
 
@@ -1296,16 +1009,10 @@ export function createRegenerateVideoShotTool(context: ToolContext) {
       provider,
     }) => {
       try {
-        const [content] = await db
-          .select({ id: generatedContent.id })
-          .from(generatedContent)
-          .where(
-            and(
-              eq(generatedContent.id, contentId),
-              eq(generatedContent.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const content = await chatToolsRepository.findContentIdOnly(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!content) return { success: false as const, reason: "not_found" };
 
@@ -1402,18 +1109,10 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const [link] = await db
-          .select({ assetId: contentAssets.assetId, r2Key: assets.r2Key })
-          .from(contentAssets)
-          .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "voiceover"),
-              eq(assets.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const link = await chatToolsRepository.findVoiceoverLinkWithR2(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!link) return { success: false as const, reason: "no_voiceover" };
 
@@ -1421,18 +1120,10 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
           await deleteFile(link.r2Key).catch(() => {});
         }
 
-        await db
-          .delete(contentAssets)
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "voiceover"),
-            ),
-          );
-        await db
-          .delete(assets)
-          .where(eq(assets.id, link.assetId))
-          .catch(() => {});
+        await chatToolsRepository.deleteVoiceoverLinkAndAsset(
+          contentId,
+          link.assetId,
+        );
 
         return { success: true as const };
       } catch (err) {
@@ -1458,28 +1149,13 @@ export function createRemoveMusicTool(_context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const [link] = await db
-          .select({ assetId: contentAssets.assetId })
-          .from(contentAssets)
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "background_music"),
-            ),
-          )
-          .limit(1);
+        const link = await chatToolsRepository.findBackgroundMusicLink(
+          contentId,
+        );
 
         if (!link) return { success: false as const, reason: "no_music" };
 
-        // background_music links a shared platform asset — only delete the link, not the asset
-        await db
-          .delete(contentAssets)
-          .where(
-            and(
-              eq(contentAssets.generatedContentId, contentId),
-              eq(contentAssets.role, "background_music"),
-            ),
-          );
+        await chatToolsRepository.deleteBackgroundMusicLinkOnly(contentId);
 
         return { success: true as const };
       } catch (err) {
@@ -1507,20 +1183,14 @@ export function createRemoveFromQueueTool(context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const [item] = await db
-          .select({ id: queueItems.id })
-          .from(queueItems)
-          .where(
-            and(
-              eq(queueItems.generatedContentId, contentId),
-              eq(queueItems.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const item = await chatToolsRepository.findQueueItemForUserContent(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!item) return { success: false as const, reason: "not_in_queue" };
 
-        await db.delete(queueItems).where(eq(queueItems.id, item.id));
+        await chatToolsRepository.deleteQueueItemById(item.id);
         return { success: true as const };
       } catch (err) {
         debugLog.error("[tool:remove_from_queue] Failed", {
@@ -1556,16 +1226,10 @@ export function createScheduleContentTool(context: ToolContext) {
         if (date <= new Date())
           return { success: false as const, reason: "date_in_past" };
 
-        const [item] = await db
-          .select({ id: queueItems.id, status: queueItems.status })
-          .from(queueItems)
-          .where(
-            and(
-              eq(queueItems.generatedContentId, contentId),
-              eq(queueItems.userId, context.auth.user.id),
-            ),
-          )
-          .limit(1);
+        const item = await chatToolsRepository.findQueueItemForSchedule(
+          context.auth.user.id,
+          contentId,
+        );
 
         if (!item) return { success: false as const, reason: "not_in_queue" };
         if (item.status === "posted")
@@ -1576,10 +1240,7 @@ export function createScheduleContentTool(context: ToolContext) {
         if (item.status === "draft" || item.status === "ready")
           updateData.status = "scheduled";
 
-        await db
-          .update(queueItems)
-          .set(updateData)
-          .where(eq(queueItems.id, item.id));
+        await chatToolsRepository.updateQueueItemSchedule(item.id, updateData);
 
         return { success: true as const, scheduledFor: date.toISOString() };
       } catch (err) {
@@ -1612,18 +1273,10 @@ export function createGetTrendingAudioTool(_context: ToolContext) {
     }),
     execute: async ({ days, limit }) => {
       try {
-        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-        const trending = await db
-          .select({
-            audioName: reels.audioName,
-            useCount: sql<number>`count(*)::int`,
-          })
-          .from(reels)
-          .where(and(isNotNull(reels.audioName), gte(reels.scrapedAt, cutoff)))
-          .groupBy(reels.audioName)
-          .orderBy(desc(sql`count(*)`))
-          .limit(limit);
+        const trending = await chatToolsRepository.aggregateTrendingAudio(
+          days,
+          limit,
+        );
 
         return {
           tracks: trending.map((t) => ({
@@ -1765,22 +1418,15 @@ export function createGenerateImageTool(context: ToolContext) {
 
         const name = prompt.slice(0, 60) + (prompt.length > 60 ? "…" : "");
 
-        const [item] = await db
-          .insert(assets)
-          .values({
-            id: itemId,
-            userId: context.auth.user.id,
-            name,
-            type: "image",
-            source: "generated",
-            mimeType: "image/png",
-            r2Key,
-            r2Url,
-            sizeBytes: imageBuffer.length,
-            durationMs: null,
-            metadata: { provider, prompt, size, quality },
-          })
-          .returning();
+        const item = await chatToolsRepository.insertGeneratedImageAsset({
+          id: itemId,
+          userId: context.auth.user.id,
+          name,
+          r2Key,
+          r2Url,
+          sizeBytes: imageBuffer.length,
+          metadata: { provider, prompt, size, quality },
+        });
 
         debugLog.info("[tool:generate_image] Image generated and saved", {
           service: "chat-tools",
@@ -1840,56 +1486,4 @@ export function createChatTools(context: ToolContext) {
     remove_from_queue: createRemoveFromQueueTool(context),
     schedule_content: createScheduleContentTool(context),
   };
-}
-
-// ─── Chain Tip Resolution ────────────────────────────────────────────────────
-
-/**
- * Resolves the latest version in a content chain from any node.
- * Finds the tip (the node with no children) in a single DB query
- * instead of an iterative loop.
- */
-async function resolveChainTip(startId: number, userId: string) {
-  // Find the tip: the content row with startId as an ancestor (or itself)
-  // that has no child pointing to it.
-  // Strategy: fetch all descendants in one shot, then return the tail.
-  const MAX_CHAIN_DEPTH = 50;
-  const visitedIds = new Set<number>();
-  let current = await db
-    .select()
-    .from(generatedContent)
-    .where(
-      and(
-        eq(generatedContent.id, startId),
-        eq(generatedContent.userId, userId),
-      ),
-    )
-    .limit(1)
-    .then((r) => r[0]);
-
-  if (!current) throw new Error("Content not found");
-
-  let depth = 0;
-  visitedIds.add(current.id);
-
-  while (depth < MAX_CHAIN_DEPTH) {
-    const [child] = await db
-      .select()
-      .from(generatedContent)
-      .where(
-        and(
-          eq(generatedContent.parentId, current.id),
-          eq(generatedContent.userId, userId),
-        ),
-      )
-      .orderBy(desc(generatedContent.createdAt))
-      .limit(1);
-
-    if (!child || visitedIds.has(child.id)) break;
-    visitedIds.add(child.id);
-    current = child;
-    depth++;
-  }
-
-  return current;
 }

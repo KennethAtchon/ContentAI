@@ -48,6 +48,13 @@ export interface ICustomerRepository {
     since: Date,
   ): Promise<number>;
 
+  insertFeatureUsage(params: {
+    userId: string;
+    featureType: "generation" | "reel_analysis";
+    inputData: Record<string, unknown>;
+    resultData: Record<string, unknown>;
+  }): Promise<void>;
+
   // Order operations
   listOrders(
     userId: string,
@@ -198,6 +205,21 @@ export class CustomerRepository implements ICustomerRepository {
       );
 
     return result?.count ?? 0;
+  }
+
+  async insertFeatureUsage(params: {
+    userId: string;
+    featureType: "generation" | "reel_analysis";
+    inputData: Record<string, unknown>;
+    resultData: Record<string, unknown>;
+  }) {
+    await this.db.insert(featureUsages).values({
+      userId: params.userId,
+      featureType: params.featureType,
+      inputData: params.inputData,
+      resultData: params.resultData,
+      usageTimeMs: 0,
+    });
   }
 
   async listOrders(

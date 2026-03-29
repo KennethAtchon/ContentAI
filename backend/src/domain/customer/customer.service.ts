@@ -219,4 +219,18 @@ export class CustomerService {
     const total = await this.customerRepo.getTotalRevenue(userId);
     return total ?? "0";
   }
+
+  recordFeatureUsage(
+    userId: string,
+    featureType: "generation" | "reel_analysis",
+    inputData: Record<string, unknown> = {},
+    resultData: Record<string, unknown> = {},
+  ) {
+    return this.customerRepo.insertFeatureUsage({
+      userId,
+      featureType,
+      inputData,
+      resultData,
+    });
+  }
 }

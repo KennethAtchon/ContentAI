@@ -8,21 +8,18 @@
  * getAll() redacts encrypted values so they are never sent over the wire.
  */
 
-import { db } from "@/services/db/db";
-import {
-  systemConfig,
-  type SystemConfig,
-} from "@/infrastructure/database/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import type { IConfigRepository } from "@/domain/config/config.repository";
+import type { SystemConfig } from "@/infrastructure/database/drizzle/schema";
 import { encrypt, decrypt } from "@/utils/crypto/encryption";
 import { debugLog } from "@/utils/debug/debug";
 
 const CACHE_TTL_SECONDS = 60;
 
-class SystemConfigService {
+export class SystemConfigService {
+  constructor(private readonly config: IConfigRepository) {}
+
   private getRedis() {
     try {
-      // Lazy import to avoid crash if Redis is not available
       const getRedisConnection = require("@/services/db/redis")
         .default as () => import("ioredis").default;
       return getRedisConnection();
@@ -84,15 +81,7 @@ class SystemConfigService {
     const cached = await this.readCache(category);
     if (cached) return cached;
 
-    const rows = await db
-      .select()
-      .from(systemConfig)
-      .where(
-        and(
-          eq(systemConfig.category, category),
-          eq(systemConfig.isActive, true),
-        ),
-      );
+    const rows = await this.config.listSystemConfigByCategoryActive(category);
 
     await this.writeCache(category, rows);
     return rows;
@@ -178,33 +167,22 @@ class SystemConfigService {
         typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
     }
 
-    await db
-      .insert(systemConfig)
-      .values({
-        category,
-        key,
-        value: stringValue,
-        encryptedValue,
-        valueType: existing?.valueType ?? "string",
-        isSecret: existing?.isSecret ?? false,
-        updatedBy: updatedBy ?? null,
-      })
-      .onConflictDoUpdate({
-        target: [systemConfig.category, systemConfig.key],
-        set: {
-          value: stringValue,
-          encryptedValue,
-          updatedBy: updatedBy ?? null,
-          updatedAt: new Date(),
-        },
-      });
+    await this.config.upsertSystemConfigRow({
+      category,
+      key,
+      value: stringValue,
+      encryptedValue,
+      valueType: existing?.valueType ?? "string",
+      isSecret: existing?.isSecret ?? false,
+      updatedBy: updatedBy ?? null,
+    });
 
     await this.invalidateCache(category);
   }
 
   /** Returns all config rows. Secrets show value="[ENCRYPTED]" and encryptedValue=null. */
   async getAll(): Promise<SystemConfig[]> {
-    const rows = await db.select().from(systemConfig);
+    const rows = await this.config.listAllSystemConfig();
     return rows.map((r) =>
       r.isSecret
         ? {
@@ -247,5 +225,3 @@ class SystemConfigService {
     return !!val;
   }
 }
-
-export const systemConfigService = new SystemConfigService();
