@@ -1,15 +1,35 @@
-import { Hono } from "hono";
-import { z } from "zod";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { systemConfigService } from "../../services/config/system-config.service";
 import { debugLog } from "../../utils/debug/debug";
+import {
+  adminConfigInvalidateBodySchema,
+  adminConfigUpdateBodySchema,
+  adminConfigCategoryParamSchema,
+  adminConfigKeyParamSchema,
+} from "../../domain/admin/admin.schemas";
 
 const configAdminRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/admin/config ────────────────────────────────────────────────────
 
@@ -38,9 +58,10 @@ configAdminRouter.get(
   "/config/:category",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminConfigCategoryParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const category = c.req.param("category");
+      const { category } = c.req.valid("param");
       const rows = await systemConfigService.getCategoryPublic(category);
       return c.json(rows);
     } catch (error) {
@@ -56,32 +77,23 @@ configAdminRouter.get(
 
 // ─── PUT /api/admin/config/:category/:key ─────────────────────────────────────
 
-const updateSchema = z.object({
-  value: z.unknown(),
-  description: z.string().optional(),
-});
-
 configAdminRouter.put(
   "/config/:category/:key",
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminConfigKeyParamSchema, validationErrorHook),
+  zValidator("json", adminConfigUpdateBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const category = c.req.param("category");
-      const key = c.req.param("key");
-      const body = await c.req.json();
-      const parsed = updateSchema.safeParse(body);
-
-      if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
-      }
+      const { category, key } = c.req.valid("param");
+      const parsed = c.req.valid("json");
 
       const auth = c.get("auth");
       await systemConfigService.set(
         category,
         key,
-        parsed.data.value,
+        parsed.value,
         auth.user.email,
       );
 
@@ -304,10 +316,10 @@ configAdminRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", adminConfigInvalidateBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json().catch(() => ({}));
-      const category = (body as Record<string, string>).category ?? "all";
+      const { category } = c.req.valid("json");
       await systemConfigService.invalidateCache(category);
       return c.json({ success: true, invalidated: category });
     } catch (error) {

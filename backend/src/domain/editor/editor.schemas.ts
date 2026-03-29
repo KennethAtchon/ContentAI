@@ -24,7 +24,9 @@ const clipDataSchema = z.object({
   durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  sourceMaxDurationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)).optional(),
+  sourceMaxDurationMs: z
+    .preprocess(roundFiniteMs, z.number().int().min(0))
+    .optional(),
   speed: z.number().min(0.1).max(10),
   opacity: z.number().min(0).max(1),
   warmth: z.number().min(-100).max(100),
@@ -72,10 +74,7 @@ const transitionSchema = z.object({
     "wipe-right",
     "none",
   ]),
-  durationMs: z.preprocess(
-    roundFiniteMs,
-    z.number().int().min(200).max(2000),
-  ),
+  durationMs: z.preprocess(roundFiniteMs, z.number().int().min(200).max(2000)),
   clipAId: z.string().min(1),
   clipBId: z.string().min(1),
 });
@@ -99,10 +98,10 @@ export const patchProjectSchema = z.object({
     z.optional(z.string().min(1).max(200)),
   ),
   tracks: z.array(editorTrackDataSchema).optional(),
-  durationMs: z.optional(
-    z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  durationMs: z.optional(z.preprocess(roundFiniteMs, z.number().int().min(0))),
+  fps: z.optional(
+    z.preprocess(roundFiniteMs, z.number().int().min(1).max(120)),
   ),
-  fps: z.optional(z.preprocess(roundFiniteMs, z.number().int().min(1).max(120))),
   resolution: resolutionEnum.optional(),
 });
 
@@ -127,13 +126,7 @@ export const aiAssemblyResponseSchema = z.object({
     }),
   ),
   captionStyle: z
-    .enum([
-      "hormozi",
-      "clean-minimal",
-      "dark-box",
-      "karaoke",
-      "bold-outline",
-    ])
+    .enum(["hormozi", "clean-minimal", "dark-box", "karaoke", "bold-outline"])
     .optional(),
   captionGroupSize: z.number().int().min(1).max(6).optional(),
   musicVolume: z.number().min(0).max(1),
@@ -142,4 +135,30 @@ export const aiAssemblyResponseSchema = z.object({
 
 export const aiAssembleRequestSchema = z.object({
   platform: z.enum(["instagram", "tiktok", "youtube-shorts"]),
+});
+
+export const transcribeCaptionsSchema = z.object({
+  assetId: z.string().min(1),
+});
+
+export const forkProjectSchema = z.object({
+  resetToAI: z.boolean().optional(),
+});
+
+export const editorProjectIdParamSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const editorSnapshotParamSchema = z.object({
+  id: z.string().min(1),
+  snapshotId: z.string().min(1),
+});
+
+export const captionAssetIdParamSchema = z.object({
+  assetId: z.string().min(1),
+});
+
+export const editorAssetsQuerySchema = z.object({
+  contentId: z.coerce.number().int().positive().optional(),
+  role: z.string().trim().optional(),
 });

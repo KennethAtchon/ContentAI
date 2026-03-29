@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { streamText, stepCountIs, createUIMessageStreamResponse } from "ai";
@@ -25,14 +25,32 @@ import { recordAiCost } from "../../lib/cost-tracker";
 import { getModelInfo } from "../../lib/aiClient";
 import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "../../lib/chat-tools";
-import { uuidProjectParam } from "../../validation/shared.schemas";
+import { uuidParam, uuidProjectParam } from "../../validation/shared.schemas";
 import { contentService } from "../../domain/singletons";
+import { Errors } from "../../utils/errors/app-error";
 
 const app = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // Zod schemas for validation
 const createSessionSchema = uuidProjectParam.extend({
   title: z.string().min(1).max(100).optional(),
+});
+const listSessionsQuerySchema = z.object({
+  projectId: z.string().uuid().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -51,48 +69,40 @@ app.get(
   "/sessions",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", listSessionsQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const projectId = c.req.query("projectId");
+    const auth = c.get("auth");
+    const { projectId } = c.req.valid("query");
 
-      const whereClause = projectId
-        ? and(
-            eq(chatSessions.userId, auth.user.id),
-            eq(chatSessions.projectId, projectId),
-          )
-        : eq(chatSessions.userId, auth.user.id);
+    const whereClause = projectId
+      ? and(
+          eq(chatSessions.userId, auth.user.id),
+          eq(chatSessions.projectId, projectId),
+        )
+      : eq(chatSessions.userId, auth.user.id);
 
-      const sessions = await db
-        .select({
-          id: chatSessions.id,
-          title: chatSessions.title,
-          projectId: chatSessions.projectId,
-          project: {
-            id: projects.id,
-            name: projects.name,
-          },
-          createdAt: chatSessions.createdAt,
-          updatedAt: chatSessions.updatedAt,
-          messageCount:
-            sql<number>`(SELECT COUNT(*) FROM ${chatMessages} WHERE ${chatMessages.sessionId} = ${chatSessions.id})`.mapWith(
-              Number,
-            ),
-        })
-        .from(chatSessions)
-        .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-        .where(whereClause)
-        .orderBy(desc(chatSessions.updatedAt));
+    const sessions = await db
+      .select({
+        id: chatSessions.id,
+        title: chatSessions.title,
+        projectId: chatSessions.projectId,
+        project: {
+          id: projects.id,
+          name: projects.name,
+        },
+        createdAt: chatSessions.createdAt,
+        updatedAt: chatSessions.updatedAt,
+        messageCount:
+          sql<number>`(SELECT COUNT(*) FROM ${chatMessages} WHERE ${chatMessages.sessionId} = ${chatSessions.id})`.mapWith(
+            Number,
+          ),
+      })
+      .from(chatSessions)
+      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
+      .where(whereClause)
+      .orderBy(desc(chatSessions.updatedAt));
 
-      return c.json({ sessions });
-    } catch (error) {
-      debugLog.error("Failed to fetch chat sessions", {
-        service: "chat-route",
-        operation: "getSessions",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch sessions" }, 500);
-    }
+    return c.json({ sessions });
   },
 );
 
@@ -104,43 +114,34 @@ app.post(
   authMiddleware("user"),
   zValidator("json", createSessionSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { projectId, title } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { projectId, title } = c.req.valid("json");
 
-      // Verify project exists and belongs to user
-      const [project] = await db
-        .select()
-        .from(projects)
-        .where(
-          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-        )
-        .limit(1);
+    // Verify project exists and belongs to user
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(
+        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+      )
+      .limit(1);
 
-      if (!project) {
-        return c.json({ error: "Project not found" }, 404);
-      }
-
-      const sessionTitle = title || "New Chat Session";
-      const [newSession] = await db
-        .insert(chatSessions)
-        .values({
-          id: crypto.randomUUID(),
-          userId: auth.user.id,
-          projectId,
-          title: sessionTitle,
-        })
-        .returning();
-
-      return c.json({ session: newSession }, 201);
-    } catch (error) {
-      debugLog.error("Failed to create chat session", {
-        service: "chat-route",
-        operation: "createSession",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to create session" }, 500);
+    if (!project) {
+      throw Errors.notFound("Project");
     }
+
+    const sessionTitle = title || "New Chat Session";
+    const [newSession] = await db
+      .insert(chatSessions)
+      .values({
+        id: crypto.randomUUID(),
+        userId: auth.user.id,
+        projectId,
+        title: sessionTitle,
+      })
+      .returning();
+
+    return c.json({ session: newSession }, 201);
   },
 );
 
@@ -157,18 +158,17 @@ app.post(
     z.object({ generatedContentId: z.number().int().positive() }),
   ),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { generatedContentId } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { generatedContentId } = c.req.valid("json");
 
-      const content = await contentService.getOwnedContentHook(
-        generatedContentId,
-        auth.user.id,
-      );
+    const content = await contentService.getOwnedContentHook(
+      generatedContentId,
+      auth.user.id,
+    );
 
-      if (!content) {
-        return c.json({ error: "Content not found" }, 404);
-      }
+    if (!content) {
+      throw Errors.notFound("Content");
+    }
 
       // Find the most recently active session that has discussed this content
       const existingRow = await db
@@ -224,18 +224,10 @@ app.post(
         })
         .returning({ id: chatSessions.id, projectId: chatSessions.projectId });
 
-      return c.json({
-        sessionId: newSession.id,
-        projectId: newSession.projectId,
-      });
-    } catch (error) {
-      debugLog.error("Failed to resolve session for content", {
-        service: "chat-route",
-        operation: "resolveForContent",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to resolve session" }, 500);
-    }
+    return c.json({
+      sessionId: newSession.id,
+      projectId: newSession.projectId,
+    });
   },
 );
 
@@ -244,83 +236,75 @@ app.get(
   "/sessions/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const sessionId = c.req.param("id");
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
 
-      // Verify session exists and belongs to user
-      const [session] = await db
-        .select({
-          id: chatSessions.id,
-          title: chatSessions.title,
-          projectId: chatSessions.projectId,
-          project: {
-            id: projects.id,
-            name: projects.name,
-          },
-          createdAt: chatSessions.createdAt,
-          updatedAt: chatSessions.updatedAt,
-        })
-        .from(chatSessions)
-        .leftJoin(projects, eq(chatSessions.projectId, projects.id))
-        .where(
-          and(
-            eq(chatSessions.id, sessionId),
-            eq(chatSessions.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
+    // Verify session exists and belongs to user
+    const [session] = await db
+      .select({
+        id: chatSessions.id,
+        title: chatSessions.title,
+        projectId: chatSessions.projectId,
+        project: {
+          id: projects.id,
+          name: projects.name,
+        },
+        createdAt: chatSessions.createdAt,
+        updatedAt: chatSessions.updatedAt,
+      })
+      .from(chatSessions)
+      .leftJoin(projects, eq(chatSessions.projectId, projects.id))
+      .where(
+        and(
+          eq(chatSessions.id, sessionId),
+          eq(chatSessions.userId, auth.user.id),
+        ),
+      )
+      .limit(1);
 
-      if (!session) {
-        return c.json({ error: "Session not found" }, 404);
-      }
-
-      // Get messages for this session
-      const messages = await db
-        .select({
-          id: chatMessages.id,
-          role: chatMessages.role,
-          content: chatMessages.content,
-          generatedContentId: chatMessages.generatedContentId,
-          createdAt: chatMessages.createdAt,
-        })
-        .from(chatMessages)
-        .where(eq(chatMessages.sessionId, sessionId))
-        .orderBy(chatMessages.createdAt);
-
-      // Load attachments for all messages
-      const messageIds = messages.map((m) => m.id);
-      const attachments =
-        messageIds.length > 0
-          ? await db
-              .select()
-              .from(messageAttachments)
-              .where(inArray(messageAttachments.messageId, messageIds))
-          : [];
-
-      const attachmentsByMessage = attachments.reduce<
-        Record<string, typeof attachments>
-      >((acc, a) => {
-        acc[a.messageId] ??= [];
-        acc[a.messageId].push(a);
-        return acc;
-      }, {});
-
-      const messagesWithAttachments = messages.map((m) => ({
-        ...m,
-        attachments: attachmentsByMessage[m.id] ?? [],
-      }));
-
-      return c.json({ session, messages: messagesWithAttachments });
-    } catch (error) {
-      debugLog.error("Failed to fetch chat session", {
-        service: "chat-route",
-        operation: "getSession",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch session" }, 500);
+    if (!session) {
+      throw Errors.notFound("Session");
     }
+
+    // Get messages for this session
+    const messages = await db
+      .select({
+        id: chatMessages.id,
+        role: chatMessages.role,
+        content: chatMessages.content,
+        generatedContentId: chatMessages.generatedContentId,
+        createdAt: chatMessages.createdAt,
+      })
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(chatMessages.createdAt);
+
+    // Load attachments for all messages
+    const messageIds = messages.map((m) => m.id);
+    const attachments =
+      messageIds.length > 0
+        ? await db
+            .select()
+            .from(messageAttachments)
+            .where(inArray(messageAttachments.messageId, messageIds))
+        : [];
+
+    const attachmentsByMessage = attachments.reduce<
+      Record<string, typeof attachments>
+    >((acc, a) => {
+      acc[a.messageId] ??= [];
+      acc[a.messageId].push(a);
+      return acc;
+    }, {});
+
+    const messagesWithAttachments = messages.map((m) => ({
+      ...m,
+      attachments: attachmentsByMessage[m.id] ?? [],
+    }));
+
+    return c.json({ session, messages: messagesWithAttachments });
   },
 );
 
@@ -329,109 +313,101 @@ app.get(
   "/sessions/:id/content",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const sessionId = c.req.param("id");
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
 
-      // Verify session belongs to user
-      const [session] = await db
-        .select({ id: chatSessions.id })
-        .from(chatSessions)
-        .where(
-          and(
-            eq(chatSessions.id, sessionId),
-            eq(chatSessions.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!session) {
-        return c.json({ error: "Session not found" }, 404);
-      }
-
-      // Get all generatedContentIds from chatMessages for this session
-      const messageRows = await db
-        .select({ generatedContentId: chatMessages.generatedContentId })
-        .from(chatMessages)
-        .where(
-          and(
-            eq(chatMessages.sessionId, sessionId),
-            eq(chatMessages.role, "assistant"),
-            isNotNull(chatMessages.generatedContentId),
-          ),
-        );
-
-      const contentIds = [
-        ...new Set(
-          messageRows
-            .map((r) => r.generatedContentId)
-            .filter((id): id is number => id != null),
+    // Verify session belongs to user
+    const [session] = await db
+      .select({ id: chatSessions.id })
+      .from(chatSessions)
+      .where(
+        and(
+          eq(chatSessions.id, sessionId),
+          eq(chatSessions.userId, auth.user.id),
         ),
-      ];
+      )
+      .limit(1);
 
-      if (contentIds.length === 0) {
-        return c.json({ drafts: [] });
-      }
-
-      // Fetch those generatedContent records with ownership check
-      const records = await db
-        .select({
-          id: generatedContent.id,
-          version: generatedContent.version,
-          outputType: generatedContent.outputType,
-          status: generatedContent.status,
-          generatedHook: generatedContent.generatedHook,
-          generatedScript: generatedContent.generatedScript,
-          voiceoverScript: generatedContent.voiceoverScript,
-          postCaption: generatedContent.postCaption,
-          sceneDescription: generatedContent.sceneDescription,
-          generatedMetadata: generatedContent.generatedMetadata,
-          parentId: generatedContent.parentId,
-          createdAt: generatedContent.createdAt,
-        })
-        .from(generatedContent)
-        .where(
-          and(
-            inArray(generatedContent.id, contentIds),
-            eq(generatedContent.userId, auth.user.id),
-          ),
-        );
-
-      // Find tips: records that have no children anywhere in the table.
-      // Checking only within the fetched set would miss branches created by the
-      // AI re-iterating an already-iterated parent (both siblings would pass).
-      const childRows = await db
-        .select({ parentId: generatedContent.parentId })
-        .from(generatedContent)
-        .where(
-          and(
-            inArray(generatedContent.parentId, contentIds),
-            eq(generatedContent.userId, auth.user.id),
-          ),
-        );
-      const idsWithChildren = new Set(
-        childRows
-          .map((r) => r.parentId)
-          .filter((id): id is number => id != null),
-      );
-      const tips = records
-        .filter((r) => !idsWithChildren.has(r.id))
-        .sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        )
-        .map(({ parentId: _parentId, ...rest }) => rest);
-
-      return c.json({ drafts: tips });
-    } catch (error) {
-      debugLog.error("Failed to fetch session content", {
-        service: "chat-route",
-        operation: "getSessionContent",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch session content" }, 500);
+    if (!session) {
+      throw Errors.notFound("Session");
     }
+
+    // Get all generatedContentIds from chatMessages for this session
+    const messageRows = await db
+      .select({ generatedContentId: chatMessages.generatedContentId })
+      .from(chatMessages)
+      .where(
+        and(
+          eq(chatMessages.sessionId, sessionId),
+          eq(chatMessages.role, "assistant"),
+          isNotNull(chatMessages.generatedContentId),
+        ),
+      );
+
+    const contentIds = [
+      ...new Set(
+        messageRows
+          .map((r) => r.generatedContentId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+
+    if (contentIds.length === 0) {
+      return c.json({ drafts: [] });
+    }
+
+    // Fetch those generatedContent records with ownership check
+    const records = await db
+      .select({
+        id: generatedContent.id,
+        version: generatedContent.version,
+        outputType: generatedContent.outputType,
+        status: generatedContent.status,
+        generatedHook: generatedContent.generatedHook,
+        generatedScript: generatedContent.generatedScript,
+        voiceoverScript: generatedContent.voiceoverScript,
+        postCaption: generatedContent.postCaption,
+        sceneDescription: generatedContent.sceneDescription,
+        generatedMetadata: generatedContent.generatedMetadata,
+        parentId: generatedContent.parentId,
+        createdAt: generatedContent.createdAt,
+      })
+      .from(generatedContent)
+      .where(
+        and(
+          inArray(generatedContent.id, contentIds),
+          eq(generatedContent.userId, auth.user.id),
+        ),
+      );
+
+    // Find tips: records that have no children anywhere in the table.
+    // Checking only within the fetched set would miss branches created by the
+    // AI re-iterating an already-iterated parent (both siblings would pass).
+    const childRows = await db
+      .select({ parentId: generatedContent.parentId })
+      .from(generatedContent)
+      .where(
+        and(
+          inArray(generatedContent.parentId, contentIds),
+          eq(generatedContent.userId, auth.user.id),
+        ),
+      );
+    const idsWithChildren = new Set(
+      childRows
+        .map((r) => r.parentId)
+        .filter((id): id is number => id != null),
+    );
+    const tips = records
+      .filter((r) => !idsWithChildren.has(r.id))
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
+      .map(({ parentId: _parentId, ...rest }) => rest);
+
+    return c.json({ drafts: tips });
   },
 );
 
@@ -441,34 +417,26 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const sessionId = c.req.param("id");
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
 
-      const [deletedSession] = await db
-        .delete(chatSessions)
-        .where(
-          and(
-            eq(chatSessions.id, sessionId),
-            eq(chatSessions.userId, auth.user.id),
-          ),
-        )
-        .returning();
+    const [deletedSession] = await db
+      .delete(chatSessions)
+      .where(
+        and(
+          eq(chatSessions.id, sessionId),
+          eq(chatSessions.userId, auth.user.id),
+        ),
+      )
+      .returning();
 
-      if (!deletedSession) {
-        return c.json({ error: "Session not found" }, 404);
-      }
-
-      return c.json({ message: "Session deleted successfully" });
-    } catch (error) {
-      debugLog.error("Failed to delete chat session", {
-        service: "chat-route",
-        operation: "deleteSession",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete session" }, 500);
+    if (!deletedSession) {
+      throw Errors.notFound("Session");
     }
+
+    return c.json({ message: "Session deleted successfully" });
   },
 );
 
@@ -478,37 +446,29 @@ app.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   zValidator("json", updateSessionSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const sessionId = c.req.param("id");
-      const { title } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
+    const { title } = c.req.valid("json");
 
-      const [updatedSession] = await db
-        .update(chatSessions)
-        .set({ title, updatedAt: new Date() })
-        .where(
-          and(
-            eq(chatSessions.id, sessionId),
-            eq(chatSessions.userId, auth.user.id),
-          ),
-        )
-        .returning();
+    const [updatedSession] = await db
+      .update(chatSessions)
+      .set({ title, updatedAt: new Date() })
+      .where(
+        and(
+          eq(chatSessions.id, sessionId),
+          eq(chatSessions.userId, auth.user.id),
+        ),
+      )
+      .returning();
 
-      if (!updatedSession) {
-        return c.json({ error: "Session not found" }, 404);
-      }
-
-      return c.json({ session: updatedSession });
-    } catch (error) {
-      debugLog.error("Failed to update chat session", {
-        service: "chat-route",
-        operation: "updateSession",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update session" }, 500);
+    if (!updatedSession) {
+      throw Errors.notFound("Session");
     }
+
+    return c.json({ session: updatedSession });
   },
 );
 
@@ -518,14 +478,14 @@ app.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   usageGate("generation"),
   zValidator("json", sendMessageSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const sessionId = c.req.param("id");
-      const { content, reelRefs, mediaRefs, activeContentId } =
-        c.req.valid("json");
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
+    const { content, reelRefs, mediaRefs, activeContentId } =
+      c.req.valid("json");
 
       debugLog.info("[chat:sendMessage] Request received", {
         service: "chat-route",
@@ -558,15 +518,15 @@ app.post(
         )
         .limit(1);
 
-      if (!session) {
-        debugLog.warn("[chat:sendMessage] Session not found", {
-          service: "chat-route",
-          operation: "sendMessage",
-          sessionId,
-          userId: auth.user.id,
-        });
-        return c.json({ error: "Session not found" }, 404);
-      }
+    if (!session) {
+      debugLog.warn("[chat:sendMessage] Session not found", {
+        service: "chat-route",
+        operation: "sendMessage",
+        sessionId,
+        userId: auth.user.id,
+      });
+      throw Errors.notFound("Session");
+    }
 
       debugLog.info("[chat:sendMessage] Session verified", {
         service: "chat-route",
@@ -863,15 +823,7 @@ app.post(
         },
       });
 
-      return createUIMessageStreamResponse({ stream: safeStream });
-    } catch (error) {
-      debugLog.error("Failed to send chat message", {
-        service: "chat-route",
-        operation: "sendMessage",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to send message" }, 500);
-    }
+    return createUIMessageStreamResponse({ stream: safeStream });
   },
 );
 

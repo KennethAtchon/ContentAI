@@ -1,10 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import {
   FIREBASE_PROJECT_ID_SERVER,
   FIREBASE_PROJECT_ID,
@@ -18,12 +19,27 @@ import { users } from "../../infrastructure/database/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { STRIPE_MAP } from "../../constants/stripe.constants";
 import Stripe from "stripe";
+import { createCheckoutSessionBodySchema } from "../../domain/subscriptions/subscriptions.schemas";
 
 const stripe = STRIPE_SECRET_KEY
   ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
   : null;
 
 const subscriptions = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/subscriptions/current ─────────────────────────────────────────
 
@@ -265,13 +281,11 @@ subscriptions.post(
   rateLimiter("payment"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", createCheckoutSessionBodySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const body = await c.req.json();
-      const { priceId, tier, billingCycle, trialEnabled } = body;
-
-      if (!priceId) return c.json({ error: "priceId is required" }, 400);
+      const { priceId, tier, billingCycle, trialEnabled } = c.req.valid("json");
 
       if (!stripe) return c.json({ error: "Stripe not configured" }, 500);
 

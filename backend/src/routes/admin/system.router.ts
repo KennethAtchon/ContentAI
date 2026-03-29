@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -11,8 +12,26 @@ import * as allSchema from "../../infrastructure/database/drizzle/schema";
 import { eq, sql, is } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import { FirebaseUserSync } from "../../services/firebase/sync";
+import {
+  adminSystemExportNameParamSchema,
+  adminSystemExportQuerySchema,
+} from "../../domain/admin/admin.schemas";
 
 const systemRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 systemRouter.post(
   "/sync-firebase",
@@ -117,14 +136,11 @@ systemRouter.get(
   "/tables/:exportName",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminSystemExportNameParamSchema, validationErrorHook),
+  zValidator("query", adminSystemExportQuerySchema, validationErrorHook),
   async (c) => {
-    const exportName = c.req.param("exportName");
-    const page = Math.max(1, parseInt(c.req.query("page") || "1"));
-    const limit = Math.min(
-      200,
-      Math.max(1, parseInt(c.req.query("limit") || "50")),
-    );
-    const includeDeleted = c.req.query("includeDeleted") === "true";
+    const { exportName } = c.req.valid("param");
+    const { page, limit, includeDeleted } = c.req.valid("query");
 
     const tableEntry = Object.entries(allSchema).find(
       ([name, val]) => name === exportName && is(val as any, PgTable),

@@ -1,10 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   niches,
@@ -14,8 +15,33 @@ import {
 import { eq, sql, desc, asc, ilike, and, isNotNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { queueService } from "../../services/queue.service";
+import {
+  adminCreateNicheBodySchema,
+  adminJobIdParamSchema,
+  adminNicheIdParamSchema,
+  adminNicheReelsQuerySchema,
+  adminNichesQuerySchema,
+  adminReelIdParamSchema,
+  adminScanNicheBodySchema,
+  adminUpdateNicheBodySchema,
+  adminUpdateNicheConfigBodySchema,
+} from "../../domain/admin/admin.schemas";
 
 const nichesRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/admin/niches ────────────────────────────────────────────────────
 // Returns all niches with aggregated reel count.
@@ -24,10 +50,11 @@ nichesRouter.get(
   "/niches",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("query", adminNichesQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const search = c.req.query("search")?.trim();
-      const activeOnly = c.req.query("active") === "true";
+      const { search, active } = c.req.valid("query");
+      const activeOnly = active;
 
       const conditions: ReturnType<typeof eq>[] = [];
       if (activeOnly) conditions.push(eq(niches.isActive, true));
@@ -80,14 +107,10 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", adminCreateNicheBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json();
-      const name = (body.name as string | undefined)?.trim();
-      const description = (body.description as string | undefined)?.trim();
-      const isActive = body.isActive !== false;
-
-      if (!name) return c.json({ error: "name is required" }, 400);
+      const { name, description, isActive } = c.req.valid("json");
 
       const [niche] = await db
         .insert(niches)
@@ -113,22 +136,22 @@ nichesRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("json", adminUpdateNicheBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
-      const body = await c.req.json();
       const updates: Partial<{
         name: string;
         description: string;
         isActive: boolean;
       }> = {};
-      if (body.name !== undefined) updates.name = (body.name as string).trim();
+      const body = c.req.valid("json");
+      if (body.name !== undefined) updates.name = body.name;
       if (body.description !== undefined)
-        updates.description = body.description as string;
-      if (body.isActive !== undefined)
-        updates.isActive = body.isActive as boolean;
+        updates.description = body.description;
+      if (body.isActive !== undefined) updates.isActive = body.isActive;
 
       if (Object.keys(updates).length === 0)
         return c.json({ error: "No fields to update" }, 400);
@@ -160,10 +183,10 @@ nichesRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
       // Check for orphaned reels
       const [{ count }] = await db
@@ -207,10 +230,11 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("json", adminScanNicheBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [niche] = await db
         .select()
@@ -220,7 +244,7 @@ nichesRouter.post(
       if (!niche) return c.json({ error: "Niche not found" }, 404);
 
       // Get optional configuration override from request body
-      const body = await c.req.json().catch(() => ({}));
+      const body = c.req.valid("json");
       const configOverride = {
         limit: body.limit,
         minViews: body.minViews,
@@ -271,19 +295,16 @@ nichesRouter.get(
   "/niches/:id/reels",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("query", adminNicheReelsQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
-
-      const page = Math.max(parseInt(c.req.query("page") ?? "1", 10), 1);
-      const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 100);
+      const { id } = c.req.valid("param");
+      const { page, limit, sortBy, sortOrder, viral, hasVideo } =
+        c.req.valid("query");
       const offset = (page - 1) * limit;
-
-      const sortBy = c.req.query("sortBy") ?? "views";
-      const sortOrder = c.req.query("sortOrder") ?? "desc";
-      const viralFilter = c.req.query("viral"); // "true" | "false" | undefined
-      const hasVideoFilter = c.req.query("hasVideo"); // "true" | undefined
+      const viralFilter = viral;
+      const hasVideoFilter = hasVideo;
 
       const sortCol =
         {
@@ -366,10 +387,10 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
       // Find duplicate externalIds — keep the lowest id, delete the rest
       const duplicates = await db.execute(sql`
@@ -412,10 +433,10 @@ nichesRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminReelIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const reelId = parseInt(c.req.param("reelId"), 10);
-      if (isNaN(reelId)) return c.json({ error: "Invalid reel ID" }, 400);
+      const { reelId } = c.req.valid("param");
 
       const [deleted] = await db
         .delete(reels)
@@ -443,10 +464,10 @@ nichesRouter.get(
   "/niches/:id/config",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [niche] = await db
         .select({
@@ -491,42 +512,13 @@ nichesRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("json", adminUpdateNicheConfigBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
 
-      const body = await c.req.json();
-      const { limit, minViews, maxDaysOld, viralOnly } = body;
-
-      // Validate input
-      if (
-        limit !== undefined &&
-        (typeof limit !== "number" || limit < 1 || limit > 10000)
-      ) {
-        return c.json(
-          { error: "limit must be a number between 1 and 10000" },
-          400,
-        );
-      }
-      if (
-        minViews !== undefined &&
-        (typeof minViews !== "number" || minViews < 0)
-      ) {
-        return c.json({ error: "minViews must be a non-negative number" }, 400);
-      }
-      if (
-        maxDaysOld !== undefined &&
-        (typeof maxDaysOld !== "number" || maxDaysOld < 1 || maxDaysOld > 365)
-      ) {
-        return c.json(
-          { error: "maxDaysOld must be a number between 1 and 365" },
-          400,
-        );
-      }
-      if (viralOnly !== undefined && typeof viralOnly !== "boolean") {
-        return c.json({ error: "viralOnly must be a boolean" }, 400);
-      }
+      const { limit, minViews, maxDaysOld, viralOnly } = c.req.valid("json");
 
       const [niche] = await db
         .update(niches)
@@ -579,9 +571,10 @@ nichesRouter.get(
   "/niches/jobs/:jobId",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminJobIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const jobId = c.req.param("jobId");
+      const { jobId } = c.req.valid("param");
       const job = await queueService.getJob(jobId);
       if (!job) return c.json({ error: "Job not found" }, 404);
       return c.json({ job });
@@ -603,10 +596,10 @@ nichesRouter.get(
   "/niches/:id/jobs",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid niche ID" }, 400);
+      const { id } = c.req.valid("param");
       const jobs = await queueService.listJobs(id);
       return c.json({ jobs });
     } catch (error) {

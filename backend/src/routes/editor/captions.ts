@@ -1,11 +1,11 @@
-import { Hono } from "hono";
-import { z } from "zod";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import { assets, captions } from "../../infrastructure/database/drizzle/schema";
 import type { CaptionWord } from "../../infrastructure/database/drizzle/schema";
@@ -14,6 +14,10 @@ import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl } from "../../services/storage/r2";
 import { OPENAI_API_KEY } from "../../utils/config/envUtil";
 import OpenAI from "openai";
+import {
+  captionAssetIdParamSchema,
+  transcribeCaptionsSchema,
+} from "../../domain/editor/editor.schemas";
 
 const app = new Hono<HonoEnv>();
 
@@ -21,9 +25,20 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB (Whisper limit)
 
-const transcribeSchema = z.object({
-  assetId: z.string().min(1, "assetId is required"),
-});
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── POST /api/captions/transcribe ──────────────────────────────────────────
 
@@ -32,19 +47,11 @@ app.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", transcribeCaptionsSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const body = await c.req.json().catch(() => null);
-      const parsed = transcribeSchema.safeParse(body);
-      if (!parsed.success) {
-        return c.json(
-          { error: "Invalid request body", details: parsed.error.flatten() },
-          400,
-        );
-      }
-
-      const { assetId } = parsed.data;
+      const { assetId } = c.req.valid("json");
 
       // 1. Fetch asset, verify ownership
       const [asset] = await db
@@ -214,10 +221,11 @@ app.get(
   "/:assetId",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", captionAssetIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { assetId } = c.req.param();
+      const { assetId } = c.req.valid("param");
 
       const [caption] = await db
         .select()

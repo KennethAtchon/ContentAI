@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -26,10 +26,26 @@ import {
   aiAssemblyResponseSchema,
   aiAssembleRequestSchema,
 } from "./schemas";
+import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
+import { AppError, Errors } from "../../utils/errors/app-error";
 
 const anthropic = createAnthropic({ apiKey: ANTHROPIC_API_KEY ?? "" });
 
 const aiRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── Helper functions for AI assembly ────────────────────────────────────────
 
@@ -404,42 +420,40 @@ aiRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   zValidator("json", aiAssembleRequestSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.param();
-      const { platform } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
+    const { platform } = c.req.valid("json");
 
-      const [project] = await db
-        .select()
-        .from(editProjects)
-        .where(
-          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
-        )
-        .limit(1);
+    const [project] = await db
+      .select()
+      .from(editProjects)
+      .where(
+        and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+      )
+      .limit(1);
 
-      if (!project) {
-        return c.json({ error: "Edit project not found" }, 404);
-      }
-      if (!project.generatedContentId) {
-        return c.json(
-          {
-            error:
-              "Project has no generated content — AI assembly requires generated shots",
-          },
-          404,
-        );
-      }
+    if (!project) {
+      throw Errors.notFound("Edit project");
+    }
+    if (!project.generatedContentId) {
+      throw new AppError(
+        "Project has no generated content — AI assembly requires generated shots",
+        "CONTENT_REQUIRED",
+        404,
+      );
+    }
 
       const shotAssets = await loadProjectShotAssets(
         auth.user.id,
         project.generatedContentId,
       );
 
-      if (shotAssets.length === 0) {
-        return c.json({ error: "No shot clips available" }, 400);
-      }
+    if (shotAssets.length === 0) {
+      throw new AppError("No shot clips available", "NO_SHOT_CLIPS", 400);
+    }
 
       const auxRows = await db
         .select({
@@ -550,19 +564,11 @@ aiRouter.post(
         auxPack,
       );
 
-      return c.json({
-        timeline,
-        assembledBy: "ai" as const,
-        fallback: false,
-      });
-    } catch (error) {
-      debugLog.error("AI assembly failed", {
-        service: "editor-route",
-        operation: "aiAssemble",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to run AI assembly" }, 500);
-    }
+    return c.json({
+      timeline,
+      assembledBy: "ai" as const,
+      fallback: false,
+    });
   },
 );
 
@@ -573,28 +579,28 @@ aiRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id } = c.req.param();
-      const auth = c.get("auth");
+    const { id } = c.req.valid("param");
+    const auth = c.get("auth");
 
-      const [project] = await db
-        .select({
-          id: editProjects.id,
-          generatedContentId: editProjects.generatedContentId,
-        })
-        .from(editProjects)
-        .where(
-          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
-        )
-        .limit(1);
+    const [project] = await db
+      .select({
+        id: editProjects.id,
+        generatedContentId: editProjects.generatedContentId,
+      })
+      .from(editProjects)
+      .where(
+        and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+      )
+      .limit(1);
 
-      if (!project) return c.json({ error: "Not found" }, 404);
+    if (!project) throw Errors.notFound("Edit project");
 
-      // Already linked — idempotent return
-      if (project.generatedContentId) {
-        return c.json({ generatedContentId: project.generatedContentId });
-      }
+    // Already linked — idempotent return
+    if (project.generatedContentId) {
+      return c.json({ generatedContentId: project.generatedContentId });
+    }
 
       // All three writes are in a transaction — partial failure leaves no orphaned rows.
       const linkedContentId = await db
@@ -645,19 +651,11 @@ aiRouter.post(
           throw err;
         });
 
-      if (!linkedContentId) {
-        return c.json({ error: "Failed to link content" }, 500);
-      }
-
-      return c.json({ generatedContentId: linkedContentId });
-    } catch (error) {
-      debugLog.error("Failed to link content", {
-        service: "editor-route",
-        operation: "linkContent",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to link content" }, 500);
+    if (!linkedContentId) {
+      throw Errors.internal("Failed to link content");
     }
+
+    return c.json({ generatedContentId: linkedContentId });
   },
 );
 

@@ -1,11 +1,12 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
   authMiddleware,
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   assets,
@@ -20,6 +21,11 @@ import {
   uploadFile,
 } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
+import {
+  assetIdParamSchema,
+  assetsListQuerySchema,
+  patchAssetSchema,
+} from "../../domain/assets/assets.schemas";
 
 const app = new Hono<HonoEnv>();
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
@@ -41,20 +47,15 @@ function isAllowedImageMime(mime: string): boolean {
 }
 
 // GET /api/assets?generatedContentId=X&type=voiceover
-app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
+app.get(
+  "/",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  zValidator("query", assetsListQuerySchema, validationErrorHook),
+  async (c) => {
   try {
     const auth = c.get("auth");
-    const generatedContentIdParam = c.req.query("generatedContentId");
-    const typeFilter = c.req.query("type");
-
-    if (!generatedContentIdParam) {
-      return c.json({ error: "generatedContentId is required" }, 400);
-    }
-
-    const generatedContentId = parseInt(generatedContentIdParam, 10);
-    if (isNaN(generatedContentId)) {
-      return c.json({ error: "Invalid generatedContentId" }, 400);
-    }
+    const { generatedContentId, type: typeFilter } = c.req.valid("query");
 
     // Verify content belongs to user
     const [content] = await db
@@ -147,7 +148,7 @@ app.get(
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [row] = await db
         .select({
@@ -311,9 +312,20 @@ app.post(
   },
 );
 
-const patchAssetSchema = z.object({
-  metadata: z.record(z.string(), z.unknown()),
-});
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // PATCH /api/assets/:id
 app.patch(
@@ -321,16 +333,13 @@ app.patch(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", assetIdParamSchema, validationErrorHook),
+  zValidator("json", patchAssetSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
-      const body = await c.req.json().catch(() => null);
-      const parsed = patchAssetSchema.safeParse(body);
-      if (!parsed.success) {
-        return c.json({ error: "Invalid request body" }, 400);
-      }
-      const { metadata } = parsed.data;
+      const { id } = c.req.valid("param");
+      const { metadata } = c.req.valid("json");
 
       const [existing] = await db
         .select()
@@ -370,10 +379,11 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", assetIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [existing] = await db
         .select()

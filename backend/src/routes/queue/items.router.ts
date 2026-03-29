@@ -1,11 +1,12 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { eq, and, sql, desc, isNull } from "drizzle-orm";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   queueItems,
@@ -19,19 +20,37 @@ import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl } from "../../services/storage/r2";
 import { resolveChainTip } from "../../domain/queue/pipeline/content-chain";
 import { queueDetailAssetType } from "../../domain/queue/pipeline/asset-display";
+import {
+  queueItemIdParamSchema,
+  updateQueueItemBodySchema,
+} from "../../domain/queue/queue.schemas";
 import { VALID_QUEUE_TRANSITIONS } from "./constants";
 
 const itemsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 itemsRouter.get(
   "/:id/detail",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", queueItemIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [item] = await db
         .select()
@@ -63,7 +82,8 @@ itemsRouter.get(
         )
         .then(
           (r) =>
-            (r[0] as { session_id: string; project_id: string } | undefined) ?? null,
+            (r[0] as { session_id: string; project_id: string } | undefined) ??
+            null,
         );
       const sessionId = sessionRow?.session_id ?? null;
       const projectId = sessionRow?.project_id ?? null;
@@ -191,10 +211,7 @@ itemsRouter.get(
           )
           .where(
             and(
-              eq(
-                editProjects.generatedContentId,
-                item.generatedContentId,
-              ),
+              eq(editProjects.generatedContentId, item.generatedContentId),
               eq(editProjects.userId, auth.user.id),
               isNull(editProjects.parentProjectId),
             ),
@@ -217,10 +234,7 @@ itemsRouter.get(
           .innerJoin(assets, eq(exportJobs.outputAssetId, assets.id))
           .where(
             and(
-              eq(
-                editProjects.generatedContentId,
-                item.generatedContentId,
-              ),
+              eq(editProjects.generatedContentId, item.generatedContentId),
               eq(editProjects.userId, auth.user.id),
               isNull(editProjects.parentProjectId),
               eq(exportJobs.status, "done"),
@@ -272,11 +286,11 @@ itemsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", queueItemIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [item] = await db
         .select()
@@ -359,18 +373,13 @@ itemsRouter.patch(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", queueItemIdParamSchema, validationErrorHook),
+  zValidator("json", updateQueueItemBodySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
-
-      const body = await c.req.json();
-      const { scheduledFor, instagramPageId, status } = body as {
-        scheduledFor?: string;
-        instagramPageId?: string;
-        status?: string;
-      };
+      const { id } = c.req.valid("param");
+      const { scheduledFor, instagramPageId, status } = c.req.valid("json");
 
       const [item] = await db
         .select()
@@ -440,11 +449,11 @@ itemsRouter.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", queueItemIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [item] = await db
         .select()
@@ -479,7 +488,6 @@ itemsRouter.delete(
       return c.json({ error: "Failed to delete queue item" }, 500);
     }
   },
-
 );
 
 export default itemsRouter;

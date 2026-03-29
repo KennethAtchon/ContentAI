@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -7,19 +8,38 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { debugLog } from "../../utils/debug/debug";
 import { adminService } from "../../domain/singletons";
+import {
+  adminCreateOrderBodySchema,
+  adminDeleteOrderBodySchema,
+  adminOrderIdParamSchema,
+  adminOrdersQuerySchema,
+  adminUpdateOrderBodySchema,
+} from "../../domain/admin/admin.schemas";
 
 const ordersRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 ordersRouter.get(
   "/orders",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("query", adminOrdersQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const page = parseInt(c.req.query("page") || "1", 10);
-      const limit = Math.min(parseInt(c.req.query("limit") || "20", 10), 100);
-      const search = c.req.query("search");
-      const customerId = c.req.query("customerId");
+      const { page, limit, search, customerId } = c.req.valid("query");
 
       const payload = await adminService.listOrders({
         page,
@@ -44,14 +64,10 @@ ordersRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", adminCreateOrderBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json();
-      const { userId, totalAmount, status } = body;
-
-      if (!userId || totalAmount === undefined) {
-        return c.json({ error: "userId and totalAmount are required" }, 400);
-      }
+      const { userId, totalAmount, status } = c.req.valid("json");
 
       const order = await adminService.createOrder({
         userId,
@@ -75,12 +91,10 @@ ordersRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", adminUpdateOrderBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json();
-      const { id, userId, totalAmount, status } = body;
-
-      if (!id) return c.json({ error: "id is required" }, 400);
+      const { id, userId, totalAmount, status } = c.req.valid("json");
 
       const order = await adminService.updateOrder({
         id,
@@ -107,12 +121,10 @@ ordersRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", adminDeleteOrderBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json();
-      const { id, deletedBy } = body;
-
-      if (!id) return c.json({ error: "id is required" }, 400);
+      const { id, deletedBy } = c.req.valid("json");
 
       const result = await adminService.deleteOrder({ id, deletedBy });
       if (!result) return c.json({ error: "Order not found" }, 404);
@@ -133,9 +145,10 @@ ordersRouter.get(
   "/orders/:id",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminOrderIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = c.req.param("id");
+      const { id } = c.req.valid("param");
       const order = await adminService.getOrderById(id);
       if (!order) return c.json({ error: "Order not found" }, 404);
 

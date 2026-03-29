@@ -1,29 +1,30 @@
-import { Hono } from "hono";
-import { z } from "zod";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { userSettingsService } from "../../services/config/user-settings.service";
 import { debugLog } from "../../utils/debug/debug";
+import { updateCustomerSettingsSchema } from "../../domain/customer/customer.schemas";
 
 const userSettingsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
 
-const updateSchema = z.object({
-  preferredAiProvider: z
-    .enum(["openai", "claude", "openrouter"])
-    .nullable()
-    .optional(),
-  preferredVideoProvider: z
-    .enum(["kling-fal", "runway", "image-ken-burns"])
-    .nullable()
-    .optional(),
-  preferredVoiceId: z.string().max(100).nullable().optional(),
-  preferredTtsSpeed: z.enum(["slow", "normal", "fast"]).nullable().optional(),
-  preferredAspectRatio: z.enum(["9:16", "16:9", "1:1"]).nullable().optional(),
-});
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/customer/settings ───────────────────────────────────────────────
 
@@ -55,23 +56,16 @@ userSettingsRouter.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", updateCustomerSettingsSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
       const userId = auth.user.id;
-      const body = await c.req.json();
-      const parsed = updateSchema.safeParse(body);
-
-      if (!parsed.success) {
-        return c.json(
-          { error: "Invalid request body", issues: parsed.error.issues },
-          400,
-        );
-      }
+      const parsed = c.req.valid("json");
 
       // Map system_default sentinel values back to null
       const input = Object.fromEntries(
-        Object.entries(parsed.data).map(([k, v]) => [
+        Object.entries(parsed).map(([k, v]) => [
           k,
           v === "system_default" ? null : v,
         ]),

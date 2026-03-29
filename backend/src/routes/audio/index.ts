@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -6,7 +6,7 @@ import {
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   reels,
@@ -23,8 +23,23 @@ import { VOICES, getVoiceById } from "../../config/voices";
 import { generateSpeech, type TTSSpeed } from "../../services/tts/elevenlabs";
 import { recordAiCost } from "../../lib/cost-tracker";
 import { sanitizeScriptForTTS } from "../../shared/services/tts-script-sanitize";
+import { audioListQuerySchema } from "../../domain/audio/audio.schemas";
 
 const audioRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 const ttsRequestSchema = z.object({
   generatedContentId: z.number().int().positive(),
@@ -41,12 +56,10 @@ audioRouter.get(
   "/trending",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", audioListQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const days = Math.min(parseInt(c.req.query("days") ?? "7", 10), 90);
-      const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
-      const nicheIdParam = c.req.query("nicheId");
-      const nicheId = nicheIdParam ? parseInt(nicheIdParam, 10) : null;
+      const { days, limit, nicheId } = c.req.valid("query");
 
       const startWindow = sql.raw(`NOW() - INTERVAL '${days} days'`);
       const prevWindow = sql.raw(`NOW() - INTERVAL '${days * 2} days'`);
@@ -57,7 +70,7 @@ audioRouter.get(
         gte(reels.scrapedAt, prevWindow),
       ];
 
-      if (nicheId && !Number.isNaN(nicheId)) {
+      if (nicheId) {
         conditions.push(eq(reels.nicheId, nicheId));
       }
 

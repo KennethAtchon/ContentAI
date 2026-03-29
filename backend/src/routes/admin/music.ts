@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -6,7 +6,7 @@ import {
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   musicTracks,
@@ -15,17 +15,36 @@ import {
 import { eq, desc, ilike, or } from "drizzle-orm";
 import { uploadFile, deleteFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
+import {
+  adminMusicIdParamSchema,
+  adminMusicQuerySchema,
+} from "../../domain/admin/admin.schemas";
 
 const musicAdminRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // GET /api/admin/music — list all tracks (including inactive)
 musicAdminRouter.get(
   "/music",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("query", adminMusicQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const search = c.req.query("search")?.trim();
+      const { search } = c.req.valid("query");
 
       const conditions = search
         ? [
@@ -171,6 +190,7 @@ musicAdminRouter.patch(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminMusicIdParamSchema, validationErrorHook),
   zValidator(
     "json",
     z.object({
@@ -185,7 +205,7 @@ musicAdminRouter.patch(
   ),
   async (c) => {
     try {
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
       const updates = c.req.valid("json");
 
       const [existing] = await db
@@ -221,9 +241,10 @@ musicAdminRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("param", adminMusicIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [existing] = await db
         .select({

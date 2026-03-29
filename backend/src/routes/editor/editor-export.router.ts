@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
@@ -19,8 +19,24 @@ import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl } from "../../services/storage/r2";
 import { exportSchema } from "./schemas";
 import { runExportJob } from "./export-worker";
+import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
+import { AppError, Errors } from "../../utils/errors/app-error";
 
 const exportRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── POST /api/editor/:id/export ─────────────────────────────────────────────
 
@@ -29,24 +45,24 @@ exportRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   zValidator("json", exportSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.param();
-      const parsed = c.req.valid("json");
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
+    const parsed = c.req.valid("json");
 
-      const [project] = await db
-        .select()
-        .from(editProjects)
-        .where(
-          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
-        )
-        .limit(1);
+    const [project] = await db
+      .select()
+      .from(editProjects)
+      .where(
+        and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+      )
+      .limit(1);
 
-      if (!project) {
-        return c.json({ error: "Edit project not found" }, 404);
-      }
+    if (!project) {
+      throw Errors.notFound("Edit project");
+    }
 
       // Auto-create generated_content for blank projects on first export.
       // All three writes are in a transaction — partial failure leaves no orphaned rows.
@@ -101,12 +117,9 @@ exportRouter.post(
             throw err;
           });
 
-        if (!newContentId) {
-          return c.json(
-            { error: "Failed to initialise pipeline for this project" },
-            500,
-          );
-        }
+      if (!newContentId) {
+        throw Errors.internal("Failed to initialise pipeline for this project");
+      }
 
         project.generatedContentId = newContentId;
       }
@@ -122,15 +135,13 @@ exportRouter.post(
           ),
         );
 
-      if (activeJobs >= 2) {
-        return c.json(
-          {
-            error:
-              "Too many active export jobs. Please wait for a current export to finish.",
-          },
-          429,
-        );
-      }
+    if (activeJobs >= 2) {
+      throw new AppError(
+        "Too many active export jobs. Please wait for a current export to finish.",
+        "EXPORT_LIMIT_REACHED",
+        429,
+      );
+    }
 
       const [job] = await db
         .insert(exportJobs)
@@ -152,15 +163,7 @@ exportRouter.post(
         });
       });
 
-      return c.json({ exportJobId: job.id }, 202);
-    } catch (error) {
-      debugLog.error("Failed to enqueue export", {
-        service: "editor-route",
-        operation: "enqueueExport",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to enqueue export" }, 500);
-    }
+    return c.json({ exportJobId: job.id }, 202);
   },
 );
 
@@ -170,36 +173,36 @@ exportRouter.get(
   "/:id/export/status",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.param();
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
 
-      // Verify project exists and is owned by user before exposing any export data.
-      const [project] = await db
-        .select({ id: editProjects.id })
-        .from(editProjects)
-        .where(
-          and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
-        )
-        .limit(1);
+    // Verify project exists and is owned by user before exposing any export data.
+    const [project] = await db
+      .select({ id: editProjects.id })
+      .from(editProjects)
+      .where(
+        and(eq(editProjects.id, id), eq(editProjects.userId, auth.user.id)),
+      )
+      .limit(1);
 
-      if (!project) {
-        return c.json({ error: "Edit project not found" }, 404);
-      }
+    if (!project) {
+      throw Errors.notFound("Edit project");
+    }
 
-      // Return most recent export job for this project
-      const [job] = await db
-        .select()
-        .from(exportJobs)
-        .where(
-          and(
-            eq(exportJobs.editProjectId, id),
-            eq(exportJobs.userId, auth.user.id),
-          ),
-        )
-        .orderBy(desc(exportJobs.createdAt))
-        .limit(1);
+    // Return most recent export job for this project
+    const [job] = await db
+      .select()
+      .from(exportJobs)
+      .where(
+        and(
+          eq(exportJobs.editProjectId, id),
+          eq(exportJobs.userId, auth.user.id),
+        ),
+      )
+      .orderBy(desc(exportJobs.createdAt))
+      .limit(1);
 
       if (!job) {
         return c.json({ status: "idle", progress: 0 });
@@ -219,20 +222,12 @@ exportRouter.get(
         }
       }
 
-      return c.json({
-        status: job.status,
-        progress: job.progress,
-        r2Url,
-        error: job.error ?? undefined,
-      });
-    } catch (error) {
-      debugLog.error("Failed to get export status", {
-        service: "editor-route",
-        operation: "exportStatus",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to get export status" }, 500);
-    }
+    return c.json({
+      status: job.status,
+      progress: job.progress,
+      r2Url,
+      error: job.error ?? undefined,
+    });
   },
 );
 

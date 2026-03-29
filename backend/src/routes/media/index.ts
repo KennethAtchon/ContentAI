@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   rateLimiter,
@@ -9,8 +10,23 @@ import { assetsService } from "../../domain/singletons";
 import { uploadFile, deleteFile, getFileUrl } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { uuidParam } from "../../validation/shared.schemas";
+import { AppError, Errors } from "../../utils/errors/app-error";
 
 const app = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -35,31 +51,22 @@ function getMaxBytes(mediaType: "video" | "audio" | "image"): number {
 
 // GET /api/media — list user-uploaded assets
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
-    const auth = c.get("auth");
+  const auth = c.get("auth");
 
-    const items = await assetsService.listUserLibrary(auth.user.id);
+  const items = await assetsService.listUserLibrary(auth.user.id);
 
-    const itemsWithUrls = await Promise.all(
-      items.map(async (item) => {
-        try {
-          const mediaUrl = await getFileUrl(item.r2Key, 3600);
-          return { ...item, mediaUrl };
-        } catch {
-          return { ...item, mediaUrl: null };
-        }
-      }),
-    );
+  const itemsWithUrls = await Promise.all(
+    items.map(async (item) => {
+      try {
+        const mediaUrl = await getFileUrl(item.r2Key, 3600);
+        return { ...item, mediaUrl };
+      } catch {
+        return { ...item, mediaUrl: null };
+      }
+    }),
+  );
 
-    return c.json({ items: itemsWithUrls });
-  } catch (error) {
-    debugLog.error("Failed to fetch media items", {
-      service: "media-route",
-      operation: "getItems",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch media items" }, 500);
-  }
+  return c.json({ items: itemsWithUrls });
 });
 
 // POST /api/media/upload — upload a new media item
@@ -69,35 +76,32 @@ app.post(
   csrfMiddleware(),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const form = await c.req.formData();
+    const auth = c.get("auth");
+    const form = await c.req.formData();
 
-      const fileEntry = form.get("file");
-      const nameOverride = form.get("name");
+    const fileEntry = form.get("file");
+    const nameOverride = form.get("name");
 
-      if (!(fileEntry instanceof File)) {
-        return c.json({ error: "file is required" }, 400);
-      }
+    if (!(fileEntry instanceof File)) {
+      throw new AppError("file is required", "INVALID_INPUT", 400);
+    }
 
       const mime = fileEntry.type.toLowerCase();
       const mediaType = getMediaType(mime);
 
-      if (!mediaType) {
-        return c.json(
-          {
-            error:
-              "Unsupported file type. Allowed: mp4, mov, mp3, wav, jpeg, png, webp",
-          },
-          400,
-        );
-      }
+    if (!mediaType) {
+      throw new AppError(
+        "Unsupported file type. Allowed: mp4, mov, mp3, wav, jpeg, png, webp",
+        "INVALID_INPUT",
+        400,
+      );
+    }
 
       const maxBytes = getMaxBytes(mediaType);
-      if (fileEntry.size > maxBytes) {
-        const limitMb = maxBytes / (1024 * 1024);
-        return c.json({ error: `File exceeds ${limitMb}MB limit` }, 400);
-      }
+    if (fileEntry.size > maxBytes) {
+      const limitMb = maxBytes / (1024 * 1024);
+      throw new AppError(`File exceeds ${limitMb}MB limit`, "INVALID_INPUT", 400);
+    }
 
       const ext = fileEntry.name.includes(".")
         ? fileEntry.name.split(".").pop()!.toLowerCase()
@@ -108,35 +112,27 @@ app.post(
       const fileBuffer = Buffer.from(await fileEntry.arrayBuffer());
       const r2Url = await uploadFile(fileBuffer, r2Key, mime);
 
-      const name =
-        nameOverride instanceof File
-          ? fileEntry.name
-          : ((nameOverride as string | null) ?? fileEntry.name);
+    const name =
+      nameOverride instanceof File
+        ? fileEntry.name
+        : ((nameOverride as string | null) ?? fileEntry.name);
 
-      const item = await assetsService.createUploadedAsset({
-        id: itemId,
-        userId: auth.user.id,
-        type: mediaType,
-        source: "uploaded",
-        name,
-        mimeType: mime,
-        r2Key,
-        r2Url,
-        sizeBytes: fileEntry.size,
-        durationMs: null,
-        metadata: {},
-      });
+    const item = await assetsService.createUploadedAsset({
+      id: itemId,
+      userId: auth.user.id,
+      type: mediaType,
+      source: "uploaded",
+      name,
+      mimeType: mime,
+      r2Key,
+      r2Url,
+      sizeBytes: fileEntry.size,
+      durationMs: null,
+      metadata: {},
+    });
 
-      const mediaUrl = await getFileUrl(r2Key, 3600).catch(() => r2Url);
-      return c.json({ item: { ...item, mediaUrl } }, 201);
-    } catch (error) {
-      debugLog.error("Failed to upload media item", {
-        service: "media-route",
-        operation: "uploadItem",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to upload media item" }, 500);
-    }
+    const mediaUrl = await getFileUrl(r2Key, 3600).catch(() => r2Url);
+    return c.json({ item: { ...item, mediaUrl } }, 201);
   },
 );
 
@@ -146,41 +142,29 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const parsed = uuidParam.safeParse({ id: c.req.param("id") });
-      if (!parsed.success) {
-        return c.json({ error: "Invalid id" }, 400);
-      }
-      const { id } = parsed.data;
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
 
-      const existing = await assetsService.getUploadedAsset(auth.user.id, id);
+    const existing = await assetsService.getUploadedAsset(auth.user.id, id);
 
-      if (!existing) {
-        return c.json({ error: "Media item not found" }, 404);
-      }
+    if (!existing) {
+      throw Errors.notFound("Media item");
+    }
 
-      await deleteFile(existing.r2Key).catch((err) => {
-        debugLog.error("Failed to delete R2 file", {
-          service: "media-route",
-          operation: "deleteItem",
-          key: existing.r2Key,
-          error: err instanceof Error ? err.message : "Unknown error",
-        });
-      });
-
-      await assetsService.removeById(id);
-
-      return c.body(null, 204);
-    } catch (error) {
-      debugLog.error("Failed to delete media item", {
+    await deleteFile(existing.r2Key).catch((err) => {
+      debugLog.error("Failed to delete R2 file", {
         service: "media-route",
         operation: "deleteItem",
-        error: error instanceof Error ? error.message : "Unknown error",
+        key: existing.r2Key,
+        error: err instanceof Error ? err.message : "Unknown error",
       });
-      return c.json({ error: "Failed to delete media item" }, 500);
-    }
+    });
+
+    await assetsService.removeById(id);
+
+    return c.body(null, 204);
   },
 );
 

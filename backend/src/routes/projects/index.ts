@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -6,13 +6,28 @@ import {
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import { projects } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { debugLog } from "../../utils/debug/debug";
+import { uuidParam } from "../../validation/shared.schemas";
+import { Errors } from "../../utils/errors/app-error";
 
 const app = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // Zod schemas for validation
 const createProjectSchema = z.object({
@@ -27,30 +42,21 @@ const updateProjectSchema = z.object({
 
 // GET /api/projects - List user projects
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
-    const auth = c.get("auth");
+  const auth = c.get("auth");
 
-    const userProjects = await db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        description: projects.description,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
-      .from(projects)
-      .where(eq(projects.userId, auth.user.id))
-      .orderBy(desc(projects.updatedAt));
+  const userProjects = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      description: projects.description,
+      createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
+    })
+    .from(projects)
+    .where(eq(projects.userId, auth.user.id))
+    .orderBy(desc(projects.updatedAt));
 
-    return c.json({ projects: userProjects });
-  } catch (error) {
-    debugLog.error("Failed to fetch user projects", {
-      service: "projects-route",
-      operation: "getProjects",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch projects" }, 500);
-  }
+  return c.json({ projects: userProjects });
 });
 
 // POST /api/projects - Create new project
@@ -61,37 +67,32 @@ app.post(
   authMiddleware("user"),
   zValidator("json", createProjectSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { name, description } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { name, description } = c.req.valid("json");
 
-      const [newProject] = await db
-        .insert(projects)
-        .values({
-          id: crypto.randomUUID(),
-          userId: auth.user.id,
-          name,
-          description,
-        })
-        .returning();
+    const [newProject] = await db
+      .insert(projects)
+      .values({
+        id: crypto.randomUUID(),
+        userId: auth.user.id,
+        name,
+        description,
+      })
+      .returning();
 
-      return c.json({ project: newProject }, 201);
-    } catch (error) {
-      debugLog.error("Failed to create project", {
-        service: "projects-route",
-        operation: "createProject",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to create project" }, 500);
-    }
+    return c.json({ project: newProject }, 201);
   },
 );
 
 // GET /api/projects/:id - Get single project
-app.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  try {
+app.get(
+  "/:id",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
+  async (c) => {
     const auth = c.get("auth");
-    const projectId = c.req.param("id");
+    const { id: projectId } = c.req.valid("param");
 
     const [project] = await db
       .select({
@@ -106,19 +107,12 @@ app.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
       .limit(1);
 
     if (!project) {
-      return c.json({ error: "Project not found" }, 404);
+      throw Errors.notFound("Project");
     }
 
     return c.json({ project });
-  } catch (error) {
-    debugLog.error("Failed to fetch project", {
-      service: "projects-route",
-      operation: "getProject",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch project" }, 500);
-  }
-});
+  },
+);
 
 // PUT /api/projects/:id - Update project
 app.put(
@@ -126,34 +120,26 @@ app.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   zValidator("json", updateProjectSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const projectId = c.req.param("id");
-      const updates = c.req.valid("json");
+    const auth = c.get("auth");
+    const { id: projectId } = c.req.valid("param");
+    const updates = c.req.valid("json");
 
-      const [updatedProject] = await db
-        .update(projects)
-        .set(updates)
-        .where(
-          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-        )
-        .returning();
+    const [updatedProject] = await db
+      .update(projects)
+      .set(updates)
+      .where(
+        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+      )
+      .returning();
 
-      if (!updatedProject) {
-        return c.json({ error: "Project not found" }, 404);
-      }
-
-      return c.json({ project: updatedProject });
-    } catch (error) {
-      debugLog.error("Failed to update project", {
-        service: "projects-route",
-        operation: "updateProject",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update project" }, 500);
+    if (!updatedProject) {
+      throw Errors.notFound("Project");
     }
+
+    return c.json({ project: updatedProject });
   },
 );
 
@@ -163,31 +149,23 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", uuidParam, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const projectId = c.req.param("id");
+    const auth = c.get("auth");
+    const { id: projectId } = c.req.valid("param");
 
-      const [deletedProject] = await db
-        .delete(projects)
-        .where(
-          and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-        )
-        .returning();
+    const [deletedProject] = await db
+      .delete(projects)
+      .where(
+        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
+      )
+      .returning();
 
-      if (!deletedProject) {
-        return c.json({ error: "Project not found" }, 404);
-      }
-
-      return c.json({ message: "Project deleted successfully" });
-    } catch (error) {
-      debugLog.error("Failed to delete project", {
-        service: "projects-route",
-        operation: "deleteProject",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete project" }, 500);
+    if (!deletedProject) {
+      throw Errors.notFound("Project");
     }
+
+    return c.json({ message: "Project deleted successfully" });
   },
 );
 

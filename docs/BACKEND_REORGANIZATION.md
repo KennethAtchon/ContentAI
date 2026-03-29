@@ -878,9 +878,9 @@ These changes are purely structural and do not touch business logic.
 
 Phases **1–3** (foundation, partial domain/repos, route shrinkage for admin/queue/video/**editor**) are largely reflected in the tree: `types/hono.types.ts`, `AppError` + `handleRouteError`, `validation/shared.schemas.ts`, `types/timeline.types.ts`, `domain/*` (auth, admin, assets, content, editor, queue), editor split into `editor-*.router.ts`, video under `services/video-generation/`, Firebase user sync in `domain/auth/firebase-user-sync.ts` (re-exported from `services/firebase/sync.ts`).
 
-**Phase 4:** Editor create/patch/export/ai-assemble use `zValidator`; editor `tracks` JSONB is validated on **GET** `/api/editor/:id` via `parseStoredEditorTracks`. Other routes may still use `c.req.json()` — migrate incrementally.
+**Phase 4:** Editor create/patch/export/ai-assemble use `zValidator`; editor `tracks` JSONB is validated on **GET** `/api/editor/:id` via `parseStoredEditorTracks`. All request bodies **and query/param inputs** now use `zValidator` across routes (customer, assets, reels, admin niches, editor captions/fork included), with feature schemas in `domain/content`, `domain/public`, `domain/analytics`, `domain/users`, `domain/queue`, `domain/admin`, `domain/subscriptions`, `domain/customer`, `domain/reels`, and `domain/assets`.
 
-**Phase 5:** `AppError` is wired globally; broad removal of per-route `try/catch` and throwing from all domain services is **not** finished — continue route-by-route.
+**Phase 5:** `AppError` is wired globally; `generation` and key `public` endpoints now throw `AppError` for invalid/not-found/error states and rely on the global handler. Broad removal of per-route `try/catch` and throwing from all domain services is **not** finished — continue route-by-route.
 
 **Phase 6:** Video generation path moved to `services/video-generation/` (per doc layout). Full `services/` flattening, exhaustive dead-code deletion, and **every** Drizzle call behind repositories remain ongoing goals.
 
@@ -901,7 +901,7 @@ What follows is the gap between the **target state** (migration sequence + summa
 
 #### Phase 4 — Validation
 
-- **`zValidator` everywhere:** Many routes still use **`c.req.json()`** (e.g. customer, admin, generation, users, analytics, queue, assets, reels — verify with ripgrep).
+- **`zValidator` everywhere:** Body/query/param validation is now standardized. Form-data endpoints (file uploads) still do manual validation where `zValidator` is not a fit.
 - **Feature schemas:** Prefer **`domain/<feature>/<feature>.schemas.ts`** (**§7**); editor is started; not applied systematically across features.
 - **JSONB `tracks`:** Validated on **GET `/api/editor/:id`**. The doc calls for validation **on every read** of `editProjects.tracks` — any other path that loads `tracks` (repos, export worker, fork/restore, jobs, etc.) should use the same boundary.
 
@@ -922,7 +922,7 @@ What follows is the gap between the **target state** (migration sequence + summa
 - **Every route file &lt; ~200 lines** — not yet (notably editor AI router).
 - **All Drizzle in repositories** — not yet.
 - **All business logic in `domain/` services** — partial.
-- **All request bodies via `zValidator`** — not yet.
+- **All request bodies/query/params via `zValidator`** — done.
 - **Timeline JSONB validated on every read path** — partial.
 - **Types in `domain/*/types`** — partial.
 

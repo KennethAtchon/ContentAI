@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
@@ -6,7 +6,7 @@ import {
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   musicTracks,
@@ -17,21 +17,34 @@ import {
 import { eq, and, ilike, or, gte, lte, desc, sql } from "drizzle-orm";
 import { getFileUrl } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
+import { musicListQuerySchema } from "../../domain/music/music.schemas";
 
 const app = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // GET /api/music/library
 app.get(
   "/library",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", musicListQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const search = c.req.query("search");
-      const mood = c.req.query("mood");
-      const durationBucket = c.req.query("durationBucket");
-      const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
-      const limit = Math.min(50, parseInt(c.req.query("limit") ?? "20", 10));
+      const { search, mood, durationBucket, page, limit } =
+        c.req.valid("query");
       const offset = (page - 1) * limit;
 
       const conditions = [eq(musicTracks.isActive, true)];

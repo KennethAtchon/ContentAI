@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
@@ -21,8 +21,23 @@ import { resolveContentChainIds } from "./services/refresh-editor-timeline";
 import { mergeNewAssetsIntoProject } from "./services/merge-new-assets";
 import { patchProjectSchema, createProjectSchema } from "./schemas";
 import { parseStoredEditorTracks } from "../../domain/editor/validate-stored-tracks";
+import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
 
 const projectsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/editor ─────────────────────────────────────────────────────────
 
@@ -215,9 +230,14 @@ projectsRouter.post(
 
 // ─── GET /api/editor/:id ─────────────────────────────────────────────────────
 
-projectsRouter.get("/:id", rateLimiter("customer"), authMiddleware("user"), async (c) => {
+projectsRouter.get(
+  "/:id",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
+  async (c) => {
   const auth = c.get("auth");
-  const { id } = c.req.param();
+  const { id } = c.req.valid("param");
 
   const [project] = await db
     .select()
@@ -242,11 +262,12 @@ projectsRouter.patch(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   zValidator("json", patchProjectSchema),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
       const parsed = c.req.valid("json");
 
       const [existing] = await db
@@ -321,10 +342,11 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [existing] = await db
         .select({ id: editProjects.id })
@@ -376,10 +398,11 @@ projectsRouter.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [existing] = await db
         .select({ id: editProjects.id })
@@ -418,10 +441,11 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
       const result = await mergeNewAssetsIntoProject(id, auth.user.id);
       return c.json(result);
     } catch (error) {
@@ -445,10 +469,11 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [project] = await db
         .select()
@@ -528,10 +553,11 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
 
       const [source] = await db
         .select()

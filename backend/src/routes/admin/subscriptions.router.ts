@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
@@ -11,20 +12,35 @@ import {
   convertFirestoreTimestamp,
 } from "../../services/firebase/subscription-helpers";
 import { getTierConfig } from "../../constants/subscription.constants";
+import {
+  adminSubscriptionIdParamSchema,
+  adminSubscriptionsQuerySchema,
+} from "../../domain/admin/admin.schemas";
 
 const subscriptionsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 subscriptionsRouter.get(
   "/subscriptions",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("query", adminSubscriptionsQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const page = parseInt(c.req.query("page") || "1", 10);
-      const limit = parseInt(c.req.query("limit") || "50", 10);
-      const status = c.req.query("status");
-      const tier = c.req.query("tier");
-      const search = c.req.query("search");
+      const { page, limit, status, tier, search } = c.req.valid("query");
 
       const customersSnapshot = await adminDb.collection("customers").get();
       const allSubscriptions: any[] = [];
@@ -287,9 +303,10 @@ subscriptionsRouter.get(
   "/subscriptions/:id",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("param", adminSubscriptionIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = c.req.param("id");
+      const { id } = c.req.valid("param");
       const customersSnapshot = await adminDb.collection("customers").get();
 
       for (const customerDoc of customersSnapshot.docs) {

@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { createHash } from "crypto";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
@@ -6,8 +7,23 @@ import { ADMIN_SPECIAL_CODE_HASH } from "../../utils/config/envUtil";
 import { adminAuth } from "../../services/firebase/admin";
 import { debugLog } from "../../utils/debug/debug";
 import { adminService } from "../../domain/singletons";
+import { adminVerifyBodySchema } from "../../domain/admin/admin.schemas";
 
 const verifyRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 verifyRouter.get(
   "/verify",
@@ -27,12 +43,10 @@ verifyRouter.post(
   "/verify",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("json", adminVerifyBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json();
-      const { adminCode } = body;
-
-      if (!adminCode) return c.json({ error: "Admin code is required" }, 400);
+      const { adminCode } = c.req.valid("json");
 
       if (!ADMIN_SPECIAL_CODE_HASH) {
         return c.json(

@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   eq,
   desc,
@@ -15,7 +16,7 @@ import {
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   queueItems,
@@ -26,23 +27,37 @@ import {
 import { debugLog } from "../../utils/debug/debug";
 import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { deriveStages } from "../../domain/queue/pipeline/stage-derivation";
+import {
+  createQueueItemBodySchema,
+  queueListQuerySchema,
+} from "../../domain/queue/queue.schemas";
 
 const coreRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 coreRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", queueListQuerySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const status = c.req.query("status");
-      const projectId = c.req.query("projectId");
-      const search = c.req.query("search")?.trim();
-      const sort = c.req.query("sort") ?? "createdAt";
-      const sortDir = c.req.query("sortDir") ?? "desc";
-      const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
-      const offset = parseInt(c.req.query("offset") ?? "0", 10);
+      const { status, projectId, search, sort, sortDir, limit, offset } =
+        c.req.valid("query");
 
       const conditions = [eq(queueItems.userId, auth.user.id)];
       if (status) conditions.push(eq(queueItems.status, status));
@@ -334,15 +349,11 @@ coreRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", createQueueItemBodySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const body = await c.req.json();
-      const generatedContentId = body?.generatedContentId as number | undefined;
-
-      if (!generatedContentId || typeof generatedContentId !== "number") {
-        return c.json({ error: "generatedContentId is required" }, 400);
-      }
+      const { generatedContentId } = c.req.valid("json");
 
       // Verify content exists and belongs to user
       const [content] = await db

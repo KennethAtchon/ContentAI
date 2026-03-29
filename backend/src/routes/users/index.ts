@@ -1,10 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   users as usersTable,
@@ -14,68 +15,92 @@ import { eq, and, or, ilike, desc, gte, lte, sql } from "drizzle-orm";
 import { adminAuth } from "../../services/firebase/admin";
 import { FirebaseUserSync } from "../../services/firebase/sync";
 import { debugLog } from "../../utils/debug/debug";
+import {
+  createUserBodySchema,
+  deleteUserBodySchema,
+  objectToProcessingBodySchema,
+  updateUserBodySchema,
+  usersListQuerySchema,
+} from "../../domain/users/users.schemas";
 
 const users = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/users ───────────────────────────────────────────────────────────
 
-users.get("/", rateLimiter("admin"), authMiddleware("admin"), async (c) => {
-  try {
-    const page = parseInt(c.req.query("page") || "1", 10);
-    const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 100);
-    const search = c.req.query("search");
-    const includeDeleted = c.req.query("includeDeleted") === "true";
-    const skip = (page - 1) * limit;
+users.get(
+  "/",
+  rateLimiter("admin"),
+  authMiddleware("admin"),
+  zValidator("query", usersListQuerySchema, validationErrorHook),
+  async (c) => {
+    try {
+      const { page, limit, search, includeDeleted } = c.req.valid("query");
+      const skip = (page - 1) * limit;
 
-    const conditions = [
-      ...(includeDeleted ? [] : [eq(usersTable.isDeleted, false)]),
-      ...(search
-        ? [
-            or(
-              ilike(usersTable.name, `%${search}%`),
-              ilike(usersTable.email, `%${search}%`),
-            ),
-          ]
-        : []),
-    ];
-    const whereClause =
-      conditions.length > 0 ? and(...(conditions as any)) : undefined;
+      const conditions = [
+        ...(includeDeleted ? [] : [eq(usersTable.isDeleted, false)]),
+        ...(search
+          ? [
+              or(
+                ilike(usersTable.name, `%${search}%`),
+                ilike(usersTable.email, `%${search}%`),
+              ),
+            ]
+          : []),
+      ];
+      const whereClause =
+        conditions.length > 0 ? and(...(conditions as any)) : undefined;
 
-    const [allUsers, [{ total }]] = await Promise.all([
-      db
-        .select()
-        .from(usersTable)
-        .where(whereClause)
-        .orderBy(desc(usersTable.isActive), desc(usersTable.createdAt))
-        .limit(limit)
-        .offset(skip),
-      db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(usersTable)
-        .where(whereClause),
-    ]);
+      const [allUsers, [{ total }]] = await Promise.all([
+        db
+          .select()
+          .from(usersTable)
+          .where(whereClause)
+          .orderBy(desc(usersTable.isActive), desc(usersTable.createdAt))
+          .limit(limit)
+          .offset(skip),
+        db
+          .select({ total: sql<number>`count(*)::int` })
+          .from(usersTable)
+          .where(whereClause),
+      ]);
 
-    const totalPages = Math.ceil(total / limit);
-    return c.json({
-      users: allUsers,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasMore: page < totalPages,
-        hasPrevious: page > 1,
-      },
-    });
-  } catch (error) {
-    debugLog.error("Failed to fetch users", {
-      service: "users-route",
-      operation: "getUsers",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch users" }, 500);
-  }
-});
+      const totalPages = Math.ceil(total / limit);
+      return c.json({
+        users: allUsers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasMore: page < totalPages,
+          hasPrevious: page > 1,
+        },
+      });
+    } catch (error) {
+      debugLog.error("Failed to fetch users", {
+        service: "users-route",
+        operation: "getUsers",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return c.json({ error: "Failed to fetch users" }, 500);
+    }
+  },
+);
 
 // ─── POST /api/users ──────────────────────────────────────────────────────────
 
@@ -84,10 +109,11 @@ users.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", createUserBodySchema, validationErrorHook),
   async (c) => {
     try {
       const { name, email, password, createInFirebase, timezone } =
-        await c.req.json();
+        c.req.valid("json");
 
       let firebaseUid: string | null = null;
 
@@ -115,7 +141,7 @@ users.post(
           firebaseUid,
           role: "user",
           isActive: true,
-          timezone: timezone || "UTC",
+          timezone,
         })
         .returning();
 
@@ -138,6 +164,7 @@ users.patch(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", updateUserBodySchema, validationErrorHook),
   async (c) => {
     try {
       const {
@@ -150,9 +177,7 @@ users.patch(
         email,
         isActive,
         timezone,
-      } = await c.req.json();
-
-      if (!id) return c.json({ error: "User id is required" }, 400);
+      } = c.req.valid("json");
 
       const [existingUser] = await db
         .select()
@@ -216,11 +241,10 @@ users.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", deleteUserBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const { id, hardDelete = false } = await c.req.json();
-
-      if (!id) return c.json({ error: "User id is required" }, 400);
+      const { id, hardDelete } = c.req.valid("json");
 
       const [existingUser] = await db
         .select()
@@ -461,11 +485,10 @@ users.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
+  zValidator("json", objectToProcessingBodySchema, validationErrorHook),
   async (c) => {
     try {
-      const { userId } = await c.req.json();
-
-      if (!userId) return c.json({ error: "userId is required" }, 400);
+      const { userId } = c.req.valid("json");
 
       const [user] = await db
         .update(usersTable)

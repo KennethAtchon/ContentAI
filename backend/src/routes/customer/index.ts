@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -6,26 +7,46 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
-import { users, orders, featureUsages } from "../../infrastructure/database/drizzle/schema";
+import {
+  users,
+  orders,
+  featureUsages,
+} from "../../infrastructure/database/drizzle/schema";
 import { queueService } from "../../domain/singletons";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
-import { z } from "zod";
 import Stripe from "stripe";
 import { adminAuth } from "../../services/firebase/admin";
 import { debugLog } from "../../utils/debug/debug";
 import { getFeatureLimitsForStripeRole } from "../../constants/subscription.constants";
 import { STRIPE_SECRET_KEY } from "../../utils/config/envUtil";
+import {
+  createCustomerOrderSchema,
+  createOrderFromCheckoutSchema,
+  customerOrderIdParamSchema,
+  customerOrdersQuerySchema,
+  orderBySessionQuerySchema,
+  updateCustomerProfileSchema,
+} from "../../domain/customer/customer.schemas";
 
 const stripeClient = STRIPE_SECRET_KEY
   ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
   : null;
 
-const createOrderFromCheckoutSchema = z.object({
-  stripeSessionId: z.string().min(1, "stripeSessionId is required"),
-  status: z.string().optional(),
-});
-
 const customer = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── Usage ─────────────────────────────────────────────────────────────────────
 
@@ -156,11 +177,11 @@ customer.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", updateCustomerProfileSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const body = await c.req.json();
-      const { name, email, phone, address, timezone } = body;
+      const { name, email, phone, address, timezone } = c.req.valid("json");
 
       // Handle email change with Firebase
       if (email !== undefined && email !== auth.user.email) {
@@ -253,12 +274,12 @@ customer.get(
   "/orders",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", customerOrdersQuerySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
 
-      const page = parseInt(c.req.query("page") || "1", 10);
-      const limit = parseInt(c.req.query("limit") || "10", 10);
+      const { page, limit } = c.req.valid("query");
       const skip = (page - 1) * limit;
 
       const [orderRows, [{ count: total }]] = await Promise.all([
@@ -306,6 +327,7 @@ customer.post(
   rateLimiter("payment"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", createOrderFromCheckoutSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
@@ -313,16 +335,7 @@ customer.post(
         return c.json({ error: "Stripe is not configured" }, 503);
       }
 
-      const body = await c.req.json().catch(() => null);
-      const parsed = createOrderFromCheckoutSchema.safeParse(body);
-      if (!parsed.success) {
-        return c.json(
-          { error: "Invalid request body", details: parsed.error.flatten() },
-          400,
-        );
-      }
-
-      const { stripeSessionId, status } = parsed.data;
+      const { stripeSessionId, status } = c.req.valid("json");
 
       const [existing] = await db
         .select()
@@ -429,14 +442,19 @@ customer.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("json", createCustomerOrderSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const body = await c.req.json();
+      const body = c.req.valid("json");
 
       const [order] = await db
         .insert(orders)
-        .values({ ...body, userId: auth.user.id })
+        .values({
+          ...body,
+          totalAmount: String(body.totalAmount),
+          userId: auth.user.id,
+        })
         .returning();
 
       return c.json(order, 201);
@@ -458,11 +476,11 @@ customer.get(
   "/orders/by-session",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", orderBySessionQuerySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const sessionId = c.req.query("sessionId");
-      if (!sessionId) return c.json({ error: "sessionId is required" }, 400);
+      const { sessionId } = c.req.valid("query");
 
       const [order] = await db
         .select()
@@ -525,10 +543,11 @@ customer.get(
   "/orders/:orderId",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", customerOrderIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const orderId = c.req.param("orderId");
+      const { orderId } = c.req.valid("param");
 
       const [order] = await db
         .select()

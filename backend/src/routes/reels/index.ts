@@ -1,6 +1,7 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   reels,
@@ -18,8 +19,28 @@ import {
   queueItems,
   featureUsages,
 } from "../../infrastructure/database/drizzle/schema";
+import {
+  bulkReelsSchema,
+  reelIdParamSchema,
+  reelsExportQuerySchema,
+  reelsListQuerySchema,
+} from "../../domain/reels/reels.schemas";
 
 const reelsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 /**
  * GET /api/reels/usage
@@ -119,16 +140,19 @@ reelsRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", reelsListQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const nicheIdParam = c.req.query("nicheId");
-      const nicheNameParam = c.req.query("niche") ?? "";
-      const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 50);
-      const offset = parseInt(c.req.query("offset") ?? "0", 10);
-      const minViewsParam = c.req.query("minViews");
-      const minViews = minViewsParam ? parseInt(minViewsParam, 10) : null;
-      const sort = c.req.query("sort") ?? "views";
-      const search = c.req.query("search")?.trim();
+      const {
+        nicheId,
+        niche: nicheNameParam = "",
+        limit,
+        offset,
+        minViews,
+        sort,
+        search,
+      } = c.req.valid("query");
+      const nicheIdParam = nicheId ? String(nicheId) : undefined;
       const isTrending =
         nicheNameParam.toLowerCase() === "trending" ||
         nicheIdParam === "trending";
@@ -143,7 +167,7 @@ reelsRouter.get(
               : [desc(reels.views)];
 
       const conditions: ReturnType<typeof gte>[] = [];
-      if (minViews !== null) conditions.push(gte(reels.views, minViews));
+      if (minViews !== undefined) conditions.push(gte(reels.views, minViews));
       if (search) {
         const term = `%${search}%`;
         conditions.push(
@@ -160,10 +184,8 @@ reelsRouter.get(
             typeof gte
           >,
         );
-      } else if (nicheIdParam) {
-        const nicheId = parseInt(nicheIdParam, 10);
-        if (!isNaN(nicheId))
-          conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
+      } else if (nicheId) {
+        conditions.push(eq(reels.nicheId, nicheId) as ReturnType<typeof gte>);
       } else if (nicheNameParam) {
         // Resolve name → id via sub-select
         const [matched] = await db
@@ -226,7 +248,7 @@ reelsRouter.get(
           hasAnalysis: analyzedIds.has(r.id),
         })),
         total,
-        nicheId: nicheIdParam ?? null,
+        nicheId: nicheId ?? null,
         niche: nicheNameParam,
       });
     } catch (error) {
@@ -248,20 +270,11 @@ reelsRouter.post(
   "/bulk",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("json", bulkReelsSchema, validationErrorHook),
   async (c) => {
     try {
-      const body = await c.req.json().catch(() => null);
-      const ids: unknown[] = Array.isArray(body?.ids) ? body.ids : [];
-      const uniqueIds: number[] = Array.from(
-        new Set(
-          ids
-            .map((id: unknown) => (typeof id === "number" ? id : Number(id)))
-            .filter((id: unknown): id is number => {
-              const numId = typeof id === "number" ? id : Number(id);
-              return Number.isInteger(numId) && numId > 0;
-            }),
-        ),
-      ).slice(0, 50);
+      const { ids } = c.req.valid("json");
+      const uniqueIds = Array.from(new Set(ids)).slice(0, 50);
 
       if (uniqueIds.length === 0) {
         return c.json({ reels: [] });
@@ -299,10 +312,10 @@ reelsRouter.get(
   "/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", reelIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [reel] = await db.select().from(reels).where(eq(reels.id, id));
       if (!reel) return c.json({ error: "Reel not found" }, 404);
@@ -332,10 +345,10 @@ reelsRouter.get(
   "/:id/media-url",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", reelIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const [reel] = await db
         .select({ videoR2Url: reels.videoR2Url })
@@ -378,11 +391,11 @@ reelsRouter.post(
   rateLimiter("customer"),
   authMiddleware("user"),
   usageGate("analysis"),
+  zValidator("param", reelIdParamSchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const id = parseInt(c.req.param("id"), 10);
-      if (isNaN(id)) return c.json({ error: "Invalid reel ID" }, 400);
+      const { id } = c.req.valid("param");
 
       const analysis = await analyzeReel(id, auth.user.id);
 
@@ -414,15 +427,12 @@ reelsRouter.get(
   "/export",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", reelsExportQuerySchema, validationErrorHook),
   async (c) => {
     try {
-      const nicheIdParam = c.req.query("nicheId");
-      const nicheNameParam = c.req.query("niche");
-      const format = c.req.query("format") ?? "json";
-      const minViews = parseInt(
-        c.req.query("minViews") ?? String(VIRAL_VIEWS_THRESHOLD),
-        10,
-      );
+      const { nicheId, niche: nicheNameParam, format, minViews } =
+        c.req.valid("query");
+      const nicheIdParam = nicheId ? String(nicheId) : undefined;
 
       if (!nicheIdParam && !nicheNameParam) {
         return c.json(
@@ -453,7 +463,13 @@ reelsRouter.get(
         .select()
         .from(reels)
         .where(
-          and(gte(reels.views, minViews), eq(reels.nicheId, resolvedNicheId)),
+          and(
+            gte(
+              reels.views,
+              minViews !== undefined ? minViews : VIRAL_VIEWS_THRESHOLD,
+            ),
+            eq(reels.nicheId, resolvedNicheId),
+          ),
         )
         .orderBy(desc(reels.views));
 

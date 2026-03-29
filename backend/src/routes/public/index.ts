@@ -1,20 +1,41 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import { contactMessages } from "../../infrastructure/database/drizzle/schema";
-import { and, desc, gte, lte, or, ilike, sql } from "drizzle-orm";
+import { and, desc, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { encrypt, decrypt } from "../../utils/security/encryption";
 import { sendOrderConfirmationEmail } from "../../services/email/resend";
 import { storage } from "../../services/storage";
 import { generateSecureFilename } from "../../utils/validation/file-validation";
-import { debugLog } from "../../utils/debug/debug";
+import { AppError } from "../../utils/errors/app-error";
+import {
+  contactMessagesQuerySchema,
+  createContactMessageSchema,
+  sendOrderConfirmationEmailSchema,
+} from "../../domain/public/public.schemas";
 
 const publicRoutes = new Hono<HonoEnv>();
+
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── GET /api/shared/contact-messages ────────────────────────────────────────
 
@@ -22,103 +43,83 @@ publicRoutes.get(
   "/contact-messages",
   rateLimiter("admin"),
   authMiddleware("admin"),
+  zValidator("query", contactMessagesQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const page = parseInt(c.req.query("page") || "1", 10);
-      const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 100);
-      const search = c.req.query("search");
-      const dateFrom = c.req.query("dateFrom");
-      const dateTo = c.req.query("dateTo");
-      const skip = (page - 1) * limit;
+    const { page, limit, search, dateFrom, dateTo } = c.req.valid("query");
+    const skip = (page - 1) * limit;
 
-      const msgWhere = and(
-        search
-          ? or(
-              ilike(contactMessages.name, `%${search}%`),
-              ilike(contactMessages.email, `%${search}%`),
-              ilike(contactMessages.subject, `%${search}%`),
-            )
-          : undefined,
-        dateFrom
-          ? gte(contactMessages.createdAt, new Date(dateFrom))
-          : undefined,
-        dateTo ? lte(contactMessages.createdAt, new Date(dateTo)) : undefined,
-      );
+    const msgWhere = and(
+      search
+        ? or(
+            ilike(contactMessages.name, `%${search}%`),
+            ilike(contactMessages.email, `%${search}%`),
+            ilike(contactMessages.subject, `%${search}%`),
+          )
+        : undefined,
+      dateFrom ? gte(contactMessages.createdAt, new Date(dateFrom)) : undefined,
+      dateTo ? lte(contactMessages.createdAt, new Date(dateTo)) : undefined,
+    );
 
-      const [rawMessages, [{ total }]] = await Promise.all([
-        db
-          .select()
-          .from(contactMessages)
-          .where(msgWhere)
-          .orderBy(desc(contactMessages.createdAt))
-          .limit(limit)
-          .offset(skip),
-        db
-          .select({ total: sql<number>`count(*)::int` })
-          .from(contactMessages)
-          .where(msgWhere),
-      ]);
+    const [rawMessages, [{ total }]] = await Promise.all([
+      db
+        .select()
+        .from(contactMessages)
+        .where(msgWhere)
+        .orderBy(desc(contactMessages.createdAt))
+        .limit(limit)
+        .offset(skip),
+      db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(contactMessages)
+        .where(msgWhere),
+    ]);
 
-      // Decrypt PII fields
-      const ENCRYPTED_FIELDS = [
-        "name",
-        "email",
-        "phone",
-        "subject",
-        "message",
-      ] as const;
-      const messages = rawMessages.map((msg) => {
-        const decrypted = { ...msg };
-        for (const field of ENCRYPTED_FIELDS) {
-          if (decrypted[field]) {
-            try {
-              (decrypted as any)[field] = decrypt(decrypted[field] as string);
-            } catch {
-              /* leave as-is */
-            }
+    const ENCRYPTED_FIELDS = [
+      "name",
+      "email",
+      "phone",
+      "subject",
+      "message",
+    ] as const;
+
+    const messages = rawMessages.map((msg) => {
+      const decrypted = { ...msg };
+      for (const field of ENCRYPTED_FIELDS) {
+        if (decrypted[field]) {
+          try {
+            (decrypted as any)[field] = decrypt(decrypted[field] as string);
+          } catch {
+            // Leave undecryptable content as-is so admin can still inspect record.
           }
         }
-        return decrypted;
-      });
+      }
+      return decrypted;
+    });
 
-      const totalPages = Math.ceil(total / limit);
-      return c.json({
-        messages,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasMore: page < totalPages,
-          hasPrevious: page > 1,
-        },
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch contact messages", {
-        service: "public-route",
-        operation: "getContactMessages",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch contact messages" }, 500);
-    }
+    const totalPages = Math.ceil(total / limit);
+    return c.json({
+      messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+        hasPrevious: page > 1,
+      },
+    });
   },
 );
 
 // ─── POST /api/shared/contact-messages ───────────────────────────────────────
 
-publicRoutes.post("/contact-messages", rateLimiter("public"), async (c) => {
-  try {
-    const data = await c.req.json();
-    const { name, email, phone, subject, message } = data;
+publicRoutes.post(
+  "/contact-messages",
+  rateLimiter("public"),
+  zValidator("json", createContactMessageSchema, validationErrorHook),
+  async (c) => {
+    const { name, email, phone, subject, message } = c.req.valid("json");
 
-    if (!name || !email || !subject || !message) {
-      return c.json(
-        { error: "name, email, subject, and message are required" },
-        400,
-      );
-    }
-
-    // Basic spam detection
     const suspiciousPatterns = [
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
       /javascript:/gi,
@@ -127,13 +128,14 @@ publicRoutes.post("/contact-messages", rateLimiter("public"), async (c) => {
     ];
 
     const content = `${name} ${subject} ${message}`;
-    const isSuspicious = suspiciousPatterns.some((p) => p.test(content));
+    const isSuspicious = suspiciousPatterns.some((pattern) =>
+      pattern.test(content),
+    );
+
     if (isSuspicious) {
-      return c.json(
-        {
-          error:
-            "Your message could not be submitted. Please ensure your message contains appropriate content.",
-        },
+      throw new AppError(
+        "Your message could not be submitted. Please ensure your message contains appropriate content.",
+        "INVALID_INPUT",
         400,
       );
     }
@@ -149,9 +151,6 @@ publicRoutes.post("/contact-messages", rateLimiter("public"), async (c) => {
       })
       .returning({
         id: contactMessages.id,
-        name: contactMessages.name,
-        email: contactMessages.email,
-        subject: contactMessages.subject,
         createdAt: contactMessages.createdAt,
       });
 
@@ -164,27 +163,16 @@ publicRoutes.post("/contact-messages", rateLimiter("public"), async (c) => {
       },
       201,
     );
-  } catch (error) {
-    debugLog.error("Failed to create contact message", {
-      service: "public-route",
-      operation: "createContactMessage",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json(
-      {
-        error:
-          "Unable to send your message at this time. Please try again later.",
-      },
-      500,
-    );
-  }
-});
+  },
+);
 
 // ─── POST /api/shared/emails ──────────────────────────────────────────────────
 
-publicRoutes.post("/emails", rateLimiter("public"), async (c) => {
-  try {
-    const body = await c.req.json();
+publicRoutes.post(
+  "/emails",
+  rateLimiter("public"),
+  zValidator("json", sendOrderConfirmationEmailSchema, validationErrorHook),
+  async (c) => {
     const {
       customerName,
       customerEmail,
@@ -194,44 +182,35 @@ publicRoutes.post("/emails", rateLimiter("public"), async (c) => {
       totalAmount,
       address,
       phone,
-    } = body;
-
-    if (!customerName || !customerEmail || !orderId || !totalAmount) {
-      return c.json({ error: "Missing required fields" }, 400);
-    }
+    } = c.req.valid("json");
 
     const result = await sendOrderConfirmationEmail({
       customerName,
       customerEmail,
       orderId,
-      therapies: therapies || [],
-      products: products || [],
+      therapies,
+      products,
       totalAmount,
       address,
       phone,
     });
 
-    if (result.success) {
-      return c.json({
-        success: true,
-        message: "Confirmation email sent successfully",
-        emailId: result.id,
-      });
-    } else {
-      return c.json(
-        { error: "Failed to send confirmation email", details: result.error },
+    if (!result.success) {
+      throw new AppError(
+        "Failed to send confirmation email",
+        "EMAIL_SEND_FAILED",
         500,
+        { reason: result.error },
       );
     }
-  } catch (error) {
-    debugLog.error("Failed to send email", {
-      service: "public-route",
-      operation: "sendOrderConfirmationEmail",
-      error: error instanceof Error ? error.message : "Unknown error",
+
+    return c.json({
+      success: true,
+      message: "Confirmation email sent successfully",
+      emailId: result.id,
     });
-    return c.json({ error: "Failed to send email" }, 500);
-  }
-});
+  },
+);
 
 // ─── POST /api/shared/upload ──────────────────────────────────────────────────
 
@@ -241,43 +220,38 @@ publicRoutes.post(
   csrfMiddleware(),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const formData = await c.req.formData();
-      const file = formData.get("file") as File | null;
+    const formData = await c.req.formData();
+    const file = formData.get("file") as File | null;
 
-      if (!file) return c.json({ error: "No file provided" }, 400);
-
-      const maxSize = 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        return c.json({ error: "File size exceeds 10MB limit" }, 400);
-      }
-
-      const allowedMimeTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ];
-      if (!allowedMimeTypes.includes(file.type)) {
-        return c.json(
-          { error: "File type not allowed. Only images are accepted." },
-          400,
-        );
-      }
-
-      const filename = generateSecureFilename(file.name);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const url = await storage.uploadFile(buffer, filename, file.type);
-
-      return c.json({ success: true, url, filename });
-    } catch (error) {
-      debugLog.error("Failed to upload file", {
-        service: "public-route",
-        operation: "uploadFile",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to upload file" }, 500);
+    if (!file) {
+      throw new AppError("No file provided", "INVALID_INPUT", 400);
     }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new AppError("File size exceeds 10MB limit", "INVALID_INPUT", 400);
+    }
+
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+
+    if (!allowedMimeTypes.includes(file.type)) {
+      throw new AppError(
+        "File type not allowed. Only images are accepted.",
+        "INVALID_INPUT",
+        400,
+      );
+    }
+
+    const filename = generateSecureFilename(file.name);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const url = await storage.uploadFile(buffer, filename, file.type);
+
+    return c.json({ success: true, url, filename });
   },
 );
 

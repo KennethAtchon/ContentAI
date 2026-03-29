@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   rateLimiter,
@@ -12,18 +13,34 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, inArray, notInArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
+import { editorAssetsQuerySchema } from "../../domain/editor/editor.schemas";
 
 const assetsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 /** GET / — mounted at /api/editor/assets */
 assetsRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("query", editorAssetsQuerySchema, validationErrorHook),
   async (c) => {
     try {
       const auth = c.get("auth");
-      const contentIdParam = c.req.query("contentId");
+      const { contentId } = c.req.valid("query");
       const roles = c.req.queries("role") ?? [];
 
       const userContentIds = db
@@ -37,10 +54,8 @@ assetsRouter.get(
         >,
       ];
 
-      if (contentIdParam) {
-        conditions.push(
-          eq(contentAssets.generatedContentId, Number(contentIdParam)),
-        );
+      if (contentId) {
+        conditions.push(eq(contentAssets.generatedContentId, contentId));
       }
       if (roles.length > 0) {
         conditions.push(

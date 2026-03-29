@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
   rateLimiter,
@@ -10,8 +11,27 @@ import { editProjects } from "../../infrastructure/database/drizzle/schema";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { buildInitialTimeline } from "./services/build-initial-timeline";
+import {
+  editorProjectIdParamSchema,
+  editorSnapshotParamSchema,
+  forkProjectSchema,
+} from "../../domain/editor/editor.schemas";
 
 const forkVersionsRouter = new Hono<HonoEnv>();
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 // ─── POST /api/editor/:id/fork ───────────────────────────────────────────────
 
@@ -20,13 +40,13 @@ forkVersionsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
+  zValidator("json", forkProjectSchema, validationErrorHook),
   async (c) => {
     try {
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
       const auth = c.get("auth");
-      const body = (await c.req.json().catch(() => ({}))) as {
-        resetToAI?: boolean;
-      };
+      const body = c.req.valid("json");
 
       const [root] = await db
         .select()
@@ -101,9 +121,10 @@ forkVersionsRouter.get(
   "/:id/versions",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", editorProjectIdParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const { id } = c.req.param();
+      const { id } = c.req.valid("param");
       const auth = c.get("auth");
 
       const versions = await db
@@ -140,9 +161,10 @@ forkVersionsRouter.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  zValidator("param", editorSnapshotParamSchema, validationErrorHook),
   async (c) => {
     try {
-      const { id, snapshotId } = c.req.param();
+      const { id, snapshotId } = c.req.valid("param");
       const auth = c.get("auth");
 
       const [rootResult, snapshotResult] = await Promise.all([
