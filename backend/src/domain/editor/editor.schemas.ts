@@ -62,6 +62,13 @@ const clipDataSchema = z.object({
   captionGroupSize: z.number().int().min(1).max(10).optional(),
   captionPositionY: z.number().min(0).max(100).optional(),
   captionFontSizeOverride: z.number().int().min(8).max(200).optional(),
+  /** Shot placeholders before generation completes — must be preserved on parse (Zod strips unknown keys). */
+  isPlaceholder: z.literal(true).optional(),
+  placeholderShotIndex: z.number().int().min(0).optional(),
+  placeholderLabel: z.string().max(200).optional(),
+  placeholderStatus: z
+    .enum(["pending", "generating", "failed"])
+    .optional(),
 });
 
 const transitionSchema = z.object({

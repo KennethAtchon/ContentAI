@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
@@ -14,29 +14,16 @@ import {
 import { eq, and, desc, inArray, notInArray } from "drizzle-orm";
 import { debugLog } from "../../utils/debug/debug";
 import { editorAssetsQuerySchema } from "../../domain/editor/editor.schemas";
+import { editorZodValidationHook } from "./zod-validation-hook";
 
 const assetsRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 /** GET / — mounted at /api/editor/assets */
 assetsRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", editorAssetsQuerySchema, validationErrorHook),
+  zValidator("query", editorAssetsQuerySchema, editorZodValidationHook),
   async (c) => {
     try {
       const auth = c.get("auth");

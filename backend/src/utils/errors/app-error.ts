@@ -40,4 +40,10 @@ export const Errors = {
 
   internal: (message = "Internal server error") =>
     new AppError(message, "INTERNAL_ERROR", 500),
+
+  badRequest: (message: string, code = "BAD_REQUEST") =>
+    new AppError(message, code, 400),
+
+  conflict: (message: string, code = "CONFLICT") =>
+    new AppError(message, code, 409),
 };

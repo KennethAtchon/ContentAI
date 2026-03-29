@@ -19,6 +19,7 @@
 9. [Infrastructure Consolidation](#9-infrastructure-consolidation)
 10. [Dead Code to Delete](#10-dead-code-to-delete)
 11. [Migration Sequence](#11-migration-sequence)
+12. [Appendix: Current layout, decisions, verification](#12-appendix-current-layout-decisions-verification)
 
 ---
 
@@ -191,12 +192,8 @@ src/
 │   │   ├── users.repository.ts
 │   │   └── users.types.ts
 │   └── video/
-│       ├── video.service.ts
+│       ├── video.service.ts      ← orchestration / job lifecycle (when introduced)
 │       ├── video.repository.ts
-│       ├── providers/
-│       │   ├── kling.provider.ts
-│       │   ├── runway.provider.ts
-│       │   └── ken-burns.provider.ts
 │       └── video.types.ts
 │
 ├── infrastructure/
@@ -218,7 +215,7 @@ src/
 │   ├── auth/index.ts
 │   ├── chat/index.ts
 │   ├── customer/index.ts
-│   ├── editor/index.ts       ← target: <300 lines (split into sub-routers)
+│   ├── editor/index.ts       ← thin mount; sub-routers below (see §3.1, §12.2)
 │   ├── generation/index.ts
 │   ├── health/index.ts
 │   ├── media/index.ts
@@ -242,7 +239,8 @@ src/
 │   ├── scraping/             ← Instagram scraping
 │   ├── storage/              ← R2 storage
 │   ├── timezone/
-│   └── tts/                  ← ElevenLabs TTS
+│   ├── tts/                  ← ElevenLabs TTS
+│   └── video-generation/     ← provider adapters + provider-selector.ts
 │
 ├── shared/                   ← Pure utilities with no domain knowledge
 │
@@ -254,10 +252,14 @@ src/
 └── utils/                    ← unchanged
 ```
 
+Third-party video model clients (FAL, Runway, Ken Burns) live under **`services/video-generation/`**, not under `domain/video/` — see §9.3 and §12.1.
+
 **Key structural decision:** `domain/` is new. It separates business logic from infrastructure services. The rule is:
 - `domain/` knows about the database schema (via repositories) and calls infrastructure services (email, storage, TTS)
 - `services/` knows about external systems (Firebase, Redis, Resend, R2) and provides adapters
 - `routes/` knows about HTTP only
+
+**Video providers (resolved):** An earlier draft placed provider modules under `domain/video/providers/`. The adopted split is: **HTTP/model SDK adapters** in `services/video-generation/` (with `provider-selector.ts`), and **optional** `domain/video/video.service.ts` for job orchestration only. This matches §9.3 and avoids domain importing low-level provider SDKs unless you later choose otherwise.
 
 ---
 
@@ -302,16 +304,27 @@ editorRouter.post(
 
 The route handler is 10 lines. All the work is in `editorService.addClip()`.
 
-**Split `editor/index.ts` into sub-routers:**
+**Split `editor/index.ts` into sub-routers** (target names in the plan; **as implemented** the tree is):
 
 ```
 routes/editor/
-  index.ts            ← mounts sub-routers
-  projects.router.ts  ← CRUD for editor projects
-  timeline.router.ts  ← clip/track operations
-  export.router.ts    ← export job management
-  captions.router.ts  ← caption operations (already partially extracted)
+  index.ts                      ← mounts sub-routers only
+  editor-projects.router.ts     ← project CRUD, init, publish, timeline save, …
+  editor-export.router.ts       ← export jobs + status
+  editor-fork-versions.router.ts
+  editor-ai.router.ts           ← mounts editor-ai-assembly + editor-link-content
+  editor-ai-assembly.router.ts
+  editor-link-content.router.ts
+  assets.router.ts
+  captions.ts                   ← caption / transcribe (candidate to trim)
+  export-worker.ts              ← worker-style handler (candidate for domain)
+  zod-validation-hook.ts        ← shared zValidator 422 shape for editor
+  services/                     ← refresh-editor-timeline, ai-assembly-prompt, assembly-presets, …
+  export/                       ← e.g. ass-generator
+  schemas.ts
 ```
+
+A dedicated `timeline.router.ts` was folded into **projects** + **domain** timeline helpers (`domain/editor/timeline/`) rather than a separate route file.
 
 ### 3.2 `admin/index.ts` — 1,254 Lines → Target: ~200 Lines
 
@@ -330,7 +343,7 @@ routes/admin/
 
 ### 3.3 `video/index.ts` — 1,230 Lines → Target: ~200 Lines
 
-The video generation pipeline (provider selection, job creation, status polling, rendering) moves to `domain/video/video.service.ts`. Provider-specific logic already exists as separate files under `services/media/video-generation/providers/` — move them to `domain/video/providers/`.
+The video generation pipeline (provider selection, job creation, status polling, rendering) should move to `domain/video/video.service.ts` when that module is introduced. **Provider implementations** remain infrastructure: `services/video-generation/providers/` (see §9.3), selected via `provider-selector.ts`.
 
 ### 3.4 `queue/index.ts` — 1,061 Lines → Target: ~200 Lines
 
@@ -491,18 +504,23 @@ export class EditorRepository implements IEditorRepository {
 
 `HonoEnv`, `Variables`, `AuthResult`, `AdminAuthResult` are currently defined inside the middleware file. Every file that imports these types is coupled to the middleware module.
 
-Move to `src/types/hono.types.ts`:
+Move to `src/types/hono.types.ts` (implemented). The repo uses `AuthResult`, `Variables` (auth + `validatedBody` / `validatedQuery` / rate-limit headers), and `HonoEnv`:
 
 ```typescript
-// src/types/hono.types.ts
-export interface AuthVariables {
-  auth: {
-    user: { id: string; email: string; role: string };
-    firebaseUser: { uid: string; email: string; stripeRole?: string };
-  };
+// src/types/hono.types.ts — illustrative; see file for full exports
+export interface AuthResult {
+  user: { id: string; email: string; role: string };
+  firebaseUser: { uid: string; email: string; stripeRole?: string; /* … */ };
 }
 
-export type HonoEnv = { Variables: AuthVariables };
+export type Variables = {
+  auth: AuthResult;
+  validatedBody: unknown;
+  validatedQuery: unknown;
+  rateLimitHeaders: Record<string, string>;
+};
+
+export type HonoEnv = { Variables: Variables };
 ```
 
 ### 6.2 Strict JSONB Types for Timeline State
@@ -606,6 +624,8 @@ export const searchQuery = z.object({
 });
 ```
 
+Editor routes may use `zValidator(..., { hook: editorZodValidationHook })` from `routes/editor/zod-validation-hook.ts` so validation failures always return `{ error, code: "INVALID_INPUT", details }` per §8.1.
+
 Feature-specific schemas live in `domain/[feature]/[feature].schemas.ts`:
 
 ```typescript
@@ -691,34 +711,35 @@ export const Errors = {
 
   internal: (message = "Internal server error") =>
     new AppError(message, "INTERNAL_ERROR", 500),
+
+  badRequest: (message: string, code = "BAD_REQUEST") =>
+    new AppError(message, code, 400),
+
+  conflict: (message: string, code = "CONFLICT") =>
+    new AppError(message, code, 409),
 };
 ```
 
-### 8.3 Global Error Handler Middleware
+### 8.3 Global error handler (implemented)
+
+The app uses Hono’s **`app.onError`** callback, not a try/catch wrapper around every request. Implemented as `handleRouteError` in `middleware/error-handler.ts`:
 
 ```typescript
-// src/middleware/error-handler.ts
-
-export function errorHandler(): MiddlewareHandler {
-  return async (c, next) => {
-    try {
-      await next();
-    } catch (err) {
-      if (err instanceof AppError) {
-        return c.json(
-          { error: err.message, code: err.code, details: err.details },
-          err.statusCode as StatusCode,
-        );
-      }
-      // Unexpected error
-      debugLog.error("Unhandled error", { service: "error-handler" }, err);
-      return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
-    }
-  };
-}
+// src/middleware/error-handler.ts — shape
+export const handleRouteError: ErrorHandler = (err, c) => {
+  if (err instanceof AppError) {
+    const body: Record<string, unknown> = { error: err.message, code: err.code };
+    if (err.details !== undefined) body.details = err.details;
+    // PROJECT_EXISTS: also surface existingProjectId at top level for clients
+    // …
+    return c.json(body, err.statusCode as ContentfulStatusCode);
+  }
+  debugLog.error("Unhandled error", { service: "error-handler", operation: "onError" }, err);
+  return c.json({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
+};
 ```
 
-Register on the root app in `index.ts`. Now every route handler can `throw Errors.notFound("User")` instead of returning a JSON response, and try/catch blocks largely disappear from routes.
+Register in `index.ts`: `app.onError(handleRouteError)`. Handlers can `throw` `AppError` / `Errors.*` instead of returning ad-hoc JSON for expected failures.
 
 ### 8.4 Remove try/catch From Routes
 
@@ -771,7 +792,7 @@ services/
   tts/           ← ElevenLabs TTS adapter
 ```
 
-Move `services/media/video-generation/providers/` to `domain/video/providers/` — provider selection is business logic, not an infrastructure concern.
+**Decision:** Keep provider modules under `services/video-generation/providers/`. They are third-party HTTP/SDK adapters. **Which** provider to run for a job is business logic and lives in `provider-selector.ts` (and eventually in `domain/video/video.service.ts` if you centralize orchestration there). This replaces the earlier idea of moving raw provider files into `domain/`.
 
 ### 9.2 Firebase Auth Sync
 
@@ -830,7 +851,7 @@ These changes are purely structural and do not touch business logic.
 
 1. **Create `src/types/hono.types.ts`** — move `HonoEnv`, `Variables`, `AuthResult` here. Update all imports. `middleware/protection.ts` now imports from `types/` instead of defining them.
 
-2. **Create `src/utils/errors/app-error.ts`** — define `AppError` and `Errors` factory. Add `errorHandler()` middleware to `index.ts`. Do not change any existing try/catch yet.
+2. **Create `src/utils/errors/app-error.ts`** — define `AppError` and `Errors` factory. Register **`app.onError(handleRouteError)`** in `index.ts`. Do not change every existing try/catch yet.
 
 3. **Create `src/validation/shared.schemas.ts`** — define `uuidParam`, `paginationQuery`, `searchQuery`. Replace any manually written instances of these with imports.
 
@@ -868,78 +889,214 @@ These changes are purely structural and do not touch business logic.
 
 ### Phase 6: Infrastructure Cleanup
 
-16. **Relocate video generation providers** to `services/video-generation/providers/`.
+16. **Video generation providers** — keep under `services/video-generation/providers/`; **`provider-selector.ts`** owns selection (✅). Optional: introduce thin `domain/video/video.service.ts` for job orchestration only.
 
-17. **Move Firebase sync logic** from `services/firebase/sync.ts` to `domain/auth/auth.service.ts`.
+17. **Auth / Firebase** — session establishment and upsert logic live in **`domain/auth/auth.service.ts`** + **`domain/auth/auth.repository.ts`** (✅ partial). Remaining: trim any duplicate sync paths in `services/firebase/` until verify-only + admin SDK remain per §9.2.
 
 18. **Audit and delete dead code** identified in section 10.
 
-### Implementation status (repo snapshot)
+### Implementation status (repo snapshot) — updated
 
-Phases **1–3** (foundation, partial domain/repos, route shrinkage for admin/queue/video/**editor**) are largely reflected in the tree: `types/hono.types.ts`, `AppError` + `handleRouteError`, `validation/shared.schemas.ts`, `types/timeline.types.ts`, `domain/*` (auth, admin, assets, content, editor, queue), editor split into `editor-*.router.ts`, video under `services/video-generation/`, Firebase user sync in `domain/auth/firebase-user-sync.ts` (re-exported from `services/firebase/sync.ts`).
+**Phase 1 (foundation):** `types/hono.types.ts`, `AppError` + global `handleRouteError` in `middleware/error-handler.ts` (including **`PROJECT_EXISTS`**: top-level `existingProjectId` + `code` for frontend compatibility), `validation/shared.schemas.ts`, `types/timeline.types.ts`.
 
-**Phase 4:** Editor create/patch/export/ai-assemble use `zValidator`; editor `tracks` JSONB is validated on **GET** `/api/editor/:id` via `parseStoredEditorTracks`. All request bodies **and query/param inputs** now use `zValidator` across routes (customer, assets, reels, admin niches, editor captions/fork included), with feature schemas in `domain/content`, `domain/public`, `domain/analytics`, `domain/users`, `domain/queue`, `domain/admin`, `domain/subscriptions`, `domain/customer`, `domain/reels`, and `domain/assets`.
+**Phase 2 (repositories) — progress:**
 
-**Phase 5:** `AppError` is wired globally; `generation` and key `public` endpoints now throw `AppError` for invalid/not-found/error states and rely on the global handler. Broad removal of per-route `try/catch` and throwing from all domain services is **not** finished — continue route-by-route.
+- **`domain/editor/editor.repository.ts`** — Large surface: list/create/patch meta, fork/restore/snapshot flows, link-blank-project transaction (`generated_content` + `edit_project` + `queue_item`), export job helpers, timeline-merge transaction helpers (`resolveContentParentIdChainInTx`, `lockRootEditProjectForContentChainInTx`, `setProjectTracksInTx`), export-status lookups for queue detail (`findLatestExportStatusForRootProjectByContentId`, `findLatestDoneExportOutputR2ForRootProjectByContentId`), etc.
+- **`domain/queue/queue.repository.ts`** — includes `markDraftOrScheduledReadyByContent` (publish path), **queue list page** (`listQueueItemsPage` + asset/root/version batch queries), **create draft** (`createDraftQueueItemAndMarkContentQueued`), and **items CRUD/detail** helpers (`duplicateQueueItemForUser`, `deleteQueueItemForUser`, etc.).
+- **`domain/queue/queue.service.ts`** — **`listQueueItemsPage`**, **`createDraftQueueItem`** (maps `QueueChainError` → `AppError`), **`getQueueItemDetail`**, **`duplicateQueueItem`**, **`updateQueueItem`** / **`deleteQueueItem`** (transition rules in **`queue-transitions.ts`**).
+- **`domain/content/content.repository.ts`** — `findIdAndHookForUser` includes `parentId` (editor create flow); **`resolveContentAncestorChainIds`** replaces the old `resolveContentChainIds` helper (parent walk for root-project uniqueness).
+- **`domain/editor/editor.service.ts`** — includes **`createEditorProject`** (pre-check + `buildInitialTimeline` + insert + `23505`), **`syncNewAssetsIntoProject`**; list/get/patch/delete/publish/new-draft/thumbnail as before. **`routes/editor/editor-projects.router.ts`** is a thin mount (~**200 lines**).
+- **`domain/editor/build-initial-timeline.ts`** — `buildInitialTimeline(contentRepo, …)`, **`composeOverlayText`**; uses **`content.findHookAndVoiceoverForUser`** + **`listAssetsLinkedToGeneratedContent`** + **`mergePlaceholdersWithRealClips`** from **`timeline/merge-placeholders-with-assets.ts`**.
+- **`domain/editor/merge-new-assets.ts`** — `mergeNewAssetsIntoProject(editor, content, …)` (no route singletons).
+- **`domain/editor/timeline/merge-placeholders-with-assets.ts`** — `mergePlaceholdersWithRealClips`, `reconcileVideoClipsWithoutPlaceholders`, track/asset types; **`refresh-editor-timeline.ts`** re-exports for existing importers.
+- **`domain/assets/assets.repository.ts`** — `findR2FieldsByIdForUser` (export status output asset, user-scoped); **`findByIdForUser`**, **`findManyByIdsForUser`**, **`insertAsset`** (export output + captions asset reads).
+- **`domain/editor/captions.repository.ts`** — `findByAssetAndUser`, `insert`; **`captions.service.ts`** — Whisper + R2 + repos, **`AppError` / `Errors`**; **`singletons`** wires **`captionsService`**.
+- **`domain/editor/run-export-job.ts`** — full FFmpeg pipeline; **`export/ass-generator.ts`** (ASS presets); **`routes/editor/export-worker.ts`** delegates with **`editorRepository.updateExportJob`** + **`assetsRepository`**.
+- **`routes/editor/captions.ts`** — thin (**~50 lines**): **`zValidator`** + **`captionsService`**.
+- **`domain/music/music.repository.ts`** — library list + count, content ownership check, active track + asset join, replace **`background_music`** on **`content_asset`**; **`music.service.ts`** — presigned preview URLs, **`attachMusicToContent`** (**`Errors.notFound`**); **`routes/music/index.ts`** has no **`db`** (**`musicService`** from **`singletons`**; editor refresh via dynamic import).
+- **`domain/audio/audio.repository.ts`** — trending reel/audio aggregates, content ownership, voiceover **`content_asset`** + **`asset`** read/delete/link; **`audio.service.ts`** — trending mapping, voice catalog URLs, TTS pipeline (**`assetsRepository.insertAsset`**, R2, ElevenLabs, cost ledger); **`routes/audio/index.ts`** has no **`db`** (**`AppError`** rethrow + legacy **`TTS_PROVIDER_ERROR`** JSON shape preserved).
+- **`domain/reels/reels.repository.ts`** — usage counts, niches, filtered list + totals, analysis id sets (**`inArray`**), bulk/detail/export viral queries; **`reels.service.ts`** — dashboard payload, presigned media (**`AppError`** for missing reel/video), CSV/JSON export, **`analyzeReel`** + usage.
+- **`domain/public/public.repository.ts`** — paginated **`contact_message`** list + insert; **`public.service.ts`** — decrypt for admin list, encrypt + spam heuristics on create (**`AppError`**); **`routes/public/index.ts`** has no **`db`** for contact routes (email + upload handlers unchanged).
+- **`domain/queue/queue-editor-join.ts`** — shared `rootEditProjectJoinQueueItems` for queue list `LEFT JOIN` to root edit project.
+- **Still not done:** Routes that **still import `services/db/db`** are listed under **§11 → Remaining work → Routes still using `db` (snapshot)**. Editor **`refresh-editor-timeline.ts`** also uses **`db`** (under `routes/editor/services/` — candidate to fold into **`domain/editor`**). Wider **§4 Rule 2** (constructors + mocked repos in tests) remains partial.
 
-**Phase 6:** Video generation path moved to `services/video-generation/` (per doc layout). Full `services/` flattening, exhaustive dead-code deletion, and **every** Drizzle call behind repositories remain ongoing goals.
+**Phase 3 (route shrinkage):**
 
-### Remaining work (to fully meet this document)
+- **Editor** — `routes/editor/index.ts` is a thin mount. **AI:** split into `editor-ai.router.ts` (mount only), `editor-ai-assembly.router.ts` (~185 lines), `editor-link-content.router.ts`. **Shared:** `routes/editor/zod-validation-hook.ts`. **Projects / fork / export / link** delegate heavily to `editorRepository`.
+- **Timeline domain:** `domain/editor/timeline/clip-trim.ts` (`normalizeMediaClipTrimFields`), `ai-assembly-tracks.ts`, existing `composition.ts` (FFmpeg chain).
+- **Still large / not fully extracted:** **Editor projects** router ~**230 lines** (create + sync still in-route). **Captions / export-worker** are thin; logic lives in **`captions.service`** and **`run-export-job`**. **`assets.router.ts`**, **`editor-ai-assembly.router.ts`**, and **`refresh-editor-timeline.ts`** still embed **`db`**. **Queue:** thin routers + **`queueService`**.
 
-What follows is the gap between the **target state** (migration sequence + summary below) and a typical **current repo snapshot**. Use it as a backlog; check the tree before treating an item as still open.
+**Phase 4 (validation):**
 
-#### Phase 2 — Repository layer (largest gap)
+- **`zValidator`** on body/query/param for the areas called out earlier; form-data (e.g. thumbnails) stays manual where needed.
+- **Feature schemas** live under `domain/<feature>/*.schemas.ts` for many domains; not every handler is co-located.
+- **JSONB `tracks`:** `parseStoredEditorTracks` is used on **GET** `/api/editor/:id`, **export-worker**, **refresh-editor-timeline** (merge path), **merge-new-assets**, **fork / restore**, **new-draft**. **`clipDataSchema`** includes placeholder fields so Zod does not strip `isPlaceholder` / `placeholderShotIndex` / etc.
 
-- **Drizzle in routes/services:** Much of the app still calls `db` directly. The doc expects **all** `select` / `insert` / `update` / `delete` behind repositories (**§5**).
-- **Table coverage:** Repositories for the full set implied by **§5.4** (and similar) are not all present or fully wired (e.g. chat, customer, reels, music, users beyond auth, etc.).
-- **Service construction (**§4 Rule 2**):** Domain services should take **repositories as dependencies** (mockable in unit tests) instead of importing the `db` singleton everywhere.
+**Phase 5 (errors):**
 
-#### Phase 3 — Route shrinkage (partial)
+- **Editor:** many handlers use **`throw Errors.*` / `AppError`** and dropped broad `try/catch` (e.g. projects list, patch, thumbnail, delete, sync, publish, new-draft, fork, restore, link). **POST `/api/editor`** (create project) keeps **`try/catch` only for Postgres `23505`** (unique root per content) then rethrows `AppError` **`project_exists`**.
+- **Elsewhere:** **customer**, **users**, **generation**, **chat**, **subscriptions**, **admin**, **video** workers, **auth**, and many handlers still mix manual `c.json` errors with throws; **integration tests** per route not systematically added.
 
-- **Editor:** `routes/editor/index.ts` is a thin mount, but **`editor-ai.router.ts` remains large** (hundreds of lines). The doc target is **each sub-router file &lt; ~200 lines** (**§3.1**).
-- **Domain extraction:** Timeline / export / caption **business** logic should live under **`domain/editor/...`** with routes delegating; large chunks still live in router files.
+**Phase 6 (infrastructure):**
 
-#### Phase 4 — Validation
-
-- **`zValidator` everywhere:** Body/query/param validation is now standardized. Form-data endpoints (file uploads) still do manual validation where `zValidator` is not a fit.
-- **Feature schemas:** Prefer **`domain/<feature>/<feature>.schemas.ts`** (**§7**); editor is started; not applied systematically across features.
-- **JSONB `tracks`:** Validated on **GET `/api/editor/:id`**. The doc calls for validation **on every read** of `editProjects.tracks` — any other path that loads `tracks` (repos, export worker, fork/restore, jobs, etc.) should use the same boundary.
-
-#### Phase 5 — Error handling
-
-- **`AppError` in domain services:** Not-found and other business failures should **`throw`** (e.g. `Errors.notFound(...)`) instead of returning `null` and branching in the route (**§8**).
-- **Route `try/catch`:** Most handlers still catch and `c.json(...)`. The doc expects **relying on the global error handler** after services throw (**§8.4**), with integration tests per route.
-- **One error shape:** Ensure every error response includes **`code`** (and optional **`details`**) per **§8.1**.
-
-#### Phase 6 — Infrastructure / video / cleanup
-
-- **`services/` = infrastructure only (**§9.1**):** Not finished; business logic still appears under `services/` in places.
-- **Video:** **`domain/video/video.service.ts`**, **`provider-selector.ts`**, and optional **`domain/video/providers/`** (**§3.3**, **§9.3**) are not fully realized; providers live under **`services/video-generation/providers/`** after the path move.
-- **§10 dead code:** Unused helpers, duplicate types, noisy logs, legacy `features/` paths — run an **explicit audit** (grep-backed) before deleting.
-
-#### Target summary (**§ “Summary: What This Changes”**) — still partly aspirational
-
-- **Every route file &lt; ~200 lines** — not yet (notably editor AI router).
-- **All Drizzle in repositories** — not yet.
-- **All business logic in `domain/` services** — partial.
-- **All request bodies/query/params via `zValidator`** — done.
-- **Timeline JSONB validated on every read path** — partial.
-- **Types in `domain/*/types`** — partial.
+- **`services/video-generation/provider-selector.ts`** — `getVideoGenerationProvider` + provider map; **`services/video-generation/index.ts`** re-exports and keeps `generateVideoClip` / cost ledger.
+- **`services/` = adapters only**, Firebase sync → **`domain/auth/auth.service`**, **`domain/video/video.service`**, full **§10** dead-code pass — **not done**.
 
 ---
 
-## Summary: What This Changes
+### Remaining work (full backlog vs target summary checklist)
 
-After this reorganization:
+Use this as the authoritative gap list; verify with grep/tree before picking up an item.
 
-- **Routes are < 200 lines** each — they validate, delegate, respond
+#### Phase 2 — Repository layer
+
+- [x] **Queue list query:** `queueRepository.listQueueItemsPage` + **`queueService.listQueueItemsPage`** (`deriveStages`, asset counts, root/version batch SQL); **`routes/queue/core.router.ts`** validates and delegates.
+- [x] **Queue item detail + CRUD:** `queueRepository` + **`queueService`** (`getQueueItemDetail`, duplicate, patch, delete); **`routes/queue/items.router.ts`** is thin.
+- [x] **Editor captions / export worker:** **`captions.repository`**, **`captions.service`**, **`run-export-job`** + **`export/ass-generator`**; **`captions.ts`** / **`export-worker.ts`** are thin wrappers wired from **`singletons`**.
+- [x] **Music (`routes/music`):** **`musicRepository`** + **`musicService`**; no **`db`** in the router.
+- [x] **Audio (`routes/audio`):** **`audioRepository`** + **`audioService`** (uses **`assetsRepository`** for TTS inserts); no **`db`** in the router.
+- [x] **Reels (`routes/reels`):** **`reelsRepository`** + **`reelsService`** (usage, niches, list/bulk/detail/media-url, export, analyze + **`recordUsage`**); no **`db`** in the router. **`GET /export`** is registered **before** **`GET /:id`** so export is reachable.
+- [x] **Public / shared (`routes/public`):** **`publicRepository`** + **`publicService`** for **`contact-messages`** (GET list + POST create); no **`db`** in that router.
+- [ ] **Inject repositories into domain services** (constructors / factories); routes and `singletons.ts` wire instances; unit tests mock interfaces (**§4**).
+
+**Routes still using `db` (snapshot — verify with `rg 'services/db/db' src/routes` from `backend/`):**
+
+| Path | Notes |
+|------|--------|
+| `routes/auth/index.ts` | Auth bootstrap / user upsert — candidate for **`domain/auth`** consolidation. |
+| `routes/chat/index.ts` | Chat sessions/messages — **`domain/chat`** repo + service. |
+| `routes/customer/index.ts` | Usage, profile, orders, Stripe checkout order creation — **`domain/customer`**. |
+| `routes/users/index.ts` | Admin CRUD + self-service account — **`domain/users`** (or extend **`auth`**). |
+| `routes/generation/index.ts` | Generated content flows — align with **`domain/content`** or **`domain/generation`**. |
+| `routes/subscriptions/index.ts` | Subscription reads — often Firestore/JWT; trim **`db`** if only orders/profile overlap. |
+| `routes/projects/index.ts` | Legacy/alternate projects surface — audit vs editor **`projects`**. |
+| `routes/assets/index.ts` | Media library — extend **`assetsRepository`** / **`assetsService`**. |
+| `routes/video/reel-job-runner.ts` | Job pipeline — **`domain/video`** + thin worker route. |
+| `routes/video/phase4-metadata.ts` | Metadata step — same. |
+| `routes/video/timeline-validation.ts` | Validation step — same. |
+| `routes/admin/system.router.ts` | System/config SQL — **`domain/admin`**. |
+| `routes/admin/music.ts` | Admin music CRUD — **`domain/admin`** or shared music repo. |
+| `routes/admin/subscriptions.router.ts` | Admin subscription tooling. |
+| `routes/admin/niches.ts` | Niche admin — **`domain/admin`** or **`domain/niches`**. |
+| `routes/editor/assets.router.ts` | Editor assets — **`editorRepository`** / **`assetsRepository`**. |
+| `routes/editor/editor-ai-assembly.router.ts` | AI assembly DB touches — **`editorService`** or dedicated domain helper. |
+| `routes/editor/services/refresh-editor-timeline.ts` | Not a mount file but lives under **`routes/`**; move to **`domain/editor`** and inject **`db`** only there. |
+| `routes/health/index.ts` | DB ping — acceptable to keep **`db`** or use a tiny **`health`** module; document intentional exception. |
+
+#### Phase 3 — Route size & domain logic
+
+- [x] **Shrink `editor-projects.router.ts`:** **`editorService`** owns all project routes including **POST /** (`createEditorProject`) and **sync-assets** (`syncNewAssetsIntoProject`). **`build-initial-timeline`** / **`merge-new-assets`** live under **`domain/editor/`**; placeholder merge logic under **`domain/editor/timeline/merge-placeholders-with-assets.ts`**.
+- [x] **Caption + transcribe routes** — **`captions.ts`** is under **~200 lines**; OpenAI / storage orchestration in **`captions.service`**.
+- [ ] **Admin / video monoliths** — continue splitting routers and moving analytics, costs, job pipelines into **`domain/admin`**, **`domain/video`**, per original **§3** table.
+
+#### Phase 4 — Validation
+
+- [ ] **Form-data** — optional shared helpers or small Zod preprocess for multipart fields where it improves consistency.
+- [ ] **Schema file naming** — align remaining routes with **`domain/<feature>/<feature>.schemas.ts`** only (**§7**).
+- [ ] **Any code path that reads `tracks` from DB** — grep `editProjects` / `.tracks`; ensure **`parseStoredEditorTracks`** (or equivalent) at the boundary; **queue list** currently returns **`editProjectTracks`** from SQL — consider validating before encode or document as “untrusted until client GET editor”.
+
+#### Phase 5 — Error handling
+
+- [ ] **Customer, users, chat, generation, admin, video, auth, assets, subscriptions, etc.** — replace `return c.json({ error: ... }, nnn)` with **`throw new AppError(...)`** / **`Errors.*`**; remove defensive `try/catch` where the global handler suffices. (**Queue** / **editor** slices already lean on throws in many handlers.)
+- [ ] **Domain services** — prefer **throw** over **null + branch** for not-found and business rule failures (**§8**).
+- [ ] **Guarantee `{ error, code, details? }`** on every error path (**§8.1**); audit clients for legacy shapes.
+- [ ] **Integration tests** for critical flows after each batch of throw-based routes (**§8.4**).
+
+#### Phase 6 — Infrastructure & cleanup
+
+- [ ] **`services/` layout (**§9.1**)** — flatten to config, csrf, db, email, firebase, observability, rate-limit, scraping, storage, timezone, tts, **video-generation**; evict embedded business rules into **`domain/`**.
+- [ ] **Video (**§3.3**, **§9.3**)** — optional **`domain/video/video.service.ts`** wrapping **`getVideoGenerationProvider`** + **`generateVideoClip`**; admin/customer “provider registry” could import a single **`services/video-generation/provider-registry.ts`** instead of duplicating dynamic imports.
+- [ ] **Firebase sync (**§9.2**)** — business rules in **`domain/auth/auth.service.ts`**; **`services/firebase`** keeps verify + admin SDK only.
+- [ ] **§10 Dead code** — grep for legacy `src/features/` under backend, duplicate types, noisy `debugLog`, unused helpers; delete after confirmation.
+
+#### Target summary (**§ “Summary: What This Changes”**) — checklist
+
+| Goal | Status |
+|------|--------|
+| Route files **&lt; ~200 lines** each | **Partial** — **captions**, **export-worker**, **music**, **audio**, **reels**, **public** (contact) are thin; **editor** AI assembly ~OK; **projects**, **queue** core OK; **customer**, **users**, **chat**, **generation**, **admin**, **video** workers, **assets**, **subscriptions** often still large. |
+| **All Drizzle in repositories** | **Partial** — **queue**, **editor** (projects/fork/link/export helpers), **captions**, **music**, **audio**, **reels**, **public** (contact) have no route-level **`db`**; remaining imports are listed in **§11 → Routes still using `db` (snapshot)**. |
+| **Business logic in `domain/` services** | **Partial** — orchestration lives in **`domain/`** for the slices above; **customer**, **users**, **chat**, **generation**, **admin**, **video** pipelines, **auth**, **assets** route still mix HTTP + SQL. |
+| **Bodies/query/params via `zValidator`** | **Done** (except intentional form-data gaps). |
+| **Timeline JSONB validated on read** | **Strong for editor pipeline**; queue list exposes tracks without parse — **decide policy**. |
+| **Types in `domain/*/types`** | **Partial**. |
+| **One error shape + global handler** | **Wired**; **coverage** still incomplete across routes. |
+| **Video provider selection explicit** | **`provider-selector.ts`** done; **domain video service** optional. |
+| **Tests mock repositories** | **Minimal** — pattern not rolled out broadly. |
+
+---
+
+## 12. Appendix: Current layout, decisions, verification
+
+### 12.1 Resolved decisions (plan vs repo)
+
+| Topic | Decision |
+|--------|-----------|
+| Video provider modules | Stay in **`services/video-generation/`**; selection in **`provider-selector.ts`**. |
+| `domain/video/` | Reserved for orchestration/repository/types — not for raw FAL/Runway client files unless you intentionally move them later. |
+| Global errors | **`handleRouteError`** on **`app.onError`**; body `{ error, code, details? }` plus **`existingProjectId`** for **`PROJECT_EXISTS`**. |
+| Editor validation hook | **`routes/editor/zod-validation-hook.ts`** aligns editor Zod failures with §8.1. |
+| Stored timeline JSONB | **`parseStoredEditorTracks`** / **`validate-stored-tracks`** (and related) at repository or service boundaries for editor flows; queue list may still expose raw JSON — see remaining-work checklist. |
+
+### 12.2 Domain modules present today (`backend/src/domain/`)
+
+Use this as a quick map when navigating the partial migration:
+
+| Area | Notable files |
+|------|----------------|
+| Auth | `auth.service.ts`, `auth.repository.ts`, `firebase-user-sync.ts` |
+| Admin | `admin.service.ts`, `admin.repository.ts`, `admin.schemas.ts` |
+| Editor | `editor.repository.ts`, `editor.service.ts`, `editor.schemas.ts`, `validate-stored-tracks.ts`, `run-export-job.ts`, `captions.repository.ts`, `captions.service.ts`, `export/ass-generator.ts`, `timeline/*`, `build-initial-timeline.ts`, `merge-new-assets.ts` |
+| Queue | `queue.repository.ts`, `queue.service.ts`, `queue.schemas.ts`, `queue-transitions.ts`, `queue-editor-join.ts`, `pipeline/stage-derivation.ts`, `pipeline/content-chain.ts`, `pipeline/asset-display.ts` |
+| Content / assets | `content.repository.ts`, `content.service.ts`, `assets.repository.ts`, `assets.service.ts`, plus `*.schemas.ts` for several domains |
+| Reels | `reels.repository.ts`, `reels.service.ts`, `reels.schemas.ts` |
+| Music / audio | `music.repository.ts`, `music.service.ts`, `music.schemas.ts`; `audio.repository.ts`, `audio.service.ts`, `audio.schemas.ts` |
+| Public | `public.repository.ts`, `public.service.ts`, `public.schemas.ts` |
+| Wiring | `singletons.ts` — central place to see how services/repos are constructed |
+
+Schemas exist for many domains (`music`, `audio`, `video`, `customer`, `users`, `public`, `analytics`, `reels`, `subscriptions`, `content`, …). **Repositories/services** are still thin or missing for **customer**, **users**, **chat**, **generation**, **subscriptions** (as of the §11 snapshot).
+
+### 12.3 Verification commands
+
+Run from `backend/` when scoping remaining work:
+
+```bash
+# Drizzle entrypoint usage in routes (should trend toward zero over time)
+rg 'services/db/db' src/routes
+
+# editProjects / tracks reads (validation policy audit)
+rg 'editProjects|\.tracks' src/routes src/domain
+
+# Manual error responses vs throws
+rg 'c\.json\(\s*\{\s*error:' src/routes
+```
+
+### 12.4 How to read this document
+
+- **§1–§10** — Target architecture and rules (the north star).
+- **§11** — Ordered migration phases, **implementation status** (living), **remaining work** checklists, and **target summary** table.
+- **Summary (end of document)** — Target end-state checklist; pair it with §11 for what is already shipped vs still open.
+
+### 12.5 Related docs
+
+- Root **`CLAUDE.md`** — day-to-day backend commands and stack (Hono, Drizzle, editor conventions).
+- **`CONTRIBUTING.md`** — points to architecture docs under `docs/AI_Orchestrator/` when that tree is present in the repo.
+
+---
+
+## Summary: What this changes (target end state)
+
+**Ground truth for what is already done vs in flight:** see **§11 — Implementation status**, **Remaining work**, and **Target summary** table.
+
+When the reorganization is **fully** complete:
+
+- **Routes are &lt; ~200 lines** each — they validate, delegate, respond
 - **All Drizzle queries live in repositories** — changing a column touches one file
 - **Business logic is in `domain/` services** — testable without HTTP or database
-- **One error shape** across the entire API — `{ error, code, details? }`
-- **All routes use `zValidator`** — no untyped request bodies
-- **JSONB timeline state is strictly typed and validated at runtime** — no more silent timeline corruption
-- **Video provider selection is explicit** — not scattered across route handlers
-- **Feature types are co-located with domain logic** — `domain/editor/editor.types.ts` not `features/editor/types/`
-- **Tests can mock repositories** — unit tests for service logic don't need a real database
+- **One error shape** across the entire API — `{ error, code, details? }` (plus documented client-compat fields where needed)
+- **All routes use `zValidator`** (or thin wrappers) — no untyped JSON bodies for structured inputs
+- **JSONB timeline state is strictly typed and validated at runtime** — no silent timeline corruption
+- **Video provider selection is explicit** — `provider-selector` + optional `domain/video` orchestration
+- **Feature types are co-located with domain logic** — e.g. `domain/editor/editor.types.ts`, not scattered `features/*/types/`
+- **Tests can mock repositories** — unit tests for service logic do not require a real database
 
-The codebase goes from 32,000 lines where the largest single file is 2,362 lines and contains FFmpeg filter generation next to HTTP response formatting, to a structure where every file has one clearly named job and the right size for that job.
+The end state replaces monolithic route files (thousands of lines mixing FFmpeg, SQL, and HTTP) with small route modules and single-purpose domain files.

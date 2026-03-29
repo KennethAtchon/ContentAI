@@ -9,12 +9,22 @@ import { debugLog } from "../utils/debug/debug";
  */
 export const handleRouteError: ErrorHandler = (err, c: Context) => {
   if (err instanceof AppError) {
-    const body: { error: string; code: string; details?: unknown } = {
+    const body: Record<string, unknown> = {
       error: err.message,
       code: err.code,
     };
     if (err.details !== undefined) {
       body.details = err.details;
+      if (
+        err.code === "PROJECT_EXISTS" &&
+        typeof err.details === "object" &&
+        err.details !== null &&
+        "existingProjectId" in err.details
+      ) {
+        body.existingProjectId = (
+          err.details as { existingProjectId: string }
+        ).existingProjectId;
+      }
     }
     return c.json(body, err.statusCode as ContentfulStatusCode);
   }

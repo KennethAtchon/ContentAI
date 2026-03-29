@@ -1,17 +1,11 @@
-import { and, eq } from "drizzle-orm";
-import { db } from "../../../services/db/db";
-import {
-  assets,
-  contentAssets,
-  generatedContent,
-} from "../../../infrastructure/database/drizzle/schema";
-import { extractCaptionSourceText } from "../../video/utils";
+import { extractCaptionSourceText } from "../../routes/video/utils";
+import type { IContentRepository } from "../content/content.repository";
+import type { TimelineClipJson } from "./timeline/clip-trim";
 import {
   mergePlaceholdersWithRealClips,
   type AssetMergeRow,
-  type TimelineClipJson,
   type TimelineTrackJson,
-} from "./refresh-editor-timeline";
+} from "./timeline/merge-placeholders-with-assets";
 
 /** Mirror of frontend estimateReadingDurationMs — 2.5 words/sec, 2s minimum. */
 function estimateReadingDurationMs(text: string): number {
@@ -20,7 +14,6 @@ function estimateReadingDurationMs(text: string): number {
   return Math.max(2000, Math.ceil(words / 2.5) * 1000);
 }
 
-/** Collapse whitespace for on-screen copy (hook / voiceover body). */
 function normalizeCopy(s: string | null | undefined): string {
   if (!s) return "";
   return s.replace(/\s+/g, " ").trim();
@@ -29,13 +22,6 @@ function normalizeCopy(s: string | null | undefined): string {
 /**
  * On-screen overlay text: hook + voiceover body (voiceover_script, no
  * timestamp lines). Post caption is for the social post only — not shown here.
- * Omits duplicate body block when it only repeats the hook.
- *
- * @deprecated Single merged text block fed into one clip. TODO: replace with
- * transcript-driven per-phrase clips — transcribe the voiceover audio, then
- * create one text clip per phrase with start/duration matching the spoken word
- * timings (CapCut-style). This function and {@link buildCaptionClip} will be
- * removed once that path is implemented.
  */
 export function composeOverlayText(input: {
   generatedHook: string | null;
@@ -98,18 +84,17 @@ function emptyTracksFromVideo(
   ];
 }
 
-/**
- * @deprecated Single-clip overlay approach. TODO: replace with per-phrase clips
- * derived from voiceover transcript (like CapCut), where each phrase becomes its
- * own text clip with start/duration matching the spoken word timings.
- */
 function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
   const trimmed = text.trim();
-  // Use the greater of the actual media span or a reading-time estimate so the
-  // clip is never shorter than what's needed to read the text.
-  const dur = Math.min(Math.max(spanMs, estimateReadingDurationMs(trimmed)), 180_000);
+  const dur = Math.min(
+    Math.max(spanMs, estimateReadingDurationMs(trimmed)),
+    180_000,
+  );
   const codePoints = [...trimmed];
-  const label = codePoints.length > 40 ? `${codePoints.slice(0, 37).join("")}…` : trimmed;
+  const label =
+    codePoints.length > 40
+      ? `${codePoints.slice(0, 37).join("")}…`
+      : trimmed;
   return {
     id: crypto.randomUUID(),
     assetId: null,
@@ -135,43 +120,24 @@ function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
 
 /**
  * Builds editor tracks from linked assets plus overlay copy from hook and
- * voiceover_script (not post_caption). Does not read generated_script
- * (that stays in the video job / parseScriptShots only).
+ * voiceover_script (not post_caption).
  */
 export async function buildInitialTimeline(
+  content: IContentRepository,
   generatedContentId: number,
   userId: string,
 ): Promise<{ tracks: TimelineTrackJson[]; durationMs: number }> {
-  const [content] = await db
-    .select({
-      generatedHook: generatedContent.generatedHook,
-      voiceoverScript: generatedContent.voiceoverScript,
-    })
-    .from(generatedContent)
-    .where(
-      and(
-        eq(generatedContent.id, generatedContentId),
-        eq(generatedContent.userId, userId),
-      ),
-    )
-    .limit(1);
-
-  if (!content) {
+  const row = await content.findHookAndVoiceoverForUser(
+    generatedContentId,
+    userId,
+  );
+  if (!row) {
     return { tracks: [], durationMs: 0 };
   }
 
-  const linkedAssets = await db
-    .select({
-      role: contentAssets.role,
-      assetId: assets.id,
-      durationMs: assets.durationMs,
-      type: assets.type,
-      name: assets.name,
-      metadata: assets.metadata,
-    })
-    .from(contentAssets)
-    .innerJoin(assets, eq(assets.id, contentAssets.assetId))
-    .where(eq(contentAssets.generatedContentId, generatedContentId));
+  const linkedAssets = await content.listAssetsLinkedToGeneratedContent(
+    generatedContentId,
+  );
 
   const byShotIndex = (
     a: (typeof linkedAssets)[number],
@@ -187,8 +153,8 @@ export async function buildInitialTimeline(
     .sort(byShotIndex);
 
   const videoRows: AssetMergeRow[] = videoClipAssets.map((a) => ({
-    id: a.assetId,
-    role: a.role,
+    id: a.id,
+    role: "video_clip",
     durationMs: a.durationMs,
     metadata: a.metadata,
   }));
@@ -198,8 +164,8 @@ export async function buildInitialTimeline(
 
   const voiceover: AssetMergeRow | undefined = voiceRow
     ? {
-        id: voiceRow.assetId,
-        role: voiceRow.role,
+        id: voiceRow.id,
+        role: voiceRow.role ?? "voiceover",
         durationMs: voiceRow.durationMs,
         metadata: voiceRow.metadata,
       }
@@ -207,8 +173,8 @@ export async function buildInitialTimeline(
 
   const music: AssetMergeRow | undefined = musicRow
     ? {
-        id: musicRow.assetId,
-        role: musicRow.role,
+        id: musicRow.id,
+        role: musicRow.role ?? "background_music",
         durationMs: musicRow.durationMs,
         metadata: musicRow.metadata,
       }
@@ -233,8 +199,8 @@ export async function buildInitialTimeline(
   }
 
   const overlayText = composeOverlayText({
-    generatedHook: content.generatedHook,
-    voiceoverScript: content.voiceoverScript,
+    generatedHook: row.generatedHook,
+    voiceoverScript: row.voiceoverScript,
   });
   if (overlayText.length > 0) {
     const spanMs = Math.min(Math.max(maxEnd, 1000), 180_000);

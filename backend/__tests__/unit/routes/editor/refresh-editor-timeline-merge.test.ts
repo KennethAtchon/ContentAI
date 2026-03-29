@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   mergePlaceholdersWithRealClips,
-  normalizeMediaClipTrimFields,
   reconcileVideoClipsWithoutPlaceholders,
-} from "../../../../src/routes/editor/services/refresh-editor-timeline";
+} from "../../../../src/domain/editor/timeline/merge-placeholders-with-assets";
+import { normalizeMediaClipTrimFields } from "../../../../src/domain/editor/timeline/clip-trim";
 
 const baseTracks = [
   {

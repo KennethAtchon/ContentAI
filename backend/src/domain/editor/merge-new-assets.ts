@@ -1,12 +1,10 @@
-import {
-  contentRepository,
-  editorRepository,
-} from "../../../domain/singletons";
-import {
-  normalizeMediaClipTrimFields,
-  type TimelineClipJson,
-  type TimelineTrackJson,
-} from "./refresh-editor-timeline";
+import { Errors } from "../../utils/errors/app-error";
+import type { IContentRepository } from "../content/content.repository";
+import type { IEditorRepository } from "./editor.repository";
+import { parseStoredEditorTracks } from "./validate-stored-tracks";
+import type { TimelineClipJson } from "./timeline/clip-trim";
+import { normalizeMediaClipTrimFields } from "./timeline/clip-trim";
+import type { TimelineTrackJson } from "./timeline/merge-placeholders-with-assets";
 
 function computeDuration(tracks: TimelineTrackJson[]): number {
   let maxEnd = 0;
@@ -27,10 +25,18 @@ function endOfTrack(clips: TimelineClipJson[]): number {
   return end;
 }
 
-function makeVideoClip(assetId: string, durationMs: number, startMs: number, metadata: unknown): TimelineClipJson {
+function makeVideoClip(
+  assetId: string,
+  durationMs: number,
+  startMs: number,
+  metadata: unknown,
+): TimelineClipJson {
   const meta = (metadata as Record<string, unknown>) ?? {};
   const shotIdx = typeof meta.shotIndex === "number" ? meta.shotIndex : -1;
-  const genPrompt = typeof meta.generationPrompt === "string" ? meta.generationPrompt : undefined;
+  const genPrompt =
+    typeof meta.generationPrompt === "string"
+      ? meta.generationPrompt
+      : undefined;
   const dur = Math.max(1, durationMs);
   return normalizeMediaClipTrimFields(dur, {
     id: crypto.randomUUID(),
@@ -50,7 +56,13 @@ function makeVideoClip(assetId: string, durationMs: number, startMs: number, met
   });
 }
 
-function makeAudioClip(assetId: string, durationMs: number, idPrefix: string, label: string, volume = 1): TimelineClipJson {
+function makeAudioClip(
+  assetId: string,
+  durationMs: number,
+  idPrefix: string,
+  label: string,
+  volume = 1,
+): TimelineClipJson {
   const dur = Math.max(1, durationMs);
   return normalizeMediaClipTrimFields(dur, {
     id: `${idPrefix}-${assetId}`,
@@ -71,6 +83,8 @@ function makeAudioClip(assetId: string, durationMs: number, idPrefix: string, la
 }
 
 export async function mergeNewAssetsIntoProject(
+  editor: IEditorRepository,
+  content: IContentRepository,
   projectId: string,
   userId: string,
 ): Promise<{
@@ -79,11 +93,13 @@ export async function mergeNewAssetsIntoProject(
   durationMs: number;
   mergedAssetIds: string[];
 }> {
-  const project = await editorRepository.findByIdAndUserId(projectId, userId);
+  const project = await editor.findByIdAndUserId(projectId, userId);
 
-  if (!project) throw new Error("Project not found");
+  if (!project) throw Errors.notFound("Edit project");
 
-  const currentTracks = (project.tracks ?? []) as TimelineTrackJson[];
+  const currentTracks = parseStoredEditorTracks(
+    project.tracks,
+  ) as TimelineTrackJson[];
   const alreadyMerged = new Set((project.mergedAssetIds ?? []) as string[]);
 
   if (!project.generatedContentId) {
@@ -95,10 +111,9 @@ export async function mergeNewAssetsIntoProject(
     };
   }
 
-  const assetRows =
-    await contentRepository.listAssetsLinkedToGeneratedContent(
-      project.generatedContentId,
-    );
+  const assetRows = await content.listAssetsLinkedToGeneratedContent(
+    project.generatedContentId,
+  );
 
   const newAssets = assetRows.filter((a) => !alreadyMerged.has(a.id));
   if (newAssets.length === 0) {
@@ -110,7 +125,6 @@ export async function mergeNewAssetsIntoProject(
     };
   }
 
-  // Deep clone tracks so we don't mutate the DB row
   const tracks: TimelineTrackJson[] = currentTracks.map((t) => ({
     ...t,
     clips: [...t.clips],
@@ -121,11 +135,15 @@ export async function mergeNewAssetsIntoProject(
       const videoTrack = tracks.find((t) => t.type === "video");
       if (!videoTrack) continue;
 
-      // Fill a matching placeholder first, otherwise append
-      const placeholderIdx = videoTrack.clips.findIndex((c) => c.isPlaceholder === true);
+      const placeholderIdx = videoTrack.clips.findIndex(
+        (c) => c.isPlaceholder === true,
+      );
       if (placeholderIdx >= 0) {
         const placeholder = videoTrack.clips[placeholderIdx];
-        const dur = Math.max(1, asset.durationMs ?? Number(placeholder.durationMs ?? 5000));
+        const dur = Math.max(
+          1,
+          asset.durationMs ?? Number(placeholder.durationMs ?? 5000),
+        );
         videoTrack.clips[placeholderIdx] = normalizeMediaClipTrimFields(dur, {
           ...placeholder,
           assetId: asset.id,
@@ -137,7 +155,12 @@ export async function mergeNewAssetsIntoProject(
       } else {
         const startMs = endOfTrack(videoTrack.clips);
         videoTrack.clips.push(
-          makeVideoClip(asset.id, asset.durationMs ?? 5000, startMs, asset.metadata),
+          makeVideoClip(
+            asset.id,
+            asset.durationMs ?? 5000,
+            startMs,
+            asset.metadata,
+          ),
         );
       }
     } else if (asset.role === "voiceover") {
@@ -145,14 +168,30 @@ export async function mergeNewAssetsIntoProject(
       if (!audioTrack) continue;
       const exists = audioTrack.clips.some((c) => c.assetId === asset.id);
       if (!exists) {
-        audioTrack.clips.push(makeAudioClip(asset.id, asset.durationMs ?? 0, "voiceover", "Voiceover", 1));
+        audioTrack.clips.push(
+          makeAudioClip(
+            asset.id,
+            asset.durationMs ?? 0,
+            "voiceover",
+            "Voiceover",
+            1,
+          ),
+        );
       }
     } else if (asset.role === "background_music") {
       const musicTrack = tracks.find((t) => t.type === "music");
       if (!musicTrack) continue;
       const exists = musicTrack.clips.some((c) => c.assetId === asset.id);
       if (!exists) {
-        musicTrack.clips.push(makeAudioClip(asset.id, asset.durationMs ?? 0, "music", "Music", 0.3));
+        musicTrack.clips.push(
+          makeAudioClip(
+            asset.id,
+            asset.durationMs ?? 0,
+            "music",
+            "Music",
+            0.3,
+          ),
+        );
       }
     }
 
@@ -162,7 +201,7 @@ export async function mergeNewAssetsIntoProject(
   const durationMs = computeDuration(tracks);
   const mergedAssetIds = [...alreadyMerged];
 
-  await editorRepository.updateTracksDurationMerged(projectId, {
+  await editor.updateTracksDurationMerged(projectId, {
     tracks,
     durationMs,
     mergedAssetIds,

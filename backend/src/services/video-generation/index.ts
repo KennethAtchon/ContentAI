@@ -3,15 +3,12 @@ import { aiCostLedger } from "@/infrastructure/database/drizzle/schema";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
   DEV_MOCK_VIDEO_CLIP_DELAY_MS,
-  VIDEO_GENERATION_PROVIDER,
 } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
 import { storage } from "@/services/storage";
 import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
 import { getDevMockVideoBufferForShot } from "@/services/media/dev-fixtures/load-fixtures";
-import { klingFalProvider } from "./providers/kling-fal";
-import { runwayProvider } from "./providers/runway";
-import { imageKenBurnsProvider } from "./providers/image-ken-burns";
+import { getVideoGenerationProvider } from "./provider-selector";
 import type {
   VideoProvider,
   VideoGenerationProvider,
@@ -28,84 +25,7 @@ export type {
   VideoClipResult,
 };
 
-const PROVIDERS: Record<VideoProvider, VideoGenerationProvider> = {
-  "kling-fal": klingFalProvider,
-  runway: runwayProvider,
-  "image-ken-burns": imageKenBurnsProvider,
-};
-
-export async function getVideoGenerationProvider(
-  override?: VideoProvider,
-): Promise<VideoGenerationProvider> {
-  let providerName: VideoProvider;
-
-  if (override) {
-    providerName = override;
-  } else {
-    try {
-      const { systemConfigService } =
-        await import("@/services/config/system-config.service");
-      const dbProvider = await systemConfigService.get(
-        "video",
-        "default_provider",
-      );
-      providerName =
-        (dbProvider as VideoProvider) ??
-        (VIDEO_GENERATION_PROVIDER as VideoProvider);
-    } catch {
-      providerName = VIDEO_GENERATION_PROVIDER as VideoProvider;
-    }
-  }
-
-  const provider = PROVIDERS[providerName];
-
-  if (!provider) {
-    throw new Error(
-      `Unknown video generation provider: "${providerName}". Valid options: ${Object.keys(PROVIDERS).join(", ")}`,
-    );
-  }
-
-  if (!(await provider.isAvailable())) {
-    // Read fallback order from DB config
-    let fallbackOrder: VideoProvider[] = [
-      "kling-fal",
-      "image-ken-burns",
-      "runway",
-    ];
-    try {
-      const { systemConfigService } =
-        await import("@/services/config/system-config.service");
-      fallbackOrder = await systemConfigService.getJson<VideoProvider[]>(
-        "video",
-        "fallback_order",
-        fallbackOrder,
-      );
-    } catch {
-      // use static fallback
-    }
-
-    for (const fallbackName of fallbackOrder) {
-      if (
-        fallbackName !== providerName &&
-        (await PROVIDERS[fallbackName].isAvailable())
-      ) {
-        debugLog.warn(
-          `Provider "${providerName}" not available (missing API key). Falling back to "${fallbackName}".`,
-          {
-            service: "video-generation",
-            operation: "getProvider",
-          },
-        );
-        return PROVIDERS[fallbackName];
-      }
-    }
-    throw new Error(
-      `No video generation provider is available. Set FAL_API_KEY or RUNWAY_API_KEY.`,
-    );
-  }
-
-  return provider;
-}
+export { getVideoGenerationProvider } from "./provider-selector";
 
 /**
  * Generate a video clip and record its cost to the ledger.

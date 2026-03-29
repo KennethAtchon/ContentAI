@@ -19,11 +19,29 @@ export interface IContentRepository {
   findIdAndHookForUser(
     generatedContentId: number,
     userId: string,
-  ): Promise<{ id: number; generatedHook: string | null } | null>;
+  ): Promise<{
+    id: number;
+    parentId: number | null;
+    generatedHook: string | null;
+  } | null>;
 
   listAssetsLinkedToGeneratedContent(
     generatedContentId: number,
   ): Promise<ContentAssetJoinRow[]>;
+
+  /** Walk `parent_id` from `contentId` upward; returns `[contentId, parent, …, root]`. */
+  resolveContentAncestorChainIds(
+    contentId: number,
+    userId: string,
+  ): Promise<number[]>;
+
+  findHookAndVoiceoverForUser(
+    contentId: number,
+    userId: string,
+  ): Promise<{
+    generatedHook: string | null;
+    voiceoverScript: string | null;
+  } | null>;
 }
 
 export class ContentRepository implements IContentRepository {
@@ -32,10 +50,15 @@ export class ContentRepository implements IContentRepository {
   async findIdAndHookForUser(
     generatedContentId: number,
     userId: string,
-  ): Promise<{ id: number; generatedHook: string | null } | null> {
+  ): Promise<{
+    id: number;
+    parentId: number | null;
+    generatedHook: string | null;
+  } | null> {
     const [row] = await this.db
       .select({
         id: generatedContent.id,
+        parentId: generatedContent.parentId,
         generatedHook: generatedContent.generatedHook,
       })
       .from(generatedContent)
@@ -62,5 +85,52 @@ export class ContentRepository implements IContentRepository {
       .from(contentAssets)
       .innerJoin(assets, eq(contentAssets.assetId, assets.id))
       .where(eq(contentAssets.generatedContentId, generatedContentId));
+  }
+
+  async resolveContentAncestorChainIds(
+    contentId: number,
+    userId: string,
+  ): Promise<number[]> {
+    const chain: number[] = [contentId];
+    let currentId = contentId;
+    while (true) {
+      const [row] = await this.db
+        .select({ parentId: generatedContent.parentId })
+        .from(generatedContent)
+        .where(
+          and(
+            eq(generatedContent.id, currentId),
+            eq(generatedContent.userId, userId),
+          ),
+        )
+        .limit(1);
+      if (!row?.parentId) break;
+      chain.push(row.parentId);
+      currentId = row.parentId;
+    }
+    return chain;
+  }
+
+  async findHookAndVoiceoverForUser(
+    contentId: number,
+    userId: string,
+  ): Promise<{
+    generatedHook: string | null;
+    voiceoverScript: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        generatedHook: generatedContent.generatedHook,
+        voiceoverScript: generatedContent.voiceoverScript,
+      })
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.id, contentId),
+          eq(generatedContent.userId, userId),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
   }
 }

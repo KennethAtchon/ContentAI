@@ -1,9 +1,10 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { assets } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
 export type AssetRow = typeof assets.$inferSelect;
 export type NewUploadedAsset = typeof assets.$inferInsert;
+export type NewAssetRow = typeof assets.$inferInsert;
 
 export interface IAssetsRepository {
   listUploadedByUserId(userId: string): Promise<AssetRow[]>;
@@ -16,6 +17,18 @@ export interface IAssetsRepository {
   ): Promise<AssetRow | null>;
 
   deleteById(id: string): Promise<void>;
+
+  /** R2 fields for an asset owned by the user (e.g. export output). */
+  findR2FieldsByIdForUser(
+    userId: string,
+    assetId: string,
+  ): Promise<{ r2Key: string | null; r2Url: string | null } | null>;
+
+  findByIdForUser(assetId: string, userId: string): Promise<AssetRow | null>;
+
+  findManyByIdsForUser(userId: string, ids: string[]): Promise<AssetRow[]>;
+
+  insertAsset(row: NewAssetRow): Promise<AssetRow>;
 }
 
 export class AssetsRepository implements IAssetsRepository {
@@ -57,5 +70,43 @@ export class AssetsRepository implements IAssetsRepository {
 
   async deleteById(id: string): Promise<void> {
     await this.db.delete(assets).where(eq(assets.id, id));
+  }
+
+  async findR2FieldsByIdForUser(userId: string, assetId: string) {
+    const [row] = await this.db
+      .select({ r2Key: assets.r2Key, r2Url: assets.r2Url })
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findByIdForUser(
+    assetId: string,
+    userId: string,
+  ): Promise<AssetRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findManyByIdsForUser(
+    userId: string,
+    ids: string[],
+  ): Promise<AssetRow[]> {
+    if (ids.length === 0) return [];
+    return this.db
+      .select()
+      .from(assets)
+      .where(and(inArray(assets.id, ids), eq(assets.userId, userId)));
+  }
+
+  async insertAsset(row: NewAssetRow): Promise<AssetRow> {
+    const [created] = await this.db.insert(assets).values(row).returning();
+    if (!created) throw new Error("Failed to insert asset");
+    return created;
   }
 }

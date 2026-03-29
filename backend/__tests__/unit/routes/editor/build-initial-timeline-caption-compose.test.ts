@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { composeOverlayText } from "../../../../src/routes/editor/services/build-initial-timeline";
+import { composeOverlayText } from "../../../../src/domain/editor/build-initial-timeline";
 
 describe("composeOverlayText", () => {
   test("uses hook when no voiceover body", () => {

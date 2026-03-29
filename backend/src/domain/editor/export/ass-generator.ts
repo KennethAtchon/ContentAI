@@ -8,23 +8,18 @@ interface ASSPresetConfig {
   fontFamily: string;
   fontSize: number;
   bold: boolean;
-  primaryColor: string; // ASS &HAABBGGRR format
-  outlineColor: string; // ASS &HAABBGGRR format
+  primaryColor: string;
+  outlineColor: string;
   outlineWidth: number;
-  backColor: string; // ASS &HAABBGGRR format
-  borderStyle: number; // 1 = outline+shadow, 3 = opaque box
-  positionY: number; // percentage (0-100)
+  backColor: string;
+  borderStyle: number;
+  positionY: number;
   animation: "none" | "highlight" | "karaoke";
-  activeColor?: string; // ASS &HAABBGGRR for highlight/karaoke active word
+  activeColor?: string;
   textTransform: "none" | "uppercase";
 }
 
-/**
- * Convert CSS hex color to ASS &HAABBGGRR format.
- * ASS uses BGR order with alpha prefix.
- */
 function cssToASS(hex: string, alpha = 0): string {
-  // Handle rgba(...) by extracting alpha
   if (hex.startsWith("rgba")) {
     const match = hex.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]+)?\)/);
     if (match) {
@@ -40,7 +35,6 @@ function cssToASS(hex: string, alpha = 0): string {
     }
   }
 
-  // Handle #RRGGBB
   const clean = hex.replace("#", "");
   const r = clean.substring(0, 2);
   const g = clean.substring(2, 4);
@@ -49,9 +43,6 @@ function cssToASS(hex: string, alpha = 0): string {
   return `&H${a.toUpperCase()}${b.toUpperCase()}${g.toUpperCase()}${r.toUpperCase()}`;
 }
 
-/**
- * Map frontend preset IDs to ASS style configurations.
- */
 const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
   hormozi: {
     fontFamily: "Inter",
@@ -97,7 +88,7 @@ const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
     fontFamily: "Inter",
     fontSize: 48,
     bold: true,
-    primaryColor: cssToASS("#FFFFFF", 153), // rgba(255,255,255,0.4) → alpha 153
+    primaryColor: cssToASS("#FFFFFF", 153),
     outlineColor: cssToASS("#000000"),
     outlineWidth: 2,
     backColor: cssToASS("#000000", 128),
@@ -122,22 +113,16 @@ const PRESET_TO_ASS: Record<string, ASSPresetConfig> = {
   },
 };
 
-/**
- * Maps preset IDs from before the 2026-03 style theme overhaul to their
- * current equivalents. Mirrors LEGACY_ID_MAP in frontend caption-presets.ts.
- *
- * DO NOT remove entries. Add new entries when IDs are renamed or removed.
- */
 const LEGACY_ASS_ID_MAP: Readonly<Record<string, string>> = {
   "clean-white": "clean-minimal",
   "box-dark": "dark-box",
   "box-accent": "dark-box",
-  "highlight": "hormozi",
+  highlight: "hormozi",
 };
 
 function getASSPreset(presetId: string): ASSPresetConfig {
   const resolved = LEGACY_ASS_ID_MAP[presetId] ?? presetId;
-  return PRESET_TO_ASS[resolved] ?? PRESET_TO_ASS["hormozi"];
+  return PRESET_TO_ASS[resolved] ?? PRESET_TO_ASS.hormozi;
 }
 
 function msToASSTime(ms: number): string {
@@ -148,18 +133,6 @@ function msToASSTime(ms: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
-/**
- * Generate a complete ASS subtitle file from caption words and a preset.
- *
- * For "none" animation: groups of words appear/disappear as blocks.
- * For "highlight": each group is one Dialogue line; the active word uses
- *   ASS override tags to change its color inline.
- * For "karaoke": same as highlight but inactive words use the dim primary
- *   color and the active word uses the bright activeColor.
- *
- * textTransform is applied per-word before building the ASS text, mirroring
- * the canvas renderer in frontend `hooks/useCaptionPreview.ts` (keep in sync).
- */
 export function generateASS(
   words: CaptionWord[],
   presetId: string,
@@ -190,8 +163,6 @@ Style: Default,${preset.fontFamily},${preset.fontSize},${preset.primaryColor},&H
   for (let i = 0; i < words.length; i += groupSize) {
     const group = words.slice(i, i + groupSize);
 
-    // Apply textTransform — mirrors canvas renderer in useCaptionPreview.ts.
-    // Spread preserves startMs/endMs for timing; only word string is transformed.
     const displayGroup =
       preset.textTransform === "uppercase"
         ? group.map((w) => ({ ...w, word: w.word.toUpperCase() }))
