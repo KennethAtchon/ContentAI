@@ -6,17 +6,10 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import {
-  users,
-  orders,
-  featureUsages,
-} from "../../infrastructure/database/drizzle/schema";
-import { queueService } from "../../domain/singletons";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { queueService, customerService } from "../../domain/singletons";
 import Stripe from "stripe";
 import { adminAuth } from "../../services/firebase/admin";
-import { debugLog } from "../../utils/debug/debug";
+import { Errors } from "../../utils/errors/app-error";
 import { getFeatureLimitsForStripeRole } from "../../constants/subscription.constants";
 import { STRIPE_SECRET_KEY } from "../../utils/config/envUtil";
 import {
@@ -59,59 +52,21 @@ customer.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const userId = auth.user.id;
-      const stripeRole = auth.firebaseUser.stripeRole;
+    const auth = c.get("auth");
+    const userId = auth.user.id;
+    const stripeRole = auth.firebaseUser.stripeRole;
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const limits = getFeatureLimitsForStripeRole(stripeRole);
+    const queueSize = await queueService.countScheduledForUser(userId);
 
-      const limits = getFeatureLimitsForStripeRole(stripeRole);
+    const stats = await customerService.getUsageStats(
+      userId,
+      stripeRole,
+      queueSize,
+      limits,
+    );
 
-      const [analysesCount, generationsCount, queueSize] = await Promise.all([
-        db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(featureUsages)
-          .where(
-            and(
-              eq(featureUsages.userId, userId),
-              eq(featureUsages.featureType, "reel_analysis"),
-              gte(featureUsages.createdAt, monthStart),
-            ),
-          ),
-        db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(featureUsages)
-          .where(
-            and(
-              eq(featureUsages.userId, userId),
-              eq(featureUsages.featureType, "generation"),
-              gte(featureUsages.createdAt, monthStart),
-            ),
-          ),
-        queueService.countScheduledForUser(userId),
-      ]);
-
-      return c.json({
-        reelsAnalyzed: analysesCount[0]?.count ?? 0,
-        reelsAnalyzedLimit: limits.analysis,
-        contentGenerated: generationsCount[0]?.count ?? 0,
-        contentGeneratedLimit: limits.generation,
-        queueSize,
-        queueLimit: null,
-        tier: stripeRole ?? "free",
-        resetDate: resetDate.toISOString(),
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch usage stats", {
-        service: "customer-route",
-        operation: "getUsage",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch usage stats" }, 500);
-    }
+    return c.json(stats);
   },
 );
 
@@ -125,47 +80,23 @@ customer.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
+    const auth = c.get("auth");
+
+    const user = await customerService.getProfile(auth.user.id);
+
+    let isOAuthUser = false;
     try {
-      const auth = c.get("auth");
-
-      const [user] = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          phone: users.phone,
-          address: users.address,
-          role: users.role,
-          timezone: users.timezone,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-        })
-        .from(users)
-        .where(and(eq(users.id, auth.user.id), eq(users.isDeleted, false)));
-
-      if (!user) return c.json({ error: "User not found" }, 404);
-
-      let isOAuthUser = false;
-      try {
-        if (auth.firebaseUser?.uid) {
-          const fbUser = await adminAuth.getUser(auth.firebaseUser.uid);
-          isOAuthUser = !fbUser.providerData.some(
-            (p: { providerId?: string }) => p.providerId === "password",
-          );
-        }
-      } catch {
-        // Continue without provider info
+      if (auth.firebaseUser?.uid) {
+        const fbUser = await adminAuth.getUser(auth.firebaseUser.uid);
+        isOAuthUser = !fbUser.providerData.some(
+          (p: { providerId?: string }) => p.providerId === "password",
+        );
       }
-
-      return c.json({ profile: user, isOAuthUser });
-    } catch (error) {
-      debugLog.error("Failed to fetch profile", {
-        service: "customer-route",
-        operation: "getProfile",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch profile" }, 500);
+    } catch {
+      // Continue without provider info
     }
+
+    return c.json({ profile: user, isOAuthUser });
   },
 );
 
@@ -179,69 +110,55 @@ customer.put(
   authMiddleware("user"),
   zValidator("json", updateCustomerProfileSchema, validationErrorHook),
   async (c) => {
+    const auth = c.get("auth");
+    const { name, email, phone, address, timezone } = c.req.valid("json");
+
+    // Handle email change with Firebase
+    if (email !== undefined && email !== auth.user.email) {
+      const fbUser = await adminAuth.getUser(auth.firebaseUser.uid);
+      const hasEmailProvider = fbUser.providerData.some(
+        (p: any) => p.providerId === "password",
+      );
+
+      if (!hasEmailProvider) {
+        throw Errors.badRequest(
+          "Cannot change email for OAuth accounts. Update through your OAuth provider.",
+          "OAUTH_EMAIL_CHANGE_NOT_ALLOWED",
+        );
+      }
+
+      try {
+        await adminAuth.getUserByEmail(email);
+        throw Errors.badRequest("Email already in use", "EMAIL_ALREADY_EXISTS");
+      } catch (e: any) {
+        if (e.code !== "auth/user-not-found") throw e;
+      }
+
+      await adminAuth.updateUser(auth.firebaseUser.uid, { email });
+    }
+
+    const updateData: {
+      name?: string;
+      email?: string;
+      phone?: string | null;
+      address?: string | null;
+      timezone?: string;
+    } = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (address !== undefined) updateData.address = address || null;
+    if (timezone !== undefined) updateData.timezone = timezone;
+
+    if (Object.keys(updateData).length === 0) {
+      throw Errors.badRequest("No fields to update", "NO_FIELDS_PROVIDED");
+    }
+
     try {
-      const auth = c.get("auth");
-      const { name, email, phone, address, timezone } = c.req.valid("json");
-
-      // Handle email change with Firebase
-      if (email !== undefined && email !== auth.user.email) {
-        const fbUser = await adminAuth.getUser(auth.firebaseUser.uid);
-        const hasEmailProvider = fbUser.providerData.some(
-          (p: any) => p.providerId === "password",
-        );
-
-        if (!hasEmailProvider) {
-          return c.json(
-            {
-              error:
-                "Cannot change email for OAuth accounts. Update through your OAuth provider.",
-              code: "OAUTH_EMAIL_CHANGE_NOT_ALLOWED",
-            },
-            400,
-          );
-        }
-
-        try {
-          await adminAuth.getUserByEmail(email);
-          return c.json(
-            { error: "Email already in use", code: "EMAIL_ALREADY_EXISTS" },
-            400,
-          );
-        } catch (e: any) {
-          if (e.code !== "auth/user-not-found") throw e;
-        }
-
-        await adminAuth.updateUser(auth.firebaseUser.uid, { email });
-      }
-
-      const updateData: Record<string, unknown> = {};
-      if (name !== undefined) updateData.name = name;
-      if (email !== undefined) updateData.email = email;
-      if (phone !== undefined) updateData.phone = phone || null;
-      if (address !== undefined) updateData.address = address || null;
-      if (timezone !== undefined) updateData.timezone = timezone;
-
-      if (Object.keys(updateData).length === 0) {
-        return c.json(
-          { error: "No fields to update", code: "NO_FIELDS_PROVIDED" },
-          400,
-        );
-      }
-
-      const [updatedUser] = await db
-        .update(users)
-        .set(updateData)
-        .where(eq(users.id, auth.user.id))
-        .returning({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          phone: users.phone,
-          address: users.address,
-          timezone: users.timezone,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-        });
+      const updatedUser = await customerService.updateProfile(
+        auth.user.id,
+        updateData,
+      );
 
       return c.json({
         message: "Profile updated successfully",
@@ -250,17 +167,9 @@ customer.put(
     } catch (error: unknown) {
       const err = error as { code?: string };
       if (err?.code === "23505") {
-        return c.json(
-          { error: "Email already exists", code: "EMAIL_ALREADY_EXISTS" },
-          400,
-        );
+        throw Errors.badRequest("Email already exists", "EMAIL_ALREADY_EXISTS");
       }
-      debugLog.error("Failed to update profile", {
-        service: "customer-route",
-        operation: "updateProfile",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update profile" }, 500);
+      throw error;
     }
   },
 );
@@ -276,43 +185,15 @@ customer.get(
   authMiddleware("user"),
   zValidator("query", customerOrdersQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
+    const auth = c.get("auth");
+    const { page, limit } = c.req.valid("query");
 
-      const { page, limit } = c.req.valid("query");
-      const skip = (page - 1) * limit;
+    const result = await customerService.listOrders(auth.user.id, {
+      page,
+      limit,
+    });
 
-      const [orderRows, [{ count: total }]] = await Promise.all([
-        db
-          .select()
-          .from(orders)
-          .where(eq(orders.userId, auth.user.id))
-          .orderBy(desc(orders.createdAt))
-          .offset(skip)
-          .limit(limit),
-        db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(orders)
-          .where(eq(orders.userId, auth.user.id)),
-      ]);
-
-      return c.json({
-        orders: orderRows,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch orders", {
-        service: "customer-route",
-        operation: "getOrders",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch orders" }, 500);
-    }
+    return c.json(result);
   },
 );
 
@@ -329,107 +210,83 @@ customer.post(
   authMiddleware("user"),
   zValidator("json", createOrderFromCheckoutSchema, validationErrorHook),
   async (c) => {
+    const auth = c.get("auth");
+    if (!stripeClient) {
+      throw Errors.internal("Stripe is not configured");
+    }
+
+    const { stripeSessionId, status } = c.req.valid("json");
+
+    // Check for existing order
+    const existing = await customerService.getOrderByStripeSessionId(
+      auth.user.id,
+      stripeSessionId,
+    );
+    if (existing) {
+      return c.json({ order: existing }, 200);
+    }
+
+    const session =
+      await stripeClient.checkout.sessions.retrieve(stripeSessionId);
+
+    if (session.mode !== "payment") {
+      throw Errors.badRequest(
+        "Checkout session is not a one-time payment",
+        "INVALID_SESSION_MODE",
+      );
+    }
+
+    if (
+      session.payment_status !== "paid" &&
+      session.payment_status !== "no_payment_required"
+    ) {
+      throw Errors.badRequest(
+        `Payment not completed for this session: ${session.payment_status}`,
+        "PAYMENT_NOT_COMPLETED",
+      );
+    }
+
+    const metaUserId = session.metadata?.userId;
+    // Checkout metadata uses Firebase UID (see frontend createProductCheckout / PaymentService).
+    if (!metaUserId || metaUserId !== auth.firebaseUser.uid) {
+      throw Errors.forbidden("Session does not belong to this user");
+    }
+
+    const amountCents = session.amount_total;
+    if (amountCents == null) {
+      throw Errors.badRequest(
+        "Session has no amount_total; cannot create order",
+        "MISSING_AMOUNT",
+      );
+    }
+
+    const totalAmount = (amountCents / 100).toFixed(2);
+
     try {
-      const auth = c.get("auth");
-      if (!stripeClient) {
-        return c.json({ error: "Stripe is not configured" }, 503);
-      }
+      const order = await customerService.createOrderFromCheckout(
+        auth.user.id,
+        {
+          totalAmount,
+          status: status ?? "completed",
+          stripeSessionId,
+        },
+      );
 
-      const { stripeSessionId, status } = c.req.valid("json");
-
-      const [existing] = await db
-        .select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.stripeSessionId, stripeSessionId),
-            eq(orders.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (existing) {
-        return c.json({ order: existing }, 200);
-      }
-
-      const session =
-        await stripeClient.checkout.sessions.retrieve(stripeSessionId);
-
-      if (session.mode !== "payment") {
-        return c.json(
-          { error: "Checkout session is not a one-time payment" },
-          400,
+      return c.json({ order }, 201);
+    } catch (insertErr: unknown) {
+      const code =
+        insertErr && typeof insertErr === "object" && "code" in insertErr
+          ? (insertErr as { code?: string }).code
+          : undefined;
+      if (code === "23505") {
+        // Race condition - order was created by another request
+        const race = await customerService.getOrderByStripeSessionId(
+          auth.user.id,
+          stripeSessionId,
         );
+        if (race) return c.json({ order: race }, 200);
       }
-
-      if (
-        session.payment_status !== "paid" &&
-        session.payment_status !== "no_payment_required"
-      ) {
-        return c.json(
-          {
-            error: "Payment not completed for this session",
-            payment_status: session.payment_status,
-          },
-          400,
-        );
-      }
-
-      const metaUserId = session.metadata?.userId;
-      // Checkout metadata uses Firebase UID (see frontend createProductCheckout / PaymentService).
-      if (!metaUserId || metaUserId !== auth.firebaseUser.uid) {
-        return c.json({ error: "Session does not belong to this user" }, 403);
-      }
-
-      const amountCents = session.amount_total;
-      if (amountCents == null) {
-        return c.json(
-          { error: "Session has no amount_total; cannot create order" },
-          400,
-        );
-      }
-
-      const totalAmount = (amountCents / 100).toFixed(2);
-
-      try {
-        const [order] = await db
-          .insert(orders)
-          .values({
-            userId: auth.user.id,
-            totalAmount,
-            status: status ?? "completed",
-            stripeSessionId,
-          })
-          .returning();
-
-        return c.json({ order }, 201);
-      } catch (insertErr: unknown) {
-        const code =
-          insertErr && typeof insertErr === "object" && "code" in insertErr
-            ? (insertErr as { code?: string }).code
-            : undefined;
-        if (code === "23505") {
-          const [race] = await db
-            .select()
-            .from(orders)
-            .where(
-              and(
-                eq(orders.stripeSessionId, stripeSessionId),
-                eq(orders.userId, auth.user.id),
-              ),
-            )
-            .limit(1);
-          if (race) return c.json({ order: race }, 200);
-        }
-        throw insertErr;
-      }
-    } catch (error) {
-      debugLog.error("Failed to create order from checkout", {
-        service: "customer-route",
-        operation: "createOrderFromCheckout",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to create order" }, 500);
+      throw insertErr;
     }
   },
 );
@@ -444,28 +301,16 @@ customer.post(
   authMiddleware("user"),
   zValidator("json", createCustomerOrderSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const body = c.req.valid("json");
+    const auth = c.get("auth");
+    const body = c.req.valid("json");
 
-      const [order] = await db
-        .insert(orders)
-        .values({
-          ...body,
-          totalAmount: String(body.totalAmount),
-          userId: auth.user.id,
-        })
-        .returning();
+    const order = await customerService.createOrder(auth.user.id, {
+      totalAmount: String(body.totalAmount),
+      status: body.status,
+      stripeSessionId: body.stripeSessionId,
+    });
 
-      return c.json(order, 201);
-    } catch (error) {
-      debugLog.error("Failed to create order", {
-        service: "customer-route",
-        operation: "createOrder",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to create order" }, 500);
-    }
+    return c.json(order, 201);
   },
 );
 
@@ -478,31 +323,19 @@ customer.get(
   authMiddleware("user"),
   zValidator("query", orderBySessionQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { sessionId } = c.req.valid("query");
+    const auth = c.get("auth");
+    const { sessionId } = c.req.valid("query");
 
-      const [order] = await db
-        .select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.stripeSessionId, sessionId),
-            eq(orders.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
+    const order = await customerService.getOrderByStripeSessionId(
+      auth.user.id,
+      sessionId,
+    );
 
-      if (!order) return c.json({ error: "Order not found" }, 404);
-      return c.json(order);
-    } catch (error) {
-      debugLog.error("Failed to fetch order by session", {
-        service: "customer-route",
-        operation: "getOrderBySession",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch order" }, 500);
+    if (!order) {
+      throw Errors.notFound("Order");
     }
+
+    return c.json(order);
   },
 );
 
@@ -514,25 +347,11 @@ customer.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const auth = c.get("auth");
+    const auth = c.get("auth");
 
-      const [result] = await db
-        .select({ total: sql<string>`sum(total_amount)` })
-        .from(orders)
-        .where(
-          and(eq(orders.userId, auth.user.id), eq(orders.status, "completed")),
-        );
+    const totalRevenue = await customerService.getTotalRevenue(auth.user.id);
 
-      return c.json({ totalRevenue: result?.total || 0 });
-    } catch (error) {
-      debugLog.error("Failed to fetch total revenue", {
-        service: "customer-route",
-        operation: "getTotalRevenue",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch total revenue" }, 500);
-    }
+    return c.json({ totalRevenue });
   },
 );
 
@@ -545,26 +364,12 @@ customer.get(
   authMiddleware("user"),
   zValidator("param", customerOrderIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { orderId } = c.req.valid("param");
+    const auth = c.get("auth");
+    const { orderId } = c.req.valid("param");
 
-      const [order] = await db
-        .select()
-        .from(orders)
-        .where(and(eq(orders.id, orderId), eq(orders.userId, auth.user.id)))
-        .limit(1);
+    const order = await customerService.getOrderById(auth.user.id, orderId);
 
-      if (!order) return c.json({ error: "Order not found" }, 404);
-      return c.json(order);
-    } catch (error) {
-      debugLog.error("Failed to fetch order", {
-        service: "customer-route",
-        operation: "getOrderById",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch order" }, 500);
-    }
+    return c.json(order);
   },
 );
 

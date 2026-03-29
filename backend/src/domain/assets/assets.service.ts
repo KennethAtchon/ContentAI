@@ -18,4 +18,12 @@ export class AssetsService {
   removeById(id: string) {
     return this.assets.deleteById(id);
   }
+
+  updateMetadata(userId: string, assetId: string, metadata: Record<string, unknown>) {
+    return this.assets.updateMetadata(assetId, userId, metadata);
+  }
+
+  getR2KeyForAsset(userId: string, assetId: string) {
+    return this.assets.findR2KeyByIdAndUserId(assetId, userId);
+  }
 }

@@ -29,6 +29,12 @@ export interface IAssetsRepository {
   findManyByIdsForUser(userId: string, ids: string[]): Promise<AssetRow[]>;
 
   insertAsset(row: NewAssetRow): Promise<AssetRow>;
+
+  updateMetadata(
+    assetId: string,
+    userId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<AssetRow | null>;
 }
 
 export class AssetsRepository implements IAssetsRepository {
@@ -108,5 +114,64 @@ export class AssetsRepository implements IAssetsRepository {
     const [created] = await this.db.insert(assets).values(row).returning();
     if (!created) throw new Error("Failed to insert asset");
     return created;
+  }
+
+  async updateMetadata(
+    assetId: string,
+    userId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<AssetRow | null> {
+    const [existing] = await this.db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
+      .limit(1);
+
+    if (!existing) return null;
+
+    const [updated] = await this.db
+      .update(assets)
+      .set({
+        metadata: {
+          ...((existing.metadata as Record<string, unknown>) ?? {}),
+          ...metadata,
+        },
+      })
+      .where(eq(assets.id, assetId))
+      .returning();
+
+    return updated ?? null;
+  }
+
+  async findByIdAndUserId(
+    assetId: string,
+    userId: string,
+  ): Promise<AssetRow | null> {
+    const [asset] = await this.db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
+      .limit(1);
+    return asset ?? null;
+  }
+
+  async findR2KeyByIdAndUserId(
+    assetId: string,
+    userId: string,
+  ): Promise<{ r2Key: string | null; mimeType: string | null } | null> {
+    const [asset] = await this.db
+      .select({
+        r2Key: assets.r2Key,
+        mimeType: assets.mimeType,
+      })
+      .from(assets)
+      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
+      .limit(1);
+    return asset ?? null;
+  }
+
+  async deleteById(assetId: string): Promise<boolean> {
+    const result = await this.db.delete(assets).where(eq(assets.id, assetId));
+    return result.rowCount > 0;
   }
 }

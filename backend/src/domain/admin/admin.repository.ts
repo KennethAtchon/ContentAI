@@ -1,9 +1,11 @@
 import {
   and,
+  asc,
   desc,
   eq,
   gte,
   ilike,
+  isNotNull,
   lte,
   or,
   sql,
@@ -13,6 +15,11 @@ import {
   orders,
   featureUsages,
   aiCostLedger,
+  musicTracks,
+  niches,
+  reels,
+  reelAnalyses,
+  assets,
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
@@ -144,6 +151,188 @@ export interface IAdminRepository {
     email: string;
     name: string;
   }): Promise<void>;
+
+  // Music management
+  listMusicTracks(search?: string): Promise<
+    {
+      id: string;
+      assetId: string;
+      name: string;
+      artistName: string | null;
+      durationSeconds: number | null;
+      mood: string | null;
+      genre: string | null;
+      isActive: boolean | null;
+      uploadedBy: string | null;
+      createdAt: Date | null;
+      r2Key: string | null;
+    }[]
+  >;
+
+  findMusicTrackById(id: string): Promise<
+    | {
+        id: string;
+        assetId: string;
+        name: string;
+        artistName: string | null;
+        durationSeconds: number | null;
+        mood: string | null;
+        genre: string | null;
+        isActive: boolean | null;
+        uploadedBy: string | null;
+        createdAt: Date | null;
+      }
+    | undefined
+  >;
+
+  updateMusicTrack(
+    id: string,
+    data: {
+      isActive?: boolean;
+      name?: string;
+      artistName?: string | null;
+      mood?: string;
+      genre?: string | null;
+    },
+  ): Promise<
+    | {
+        id: string;
+        assetId: string;
+        name: string;
+        artistName: string | null;
+        durationSeconds: number | null;
+        mood: string | null;
+        genre: string | null;
+        isActive: boolean | null;
+        uploadedBy: string | null;
+        createdAt: Date | null;
+      }
+    | undefined
+  >;
+
+  deleteMusicTrack(id: string): Promise<boolean>;
+
+  // Niches management
+  listNiches(search?: string, activeOnly?: boolean): Promise<
+    {
+      id: string;
+      name: string;
+      description: string | null;
+      isActive: boolean | null;
+      createdAt: Date | null;
+      updatedAt: Date | null;
+      reelCount: number;
+      scrapeLimit: number | null;
+      scrapeMinViews: number | null;
+      scrapeMaxDaysOld: number | null;
+      scrapeIncludeViralOnly: boolean | null;
+    }[]
+  >;
+
+  findNicheById(id: string): Promise<
+    | {
+        id: string;
+        name: string;
+        description: string | null;
+        isActive: boolean | null;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        scrapeLimit: number | null;
+        scrapeMinViews: number | null;
+        scrapeMaxDaysOld: number | null;
+        scrapeIncludeViralOnly: boolean | null;
+      }
+    | undefined
+  >;
+
+  createNiche(data: {
+    name: string;
+    description?: string;
+  }): Promise<{
+    id: string;
+    name: string;
+    description: string | null;
+    isActive: boolean | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  }>;
+
+  updateNiche(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      isActive?: boolean;
+    },
+  ): Promise<
+    | {
+        id: string;
+        name: string;
+        description: string | null;
+        isActive: boolean | null;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+      }
+    | undefined
+  >;
+
+  updateNicheConfig(
+    id: string,
+    data: {
+      scrapeLimit?: number;
+      scrapeMinViews?: number;
+      scrapeMaxDaysOld?: number;
+      scrapeIncludeViralOnly?: boolean;
+    },
+  ): Promise<
+    | {
+        id: string;
+        name: string;
+        description: string | null;
+        isActive: boolean | null;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        scrapeLimit: number | null;
+        scrapeMinViews: number | null;
+        scrapeMaxDaysOld: number | null;
+        scrapeIncludeViralOnly: boolean | null;
+      }
+    | undefined
+  >;
+
+  deleteNiche(id: string): Promise<boolean>;
+
+  listNicheReels(
+    nicheId: string,
+    options: {
+      page: number;
+      limit: number;
+      sortBy: string;
+      sortOrder: string;
+      viral?: string;
+      hasVideo?: string;
+    },
+  ): Promise<{
+    reels: Array<{
+      id: number;
+      reelId: string | null;
+      nicheId: string | null;
+      videoR2Url: string | null;
+      views: number | null;
+      likes: number | null;
+      engagementRate: number | null;
+      isViral: boolean | null;
+      postedAt: Date | null;
+      scrapedAt: Date | null;
+      hasAnalysis: boolean;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>;
+
+  dedupeNicheReels(nicheId: string): Promise<{ deletedCount: number }>;
 }
 
 export class AdminRepository implements IAdminRepository {
@@ -505,5 +694,291 @@ export class AdminRepository implements IAdminRepository {
         target: users.firebaseUid,
         set: { role: "admin", lastLogin: new Date() },
       });
+  }
+
+  // Music management
+  async listMusicTracks(search?: string) {
+    const conditions = search
+      ? or(
+          ilike(musicTracks.name, `%${search}%`),
+          ilike(musicTracks.artistName, `%${search}%`),
+        )
+      : undefined;
+
+    return this.db
+      .select({
+        id: musicTracks.id,
+        assetId: musicTracks.assetId,
+        name: musicTracks.name,
+        artistName: musicTracks.artistName,
+        durationSeconds: musicTracks.durationSeconds,
+        mood: musicTracks.mood,
+        genre: musicTracks.genre,
+        isActive: musicTracks.isActive,
+        uploadedBy: musicTracks.uploadedBy,
+        createdAt: musicTracks.createdAt,
+        r2Key: assets.r2Key,
+      })
+      .from(musicTracks)
+      .innerJoin(assets, eq(musicTracks.assetId, assets.id))
+      .where(conditions)
+      .orderBy(desc(musicTracks.createdAt));
+  }
+
+  async findMusicTrackById(id: string) {
+    const [track] = await this.db
+      .select({
+        id: musicTracks.id,
+        assetId: musicTracks.assetId,
+        name: musicTracks.name,
+        artistName: musicTracks.artistName,
+        durationSeconds: musicTracks.durationSeconds,
+        mood: musicTracks.mood,
+        genre: musicTracks.genre,
+        isActive: musicTracks.isActive,
+        uploadedBy: musicTracks.uploadedBy,
+        createdAt: musicTracks.createdAt,
+      })
+      .from(musicTracks)
+      .where(eq(musicTracks.id, id))
+      .limit(1);
+
+    return track;
+  }
+
+  async updateMusicTrack(
+    id: string,
+    data: {
+      isActive?: boolean;
+      name?: string;
+      artistName?: string | null;
+      mood?: string;
+      genre?: string | null;
+    },
+  ) {
+    const [updated] = await this.db
+      .update(musicTracks)
+      .set(data)
+      .where(eq(musicTracks.id, id))
+      .returning({
+        id: musicTracks.id,
+        assetId: musicTracks.assetId,
+        name: musicTracks.name,
+        artistName: musicTracks.artistName,
+        durationSeconds: musicTracks.durationSeconds,
+        mood: musicTracks.mood,
+        genre: musicTracks.genre,
+        isActive: musicTracks.isActive,
+        uploadedBy: musicTracks.uploadedBy,
+        createdAt: musicTracks.createdAt,
+      });
+
+    return updated;
+  }
+
+  async deleteMusicTrack(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(musicTracks)
+      .where(eq(musicTracks.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Niches management
+  async listNiches(search?: string, activeOnly?: boolean) {
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (activeOnly) conditions.push(eq(niches.isActive, true));
+
+    return this.db
+      .select({
+        id: niches.id,
+        name: niches.name,
+        description: niches.description,
+        isActive: niches.isActive,
+        createdAt: niches.createdAt,
+        updatedAt: niches.updatedAt,
+        reelCount: sql<number>`count(${reels.id})::int`,
+        scrapeLimit: niches.scrapeLimit,
+        scrapeMinViews: niches.scrapeMinViews,
+        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+      })
+      .from(niches)
+      .leftJoin(reels, eq(reels.nicheId, niches.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(niches.id)
+      .orderBy(desc(niches.createdAt));
+  }
+
+  async findNicheById(id: string) {
+    const [niche] = await this.db
+      .select({
+        id: niches.id,
+        name: niches.name,
+        description: niches.description,
+        isActive: niches.isActive,
+        createdAt: niches.createdAt,
+        updatedAt: niches.updatedAt,
+        scrapeLimit: niches.scrapeLimit,
+        scrapeMinViews: niches.scrapeMinViews,
+        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+      })
+      .from(niches)
+      .where(eq(niches.id, id))
+      .limit(1);
+
+    return niche;
+  }
+
+  async createNiche(data: { name: string; description?: string }) {
+    const [niche] = await this.db
+      .insert(niches)
+      .values({
+        name: data.name,
+        description: data.description,
+        isActive: true,
+      })
+      .returning({
+        id: niches.id,
+        name: niches.name,
+        description: niches.description,
+        isActive: niches.isActive,
+        createdAt: niches.createdAt,
+        updatedAt: niches.updatedAt,
+      });
+
+    if (!niche) throw new Error("Failed to create niche");
+    return niche;
+  }
+
+  async updateNiche(
+    id: string,
+    data: { name?: string; description?: string; isActive?: boolean },
+  ) {
+    const [updated] = await this.db
+      .update(niches)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(niches.id, id))
+      .returning({
+        id: niches.id,
+        name: niches.name,
+        description: niches.description,
+        isActive: niches.isActive,
+        createdAt: niches.createdAt,
+        updatedAt: niches.updatedAt,
+      });
+
+    return updated;
+  }
+
+  async updateNicheConfig(
+    id: string,
+    data: {
+      scrapeLimit?: number;
+      scrapeMinViews?: number;
+      scrapeMaxDaysOld?: number;
+      scrapeIncludeViralOnly?: boolean;
+    },
+  ) {
+    const [updated] = await this.db
+      .update(niches)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(niches.id, id))
+      .returning({
+        id: niches.id,
+        name: niches.name,
+        description: niches.description,
+        isActive: niches.isActive,
+        createdAt: niches.createdAt,
+        updatedAt: niches.updatedAt,
+        scrapeLimit: niches.scrapeLimit,
+        scrapeMinViews: niches.scrapeMinViews,
+        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+      });
+
+    return updated;
+  }
+
+  async deleteNiche(id: string): Promise<boolean> {
+    const result = await this.db.delete(niches).where(eq(niches.id, id));
+    return result.rowCount > 0;
+  }
+
+  async listNicheReels(
+    nicheId: string,
+    options: {
+      page: number;
+      limit: number;
+      sortBy: string;
+      sortOrder: string;
+      viral?: string;
+      hasVideo?: string;
+    },
+  ) {
+    const offset = (options.page - 1) * options.limit;
+
+    const sortCol =
+      {
+        views: reels.views,
+        likes: reels.likes,
+        engagement: reels.engagementRate,
+        postedAt: reels.postedAt,
+        scrapedAt: reels.scrapedAt,
+      }[options.sortBy] ?? reels.views;
+
+    const order = options.sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
+
+    const whereConditions = [eq(reels.nicheId, nicheId)];
+    if (options.viral === "true") whereConditions.push(eq(reels.isViral, true));
+    if (options.viral === "false")
+      whereConditions.push(eq(reels.isViral, false));
+    if (options.hasVideo === "true")
+      whereConditions.push(isNotNull(reels.videoR2Url));
+
+    const where = and(...whereConditions);
+
+    const [reelRows, [{ total }]] = await Promise.all([
+      this.db.select().from(reels).where(where).orderBy(order)
+        .limit(options.limit).offset(offset),
+      this.db.select({ total: sql<number>`count(*)::int` }).from(reels).where(where),
+    ]);
+
+    // Get analysis status
+    const reelIds = reelRows.map((r) => r.id);
+    const analysisRows =
+      reelIds.length > 0
+        ? await this.db
+            .select({ reelId: reelAnalyses.reelId })
+            .from(reelAnalyses)
+            .where(
+              sql`${reelAnalyses.reelId} = ANY(${sql.raw(`ARRAY[${reelIds.join(",")}]`)})`,
+            )
+        : [];
+    const analyzedIds = new Set(analysisRows.map((a) => a.reelId));
+
+    return {
+      reels: reelRows.map((r) => ({ ...r, hasAnalysis: analyzedIds.has(r.id) })),
+      total,
+      page: options.page,
+      limit: options.limit,
+      totalPages: Math.ceil(total / options.limit),
+    };
+  }
+
+  async dedupeNicheReels(nicheId: string) {
+    const result = await this.db.execute(sql`
+      DELETE FROM "reel"
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY "external_id" ORDER BY id ASC) as rn
+          FROM "reel"
+          WHERE niche_id = ${nicheId}
+        ) sub
+        WHERE rn > 1
+      )
+    `);
+
+    return { deletedCount: result.rowCount || 0 };
   }
 }

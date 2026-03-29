@@ -25,6 +25,14 @@ import { AdminRepository } from "./admin/admin.repository";
 import { AdminService } from "./admin/admin.service";
 import { PublicRepository } from "./public/public.repository";
 import { PublicService } from "./public/public.service";
+import { CustomerRepository } from "./customer/customer.repository";
+import { CustomerService } from "./customer/customer.service";
+import { UsersRepository } from "./users/users.repository";
+import { UsersService } from "./users/users.service";
+import { ChatRepository } from "./chat/chat.repository";
+import { ChatService } from "./chat/chat.service";
+import { ProjectsRepository } from "./projects/projects.repository";
+import { ProjectsService } from "./projects/projects.service";
 
 export const authRepository = new AuthRepository(db);
 export const authService = new AuthService(authRepository);
@@ -66,3 +74,15 @@ export const reelsService = new ReelsService(reelsRepository);
 
 export const publicRepository = new PublicRepository(db);
 export const publicService = new PublicService(publicRepository);
+
+export const customerRepository = new CustomerRepository(db);
+export const customerService = new CustomerService(customerRepository);
+
+export const usersRepository = new UsersRepository(db);
+export const usersService = new UsersService(usersRepository);
+
+export const chatRepository = new ChatRepository(db);
+export const chatService = new ChatService(chatRepository);
+
+export const projectsRepository = new ProjectsRepository(db);
+export const projectsService = new ProjectsService(projectsRepository);

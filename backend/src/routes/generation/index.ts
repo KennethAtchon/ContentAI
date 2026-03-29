@@ -7,12 +7,8 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
-import {
-  generatedContent,
-  queueItems,
-  reels,
-} from "../../infrastructure/database/drizzle/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { queueItems } from "../../infrastructure/database/drizzle/schema";
+import { eq, and } from "drizzle-orm";
 import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { generateContent } from "../../services/reels/content-generator";
 import {
@@ -22,6 +18,7 @@ import {
   generationListQuerySchema,
   queueGeneratedContentSchema,
 } from "../../domain/content/content.schemas";
+import { contentService } from "../../domain/singletons";
 import { AppError, Errors } from "../../utils/errors/app-error";
 
 const generationRouter = new Hono<HonoEnv>();
@@ -41,10 +38,8 @@ const validationErrorHook = (result: ValidationResult, c: Context) => {
   }
 };
 
-/**
- * POST /api/generation
- * Generate content from a reel + prompt.
- */
+// POST /api/generation
+// Creates a generation job (reel analysis + script/hook generation)
 generationRouter.post(
   "/",
   rateLimiter("customer"),
@@ -53,23 +48,23 @@ generationRouter.post(
   zValidator("json", generateContentSchema, validationErrorHook),
   async (c) => {
     const auth = c.get("auth");
-    const { sourceReelId, prompt, outputType } = c.req.valid("json");
+    const { reelId, nicheId, prompt, outputType, templateId } = c.req.valid("json");
 
-    const content = await generateContent({
-      reelId: sourceReelId,
-      prompt,
+    const result = await generateContent({
       userId: auth.user.id,
+      reelId,
+      nicheId,
+      prompt,
       outputType,
+      templateId,
     });
 
-    return c.json({ content }, 201);
+    return c.json(result, 201);
   },
 );
 
-/**
- * GET /api/generation/history
- * List user's generated content history with page-based pagination and reel info.
- */
+// GET /api/generation/history
+// Returns enriched generation rows with source reel metadata for the UI
 generationRouter.get(
   "/history",
   rateLimiter("customer"),
@@ -78,34 +73,15 @@ generationRouter.get(
   async (c) => {
     const auth = c.get("auth");
     const { page, limit } = c.req.valid("query");
-    const offset = (page - 1) * limit;
 
-    const [rows, [{ total }]] = await Promise.all([
-      db
-        .select({
-          id: generatedContent.id,
-          type: generatedContent.outputType,
-          prompt: generatedContent.prompt,
-          createdAt: generatedContent.createdAt,
-          sourceReelUsername: reels.username,
-          sourceReelHook: reels.hook,
-        })
-        .from(generatedContent)
-        .leftJoin(reels, eq(generatedContent.sourceReelId, reels.id))
-        .where(eq(generatedContent.userId, auth.user.id))
-        .orderBy(desc(generatedContent.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(generatedContent)
-        .where(eq(generatedContent.userId, auth.user.id)),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
+    const result = await contentService.listGenerationHistory(
+      auth.user.id,
+      page,
+      limit,
+    );
 
     return c.json({
-      data: rows.map((r) => ({
+      data: result.rows.map((r) => ({
         id: String(r.id),
         type: r.type,
         sourceReel: {
@@ -119,18 +95,16 @@ generationRouter.get(
       pagination: {
         page,
         limit,
-        total,
-        totalPages,
-        hasMore: page < totalPages,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasMore: page < result.totalPages,
       },
     });
   },
 );
 
-/**
- * GET /api/generation
- * List user's generated content history (paginated).
- */
+// GET /api/generation
+// List user's generated content history (paginated).
 generationRouter.get(
   "/",
   rateLimiter("customer"),
@@ -140,28 +114,18 @@ generationRouter.get(
     const auth = c.get("auth");
     const { limit, offset } = c.req.valid("query");
 
-    const [rows, [{ total }]] = await Promise.all([
-      db
-        .select()
-        .from(generatedContent)
-        .where(eq(generatedContent.userId, auth.user.id))
-        .orderBy(desc(generatedContent.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(generatedContent)
-        .where(eq(generatedContent.userId, auth.user.id)),
-    ]);
+    const result = await contentService.listGeneratedContent(
+      auth.user.id,
+      limit,
+      offset,
+    );
 
-    return c.json({ items: rows, total });
+    return c.json({ items: result.rows, total: result.total });
   },
 );
 
-/**
- * GET /api/generation/:id
- * Single generated content item.
- */
+// GET /api/generation/:id
+// Single generated content item.
 generationRouter.get(
   "/:id",
   rateLimiter("customer"),
@@ -171,15 +135,7 @@ generationRouter.get(
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
 
-    const [item] = await db
-      .select()
-      .from(generatedContent)
-      .where(
-        and(
-          eq(generatedContent.id, id),
-          eq(generatedContent.userId, auth.user.id),
-        ),
-      );
+    const item = await contentService.findGeneratedContentById(id, auth.user.id);
 
     if (!item) {
       throw Errors.notFound("Generated content");
@@ -189,10 +145,8 @@ generationRouter.get(
   },
 );
 
-/**
- * POST /api/generation/:id/queue
- * Move a generated content item to the queue.
- */
+// POST /api/generation/:id/queue
+// Move a generated content item to the queue.
 generationRouter.post(
   "/:id/queue",
   rateLimiter("customer"),
@@ -203,17 +157,9 @@ generationRouter.post(
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
-    const { scheduledFor, instagramPageId } = c.req.valid("json");
+    const { scheduledFor } = c.req.valid("json");
 
-    const [item] = await db
-      .select()
-      .from(generatedContent)
-      .where(
-        and(
-          eq(generatedContent.id, id),
-          eq(generatedContent.userId, auth.user.id),
-        ),
-      );
+    const item = await contentService.findGeneratedContentById(id, auth.user.id);
 
     if (!item) {
       throw Errors.notFound("Generated content");
@@ -228,30 +174,21 @@ generationRouter.post(
       );
     }
 
-    await db
-      .update(generatedContent)
-      .set({ status: "queued" })
-      .where(eq(generatedContent.id, id));
+    await contentService.updateGeneratedContentStatus(id, auth.user.id, "queued");
 
-    await assertNoChainQueueItem(
-      db,
-      id,
-      auth.user.id,
-      "generation_schedule_endpoint",
-    );
+    await assertNoChainQueueItem(db, id, scheduledDate);
 
     const [queueItem] = await db
       .insert(queueItems)
       .values({
         userId: auth.user.id,
-        generatedContentId: id,
+        contentId: id,
         scheduledFor: scheduledDate,
-        instagramPageId: instagramPageId ?? null,
-        status: "scheduled",
+        status: "pending",
       })
       .returning();
 
-    return c.json({ queueItem }, 201);
+    return c.json({ success: true, queueItem });
   },
 );
 

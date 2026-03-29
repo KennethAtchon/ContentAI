@@ -6,15 +6,10 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import {
-  users as usersTable,
-  orders as ordersTable,
-} from "../../infrastructure/database/drizzle/schema";
-import { eq, and, or, ilike, desc, gte, lte, sql } from "drizzle-orm";
+import { usersService } from "../../domain/singletons";
 import { adminAuth } from "../../services/firebase/admin";
 import { FirebaseUserSync } from "../../services/firebase/sync";
-import { debugLog } from "../../utils/debug/debug";
+import { Errors } from "../../utils/errors/app-error";
 import {
   createUserBodySchema,
   deleteUserBodySchema,
@@ -47,58 +42,16 @@ users.get(
   authMiddleware("admin"),
   zValidator("query", usersListQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { page, limit, search, includeDeleted } = c.req.valid("query");
-      const skip = (page - 1) * limit;
+    const { page, limit, search, includeDeleted } = c.req.valid("query");
 
-      const conditions = [
-        ...(includeDeleted ? [] : [eq(usersTable.isDeleted, false)]),
-        ...(search
-          ? [
-              or(
-                ilike(usersTable.name, `%${search}%`),
-                ilike(usersTable.email, `%${search}%`),
-              ),
-            ]
-          : []),
-      ];
-      const whereClause =
-        conditions.length > 0 ? and(...(conditions as any)) : undefined;
+    const result = await usersService.listUsers({
+      page,
+      limit,
+      search,
+      includeDeleted,
+    });
 
-      const [allUsers, [{ total }]] = await Promise.all([
-        db
-          .select()
-          .from(usersTable)
-          .where(whereClause)
-          .orderBy(desc(usersTable.isActive), desc(usersTable.createdAt))
-          .limit(limit)
-          .offset(skip),
-        db
-          .select({ total: sql<number>`count(*)::int` })
-          .from(usersTable)
-          .where(whereClause),
-      ]);
-
-      const totalPages = Math.ceil(total / limit);
-      return c.json({
-        users: allUsers,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasMore: page < totalPages,
-          hasPrevious: page > 1,
-        },
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch users", {
-        service: "users-route",
-        operation: "getUsers",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch users" }, 500);
-    }
+    return c.json(result);
   },
 );
 
@@ -111,49 +64,32 @@ users.post(
   authMiddleware("admin"),
   zValidator("json", createUserBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { name, email, password, createInFirebase, timezone } =
-        c.req.valid("json");
+    const { name, email, password, createInFirebase, timezone } =
+      c.req.valid("json");
 
-      let firebaseUid: string | null = null;
+    let firebaseUid: string | null = null;
 
-      if (createInFirebase) {
-        const syncResult = await FirebaseUserSync.syncUserCreate({
-          email,
-          name,
-          password,
-          role: "user",
-        });
-        if (!syncResult.success) {
-          return c.json(
-            { error: `Failed to create Firebase user: ${syncResult.error}` },
-            500,
-          );
-        }
-        firebaseUid = syncResult.firebaseUid || null;
-      }
-
-      const [newUser] = await db
-        .insert(usersTable)
-        .values({
-          name,
-          email,
-          firebaseUid,
-          role: "user",
-          isActive: true,
-          timezone,
-        })
-        .returning();
-
-      return c.json(newUser, 201);
-    } catch (error) {
-      debugLog.error("Failed to create user", {
-        service: "users-route",
-        operation: "createUser",
-        error: error instanceof Error ? error.message : "Unknown error",
+    if (createInFirebase) {
+      const syncResult = await FirebaseUserSync.syncUserCreate({
+        email,
+        name,
+        password,
+        role: "user",
       });
-      return c.json({ error: "Failed to create user" }, 500);
+      if (!syncResult.success) {
+        throw Errors.internal(`Failed to create Firebase user: ${syncResult.error}`);
+      }
+      firebaseUid = syncResult.firebaseUid || null;
     }
+
+    const newUser = await usersService.createUser({
+      name,
+      email,
+      firebaseUid,
+      timezone,
+    });
+
+    return c.json(newUser, 201);
   },
 );
 
@@ -166,71 +102,48 @@ users.patch(
   authMiddleware("admin"),
   zValidator("json", updateUserBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const {
-        id,
-        phone,
-        address,
-        role,
-        name,
-        password: _password,
-        email,
-        isActive,
-        timezone,
-      } = c.req.valid("json");
+    const {
+      id,
+      phone,
+      address,
+      role,
+      name,
+      password: _password,
+      email,
+      isActive,
+      timezone,
+    } = c.req.valid("json");
 
-      const [existingUser] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, id))
-        .limit(1);
-      if (!existingUser) return c.json({ error: "User not found" }, 404);
+    const existingUser = await usersService.getUserById(id);
 
-      const updateData: Record<string, unknown> = {};
-      if (phone !== undefined) updateData.phone = phone;
-      if (address !== undefined) updateData.address = address;
-      if (role !== undefined) updateData.role = role;
-      if (name !== undefined) updateData.name = name;
-      if (email !== undefined) updateData.email = email;
-      if (isActive !== undefined) updateData.isActive = isActive;
-      if (timezone !== undefined) updateData.timezone = timezone;
+    const updatedUser = await usersService.updateUser(id, {
+      phone,
+      address,
+      role,
+      name,
+      email,
+      isActive,
+      timezone,
+    });
 
-      const [updatedUser] = await db
-        .update(usersTable)
-        .set(updateData)
-        .where(eq(usersTable.id, id))
-        .returning();
+    if (existingUser.firebaseUid) {
+      const syncData: Record<string, unknown> = {};
+      if (email !== undefined) syncData.email = email;
+      if (name !== undefined) syncData.name = name;
+      if (role !== undefined) syncData.role = role;
+      if (isActive !== undefined) syncData.isActive = isActive;
 
-      if (existingUser.firebaseUid) {
-        const syncData: Record<string, unknown> = {};
-        if (email !== undefined) syncData.email = email;
-        if (name !== undefined) syncData.name = name;
-        if (role !== undefined) syncData.role = role;
-        if (isActive !== undefined) syncData.isActive = isActive;
-
-        if (Object.keys(syncData).length > 0) {
-          await FirebaseUserSync.syncUserUpdate(
-            existingUser.firebaseUid,
-            syncData as any,
-          ).catch((err) =>
-            debugLog.warn("Failed to sync user update to Firebase", {
-              service: "users-route",
-              operation: "updateUser",
-              error: err instanceof Error ? err.message : "Unknown error",
-            }),
-          );
-        }
+      if (Object.keys(syncData).length > 0) {
+        await FirebaseUserSync.syncUserUpdate(
+          existingUser.firebaseUid,
+          syncData as any,
+        ).catch(() => {
+          // Best-effort Firebase sync - log but don't fail
+        });
       }
-
-      return c.json(updatedUser);
-    } catch (error) {
-      debugLog.error("Failed to update user", {
-        service: "users-route",
-        operation: "updateUser",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update user" }, 500);
     }
+
+    return c.json(updatedUser);
   },
 );
 
@@ -243,50 +156,22 @@ users.delete(
   authMiddleware("admin"),
   zValidator("json", deleteUserBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id, hardDelete } = c.req.valid("json");
+    const { id, hardDelete } = c.req.valid("json");
 
-      const [existingUser] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, id))
-        .limit(1);
-      if (!existingUser) return c.json({ error: "User not found" }, 404);
+    const existingUser = await usersService.getUserById(id);
 
-      if (hardDelete) {
-        await db.delete(usersTable).where(eq(usersTable.id, id));
-      } else {
-        await db
-          .update(usersTable)
-          .set({ isActive: false })
-          .where(eq(usersTable.id, id));
-      }
+    const result = await usersService.deleteUser(id, hardDelete);
 
-      if (existingUser.firebaseUid) {
-        await FirebaseUserSync.syncUserDelete(
-          existingUser.firebaseUid,
-          hardDelete,
-        ).catch((err) =>
-          debugLog.warn("Failed to sync user deletion to Firebase", {
-            service: "users-route",
-            operation: "deleteUser",
-            error: err instanceof Error ? err.message : "Unknown error",
-          }),
-        );
-      }
-
-      return c.json({
-        success: true,
-        message: hardDelete ? "User deleted permanently" : "User deactivated",
+    if (existingUser.firebaseUid) {
+      await FirebaseUserSync.syncUserDelete(
+        existingUser.firebaseUid,
+        hardDelete,
+      ).catch(() => {
+        // Best-effort Firebase sync - log but don't fail
       });
-    } catch (error) {
-      debugLog.error("Failed to delete user", {
-        service: "users-route",
-        operation: "deleteUser",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete user" }, 500);
     }
+
+    return c.json(result);
   },
 );
 
@@ -297,75 +182,9 @@ users.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const now = new Date();
-      const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfLastMonth = new Date(
-        now.getFullYear(),
-        now.getMonth() - 1,
-        1,
-      );
-      const endOfLastMonth = new Date(startOfThisMonth.getTime() - 1);
+    const stats = await usersService.getCustomerStats();
 
-      const baseWhere = and(
-        eq(usersTable.role, "user"),
-        eq(usersTable.isActive, true),
-        eq(usersTable.isDeleted, false),
-      );
-      const [
-        [{ totalCustomers }],
-        [{ thisMonthCustomers }],
-        [{ lastMonthCustomers }],
-      ] = await Promise.all([
-        db
-          .select({ totalCustomers: sql<number>`count(*)::int` })
-          .from(usersTable)
-          .where(baseWhere),
-        db
-          .select({ thisMonthCustomers: sql<number>`count(*)::int` })
-          .from(usersTable)
-          .where(
-            and(
-              baseWhere,
-              gte(usersTable.createdAt, startOfThisMonth),
-              lte(usersTable.createdAt, now),
-            ),
-          ),
-        db
-          .select({ lastMonthCustomers: sql<number>`count(*)::int` })
-          .from(usersTable)
-          .where(
-            and(
-              baseWhere,
-              gte(usersTable.createdAt, startOfLastMonth),
-              lte(usersTable.createdAt, endOfLastMonth),
-            ),
-          ),
-      ]);
-
-      let percentChange = 0;
-      if (lastMonthCustomers > 0) {
-        percentChange =
-          ((thisMonthCustomers - lastMonthCustomers) / lastMonthCustomers) *
-          100;
-      } else if (thisMonthCustomers > 0) {
-        percentChange = 100;
-      }
-
-      return c.json({
-        totalCustomers,
-        thisMonthCustomers,
-        lastMonthCustomers,
-        percentChange,
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch customers count", {
-        service: "users-route",
-        operation: "getCustomersCount",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch customers count" }, 500);
-    }
+    return c.json(stats);
   },
 );
 
@@ -377,51 +196,17 @@ users.delete(
   csrfMiddleware(),
   authMiddleware("user"),
   async (c) => {
+    const auth = c.get("auth");
+
+    const result = await usersService.deleteOwnAccount(auth.firebaseUser.uid);
+
     try {
-      const auth = c.get("auth");
-
-      const [user] = await db
-        .select()
-        .from(usersTable)
-        .where(
-          and(
-            eq(usersTable.firebaseUid, auth.firebaseUser.uid),
-            eq(usersTable.isDeleted, false),
-          ),
-        )
-        .limit(1);
-
-      if (!user) return c.json({ error: "User not found" }, 404);
-
-      await db
-        .update(usersTable)
-        .set({
-          isDeleted: true,
-          deletedAt: new Date(),
-          name: "Deleted User",
-          email: `deleted-${user.id}@example.com`,
-          phone: null,
-          address: null,
-          firebaseUid: null,
-          isActive: false,
-        })
-        .where(eq(usersTable.id, user.id));
-
-      try {
-        await adminAuth.deleteUser(auth.firebaseUser.uid);
-      } catch {
-        /* Best-effort Firebase deletion */
-      }
-
-      return c.json({ success: true, message: "Account deleted successfully" });
-    } catch (error) {
-      debugLog.error("Failed to delete account", {
-        service: "users-route",
-        operation: "deleteAccount",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete account" }, 500);
+      await adminAuth.deleteUser(auth.firebaseUser.uid);
+    } catch {
+      /* Best-effort Firebase deletion */
     }
+
+    return c.json(result);
   },
 );
 
@@ -432,49 +217,16 @@ users.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const auth = c.get("auth");
+    const auth = c.get("auth");
 
-      const [user] = await db
-        .select({
-          id: usersTable.id,
-          name: usersTable.name,
-          email: usersTable.email,
-          phone: usersTable.phone,
-          address: usersTable.address,
-          timezone: usersTable.timezone,
-          createdAt: usersTable.createdAt,
-        })
-        .from(usersTable)
-        .where(eq(usersTable.id, auth.user.id))
-        .limit(1);
+    const exportData = await usersService.exportUserData(auth.user.id);
 
-      const userOrders = await db
-        .select({
-          id: ordersTable.id,
-          status: ordersTable.status,
-          totalAmount: ordersTable.totalAmount,
-          createdAt: ordersTable.createdAt,
-        })
-        .from(ordersTable)
-        .where(eq(ordersTable.userId, auth.user.id));
-
-      const exportData = { profile: user, orders: userOrders };
-
-      return new Response(JSON.stringify(exportData, null, 2), {
-        headers: {
-          "Content-Type": "application/json",
-          "Content-Disposition": 'attachment; filename="my-data.json"',
-        },
-      });
-    } catch (error) {
-      debugLog.error("Failed to export data", {
-        service: "users-route",
-        operation: "exportData",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to export data" }, 500);
-    }
+    return new Response(JSON.stringify(exportData, null, 2), {
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Disposition": 'attachment; filename="my-data.json"',
+      },
+    });
   },
 );
 
@@ -487,24 +239,11 @@ users.post(
   authMiddleware("admin"),
   zValidator("json", objectToProcessingBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { userId } = c.req.valid("json");
+    const { userId } = c.req.valid("json");
 
-      const [user] = await db
-        .update(usersTable)
-        .set({ isActive: false })
-        .where(eq(usersTable.id, userId))
-        .returning();
+    const user = await usersService.objectToProcessing(userId);
 
-      return c.json({ success: true, user });
-    } catch (error) {
-      debugLog.error("Failed to update user processing status", {
-        service: "users-route",
-        operation: "updateProcessingStatus",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update user" }, 500);
-    }
+    return c.json({ success: true, user });
   },
 );
 

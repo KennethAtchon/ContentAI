@@ -1,7 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { assets, contentAssets } from "../../infrastructure/database/drizzle/schema";
-import { db } from "../../services/db/db";
 import type { TimelinePayload } from "./schemas";
+import { contentService } from "../../domain/singletons";
 
 export type TimelineIssue = {
   code: string;
@@ -79,74 +77,37 @@ export async function validateTimeline(input: {
         message: "Timeline item exceeds duration.",
       });
     }
-  }
 
-  if (input.timeline.durationMs > 180_000) {
-    issues.push({
-      code: "DURATION_LIMIT_EXCEEDED",
-      track: "timeline",
-      itemIds: [],
-      severity: "error",
-      message: `Duration exceeds 180_000ms product limit.`,
-    });
-  }
-
-  const laneGroups = new Map<number, typeof videoItems>();
-  for (const item of videoItems) {
-    const lane = item.lane ?? 0;
-    const laneItems = laneGroups.get(lane) ?? [];
-    laneItems.push(item);
-    laneGroups.set(lane, laneItems);
-  }
-  for (const [lane, items] of laneGroups.entries()) {
-    if (hasTrackOverlap(items)) {
+    const spanMs = getItemSpanMs(item);
+    if (spanMs < MIN_RECOMMENDED_CLIP_MS) {
       issues.push({
-        code: "OVERLAPPING_VIDEO_SEGMENTS",
-        track: "video",
-        itemIds: items.map((it) => it.id),
-        severity: "error",
-        message: `Video segments overlap in lane ${lane}.`,
+        code: "SHORT_CLIP_SPAN",
+        track: videoItems.includes(item) ? "video" : "audio",
+        itemIds: [item.id],
+        severity: "warning",
+        message: `Clip source span is short (${spanMs}ms). Consider longer source clips for better quality transitions.`,
+      });
+    }
+    if (spanMs > MAX_RECOMMENDED_CLIP_MS) {
+      issues.push({
+        code: "LONG_CLIP_SPAN",
+        track: videoItems.includes(item) ? "video" : "audio",
+        itemIds: [item.id],
+        severity: "warning",
+        message: `Clip source span is very long (${spanMs}ms). Trimming is recommended to keep viewer engagement.`,
       });
     }
 
-    const sorted = [...items].sort(
-      (a, b) => a.startMs - b.startMs,
-    );
-    for (let i = 0; i < sorted.length; i += 1) {
-      const item = sorted[i];
-      const spanMs = Math.max(1, getItemSpanMs(item));
-      if (
-        spanMs < MIN_RECOMMENDED_CLIP_MS ||
-        spanMs > MAX_RECOMMENDED_CLIP_MS
-      ) {
-        issues.push({
-          code: "CLIP_PACING_WARNING",
-          track: "video",
-          itemIds: [item.id],
-          severity: "warning",
-          message: `Clip ${item.id} duration is outside recommended pacing range (${MIN_RECOMMENDED_CLIP_MS}-${MAX_RECOMMENDED_CLIP_MS}ms).`,
-        });
-      }
-
-      const nextItem = sorted[i + 1];
-      const transitions = [
-        { key: "transitionIn" as const, value: item.transitionIn },
-        { key: "transitionOut" as const, value: item.transitionOut },
-      ];
-      for (const transition of transitions) {
-        const t = transition.value;
-        if (!t) continue;
-        if (t.type === "cut" && t.durationMs !== 0) {
-          issues.push({
-            code: "TRANSITION_DURATION_INVALID",
-            track: "video",
-            itemIds: [item.id],
-            severity: "error",
-            message: "Cut transitions must use 0ms duration.",
-          });
-          continue;
-        }
-        if (t.type !== "cut" && t.durationMs <= 0) {
+    if (item.transitions && item.transitions.length > 0) {
+      for (let i = 0; i < item.transitions.length; i++) {
+        const transition = item.transitions[i];
+        const t = transition as {
+          type?: string;
+          durationMs?: number;
+          key?: string;
+        };
+        if (!t.type || typeof t.durationMs !== "number") continue;
+        if (t.durationMs <= 0) {
           issues.push({
             code: "TRANSITION_DURATION_INVALID",
             track: "video",
@@ -165,16 +126,21 @@ export async function validateTimeline(input: {
             message: "Transition duration cannot exceed source clip span.",
           });
         }
-        if (transition.key === "transitionOut" && nextItem) {
-          const nextSpan = Math.max(1, getItemSpanMs(nextItem));
-          if (t.durationMs > nextSpan) {
-            issues.push({
-              code: "TRANSITION_EXCEEDS_NEXT_CLIP_SPAN",
-              track: "video",
-              itemIds: [item.id, nextItem.id],
-              severity: "error",
-              message: "Transition out duration exceeds next clip source span.",
-            });
+        // Check transitionOut against next item if exists
+        if (t.key === "transitionOut") {
+          const currentIndex = videoItems.indexOf(item);
+          const nextItem = videoItems[currentIndex + 1];
+          if (nextItem) {
+            const nextSpan = Math.max(1, getItemSpanMs(nextItem));
+            if (t.durationMs > nextSpan) {
+              issues.push({
+                code: "TRANSITION_EXCEEDS_NEXT_CLIP_SPAN",
+                track: "video",
+                itemIds: [item.id, nextItem.id],
+                severity: "error",
+                message: "Transition out duration exceeds next clip source span.",
+              });
+            }
           }
         }
       }
@@ -211,23 +177,11 @@ export async function validateTimeline(input: {
   ];
 
   if (refs.length > 0) {
-    const ownedAssets = await db
-      .select({
-        id: assets.id,
-        type: assets.type,
-      })
-      .from(contentAssets)
-      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-      .where(
-        and(
-          eq(contentAssets.generatedContentId, input.generatedContentId),
-          eq(assets.userId, input.userId),
-          inArray(
-            assets.id,
-            refs.map((ref) => ref.assetId),
-          ),
-        ),
-      );
+    const ownedAssets = await contentService.fetchOwnedAssetsForTimeline(
+      input.userId,
+      input.generatedContentId,
+      refs.map((ref) => ref.assetId),
+    );
 
     const assetMap = new Map(ownedAssets.map((asset) => [asset.id, asset]));
     for (const ref of refs) {
@@ -250,52 +204,44 @@ export async function validateTimeline(input: {
           track: ref.track,
           itemIds: [ref.itemId],
           severity: "error",
-          message: `Asset type ${asset.type} is not valid for ${ref.track} track.`,
+          message: `Asset type "${asset.type}" is not valid for ${ref.track}${ref.role ? ` (${ref.role})` : ""}. Expected: ${allowedTypes.join(", ")}.`,
         });
       }
     }
   }
 
+  if (hasTrackOverlap(videoItems)) {
+    issues.push({
+      code: "VIDEO_TRACK_OVERLAP",
+      track: "video",
+      itemIds: videoItems.map((i) => i.id),
+      severity: "error",
+      message: "Video segments cannot overlap.",
+    });
+  }
+
+  const allAudio = [...audioItems, ...(input.timeline.tracks.captions ?? [])];
+  if (hasTrackOverlap(allAudio)) {
+    issues.push({
+      code: "AUDIO_TRACK_OVERLAP",
+      track: "audio",
+      itemIds: allAudio.map((i) => i.id),
+      severity: "error",
+      message: "Audio segments cannot overlap.",
+    });
+  }
+
   const captionTracks = input.timeline.tracks.captions ?? [];
-  for (const captionTrack of captionTracks) {
-    const segmentsRaw = Array.isArray(captionTrack?.segments)
-      ? (captionTrack.segments as Array<Record<string, unknown>>)
-      : [];
-    const normalized = segmentsRaw
-      .map((segment) => ({
-        id: String(segment.id ?? ""),
-        startMs: Math.max(0, Number(segment.startMs ?? 0)),
-        endMs: Math.max(0, Number(segment.endMs ?? 0)),
-      }))
-      .sort((a, b) => a.startMs - b.startMs);
-
-    for (const segment of normalized) {
-      if (segment.endMs <= segment.startMs) {
-        issues.push({
-          code: "CAPTION_INVALID_TIME_RANGE",
-          track: "captions",
-          itemIds: [segment.id].filter(Boolean),
-          severity: "error",
-          message: "Caption segment has invalid time range.",
-        });
-      }
-      if (segment.startMs < 0 || segment.endMs > input.timeline.durationMs) {
-        issues.push({
-          code: "CAPTION_OUT_OF_BOUNDS",
-          track: "captions",
-          itemIds: [segment.id].filter(Boolean),
-          severity: "error",
-          message: "Caption segment must stay within duration.",
-        });
-      }
-    }
-
-    for (let i = 1; i < normalized.length; i += 1) {
-      if (normalized[i].startMs < normalized[i - 1].endMs) {
+  for (const track of captionTracks) {
+    const segments = track.segments ?? [];
+    for (let i = 0; i < segments.length - 1; i += 1) {
+      const curr = segments[i];
+      const next = segments[i + 1];
+      if (curr.endMs > next.startMs) {
         issues.push({
           code: "CAPTION_OVERLAP",
           track: "captions",
-          itemIds: [normalized[i - 1].id, normalized[i].id].filter(Boolean),
+          itemIds: [curr.id, next.id],
           severity: "error",
           message: "Caption segments cannot overlap.",
         });

@@ -266,4 +266,101 @@ export class AdminService {
   }) {
     await this.repo.upsertAdminUserOnVerify(params);
   }
+
+  // Music management
+  async listMusicTracks(search?: string) {
+    const tracks = await this.repo.listMusicTracks(search);
+    return { tracks };
+  }
+
+  async updateMusicTrack(
+    id: string,
+    data: {
+      isActive?: boolean;
+      name?: string;
+      artistName?: string | null;
+      mood?: string;
+      genre?: string | null;
+    },
+  ) {
+    const track = await this.repo.updateMusicTrack(id, data);
+    if (!track) {
+      throw new Error("Track not found");
+    }
+    return { track };
+  }
+
+  async deleteMusicTrack(id: string) {
+    const deleted = await this.repo.deleteMusicTrack(id);
+    if (!deleted) {
+      throw new Error("Track not found");
+    }
+    return { success: true };
+  }
+
+  // Niches management
+  async listNiches(search?: string, active?: boolean) {
+    const niches = await this.repo.listNiches(search, active);
+    return { niches };
+  }
+
+  async createNiche(data: { name: string; description?: string }) {
+    const niche = await this.repo.createNiche(data);
+    return { niche };
+  }
+
+  async updateNiche(
+    id: string,
+    data: { name?: string; description?: string; isActive?: boolean },
+  ) {
+    const niche = await this.repo.updateNiche(id, data);
+    if (!niche) {
+      throw new Error("Niche not found");
+    }
+    return { niche };
+  }
+
+  async updateNicheConfig(
+    id: string,
+    data: {
+      scrapeLimit?: number;
+      scrapeMinViews?: number;
+      scrapeMaxDaysOld?: number;
+      scrapeIncludeViralOnly?: boolean;
+    },
+  ) {
+    const niche = await this.repo.updateNicheConfig(id, data);
+    if (!niche) {
+      throw new Error("Niche not found");
+    }
+    return { niche };
+  }
+
+  async deleteNiche(id: string) {
+    const deleted = await this.repo.deleteNiche(id);
+    if (!deleted) {
+      throw new Error("Niche not found");
+    }
+    return { success: true };
+  }
+
+  async getNicheReels(
+    nicheId: string,
+    options: {
+      page: number;
+      limit: number;
+      sortBy: string;
+      sortOrder: string;
+      viral?: string;
+      hasVideo?: string;
+    },
+  ) {
+    const result = await this.repo.listNicheReels(nicheId, options);
+    return result;
+  }
+
+  async dedupeNicheReels(nicheId: string) {
+    const result = await this.repo.dedupeNicheReels(nicheId);
+    return result;
+  }
 }

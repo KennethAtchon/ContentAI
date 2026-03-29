@@ -7,9 +7,7 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import { projects } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { projectsService } from "../../domain/singletons";
 import { uuidParam } from "../../validation/shared.schemas";
 import { Errors } from "../../utils/errors/app-error";
 
@@ -43,20 +41,8 @@ const updateProjectSchema = z.object({
 // GET /api/projects - List user projects
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   const auth = c.get("auth");
-
-  const userProjects = await db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      description: projects.description,
-      createdAt: projects.createdAt,
-      updatedAt: projects.updatedAt,
-    })
-    .from(projects)
-    .where(eq(projects.userId, auth.user.id))
-    .orderBy(desc(projects.updatedAt));
-
-  return c.json({ projects: userProjects });
+  const result = await projectsService.listProjects(auth.user.id);
+  return c.json(result);
 });
 
 // POST /api/projects - Create new project
@@ -70,17 +56,12 @@ app.post(
     const auth = c.get("auth");
     const { name, description } = c.req.valid("json");
 
-    const [newProject] = await db
-      .insert(projects)
-      .values({
-        id: crypto.randomUUID(),
-        userId: auth.user.id,
-        name,
-        description,
-      })
-      .returning();
+    const result = await projectsService.createProject(auth.user.id, {
+      name,
+      description,
+    });
 
-    return c.json({ project: newProject }, 201);
+    return c.json(result, 201);
   },
 );
 
@@ -94,23 +75,8 @@ app.get(
     const auth = c.get("auth");
     const { id: projectId } = c.req.valid("param");
 
-    const [project] = await db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        description: projects.description,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-      })
-      .from(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)))
-      .limit(1);
-
-    if (!project) {
-      throw Errors.notFound("Project");
-    }
-
-    return c.json({ project });
+    const result = await projectsService.getProject(auth.user.id, projectId);
+    return c.json(result);
   },
 );
 
@@ -127,19 +93,13 @@ app.put(
     const { id: projectId } = c.req.valid("param");
     const updates = c.req.valid("json");
 
-    const [updatedProject] = await db
-      .update(projects)
-      .set(updates)
-      .where(
-        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-      )
-      .returning();
+    const result = await projectsService.updateProject(
+      auth.user.id,
+      projectId,
+      updates,
+    );
 
-    if (!updatedProject) {
-      throw Errors.notFound("Project");
-    }
-
-    return c.json({ project: updatedProject });
+    return c.json(result);
   },
 );
 
@@ -154,18 +114,8 @@ app.delete(
     const auth = c.get("auth");
     const { id: projectId } = c.req.valid("param");
 
-    const [deletedProject] = await db
-      .delete(projects)
-      .where(
-        and(eq(projects.id, projectId), eq(projects.userId, auth.user.id)),
-      )
-      .returning();
-
-    if (!deletedProject) {
-      throw Errors.notFound("Project");
-    }
-
-    return c.json({ message: "Project deleted successfully" });
+    const result = await projectsService.deleteProject(auth.user.id, projectId);
+    return c.json(result);
   },
 );
 

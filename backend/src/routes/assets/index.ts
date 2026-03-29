@@ -21,6 +21,8 @@ import {
   uploadFile,
 } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
+import { Errors } from "../../utils/errors/app-error";
+import { assetsService } from "../../domain/singletons";
 import {
   assetIdParamSchema,
   assetsListQuerySchema,
@@ -30,6 +32,21 @@ import {
 const app = new Hono<HonoEnv>();
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+
+const validationErrorHook = (result: ValidationResult, c: Context) => {
+  if (!result.success) {
+    return c.json(
+      {
+        error: "Validation failed",
+        code: "INVALID_INPUT",
+        details: result.error?.issues ?? [],
+      },
+      422,
+    );
+  }
+};
 
 const uploadAssetTypeSchema = z.enum(["video_clip", "image"]);
 
@@ -53,60 +70,14 @@ app.get(
   authMiddleware("user"),
   zValidator("query", assetsListQuerySchema, validationErrorHook),
   async (c) => {
-  try {
     const auth = c.get("auth");
     const { generatedContentId, type: typeFilter } = c.req.valid("query");
 
-    // Verify content belongs to user
-    const [content] = await db
-      .select({ id: generatedContent.id })
-      .from(generatedContent)
-      .where(
-        and(
-          eq(generatedContent.id, generatedContentId),
-          eq(generatedContent.userId, auth.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!content) {
-      return c.json({ error: "Content not found" }, 404);
-    }
-
-    const conditions = [
-      eq(contentAssets.generatedContentId, generatedContentId),
-    ];
-    if (typeFilter) {
-      conditions.push(eq(contentAssets.role, typeFilter));
-    } else {
-      // Editor / workspace source media only — not exported or legacy assembled outputs.
-      conditions.push(
-        notInArray(contentAssets.role, ["assembled_video", "final_video"]),
-      );
-      conditions.push(
-        notInArray(assets.type, ["assembled_video", "final_video"]),
-      );
-    }
-
-    const rows = await db
-      .select({
-        id: assets.id,
-        userId: assets.userId,
-        type: assets.type,
-        source: assets.source,
-        name: assets.name,
-        mimeType: assets.mimeType,
-        r2Key: assets.r2Key,
-        r2Url: assets.r2Url,
-        sizeBytes: assets.sizeBytes,
-        durationMs: assets.durationMs,
-        metadata: assets.metadata,
-        createdAt: assets.createdAt,
-        role: contentAssets.role,
-      })
-      .from(contentAssets)
-      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-      .where(and(...conditions));
+    const rows = await contentService.listContentAssetsForUser(
+      auth.user.id,
+      generatedContentId,
+      { typeFilter },
+    );
 
     const assetsWithUrls = await Promise.all(
       rows.map(async (asset) => {
@@ -129,15 +100,8 @@ app.get(
     );
 
     return c.json({ assets: assetsWithUrls });
-  } catch (error) {
-    debugLog.error("Failed to fetch assets", {
-      service: "assets-route",
-      operation: "getAssets",
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return c.json({ error: "Failed to fetch assets" }, 500);
-  }
-});
+  },
+);
 
 // GET /api/assets/:id/media-for-decode — same-origin binary stream for editor
 // waveform decode (avoids browser CORS on signed R2 URLs).
@@ -145,38 +109,23 @@ app.get(
   "/:id/media-for-decode",
   rateLimiter("customer"),
   authMiddleware("user"),
+  zValidator("param", assetIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.valid("param");
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
 
-      const [row] = await db
-        .select({
-          r2Key: assets.r2Key,
-          mimeType: assets.mimeType,
-        })
-        .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)))
-        .limit(1);
+    const row = await assetsService.getR2KeyForAsset(auth.user.id, id);
 
-      if (!row?.r2Key) {
-        return c.json({ error: "Asset not found" }, 404);
-      }
-
-      const { stream, contentType } = await getObjectWebStream(row.r2Key);
-      return c.body(stream, 200, {
-        "Content-Type":
-          contentType ?? row.mimeType ?? "application/octet-stream",
-        "Cache-Control": "private, max-age=120",
-      });
-    } catch (error) {
-      debugLog.error("Failed to stream asset for decode", {
-        service: "assets-route",
-        operation: "mediaForDecode",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to load media" }, 502);
+    if (!row?.r2Key) {
+      throw Errors.notFound("Asset");
     }
+
+    const { stream, contentType } = await getObjectWebStream(row.r2Key);
+    return c.body(stream, 200, {
+      "Content-Type":
+        contentType ?? row.mimeType ?? "application/octet-stream",
+      "Cache-Control": "private, max-age=120",
+    });
   },
 );
 
@@ -312,21 +261,6 @@ app.post(
   },
 );
 
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
-
 // PATCH /api/assets/:id
 app.patch(
   "/:id",
@@ -336,40 +270,21 @@ app.patch(
   zValidator("param", assetIdParamSchema, validationErrorHook),
   zValidator("json", patchAssetSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.valid("param");
-      const { metadata } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
+    const { metadata } = c.req.valid("json");
 
-      const [existing] = await db
-        .select()
-        .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)));
+    const updated = await assetsService.updateMetadata(
+      auth.user.id,
+      id,
+      metadata,
+    );
 
-      if (!existing) {
-        return c.json({ error: "Asset not found" }, 404);
-      }
-
-      const [updated] = await db
-        .update(assets)
-        .set({
-          metadata: {
-            ...((existing.metadata as Record<string, unknown>) ?? {}),
-            ...metadata,
-          },
-        })
-        .where(eq(assets.id, id))
-        .returning();
-
-      return c.json({ asset: updated });
-    } catch (error) {
-      debugLog.error("Failed to update asset", {
-        service: "assets-route",
-        operation: "updateAsset",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update asset" }, 500);
+    if (!updated) {
+      throw Errors.notFound("Asset");
     }
+
+    return c.json({ asset: updated });
   },
 );
 
@@ -381,45 +296,24 @@ app.delete(
   authMiddleware("user"),
   zValidator("param", assetIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { id } = c.req.valid("param");
+    const auth = c.get("auth");
+    const { id } = c.req.valid("param");
 
-      const [existing] = await db
-        .select()
-        .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.userId, auth.user.id)));
+    const existing = await assetsService.getUploadedAsset(auth.user.id, id);
 
-      if (!existing) {
-        return c.json({ error: "Asset not found" }, 404);
-      }
-
-      // Delete R2 file only for voiceover (music is shared platform asset)
-      if (existing.type === "voiceover" && existing.r2Key) {
-        await deleteFile(existing.r2Key).catch((err) => {
-          debugLog.error("Failed to delete R2 file", {
-            service: "assets-route",
-            operation: "deleteAsset",
-            key: existing.r2Key,
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        });
-      }
-
-      // Delete contentAsset links first (restrict FK on assets)
-      await db.delete(contentAssets).where(eq(contentAssets.assetId, id));
-
-      await db.delete(assets).where(eq(assets.id, id));
-
-      return c.body(null, 204);
-    } catch (error) {
-      debugLog.error("Failed to delete asset", {
-        service: "assets-route",
-        operation: "deleteAsset",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete asset" }, 500);
+    if (!existing) {
+      throw Errors.notFound("Asset");
     }
+
+    // Delete R2 file only for voiceover (music is shared platform asset)
+    if (existing.type === "voiceover" && existing.r2Key) {
+      await deleteFile(existing.r2Key).catch(() => {
+        // Best-effort R2 deletion
+      });
+    }
+
+    await assetsService.removeById(id);
+    return c.body(null, 204);
   },
 );
 

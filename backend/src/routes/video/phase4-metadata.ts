@@ -1,46 +1,13 @@
-import { and, eq } from "drizzle-orm";
-import { generatedContent } from "../../infrastructure/database/drizzle/schema";
-import { db } from "../../services/db/db";
+import type { VideoRouteOwnedContent } from "../../domain/content/content.repository";
+import { contentService } from "../../domain/singletons";
 
-export type VideoRouteOwnedContent = {
-  id: number;
-  prompt: string | null;
-  generatedHook: string | null;
-  generatedScript: string | null;
-  voiceoverScript: string | null;
-  sceneDescription: string | null;
-  generatedMetadata: Record<string, unknown> | null;
-};
+export type { VideoRouteOwnedContent };
 
 export async function fetchOwnedContent(
   userId: string,
   generatedContentId: number,
 ): Promise<VideoRouteOwnedContent | null> {
-  const [content] = await db
-    .select({
-      id: generatedContent.id,
-      prompt: generatedContent.prompt,
-      generatedHook: generatedContent.generatedHook,
-      generatedScript: generatedContent.generatedScript,
-      voiceoverScript: generatedContent.voiceoverScript,
-      sceneDescription: generatedContent.sceneDescription,
-      generatedMetadata: generatedContent.generatedMetadata,
-    })
-    .from(generatedContent)
-    .where(
-      and(
-        eq(generatedContent.id, generatedContentId),
-        eq(generatedContent.userId, userId),
-      ),
-    )
-    .limit(1);
-
-  if (!content) return null;
-  return {
-    ...content,
-    generatedMetadata:
-      (content.generatedMetadata as Record<string, unknown> | null) ?? null,
-  };
+  return contentService.fetchOwnedContentForVideo(userId, generatedContentId);
 }
 
 export function getPhase4AssemblyFromMetadata(metadata: unknown): {
@@ -71,26 +38,5 @@ export async function updatePhase4Metadata(input: {
   }>;
   provider?: string;
 }) {
-  const existingMetadata = input.existingGeneratedMetadata ?? {};
-  const existingPhase4 =
-    (existingMetadata.phase4 as Record<string, unknown> | null) ?? {};
-
-  await db
-    .update(generatedContent)
-    .set({
-      generatedMetadata: {
-        ...existingMetadata,
-        phase4: {
-          ...existingPhase4,
-          ...(input.shots ? { shots: input.shots } : {}),
-          assembly: {
-            jobId: input.jobId,
-            status: input.status,
-            ...(input.provider ? { provider: input.provider } : {}),
-            updatedAt: new Date().toISOString(),
-          },
-        },
-      },
-    })
-    .where(eq(generatedContent.id, input.generatedContentId));
+  return contentService.updatePhase4Metadata(input);
 }

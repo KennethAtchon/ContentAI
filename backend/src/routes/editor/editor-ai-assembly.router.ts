@@ -7,10 +7,7 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { db } from "../../services/db/db";
-import { assets, contentAssets } from "../../infrastructure/database/drizzle/schema";
-import { editorRepository } from "../../domain/singletons";
-import { eq, and } from "drizzle-orm";
+import { editorRepository, contentService } from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -64,20 +61,17 @@ assemblyRouter.post(
       throw new AppError("No shot clips available", "NO_SHOT_CLIPS", 400);
     }
 
-    const auxRows = await db
-      .select({
-        role: contentAssets.role,
-        id: assets.id,
-        durationMs: assets.durationMs,
-      })
-      .from(contentAssets)
-      .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-      .where(
-        and(
-          eq(contentAssets.generatedContentId, project.generatedContentId),
-          eq(assets.userId, auth.user.id),
-        ),
-      );
+    // Fetch aux assets via content service
+    const allAssets = await contentService.listAssetsForContent(
+      project.generatedContentId,
+    );
+    const auxRows = allAssets
+      .filter((a) => a.role !== "shot_clip")
+      .map((a) => ({
+        role: a.role,
+        id: a.id,
+        durationMs: a.durationMs,
+      }));
     const voiceR = auxRows.find((r) => r.role === "voiceover");
     const musicR = auxRows.find((r) => r.role === "background_music");
     const shotSpan = shotAssets.reduce(

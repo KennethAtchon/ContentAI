@@ -7,22 +7,15 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
-import {
-  niches,
-  reels,
-  reelAnalyses,
-} from "../../infrastructure/database/drizzle/schema";
-import { eq, sql, desc, asc, ilike, and, isNotNull } from "drizzle-orm";
-import { debugLog } from "../../utils/debug/debug";
-import { queueService } from "../../services/queue.service";
+import { niches, reels, reelAnalyses } from "../../infrastructure/database/drizzle/schema";
+import { eq, sql, and, desc, isNotNull } from "drizzle-orm";
+import { Errors } from "../../utils/errors/app-error";
+import { adminService } from "../../domain/singletons";
 import {
   adminCreateNicheBodySchema,
-  adminJobIdParamSchema,
   adminNicheIdParamSchema,
   adminNicheReelsQuerySchema,
   adminNichesQuerySchema,
-  adminReelIdParamSchema,
-  adminScanNicheBodySchema,
   adminUpdateNicheBodySchema,
   adminUpdateNicheConfigBodySchema,
 } from "../../domain/admin/admin.schemas";
@@ -44,7 +37,6 @@ const validationErrorHook = (result: ValidationResult, c: Context) => {
 };
 
 // ─── GET /api/admin/niches ────────────────────────────────────────────────────
-// Returns all niches with aggregated reel count.
 
 nichesRouter.get(
   "/niches",
@@ -52,51 +44,9 @@ nichesRouter.get(
   authMiddleware("admin"),
   zValidator("query", adminNichesQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { search, active } = c.req.valid("query");
-      const activeOnly = active;
-
-      const conditions: ReturnType<typeof eq>[] = [];
-      if (activeOnly) conditions.push(eq(niches.isActive, true));
-
-      const rows = await db
-        .select({
-          id: niches.id,
-          name: niches.name,
-          description: niches.description,
-          isActive: niches.isActive,
-          createdAt: niches.createdAt,
-          updatedAt: niches.updatedAt,
-          reelCount: sql<number>`count(${reels.id})::int`,
-          scrapeLimit: niches.scrapeLimit,
-          scrapeMinViews: niches.scrapeMinViews,
-          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
-          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
-        })
-        .from(niches)
-        .leftJoin(reels, eq(reels.nicheId, niches.id))
-        .where(
-          conditions.length > 0
-            ? and(
-                ...conditions,
-                search ? ilike(niches.name, `%${search}%`) : undefined,
-              )
-            : search
-              ? ilike(niches.name, `%${search}%`)
-              : undefined,
-        )
-        .groupBy(niches.id)
-        .orderBy(desc(niches.createdAt));
-
-      return c.json({ niches: rows });
-    } catch (error) {
-      debugLog.error("Failed to fetch niches", {
-        service: "admin-niches",
-        operation: "listNiches",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch niches" }, 500);
-    }
+    const { search, active } = c.req.valid("query");
+    const result = await adminService.listNiches(search, active);
+    return c.json(result);
   },
 );
 
@@ -109,23 +59,9 @@ nichesRouter.post(
   authMiddleware("admin"),
   zValidator("json", adminCreateNicheBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { name, description, isActive } = c.req.valid("json");
-
-      const [niche] = await db
-        .insert(niches)
-        .values({ name, description, isActive })
-        .returning();
-
-      return c.json({ niche }, 201);
-    } catch (error) {
-      debugLog.error("Failed to create niche", {
-        service: "admin-niches",
-        operation: "createNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to create niche" }, 500);
-    }
+    const { name, description } = c.req.valid("json");
+    const result = await adminService.createNiche({ name, description });
+    return c.json(result, 201);
   },
 );
 
@@ -139,40 +75,38 @@ nichesRouter.put(
   zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   zValidator("json", adminUpdateNicheBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id } = c.req.valid("param");
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
 
-      const updates: Partial<{
-        name: string;
-        description: string;
-        isActive: boolean;
-      }> = {};
-      const body = c.req.valid("json");
-      if (body.name !== undefined) updates.name = body.name;
-      if (body.description !== undefined)
-        updates.description = body.description;
-      if (body.isActive !== undefined) updates.isActive = body.isActive;
+    const updates: { name?: string; description?: string; isActive?: boolean } = {};
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.description !== undefined) updates.description = body.description;
+    if (body.isActive !== undefined) updates.isActive = body.isActive;
 
-      if (Object.keys(updates).length === 0)
-        return c.json({ error: "No fields to update" }, 400);
-
-      const [niche] = await db
-        .update(niches)
-        .set(updates)
-        .where(eq(niches.id, id))
-        .returning();
-
-      if (!niche) return c.json({ error: "Niche not found" }, 404);
-
-      return c.json({ niche });
-    } catch (error) {
-      debugLog.error("Failed to update niche", {
-        service: "admin-niches",
-        operation: "updateNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update niche" }, 500);
+    if (Object.keys(updates).length === 0) {
+      throw Errors.badRequest("No fields to update");
     }
+
+    const result = await adminService.updateNiche(id, updates);
+    return c.json(result);
+  },
+);
+
+// ─── PATCH /api/admin/niches/:id/config ───────────────────────────────────────
+
+nichesRouter.patch(
+  "/niches/:id/config",
+  rateLimiter("admin"),
+  csrfMiddleware(),
+  authMiddleware("admin"),
+  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("json", adminUpdateNicheConfigBodySchema, validationErrorHook),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const config = c.req.valid("json");
+
+    const result = await adminService.updateNicheConfig(id, config);
+    return c.json(result);
   },
 );
 
@@ -185,111 +119,13 @@ nichesRouter.delete(
   authMiddleware("admin"),
   zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-
-      // Check for orphaned reels
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(reels)
-        .where(eq(reels.nicheId, id));
-
-      if (count > 0) {
-        return c.json(
-          {
-            error: `Cannot delete niche with ${count} associated reels. Delete or reassign reels first.`,
-          },
-          409,
-        );
-      }
-
-      const [deleted] = await db
-        .delete(niches)
-        .where(eq(niches.id, id))
-        .returning();
-
-      if (!deleted) return c.json({ error: "Niche not found" }, 404);
-
-      return c.json({ deleted: true, niche: deleted });
-    } catch (error) {
-      debugLog.error("Failed to delete niche", {
-        service: "admin-niches",
-        operation: "deleteNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete niche" }, 500);
-    }
+    const { id } = c.req.valid("param");
+    const result = await adminService.deleteNiche(id);
+    return c.json(result);
   },
 );
 
-// ─── POST /api/admin/niches/:id/scan ─────────────────────────────────────────
-// Queue a scrape job for this niche with optional configuration override.
-
-nichesRouter.post(
-  "/niches/:id/scan",
-  rateLimiter("admin"),
-  csrfMiddleware(),
-  authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  zValidator("json", adminScanNicheBodySchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-
-      const [niche] = await db
-        .select()
-        .from(niches)
-        .where(eq(niches.id, id))
-        .limit(1);
-      if (!niche) return c.json({ error: "Niche not found" }, 404);
-
-      // Get optional configuration override from request body
-      const body = c.req.valid("json");
-      const configOverride = {
-        limit: body.limit,
-        minViews: body.minViews,
-        maxDaysOld: body.maxDaysOld,
-        viralOnly: body.viralOnly,
-      };
-
-      // Remove undefined values
-      Object.keys(configOverride).forEach((key) => {
-        if (configOverride[key as keyof typeof configOverride] === undefined) {
-          delete configOverride[key as keyof typeof configOverride];
-        }
-      });
-
-      const job = await queueService.enqueue(id, niche.name, configOverride);
-
-      return c.json(
-        {
-          jobId: job.id,
-          nicheId: id,
-          nicheName: niche.name,
-          status: job.status,
-          config: {
-            // Show what configuration will be used (niche defaults + any overrides)
-            limit: configOverride.limit ?? niche.scrapeLimit,
-            minViews: configOverride.minViews ?? niche.scrapeMinViews,
-            maxDaysOld: configOverride.maxDaysOld ?? niche.scrapeMaxDaysOld,
-            viralOnly: configOverride.viralOnly ?? niche.scrapeIncludeViralOnly,
-          },
-        },
-        202,
-      );
-    } catch (error) {
-      debugLog.error("Failed to queue niche scan", {
-        service: "admin-niches",
-        operation: "scanNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to queue scan" }, 500);
-    }
-  },
-);
-
-// ─── GET /api/admin/niches/:id/reels ─────────────────────────────────────────
-// Paginated reels for a specific niche.
+// ─── GET /api/admin/niches/:id/reels ──────────────────────────────────────────
 
 nichesRouter.get(
   "/niches/:id/reels",
@@ -298,84 +134,25 @@ nichesRouter.get(
   zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   zValidator("query", adminNicheReelsQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-      const { page, limit, sortBy, sortOrder, viral, hasVideo } =
-        c.req.valid("query");
-      const offset = (page - 1) * limit;
-      const viralFilter = viral;
-      const hasVideoFilter = hasVideo;
+    const { id } = c.req.valid("param");
+    const { page, limit, sortBy, sortOrder, viral, hasVideo } = c.req.valid("query");
 
-      const sortCol =
-        {
-          views: reels.views,
-          likes: reels.likes,
-          engagement: reels.engagementRate,
-          postedAt: reels.postedAt,
-          scrapedAt: reels.scrapedAt,
-        }[sortBy] ?? reels.views;
-      const order = sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
-
-      const [niche] = await db
-        .select()
-        .from(niches)
-        .where(eq(niches.id, id))
-        .limit(1);
-      if (!niche) return c.json({ error: "Niche not found" }, 404);
-
-      const whereConditions = [eq(reels.nicheId, id)];
-      if (viralFilter === "true") whereConditions.push(eq(reels.isViral, true));
-      if (viralFilter === "false")
-        whereConditions.push(eq(reels.isViral, false));
-      if (hasVideoFilter === "true")
-        whereConditions.push(isNotNull(reels.videoR2Url));
-      const where = and(...whereConditions);
-
-      const [reelRows, [{ total }]] = await Promise.all([
-        db
-          .select()
-          .from(reels)
-          .where(where)
-          .orderBy(order)
-          .limit(limit)
-          .offset(offset),
-        db
-          .select({ total: sql<number>`count(*)::int` })
-          .from(reels)
-          .where(where),
-      ]);
-
-      const reelIds = reelRows.map((r) => r.id);
-      const analysisRows =
-        reelIds.length > 0
-          ? await db
-              .select({ reelId: reelAnalyses.reelId })
-              .from(reelAnalyses)
-              .where(
-                sql`${reelAnalyses.reelId} = ANY(${sql.raw(`ARRAY[${reelIds.join(",")}]`)})`,
-              )
-          : [];
-      const analyzedIds = new Set(analysisRows.map((a) => a.reelId));
-
-      return c.json({
-        niche,
-        reels: reelRows.map((r) => ({
-          ...r,
-          hasAnalysis: analyzedIds.has(r.id),
-        })),
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      });
-    } catch (error) {
-      debugLog.error("Failed to fetch niche reels", {
-        service: "admin-niches",
-        operation: "getNicheReels",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch niche reels" }, 500);
+    // Verify niche exists
+    const niche = await adminService.listNiches();
+    if (!niche.niches.find((n) => n.id === id)) {
+      throw Errors.notFound("Niche");
     }
+
+    const result = await adminService.getNicheReels(id, {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      viral,
+      hasVideo,
+    });
+
+    return c.json(result);
   },
 );
 
@@ -389,227 +166,69 @@ nichesRouter.post(
   authMiddleware("admin"),
   zValidator("param", adminNicheIdParamSchema, validationErrorHook),
   async (c) => {
-    try {
-      const { id } = c.req.valid("param");
+    const { id } = c.req.valid("param");
 
-      // Find duplicate externalIds — keep the lowest id, delete the rest
-      const duplicates = await db.execute(sql`
-        DELETE FROM "reel"
-        WHERE id IN (
-          SELECT id FROM (
-            SELECT id, ROW_NUMBER() OVER (PARTITION BY external_id ORDER BY id ASC) AS rn
-            FROM "reel"
-            WHERE niche_id = ${id} AND external_id IS NOT NULL
-          ) sub
-          WHERE rn > 1
-        )
-        RETURNING id
-      `);
+    // Verify niche exists
+    const niche = await adminService.listNiches();
+    if (!niche.niches.find((n) => n.id === id)) {
+      throw Errors.notFound("Niche");
+    }
 
-      const deletedCount =
-        (duplicates as unknown as { rows: unknown[] }).rows?.length ?? 0;
+    const result = await adminService.dedupeNicheReels(id);
+    return c.json(result);
+  },
+);
 
-      return c.json({
+// ─── POST /api/admin/niches/:id/scan ─────────────────────────────────────────
+// Trigger a reel scraping job for this niche.
+
+nichesRouter.post(
+  "/niches/:id/scan",
+  rateLimiter("admin"),
+  csrfMiddleware(),
+  authMiddleware("admin"),
+  async (c) => {
+    const { id } = c.req.valid("param");
+
+    // Get niche with config
+    const [niche] = await db
+      .select({
+        id: niches.id,
+        name: niches.name,
+        scrapeLimit: niches.scrapeLimit,
+        scrapeMinViews: niches.scrapeMinViews,
+        scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
+        scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
+        isActive: niches.isActive,
+      })
+      .from(niches)
+      .where(eq(niches.id, id))
+      .limit(1);
+
+    if (!niche) {
+      throw Errors.notFound("Niche");
+    }
+
+    if (!niche.isActive) {
+      throw Errors.badRequest("Cannot scan inactive niche");
+    }
+
+    // Create scan job
+    const [job] = await db
+      .insert(reelAnalyses)
+      .values({
         nicheId: id,
-        duplicatesRemoved: deletedCount,
-        message: `Removed ${deletedCount} duplicate reel(s)`,
-      });
-    } catch (error) {
-      debugLog.error("Failed to dedupe niche reels", {
-        service: "admin-niches",
-        operation: "dedupeNiche",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to run deduplication" }, 500);
-    }
-  },
-);
-
-// ─── DELETE /api/admin/reels/:reelId ─────────────────────────────────────────
-// Hard-delete a specific reel.
-
-nichesRouter.delete(
-  "/reels/:reelId",
-  rateLimiter("admin"),
-  csrfMiddleware(),
-  authMiddleware("admin"),
-  zValidator("param", adminReelIdParamSchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { reelId } = c.req.valid("param");
-
-      const [deleted] = await db
-        .delete(reels)
-        .where(eq(reels.id, reelId))
-        .returning();
-
-      if (!deleted) return c.json({ error: "Reel not found" }, 404);
-
-      return c.json({ deleted: true, reelId });
-    } catch (error) {
-      debugLog.error("Failed to delete reel", {
-        service: "admin-niches",
-        operation: "deleteReel",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to delete reel" }, 500);
-    }
-  },
-);
-
-// ─── GET /api/admin/niches/:id/config ─────────────────────────────────────────
-// Get scraping configuration for a niche.
-
-nichesRouter.get(
-  "/niches/:id/config",
-  rateLimiter("admin"),
-  authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-
-      const [niche] = await db
-        .select({
-          id: niches.id,
-          name: niches.name,
-          scrapeLimit: niches.scrapeLimit,
-          scrapeMinViews: niches.scrapeMinViews,
-          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
-          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
-        })
-        .from(niches)
-        .where(eq(niches.id, id))
-        .limit(1);
-      if (!niche) return c.json({ error: "Niche not found" }, 404);
-
-      return c.json({
-        id: niche.id,
-        name: niche.name,
+        status: "pending",
         config: {
-          limit: niche.scrapeLimit,
-          minViews: niche.scrapeMinViews,
-          maxDaysOld: niche.scrapeMaxDaysOld,
-          viralOnly: niche.scrapeIncludeViralOnly,
+          limit: niche.scrapeLimit ?? 50,
+          minViews: niche.scrapeMinViews ?? 1000,
+          maxDaysOld: niche.scrapeMaxDaysOld ?? 30,
+          viralOnly: niche.scrapeIncludeViralOnly ?? false,
         },
-      });
-    } catch (error) {
-      debugLog.error("Failed to get niche config", {
-        service: "admin-niches",
-        operation: "getNicheConfig",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to get niche config" }, 500);
-    }
-  },
-);
+      })
+      .returning({ id: reelAnalyses.id });
 
-// ─── PUT /api/admin/niches/:id/config ─────────────────────────────────────────
-// Update scraping configuration for a niche.
-
-nichesRouter.put(
-  "/niches/:id/config",
-  rateLimiter("admin"),
-  csrfMiddleware(),
-  authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  zValidator("json", adminUpdateNicheConfigBodySchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-
-      const { limit, minViews, maxDaysOld, viralOnly } = c.req.valid("json");
-
-      const [niche] = await db
-        .update(niches)
-        .set({
-          ...(limit !== undefined && { scrapeLimit: limit }),
-          ...(minViews !== undefined && { scrapeMinViews: minViews }),
-          ...(maxDaysOld !== undefined && { scrapeMaxDaysOld: maxDaysOld }),
-          ...(viralOnly !== undefined && { scrapeIncludeViralOnly: viralOnly }),
-          updatedAt: new Date(),
-        })
-        .where(eq(niches.id, id))
-        .returning({
-          id: niches.id,
-          name: niches.name,
-          scrapeLimit: niches.scrapeLimit,
-          scrapeMinViews: niches.scrapeMinViews,
-          scrapeMaxDaysOld: niches.scrapeMaxDaysOld,
-          scrapeIncludeViralOnly: niches.scrapeIncludeViralOnly,
-          updatedAt: niches.updatedAt,
-        });
-
-      if (!niche) return c.json({ error: "Niche not found" }, 404);
-
-      return c.json({
-        id: niche.id,
-        name: niche.name,
-        config: {
-          limit: niche.scrapeLimit,
-          minViews: niche.scrapeMinViews,
-          maxDaysOld: niche.scrapeMaxDaysOld,
-          viralOnly: niche.scrapeIncludeViralOnly,
-        },
-        updatedAt: niche.updatedAt,
-      });
-    } catch (error) {
-      debugLog.error("Failed to update niche config", {
-        service: "admin-niches",
-        operation: "updateNicheConfig",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to update niche config" }, 500);
-    }
-  },
-);
-
-// ─── GET /api/admin/niches/jobs/:jobId ───────────────────────────────────────
-// Poll the status of a scrape job.
-
-nichesRouter.get(
-  "/niches/jobs/:jobId",
-  rateLimiter("admin"),
-  authMiddleware("admin"),
-  zValidator("param", adminJobIdParamSchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { jobId } = c.req.valid("param");
-      const job = await queueService.getJob(jobId);
-      if (!job) return c.json({ error: "Job not found" }, 404);
-      return c.json({ job });
-    } catch (error) {
-      debugLog.error("Failed to get job status", {
-        service: "admin-niches",
-        operation: "getJobStatus",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to get job status" }, 500);
-    }
-  },
-);
-
-// ─── GET /api/admin/niches/:id/jobs ──────────────────────────────────────────
-// List recent scrape jobs for a niche.
-
-nichesRouter.get(
-  "/niches/:id/jobs",
-  rateLimiter("admin"),
-  authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  async (c) => {
-    try {
-      const { id } = c.req.valid("param");
-      const jobs = await queueService.listJobs(id);
-      return c.json({ jobs });
-    } catch (error) {
-      debugLog.error("Failed to list jobs", {
-        service: "admin-niches",
-        operation: "listJobs",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to list jobs" }, 500);
-    }
+    return c.json({ jobId: job.id, message: "Scan job created" }, 201);
   },
 );
 
