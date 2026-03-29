@@ -246,11 +246,11 @@ userSettingsRouter.get(
   async (c) => {
     try {
       const { klingFalProvider } =
-        await import("../../services/media/video-generation/providers/kling-fal");
+        await import("../../services/video-generation/providers/kling-fal");
       const { runwayProvider } =
-        await import("../../services/media/video-generation/providers/runway");
+        await import("../../services/video-generation/providers/runway");
       const { imageKenBurnsProvider } =
-        await import("../../services/media/video-generation/providers/image-ken-burns");
+        await import("../../services/video-generation/providers/image-ken-burns");
       const { systemConfigService } =
         await import("../../services/config/system-config.service");
 

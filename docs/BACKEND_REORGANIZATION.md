@@ -784,7 +784,7 @@ Split:
 
 ### 9.3 Video Generation Providers
 
-Currently in `services/media/video-generation/providers/`:
+Currently in `services/video-generation/providers/` (relocated from `services/media/video-generation/`):
 - `kling-fal.ts` (334 lines)
 - `runway.ts` (155 lines)
 - `image-ken-burns.ts` (196 lines)
@@ -873,6 +873,58 @@ These changes are purely structural and do not touch business logic.
 17. **Move Firebase sync logic** from `services/firebase/sync.ts` to `domain/auth/auth.service.ts`.
 
 18. **Audit and delete dead code** identified in section 10.
+
+### Implementation status (repo snapshot)
+
+Phases **1–3** (foundation, partial domain/repos, route shrinkage for admin/queue/video/**editor**) are largely reflected in the tree: `types/hono.types.ts`, `AppError` + `handleRouteError`, `validation/shared.schemas.ts`, `types/timeline.types.ts`, `domain/*` (auth, admin, assets, content, editor, queue), editor split into `editor-*.router.ts`, video under `services/video-generation/`, Firebase user sync in `domain/auth/firebase-user-sync.ts` (re-exported from `services/firebase/sync.ts`).
+
+**Phase 4:** Editor create/patch/export/ai-assemble use `zValidator`; editor `tracks` JSONB is validated on **GET** `/api/editor/:id` via `parseStoredEditorTracks`. Other routes may still use `c.req.json()` — migrate incrementally.
+
+**Phase 5:** `AppError` is wired globally; broad removal of per-route `try/catch` and throwing from all domain services is **not** finished — continue route-by-route.
+
+**Phase 6:** Video generation path moved to `services/video-generation/` (per doc layout). Full `services/` flattening, exhaustive dead-code deletion, and **every** Drizzle call behind repositories remain ongoing goals.
+
+### Remaining work (to fully meet this document)
+
+What follows is the gap between the **target state** (migration sequence + summary below) and a typical **current repo snapshot**. Use it as a backlog; check the tree before treating an item as still open.
+
+#### Phase 2 — Repository layer (largest gap)
+
+- **Drizzle in routes/services:** Much of the app still calls `db` directly. The doc expects **all** `select` / `insert` / `update` / `delete` behind repositories (**§5**).
+- **Table coverage:** Repositories for the full set implied by **§5.4** (and similar) are not all present or fully wired (e.g. chat, customer, reels, music, users beyond auth, etc.).
+- **Service construction (**§4 Rule 2**):** Domain services should take **repositories as dependencies** (mockable in unit tests) instead of importing the `db` singleton everywhere.
+
+#### Phase 3 — Route shrinkage (partial)
+
+- **Editor:** `routes/editor/index.ts` is a thin mount, but **`editor-ai.router.ts` remains large** (hundreds of lines). The doc target is **each sub-router file &lt; ~200 lines** (**§3.1**).
+- **Domain extraction:** Timeline / export / caption **business** logic should live under **`domain/editor/...`** with routes delegating; large chunks still live in router files.
+
+#### Phase 4 — Validation
+
+- **`zValidator` everywhere:** Many routes still use **`c.req.json()`** (e.g. customer, admin, generation, users, analytics, queue, assets, reels — verify with ripgrep).
+- **Feature schemas:** Prefer **`domain/<feature>/<feature>.schemas.ts`** (**§7**); editor is started; not applied systematically across features.
+- **JSONB `tracks`:** Validated on **GET `/api/editor/:id`**. The doc calls for validation **on every read** of `editProjects.tracks` — any other path that loads `tracks` (repos, export worker, fork/restore, jobs, etc.) should use the same boundary.
+
+#### Phase 5 — Error handling
+
+- **`AppError` in domain services:** Not-found and other business failures should **`throw`** (e.g. `Errors.notFound(...)`) instead of returning `null` and branching in the route (**§8**).
+- **Route `try/catch`:** Most handlers still catch and `c.json(...)`. The doc expects **relying on the global error handler** after services throw (**§8.4**), with integration tests per route.
+- **One error shape:** Ensure every error response includes **`code`** (and optional **`details`**) per **§8.1**.
+
+#### Phase 6 — Infrastructure / video / cleanup
+
+- **`services/` = infrastructure only (**§9.1**):** Not finished; business logic still appears under `services/` in places.
+- **Video:** **`domain/video/video.service.ts`**, **`provider-selector.ts`**, and optional **`domain/video/providers/`** (**§3.3**, **§9.3**) are not fully realized; providers live under **`services/video-generation/providers/`** after the path move.
+- **§10 dead code:** Unused helpers, duplicate types, noisy logs, legacy `features/` paths — run an **explicit audit** (grep-backed) before deleting.
+
+#### Target summary (**§ “Summary: What This Changes”**) — still partly aspirational
+
+- **Every route file &lt; ~200 lines** — not yet (notably editor AI router).
+- **All Drizzle in repositories** — not yet.
+- **All business logic in `domain/` services** — partial.
+- **All request bodies via `zValidator`** — not yet.
+- **Timeline JSONB validated on every read path** — partial.
+- **Types in `domain/*/types`** — partial.
 
 ---
 

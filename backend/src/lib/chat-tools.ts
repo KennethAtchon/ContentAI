@@ -30,7 +30,7 @@ import {
   runShotRegenerate,
   getRetryRunner,
 } from "../routes/video/index";
-import type { VideoProvider } from "../services/media/video-generation";
+import type { VideoProvider } from "../services/video-generation";
 
 export interface ToolContext {
   auth: HonoEnv["Variables"]["auth"];

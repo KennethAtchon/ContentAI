@@ -42,3 +42,6 @@ export class AuthService {
     return { ok: true, user };
   }
 }
+
+/** Firebase ↔ Postgres user sync (admin API). */
+export { FirebaseUserSync } from "./firebase-user-sync";
