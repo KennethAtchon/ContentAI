@@ -1235,7 +1235,7 @@ function DetailPanel({
             {content?.id != null && (
               <Link
                 to={REDIRECT_PATHS.STUDIO_EDITOR}
-                search={{ contentId: content.id }}
+                search={{ projectId: undefined, contentId: content.id }}
                 className="inline-flex items-center gap-2 rounded-lg border border-studio-accent/30 bg-studio-accent/10 px-4 py-2 text-sm font-semibold text-studio-accent hover:bg-studio-accent/15 hover:border-studio-accent/50 transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" />

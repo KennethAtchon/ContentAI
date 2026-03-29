@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug";
 import { Badge } from "@/shared/components/ui/badge";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
+import { ErrorAlert } from "@/shared/components/feedback/error-alert";
 
 const COMPONENT_NAME = "ProfileEditor";
 

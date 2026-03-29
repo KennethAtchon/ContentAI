@@ -28,7 +28,6 @@ interface Props {
   /** Global transport rate from JKL / transport (1 = normal). Multiplied with clip speed on media elements. */
   playbackRate: number;
   durationMs: number;
-  fps: number;
   resolution: string;
   /** Temporary per-clip property override for effect hover preview. Not committed to state. */
   effectPreviewOverride?: { clipId: string; patch: Partial<Clip> } | null;
@@ -40,7 +39,6 @@ export function PreviewArea({
   isPlaying,
   playbackRate,
   durationMs,
-  fps,
   resolution,
   effectPreviewOverride,
 }: Props) {
@@ -73,7 +71,9 @@ export function PreviewArea({
       }
     };
     compute();
-    const obs = new ResizeObserver(compute);
+    const ResizeObserverImpl = window.ResizeObserver;
+    if (!ResizeObserverImpl) return;
+    const obs = new ResizeObserverImpl(compute);
     obs.observe(el);
     return () => obs.disconnect();
   }, [resW, resH]);

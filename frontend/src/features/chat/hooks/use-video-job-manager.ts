@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
 import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
@@ -12,6 +11,7 @@ import {
   persistStudioVideoJob,
   readPersistedStudioVideoJob,
 } from "@/features/video/lib/studio-video-job-storage";
+import { chatService } from "../services/chat.service";
 import type { SessionDraft } from "../types/chat.types";
 
 interface UseVideoJobManagerParams {
@@ -108,9 +108,7 @@ export function useVideoJobManager({
       const persisted = readPersistedStudioVideoJob(sessionId);
       if (!persisted) return;
       try {
-        const data = await authenticatedFetchJson<VideoJobResponse>(
-          `/api/video/jobs/${persisted.jobId}`
-        );
+        const data = await chatService.getVideoJob(persisted.jobId);
         if (cancelled) return;
         const s = data.job.status;
         if (s === "queued" || s === "running") {
@@ -142,9 +140,7 @@ export function useVideoJobManager({
 
     void (async () => {
       try {
-        const data = await authenticatedFetchJson<VideoJobResponse>(
-          `/api/video/jobs/${candidate.jobId}`
-        );
+        const data = await chatService.getVideoJob(candidate.jobId);
         if (cancelled) return;
         const s = data.job.status;
         if (s === "queued" || s === "running") {

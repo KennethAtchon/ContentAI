@@ -34,8 +34,8 @@ import { useTranslation } from "react-i18next";
 
 import { Progress } from "@/shared/components/ui/progress";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
-import { EmptyState } from "@/shared/components/custom-ui/empty-state";
+import { ErrorAlert } from "@/shared/components/feedback/error-alert";
+import { EmptyState } from "@/shared/components/data-display/empty-state";
 import {
   Table,
   TableBody,

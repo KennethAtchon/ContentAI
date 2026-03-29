@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { StudioShell } from "@/shared/components/layout/studio-shell";
 import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/custom-ui/studio-section";
+import { StudioSection } from "@/shared/components/layout/studio-section";
 import {
   Card,
   CardContent,

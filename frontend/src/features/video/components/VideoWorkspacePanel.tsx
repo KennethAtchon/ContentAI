@@ -207,7 +207,7 @@ export function VideoWorkspacePanel({
     }
   };
 
-  const editorSearch = { contentId: draft.id } as const;
+  const editorSearch = { projectId: undefined, contentId: draft.id } as const;
 
   return (
     <div className="relative flex-1 overflow-y-auto px-4 py-4 space-y-4">

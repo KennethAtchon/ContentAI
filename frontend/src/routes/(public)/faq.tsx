@@ -7,7 +7,7 @@ import {
 } from "@/shared/components/ui/accordion";
 import { StudioShell } from "@/shared/components/layout/studio-shell";
 import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/custom-ui/studio-section";
+import { StudioSection } from "@/shared/components/layout/studio-section";
 import { HelpCircle, Sparkles, ArrowRight } from "lucide-react";
 import { generateFAQSchema } from "@/shared/services/seo/structured-data";
 import { StructuredDataStatic } from "@/shared/components/marketing/structured-data";

@@ -13,7 +13,7 @@ import {
 import { useApp } from "@/shared/contexts/app-context";
 import { reelsService } from "@/features/reels/services/reels.service";
 import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
-import { ProjectSidebar } from "./ProjectSidebar";
+import { ProjectSidebar } from "./projects/ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ContentWorkspace } from "./ContentWorkspace";
 import { useChatSession } from "../hooks/use-chat-sessions";
@@ -72,9 +72,7 @@ export function ChatLayout({
 
   const {
     videoJobId,
-    videoJobContentId,
     videoJobData,
-    reelJobRunning,
     showReelProgressRecall,
     handleVideoJobStarted,
     handleShowReelProgressToast,

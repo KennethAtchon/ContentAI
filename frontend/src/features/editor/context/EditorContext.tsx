@@ -50,7 +50,6 @@ export function EditorProvider({ store, children }: EditorProviderProps) {
 
   const value = useMemo(
     () => ({ ...store, selectedClip, selectedTrack, pixelsPerMs }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [store, selectedClip, selectedTrack, pixelsPerMs]
   );
 

@@ -1,4 +1,5 @@
 import { authenticatedFetch, authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import type { VideoJobResponse } from "@/features/video/types/video.types";
 import type {
   Project,
   ChatSession,
@@ -166,6 +167,26 @@ export const chatService = {
   },
 
   // Chat Messages
+  async streamMessage(
+    sessionId: string,
+    message: SendMessageRequest,
+    timeoutMs = 120_000,
+    signal?: AbortSignal
+  ): Promise<Response> {
+    return authenticatedFetch(
+      `${API_BASE}/chat/sessions/${sessionId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+        signal,
+      },
+      timeoutMs
+    );
+  },
+
   async sendMessage(
     sessionId: string,
     message: SendMessageRequest
@@ -184,5 +205,10 @@ export const chatService = {
       throw new Error("Failed to send message");
     }
     return response.json();
+  },
+
+  // Video jobs (used by chat experience to resume reel generation state)
+  getVideoJob(jobId: string): Promise<VideoJobResponse> {
+    return authenticatedFetchJson<VideoJobResponse>(`${API_BASE}/video/jobs/${jobId}`);
   },
 };

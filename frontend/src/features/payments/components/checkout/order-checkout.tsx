@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
+import { ErrorAlert } from "@/shared/components/feedback/error-alert";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import {

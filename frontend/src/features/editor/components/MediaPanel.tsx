@@ -7,7 +7,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import type { Clip, Track } from "../types/editor";
+import type { Clip } from "../types/editor";
 
 interface Asset {
   id: string;
@@ -31,7 +31,6 @@ interface Props {
   mergedAssetIds?: string[];
   onSyncAssets?: () => void;
   isSyncing?: boolean;
-  tracks?: Track[];
 }
 
 export type TabKey = "media" | "audio" | "generate";
@@ -72,7 +71,6 @@ export function MediaPanel({
   mergedAssetIds = [],
   onSyncAssets,
   isSyncing,
-  tracks = [],
 }: Props) {
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();

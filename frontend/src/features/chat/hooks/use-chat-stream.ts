@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
   invalidateChatSessionQuery,
@@ -8,11 +7,12 @@ import {
 } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
+import { chatService } from "../services/chat.service";
 import {
   drainSseStreamIntoIngest,
   type StreamIngestState,
   type StreamIngestSetters,
-} from "../services/sse-client";
+} from "../streaming/sse-client";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -174,15 +174,11 @@ export function useChatStream(sessionId: string) {
 
       try {
         const fetchStart = Date.now();
-        const response = await authenticatedFetch(
-          `/api/chat/sessions/${sessionId}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content, reelRefs, activeContentId, mediaRefs }),
-            signal: controller.signal,
-          },
-          STREAM_REQUEST_TIMEOUT_MS
+        const response = await chatService.streamMessage(
+          sessionId,
+          { content, reelRefs, activeContentId, mediaRefs },
+          STREAM_REQUEST_TIMEOUT_MS,
+          controller.signal
         );
 
         debugLog.info("[ChatStream] HTTP response received", {

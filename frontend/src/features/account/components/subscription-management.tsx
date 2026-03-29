@@ -22,7 +22,7 @@ import { getTierConfig } from "@/shared/constants/subscription.constants";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
+import { ErrorAlert } from "@/shared/components/feedback/error-alert";
 import { ManageSubscriptionButton } from "@/features/subscriptions/components/manage-subscription-button";
 import { TrendingUp, CheckCircle2 } from "lucide-react";
 import { Loader2 } from "lucide-react";

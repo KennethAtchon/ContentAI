@@ -7,7 +7,6 @@ import type {
   GenerateVoiceoverResponse,
   MusicLibraryFilters,
   MusicLibraryResponse,
-  ReelAsset,
   Voice,
 } from "../types/audio.types";
 

@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Eye, CheckCircle2, AlertTriangle, Mail } from "lucide-react";
 import { StudioShell } from "@/shared/components/layout/studio-shell";
 import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/custom-ui/studio-section";
+import { StudioSection } from "@/shared/components/layout/studio-section";
 import { useTranslation } from "react-i18next";
 import { SUPPORT_EMAIL } from "@/shared/constants/app.constants";
 

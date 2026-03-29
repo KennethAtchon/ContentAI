@@ -17,7 +17,7 @@ import { useApp } from "@/shared/contexts/app-context";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
+import { ErrorAlert } from "@/shared/components/feedback/error-alert";
 import { Loader2 } from "lucide-react";
 import {
   BarChart,

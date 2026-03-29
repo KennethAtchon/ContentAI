@@ -714,7 +714,6 @@ export function EditorLayout({ project, onBack }: Props) {
             onClearPendingAdd={() => setPendingAdd(null)}
             onSyncAssets={syncAssets}
             isSyncing={isSyncing}
-            tracks={state.tracks}
           />
 
           <PreviewArea
@@ -723,7 +722,6 @@ export function EditorLayout({ project, onBack }: Props) {
             isPlaying={state.isPlaying}
             playbackRate={state.playbackRate}
             durationMs={state.durationMs}
-            fps={state.fps}
             resolution={state.resolution}
             effectPreviewOverride={effectPreview}
           />
