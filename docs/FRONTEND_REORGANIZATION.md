@@ -8,6 +8,7 @@
 
 ## Table of Contents
 
+0. [Progress Update (March 29, 2026)](#0-progress-update-march-29-2026)
 1. [Current Problems](#1-current-problems)
 2. [New Directory Structure](#2-new-directory-structure)
 3. [Feature-by-Feature Breakdown](#3-feature-by-feature-breakdown)
@@ -19,6 +20,94 @@
 9. [i18n Cleanup](#9-i18n-cleanup)
 10. [Dead Code to Delete](#10-dead-code-to-delete)
 11. [Migration Sequence](#11-migration-sequence)
+
+---
+
+## 0. Progress Update (March 29, 2026)
+
+This section tracks work that is already implemented in code. The sections below this update remain the original reorganization blueprint.
+
+### 0.1 Phase Completion Status
+
+| Phase | Status | Notes |
+|---|---|---|
+| Phase 1: Foundation | In Progress | Shared/component cleanup and validation consolidation are done; AppContext split and all remaining feature service migrations are still open |
+| Phase 2: Editor | In Progress | Route slimming, editor layout decomposition, and core pure-logic tests are done; full `EditorContext` migration is still open |
+| Phase 3: Admin DataTable | Not Started | Shared DataTable + customer/order/subscription list rewrites are still open |
+| Phase 4: Chat | In Progress | SSE extraction, chat layout split, project sidebar decomposition, and chat service consolidation are done |
+| Phase 5: Payments | In Progress | Checkout decomposition and `stripe-payment-fallback.tsx` removal are done; shared `StripePaymentForm` extraction is still open |
+| Phase 6: Routing | In Progress | `routes/studio/editor.tsx` converted to thin route file; broader loader rollout is still open |
+
+### 0.2 Completed Work
+
+#### Shared / Foundation
+
+- Removed legacy custom shared component folders and old fallback form error component.
+- Consolidated imports to canonical shared component locations (`data-display`, `feedback`, `layout`, etc.).
+- Deleted duplicate SEO helper (`shared/services/seo/page-metadata.ts`), keeping the single metadata path.
+- Moved validation schemas into `shared/validation/` and removed old validation file usage.
+
+#### Chat
+
+- Extracted transport logic into `features/chat/streaming/sse-client.ts`.
+- Split oversized chat layout logic into `useChatLayout` + smaller UI composition.
+- Decomposed project sidebar into focused components and hook-driven state handling.
+- Consolidated chat HTTP operations in `features/chat/services/chat.service.ts`.
+
+#### Editor
+
+- Reduced route complexity by slimming `routes/studio/editor.tsx` to a thin route wrapper (currently 33 lines).
+- Refactored editor layout into focused components:
+  - `EditorToolbar.tsx`
+  - `EditorWorkspace.tsx`
+  - `EditorTimelineSection.tsx`
+  - `EditorDialogs.tsx`
+- Added dedicated runtime/action hooks:
+  - `useEditorAssetMap.ts`
+  - `useEditorClipActions.ts`
+  - `useEditorTransport.ts`
+  - `useEditorLayoutRuntime.ts`
+- Reduced `EditorLayout.tsx` from 874 lines to 151 lines.
+
+#### Payments
+
+- Split `order-checkout.tsx` into modular sections and shared local types:
+  - `order/QuickAddProducts.tsx`
+  - `order/OrderItemsCard.tsx`
+  - `order/OrderSummaryCard.tsx`
+  - `order/OneTimePurchaseInfoCard.tsx`
+  - `order-checkout.types.ts`
+- Split `subscription-checkout.tsx` into modular sections and shared local types:
+  - `subscription/BillingCycleCard.tsx`
+  - `subscription/SelectedPlanCard.tsx`
+  - `subscription/SecurityCard.tsx`
+  - `subscription/SubscriptionSummaryCard.tsx`
+  - `subscription-checkout.types.ts`
+- Deleted `features/payments/components/stripe-payment-fallback.tsx`.
+
+#### Admin
+
+- Added `features/admin/types.ts` as shared feature-level type home.
+- Added `features/admin/services/niches.service.ts` and `features/admin/hooks/use-niche-mutations.ts`.
+- Slimmed `features/admin/hooks/use-niches.ts` to query-focused behavior.
+- Added `features/admin/services/admin-music.service.ts` and migrated `use-admin-music.ts` to service-backed calls.
+
+#### Tests
+
+- Added editor pure-logic unit tests:
+  - `__tests__/unit/features/editor/split-clip.test.ts`
+  - `__tests__/unit/features/editor/snap-targets.test.ts`
+  - `__tests__/unit/features/editor/clip-constraints.test.ts`
+- Validation status from latest run: type-check, lint, and targeted editor tests pass.
+
+### 0.3 Remaining Work To Reach 100%
+
+- Complete the `AppContext` split into `auth-context.tsx`, `profile-context.tsx`, and `app-provider.tsx` composition.
+- Implement shared admin `DataTable` and migrate `customers`, `orders`, and `subscriptions` lists.
+- Finish full editor prop-drilling removal via `EditorContext` rollout to timeline/inspector consumers.
+- Extract shared `StripePaymentForm` for both checkout flows.
+- Add TanStack Router loaders to remaining data-dependent routes and keep route files thin.
+- Finish i18n key normalization + dead key cleanup pass.
 
 ---
 
