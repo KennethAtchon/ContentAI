@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import type { HonoEnv } from "./protection";
+import type { HonoEnv } from "../types/hono.types";
 import { db } from "../services/db/db";
 import { featureUsages } from "../infrastructure/database/drizzle/schema";
 import { eq, and, gte, sql } from "drizzle-orm";

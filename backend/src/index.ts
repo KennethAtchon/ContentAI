@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { handleRouteError } from "./middleware/error-handler";
 import { secureHeaders } from "./middleware/security-headers";
 import {
   getAllowedCorsOrigins,
@@ -40,6 +41,8 @@ import { startDailyScan } from "./jobs/daily-scan";
 import { seedSystemConfig } from "./services/config/config-seed";
 
 const app = new Hono();
+
+app.onError(handleRouteError);
 
 // ─── Global Middleware ─────────────────────────────────────────────────────────
 

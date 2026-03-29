@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, inArray } from "drizzle-orm";
 import {
@@ -27,76 +26,15 @@ import {
   parseScriptShots,
   type ShotInput,
 } from "./utils";
-import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "../../shared/constants/video-shot-durations";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
 import { refreshEditorTimeline } from "../editor/services/refresh-editor-timeline";
+import {
+  createReelSchema,
+  regenerateShotSchema,
+  type TimelinePayload,
+} from "./schemas";
 
 const app = new Hono<HonoEnv>();
-
-const providerSchema = z.enum(["kling-fal", "runway", "image-ken-burns"]);
-const aspectRatioSchema = z.enum(["9:16", "16:9", "1:1"]);
-
-const createReelSchema = z.object({
-  generatedContentId: z.number().int().positive(),
-  prompt: z.string().min(1).max(1000).optional(),
-  durationSeconds: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_SCRIPT_SHOT_DURATION_SECONDS)
-    .optional(),
-  aspectRatio: aspectRatioSchema.optional(),
-  provider: providerSchema.optional(),
-});
-
-const regenerateShotSchema = z.object({
-  generatedContentId: z.number().int().positive(),
-  shotIndex: z.number().int().min(0).max(99),
-  prompt: z.string().min(1).max(1000),
-  durationSeconds: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_SCRIPT_SHOT_DURATION_SECONDS)
-    .optional(),
-  aspectRatio: aspectRatioSchema.optional(),
-  provider: providerSchema.optional(),
-});
-
-const timelineItemSchema = z.object({
-  id: z.string().min(1),
-  assetId: z.string().min(1).optional(),
-  lane: z.number().int().min(0).optional(),
-  startMs: z.number().int().min(0),
-  endMs: z.number().int().min(1),
-  trimStartMs: z.number().int().min(0).optional(),
-  trimEndMs: z.number().int().min(1).optional(),
-  role: z.string().optional(),
-  transitionIn: z
-    .object({
-      type: z.enum(["cut", "crossfade", "swipe", "fade"]),
-      durationMs: z.number().int().min(0).max(2000),
-    })
-    .optional(),
-  transitionOut: z
-    .object({
-      type: z.enum(["cut", "crossfade", "swipe", "fade"]),
-      durationMs: z.number().int().min(0).max(2000),
-    })
-    .optional(),
-});
-
-const _timelineSchema = z.object({
-  schemaVersion: z.number().int().default(1),
-  fps: z.number().int().min(1).max(120).default(30),
-  durationMs: z.number().int().min(1),
-  tracks: z.object({
-    video: z.array(timelineItemSchema).default([]),
-    audio: z.array(timelineItemSchema).default([]),
-    text: z.array(z.record(z.string(), z.unknown())).default([]),
-    captions: z.array(z.record(z.string(), z.unknown())).default([]),
-  }),
-});
 
 type TimelineIssue = {
   code: string;
@@ -105,8 +43,6 @@ type TimelineIssue = {
   severity: "error" | "warning";
   message: string;
 };
-
-type TimelinePayload = z.infer<typeof _timelineSchema>;
 
 const MIN_RECOMMENDED_CLIP_MS = 800;
 const MAX_RECOMMENDED_CLIP_MS = 12_000;

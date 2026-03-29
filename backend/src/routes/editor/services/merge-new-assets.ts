@@ -1,10 +1,7 @@
-import { and, eq } from "drizzle-orm";
-import { db } from "../../../services/db/db";
 import {
-  assets,
-  contentAssets,
-  editProjects,
-} from "../../../infrastructure/database/drizzle/schema";
+  contentRepository,
+  editorRepository,
+} from "../../../domain/singletons";
 import {
   normalizeMediaClipTrimFields,
   type TimelineClipJson,
@@ -82,16 +79,7 @@ export async function mergeNewAssetsIntoProject(
   durationMs: number;
   mergedAssetIds: string[];
 }> {
-  const [project] = await db
-    .select()
-    .from(editProjects)
-    .where(
-      and(
-        eq(editProjects.id, projectId),
-        eq(editProjects.userId, userId),
-      ),
-    )
-    .limit(1);
+  const project = await editorRepository.findByIdAndUserId(projectId, userId);
 
   if (!project) throw new Error("Project not found");
 
@@ -107,16 +95,10 @@ export async function mergeNewAssetsIntoProject(
     };
   }
 
-  const assetRows = await db
-    .select({
-      id: assets.id,
-      role: contentAssets.role,
-      durationMs: assets.durationMs,
-      metadata: assets.metadata,
-    })
-    .from(contentAssets)
-    .innerJoin(assets, eq(contentAssets.assetId, assets.id))
-    .where(eq(contentAssets.generatedContentId, project.generatedContentId));
+  const assetRows =
+    await contentRepository.listAssetsLinkedToGeneratedContent(
+      project.generatedContentId,
+    );
 
   const newAssets = assetRows.filter((a) => !alreadyMerged.has(a.id));
   if (newAssets.length === 0) {
@@ -180,10 +162,11 @@ export async function mergeNewAssetsIntoProject(
   const durationMs = computeDuration(tracks);
   const mergedAssetIds = [...alreadyMerged];
 
-  await db
-    .update(editProjects)
-    .set({ tracks, durationMs, mergedAssetIds })
-    .where(eq(editProjects.id, projectId));
+  await editorRepository.updateTracksDurationMerged(projectId, {
+    tracks,
+    durationMs,
+    mergedAssetIds,
+  });
 
   return { changed: true, tracks, durationMs, mergedAssetIds };
 }

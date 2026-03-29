@@ -12,7 +12,7 @@ import {
 } from "../infrastructure/database/drizzle/schema";
 import { eq, and, or, ilike, desc, gte, isNotNull, sql } from "drizzle-orm";
 import { debugLog } from "../utils/debug/debug";
-import type { HonoEnv } from "../middleware/protection";
+import type { HonoEnv } from "../types/hono.types";
 import {
   assertNoChainQueueItem,
   findChainQueueItem,

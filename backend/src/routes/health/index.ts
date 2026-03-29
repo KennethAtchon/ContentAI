@@ -6,8 +6,8 @@ import {
   getQueryStats,
   ensureConnectionHealth as _ensureConnectionHealth,
 } from "../../services/db/db";
-import { users } from "../../infrastructure/database/drizzle/schema";
-import { sql, count } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import { authRepository } from "../../domain/singletons";
 import getRedisConnection from "../../services/db/redis";
 import { getErrorMetrics } from "../../services/observability/metrics";
 import { getEnvVar } from "../../utils/config/envUtil";
@@ -99,7 +99,7 @@ async function checkDatabaseHealth(
     await Promise.race([
       (async () => {
         await dbInstance.execute(sql`SELECT 1 as health_check`);
-        await dbInstance.select({ cnt: count() }).from(users).limit(1);
+        await authRepository.pingUsersTable();
       })(),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Database timeout")), 1000),

@@ -1,16 +1,14 @@
 import { Hono } from "hono";
-import { z } from "zod";
 import {
   authMiddleware,
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
-import { db } from "../../services/db/db";
-import { assets } from "../../infrastructure/database/drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import type { HonoEnv } from "../../types/hono.types";
+import { assetsService } from "../../domain/singletons";
 import { uploadFile, deleteFile, getFileUrl } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
+import { uuidParam } from "../../validation/shared.schemas";
 
 const app = new Hono<HonoEnv>();
 
@@ -40,13 +38,7 @@ app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
   try {
     const auth = c.get("auth");
 
-    const items = await db
-      .select()
-      .from(assets)
-      .where(
-        and(eq(assets.userId, auth.user.id), eq(assets.source, "uploaded")),
-      )
-      .orderBy(desc(assets.createdAt));
+    const items = await assetsService.listUserLibrary(auth.user.id);
 
     const itemsWithUrls = await Promise.all(
       items.map(async (item) => {
@@ -121,22 +113,19 @@ app.post(
           ? fileEntry.name
           : ((nameOverride as string | null) ?? fileEntry.name);
 
-      const [item] = await db
-        .insert(assets)
-        .values({
-          id: itemId,
-          userId: auth.user.id,
-          type: mediaType,
-          source: "uploaded",
-          name,
-          mimeType: mime,
-          r2Key,
-          r2Url,
-          sizeBytes: fileEntry.size,
-          durationMs: null,
-          metadata: {},
-        })
-        .returning();
+      const item = await assetsService.createUploadedAsset({
+        id: itemId,
+        userId: auth.user.id,
+        type: mediaType,
+        source: "uploaded",
+        name,
+        mimeType: mime,
+        r2Key,
+        r2Url,
+        sizeBytes: fileEntry.size,
+        durationMs: null,
+        metadata: {},
+      });
 
       const mediaUrl = await getFileUrl(r2Key, 3600).catch(() => r2Url);
       return c.json({ item: { ...item, mediaUrl } }, 201);
@@ -151,8 +140,6 @@ app.post(
   },
 );
 
-const deleteParamSchema = z.object({ id: z.string().uuid() });
-
 // DELETE /api/media/:id — delete a media item
 app.delete(
   "/:id",
@@ -162,23 +149,13 @@ app.delete(
   async (c) => {
     try {
       const auth = c.get("auth");
-      const parsed = deleteParamSchema.safeParse({ id: c.req.param("id") });
+      const parsed = uuidParam.safeParse({ id: c.req.param("id") });
       if (!parsed.success) {
         return c.json({ error: "Invalid id" }, 400);
       }
       const { id } = parsed.data;
 
-      const [existing] = await db
-        .select()
-        .from(assets)
-        .where(
-          and(
-            eq(assets.id, id),
-            eq(assets.userId, auth.user.id),
-            eq(assets.source, "uploaded"),
-          ),
-        )
-        .limit(1);
+      const existing = await assetsService.getUploadedAsset(auth.user.id, id);
 
       if (!existing) {
         return c.json({ error: "Media item not found" }, 404);
@@ -193,7 +170,7 @@ app.delete(
         });
       });
 
-      await db.delete(assets).where(eq(assets.id, id));
+      await assetsService.removeById(id);
 
       return c.body(null, 204);
     } catch (error) {

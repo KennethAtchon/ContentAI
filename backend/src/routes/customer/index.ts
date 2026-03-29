@@ -4,14 +4,10 @@ import {
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
-import {
-  users,
-  orders,
-  queueItems,
-  featureUsages,
-} from "../../infrastructure/database/drizzle/schema";
+import { users, orders, featureUsages } from "../../infrastructure/database/drizzle/schema";
+import { queueService } from "../../domain/singletons";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import Stripe from "stripe";
@@ -53,45 +49,36 @@ customer.get(
 
       const limits = getFeatureLimitsForStripeRole(stripeRole);
 
-      const [analysesCount, generationsCount, queueSizeCount] =
-        await Promise.all([
-          db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(featureUsages)
-            .where(
-              and(
-                eq(featureUsages.userId, userId),
-                eq(featureUsages.featureType, "reel_analysis"),
-                gte(featureUsages.createdAt, monthStart),
-              ),
+      const [analysesCount, generationsCount, queueSize] = await Promise.all([
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(featureUsages)
+          .where(
+            and(
+              eq(featureUsages.userId, userId),
+              eq(featureUsages.featureType, "reel_analysis"),
+              gte(featureUsages.createdAt, monthStart),
             ),
-          db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(featureUsages)
-            .where(
-              and(
-                eq(featureUsages.userId, userId),
-                eq(featureUsages.featureType, "generation"),
-                gte(featureUsages.createdAt, monthStart),
-              ),
+          ),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(featureUsages)
+          .where(
+            and(
+              eq(featureUsages.userId, userId),
+              eq(featureUsages.featureType, "generation"),
+              gte(featureUsages.createdAt, monthStart),
             ),
-          db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(queueItems)
-            .where(
-              and(
-                eq(queueItems.userId, userId),
-                eq(queueItems.status, "scheduled"),
-              ),
-            ),
-        ]);
+          ),
+        queueService.countScheduledForUser(userId),
+      ]);
 
       return c.json({
         reelsAnalyzed: analysesCount[0]?.count ?? 0,
         reelsAnalyzedLimit: limits.analysis,
         contentGenerated: generationsCount[0]?.count ?? 0,
         contentGeneratedLimit: limits.generation,
-        queueSize: queueSizeCount[0]?.count ?? 0,
+        queueSize,
         queueLimit: null,
         tier: stripeRole ?? "free",
         resetDate: resetDate.toISOString(),

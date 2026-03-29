@@ -1,32 +1,21 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { adminAuth } from "../services/firebase/admin";
-import { db } from "../services/db/db";
-import { users } from "../infrastructure/database/drizzle/schema";
-import { eq } from "drizzle-orm";
+import { authService } from "../domain/singletons";
 import { validateCSRFToken } from "../services/csrf/csrf-protection";
 import { checkRateLimit } from "../services/rate-limit/rate-limit-redis";
 import { getRateLimitConfig } from "../constants/rate-limit.config";
 import { debugLog } from "../utils/debug/debug";
 import { IS_DEVELOPMENT } from "../utils/config/envUtil";
+import type { AuthResult, HonoEnv } from "../types/hono.types";
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-export interface AuthResult {
-  user: { id: string; email: string; role: string };
-  firebaseUser: {
-    uid: string;
-    email: string;
-    stripeRole?: string;
-    [key: string]: unknown;
-  };
-}
-
-export interface AdminAuthResult extends AuthResult {
-  user: { id: string; email: string; role: "admin" };
-}
-
-export type AuthContext = AuthResult | AdminAuthResult | null;
+export type {
+  AuthResult,
+  AdminAuthResult,
+  AuthContext,
+  Variables,
+  HonoEnv,
+} from "../types/hono.types";
 
 export type RateLimitType =
   | "public"
@@ -44,18 +33,6 @@ export interface ProtectionOptions {
   bodySchema?: z.ZodSchema<unknown>;
   querySchema?: z.ZodSchema<unknown>;
 }
-
-// ─── Hono Context Variables ────────────────────────────────────────────────────
-
-/** Context variables set by middleware. Use `HonoEnv` when instantiating Hono in route files. */
-export type Variables = {
-  auth: AuthResult;
-  validatedBody: unknown;
-  validatedQuery: unknown;
-  rateLimitHeaders: Record<string, string>;
-};
-
-export type HonoEnv = { Variables: Variables };
 
 // ─── Auth Middleware ────────────────────────────────────────────────────────────
 
@@ -92,39 +69,22 @@ export function authMiddleware(
 
       const hasAdminClaim = decodedToken["role"] === "admin";
 
-      const [user] = await db
-        .insert(users)
-        .values({
-          firebaseUid: decodedToken.uid,
-          email,
-          name,
-          role: "user",
-          isActive: true,
-          timezone: "UTC",
-        })
-        .onConflictDoUpdate({
-          target: users.firebaseUid,
-          set: { email, name, lastLogin: new Date() },
-        })
-        .returning({ id: users.id, email: users.email, role: users.role });
+      const session = await authService.establishSessionUser({
+        firebaseUid: decodedToken.uid,
+        email,
+        name,
+        level,
+        hasAdminClaim,
+      });
 
-      if (level === "admin") {
-        const isAdmin = user.role === "admin" || hasAdminClaim;
-        if (!isAdmin) {
-          return c.json(
-            { error: "Admin access required", code: "ADMIN_REQUIRED" },
-            403,
-          );
-        }
-        // Sync DB role if Firebase claim says admin but DB doesn't reflect it yet
-        if (hasAdminClaim && user.role !== "admin") {
-          await db
-            .update(users)
-            .set({ role: "admin" })
-            .where(eq(users.firebaseUid, decodedToken.uid));
-          user.role = "admin";
-        }
+      if (!session.ok) {
+        return c.json(
+          { error: "Admin access required", code: "ADMIN_REQUIRED" },
+          403,
+        );
       }
+
+      const user = session.user;
 
       const authResult: AuthResult = {
         user: { id: user.id, email: user.email, role: user.role },

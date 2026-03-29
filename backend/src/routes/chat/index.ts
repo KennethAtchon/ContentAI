@@ -7,7 +7,7 @@ import {
   rateLimiter,
   csrfMiddleware,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { db } from "../../services/db/db";
 import {
   chatSessions,
@@ -25,12 +25,13 @@ import { recordAiCost } from "../../lib/cost-tracker";
 import { getModelInfo } from "../../lib/aiClient";
 import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "../../lib/chat-tools";
+import { uuidProjectParam } from "../../validation/shared.schemas";
+import { contentService } from "../../domain/singletons";
 
 const app = new Hono<HonoEnv>();
 
 // Zod schemas for validation
-const createSessionSchema = z.object({
-  projectId: z.string().uuid(),
+const createSessionSchema = uuidProjectParam.extend({
   title: z.string().min(1).max(100).optional(),
 });
 
@@ -160,17 +161,10 @@ app.post(
       const auth = c.get("auth");
       const { generatedContentId } = c.req.valid("json");
 
-      // Verify the content belongs to this user
-      const [content] = await db
-        .select({ id: generatedContent.id, generatedHook: generatedContent.generatedHook })
-        .from(generatedContent)
-        .where(
-          and(
-            eq(generatedContent.id, generatedContentId),
-            eq(generatedContent.userId, auth.user.id),
-          ),
-        )
-        .limit(1);
+      const content = await contentService.getOwnedContentHook(
+        generatedContentId,
+        auth.user.id,
+      );
 
       if (!content) {
         return c.json({ error: "Content not found" }, 404);
