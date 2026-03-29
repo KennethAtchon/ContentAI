@@ -23,7 +23,7 @@
 
 ---
 
-## 0. Progress Update (March 29, 2026)
+## 0. Progress Update (March 28, 2026)
 
 This section tracks work that is already implemented in code. The sections below this update remain the original reorganization blueprint.
 
@@ -31,10 +31,10 @@ This section tracks work that is already implemented in code. The sections below
 
 | Phase | Status | Notes |
 |---|---|---|
-| Phase 1: Foundation | In Progress | Shared/component cleanup and validation consolidation are done; AppContext split and all remaining feature service migrations are still open |
-| Phase 2: Editor | In Progress | Route slimming, editor layout decomposition, and core pure-logic tests are done; full `EditorContext` migration is still open |
-| Phase 3: Admin DataTable | Not Started | Shared DataTable + customer/order/subscription list rewrites are still open |
-| Phase 4: Chat | In Progress | SSE extraction, chat layout split, project sidebar decomposition, and chat service consolidation are done |
+| Phase 1: Foundation | In Progress | Shared/component cleanup and validation consolidation are done; AppContext split is done; remaining feature service migrations are still open |
+| Phase 2: Editor | In Progress | Route slimming, layout decomposition, pure-logic tests, and full `EditorContext` migration into `Inspector`, `Timeline`, `EditorWorkspace`, `EditorTimelineSection` are done |
+| Phase 3: Admin DataTable | Complete | Shared `DataTable` built; all three list components (`customers`, `orders`, `subscriptions`) migrated to use it |
+| Phase 4: Chat | Complete | SSE extraction, chat layout split, project sidebar decomposition, and chat service consolidation are done |
 | Phase 5: Payments | In Progress | Checkout decomposition and `stripe-payment-fallback.tsx` removal are done; shared `StripePaymentForm` extraction is still open |
 | Phase 6: Routing | In Progress | `routes/studio/editor.tsx` converted to thin route file; broader loader rollout is still open |
 
@@ -68,6 +68,12 @@ This section tracks work that is already implemented in code. The sections below
   - `useEditorTransport.ts`
   - `useEditorLayoutRuntime.ts`
 - Reduced `EditorLayout.tsx` from 874 lines to 151 lines.
+- Created `EditorContext.tsx` with `EditorProvider` + `useEditorContext`.
+- Migrated `Inspector`, `Timeline`, `EditorWorkspace`, and `EditorTimelineSection` to consume state and store methods from `EditorContext` instead of drilled props:
+  - `Inspector` reduced from 8 props to 2 (`selectedTransition`, `onEffectPreview`).
+  - `Timeline` reduced from 31 props to 13 (clip-action handlers and refs only).
+  - `EditorTimelineSection` reduced from 40 props to 16.
+  - `EditorWorkspace` reduced from 21 props to 11.
 
 #### Payments
 
@@ -91,6 +97,12 @@ This section tracks work that is already implemented in code. The sections below
 - Added `features/admin/services/niches.service.ts` and `features/admin/hooks/use-niche-mutations.ts`.
 - Slimmed `features/admin/hooks/use-niches.ts` to query-focused behavior.
 - Added `features/admin/services/admin-music.service.ts` and migrated `use-admin-music.ts` to service-backed calls.
+- Built shared `DataTable` component at `shared/components/data-display/DataTable.tsx`.
+- Migrated `customers-list.tsx`, `orders-list.tsx`, and `subscriptions-list.tsx` to use the shared DataTable.
+
+#### Shared / Foundation (additional)
+
+- Split `AppContext` into `auth-context.tsx` and `profile-context.tsx`; `app-context.tsx` is now a thin re-export shim (58 lines). New code should call `useAuth()` or `useProfile()` directly.
 
 #### Tests
 
@@ -102,12 +114,9 @@ This section tracks work that is already implemented in code. The sections below
 
 ### 0.3 Remaining Work To Reach 100%
 
-- Complete the `AppContext` split into `auth-context.tsx`, `profile-context.tsx`, and `app-provider.tsx` composition.
-- Implement shared admin `DataTable` and migrate `customers`, `orders`, and `subscriptions` lists.
-- Finish full editor prop-drilling removal via `EditorContext` rollout to timeline/inspector consumers.
-- Extract shared `StripePaymentForm` for both checkout flows.
+- Extract shared `StripePaymentForm` used by both `order-checkout.tsx` and `subscription-checkout.tsx`.
 - Add TanStack Router loaders to remaining data-dependent routes and keep route files thin.
-- Finish i18n key normalization + dead key cleanup pass.
+- Finish i18n key normalization + dead key cleanup pass (run `i18next-scanner`, delete orphaned keys).
 
 ---
 

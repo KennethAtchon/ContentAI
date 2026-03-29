@@ -3,6 +3,7 @@ import type { TabKey } from "./MediaPanel";
 import { MediaPanel } from "./MediaPanel";
 import { PreviewArea } from "./PreviewArea";
 import { Inspector } from "./Inspector";
+import { useEditorContext } from "../context/EditorContext";
 
 interface EditorWorkspaceProps {
   project: EditProject;
@@ -12,7 +13,6 @@ interface EditorWorkspaceProps {
   playbackRate: number;
   durationMs: number;
   resolution: string;
-  selectedClipId: string | null;
   selectedTransition: Transition | null;
   effectPreview: { clipId: string; patch: Partial<Clip> } | null;
   mediaActiveTab: TabKey;
@@ -24,23 +24,6 @@ interface EditorWorkspaceProps {
   onClearPendingAdd: () => void;
   onSyncAssets: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
-  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
-  onAddCaptionClip: (params: {
-    captionId: string;
-    captionWords: { word: string; startMs: number; endMs: number }[];
-    assetId: string;
-    presetId: string;
-    startMs: number;
-    durationMs: number;
-  }) => void;
-  onSetTransition: (
-    trackId: string,
-    clipAId: string,
-    clipBId: string,
-    transitionType: Transition["type"],
-    durationMs: number
-  ) => void;
-  onRemoveTransition: (trackId: string, transitionId: string) => void;
 }
 
 export function EditorWorkspace({
@@ -51,7 +34,6 @@ export function EditorWorkspace({
   playbackRate,
   durationMs,
   resolution,
-  selectedClipId,
   selectedTransition,
   effectPreview,
   mediaActiveTab,
@@ -63,11 +45,9 @@ export function EditorWorkspace({
   onClearPendingAdd,
   onSyncAssets,
   onAddClip,
-  onUpdateClip,
-  onAddCaptionClip,
-  onSetTransition,
-  onRemoveTransition,
 }: EditorWorkspaceProps) {
+  const { state } = useEditorContext();
+
   return (
     <div className="flex flex-1 overflow-hidden min-h-0">
       <MediaPanel
@@ -95,18 +75,12 @@ export function EditorWorkspace({
       />
 
       <Inspector
-        tracks={tracks}
-        selectedClipId={selectedClipId}
-        onUpdateClip={onUpdateClip}
         onEffectPreview={(patch) =>
           onSetEffectPreview(
-            patch && selectedClipId ? { clipId: selectedClipId, patch } : null
+            patch && state.selectedClipId ? { clipId: state.selectedClipId, patch } : null
           )
         }
-        onAddCaptionClip={onAddCaptionClip}
         selectedTransition={selectedTransition}
-        onSetTransition={onSetTransition}
-        onRemoveTransition={onRemoveTransition}
       />
     </div>
   );

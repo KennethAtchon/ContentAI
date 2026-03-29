@@ -25,6 +25,7 @@ import type { Track, Clip, TrackType } from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
 import { parseTimelineAssetDragPayload } from "../utils/timeline-asset-drag-payload";
+import { useEditorContext } from "../context/EditorContext";
 
 const TRACK_HEIGHT = 56; // px per track
 const RULER_HEIGHT = 32; // px
@@ -58,22 +59,9 @@ function SortableTrackHeader(props: React.ComponentProps<typeof TrackHeader>) {
 }
 
 interface Props {
-  tracks: Track[];
-  durationMs: number;
-  currentTimeMs: number;
-  zoom: number;
-  selectedClipId: string | null;
-  hasClipboard: boolean;
-  onSeek: (ms: number) => void;
-  onSelectClip: (clipId: string | null) => void;
-  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
   onAddClip: (trackId: string, clip: Clip) => void;
-  onToggleMute: (trackId: string) => void;
-  onToggleLock: (trackId: string) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
-  selectedTransitionId: string | null;
   onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
-  onRemoveTransition: (trackId: string, transitionId: string) => void;
   onClipSplit: (clipId: string) => void;
   onClipDuplicate: (clipId: string) => void;
   onClipCopy: (clipId: string) => void;
@@ -82,31 +70,14 @@ interface Props {
   onClipRippleDelete: (clipId: string) => void;
   onClipDelete: (clipId: string) => void;
   onClipSetSpeed: (clipId: string, speed: number) => void;
-  onAddVideoTrack: (trackId: string) => void;
-  onRemoveTrack: (trackId: string) => void;
-  onRenameTrack: (trackId: string, name: string) => void;
-  onReorderTracks: (trackIds: string[]) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onFocusMediaForTrack: (trackType: TrackType, trackId: string, startMs: number) => void;
 }
 
 export function Timeline({
-  tracks,
-  durationMs,
-  currentTimeMs,
-  zoom,
-  selectedClipId,
-  hasClipboard,
-  onSeek,
-  onSelectClip,
-  onUpdateClip,
   onAddClip,
-  onToggleMute,
-  onToggleLock,
   onDeleteAllClipsInTrack,
-  selectedTransitionId: _selectedTransitionId,
   onSelectTransition,
-  onRemoveTransition,
   onClipSplit,
   onClipDuplicate,
   onClipCopy,
@@ -115,13 +86,29 @@ export function Timeline({
   onClipRippleDelete,
   onClipDelete,
   onClipSetSpeed,
-  onAddVideoTrack,
-  onRemoveTrack,
-  onRenameTrack,
-  onReorderTracks,
   scrollRef,
   onFocusMediaForTrack,
 }: Props) {
+  const {
+    state,
+    setCurrentTime: onSeek,
+    selectClip: onSelectClip,
+    updateClip: onUpdateClip,
+    toggleTrackMute: onToggleMute,
+    toggleTrackLock: onToggleLock,
+    removeTransition: onRemoveTransition,
+    addVideoTrack: onAddVideoTrack,
+    removeTrack: onRemoveTrack,
+    renameTrack: onRenameTrack,
+    reorderTracks: onReorderTracks,
+  } = useEditorContext();
+
+  const tracks = state.tracks;
+  const durationMs = state.durationMs;
+  const currentTimeMs = state.currentTimeMs;
+  const zoom = state.zoom;
+  const selectedClipId = state.selectedClipId;
+  const hasClipboard = !!state.clipboardClip;
   const { t } = useTranslation();
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
   const [rejectTargetTrackId, setRejectTargetTrackId] = useState<string | null>(null);

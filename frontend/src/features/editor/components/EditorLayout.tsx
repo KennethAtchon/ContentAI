@@ -67,7 +67,6 @@ export function EditorLayout({ project, onBack }: Props) {
             playbackRate={state.playbackRate}
             durationMs={state.durationMs}
             resolution={state.resolution}
-            selectedClipId={state.selectedClipId}
             selectedTransition={clipActions.selectedTransition}
             effectPreview={runtime.effectPreview}
             mediaActiveTab={runtime.mediaActiveTab}
@@ -79,38 +78,17 @@ export function EditorLayout({ project, onBack }: Props) {
             onClearPendingAdd={() => runtime.setPendingAdd(null)}
             onSyncAssets={runtime.syncAssets}
             onAddClip={clipActions.handleAddClip}
-            onUpdateClip={clipActions.handleUpdateClip}
-            onAddCaptionClip={store.addCaptionClip}
-            onSetTransition={store.setTransition}
-            onRemoveTransition={store.removeTransition}
           />
 
           <EditorTimelineSection
-            tracks={state.tracks}
-            durationMs={state.durationMs}
-            currentTimeMs={state.currentTimeMs}
-            zoom={state.zoom}
-            selectedClipId={state.selectedClipId}
-            selectedTransitionId={
-              runtime.selectedTransitionKey
-                ? `${runtime.selectedTransitionKey[1]}-${runtime.selectedTransitionKey[2]}`
-                : null
-            }
-            hasClipboard={!!state.clipboardClip}
             onSyncTimeline={() =>
               void runtime.queryClient.invalidateQueries({
                 queryKey: queryKeys.api.editorProject(project.id),
               })
             }
-            onSeek={store.setCurrentTime}
-            onSelectClip={store.selectClip}
-            onUpdateClip={clipActions.handleUpdateClip}
             onAddClip={clipActions.handleAddClip}
-            onToggleMute={store.toggleTrackMute}
-            onToggleLock={store.toggleTrackLock}
             onDeleteAllClipsInTrack={clipActions.handleDeleteAllClipsInTrack}
             onSelectTransition={clipActions.handleSelectTransition}
-            onRemoveTransition={store.removeTransition}
             onClipSplit={clipActions.handleClipSplit}
             onClipDuplicate={clipActions.handleClipDuplicate}
             onClipCopy={clipActions.handleClipCopy}
@@ -119,10 +97,6 @@ export function EditorLayout({ project, onBack }: Props) {
             onClipRippleDelete={clipActions.handleClipRippleDelete}
             onClipDelete={clipActions.handleRemoveClip}
             onClipSetSpeed={clipActions.handleClipSetSpeed}
-            onAddVideoTrack={store.addVideoTrack}
-            onRemoveTrack={store.removeTrack}
-            onRenameTrack={store.renameTrack}
-            onReorderTracks={store.reorderTracks}
             onFocusMediaForTrack={clipActions.handleFocusMediaForTrack}
             timelineContainerRef={runtime.timelineContainerRef}
             timelineScrollRef={runtime.timelineScrollRef}

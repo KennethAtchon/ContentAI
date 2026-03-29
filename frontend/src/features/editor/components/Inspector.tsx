@@ -9,19 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import type { Clip, Track, Transition, CaptionWord } from "../types/editor";
+import type { Clip, Transition } from "../types/editor";
 import { CAPTION_PRESETS } from "../constants/caption-presets";
 import { CaptionPresetTile } from "./CaptionPresetTile";
 import { useAutoCaption } from "../hooks/useCaptions";
+import { useEditorContext } from "../context/EditorContext";
 
-interface AddCaptionClipParams {
-  captionId: string;
-  captionWords: CaptionWord[];
-  assetId: string;
-  presetId: string;
-  startMs: number;
-  durationMs: number;
-}
 
 const EFFECT_DEFINITIONS: {
   id: string;
@@ -74,20 +67,8 @@ const EFFECT_DEFINITIONS: {
 ];
 
 interface Props {
-  tracks: Track[];
-  selectedClipId: string | null;
-  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
   onEffectPreview?: (patch: Partial<Clip> | null) => void;
-  onAddCaptionClip: (params: AddCaptionClipParams) => void;
   selectedTransition: Transition | null;
-  onSetTransition: (
-    trackId: string,
-    clipAId: string,
-    clipBId: string,
-    type: Transition["type"],
-    durationMs: number
-  ) => void;
-  onRemoveTransition: (trackId: string, transitionId: string) => void;
 }
 
 function Section({
@@ -162,29 +143,21 @@ function ValuePill({ value }: { value: string | number }) {
   );
 }
 
-export function Inspector({
-  tracks,
-  selectedClipId,
-  onUpdateClip,
-  onEffectPreview,
-  onAddCaptionClip,
-  selectedTransition,
-  onSetTransition,
-  onRemoveTransition,
-}: Props) {
+export function Inspector({ onEffectPreview, selectedTransition }: Props) {
   const { t } = useTranslation();
   const autoCaption = useAutoCaption();
+  const {
+    state,
+    selectedClip: selectedClipCtx,
+    selectedTrack,
+    updateClip: onUpdateClip,
+    addCaptionClip: onAddCaptionClip,
+    setTransition: onSetTransition,
+    removeTransition: onRemoveTransition,
+  } = useEditorContext();
 
-  let selectedClip: Clip | undefined;
-  let selectedTrack: Track | undefined;
-  for (const track of tracks) {
-    const found = track.clips.find((c) => c.id === selectedClipId);
-    if (found) {
-      selectedClip = found;
-      selectedTrack = track;
-      break;
-    }
-  }
+  const tracks = state.tracks;
+  const selectedClip = selectedClipCtx ?? undefined;
 
   const isTextClip = selectedTrack?.type === "text";
   const isMediaClip = !isTextClip;
