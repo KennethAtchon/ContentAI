@@ -4,48 +4,24 @@ import {
   invalidateGenerationHistoryQueries,
   invalidateQueueAndGenerationHistory,
 } from "@/shared/lib/query-invalidation";
-import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
-import type { GeneratedContent } from "@/features/reels/types/reel.types";
+import { generationService } from "../services/generation.service";
 
 export function useGenerationHistory() {
   const { user } = useApp();
-  const fetcher = useQueryFetcher<{
-    items: GeneratedContent[];
-    total: number;
-  }>();
 
   return useQuery({
     queryKey: queryKeys.api.generationHistory(),
-    queryFn: () => fetcher("/api/generation?limit=20"),
+    queryFn: () => generationService.getHistory(),
     enabled: !!user,
   });
 }
 
 export function useGenerateContent() {
-  const { authenticatedFetch } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      sourceReelId: number;
-      prompt: string;
-      outputType?: "hook" | "caption" | "full";
-    }) => {
-      const res = await authenticatedFetch("/api/generation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          (err as { error?: string }).error ?? "Generation failed"
-        );
-      }
-      return res.json() as Promise<{ content: GeneratedContent }>;
-    },
+    mutationFn: generationService.generateContent,
     onSuccess: () => {
       void invalidateGenerationHistoryQueries(queryClient);
     },
@@ -53,29 +29,10 @@ export function useGenerateContent() {
 }
 
 export function useQueueContent() {
-  const { authenticatedFetch } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: {
-      contentId: number;
-      scheduledFor?: string;
-      instagramPageId?: string;
-    }) => {
-      const res = await authenticatedFetch(
-        `/api/generation/${params.contentId}/queue`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            scheduledFor: params.scheduledFor,
-            instagramPageId: params.instagramPageId,
-          }),
-        }
-      );
-      if (!res.ok) throw new Error("Failed to queue content");
-      return res.json();
-    },
+    mutationFn: generationService.queueContent,
     onSuccess: () => {
       void invalidateQueueAndGenerationHistory(queryClient);
     },

@@ -1,23 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-
-interface GeneratedContentRecord {
-  id: number;
-  generatedScript: string | null;
-  voiceoverScript: string | null;
-  generatedHook: string | null;
-  postCaption: string | null;
-  outputType: string;
-  status: string;
-}
+import { audioService } from "../services/audio.service";
 
 export function useGeneratedContent(id: number | null) {
-  const fetcher = useQueryFetcher<{ content: GeneratedContentRecord }>();
-
   return useQuery({
     queryKey: queryKeys.api.generatedContent(id ?? 0),
-    queryFn: () => fetcher(`/api/generation/${id}`),
+    queryFn: () => audioService.getGeneratedContent(id!),
     enabled: !!id,
   });
 }

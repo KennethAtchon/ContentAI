@@ -41,6 +41,7 @@ import { MediaPanel } from "./MediaPanel";
 import { ExportModal } from "./ExportModal";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
+import { EditorProvider } from "../context/EditorContext";
 import type { EditProject, Clip, TrackType } from "../types/editor";
 import type { TabKey } from "./MediaPanel";
 import { hasCollision } from "../utils/clip-constraints";
@@ -441,6 +442,7 @@ export function EditorLayout({ project, onBack }: Props) {
   }, [state.isReadOnly, flushSave, onBack]);
 
   return (
+    <EditorProvider store={store}>
     <AssetUrlMapContext.Provider value={assetUrlMap}>
       <div
         className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
@@ -870,5 +872,6 @@ export function EditorLayout({ project, onBack }: Props) {
         </AlertDialog>
       </div>
     </AssetUrlMapContext.Provider>
+    </EditorProvider>
   );
 }

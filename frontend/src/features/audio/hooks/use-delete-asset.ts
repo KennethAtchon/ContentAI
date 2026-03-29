@@ -1,19 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
+import { audioService } from "../services/audio.service";
 
 export function useDeleteAsset(generatedContentId: number) {
-  const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (assetId: string) =>
-      authenticatedFetchJson(`/api/assets/${assetId}`, { method: "DELETE" }),
+    mutationFn: (assetId: string) => audioService.deleteAsset(assetId),
     onSuccess: () => {
-      void invalidateContentAssetsForGeneration(
-        queryClient,
-        generatedContentId
-      );
+      void invalidateContentAssetsForGeneration(queryClient, generatedContentId);
     },
   });
 }

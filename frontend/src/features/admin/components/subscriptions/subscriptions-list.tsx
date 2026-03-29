@@ -1,20 +1,12 @@
-/**
- * Subscriptions List Component - Modern SaaS Design
- *
- * Displays a list of all subscriptions with filtering and search.
- */
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+import { Package, Search, Copy, Check } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
   Select,
@@ -23,31 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { Badge } from "@/shared/components/ui/badge";
-import { Button } from "@/shared/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/components/ui/table";
-import {
-  usePaginatedData,
-  type PaginationInfo,
-} from "@/shared/hooks/use-paginated-data";
-import { ErrorAlert } from "@/shared/components/custom-ui/error-alert";
-import { EmptyState } from "@/shared/components/custom-ui/empty-state";
-import { Subscription } from "@/features/subscriptions/types/subscription.types";
-import { Search, Package, Loader2, Copy, Check } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
+import { usePaginatedData, type PaginationInfo } from "@/shared/hooks/use-paginated-data";
+import { DataTable, type ColumnDef } from "@/shared/components/data-display/DataTable";
+import { Subscription } from "@/features/subscriptions/types/subscription.types";
+
+const API_ENDPOINT = "/api/admin/subscriptions";
 
 function UserIdCell({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false);
@@ -82,269 +60,161 @@ function UserIdCell({ userId }: { userId: string }) {
   );
 }
 
+function SubscriptionStatusBadge({ status }: { status: string }) {
+  const s = status.toLowerCase();
+  if (s === "active") return <Badge className="capitalize">{s}</Badge>;
+  if (s === "trialing") return <Badge variant="secondary" className="capitalize">{s}</Badge>;
+  if (s === "past_due") return <Badge variant="destructive" className="capitalize">{s}</Badge>;
+  if (s === "canceled") return <Badge variant="outline" className="capitalize">{s}</Badge>;
+  return <Badge variant="secondary" className="capitalize">{s}</Badge>;
+}
+
 export function SubscriptionsList() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [tierFilter, setTierFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [tierFilter, setTierFilter] = useState("all");
 
-  // Build URL with filters - SWR will cache each unique combination
   const urlBuilder = useMemo(
     () => (page: number, limit: number) => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-      if (statusFilter !== "all") params.append("status", statusFilter);
-      if (tierFilter !== "all") params.append("tier", tierFilter);
-
-      return `/api/admin/subscriptions?${params.toString()}`;
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (tierFilter !== "all") params.set("tier", tierFilter);
+      return `${API_ENDPOINT}?${params}`;
     },
     [statusFilter, tierFilter]
   );
 
-  // Fetch subscriptions with pagination using SWR
-  const { data, loading, error, pagination, fetchPage } =
-    usePaginatedData<Subscription>(urlBuilder, {
-      initialLimit: 20,
-      serviceName: "subscriptions-list",
-      transformResponse: (response: unknown) => {
-        const apiResponse = response as {
-          subscriptions: Subscription[];
-          pagination: PaginationInfo;
-        };
-        // Response is auto-unwrapped by authenticatedFetchJson
-        const subscriptions = Array.isArray(apiResponse.subscriptions)
-          ? apiResponse.subscriptions
-          : [];
-        const paginationData = apiResponse.pagination || {
-          total: subscriptions.length,
-          page: 1,
-          limit: 20,
-          totalPages: Math.ceil(subscriptions.length / 20),
-          hasMore: false,
-        };
+  const { data, loading, error, pagination, fetchPage } = usePaginatedData<Subscription>(urlBuilder, {
+    initialLimit: 20,
+    serviceName: "subscriptions-list",
+    transformResponse: (response: unknown) => {
+      const r = response as { subscriptions: Subscription[]; pagination: PaginationInfo };
+      const list = Array.isArray(r.subscriptions) ? r.subscriptions : [];
+      const p = r.pagination ?? { total: list.length, page: 1, limit: 20, totalPages: 1, hasMore: false };
+      return { data: list, pagination: { page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages, hasMore: p.hasMore } };
+    },
+  });
 
-        return {
-          data: subscriptions,
-          pagination: {
-            page: paginationData.page,
-            limit: paginationData.limit,
-            total: paginationData.total,
-            totalPages: paginationData.totalPages,
-            hasMore: paginationData.hasMore || false,
-          },
-        };
-      },
-    });
-
-  // Refetch when filters change
   useEffect(() => {
     fetchPage(1);
   }, [statusFilter, tierFilter, fetchPage]);
 
-  // Client-side search filtering
-  const filteredSubscriptions = useMemo(() => {
-    if (!data || !Array.isArray(data)) return [];
-    return data.filter((sub) => {
-      const matchesSearch =
-        sub.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sub.tier.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    });
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (!searchTerm.trim()) return data;
+    const q = searchTerm.toLowerCase();
+    return data.filter((s) => s.userId.toLowerCase().includes(q) || s.tier.toLowerCase().includes(q));
   }, [data, searchTerm]);
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "active":
-        return "default";
-      case "trialing":
-        return "secondary";
-      case "past_due":
-        return "destructive";
-      case "canceled":
-        return "outline";
-      default:
-        return "secondary";
-    }
-  };
+  const columns: ColumnDef<Subscription>[] = [
+    {
+      key: "userId",
+      header: t("admin_subscriptions_col_user_id"),
+      cell: (row) => <UserIdCell userId={row.userId} />,
+    },
+    {
+      key: "tier",
+      header: t("admin_subscriptions_col_tier"),
+      cell: (row) => <Badge variant="outline" className="capitalize">{row.tier}</Badge>,
+    },
+    {
+      key: "status",
+      header: t("admin_subscriptions_col_status"),
+      cell: (row) => <SubscriptionStatusBadge status={row.status} />,
+    },
+    {
+      key: "usage",
+      header: t("admin_subscriptions_col_usage"),
+      cell: (row) =>
+        row.usageLimit === null
+          ? <span className="text-muted-foreground">{t("admin_subscriptions_usage_unlimited")}</span>
+          : `${row.usageCount} / ${row.usageLimit}`,
+    },
+    {
+      key: "period",
+      header: t("admin_subscriptions_col_period"),
+      className: "text-muted-foreground",
+      cell: (row) =>
+        row.currentPeriodStart && row.currentPeriodEnd
+          ? `${new Date(row.currentPeriodStart).toLocaleDateString()} - ${new Date(row.currentPeriodEnd).toLocaleDateString()}`
+          : "N/A",
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-[120px]",
+      cell: (row) => (
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/admin/customers" search={{ userId: row.userId } as any}>
+            {t("admin_subscriptions_view_customer")}
+          </Link>
+        </Button>
+      ),
+    },
+  ];
 
-  if (loading && (!Array.isArray(data) || !data.length)) {
-    return (
-      <Card className="border-2">
-        <CardContent className="py-12">
-          <div className="flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-              <p className="text-muted-foreground">Loading subscriptions...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const paginationState = pagination
+    ? { page: pagination.page, totalPages: pagination.totalPages, total: pagination.total, hasMore: pagination.hasMore }
+    : undefined;
+
+  const filters = (
+    <div className="flex flex-wrap items-end gap-4">
+      <div className="relative flex-1 max-w-xs">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t("admin_subscriptions_placeholder_search")}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9 h-10"
+        />
+      </div>
+      <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectTrigger className="w-[150px] h-10">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Statuses</SelectItem>
+          <SelectItem value="active">Active</SelectItem>
+          <SelectItem value="trialing">Trialing</SelectItem>
+          <SelectItem value="past_due">Past Due</SelectItem>
+          <SelectItem value="canceled">Canceled</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={tierFilter} onValueChange={setTierFilter}>
+        <SelectTrigger className="w-[150px] h-10">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Tiers</SelectItem>
+          <SelectItem value="basic">Basic</SelectItem>
+          <SelectItem value="pro">Pro</SelectItem>
+          <SelectItem value="enterprise">Enterprise</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
-    <Card className="border-2">
-      <CardHeader>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="text-xl">
-              {t("metadata_admin_subscriptions_title")}
-            </CardTitle>
-            <CardDescription className="mt-1">
-              {t("metadata_admin_subscriptions_description")}
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={t("admin_subscriptions_placeholder_search")}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10"
-              />
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4">
-          <div className="space-y-2 min-w-[150px]">
-            <label className="text-base font-medium">Status</label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="trialing">Trialing</SelectItem>
-                <SelectItem value="past_due">Past Due</SelectItem>
-                <SelectItem value="canceled">Canceled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 min-w-[150px]">
-            <label className="text-base font-medium">Tier</label>
-            <Select value={tierFilter} onValueChange={setTierFilter}>
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tiers</SelectItem>
-                <SelectItem value="basic">Basic</SelectItem>
-                <SelectItem value="pro">Pro</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <ErrorAlert error={error} />
-
-        {/* Table */}
-        {filteredSubscriptions.length === 0 && !loading ? (
-          <EmptyState
-            icon={Package}
-            title={t("admin_subscriptions_empty_title")}
-            description={t("admin_subscriptions_empty_description")}
-            variant="minimal"
-          />
-        ) : (
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">User ID</TableHead>
-                  <TableHead className="font-semibold">Tier</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Usage</TableHead>
-                  <TableHead className="font-semibold">Period</TableHead>
-                  <TableHead className="font-semibold">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSubscriptions.map((sub) => (
-                  <TableRow
-                    key={sub.id}
-                    className="hover:bg-muted/50 transition-colors"
-                  >
-                    <TableCell className="font-medium">
-                      <UserIdCell userId={sub.userId} />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {sub.tier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={getStatusBadgeVariant(sub.status)}
-                        className="capitalize"
-                      >
-                        {sub.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-base">
-                      {sub.usageLimit === null ? (
-                        <span className="text-muted-foreground">Unlimited</span>
-                      ) : (
-                        `${sub.usageCount} / ${sub.usageLimit}`
-                      )}
-                    </TableCell>
-                    <TableCell className="text-base text-muted-foreground">
-                      {sub.currentPeriodStart && sub.currentPeriodEnd
-                        ? `${new Date(sub.currentPeriodStart).toLocaleDateString()} - ${new Date(sub.currentPeriodEnd).toLocaleDateString()}`
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link
-                          to="/admin/customers"
-                          search={{ userId: sub.userId } as any}
-                        >
-                          View Customer
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="text-base text-muted-foreground">
-              Showing page {pagination.page} of {pagination.totalPages} (
-              {pagination.total} total)
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchPage(pagination.page - 1)}
-                disabled={pagination.page <= 1}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchPage(pagination.page + 1)}
-                disabled={!pagination.hasMore}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <DataTable
+      title={t("metadata_admin_subscriptions_title")}
+      columns={columns}
+      data={filteredData}
+      isLoading={loading}
+      error={error ?? undefined}
+      pagination={paginationState}
+      onPageChange={fetchPage}
+      filters={filters}
+      emptyIcon={Package}
+      emptyMessage={t("admin_subscriptions_empty_title")}
+      emptyDescription={t("admin_subscriptions_empty_description")}
+      paginationLabels={{
+        previous: t("common_pagination_previous"),
+        next: t("common_pagination_next"),
+        showing: paginationState
+          ? t("common_pagination_showing", { page: paginationState.page, totalPages: paginationState.totalPages, total: paginationState.total, item: t("common_pagination_subscriptions") })
+          : undefined,
+      }}
+    />
   );
 }

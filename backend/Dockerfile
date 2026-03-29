@@ -1,8 +1,18 @@
 # Backend Dockerfile
+# Match frontend base (oven/bun:1-alpine) so layers dedupe across services; apk is much faster than
+# Debian/trixie apt for ffmpeg + avoids pulling a separate static-ffmpeg image (~minutes on cold builds).
 FROM oven/bun:1-alpine AS base
 
-# Common runtime tools required by media pipeline and startup scripts
-RUN apk add --no-cache ffmpeg libc6-compat tzdata curl postgresql-client
+# fontconfig + DejaVu: drawtext in editor export; curl/psql for ops / debugging.
+RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
+    apk update \
+    && apk add \
+        curl \
+        ffmpeg \
+        font-dejavu \
+        fontconfig \
+        postgresql16-client \
+        tzdata
 
 # Install dependencies only when needed
 FROM base AS deps

@@ -2,32 +2,24 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Loader2, MessageSquarePlus, PanelRight } from "lucide-react";
-import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug/debug";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryClient } from "@tanstack/react-query";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import {
   invalidateChatProjectsQueries,
-  invalidateContentAssetsForGeneration,
   invalidateEditorProjectsQueries,
   invalidateQueueQueries,
 } from "@/shared/lib/query-invalidation";
-import { useVideoJob } from "@/features/video/hooks/use-video-job";
-import type { VideoJobResponse } from "@/features/video/types/video.types";
-import {
-  clearPersistedStudioVideoJob,
-  findActiveReelJobCandidateFromDrafts,
-  persistStudioVideoJob,
-  readPersistedStudioVideoJob,
-} from "@/features/video/lib/studio-video-job-storage";
-import { useSessionDrafts } from "../hooks/use-session-drafts";
 import { useApp } from "@/shared/contexts/app-context";
+import { reelsService } from "@/features/reels/services/reels.service";
+import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ContentWorkspace } from "./ContentWorkspace";
 import { useChatSession } from "../hooks/use-chat-sessions";
 import { useChatStream } from "../hooks/use-chat-stream";
+import { useSessionDrafts } from "../hooks/use-session-drafts";
+import { useVideoJobManager } from "../hooks/use-video-job-manager";
 import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import type { Project, ChatSession, ChatMessage } from "../types/chat.types";
 import type { Reel } from "@/features/reels/types/reel.types";
@@ -53,16 +45,12 @@ export function ChatLayout({
   };
   const navigate = useNavigate();
   const { user } = useApp();
-  const { authenticatedFetchJson } = useAuthenticatedFetch();
   const queryClient = useQueryClient();
 
   const { hasEnterpriseAccess } = useSubscription();
   const sessionId = search.sessionId || "";
-  const { data: sessionData, isLoading: sessionLoading } =
-    useChatSession(sessionId);
-  const { data: sessionDraftsData } = useSessionDrafts(
-    sessionId.length > 0 ? sessionId : null
-  );
+  const { data: sessionData, isLoading: sessionLoading } = useChatSession(sessionId);
+  const { data: sessionDraftsData } = useSessionDrafts(sessionId.length > 0 ? sessionId : null);
   const {
     sendMessage,
     optimisticUserMessage,
@@ -75,188 +63,28 @@ export function ChatLayout({
     streamingContentId,
     resetLimitReached,
   } = useChatStream(sessionId);
+
   const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
   const [pendingReelIds, setPendingReelIds] = useState<number[]>([]);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [activeContentId, setActiveContentId] = useState<number | null>(null);
-  const [requestAudioForContentId, setRequestAudioForContentId] = useState<
-    number | null
-  >(null);
+  const [requestAudioForContentId, setRequestAudioForContentId] = useState<number | null>(null);
 
-  const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
-    null
-  );
-  const { data: videoJobData } = useVideoJob(videoJobId);
-  const prevVideoStatusRef = useRef<string | null>(null);
-  const videoJobToastIdRef = useRef<string | number | null>(null);
-  const [reelProgressToastHiddenByUser, setReelProgressToastHiddenByUser] =
-    useState(false);
-  const prevSessionIdForVideoRef = useRef<string>("");
+  const {
+    videoJobId,
+    videoJobContentId,
+    videoJobData,
+    reelJobRunning,
+    showReelProgressRecall,
+    handleVideoJobStarted,
+    handleShowReelProgressToast,
+  } = useVideoJobManager({
+    sessionId,
+    userId: user?.uid,
+    drafts: sessionDraftsData?.drafts,
+  });
 
-  const reelGeneratingDescription = useMemo(() => {
-    const progress = videoJobData?.job.progress;
-    const { shotsCompleted, totalShots } = progress ?? {};
-    if (
-      shotsCompleted !== undefined &&
-      totalShots !== undefined &&
-      totalShots > 0
-    ) {
-      return t("workspace_video_generating_toast_shot_progress", {
-        completed: shotsCompleted,
-        total: totalShots,
-      });
-    }
-    return t("workspace_video_generating_toast_description");
-  }, [
-    videoJobData?.job.progress?.shotsCompleted,
-    videoJobData?.job.progress?.totalShots,
-    t,
-  ]);
-
-  const reelGeneratingToastOpts = useCallback(
-    (description: string) => ({
-      description,
-      duration: Infinity,
-      closeButton: true,
-      onDismiss: () => {
-        videoJobToastIdRef.current = null;
-        setReelProgressToastHiddenByUser(true);
-      },
-      cancel: {
-        label: t("workspace_video_generating_toast_hide"),
-        onClick: () => {
-          const id = videoJobToastIdRef.current;
-          if (id != null) toast.dismiss(id);
-          videoJobToastIdRef.current = null;
-          setReelProgressToastHiddenByUser(true);
-        },
-      },
-    }),
-    [t]
-  );
-
-  const handleVideoJobStarted = useCallback(
-    (jobId: string, contentId: number) => {
-      setReelProgressToastHiddenByUser(false);
-      setVideoJobId(jobId);
-      setVideoJobContentId(contentId);
-      if (sessionId) {
-        persistStudioVideoJob(sessionId, { jobId, contentId });
-      }
-      videoJobToastIdRef.current = toast.loading(
-        t("workspace_video_generating"),
-        reelGeneratingToastOpts(
-          t("workspace_video_generating_toast_description")
-        )
-      );
-    },
-    [t, reelGeneratingToastOpts, sessionId]
-  );
-
-  const handleShowReelProgressToast = useCallback(() => {
-    if (videoJobToastIdRef.current != null) return;
-    const status = videoJobData?.job.status;
-    if (status !== "queued" && status !== "running") return;
-    setReelProgressToastHiddenByUser(false);
-    videoJobToastIdRef.current = toast.loading(
-      t("workspace_video_generating"),
-      reelGeneratingToastOpts(reelGeneratingDescription)
-    );
-  }, [
-    videoJobData?.job.status,
-    reelGeneratingDescription,
-    t,
-    reelGeneratingToastOpts,
-  ]);
-
-  // Clear in-flight video job when switching chat sessions (URL session id).
-  useEffect(() => {
-    if (prevSessionIdForVideoRef.current === sessionId) return;
-    const hadPreviousSession = prevSessionIdForVideoRef.current !== "";
-    prevSessionIdForVideoRef.current = sessionId;
-    if (!hadPreviousSession) return;
-
-    setVideoJobId(null);
-    setVideoJobContentId(null);
-    prevVideoStatusRef.current = null;
-    setReelProgressToastHiddenByUser(false);
-    if (videoJobToastIdRef.current != null) {
-      toast.dismiss(videoJobToastIdRef.current);
-      videoJobToastIdRef.current = null;
-    }
-  }, [sessionId]);
-
-  // Restore in-flight video job from sessionStorage after refresh / new tab.
-  useEffect(() => {
-    if (!sessionId || !user) return;
-    let cancelled = false;
-
-    void (async () => {
-      const persisted = readPersistedStudioVideoJob(sessionId);
-      if (!persisted) return;
-      try {
-        const data = await authenticatedFetchJson<VideoJobResponse>(
-          `/api/video/jobs/${persisted.jobId}`
-        );
-        if (cancelled) return;
-        const s = data.job.status;
-        if (s === "queued" || s === "running") {
-          setVideoJobId((prev) => prev ?? persisted.jobId);
-          setVideoJobContentId((prev) => prev ?? persisted.contentId);
-          setReelProgressToastHiddenByUser(false);
-        } else {
-          clearPersistedStudioVideoJob(sessionId);
-        }
-      } catch {
-        if (!cancelled) clearPersistedStudioVideoJob(sessionId);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, user, authenticatedFetchJson]);
-
-  // Fallback when storage was cleared: draft metadata still has phase4 assembly queued/running.
-  useEffect(() => {
-    if (!sessionId || !user) return;
-    if (readPersistedStudioVideoJob(sessionId)) return;
-    const drafts = sessionDraftsData?.drafts;
-    if (!drafts?.length) return;
-
-    let cancelled = false;
-    const candidate = findActiveReelJobCandidateFromDrafts(drafts);
-    if (!candidate) return;
-
-    void (async () => {
-      try {
-        const data = await authenticatedFetchJson<VideoJobResponse>(
-          `/api/video/jobs/${candidate.jobId}`
-        );
-        if (cancelled) return;
-        const s = data.job.status;
-        if (s === "queued" || s === "running") {
-          setVideoJobId((prev) => prev ?? candidate.jobId);
-          setVideoJobContentId((prev) => prev ?? candidate.contentId);
-          setReelProgressToastHiddenByUser(false);
-          persistStudioVideoJob(sessionId, {
-            jobId: candidate.jobId,
-            contentId: candidate.contentId,
-          });
-        }
-      } catch {
-        // stale job id in metadata — ignore
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, user, authenticatedFetchJson, sessionDraftsData?.drafts]);
-
-  // Derive selection from URL + loaded data so we never clear the project when
-  // `projects` is briefly empty or session loads before the list is ready.
+  // Derive selection from URL + loaded data
   const selectedProject = useMemo((): Project | undefined => {
     if (!projects?.length) return undefined;
     if (search.projectId) {
@@ -264,16 +92,14 @@ export function ChatLayout({
       if (fromUrl) return fromUrl;
     }
     const sessionPid = sessionData?.session?.projectId;
-    if (sessionPid) {
-      return projects.find((p) => p.id === sessionPid);
-    }
+    if (sessionPid) return projects.find((p) => p.id === sessionPid);
     return undefined;
   }, [projects, search.projectId, sessionData?.session?.projectId]);
 
   const selectedSession = sessionData?.session;
-  const isSessionResolving =
-    Boolean(sessionId) && sessionLoading && !sessionData;
+  const isSessionResolving = Boolean(sessionId) && sessionLoading && !sessionData;
 
+  // Reset per-session state when session changes
   const prevSessionIdForResetRef = useRef(sessionId);
   useEffect(() => {
     if (prevSessionIdForResetRef.current === sessionId) return;
@@ -285,8 +111,6 @@ export function ChatLayout({
   }, [sessionId]);
 
   const lastReelRefs = useMemo(() => {
-    // During streaming, use the refs from the just-sent message so the reel
-    // attachment UI stays correct before sessionData has refreshed.
     if (isStreaming && pendingReelIds.length > 0) return pendingReelIds;
     if (!sessionData) return [];
     const userMessages = sessionData.messages.filter((m) => m.role === "user");
@@ -300,28 +124,13 @@ export function ChatLayout({
 
     const loadReels = async () => {
       try {
-        // If we have message-based reel refs, load those
         if (lastReelRefs.length > 0) {
-          const data = await authenticatedFetchJson<{ reels: Reel[] }>(
-            "/api/reels/bulk",
-            {
-              method: "POST",
-              body: JSON.stringify({ ids: lastReelRefs }),
-            }
-          );
+          const data = await reelsService.getBulkReels(lastReelRefs);
           if (!cancelled) setActiveReelRefs(data.reels);
-        }
-        // Otherwise, use URL reelId as fallback for initial session setup
-        else if (search.reelId && sessionData) {
-          const data = await authenticatedFetchJson<{ reel: Reel }>(
-            `/api/reels/${search.reelId}`
-          );
-          if (!cancelled && data.reel) {
-            setActiveReelRefs([data.reel]);
-          }
-        }
-        // If neither exists, clear the reels
-        else {
+        } else if (search.reelId && sessionData) {
+          const data = await reelsService.getReel(Number(search.reelId));
+          if (!cancelled && data.reel) setActiveReelRefs([data.reel as unknown as Reel]);
+        } else {
           if (!cancelled) setActiveReelRefs([]);
         }
       } catch (error) {
@@ -329,18 +138,48 @@ export function ChatLayout({
           service: "chat-layout",
           operation: "loadReels",
           error: error instanceof Error ? error.message : String(error),
-          lastReelRefs,
-          reelId: search.reelId,
         });
         if (!cancelled) setActiveReelRefs([]);
       }
     };
 
     void loadReels();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [lastReelRefs, search.reelId]);
+
+  // Invalidate queue when new content is generated
+  useEffect(() => {
+    if (!streamingContentId) return;
+    void invalidateQueueQueries(queryClient);
+  }, [streamingContentId, queryClient]);
+
+  // Auto-create editor project after generation
+  useEffect(() => {
+    if (!streamingContentId) return;
+    void authenticatedFetchJson("/api/editor", {
+      method: "POST",
+      body: JSON.stringify({ generatedContentId: streamingContentId }),
+    })
+      .then(() => {
+        void invalidateEditorProjectsQueries(queryClient);
+        void invalidateChatProjectsQueries(queryClient);
+      })
+      .catch((err) => {
+        const status = (err as { status?: number }).status;
+        const body = (err as { body?: { error?: string } }).body;
+        if (status === 409 && body?.error === "project_exists") {
+          void invalidateEditorProjectsQueries(queryClient);
+          void invalidateChatProjectsQueries(queryClient);
+          return;
+        }
+        debugLog.error("Failed to auto-create editor project", {
+          service: "chat-layout",
+          operation: "auto-create-editor",
+          contentId: streamingContentId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+  }, [streamingContentId, queryClient]);
 
   const handleProjectSelect = (project: Project) => {
     navigate({
@@ -364,12 +203,7 @@ export function ChatLayout({
     if (!sessionId) return;
     setPendingReelIds(reelRefs ?? []);
     try {
-      await sendMessage(
-        content,
-        reelRefs,
-        activeContentId ?? undefined,
-        mediaRefs
-      );
+      await sendMessage(content, reelRefs, activeContentId ?? undefined, mediaRefs);
     } catch (error) {
       debugLog.error("Failed to send message", {
         service: "chat-layout",
@@ -396,131 +230,6 @@ export function ChatLayout({
     setWorkspaceOpen(true);
   }, []);
 
-  // Invalidate the queue whenever new content is generated so the queue page
-  // reflects the new item without requiring a manual refresh.
-  useEffect(() => {
-    if (!streamingContentId) return;
-    void invalidateQueueQueries(queryClient);
-  }, [streamingContentId, queryClient]);
-
-  // Auto-create an editor project in the background so the project is ready
-  // when the user navigates to the editor after generation.
-  useEffect(() => {
-    if (!streamingContentId) return;
-    void authenticatedFetchJson("/api/editor", {
-      method: "POST",
-      body: JSON.stringify({ generatedContentId: streamingContentId }),
-    })
-      .then(() => {
-        void invalidateEditorProjectsQueries(queryClient);
-        void invalidateChatProjectsQueries(queryClient);
-      })
-      .catch((err) => {
-        const status = (err as { status?: number }).status;
-        const body = (err as { body?: { error?: string } }).body;
-        if (status === 409 && body?.error === "project_exists") {
-          void invalidateEditorProjectsQueries(queryClient);
-          void invalidateChatProjectsQueries(queryClient);
-          return;
-        }
-        debugLog.error("Failed to auto-create editor project", {
-          service: "chat-layout",
-          operation: "auto-create-editor",
-          contentId: streamingContentId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-  }, [streamingContentId, authenticatedFetchJson, queryClient]);
-
-  // Restore loading toast if a job was already running (e.g. panel was closed then reopened).
-  useEffect(() => {
-    const status = videoJobData?.job.status;
-    if (
-      (status === "queued" || status === "running") &&
-      videoJobToastIdRef.current === null &&
-      videoJobId !== null &&
-      !reelProgressToastHiddenByUser
-    ) {
-      videoJobToastIdRef.current = toast.loading(
-        t("workspace_video_generating"),
-        reelGeneratingToastOpts(reelGeneratingDescription)
-      );
-    }
-  }, [
-    videoJobData?.job.status,
-    videoJobId,
-    t,
-    reelGeneratingToastOpts,
-    reelProgressToastHiddenByUser,
-    reelGeneratingDescription,
-  ]);
-
-  // Keep toast copy in sync with shot progress while the job runs.
-  useEffect(() => {
-    if (videoJobToastIdRef.current == null) return;
-    const status = videoJobData?.job.status;
-    if (status !== "queued" && status !== "running") return;
-
-    toast.loading(t("workspace_video_generating"), {
-      id: videoJobToastIdRef.current,
-      ...reelGeneratingToastOpts(reelGeneratingDescription),
-    });
-  }, [
-    videoJobData?.job.status,
-    reelGeneratingDescription,
-    t,
-    reelGeneratingToastOpts,
-  ]);
-
-  useEffect(() => {
-    const status = videoJobData?.job.status ?? null;
-    const prev = prevVideoStatusRef.current;
-    prevVideoStatusRef.current = status;
-
-    if (status === "completed") {
-      setVideoJobId(null);
-      setVideoJobContentId(null);
-      if (sessionId) clearPersistedStudioVideoJob(sessionId);
-      void invalidateContentAssetsForGeneration(
-        queryClient,
-        videoJobContentId ?? 0
-      );
-      if (prev !== "completed") {
-        const tid = videoJobToastIdRef.current;
-        toast.success(t("workspace_video_ready"), {
-          ...(tid != null ? { id: tid } : {}),
-          description: t("workspace_video_ready_toast_description"),
-          duration: 6000,
-          closeButton: true,
-        });
-        videoJobToastIdRef.current = null;
-        setReelProgressToastHiddenByUser(false);
-      }
-    } else if (status === "failed") {
-      setVideoJobId(null);
-      setVideoJobContentId(null);
-      if (sessionId) clearPersistedStudioVideoJob(sessionId);
-      if (prev !== "failed") {
-        const tid = videoJobToastIdRef.current;
-        toast.error(t("workspace_video_failed"), {
-          ...(tid != null ? { id: tid } : {}),
-          description: videoJobData?.job.error ?? undefined,
-          duration: 8000,
-          closeButton: true,
-        });
-        videoJobToastIdRef.current = null;
-        setReelProgressToastHiddenByUser(false);
-      }
-    }
-  }, [
-    videoJobData?.job.status,
-    videoJobData?.job.error,
-    t,
-    queryClient,
-    videoJobContentId,
-    sessionId,
-  ]);
-
   const workspaceToggleClass = useMemo(() => {
     const base =
       "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-sm font-medium transition-all duration-150";
@@ -530,22 +239,12 @@ export function ChatLayout({
     return `${base} border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:border-border`;
   }, [workspaceOpen]);
 
-  const reelJobRunning =
-    videoJobId !== null &&
-    (videoJobData?.job.status === "queued" ||
-      videoJobData?.job.status === "running");
-  const showReelProgressRecall =
-    reelJobRunning && reelProgressToastHiddenByUser;
-
   // Combine server messages with optimistic/streaming overlay
   const displayMessages = useMemo((): ChatMessage[] => {
     const server = sessionData?.messages ?? [];
     const serverIds = new Set(server.map((m) => m.id));
     const extra: ChatMessage[] = [];
 
-    // Skip optimistic message if already injected into the cache (avoids
-    // the duplicate-key flash when setQueryData fires synchronously before
-    // setOptimisticUserMessage(null) is committed).
     if (optimisticUserMessage && !serverIds.has(optimisticUserMessage.id)) {
       extra.push(optimisticUserMessage);
     }
@@ -591,13 +290,9 @@ export function ChatLayout({
           <>
             <div className="border-b px-5 py-3 shrink-0 flex items-center justify-between gap-3 min-w-0">
               <div className="min-w-0 flex-1">
-                <h2 className="text-base font-semibold truncate">
-                  {selectedSession.title}
-                </h2>
+                <h2 className="text-base font-semibold truncate">{selectedSession.title}</h2>
                 {selectedProject && (
-                  <p className="text-sm text-muted-foreground truncate">
-                    {selectedProject.name}
-                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{selectedProject.name}</p>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -648,9 +343,7 @@ export function ChatLayout({
             </div>
             <div>
               <h2 className="text-lg font-semibold mb-1">
-                {selectedProject
-                  ? selectedProject.name
-                  : t("studio_chat_selectProject")}
+                {selectedProject ? selectedProject.name : t("studio_chat_selectProject")}
               </h2>
               <p className="text-base text-muted-foreground max-w-xs">
                 {selectedProject

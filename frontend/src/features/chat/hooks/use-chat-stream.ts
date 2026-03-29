@@ -8,6 +8,11 @@ import {
 } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
+import {
+  drainSseStreamIntoIngest,
+  type StreamIngestState,
+  type StreamIngestSetters,
+} from "../services/sse-client";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -18,172 +23,14 @@ export const STREAMING_MESSAGE_ID = "streaming-ai-response";
 
 const STREAM_REQUEST_TIMEOUT_MS = 120_000;
 
-/**
- * Tools that persist content — drives the “saving” indicator in the UI.
- */
-const CONTENT_WRITING_TOOLS = new Set([
-  "save_content",
-  "iterate_content",
-  "edit_content_field",
-]);
-
 // ---------------------------------------------------------------------------
-// Query cache shape (session detail)
+// Query cache shape
 // ---------------------------------------------------------------------------
 
 type ChatSessionQueryData = {
   session: unknown;
   messages: ChatMessage[];
 };
-
-// ---------------------------------------------------------------------------
-// SSE / stream parsing (module scope keeps the hook thin)
-// ---------------------------------------------------------------------------
-
-/**
- * Strips `<tool_call>...</tool_call>` from streamed text so the chat UI stays clean
- * when models emit tool XML as plain text (e.g. some OpenRouter models).
- */
-function filterToolCallXml(text: string): string {
-  let filtered = text
-    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
-    .trimEnd();
-  const openIdx = filtered.lastIndexOf("<tool_call>");
-  if (openIdx !== -1) {
-    filtered = filtered.substring(0, openIdx).trimEnd();
-  }
-  return filtered;
-}
-
-type StreamIngestState = {
-  accumulated: string;
-  textDeltaCount: number;
-};
-
-type StreamIngestSetters = {
-  setStreamingContent: (value: string | null) => void;
-  setIsSavingContent: (value: boolean) => void;
-  setStreamingContentId: (value: number | null) => void;
-  setStreamError: (value: string | null) => void;
-};
-
-function parseSseDataPayload(line: string): string | null {
-  const trimmed = line.trim();
-  if (!trimmed || !trimmed.startsWith("data: ")) return null;
-  return trimmed.slice(6);
-}
-
-function accumulatedMentionsContentWritingTool(accumulated: string): boolean {
-  if (!accumulated.includes("<tool_call>")) return false;
-  for (const name of CONTENT_WRITING_TOOLS) {
-    if (accumulated.includes(name)) return true;
-  }
-  return false;
-}
-
-function processStreamSseLine(
-  line: string,
-  state: StreamIngestState,
-  setters: StreamIngestSetters
-): void {
-  const jsonStr = parseSseDataPayload(line);
-  if (jsonStr === null) return;
-  if (jsonStr === "[DONE]") {
-    debugLog.info("[ChatStream] Received [DONE] signal");
-    return;
-  }
-
-  try {
-    const chunk = JSON.parse(jsonStr) as {
-      type: string;
-      [key: string]: unknown;
-    };
-
-    debugLog.debug("[ChatStream] Processed chunk", { chunk });
-
-    switch (chunk.type) {
-      case "text-delta": {
-        state.textDeltaCount++;
-        state.accumulated += (chunk.delta as string) ?? "";
-        const displayText = filterToolCallXml(state.accumulated);
-        setters.setStreamingContent(displayText || null);
-        if (accumulatedMentionsContentWritingTool(state.accumulated)) {
-          setters.setIsSavingContent(true);
-        }
-        if (state.textDeltaCount % 20 === 0) {
-          debugLog.debug("[ChatStream] text-delta progress", {
-            textDeltaCount: state.textDeltaCount,
-            accumulatedLength: state.accumulated.length,
-          });
-        }
-        break;
-      }
-      case "tool-input-start": {
-        debugLog.info("[ChatStream] tool-input-start received", {
-          toolName: chunk.toolName,
-        });
-        if (CONTENT_WRITING_TOOLS.has(chunk.toolName as string)) {
-          setters.setIsSavingContent(true);
-        }
-        break;
-      }
-      case "tool-output-available": {
-        const output = chunk.output as {
-          contentId?: number;
-          success?: boolean;
-        } | null;
-        debugLog.info("[ChatStream] tool-output-available received", {
-          toolName: chunk.toolName,
-          success: output?.success,
-          contentId: output?.contentId,
-        });
-        if (output?.contentId) {
-          setters.setStreamingContentId(output.contentId);
-        }
-        setters.setIsSavingContent(false);
-        break;
-      }
-      case "error": {
-        const errorText = (chunk.errorText as string) || "An error occurred";
-        debugLog.error("[ChatStream] Error chunk received from server", {
-          errorText,
-        });
-        setters.setStreamError(errorText);
-        break;
-      }
-      default:
-        debugLog.debug("[ChatStream] SSE event", { type: chunk.type });
-    }
-  } catch {
-    // malformed chunk — skip
-  }
-}
-
-async function drainSseStreamIntoIngest(
-  body: ReadableStream<Uint8Array>,
-  ingest: StreamIngestState,
-  setters: StreamIngestSetters
-): Promise<{ chunkCount: number }> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let chunkCount = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunkCount++;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      processStreamSseLine(line, ingest, setters);
-    }
-  }
-  if (buffer) processStreamSseLine(buffer, ingest, setters);
-
-  return { chunkCount };
-}
 
 // ---------------------------------------------------------------------------
 // sendMessage helpers
@@ -236,9 +83,6 @@ async function handleChatMessagesForbiddenResponse(
 /**
  * Merges optimistic user + pending assistant text into the session query cache
  * in one update so the UI does not flash four messages for a frame.
- *
- * Uses `ai-pending-*` (not `streamingIdRef`) so the overlay row and cache row
- * never share an id during the synchronous `setQueryData` → render window.
  */
 function patchSessionCacheAfterStream(
   queryClient: QueryClient,
@@ -283,9 +127,7 @@ export function useChatStream(sessionId: string) {
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isLimitReached, setIsLimitReached] = useState(false);
   const [isSavingContent, setIsSavingContent] = useState(false);
-  const [streamingContentId, setStreamingContentId] = useState<number | null>(
-    null
-  );
+  const [streamingContentId, setStreamingContentId] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
 
@@ -320,12 +162,7 @@ export function useChatStream(sessionId: string) {
       abortRef.current = controller;
       streamingIdRef.current = `streaming-${sessionId}-${Date.now()}`;
 
-      const optimisticMsg = buildOptimisticUserMessage(
-        sessionId,
-        content,
-        reelRefs,
-        mediaRefs
-      );
+      const optimisticMsg = buildOptimisticUserMessage(sessionId, content, reelRefs, mediaRefs);
       setOptimisticUserMessage(optimisticMsg);
       setStreamingContent("");
       setIsStreaming(true);
@@ -333,9 +170,7 @@ export function useChatStream(sessionId: string) {
       setIsSavingContent(false);
       setStreamingContentId(null);
 
-      debugLog.info(
-        "[ChatStream] Optimistic user message set, sending HTTP POST"
-      );
+      debugLog.info("[ChatStream] Optimistic user message set, sending HTTP POST");
 
       try {
         const fetchStart = Date.now();
@@ -344,12 +179,7 @@ export function useChatStream(sessionId: string) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content,
-              reelRefs,
-              activeContentId,
-              mediaRefs,
-            }),
+            body: JSON.stringify({ content, reelRefs, activeContentId, mediaRefs }),
             signal: controller.signal,
           },
           STREAM_REQUEST_TIMEOUT_MS
@@ -364,10 +194,7 @@ export function useChatStream(sessionId: string) {
 
         if (await handleChatMessagesForbiddenResponse(response, queryClient)) {
           setIsLimitReached(true);
-          clearVisibleStreamMessages(
-            setOptimisticUserMessage,
-            setStreamingContent
-          );
+          clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
           return;
         }
 
@@ -376,10 +203,7 @@ export function useChatStream(sessionId: string) {
 
         debugLog.info("[ChatStream] Starting SSE stream read");
 
-        const ingest: StreamIngestState = {
-          accumulated: "",
-          textDeltaCount: 0,
-        };
+        const ingest: StreamIngestState = { accumulated: "", textDeltaCount: 0 };
         const setters: StreamIngestSetters = {
           setStreamingContent,
           setIsSavingContent,
@@ -387,11 +211,7 @@ export function useChatStream(sessionId: string) {
           setStreamError,
         };
 
-        const { chunkCount } = await drainSseStreamIntoIngest(
-          response.body,
-          ingest,
-          setters
-        );
+        const { chunkCount } = await drainSseStreamIntoIngest(response.body, ingest, setters);
 
         debugLog.info("[ChatStream] Stream complete", {
           chunkCount,
@@ -399,16 +219,8 @@ export function useChatStream(sessionId: string) {
           finalContentLength: ingest.accumulated.length,
         });
 
-        patchSessionCacheAfterStream(
-          queryClient,
-          sessionId,
-          optimisticMsg,
-          ingest.accumulated
-        );
-        clearVisibleStreamMessages(
-          setOptimisticUserMessage,
-          setStreamingContent
-        );
+        patchSessionCacheAfterStream(queryClient, sessionId, optimisticMsg, ingest.accumulated);
+        clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
 
         debugLog.info("[ChatStream] Triggering background session refresh");
         void invalidateChatSessionQuery(queryClient, sessionId);
@@ -422,14 +234,9 @@ export function useChatStream(sessionId: string) {
           });
           if (err instanceof Error) setStreamError(err.message);
         }
-        clearVisibleStreamMessages(
-          setOptimisticUserMessage,
-          setStreamingContent
-        );
+        clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
       } finally {
-        debugLog.info(
-          "[ChatStream] sendMessage finished — resetting streaming state"
-        );
+        debugLog.info("[ChatStream] sendMessage finished — resetting streaming state");
         setIsStreaming(false);
         setIsSavingContent(false);
       }

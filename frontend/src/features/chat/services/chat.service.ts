@@ -1,8 +1,9 @@
-import { authenticatedFetch } from "@/shared/services/api/authenticated-fetch";
+import { authenticatedFetch, authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import type {
   Project,
   ChatSession,
   ChatMessage,
+  SessionDraft,
   CreateProjectRequest,
   UpdateProjectRequest,
   CreateSessionRequest,
@@ -146,6 +147,22 @@ export const chatService = {
     }
     const data = await response.json();
     return data.session;
+  },
+
+  // Session drafts / generated content
+  getSessionDrafts(sessionId: string): Promise<{ drafts: SessionDraft[] }> {
+    return authenticatedFetchJson(`${API_BASE}/chat/sessions/${sessionId}/content`);
+  },
+
+  // Queue
+  async addToQueue(generatedContentId: number): Promise<unknown> {
+    const response = await authenticatedFetch(`${API_BASE}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ generatedContentId }),
+    });
+    if (!response.ok) throw new Error("Failed to send to queue");
+    return response.json();
   },
 
   // Chat Messages
