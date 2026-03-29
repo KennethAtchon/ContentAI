@@ -10,7 +10,7 @@ import {
   validateSignUpForm,
   type SignInFormData,
   type SignUpFormData,
-} from "@/shared/utils/validation/auth-validation";
+} from "@/shared/validation/auth.schema";
 
 describe("auth-validation", () => {
   describe("signInValidationSchema", () => {

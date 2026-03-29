@@ -6,7 +6,7 @@ import {
   validateContactField,
   validateContactForm,
   formatContactPhoneNumber,
-} from "@/shared/utils/validation/contact-validation";
+} from "@/shared/validation/contact.schema";
 
 describe("contact-validation", () => {
   describe("validateContactField.phone", () => {

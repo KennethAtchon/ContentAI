@@ -114,6 +114,17 @@ This section reflects a fresh codebase rescan on March 29, 2026. The sections be
 
 **Decision:** Option B — no shared Stripe Elements form. Subscriptions and one-off checkout go through the Firestore → Firebase extension → Stripe Checkout redirect flow documented in `CLAUDE.md`. The old Elements fallback is removed; extracting `StripePaymentForm` is not required unless the product adds an embedded-card path later.
 
+### 0.5 Verification snapshot (March 29, 2026)
+
+**Automated checks (frontend):** `bun run type-check`, `bun run lint`, and `bun test __tests__/unit` all pass (539 tests across 50 files). Stale test imports were corrected to match the current layout (`@/shared/validation/*.schema.ts`, `AuthProvider` from `shared/contexts/auth-context` with `QueryClientProvider`, mock `useAuthenticatedFetch` for `useQueryFetcher` tests). Obsolete `page-metadata.test.ts` was removed in favor of `metadata.test.ts`; booking-template cases (`validateStaff` / `validateService` / `validateTimeSlot`) were dropped from `data-validation.test.ts` because those helpers no longer exist in `data.schema.ts`.
+
+**§6 line budget spot-check** (hard limits in §6 are goals on touch, not a full-repo guarantee):
+
+| Rule (§6) | Notable files still over the target |
+|---|---|
+| Hook ≤ 150 lines | `use-video-job-manager.ts` (~250), `use-paginated-data.ts` (~220), `use-chat-stream.ts` (~161), `use-subscription.ts` (~158) |
+| Page/route ≤ 80 lines | Many marketing/public routes and some `admin/_layout/*` screens remain large; shrink when those files are edited or if you adopt strict route-only shells |
+
 ---
 
 

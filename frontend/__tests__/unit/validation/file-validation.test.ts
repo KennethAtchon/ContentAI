@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import {
   validateFile,
   generateSecureFilename,
-} from "@/shared/utils/validation/file-validation";
+} from "@/shared/validation/file.schema";
 
 describe("file-validation", () => {
   describe("validateFile", () => {

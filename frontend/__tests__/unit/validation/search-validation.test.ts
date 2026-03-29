@@ -11,7 +11,7 @@ import {
   emailSchema,
   validateSearchInput,
   sanitizeSearchTerm,
-} from "@/shared/utils/validation/search-validation";
+} from "@/shared/validation/search.schema";
 
 describe("search-validation", () => {
   describe("customerSearchSchema", () => {

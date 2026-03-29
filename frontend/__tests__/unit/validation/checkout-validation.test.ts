@@ -7,7 +7,7 @@ import {
   validateField,
   formatPhoneNumber,
   formatZipCode,
-} from "@/shared/utils/validation/checkout-validation";
+} from "@/shared/validation/checkout.schema";
 
 describe("checkout-validation", () => {
   const validBase = {

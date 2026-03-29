@@ -12,20 +12,20 @@ import { z } from "zod";
 import {
   contactFormValidationSchema,
   validateContactField,
-} from "@/shared/utils/validation/contact-validation";
+} from "@/shared/validation/contact.schema";
 import {
   checkoutValidationSchema,
   validateField,
-} from "@/shared/utils/validation/checkout-validation";
+} from "@/shared/validation/checkout.schema";
 import {
   createOrderSchema,
   fileUploadSchema,
   validateInput,
-} from "@/shared/utils/validation/api-validation";
+} from "@/shared/validation/api.schema";
 import {
   validateFile,
   generateSecureFilename,
-} from "@/shared/utils/validation/file-validation";
+} from "@/shared/validation/file.schema";
 
 describe("Input Validation Tests - Production Readiness", () => {
   describe("1. Zod Schema Validation", () => {

@@ -1,22 +1,18 @@
 /**
- * Data validation utilities – safeParseDate, safeFormatTime/Date, validateStaff, validateService,
- * validateTimeSlot, safeArray, safeFormatPrice, validateApiResponse, safeJsonParse, isValidEmail, isValidPhone.
+ * Data validation utilities in `shared/validation/data.schema.ts`.
  */
 import { describe, expect, test } from "bun:test";
 import {
   safeParseDate,
   safeFormatTimeWithTimezone,
   safeFormatDateWithTimezone,
-  validateStaff,
-  validateService,
-  validateTimeSlot,
   safeArray,
   safeFormatPrice,
   validateApiResponse,
   safeJsonParse,
   isValidEmail,
   isValidPhone,
-} from "@/shared/utils/validation/data-validation";
+} from "@/shared/validation/data.schema";
 
 describe("data-validation", () => {
   describe("safeParseDate", () => {
@@ -68,53 +64,6 @@ describe("data-validation", () => {
       const result = safeFormatDateWithTimezone("2024-06-15", "UTC");
       expect(result).toBeDefined();
       expect(result).not.toBe("Invalid date");
-    });
-  });
-
-  describe("validateStaff", () => {
-    test("returns false for null/non-object", () => {
-      expect(validateStaff(null)).toBe(false);
-      expect(validateStaff(123)).toBe(false);
-    });
-    test("returns false when id/name missing", () => {
-      expect(validateStaff({})).toBe(false);
-      expect(validateStaff({ id: "1" })).toBe(false);
-      expect(validateStaff({ name: "A" })).toBe(false);
-    });
-    test("returns false when id/name empty", () => {
-      expect(validateStaff({ id: "", name: "A" })).toBe(false);
-      expect(validateStaff({ id: "1", name: "" })).toBe(false);
-    });
-    test("returns true for valid staff", () => {
-      expect(validateStaff({ id: "1", name: "Alice" })).toBe(true);
-    });
-  });
-
-  describe("validateService", () => {
-    test("returns false for empty or too long", () => {
-      expect(validateService("")).toBe(false);
-      expect(validateService("   ")).toBe(false);
-      expect(validateService("a".repeat(101))).toBe(false);
-    });
-    test("returns true for valid name", () => {
-      expect(validateService("Massage")).toBe(true);
-    });
-  });
-
-  describe("validateTimeSlot", () => {
-    test("returns false for invalid slot", () => {
-      expect(validateTimeSlot(null)).toBe(false);
-      expect(validateTimeSlot({})).toBe(false);
-    });
-    test("returns true when all fields valid", () => {
-      expect(
-        validateTimeSlot({
-          id: "1",
-          startTime: "2024-06-15T09:00:00Z",
-          endTime: "2024-06-15T10:00:00Z",
-          staff: { id: "s1", name: "Alice" },
-        })
-      ).toBe(true);
     });
   });
 

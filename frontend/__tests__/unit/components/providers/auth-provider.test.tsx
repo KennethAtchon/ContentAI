@@ -6,12 +6,13 @@
 import { describe, it, expect, afterEach, mock } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Mock firebase/auth before imports
 mock.module("firebase/auth", () => ({
-  onAuthStateChanged: mock((_auth: any, cb: any) => {
-    cb(null); // No user by default
-    return () => {}; // unsubscribe
+  onAuthStateChanged: mock((_auth: unknown, cb: (user: null) => void) => {
+    cb(null);
+    return () => {};
   }),
   getAuth: mock(() => ({})),
   signInWithEmailAndPassword: mock(),
@@ -22,30 +23,36 @@ mock.module("firebase/auth", () => ({
   GoogleAuthProvider: class {},
 }));
 
-mock.module("@/shared/lib/firebase", () => ({ auth: {} }));
-// Also mock the relative path used by auth-provider.tsx
-mock.module("../../shared/lib/firebase", () => ({ auth: {} }));
+mock.module("@/shared/services/firebase/config", () => ({ auth: {} }));
 
-import { AuthProvider, useAuth } from "@/shared/providers/auth-provider";
+import { AuthProvider, useAuth } from "@/shared/contexts/auth-context";
 
 function TestConsumer() {
-  const { user, loading } = useAuth();
+  const { user, authLoading } = useAuth();
   return (
     <div>
       <span data-testid="user">{user ? "logged-in" : "logged-out"}</span>
-      <span data-testid="loading">{loading ? "loading" : "done"}</span>
+      <span data-testid="loading">{authLoading ? "loading" : "done"}</span>
     </div>
+  );
+}
+
+function renderWithQuery(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>
   );
 }
 
 describe("AuthProvider", () => {
   afterEach(() => {
     cleanup();
-    document.body.innerHTML = "";
   });
 
   it("renders children", () => {
-    render(
+    renderWithQuery(
       <AuthProvider>
         <div data-testid="child">Content</div>
       </AuthProvider>
@@ -54,7 +61,7 @@ describe("AuthProvider", () => {
   });
 
   it("provides user as null when no user logged in", () => {
-    render(
+    renderWithQuery(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
@@ -63,12 +70,11 @@ describe("AuthProvider", () => {
   });
 
   it("transitions loading to done after auth state resolves", () => {
-    render(
+    renderWithQuery(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
     );
-    // onAuthStateChanged calls cb(null) synchronously in mock
     expect(screen.getByTestId("loading").textContent).toBe("done");
   });
 });
@@ -76,11 +82,10 @@ describe("AuthProvider", () => {
 describe("useAuth", () => {
   afterEach(() => {
     cleanup();
-    document.body.innerHTML = "";
   });
 
   it("returns user and loading from context", () => {
-    render(
+    renderWithQuery(
       <AuthProvider>
         <TestConsumer />
       </AuthProvider>
