@@ -8,7 +8,7 @@
 
 ## Table of Contents
 
-0. [Progress Update (March 29, 2026)](#0-progress-update-march-29-2026)
+0. [Progress Update (March 29, 2026)](#0-progress-update-march-29-2026) — includes §0.4 payments decision
 1. [Current Problems](#1-current-problems)
 2. [New Directory Structure](#2-new-directory-structure)
 3. [Feature-by-Feature Breakdown](#3-feature-by-feature-breakdown)
@@ -23,102 +23,99 @@
 
 ---
 
-## 0. Progress Update (March 28, 2026)
+## 0. Progress Update (March 29, 2026)
 
-This section tracks work that is already implemented in code. The sections below this update remain the original reorganization blueprint.
+This section reflects a fresh codebase rescan on March 29, 2026. The sections below this update remain the original reorganization blueprint.
 
 ### 0.1 Phase Completion Status
 
 | Phase | Status | Notes |
 |---|---|---|
-| Phase 1: Foundation | In Progress | Shared/component cleanup and validation consolidation are done; AppContext split is done; remaining feature service migrations are still open |
-| Phase 2: Editor | In Progress | Route slimming, layout decomposition, pure-logic tests, and full `EditorContext` migration into `Inspector`, `Timeline`, `EditorWorkspace`, `EditorTimelineSection` are done |
-| Phase 3: Admin DataTable | Complete | Shared `DataTable` built; all three list components (`customers`, `orders`, `subscriptions`) migrated to use it |
-| Phase 4: Chat | Complete | SSE extraction, chat layout split, project sidebar decomposition, and chat service consolidation are done |
-| Phase 5: Payments | In Progress | Checkout decomposition and `stripe-payment-fallback.tsx` removal are done; shared `StripePaymentForm` extraction is still open |
-| Phase 6: Routing | In Progress | `routes/studio/editor.tsx` converted to thin route file; broader loader rollout is still open |
+| Phase 1: Foundation | Complete | `AppContext` split is in place (`auth-context.tsx`, `profile-context.tsx`, `app-provider.tsx`), shared component reorg is live, and service-layer migration for `reels`/`audio`/`generation` is complete |
+| Phase 2: Editor | Complete | `EditorContext` wired across inspector/timeline/workspace; `Inspector.tsx` is a thin shell with panels under `components/inspector/*`; `Timeline` split into constants + hooks + `SortableTrackHeader`; static data in `inspector-ui-constants.ts`. Optional follow-up: immer/reducer ergonomics (plan §3.1) if desired |
+| Phase 3: Admin DataTable | Complete | Shared `DataTable` exists and `customers`/`orders`/`subscriptions` list screens now consume it |
+| Phase 4: Chat | Complete | SSE transport extraction (`streaming/sse-client.ts`), layout decomposition, sidebar split, and video-job helpers: `features/chat/lib/video-job-toast-copy.ts`, `features/chat/lib/studio-video-job-restore-logic.ts` (orchestration remains in `use-video-job-manager.ts`, ~250 lines) |
+| Phase 5: Payments | Complete (redirect architecture) | Checkout decomposition and fallback deletion are complete; **Stripe Elements shared form is intentionally not built** — billing uses Firebase extension + Stripe Checkout redirect (see §0.4) |
+| Phase 6: Routing | Complete | Thin route files; **TanStack Router `loader`s** prefetch admin lists/dashboard, studio discover/queue, and account usage via `shared/lib/route-data-prefetch.ts` + `app-query-client.ts` / root route context |
 
-### 0.2 Completed Work
+### 0.2 Completed Work (Verified In Code)
 
 #### Shared / Foundation
 
-- Removed legacy custom shared component folders and old fallback form error component.
-- Consolidated imports to canonical shared component locations (`data-display`, `feedback`, `layout`, etc.).
-- Deleted duplicate SEO helper (`shared/services/seo/page-metadata.ts`), keeping the single metadata path.
-- Moved validation schemas into `shared/validation/` and removed old validation file usage.
-
-#### Chat
-
-- Extracted transport logic into `features/chat/streaming/sse-client.ts`.
-- Split oversized chat layout logic into `useChatLayout` + smaller UI composition.
-- Decomposed project sidebar into focused components and hook-driven state handling.
-- Consolidated chat HTTP operations in `features/chat/services/chat.service.ts`.
+- `app-context.tsx` is now a compatibility shim that re-exports `AppProvider`, `useAuth`, and `useProfile`.
+- Split contexts exist and are active:
+  - `shared/contexts/auth-context.tsx`
+  - `shared/contexts/profile-context.tsx`
+  - `shared/contexts/app-provider.tsx`
+- Shared component organization includes:
+  - `shared/components/data-display/DataTable.tsx`
+  - `shared/components/feedback/form-error.tsx`
+  - `shared/components/layout/*`
+  - `shared/components/navigation/*`
+  - `shared/components/saas/*`
+- Dead shared files from plan are removed (`language-switcher.tsx`, old auth provider path, old mock path).
+- Validation schemas are centralized in `shared/validation/`.
 
 #### Editor
 
-- Reduced route complexity by slimming `routes/studio/editor.tsx` to a thin route wrapper (currently 33 lines).
-- Refactored editor layout into focused components:
-  - `EditorToolbar.tsx`
-  - `EditorWorkspace.tsx`
-  - `EditorTimelineSection.tsx`
-  - `EditorDialogs.tsx`
-- Added dedicated runtime/action hooks:
-  - `useEditorAssetMap.ts`
-  - `useEditorClipActions.ts`
-  - `useEditorTransport.ts`
-  - `useEditorLayoutRuntime.ts`
-- Reduced `EditorLayout.tsx` from 874 lines to 151 lines.
-- Created `EditorContext.tsx` with `EditorProvider` + `useEditorContext`.
-- Migrated `Inspector`, `Timeline`, `EditorWorkspace`, and `EditorTimelineSection` to consume state and store methods from `EditorContext` instead of drilled props:
-  - `Inspector` reduced from 8 props to 2 (`selectedTransition`, `onEffectPreview`).
-  - `Timeline` reduced from 31 props to 13 (clip-action handlers and refs only).
-  - `EditorTimelineSection` reduced from 40 props to 16.
-  - `EditorWorkspace` reduced from 21 props to 11.
+- `routes/studio/editor.tsx` is a thin route wrapper (33 lines).
+- `EditorLayout.tsx` reduced to 125 lines and now composes extracted UI parts.
+- `EditorContext.tsx` exists and is consumed in:
+  - `features/editor/components/Inspector.tsx` (shell) and `features/editor/components/inspector/*` panels
+  - `features/editor/components/Timeline.tsx`
+  - `features/editor/components/EditorWorkspace.tsx`
+  - `features/editor/components/EditorTimelineSection.tsx`
+- Editor unit tests exist for split/snap/constraints plus additional reducer/composition coverage under `__tests__/unit/features/editor/`.
 
-#### Payments
+#### Chat
 
-- Split `order-checkout.tsx` into modular sections and shared local types:
-  - `order/QuickAddProducts.tsx`
-  - `order/OrderItemsCard.tsx`
-  - `order/OrderSummaryCard.tsx`
-  - `order/OneTimePurchaseInfoCard.tsx`
-  - `order-checkout.types.ts`
-- Split `subscription-checkout.tsx` into modular sections and shared local types:
-  - `subscription/BillingCycleCard.tsx`
-  - `subscription/SelectedPlanCard.tsx`
-  - `subscription/SecurityCard.tsx`
-  - `subscription/SubscriptionSummaryCard.tsx`
-  - `subscription-checkout.types.ts`
-- Deleted `features/payments/components/stripe-payment-fallback.tsx`.
+- `features/chat/streaming/sse-client.ts` exists and is used by chat streaming logic.
+- Chat UI decomposition files are present (`useChatLayout`, `useProjectSidebar`, project list item/session item components).
+- `ChatLayout.tsx` is reduced (158 lines), and project sidebar UI shell is reduced (116 lines).
+- Video job UX: toast copy and studio restore logic live in `features/chat/lib/video-job-toast-copy.ts` and `features/chat/lib/studio-video-job-restore-logic.ts`; `use-video-job-manager.ts` wires polling, toasts, and navigation.
 
 #### Admin
 
-- Added `features/admin/types.ts` as shared feature-level type home.
-- Added `features/admin/services/niches.service.ts` and `features/admin/hooks/use-niche-mutations.ts`.
-- Slimmed `features/admin/hooks/use-niches.ts` to query-focused behavior.
-- Added `features/admin/services/admin-music.service.ts` and migrated `use-admin-music.ts` to service-backed calls.
-- Built shared `DataTable` component at `shared/components/data-display/DataTable.tsx`.
-- Migrated `customers-list.tsx`, `orders-list.tsx`, and `subscriptions-list.tsx` to use the shared DataTable.
+- Shared admin table abstraction is present and in use:
+  - `features/admin/components/customers/customers-list.tsx`
+  - `features/admin/components/orders/orders-list.tsx`
+  - `features/admin/components/subscriptions/subscriptions-list.tsx`
+- Admin niche/music service migration files are present:
+  - `features/admin/services/niches.service.ts`
+  - `features/admin/services/admin-music.service.ts`
+  - `features/admin/hooks/use-niche-mutations.ts`
 
-#### Shared / Foundation (additional)
+#### Payments
 
-- Split `AppContext` into `auth-context.tsx` and `profile-context.tsx`; `app-context.tsx` is now a thin re-export shim (58 lines). New code should call `useAuth()` or `useProfile()` directly.
+- `stripe-payment-fallback.tsx` is deleted.
+- Checkout screens are decomposed into focused subcomponents and types:
+  - `features/payments/components/checkout/order/*`
+  - `features/payments/components/checkout/subscription/*`
+  - `order-checkout.types.ts` and `subscription-checkout.types.ts`
 
-#### Tests
+#### Routing / data loading
 
-- Added editor pure-logic unit tests:
-  - `__tests__/unit/features/editor/split-clip.test.ts`
-  - `__tests__/unit/features/editor/snap-targets.test.ts`
-  - `__tests__/unit/features/editor/clip-constraints.test.ts`
-- Validation status from latest run: type-check, lint, and targeted editor tests pass.
+- Root route uses `createRootRouteWithContext<{ queryClient: QueryClient }>` (`routes/__root.tsx`).
+- `router.tsx` and `RouterProvider` share one `appQueryClient` instance (`app-query-client.ts`).
+- Route loaders call helpers in `shared/lib/route-data-prefetch.ts` (prefetch is best-effort if Firebase session is not ready yet).
+- Routes with loaders: `admin/_layout/dashboard`, `customers`, `orders`, `subscriptions`, `studio/discover`, `studio/queue`, `(customer)/account`.
 
-### 0.3 Remaining Work To Reach 100%
+### 0.3 Initiative status
 
-- Extract shared `StripePaymentForm` used by both `order-checkout.tsx` and `subscription-checkout.tsx`.
-- Add TanStack Router loaders to remaining data-dependent routes and keep route files thin.
-- Finish i18n key normalization + dead key cleanup pass (run `i18next-scanner`, delete orphaned keys).
+**Reorganization goals (Phases 1–6) are complete** as of this update: foundation, editor splits, admin DataTable, chat/streaming + layout + video-job libs, payments redirect flow, and route loaders with shared `QueryClient` context.
+
+**Ongoing hygiene (not blocking this initiative):**
+
+- **i18n:** Full dead-key removal and global key-namespace normalization (Section 9) is not automated in-repo; `bun run i18n:check` covers interpolation only. Run a scanner or grep-based audit when you want to prune `en.json`.
+- **Conventions (Sections 5–7):** Enforce gradually on touched files; no blanket pass required.
+- **Very large files outside the original targets:** e.g. some studio/admin screens, generated `routeTree.gen.ts`, shadcn `sidebar.tsx` — split only when editing those areas or if you adopt stricter line budgets.
+
+### 0.4 Payments: Stripe Elements vs Checkout redirect
+
+**Decision:** Option B — no shared Stripe Elements form. Subscriptions and one-off checkout go through the Firestore → Firebase extension → Stripe Checkout redirect flow documented in `CLAUDE.md`. The old Elements fallback is removed; extracting `StripePaymentForm` is not required unless the product adds an embedded-card path later.
 
 ---
+
 
 ## 1. Current Problems
 

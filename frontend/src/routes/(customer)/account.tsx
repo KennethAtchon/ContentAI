@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AccountInteractive } from "@/routes/(customer)/account/-account-interactive";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
+import { prefetchAccountOverview } from "@/shared/lib/route-data-prefetch";
 
 function AccountPage() {
   return (
@@ -13,5 +14,6 @@ function AccountPage() {
 }
 
 export const Route = createFileRoute("/(customer)/account")({
+  loader: ({ context }) => prefetchAccountOverview(context.queryClient),
   component: AccountPage,
 });

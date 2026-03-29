@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { prefetchStudioDiscover } from "@/shared/lib/route-data-prefetch";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
@@ -252,5 +253,6 @@ function EmptyCanvas({
 }
 
 export const Route = createFileRoute("/studio/discover")({
+  loader: ({ context }) => prefetchStudioDiscover(context.queryClient),
   component: DiscoverPage,
 });

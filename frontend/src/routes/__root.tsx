@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { createRootRoute, Outlet, HeadContent } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
+import { createRootRouteWithContext, Outlet, HeadContent } from "@tanstack/react-router";
 import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { useTranslation } from "react-i18next";
@@ -35,7 +36,11 @@ function NotFoundBoundary() {
   );
 }
 
-export const Route = createRootRoute({
+export interface AppRouterContext {
+  queryClient: QueryClient;
+}
+
+export const Route = createRootRouteWithContext<AppRouterContext>()({
   component: RootLayout,
   notFoundComponent: NotFoundBoundary,
 });

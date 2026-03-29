@@ -1,10 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/shared/lib/query-keys";
-import {
-  invalidateChatSessionQuery,
-  invalidateReelsUsageAndUsageStats,
-} from "@/shared/lib/query-invalidation";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateChatSessionQuery } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
 import { chatService } from "../services/chat.service";
@@ -13,110 +9,16 @@ import {
   type StreamIngestState,
   type StreamIngestSetters,
 } from "../streaming/sse-client";
+import {
+  STREAMING_MESSAGE_ID,
+  STREAM_REQUEST_TIMEOUT_MS,
+  buildOptimisticUserMessage,
+  clearVisibleStreamMessages,
+  handleChatMessagesForbiddenResponse,
+  patchSessionCacheAfterStream,
+} from "./chat-stream-helpers";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** Default overlay id; overridden per send via streamingIdRef. */
-export const STREAMING_MESSAGE_ID = "streaming-ai-response";
-
-const STREAM_REQUEST_TIMEOUT_MS = 120_000;
-
-// ---------------------------------------------------------------------------
-// Query cache shape
-// ---------------------------------------------------------------------------
-
-type ChatSessionQueryData = {
-  session: unknown;
-  messages: ChatMessage[];
-};
-
-// ---------------------------------------------------------------------------
-// sendMessage helpers
-// ---------------------------------------------------------------------------
-
-function buildOptimisticUserMessage(
-  sessionId: string,
-  content: string,
-  reelRefs?: number[],
-  mediaRefs?: string[]
-): ChatMessage {
-  return {
-    id: `optimistic-${Date.now()}`,
-    sessionId,
-    role: "user",
-    content,
-    reelRefs,
-    mediaRefs,
-    createdAt: new Date().toISOString(),
-  };
-}
-
-function clearVisibleStreamMessages(
-  setOptimisticUserMessage: (msg: ChatMessage | null) => void,
-  setStreamingContent: (text: string | null) => void
-): void {
-  setOptimisticUserMessage(null);
-  setStreamingContent(null);
-}
-
-/**
- * Handles 403 with usage-limit payload. Invalidates usage queries when applicable.
- * @returns whether the caller should abort (no further response handling).
- */
-async function handleChatMessagesForbiddenResponse(
-  response: Response,
-  queryClient: QueryClient
-): Promise<boolean> {
-  if (response.status !== 403) return false;
-  const body = await response.json().catch(() => ({}));
-  const code = (body as { code?: string }).code;
-  debugLog.warn("[ChatStream] 403 response", { code });
-  if (code !== "USAGE_LIMIT_REACHED") return false;
-
-  debugLog.warn("[ChatStream] Usage limit reached — aborting stream");
-  void invalidateReelsUsageAndUsageStats(queryClient);
-  return true;
-}
-
-/**
- * Merges optimistic user + pending assistant text into the session query cache
- * in one update so the UI does not flash four messages for a frame.
- */
-function patchSessionCacheAfterStream(
-  queryClient: QueryClient,
-  sessionId: string,
-  optimisticUser: ChatMessage,
-  assistantText: string
-): void {
-  const pendingAssistant: ChatMessage[] = assistantText
-    ? [
-        {
-          id: `ai-pending-${Date.now()}`,
-          sessionId,
-          role: "assistant",
-          content: assistantText,
-          createdAt: new Date().toISOString(),
-        },
-      ]
-    : [];
-
-  queryClient.setQueryData(
-    queryKeys.api.chatSession(sessionId),
-    (old: ChatSessionQueryData | undefined) => {
-      if (!old) return old;
-      return {
-        ...old,
-        messages: [...old.messages, optimisticUser, ...pendingAssistant],
-      };
-    }
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
+export { STREAMING_MESSAGE_ID } from "./chat-stream-helpers";
 
 export function useChatStream(sessionId: string) {
   const queryClient = useQueryClient();

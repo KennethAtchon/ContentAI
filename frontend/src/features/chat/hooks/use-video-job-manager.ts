@@ -7,12 +7,14 @@ import { useVideoJob } from "@/features/video/hooks/use-video-job";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
 import {
   clearPersistedStudioVideoJob,
-  findActiveReelJobCandidateFromDrafts,
   persistStudioVideoJob,
-  readPersistedStudioVideoJob,
 } from "@/features/video/lib/studio-video-job-storage";
-import { chatService } from "../services/chat.service";
 import type { SessionDraft } from "../types/chat.types";
+import { reelGeneratingToastDescription } from "../lib/video-job-toast-copy";
+import {
+  tryRestoreVideoJobFromDrafts,
+  tryRestoreVideoJobFromPersistence,
+} from "../lib/studio-video-job-restore-logic";
 
 interface UseVideoJobManagerParams {
   sessionId: string;
@@ -48,21 +50,19 @@ export function useVideoJobManager({
   const videoJobToastIdRef = useRef<string | number | null>(null);
   const prevSessionIdRef = useRef<string>("");
 
-  const reelGeneratingDescription = useMemo(() => {
-    const progress = videoJobData?.job.progress;
-    const { shotsCompleted, totalShots } = progress ?? {};
-    if (shotsCompleted !== undefined && totalShots !== undefined && totalShots > 0) {
-      return t("workspace_video_generating_toast_shot_progress", {
-        completed: shotsCompleted,
-        total: totalShots,
-      });
-    }
-    return t("workspace_video_generating_toast_description");
-  }, [videoJobData?.job.progress?.shotsCompleted, videoJobData?.job.progress?.totalShots, t]);
+  const description = useMemo(
+    () => reelGeneratingToastDescription(videoJobData, t),
+    [
+      videoJobData?.job.progress?.shotsCompleted,
+      videoJobData?.job.progress?.totalShots,
+      t,
+      videoJobData,
+    ]
+  );
 
   const reelGeneratingToastOpts = useCallback(
-    (description: string) => ({
-      description,
+    (desc: string) => ({
+      description: desc,
       duration: Infinity,
       closeButton: true,
       onDismiss: () => {
@@ -82,7 +82,6 @@ export function useVideoJobManager({
     [t]
   );
 
-  // Clear in-flight video job when switching chat sessions.
   useEffect(() => {
     if (prevSessionIdRef.current === sessionId) return;
     const hadPreviousSession = prevSessionIdRef.current !== "";
@@ -99,67 +98,36 @@ export function useVideoJobManager({
     }
   }, [sessionId]);
 
-  // Restore in-flight video job from sessionStorage after refresh / new tab.
   useEffect(() => {
     if (!sessionId || !userId) return;
     let cancelled = false;
-
     void (async () => {
-      const persisted = readPersistedStudioVideoJob(sessionId);
-      if (!persisted) return;
-      try {
-        const data = await chatService.getVideoJob(persisted.jobId);
-        if (cancelled) return;
-        const s = data.job.status;
-        if (s === "queued" || s === "running") {
-          setVideoJobId((prev) => prev ?? persisted.jobId);
-          setVideoJobContentId((prev) => prev ?? persisted.contentId);
-          setReelProgressToastHiddenByUser(false);
-        } else {
-          clearPersistedStudioVideoJob(sessionId);
-        }
-      } catch {
-        if (!cancelled) clearPersistedStudioVideoJob(sessionId);
-      }
+      const restored = await tryRestoreVideoJobFromPersistence(sessionId);
+      if (cancelled || !restored) return;
+      setVideoJobId((prev) => prev ?? restored.jobId);
+      setVideoJobContentId((prev) => prev ?? restored.contentId);
+      setReelProgressToastHiddenByUser(false);
     })();
-
     return () => {
       cancelled = true;
     };
   }, [sessionId, userId]);
 
-  // Fallback when storage was cleared: scan draft metadata for an active job.
   useEffect(() => {
-    if (!sessionId || !userId) return;
-    if (readPersistedStudioVideoJob(sessionId)) return;
-    if (!drafts?.length) return;
-
+    if (!sessionId || !userId || !drafts?.length) return;
     let cancelled = false;
-    const candidate = findActiveReelJobCandidateFromDrafts(drafts);
-    if (!candidate) return;
-
     void (async () => {
-      try {
-        const data = await chatService.getVideoJob(candidate.jobId);
-        if (cancelled) return;
-        const s = data.job.status;
-        if (s === "queued" || s === "running") {
-          setVideoJobId((prev) => prev ?? candidate.jobId);
-          setVideoJobContentId((prev) => prev ?? candidate.contentId);
-          setReelProgressToastHiddenByUser(false);
-          persistStudioVideoJob(sessionId, { jobId: candidate.jobId, contentId: candidate.contentId });
-        }
-      } catch {
-        // stale job id in metadata — ignore
-      }
+      const restored = await tryRestoreVideoJobFromDrafts(sessionId, drafts);
+      if (cancelled || !restored) return;
+      setVideoJobId((prev) => prev ?? restored.jobId);
+      setVideoJobContentId((prev) => prev ?? restored.contentId);
+      setReelProgressToastHiddenByUser(false);
     })();
-
     return () => {
       cancelled = true;
     };
   }, [sessionId, userId, drafts]);
 
-  // Restore loading toast if a job was already running (panel closed/reopened).
   useEffect(() => {
     const status = videoJobData?.job.status;
     if (
@@ -170,7 +138,7 @@ export function useVideoJobManager({
     ) {
       videoJobToastIdRef.current = toast.loading(
         t("workspace_video_generating"),
-        reelGeneratingToastOpts(reelGeneratingDescription)
+        reelGeneratingToastOpts(description)
       );
     }
   }, [
@@ -179,10 +147,9 @@ export function useVideoJobManager({
     t,
     reelGeneratingToastOpts,
     reelProgressToastHiddenByUser,
-    reelGeneratingDescription,
+    description,
   ]);
 
-  // Keep toast copy in sync with shot progress.
   useEffect(() => {
     if (videoJobToastIdRef.current == null) return;
     const status = videoJobData?.job.status;
@@ -190,11 +157,10 @@ export function useVideoJobManager({
 
     toast.loading(t("workspace_video_generating"), {
       id: videoJobToastIdRef.current,
-      ...reelGeneratingToastOpts(reelGeneratingDescription),
+      ...reelGeneratingToastOpts(description),
     });
-  }, [videoJobData?.job.status, reelGeneratingDescription, t, reelGeneratingToastOpts]);
+  }, [videoJobData?.job.status, description, t, reelGeneratingToastOpts]);
 
-  // Handle job completion / failure transitions.
   useEffect(() => {
     const status = videoJobData?.job.status ?? null;
     const prev = prevVideoStatusRef.current;
@@ -264,9 +230,9 @@ export function useVideoJobManager({
     setReelProgressToastHiddenByUser(false);
     videoJobToastIdRef.current = toast.loading(
       t("workspace_video_generating"),
-      reelGeneratingToastOpts(reelGeneratingDescription)
+      reelGeneratingToastOpts(description)
     );
-  }, [videoJobData?.job.status, reelGeneratingDescription, t, reelGeneratingToastOpts]);
+  }, [videoJobData?.job.status, description, t, reelGeneratingToastOpts]);
 
   const reelJobRunning =
     videoJobId !== null &&

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
-import { Check, X, Loader2, Copy, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Loader2, Copy, ChevronLeft, ChevronRight } from "lucide-react";
 import type { VersionGroup } from "./queue.types";
 import { STATUS_STYLES, STAGE_DOT } from "./queue.types";
 

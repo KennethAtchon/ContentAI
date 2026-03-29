@@ -73,17 +73,15 @@ describe("getActiveSegment", () => {
 describe("getTextClipPreviewDisplay", () => {
   const text = "Hello world. Go now.";
 
-  test("when textAutoChunk is false, returns full text at any elapsed time", () => {
+  test("when textAutoChunk is false or undefined, returns full text (default off)", () => {
     expect(getTextClipPreviewDisplay(text, 6000, 0, false)).toBe(text);
     expect(getTextClipPreviewDisplay(text, 6000, 5000, false)).toBe(text);
-  });
-
-  test("when textAutoChunk is undefined, uses timed segments", () => {
-    expect(getTextClipPreviewDisplay(text, 6000, 0, undefined)).toBe("Hello world.");
-    expect(getTextClipPreviewDisplay(text, 6000, 3500, undefined)).toBe("Go now.");
+    expect(getTextClipPreviewDisplay(text, 6000, 0, undefined)).toBe(text);
+    expect(getTextClipPreviewDisplay(text, 6000, 3500, undefined)).toBe(text);
   });
 
   test("when textAutoChunk is true, uses timed segments", () => {
     expect(getTextClipPreviewDisplay(text, 6000, 0, true)).toBe("Hello world.");
+    expect(getTextClipPreviewDisplay(text, 6000, 3500, true)).toBe("Go now.");
   });
 });
