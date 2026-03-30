@@ -4,8 +4,7 @@
 FROM oven/bun:1-alpine AS base
 
 # fontconfig + DejaVu: drawtext in editor export; curl/psql for ops / debugging.
-RUN --mount=type=cache,id=apk-cache,target=/var/cache/apk,sharing=locked \
-    apk update \
+RUN apk update \
     && apk add \
         curl \
         ffmpeg \
