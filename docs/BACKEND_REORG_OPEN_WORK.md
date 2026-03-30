@@ -48,14 +48,14 @@ Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 
 ## Priority 3 — Wiring and types (architecture hygiene)
 
-- [ ] **Constructor injection / explicit factories (§4 Rule 2)**  
-  Domain services should receive repositories (and infra ports) via constructors or factories; **`domain/singletons.ts`** remains the single composition root. Eliminate ad hoc globals inside domain where they remain.
+- [ ] **Constructor injection / explicit factories (§4 Rule 2)** (partial)  
+  Domain services should receive repositories (and infra ports) via constructors or factories; **`domain/singletons.ts`** remains the single composition root. **`db` is only wired in `singletons.ts`** (no stray `services/db/db` imports under `domain/`). **Done:** source-reel **`POST /api/generation`** pipeline uses **`ContentService.generateFromSourceReel`** → **`domain/content/source-reel-generation.ts`** + **`IContentRepository`** (`fetchReelAndAnalysisForGeneration`, transactional **`createReelGeneratedDraftWithQueueEnrollment`**). **Remaining:** **`services/scraping/scraping.service.ts`**, **`services/reels/reel-analyzer`**, jobs/scripts that touch **`db`** directly.
 
-- [ ] **Repository interfaces**  
-  Where missing, add `I*Repository`-style contracts so services depend on interfaces, not concrete Drizzle classes (architectural goal; not test-gated).
+- [ ] **Repository interfaces** (partial)  
+  Where missing, add `I*Repository`-style contracts so services depend on interfaces, not concrete Drizzle classes (architectural goal; not test-gated). **Drift fixes:** `IContentRepository` — `resolveContentAncestorChainIds`, **`fetchReelAndAnalysisForGeneration`**, **`createReelGeneratedDraftWithQueueEnrollment`** (transaction + queue guard); `IAssetsRepository.findR2KeyByIdAndUserId`; `IUsersRepository.updateUser` includes `hasUsedFreeTrial`; chat/admin/projects fixes as before. **`bun x tsc --noEmit`** passes.
 
-- [ ] **Types co-located in `domain/<feature>/*.types.ts` (§6.3, target summary)** (partial)  
-  Customer, subscription, order, and payment API types live under **`domain/customer/customer.types.ts`**, **`domain/subscriptions/subscriptions.types.ts`**, **`domain/orders/order.types.ts`**, **`domain/payments/payment.types.ts`**; **`types/index.ts`** re-exports from domain. **`backend/src/features/**`** type stubs removed. Remaining: tighten JSONB domain types where the editor timeline types do not yet cover a surface.
+- [x] **Types co-located in `domain/<feature>/*.types.ts` (§6.3, target summary)** (incremental)  
+  Customer, subscription, order, and payment API types live under **`domain/customer/customer.types.ts`**, **`domain/subscriptions/subscriptions.types.ts`**, **`domain/orders/order.types.ts`**, **`domain/payments/payment.types.ts`**; **`types/index.ts`** re-exports from domain. **Script shot bounds, `parseScriptShots`, caption source text, and TTS helpers** now live under **`domain/video/`** and **`domain/audio/`** (backend **`src/shared/`** removed). Remaining: tighten JSONB domain types where the editor timeline types do not yet cover a surface.
 
 ---
 
@@ -67,27 +67,27 @@ Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 - [x] **Audit all `editProjects` / `.tracks` readers**  
   `rg` review: editor GET/save paths use `parseStoredEditorTracks` where the client receives or persists timeline JSON; queue path is non-exposing (see above).
 
-- [ ] **Form-data / multipart (optional)**  
-  Shared helpers or Zod preprocess for file upload fields where it improves consistency (thumbnails, etc.); keep intentional manual parsing where appropriate.
+- [x] **Form-data / multipart** (incremental)  
+  **`domain/assets/media-library-upload.ts`** — **`parseMediaLibraryUploadForm`** for **`POST /api/media/upload`** (file, name, mime, size limits). Further Zod/`zValidator` on multipart can wait until another upload surface is added.
 
 - [ ] **Schema file naming (§7)** (partial)  
-  **`domain/video/video.schemas.ts`** — reel/shot, timeline validate body (`validateTimelineBodySchema`), job/timeline shapes; **`routes/video/schemas.ts`** re-exports. **`domain/chat/chat.schemas.ts`** + **`routes/chat/chat.schemas.ts`**. **`domain/projects/projects.schemas.ts`** — customer project create/update; **`routes/projects/index.ts`** imports from domain. **`domain/admin/admin.schemas.ts`** — platform music PATCH (`adminPatchMusicTrackBodySchema`, `platformMusicMoodSchema`). Same pattern as **`routes/editor/schemas.ts`** → **`domain/editor/editor.schemas.ts`**. Remaining: other route files that import schemas from `domain/*` inline bundles (generation, queue, reels, etc.) — optional further centralization per feature.
+  **`domain/video/video.schemas.ts`** — reel/shot, timeline validate body (`validateTimelineBodySchema`), job/timeline shapes; **`routes/video/schemas.ts`** re-exports. **`domain/chat/chat.schemas.ts`** + **`routes/chat/chat.schemas.ts`**. **`domain/projects/projects.schemas.ts`** — customer project create/update; **`routes/projects/index.ts`** imports from domain. **`domain/admin/admin.schemas.ts`** — platform music PATCH (`adminPatchMusicTrackBodySchema`, `platformMusicMoodSchema`). Same pattern as **`routes/editor/schemas.ts`** → **`domain/editor/editor.schemas.ts`**. **`domain/queue/queue.schemas.ts`** — list/create/update queue (`routes/queue/*`). **`domain/content/content.schemas.ts`** — generation list/history/queue body. Remaining optional: **`reels`** route-only tweaks, **`music`**/**`audio`** if any inline Zod grows.
 
 ---
 
 ## Priority 5 — Infrastructure and `services/` cleanup (§6, §9)
 
-- [ ] **`services/` = adapters only (§9.1)**  
-  Flatten layout to: config, csrf, db, email, firebase, observability, rate-limit, scraping, storage, timezone, tts, **video-generation**. Move any embedded business rules into `domain/`.
+- [ ] **`services/` = adapters only (§9.1)** (partial)  
+  Target layout: config, csrf, db, email, firebase, **http**, observability, rate-limit, **scraping**, storage, timezone, tts, **`video-generation`**. **Done:** **`services/http/`**; **`services/video-generation/`** (providers, job store, dev-fixtures); **`services/scraping/`**; unit tests aligned under **`__tests__/unit/services/http/`** and **`video-generation/`**. **`services/reels/`** now only **`reel-analyzer.ts`** (scraping/analysis helper; **`content-generator`** removed — logic in **`domain/content/source-reel-generation.ts`**). **Still separate:** **`session/`**, **`request-identity/`**, **`services/scraping/scraping.service.ts`** (DB-heavy niche scrape adapter).
 
-- [ ] **Firebase split (§9.2)**  
-  Keep **`services/firebase`** to Admin SDK init + token verify; ensure no duplicate user-sync paths — business sync stays in **`domain/auth/`** (`auth.service`, `firebase-user-sync`, etc.).
+- [x] **Firebase split (§9.2)** (audited)  
+  **`services/firebase/`** — Admin SDK (**`admin.ts`**), Firestore client (**`config.ts`**), Stripe-extension Firestore readers (**`stripe-payments.ts`**, **`subscription-helpers.ts`**). No Postgres user upsert here. **User sync / JWT path** remains **`domain/auth/`** (`auth.service`, `auth.repository`, `firebase-user-sync` pattern per existing code).
 
-- [ ] **Video provider registry (optional)**  
-  Single **`services/video-generation/provider-registry.ts`** (or similar) so admin UI / customer flows do not duplicate dynamic `import()` maps.
+- [x] **Video provider registry**  
+  **`services/video-generation/provider-registry.ts`** — `videoGenerationProvidersById`, **`getAdminVideoProviderRows`**, **`getCustomerVideoProviderRows`**; **`provider-selector.ts`** and **`domain/admin/admin-config-status`**, **`domain/customer/customer-settings-defaults`** use it (no duplicated provider `import()` lists). Re-exported from **`services/video-generation/index.ts`**.
 
-- [ ] **Health route symmetry (optional)**  
-  `routes/health/index.ts` is the only route that intentionally imports `db`; optional tiny repository “ping” helper for consistency with the rest of the stack.
+- [x] **Health route symmetry**  
+  **`GET /api/health`** no longer imports **`db`**. Database liveness uses **`authRepository.pingDatabaseForHealth()`** (`SELECT 1` + existing **`pingUsersTable()`**). Route still imports **`getQueryStats`** from **`services/db/db`** (in-process query metrics only).
 
 ---
 
@@ -98,20 +98,20 @@ Verify with grep before deleting.
 - [x] **Backend `src/features/*/`**  
   Removed; API types live under `domain/**.types.ts` with `types/index.ts` re-exports.
 
-- [ ] **Inline helpers that belong in domain** (partial)  
-  **`domain/assets/media-library-upload.ts`** — mime/size/name parsing for **`POST /api/media/upload`** (was inline in **`routes/media/index.ts`**). Remaining: any inline `buildFfmpegAtempoChain`, `deriveStages`, or similar in route files — should live under `domain/editor/timeline/` or `domain/queue/pipeline/` only.
+- [x] **Inline helpers that belong in domain**  
+  **`domain/assets/media-library-upload.ts`** — media upload parsing. **`buildFfmpegAtempoChain`** in **`domain/editor/timeline/composition.ts`**; **`deriveStages`** in **`domain/queue/pipeline/stage-derivation.ts`**.
 
-- [ ] **Manual `c.req.json()` + field checks**  
-  Replace with `zValidator` / shared schemas; delete duplicate validation blocks.
+- [x] **Manual `c.req.json()` + field checks**  
+  No raw `c.req.json()` under **`src/routes`**. **`POST /api/generation`** body destructuring aligned with **`generateContentSchema`** (`sourceReelId`, not legacy `reelId` / unused fields).
 
-- [ ] **Duplicate auth / env types**  
-  Ensure `AuthResult` / `HonoEnv` live only in `types/hono.types.ts`; remove duplicates from `middleware/protection` or old feature type files.
+- [x] **Duplicate auth / env types** (route layer)  
+  **`AuthResult` / `HonoEnv`** are defined in **`types/hono.types.ts`**; **`middleware/protection`** re-exports only. **`routes/csrf.ts`** now types the app with **`HonoEnv`** from **`types/hono.types.ts`** (not `middleware/protection`).
 
-- [ ] **`src/shared/` audit**  
-  Move or delete utilities that now belong under `domain/` or `services/` after reorg.
+- [x] **`backend/src/shared/`**  
+  Removed; former **`shared/services/*`** and **`shared/constants/video-shot-durations`** moved to **`domain/audio/`** and **`domain/video/`**.
 
-- [ ] **Low-value `debugLog.info` noise** (partial)  
-  Removed fire-and-forget **`debugLog.info`** from **`routes/analytics/index.ts`** (four handlers). Continue pruning “request received” / “starting operation” style logs elsewhere as you touch those files.
+- [x] **Low-value `debugLog.info` noise** (routes)  
+  **`routes/analytics`** — removed earlier. **`routes/*`** now use **`debugLog`** mainly for **`warn`/`error`** (e.g. media R2 delete, editor export, timeline refresh). Removed unused **`debugLog`** import from **`routes/admin/system.router.ts`**.
 
 - [x] **Backup / stray files**  
   Removed `backend/src/routes/customer/index.ts.bak`.

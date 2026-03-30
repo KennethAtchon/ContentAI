@@ -142,11 +142,11 @@ export class ChatToolsRepository {
     prompt: string;
     tip: typeof generatedContent.$inferSelect;
     values: {
-      generatedHook: string;
-      postCaption: string;
-      generatedScript: string;
-      voiceoverScript: string;
-      sceneDescription: string;
+      generatedHook: string | null;
+      postCaption: string | null;
+      generatedScript: string | null;
+      voiceoverScript: string | null;
+      sceneDescription: string | null;
       generatedMetadata: Record<string, unknown>;
       outputType: string;
       version: number;

@@ -1,5 +1,5 @@
-import { safeFetch } from "@/services/api/safe-fetch";
-import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
+import { safeFetch } from "@/services/http/safe-fetch";
+import { resolveVideoOutputDurationSeconds } from "@/services/video-generation/dev-fixtures/estimate-mp4-duration";
 import { storage } from "@/services/storage";
 import { FAL_API_KEY, KLING_MODEL } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";

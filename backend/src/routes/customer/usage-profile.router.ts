@@ -31,7 +31,7 @@ usageProfileRouter.get(
 
     const stats = await customerService.getUsageStats(
       userId,
-      stripeRole,
+      stripeRole ?? null,
       queueSize,
       limits,
     );

@@ -1,4 +1,4 @@
-import { extractCaptionSourceText } from "../../routes/video/utils";
+import { extractCaptionSourceText } from "../video/caption-source-text";
 import type { IContentRepository } from "../content/content.repository";
 import type { TimelineClipJson } from "./timeline/clip-trim";
 import {

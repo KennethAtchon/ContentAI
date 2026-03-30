@@ -1,8 +1,12 @@
-import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import {
   assets,
+  chatMessages,
   contentAssets,
   generatedContent,
+  queueItems,
+  reelAnalyses,
   reels,
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
@@ -60,6 +64,12 @@ export interface IContentRepository {
     contentId: number,
     userId: string,
   ): Promise<{ id: number; generatedHook: string | null } | null>;
+
+  /** Content ids from `contentId` up through `parent_id` (includes `contentId`). */
+  resolveContentAncestorChainIds(
+    contentId: number,
+    userId: string,
+  ): Promise<number[]>;
 
   listAssetsLinkedToGeneratedContent(
     generatedContentId: number,
@@ -267,6 +277,22 @@ export interface IContentRepository {
   ): Promise<
     Array<{ id: string; durationMs: number | null; metadata: unknown }>
   >;
+
+  fetchReelAndAnalysisForGeneration(reelId: number): Promise<{
+    reel: typeof reels.$inferSelect;
+    analysis: typeof reelAnalyses.$inferSelect | null;
+  } | null>;
+
+  createReelGeneratedDraftWithQueueEnrollment(params: {
+    userId: string;
+    reelId: number;
+    prompt: string;
+    outputType: string;
+    generatedHook: string | null;
+    postCaption: string | null;
+    generatedScript: string | null;
+    model: string;
+  }): Promise<typeof generatedContent.$inferSelect>;
 }
 
 export type VideoRouteOwnedContent = {
@@ -300,6 +326,38 @@ export class ContentRepository implements IContentRepository {
       )
       .limit(1);
     return row ?? null;
+  }
+
+  async resolveContentAncestorChainIds(
+    contentId: number,
+    userId: string,
+  ): Promise<number[]> {
+    const ids: number[] = [];
+    let currentId: number | null = contentId;
+    let depth = 0;
+
+    while (currentId != null && depth < MAX_CONTENT_CHAIN_DEPTH) {
+      const [row] = await this.db
+        .select({
+          id: generatedContent.id,
+          parentId: generatedContent.parentId,
+        })
+        .from(generatedContent)
+        .where(
+          and(
+            eq(generatedContent.id, currentId),
+            eq(generatedContent.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!row) break;
+      ids.push(row.id);
+      currentId = row.parentId;
+      depth++;
+    }
+
+    return ids;
   }
 
   async listAssetsLinkedToGeneratedContent(
@@ -897,6 +955,72 @@ export class ContentRepository implements IContentRepository {
       const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
       const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
       return ai - bi;
+    });
+  }
+
+  async fetchReelAndAnalysisForGeneration(reelId: number) {
+    const [reel] = await this.db
+      .select()
+      .from(reels)
+      .where(eq(reels.id, reelId));
+    if (!reel) return null;
+    const [analysis] = await this.db
+      .select()
+      .from(reelAnalyses)
+      .where(eq(reelAnalyses.reelId, reelId));
+    return { reel, analysis: analysis ?? null };
+  }
+
+  async createReelGeneratedDraftWithQueueEnrollment(params: {
+    userId: string;
+    reelId: number;
+    prompt: string;
+    outputType: string;
+    generatedHook: string | null;
+    postCaption: string | null;
+    generatedScript: string | null;
+    model: string;
+  }): Promise<typeof generatedContent.$inferSelect> {
+    return this.db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(generatedContent)
+        .values({
+          userId: params.userId,
+          sourceReelId: params.reelId,
+          prompt: params.prompt,
+          generatedHook: params.generatedHook,
+          postCaption: params.postCaption,
+          generatedScript: params.generatedScript,
+          outputType: params.outputType,
+          model: params.model,
+          status: "draft",
+        })
+        .returning();
+
+      if (!inserted) {
+        throw new Error("Insert generated content returned no row");
+      }
+
+      await assertNoChainQueueItem(
+        tx,
+        inserted.id,
+        params.userId,
+        "reel_content_generator",
+      );
+
+      await tx.insert(queueItems).values({
+        userId: params.userId,
+        generatedContentId: inserted.id,
+        status: "draft",
+      });
+
+      const [updated] = await tx
+        .update(generatedContent)
+        .set({ status: "queued" })
+        .where(eq(generatedContent.id, inserted.id))
+        .returning();
+
+      return updated ?? inserted;
     });
   }
 }

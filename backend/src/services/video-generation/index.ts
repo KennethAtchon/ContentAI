@@ -5,8 +5,8 @@ import {
 } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
 import { storage } from "@/services/storage";
-import { resolveVideoOutputDurationSeconds } from "@/services/media/dev-fixtures/estimate-mp4-duration";
-import { getDevMockVideoBufferForShot } from "@/services/media/dev-fixtures/load-fixtures";
+import { resolveVideoOutputDurationSeconds } from "@/services/video-generation/dev-fixtures/estimate-mp4-duration";
+import { getDevMockVideoBufferForShot } from "@/services/video-generation/dev-fixtures/load-fixtures";
 import { getVideoGenerationProvider } from "./provider-selector";
 import type {
   VideoProvider,
@@ -25,6 +25,11 @@ export type {
 };
 
 export { getVideoGenerationProvider } from "./provider-selector";
+export {
+  videoGenerationProvidersById,
+  getAdminVideoProviderRows,
+  getCustomerVideoProviderRows,
+} from "./provider-registry";
 
 /**
  * Generate a video clip and record its cost to the ledger.

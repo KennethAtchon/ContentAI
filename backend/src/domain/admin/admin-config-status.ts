@@ -1,4 +1,5 @@
 import type { SystemConfigService } from "../../services/config/system-config.service";
+import { getAdminVideoProviderRows } from "../../services/video-generation/provider-registry";
 import { systemConfigService } from "../singletons";
 
 export async function buildAdminAiProvidersStatus() {
@@ -46,36 +47,7 @@ export async function buildAdminAiProvidersStatus() {
 export async function buildAdminVideoProvidersStatus(
   cfg: Pick<SystemConfigService, "get" | "getJson"> = systemConfigService,
 ) {
-  const { klingFalProvider } =
-    await import("../../services/video-generation/providers/kling-fal");
-  const { runwayProvider } =
-    await import("../../services/video-generation/providers/runway");
-  const { imageKenBurnsProvider } =
-    await import("../../services/video-generation/providers/image-ken-burns");
-
-  const ALL_VIDEO_PROVIDERS = [
-    {
-      id: "kling-fal",
-      label: "Kling (via Fal.ai)",
-      provider: klingFalProvider,
-      modelKey: "kling_model",
-      defaultModel: "fal-ai/kling-video/v2.1/standard/text-to-video",
-    },
-    {
-      id: "runway",
-      label: "Runway",
-      provider: runwayProvider,
-      modelKey: "runway_model",
-      defaultModel: "gen3a_turbo",
-    },
-    {
-      id: "image-ken-burns",
-      label: "Image + Ken Burns",
-      provider: imageKenBurnsProvider,
-      modelKey: "flux_model",
-      defaultModel: "fal-ai/flux/schnell",
-    },
-  ] as const;
+  const ALL_VIDEO_PROVIDERS = getAdminVideoProviderRows();
 
   const [availabilities, dbDefault, dbFallback] = await Promise.all([
     Promise.all(ALL_VIDEO_PROVIDERS.map((p) => p.provider.isAvailable())),

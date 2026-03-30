@@ -1,8 +1,6 @@
-import { debugLog } from "../utils/debug/debug";
-import getRedisConnection from "./db/redis";
+import { debugLog } from "../../utils/debug/debug";
+import getRedisConnection from "../db/redis";
 import type { ScrapeConfig } from "./scraping.service";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type JobStatus = "queued" | "running" | "completed" | "failed";
 
@@ -14,30 +12,25 @@ export interface ScrapeJob {
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
-  result?: ScrapeResult;
+  result?: ScrapeJobResult;
   error?: string;
-  config?: Partial<ScrapeConfig>; // Store configuration used for this job
+  config?: Partial<ScrapeConfig>;
 }
 
-export interface ScrapeResult {
+export interface ScrapeJobResult {
   saved: number;
   skipped: number;
   durationMs: number;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const JOB_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+const JOB_TTL_SECONDS = 60 * 60 * 24;
 const JOB_KEY = (jobId: string) => `scrape_job:${jobId}`;
 const NICHE_JOBS_KEY = (nicheId: number) => `scrape_jobs_by_niche:${nicheId}`;
 
-// ─── QueueService ─────────────────────────────────────────────────────────────
-
-class QueueService {
+class ScrapeJobQueueService {
   private running = false;
   private queue: ScrapeJob[] = [];
 
-  /** Enqueue a new scrape job for the given niche. Returns the job immediately. */
   async enqueue(
     nicheId: number,
     nicheName: string,
@@ -49,26 +42,24 @@ class QueueService {
       nicheName,
       status: "queued",
       createdAt: new Date().toISOString(),
-      config, // Store the configuration for this job
+      config,
     };
 
     await this.persistJob(job);
     this.queue.push(job);
 
     debugLog.info("Scrape job enqueued", {
-      service: "queue-service",
+      service: "scrape-job-queue",
       jobId: job.id,
       nicheId,
       nicheName,
     });
 
-    // Kick off processing without blocking the HTTP response
     setTimeout(() => void this.drain(), 0);
 
     return job;
   }
 
-  /** Retrieve a job by ID from Redis. */
   async getJob(jobId: string): Promise<ScrapeJob | null> {
     try {
       const redis = getRedisConnection();
@@ -77,7 +68,7 @@ class QueueService {
       return JSON.parse(raw) as ScrapeJob;
     } catch (err) {
       debugLog.error("Failed to get job from Redis", {
-        service: "queue-service",
+        service: "scrape-job-queue",
         jobId,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -85,7 +76,6 @@ class QueueService {
     }
   }
 
-  /** List recent job IDs for a niche (most recent first, max 50). */
   async listJobs(nicheId: number): Promise<ScrapeJob[]> {
     try {
       const redis = getRedisConnection();
@@ -96,7 +86,7 @@ class QueueService {
       return jobs.filter((j: ScrapeJob | null): j is ScrapeJob => j !== null);
     } catch (err) {
       debugLog.error("Failed to list jobs from Redis", {
-        service: "queue-service",
+        service: "scrape-job-queue",
         nicheId,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -104,10 +94,8 @@ class QueueService {
     }
   }
 
-  // ─── Internal ──────────────────────────────────────────────────────────────
-
   private async drain(): Promise<void> {
-    if (this.running) return; // One worker at a time
+    if (this.running) return;
     this.running = true;
 
     while (this.queue.length > 0) {
@@ -119,7 +107,6 @@ class QueueService {
   }
 
   private async processJob(job: ScrapeJob): Promise<void> {
-    // Lazy import to avoid circular deps and allow tree-shaking in tests
     const { scrapingService } = await import("./scraping.service");
 
     job.status = "running";
@@ -127,7 +114,7 @@ class QueueService {
     await this.persistJob(job);
 
     debugLog.info("Scrape job started", {
-      service: "queue-service",
+      service: "scrape-job-queue",
       jobId: job.id,
       nicheId: job.nicheId,
     });
@@ -138,7 +125,7 @@ class QueueService {
       const { saved, skipped } = await scrapingService.scrapeNiche(
         job.nicheId,
         job.nicheName,
-        job.config || {}, // Pass the job configuration
+        job.config || {},
       );
 
       job.status = "completed";
@@ -146,7 +133,7 @@ class QueueService {
       job.result = { saved, skipped, durationMs: Date.now() - t0 };
 
       debugLog.info("Scrape job completed", {
-        service: "queue-service",
+        service: "scrape-job-queue",
         jobId: job.id,
         saved,
         skipped,
@@ -158,7 +145,7 @@ class QueueService {
       job.error = err instanceof Error ? err.message : String(err);
 
       debugLog.error("Scrape job failed", {
-        service: "queue-service",
+        service: "scrape-job-queue",
         jobId: job.id,
         error: job.error,
       });
@@ -173,19 +160,17 @@ class QueueService {
       const key = JOB_KEY(job.id);
       await redis.set(key, JSON.stringify(job), "EX", JOB_TTL_SECONDS);
 
-      // Track job ID under niche index (prepend for recency order)
       const nicheKey = NICHE_JOBS_KEY(job.nicheId);
       await redis
         .pipeline()
-        .lrem(nicheKey, 0, job.id) // remove stale duplicates
-        .lpush(nicheKey, job.id) // prepend (most recent first)
-        .ltrim(nicheKey, 0, 99) // keep at most 100 entries
+        .lrem(nicheKey, 0, job.id)
+        .lpush(nicheKey, job.id)
+        .ltrim(nicheKey, 0, 99)
         .expire(nicheKey, JOB_TTL_SECONDS)
         .exec();
     } catch (err) {
-      // Non-fatal: job is still in-memory, just won't survive restarts
       debugLog.error("Failed to persist job to Redis", {
-        service: "queue-service",
+        service: "scrape-job-queue",
         jobId: job.id,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -193,4 +178,4 @@ class QueueService {
   }
 }
 
-export const queueService = new QueueService();
+export const scrapeJobQueueService = new ScrapeJobQueueService();

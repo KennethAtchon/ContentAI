@@ -1096,16 +1096,19 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async countDynamicTableRows(table: PgTable, whereClause: SQL | undefined) {
+    type CountRow = { count: number };
     if (whereClause !== undefined) {
-      const [row] = await this.db
+      const rows = await this.db
         .select({ count: sql<number>`count(*)::int` })
-        .from(table as never)
+        .from(table)
         .where(whereClause);
+      const row = rows[0] as CountRow | undefined;
       return row?.count ?? 0;
     }
-    const [row] = await this.db
+    const rows = await this.db
       .select({ count: sql<number>`count(*)::int` })
-      .from(table as never);
+      .from(table);
+    const row = rows[0] as CountRow | undefined;
     return row?.count ?? 0;
   }
 

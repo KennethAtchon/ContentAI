@@ -372,7 +372,7 @@ export class ChatRepository implements IChatRepository {
   }
 
   async listMessages(sessionId: string, limit?: number) {
-    let query = this.db
+    const base = this.db
       .select({
         id: chatMessages.id,
         sessionId: chatMessages.sessionId,
@@ -384,11 +384,9 @@ export class ChatRepository implements IChatRepository {
       .where(eq(chatMessages.sessionId, sessionId))
       .orderBy(chatMessages.createdAt);
 
-    if (limit) {
-      query = query.limit(limit);
-    }
-
-    const messages = await query;
+    const messages = limit
+      ? await base.limit(limit)
+      : await base;
 
     // Fetch attachments for all messages
     const messageIds = messages.map((m) => m.id);

@@ -1,4 +1,4 @@
-import { extractCaptionSourceText } from "../../routes/video/utils";
+import { extractCaptionSourceText } from "../video/caption-source-text";
 
 export interface VoiceoverTextInput {
   generatedHook: string | null;

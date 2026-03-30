@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { videoJobService } from "@/services/video/job.service";
+import { videoJobService } from "@/services/video-generation/job.service";
 
 const testMocks = (global as any).__testMocks__ as {
   redisTestStore: Map<string, string>;

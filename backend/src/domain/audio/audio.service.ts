@@ -2,7 +2,7 @@ import { getVoiceById, VOICES } from "../../config/voices";
 import { recordAiCost } from "../../lib/cost-tracker";
 import { deleteFile, getFileUrl, uploadFile } from "../../services/storage/r2";
 import { generateSpeech, type TTSSpeed } from "../../services/tts/elevenlabs";
-import { sanitizeScriptForTTS } from "../../shared/services/tts-script-sanitize";
+import { sanitizeScriptForTTS } from "./tts-script-sanitize";
 import { R2_PUBLIC_URL } from "../../utils/config/envUtil";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import type { IAssetsRepository } from "../assets/assets.repository";

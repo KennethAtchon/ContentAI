@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { buildVoiceoverTextForTts } from "../../../src/shared/services/voiceover-text-for-tts";
+import { buildVoiceoverTextForTts } from "../../../src/domain/audio/voiceover-text-for-tts";
 
 describe("buildVoiceoverTextForTts", () => {
   it("returns hook only when no clean script", () => {

@@ -7,7 +7,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { debugLog } from "@/utils/debug";
-import { externalServiceFetch } from "@/services/api/safe-fetch";
+import { externalServiceFetch } from "@/services/http/safe-fetch";
 
 import {
   RESEND_FROM_EMAIL,

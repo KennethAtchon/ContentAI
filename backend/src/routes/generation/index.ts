@@ -6,7 +6,6 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { generateContent } from "../../services/reels/content-generator";
 import {
   generateContentSchema,
   generationHistoryQuerySchema,
@@ -44,15 +43,13 @@ generationRouter.post(
   zValidator("json", generateContentSchema, validationErrorHook),
   async (c) => {
     const auth = c.get("auth");
-    const { reelId, nicheId, prompt, outputType, templateId } = c.req.valid("json");
+    const { sourceReelId, prompt, outputType } = c.req.valid("json");
 
-    const result = await generateContent({
+    const result = await contentService.generateFromSourceReel({
       userId: auth.user.id,
-      reelId,
-      nicheId,
+      reelId: sourceReelId,
       prompt,
       outputType,
-      templateId,
     });
 
     return c.json(result, 201);

@@ -1,7 +1,7 @@
 import {
   MAX_SCRIPT_SHOT_DURATION_SECONDS,
   MIN_SCRIPT_SHOT_DURATION_SECONDS,
-} from "../constants/video-shot-durations";
+} from "./video-shot-durations";
 import { debugLog } from "../../utils/debug/debug";
 
 export type ShotInput = {

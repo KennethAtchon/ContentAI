@@ -24,6 +24,11 @@ export interface IAssetsRepository {
     assetId: string,
   ): Promise<{ r2Key: string | null; r2Url: string | null } | null>;
 
+  findR2KeyByIdAndUserId(
+    assetId: string,
+    userId: string,
+  ): Promise<{ r2Key: string | null; mimeType: string | null } | null>;
+
   findByIdForUser(assetId: string, userId: string): Promise<AssetRow | null>;
 
   findManyByIdsForUser(userId: string, ids: string[]): Promise<AssetRow[]>;
@@ -143,18 +148,6 @@ export class AssetsRepository implements IAssetsRepository {
     return updated ?? null;
   }
 
-  async findByIdAndUserId(
-    assetId: string,
-    userId: string,
-  ): Promise<AssetRow | null> {
-    const [asset] = await this.db
-      .select()
-      .from(assets)
-      .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
-      .limit(1);
-    return asset ?? null;
-  }
-
   async findR2KeyByIdAndUserId(
     assetId: string,
     userId: string,
@@ -168,10 +161,5 @@ export class AssetsRepository implements IAssetsRepository {
       .where(and(eq(assets.id, assetId), eq(assets.userId, userId)))
       .limit(1);
     return asset ?? null;
-  }
-
-  async deleteById(assetId: string): Promise<boolean> {
-    const result = await this.db.delete(assets).where(eq(assets.id, assetId));
-    return result.rowCount > 0;
   }
 }

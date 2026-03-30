@@ -1,12 +1,7 @@
 import { Hono } from "hono";
 import { rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import {
-  db,
-  getQueryStats,
-  ensureConnectionHealth as _ensureConnectionHealth,
-} from "../../services/db/db";
-import { sql } from "drizzle-orm";
+import { getQueryStats } from "../../services/db/db";
 import { authRepository } from "../../domain/singletons";
 import getRedisConnection from "../../services/db/redis";
 import { getErrorMetrics } from "../../services/observability/metrics";
@@ -24,7 +19,7 @@ health.get("/", rateLimiter("health"), async (c) => {
 
   try {
     const healthChecks = await Promise.allSettled([
-      checkDatabaseHealth(db),
+      checkDatabaseHealth(),
       checkRedisHealth(getRedisConnection),
       checkServiceHealth(),
       checkDatabasePerformance(getQueryStats),
@@ -93,15 +88,12 @@ interface HealthCheckResult {
   error?: string;
 }
 
-async function checkDatabaseHealth(
-  dbInstance: any,
-): Promise<HealthCheckResult> {
+async function checkDatabaseHealth(): Promise<HealthCheckResult> {
   const start = Date.now();
   try {
     await Promise.race([
       (async () => {
-        await dbInstance.execute(sql`SELECT 1 as health_check`);
-        await authRepository.pingUsersTable();
+        await authRepository.pingDatabaseForHealth();
       })(),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Database timeout")), 1000),

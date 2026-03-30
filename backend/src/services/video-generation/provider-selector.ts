@@ -1,15 +1,7 @@
 import { VIDEO_GENERATION_PROVIDER } from "@/utils/config/envUtil";
 import { debugLog } from "@/utils/debug";
-import { klingFalProvider } from "./providers/kling-fal";
-import { runwayProvider } from "./providers/runway";
-import { imageKenBurnsProvider } from "./providers/image-ken-burns";
+import { videoGenerationProvidersById } from "./provider-registry";
 import type { VideoGenerationProvider, VideoProvider } from "./types";
-
-const PROVIDERS: Record<VideoProvider, VideoGenerationProvider> = {
-  "kling-fal": klingFalProvider,
-  runway: runwayProvider,
-  "image-ken-burns": imageKenBurnsProvider,
-};
 
 /**
  * Resolves which video provider implementation to use (DB default, env, override, fallback chain).
@@ -37,11 +29,11 @@ export async function getVideoGenerationProvider(
     }
   }
 
-  const provider = PROVIDERS[providerName];
+  const provider = videoGenerationProvidersById[providerName];
 
   if (!provider) {
     throw new Error(
-      `Unknown video generation provider: "${providerName}". Valid options: ${Object.keys(PROVIDERS).join(", ")}`,
+      `Unknown video generation provider: "${providerName}". Valid options: ${Object.keys(videoGenerationProvidersById).join(", ")}`,
     );
   }
 
@@ -66,7 +58,7 @@ export async function getVideoGenerationProvider(
     for (const fallbackName of fallbackOrder) {
       if (
         fallbackName !== providerName &&
-        (await PROVIDERS[fallbackName].isAvailable())
+        (await videoGenerationProvidersById[fallbackName].isAvailable())
       ) {
         debugLog.warn(
           `Provider "${providerName}" not available (missing API key). Falling back to "${fallbackName}".`,
@@ -75,7 +67,7 @@ export async function getVideoGenerationProvider(
             operation: "getProvider",
           },
         );
-        return PROVIDERS[fallbackName];
+        return videoGenerationProvidersById[fallbackName];
       }
     }
     throw new Error(

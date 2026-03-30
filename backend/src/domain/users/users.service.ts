@@ -56,6 +56,7 @@ export class UsersService {
       role?: string;
       isActive?: boolean;
       timezone?: string;
+      hasUsedFreeTrial?: boolean;
     },
   ) {
     // Verify user exists

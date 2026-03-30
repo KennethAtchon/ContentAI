@@ -8,7 +8,7 @@ import {
   publicFetch,
   publicFetchJson,
   externalServiceFetch,
-} from "@/services/api/safe-fetch";
+} from "@/services/http/safe-fetch";
 
 describe("safe-fetch", () => {
   const originalFetch = globalThis.fetch;

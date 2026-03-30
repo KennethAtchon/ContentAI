@@ -3,7 +3,7 @@ import {
   videoJobService,
   type VideoJobKind,
   type VideoRenderJob,
-} from "../../services/video/job.service";
+} from "../../services/video-generation/job.service";
 import { debugLog } from "../../utils/debug/debug";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
 import {

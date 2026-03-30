@@ -23,7 +23,7 @@ portalRouter.post(
 
     const portalUrl = await createStripeCustomerPortalUrl(
       token,
-      c.req.header("origin"),
+      c.req.header("origin") ?? null,
     );
 
     return c.json({ url: portalUrl });

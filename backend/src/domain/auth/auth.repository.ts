@@ -1,4 +1,4 @@
-import { count, eq, isNotNull } from "drizzle-orm";
+import { count, eq, isNotNull, sql } from "drizzle-orm";
 import { users } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
@@ -13,6 +13,9 @@ export interface IAuthRepository {
 
   /** Lightweight read so health checks can verify the users table is reachable. */
   pingUsersTable(): Promise<void>;
+
+  /** Raw driver round-trip + ORM read — used by `GET /api/health` database check. */
+  pingDatabaseForHealth(): Promise<void>;
 
   /** Users linked to Firebase (bulk admin sync to Auth). */
   listUsersWithFirebaseUid(): Promise<
@@ -69,6 +72,11 @@ export class AuthRepository implements IAuthRepository {
 
   async pingUsersTable(): Promise<void> {
     await this.db.select({ cnt: count() }).from(users).limit(1);
+  }
+
+  async pingDatabaseForHealth(): Promise<void> {
+    await this.db.execute(sql`SELECT 1 as health_check`);
+    await this.pingUsersTable();
   }
 
   async listUsersWithFirebaseUid() {

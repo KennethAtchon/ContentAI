@@ -1,20 +1,20 @@
-import { db } from "./db/db";
+import { db } from "../db/db";
 import {
   reels,
   reelAnalyses,
   trendingAudio,
-} from "../infrastructure/database/drizzle/schema";
-import type { NewReel } from "../infrastructure/database/drizzle/schema";
+} from "../../infrastructure/database/drizzle/schema";
+import type { NewReel } from "../../infrastructure/database/drizzle/schema";
 import { eq, sql } from "drizzle-orm";
-import { debugLog } from "../utils/debug/debug";
+import { debugLog } from "../../utils/debug/debug";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
   R2_PUBLIC_URL,
   SOCIAL_API_KEY,
   VIRAL_VIEWS_THRESHOLD,
-} from "../utils/config/envUtil";
-import { storage } from "./storage/index";
-import devMockReels from "./scraping/dev-mock-reels.json";
+} from "../../utils/config/envUtil";
+import { storage } from "../storage/index";
+import devMockReels from "./dev-mock-reels.json";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -564,7 +564,7 @@ class ScrapingService {
       }
 
       // Lazy import to avoid circular dependencies
-      const { analyzeReel } = await import("./reels/reel-analyzer");
+      const { analyzeReel } = await import("../reels/reel-analyzer");
 
       debugLog.info("Starting async reel analysis", {
         service: "scraping-service",

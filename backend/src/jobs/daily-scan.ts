@@ -1,5 +1,5 @@
 import { adminRepository } from "../domain/singletons";
-import { queueService } from "../services/queue.service";
+import { scrapeJobQueueService } from "../services/scraping/scrape-job-queue.service";
 import { debugLog } from "../utils/debug/debug";
 
 const ONE_DAY_MS = 86_400_000;
@@ -13,7 +13,7 @@ async function runDailyScan(): Promise<void> {
     const activeNiches = await adminRepository.listActiveNichesForDailyScan();
 
     for (const niche of activeNiches) {
-      await queueService.enqueue(niche.id, niche.name);
+      await scrapeJobQueueService.enqueue(niche.id, niche.name);
       await sleep(30_000);
     }
   } catch (err) {

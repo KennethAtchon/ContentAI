@@ -6,7 +6,7 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { videoJobService } from "../../services/video/job.service";
+import { videoJobService } from "../../services/video-generation/job.service";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import { createReelSchema } from "./schemas";
 import {

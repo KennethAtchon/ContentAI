@@ -1,4 +1,5 @@
 import type { SystemConfigService } from "../../services/config/system-config.service";
+import { getCustomerVideoProviderRows } from "../../services/video-generation/provider-registry";
 
 /** Whether a provider + model supports vision (heuristic for UI). */
 export function detectSupportsVision(provider: string, model: string): boolean {
@@ -129,26 +130,7 @@ export async function buildCustomerAiDefaultsResponse() {
 export async function buildCustomerVideoDefaultsResponse(
   systemConfig: Pick<SystemConfigService, "get">,
 ) {
-  const { klingFalProvider } =
-    await import("../../services/video-generation/providers/kling-fal");
-  const { runwayProvider } =
-    await import("../../services/video-generation/providers/runway");
-  const { imageKenBurnsProvider } =
-    await import("../../services/video-generation/providers/image-ken-burns");
-
-  const PROVIDERS = [
-    {
-      id: "kling-fal",
-      label: "Kling (via Fal.ai)",
-      provider: klingFalProvider,
-    },
-    { id: "runway", label: "Runway", provider: runwayProvider },
-    {
-      id: "image-ken-burns",
-      label: "Image + Ken Burns",
-      provider: imageKenBurnsProvider,
-    },
-  ] as const;
+  const PROVIDERS = getCustomerVideoProviderRows();
 
   const [dbDefault, availabilities] = await Promise.all([
     systemConfig.get("video", "default_provider"),

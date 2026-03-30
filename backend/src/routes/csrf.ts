@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { authMiddleware, rateLimiter } from "../middleware/protection";
-import type { HonoEnv } from "../middleware/protection";
+import type { HonoEnv } from "../types/hono.types";
 import { generateCSRFToken } from "../services/csrf/csrf-protection";
 
 const app = new Hono<HonoEnv>();

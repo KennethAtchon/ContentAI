@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "../../shared/constants/video-shot-durations";
+import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "./video-shot-durations";
 
 export const videoJobIdParamSchema = z.object({
   jobId: z.string().min(1),

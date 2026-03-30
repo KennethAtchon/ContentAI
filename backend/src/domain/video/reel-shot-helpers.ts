@@ -1,10 +1,10 @@
 import {
   MAX_SCRIPT_SHOT_DURATION_SECONDS,
   MIN_SCRIPT_SHOT_DURATION_SECONDS,
-} from "../../shared/constants/video-shot-durations";
-import type { ShotInput } from "../../shared/services/parse-script-shots";
-export type { ShotInput } from "../../shared/services/parse-script-shots";
-export { parseScriptShots } from "../../shared/services/parse-script-shots";
+} from "./video-shot-durations";
+import type { ShotInput } from "./parse-script-shots";
+export type { ShotInput } from "./parse-script-shots";
+export { parseScriptShots } from "./parse-script-shots";
 
 /** Four synthetic shots for `DEV_MOCK_EXTERNAL_INTEGRATIONS` reel_generate jobs. */
 export function buildMockDevReelShots(

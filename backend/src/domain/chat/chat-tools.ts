@@ -8,10 +8,10 @@ import { VOICES, getVoiceById } from "../../config/voices";
 import { OPENAI_API_KEY, FAL_API_KEY } from "../../utils/config/envUtil";
 import { generateSpeech } from "../../services/tts/elevenlabs";
 import { uploadFile, deleteFile } from "../../services/storage/r2";
-import { buildVoiceoverTextForTts } from "../../shared/services/voiceover-text-for-tts";
-import { sanitizeScriptForTTS } from "../../shared/services/tts-script-sanitize";
+import { buildVoiceoverTextForTts } from "../audio/voiceover-text-for-tts";
+import { sanitizeScriptForTTS } from "../audio/tts-script-sanitize";
 import { recordAiCost } from "../../lib/cost-tracker";
-import { videoJobService } from "../../services/video/job.service";
+import { videoJobService } from "../../services/video-generation/job.service";
 import {
   runReelGeneration,
   runShotRegenerate,
@@ -714,10 +714,10 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
         await chatToolsRepository.linkVoiceoverAsset(contentId, asset.id);
 
         const { refreshEditorTimeline } = await import(
-          "../routes/editor/services/refresh-editor-timeline"
+          "../../routes/editor/services/refresh-editor-timeline"
         );
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
-          (err) =>
+          (err: unknown) =>
             debugLog.warn(
               "refreshEditorTimeline (generate_voiceover tool) failed",
               { err, contentId },
@@ -835,10 +835,10 @@ export function createAttachMusicTool(context: ToolContext) {
         );
 
         const { refreshEditorTimeline } = await import(
-          "../routes/editor/services/refresh-editor-timeline"
+          "../../routes/editor/services/refresh-editor-timeline"
         );
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
-          (err) =>
+          (err: unknown) =>
             debugLog.warn("refreshEditorTimeline (attach_music tool) failed", {
               err,
               contentId,

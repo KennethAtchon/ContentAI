@@ -44,12 +44,12 @@ checkoutRouter.post(
       {
         uid: auth.firebaseUser.uid,
         userId: auth.user.id,
-        email: auth.user.email,
+        email: auth.user.email ?? "",
         priceId,
         tier,
         billingCycle,
         trialEnabled,
-        requestOrigin: c.req.header("origin"),
+        requestOrigin: c.req.header("origin") ?? null,
       },
     );
 

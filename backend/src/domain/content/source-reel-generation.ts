@@ -1,24 +1,11 @@
-import { db } from "../db/db";
-import {
-  reels,
-  reelAnalyses,
-  generatedContent,
-  queueItems,
-} from "../../infrastructure/database/drizzle/schema";
-import type { GeneratedContent } from "../../infrastructure/database/drizzle/schema";
-import { eq } from "drizzle-orm";
-import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
+import type { IContentRepository } from "./content.repository";
 
-export type OutputType = "hook_only" | "caption_only" | "full_script";
-
-interface GenerateParams {
-  reelId: number;
-  prompt: string;
-  userId: string;
-  outputType: OutputType;
-}
+export type SourceReelOutputType =
+  | "hook_only"
+  | "caption_only"
+  | "full_script";
 
 interface GenerationResult {
   hook?: string;
@@ -26,18 +13,25 @@ interface GenerationResult {
   scriptNotes?: string[];
 }
 
-export async function generateContent(
-  params: GenerateParams,
-): Promise<GeneratedContent> {
+/**
+ * AI + persistence for POST /api/generation — source reel → generatedContent + queue row.
+ * DB access only via `IContentRepository` (transactional enrollment).
+ */
+export async function generateContentFromSourceReel(
+  content: IContentRepository,
+  params: {
+    reelId: number;
+    prompt: string;
+    userId: string;
+    outputType: SourceReelOutputType;
+  },
+): ReturnType<IContentRepository["createReelGeneratedDraftWithQueueEnrollment"]> {
   const { reelId, prompt, userId, outputType } = params;
 
-  const [reel] = await db.select().from(reels).where(eq(reels.id, reelId));
-  if (!reel) throw new Error(`Reel ${reelId} not found`);
+  const row = await content.fetchReelAndAnalysisForGeneration(reelId);
+  if (!row) throw new Error(`Reel ${reelId} not found`);
 
-  const [analysis] = await db
-    .select()
-    .from(reelAnalyses)
-    .where(eq(reelAnalyses.reelId, reelId));
+  const { reel, analysis } = row;
 
   let parsed: GenerationResult;
   let usedModel: string;
@@ -104,8 +98,8 @@ Generate an original variation following the same viral structure.`;
       parsed = JSON.parse(rawText) as GenerationResult;
     } catch {
       debugLog.error("Failed to parse AI generation response", {
-        service: "content-generator",
-        operation: "generateContent",
+        service: "source-reel-generation",
+        operation: "generateContentFromSourceReel",
         reelId,
         rawText,
       });
@@ -113,41 +107,16 @@ Generate an original variation following the same viral structure.`;
     }
   }
 
-  const [content] = await db
-    .insert(generatedContent)
-    .values({
-      userId,
-      sourceReelId: reelId,
-      prompt,
-      generatedHook: parsed.hook ?? null,
-      postCaption: parsed.caption ?? null,
-      generatedScript: parsed.scriptNotes
-        ? JSON.stringify(parsed.scriptNotes)
-        : null,
-      outputType,
-      model: usedModel,
-      status: "draft",
-    })
-    .returning();
-
-  // Auto-enroll every generated draft in the pipeline queue.
-  await assertNoChainQueueItem(
-    db,
-    content.id,
+  return content.createReelGeneratedDraftWithQueueEnrollment({
     userId,
-    "reel_content_generator",
-  );
-  await db.insert(queueItems).values({
-    userId,
-    generatedContentId: content.id,
-    status: "draft",
+    reelId,
+    prompt,
+    outputType,
+    generatedHook: parsed.hook ?? null,
+    postCaption: parsed.caption ?? null,
+    generatedScript: parsed.scriptNotes
+      ? JSON.stringify(parsed.scriptNotes)
+      : null,
+    model: usedModel,
   });
-
-  // Keep generatedContent.status in sync with the queue.
-  await db
-    .update(generatedContent)
-    .set({ status: "queued" })
-    .where(eq(generatedContent.id, content.id));
-
-  return content;
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   estimateMp4DurationSecondsFromBuffer,
   resolveVideoOutputDurationSeconds,
-} from "@/services/media/dev-fixtures/estimate-mp4-duration";
+} from "@/services/video-generation/dev-fixtures/estimate-mp4-duration";
 
 function u32(n: number): Buffer {
   const b = Buffer.alloc(4);

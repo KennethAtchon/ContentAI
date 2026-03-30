@@ -1,6 +1,10 @@
 import { Errors } from "../../utils/errors/app-error";
 import type { IAssetsRepository, NewAssetRow } from "../assets/assets.repository";
 import type { IContentRepository } from "./content.repository";
+import {
+  generateContentFromSourceReel,
+  type SourceReelOutputType,
+} from "./source-reel-generation";
 
 export class ContentService {
   constructor(
@@ -141,5 +145,14 @@ export class ContentService {
       userId,
       generatedContentId,
     );
+  }
+
+  generateFromSourceReel(params: {
+    userId: string;
+    reelId: number;
+    prompt: string;
+    outputType: SourceReelOutputType;
+  }) {
+    return generateContentFromSourceReel(this.content, params);
   }
 }

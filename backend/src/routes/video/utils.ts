@@ -14,21 +14,7 @@ export function formatAssTime(seconds: number): string {
   return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(centis).padStart(2, "0")}`;
 }
 
-export function extractCaptionSourceText(input: {
-  voiceoverScript: string | null;
-  generatedScript: string | null;
-}): string {
-  const source = (
-    input.voiceoverScript ??
-    input.generatedScript ??
-    ""
-  ).trim();
-  if (!source) return "";
-  return source
-    .replace(/^\[[^\]]+\]\s*/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+export { extractCaptionSourceText } from "../../domain/video/caption-source-text";
 
 export function deriveUseClipAudioByIndex(
   shotAssets: Array<{ metadata: unknown }>,

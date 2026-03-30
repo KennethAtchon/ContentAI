@@ -144,10 +144,11 @@ export class ProjectsRepository implements IProjectsRepository {
   }
 
   async deleteProject(projectId: string, userId: string): Promise<boolean> {
-    const result = await this.db
+    const deleted = await this.db
       .delete(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
+      .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+      .returning({ id: projects.id });
 
-    return result.rowCount > 0;
+    return deleted.length > 0;
   }
 }

@@ -1,7 +1,7 @@
 import {
   MAX_SCRIPT_SHOT_DURATION_SECONDS,
   MIN_SCRIPT_SHOT_DURATION_SECONDS,
-} from "@/shared/constants/video-shot-durations";
+} from "@/domain/video/video-shot-durations";
 
 /**
  * Ken Burns / FFmpeg path: we control output length; allow full product range.

@@ -6,7 +6,6 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { debugLog } from "../../utils/debug/debug";
 import * as allSchema from "../../infrastructure/database/drizzle/schema";
 import { eq, is } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";

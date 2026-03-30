@@ -89,6 +89,7 @@ export interface IUsersRepository {
       role?: string;
       isActive?: boolean;
       timezone?: string;
+      hasUsedFreeTrial?: boolean;
     },
   ): Promise<{
     id: string;
@@ -259,6 +260,7 @@ export class UsersRepository implements IUsersRepository {
       role?: string;
       isActive?: boolean;
       timezone?: string;
+      hasUsedFreeTrial?: boolean;
     },
   ) {
     const [updated] = await this.db
