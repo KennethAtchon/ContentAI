@@ -9,7 +9,7 @@ import type { HonoEnv } from "../../types/hono.types";
 import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
 import { Errors } from "../../utils/errors/app-error";
 import { editorRepository } from "../../domain/singletons";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const linkRouter = new Hono<HonoEnv>();
 
@@ -18,7 +18,7 @@ linkRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const auth = c.get("auth");

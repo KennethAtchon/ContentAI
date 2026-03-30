@@ -10,7 +10,7 @@ import { editorService } from "../../domain/singletons";
 import { AppError } from "../../utils/errors/app-error";
 import { patchProjectSchema, createProjectSchema } from "./schemas";
 import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const projectsRouter = new Hono<HonoEnv>();
 
@@ -41,7 +41,7 @@ projectsRouter.get(
   "/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -58,7 +58,7 @@ projectsRouter.patch(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   zValidator("json", patchProjectSchema),
   async (c) => {
     const auth = c.get("auth");
@@ -78,7 +78,7 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -103,7 +103,7 @@ projectsRouter.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -117,7 +117,7 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -134,7 +134,7 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -148,7 +148,7 @@ projectsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

@@ -1,11 +1,5 @@
-import { db } from "../db/db";
-import {
-  reels,
-  reelAnalyses,
-  trendingAudio,
-} from "../../infrastructure/database/drizzle/schema";
 import type { NewReel } from "../../infrastructure/database/drizzle/schema";
-import { eq, sql } from "drizzle-orm";
+import type { IScrapingRepository } from "../../domain/scraping/scraping.repository";
 import { debugLog } from "../../utils/debug/debug";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
@@ -94,9 +88,15 @@ const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [2000, 4000, 8000];
 const VIRAL_THRESHOLD = VIRAL_VIEWS_THRESHOLD || 100000;
 
+type EnqueueReelAnalysis = (reelId: number) => Promise<unknown>;
+
 // ─── ScrapingService ──────────────────────────────────────────────────────────
 
-class ScrapingService {
+export class ScrapingService {
+  constructor(
+    private readonly scrapeRepo: IScrapingRepository,
+    private readonly enqueueReelAnalysis: EnqueueReelAnalysis,
+  ) {}
   /**
    * Scrape reels for the given niche and persist them.
    * Falls back gracefully to a stub if SOCIAL_API_KEY is not configured.
@@ -453,38 +453,24 @@ class ScrapingService {
       try {
         // Use INSERT ... ON CONFLICT DO NOTHING to skip existing externalIds.
         // .returning() returns an empty array when the row was skipped.
-        const result = await db
-          .insert(reels)
-          .values(newReel)
-          .onConflictDoNothing({ target: reels.externalId })
-          .returning({ id: reels.id });
+        const inserted = await this.scrapeRepo.insertScrapedReelOrSkip(
+          newReel,
+        );
 
-        if (result.length === 0) {
+        if (!inserted) {
           duplicate++;
           skipped++;
         } else {
           saved++;
           if (newReel.audioId && newReel.audioName) {
-            await db
-              .insert(trendingAudio)
-              .values({
-                audioId: newReel.audioId,
-                audioName: newReel.audioName,
-                artistName: null,
-                useCount: 1,
-                lastSeen: new Date(),
-              })
-              .onConflictDoUpdate({
-                target: trendingAudio.audioId,
-                set: {
-                  useCount: sql`${trendingAudio.useCount} + 1`,
-                  lastSeen: new Date(),
-                },
-              });
+            await this.scrapeRepo.bumpTrendingAudioUsage(
+              newReel.audioId,
+              newReel.audioName,
+            );
           }
 
           // Auto-analyze the newly saved reel (capped by maxAnalyses)
-          const reelId = result[0]!.id;
+          const reelId = inserted.id;
           if (analysisCount < maxAnalyses) {
             analysisCount++;
             this.analyzeReelAsync(reelId).catch((err: unknown) =>
@@ -524,10 +510,7 @@ class ScrapingService {
     }
 
     // Recount in case of partial skips due to race conditions
-    const [{ total }] = await db
-      .select({ total: sql<number>`count(*)::int` })
-      .from(reels)
-      .where(eq(reels.nicheId, nicheId));
+    const total = await this.scrapeRepo.countReelsInNiche(nicheId);
 
     debugLog.info("Reels saved", {
       service: "scraping-service",
@@ -549,12 +532,7 @@ class ScrapingService {
    */
   private async analyzeReelAsync(reelId: number): Promise<void> {
     try {
-      const [existing] = await db
-        .select({ id: reelAnalyses.id })
-        .from(reelAnalyses)
-        .where(eq(reelAnalyses.reelId, reelId));
-
-      if (existing) {
+      if (await this.scrapeRepo.reelAnalysisExists(reelId)) {
         debugLog.info("Reel already analyzed — skipping", {
           service: "scraping-service",
           operation: "analyzeReelAsync",
@@ -563,16 +541,13 @@ class ScrapingService {
         return;
       }
 
-      // Lazy import to avoid circular dependencies
-      const { analyzeReel } = await import("../reels/reel-analyzer");
-
       debugLog.info("Starting async reel analysis", {
         service: "scraping-service",
         operation: "analyzeReelAsync",
         reelId,
       });
 
-      await analyzeReel(reelId);
+      await this.enqueueReelAnalysis(reelId);
 
       debugLog.info("Async reel analysis completed", {
         service: "scraping-service",
@@ -674,9 +649,7 @@ class ScrapingService {
       });
     }
 
-    if (Object.keys(updates).length > 0) {
-      await db.update(reels).set(updates).where(eq(reels.id, reelId));
-    }
+    await this.scrapeRepo.updateReelR2Fields(reelId, updates);
   }
 }
 
@@ -692,5 +665,3 @@ function extractHook(caption?: string | null): string | null {
   const firstLine = caption.split("\n")[0]?.trim();
   return firstLine ? firstLine.slice(0, 280) : null;
 }
-
-export const scrapingService = new ScrapingService();

@@ -1,31 +1,18 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { adminService } from "../../domain/singletons";
 import { adminFeatureUsagesQuerySchema } from "../../domain/admin/admin.schemas";
 
 const featureUsagesRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 featureUsagesRouter.get(
   "/feature-usages",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminFeatureUsagesQuerySchema, validationErrorHook),
+  zValidator("query", adminFeatureUsagesQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { page, limit } = c.req.valid("query");
 

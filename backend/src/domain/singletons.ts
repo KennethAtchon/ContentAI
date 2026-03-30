@@ -35,6 +35,8 @@ import { ChatToolsRepository } from "./chat/chat-tools.repository";
 import { ProjectsRepository } from "./projects/projects.repository";
 import { ProjectsService } from "./projects/projects.service";
 import { ConfigRepository } from "./config/config.repository";
+import { ScrapingRepository } from "./scraping/scraping.repository";
+import { ScrapingService } from "../services/scraping/scraping.service";
 import { SystemConfigService } from "../services/config/system-config.service";
 import { UserSettingsService } from "../services/config/user-settings.service";
 
@@ -87,6 +89,11 @@ export const reelsRepository = new ReelsRepository(db);
 export const reelsService = new ReelsService(
   reelsRepository,
   customerRepository,
+);
+
+export const scrapingRepository = new ScrapingRepository(db);
+export const scrapingService = new ScrapingService(scrapingRepository, (id) =>
+  reelsService.runBackgroundReelAnalysis(id),
 );
 
 export const publicRepository = new PublicRepository(db);

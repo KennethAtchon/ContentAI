@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -18,20 +19,6 @@ import {
 import { adminService } from "../../domain/singletons";
 
 const systemRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 systemRouter.post(
   "/sync-firebase",
@@ -112,8 +99,8 @@ systemRouter.get(
   "/tables/:exportName",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("param", adminSystemExportNameParamSchema, validationErrorHook),
-  zValidator("query", adminSystemExportQuerySchema, validationErrorHook),
+  zValidator("param", adminSystemExportNameParamSchema, zodValidationErrorHook),
+  zValidator("query", adminSystemExportQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { exportName } = c.req.valid("param");
     const { page, limit, includeDeleted } = c.req.valid("query");

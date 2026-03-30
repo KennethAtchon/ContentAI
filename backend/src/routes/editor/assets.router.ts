@@ -7,7 +7,7 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { contentService } from "../../domain/singletons";
 import { editorAssetsQuerySchema } from "../../domain/editor/editor.schemas";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const assetsRouter = new Hono<HonoEnv>();
 
@@ -16,7 +16,7 @@ assetsRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", editorAssetsQuerySchema, editorZodValidationHook),
+  zValidator("query", editorAssetsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { contentId } = c.req.valid("query");

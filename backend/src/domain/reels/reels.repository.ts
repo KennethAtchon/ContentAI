@@ -10,6 +10,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { AppDb } from "../database.types";
+import type { ReelAnalysisUpsertParams } from "./reel-analysis.schemas";
 import {
   featureUsages,
   generatedContent,
@@ -73,6 +74,10 @@ export interface IReelsRepository {
   findAnalysesForReelIds(
     reelIds: number[],
   ): Promise<(typeof reelAnalyses.$inferSelect)[]>;
+
+  upsertReelAnalysis(
+    input: ReelAnalysisUpsertParams,
+  ): Promise<typeof reelAnalyses.$inferSelect>;
 }
 
 export class ReelsRepository implements IReelsRepository {
@@ -285,5 +290,74 @@ export class ReelsRepository implements IReelsRepository {
       .select()
       .from(reelAnalyses)
       .where(inArray(reelAnalyses.reelId, reelIds));
+  }
+
+  async upsertReelAnalysis(input: ReelAnalysisUpsertParams) {
+    const {
+      reelId,
+      analysisModel,
+      rawResponse,
+      hookPattern,
+      hookCategory,
+      emotionalTrigger,
+      formatPattern,
+      ctaType,
+      captionFramework,
+      curiosityGapStyle,
+      remixSuggestion,
+      shotBreakdown,
+      engagementDrivers,
+      replicabilityScore,
+      replicabilityNotes,
+    } = input;
+
+    const [row] = await this.db
+      .insert(reelAnalyses)
+      .values({
+        reelId,
+        hookPattern,
+        hookCategory,
+        emotionalTrigger,
+        formatPattern,
+        ctaType,
+        captionFramework,
+        curiosityGapStyle,
+        remixSuggestion,
+        shotBreakdown: shotBreakdown as unknown as Record<string, unknown>,
+        engagementDrivers: engagementDrivers as unknown as Record<
+          string,
+          unknown
+        >,
+        replicabilityScore,
+        replicabilityNotes,
+        analysisModel,
+        rawResponse,
+      })
+      .onConflictDoUpdate({
+        target: reelAnalyses.reelId,
+        set: {
+          hookPattern,
+          hookCategory,
+          emotionalTrigger,
+          formatPattern,
+          ctaType,
+          captionFramework,
+          curiosityGapStyle,
+          remixSuggestion,
+          shotBreakdown: shotBreakdown as unknown as Record<string, unknown>,
+          engagementDrivers: engagementDrivers as unknown as Record<
+            string,
+            unknown
+          >,
+          replicabilityScore,
+          replicabilityNotes,
+          analysisModel,
+          rawResponse,
+        },
+      })
+      .returning();
+
+    if (!row) throw new Error("upsertReelAnalysis returned no row");
+    return row;
   }
 }

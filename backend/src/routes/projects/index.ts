@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   rateLimiter,
@@ -14,20 +15,6 @@ import {
 } from "../../domain/projects/projects.schemas";
 
 const app = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // GET /api/projects - List user projects
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
@@ -61,7 +48,7 @@ app.get(
   "/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", uuidParam, validationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: projectId } = c.req.valid("param");
@@ -77,7 +64,7 @@ app.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, validationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   zValidator("json", updateProjectSchema),
   async (c) => {
     const auth = c.get("auth");
@@ -100,7 +87,7 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, validationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: projectId } = c.req.valid("param");

@@ -24,7 +24,7 @@ import {
   convertAIResponseToTracks,
   buildStandardPresetTracks,
 } from "../../domain/editor/timeline/ai-assembly-tracks";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const anthropic = createAnthropic({ apiKey: ANTHROPIC_API_KEY ?? "" });
 
@@ -35,7 +35,7 @@ assemblyRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   zValidator("json", aiAssembleRequestSchema),
   async (c) => {
     const auth = c.get("auth");

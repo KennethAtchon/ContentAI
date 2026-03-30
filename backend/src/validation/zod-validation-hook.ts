@@ -2,8 +2,8 @@ import type { Context } from "hono";
 
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
 
-/** Shared hook for `zValidator` on editor routes — consistent 422 shape. */
-export function editorZodValidationHook(
+/** Standard 422 response for `@hono/zod-validator` when parsing fails. */
+export function zodValidationErrorHook(
   result: ValidationResult,
   c: Context,
 ) {

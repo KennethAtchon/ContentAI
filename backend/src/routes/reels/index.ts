@@ -1,6 +1,7 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import { usageGate } from "../../middleware/usage-gate";
 import type { HonoEnv } from "../../types/hono.types";
@@ -13,20 +14,6 @@ import {
 } from "../../domain/reels/reels.schemas";
 
 const reelsRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 reelsRouter.get(
   "/usage",
@@ -54,7 +41,7 @@ reelsRouter.get(
   "/export",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", reelsExportQuerySchema, validationErrorHook),
+  zValidator("query", reelsExportQuerySchema, zodValidationErrorHook),
   async (c) => {
     const result = await reelsService.buildExportPayload(c.req.valid("query"));
     if (result.kind === "error") {
@@ -80,7 +67,7 @@ reelsRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", reelsListQuerySchema, validationErrorHook),
+  zValidator("query", reelsListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const body = await reelsService.listReels(c.req.valid("query"));
     return c.json(body);
@@ -91,7 +78,7 @@ reelsRouter.post(
   "/bulk",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("json", bulkReelsSchema, validationErrorHook),
+  zValidator("json", bulkReelsSchema, zodValidationErrorHook),
   async (c) => {
     const body = await reelsService.bulkByIds(c.req.valid("json"));
     return c.json(body);
@@ -102,7 +89,7 @@ reelsRouter.get(
   "/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", reelIdParamSchema, validationErrorHook),
+  zValidator("param", reelIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const body = await reelsService.getReelWithAnalysis(id);
@@ -114,7 +101,7 @@ reelsRouter.get(
   "/:id/media-url",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", reelIdParamSchema, validationErrorHook),
+  zValidator("param", reelIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const body = await reelsService.getPlayableMediaUrl(id);
@@ -127,7 +114,7 @@ reelsRouter.post(
   rateLimiter("customer"),
   authMiddleware("user"),
   usageGate("analysis"),
-  zValidator("param", reelIdParamSchema, validationErrorHook),
+  zValidator("param", reelIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -16,27 +17,13 @@ import {
 } from "../../domain/admin/admin.schemas";
 
 const musicAdminRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // GET /api/admin/music — list all tracks (including inactive)
 musicAdminRouter.get(
   "/music",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminMusicQuerySchema, validationErrorHook),
+  zValidator("query", adminMusicQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { search } = c.req.valid("query");
     const result = await adminService.listMusicTracks(search);
@@ -115,11 +102,11 @@ musicAdminRouter.patch(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminMusicIdParamSchema, validationErrorHook),
+  zValidator("param", adminMusicIdParamSchema, zodValidationErrorHook),
   zValidator(
     "json",
     adminPatchMusicTrackBodySchema,
-    validationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     const { id } = c.req.valid("param");
@@ -136,7 +123,7 @@ musicAdminRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminMusicIdParamSchema, validationErrorHook),
+  zValidator("param", adminMusicIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
 

@@ -13,7 +13,7 @@ import { runExportJob } from "./export-worker";
 import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import { assetsRepository, editorRepository } from "../../domain/singletons";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const exportRouter = new Hono<HonoEnv>();
 
@@ -24,7 +24,7 @@ exportRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   zValidator("json", exportSchema),
   async (c) => {
     const auth = c.get("auth");
@@ -75,7 +75,7 @@ exportRouter.get(
   "/:id/export/status",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

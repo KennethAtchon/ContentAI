@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import { createHash } from "crypto";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
@@ -10,20 +11,6 @@ import { AppError, Errors } from "../../utils/errors/app-error";
 import { adminVerifyBodySchema } from "../../domain/admin/admin.schemas";
 
 const verifyRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 verifyRouter.get(
   "/verify",
@@ -43,7 +30,7 @@ verifyRouter.post(
   "/verify",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("json", adminVerifyBodySchema, validationErrorHook),
+  zValidator("json", adminVerifyBodySchema, zodValidationErrorHook),
   async (c) => {
     const { adminCode } = c.req.valid("json");
 

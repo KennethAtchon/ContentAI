@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { adminService } from "../../domain/singletons";
@@ -9,26 +10,12 @@ import {
 } from "../../domain/admin/admin.schemas";
 
 const costsRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 costsRouter.get(
   "/ai-costs/by-user",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminCostsByUserQuerySchema, validationErrorHook),
+  zValidator("query", adminCostsByUserQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { period, limit } = c.req.valid("query");
 
@@ -41,7 +28,7 @@ costsRouter.get(
   "/ai-costs",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminCostsQuerySchema, validationErrorHook),
+  zValidator("query", adminCostsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { period } = c.req.valid("query");
     const payload = await adminService.getAiCosts(period);

@@ -1,3 +1,4 @@
+import { scrapingService } from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import getRedisConnection from "../db/redis";
 import type { ScrapeConfig } from "./scraping.service";
@@ -107,8 +108,6 @@ class ScrapeJobQueueService {
   }
 
   private async processJob(job: ScrapeJob): Promise<void> {
-    const { scrapingService } = await import("./scraping.service");
-
     job.status = "running";
     job.startedAt = new Date().toISOString();
     await this.persistJob(job);

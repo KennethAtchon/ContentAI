@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -18,20 +19,6 @@ import {
 } from "../../domain/admin/admin.schemas";
 
 const nichesRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // ─── GET /api/admin/niches ────────────────────────────────────────────────────
 
@@ -39,7 +26,7 @@ nichesRouter.get(
   "/niches",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminNichesQuerySchema, validationErrorHook),
+  zValidator("query", adminNichesQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { search, active } = c.req.valid("query");
     const result = await adminService.listNiches(search, active);
@@ -54,7 +41,7 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", adminCreateNicheBodySchema, validationErrorHook),
+  zValidator("json", adminCreateNicheBodySchema, zodValidationErrorHook),
   async (c) => {
     const { name, description } = c.req.valid("json");
     const result = await adminService.createNiche({ name, description });
@@ -69,8 +56,8 @@ nichesRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  zValidator("json", adminUpdateNicheBodySchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
+  zValidator("json", adminUpdateNicheBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -96,8 +83,8 @@ nichesRouter.patch(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  zValidator("json", adminUpdateNicheConfigBodySchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
+  zValidator("json", adminUpdateNicheConfigBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const config = c.req.valid("json");
@@ -114,7 +101,7 @@ nichesRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const result = await adminService.deleteNiche(Number(id));
@@ -128,8 +115,8 @@ nichesRouter.get(
   "/niches/:id/reels",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
-  zValidator("query", adminNicheReelsQuerySchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
+  zValidator("query", adminNicheReelsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const { page, limit, sortBy, sortOrder, viral, hasVideo } = c.req.valid("query");
@@ -161,7 +148,7 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
 
@@ -184,7 +171,7 @@ nichesRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminNicheIdParamSchema, validationErrorHook),
+  zValidator("param", adminNicheIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const result = await adminService.triggerNicheScrapeJob(Number(id));

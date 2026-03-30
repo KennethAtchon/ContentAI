@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -18,20 +19,6 @@ import { AppError, Errors } from "../../utils/errors/app-error";
 
 const generationRouter = new Hono<HonoEnv>();
 
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // POST /api/generation
 // Creates a generation job (reel analysis + script/hook generation)
@@ -40,7 +27,7 @@ generationRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", generateContentSchema, validationErrorHook),
+  zValidator("json", generateContentSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { sourceReelId, prompt, outputType } = c.req.valid("json");
@@ -62,7 +49,7 @@ generationRouter.get(
   "/history",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", generationHistoryQuerySchema, validationErrorHook),
+  zValidator("query", generationHistoryQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { page, limit } = c.req.valid("query");
@@ -102,7 +89,7 @@ generationRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", generationListQuerySchema, validationErrorHook),
+  zValidator("query", generationListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { limit, offset } = c.req.valid("query");
@@ -123,7 +110,7 @@ generationRouter.get(
   "/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", generationIdParamSchema, validationErrorHook),
+  zValidator("param", generationIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -145,8 +132,8 @@ generationRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", generationIdParamSchema, validationErrorHook),
-  zValidator("json", queueGeneratedContentSchema, validationErrorHook),
+  zValidator("param", generationIdParamSchema, zodValidationErrorHook),
+  zValidator("json", queueGeneratedContentSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

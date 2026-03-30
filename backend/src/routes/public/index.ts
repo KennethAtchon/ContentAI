@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -19,26 +20,12 @@ import {
 
 const publicRoutes = new Hono<HonoEnv>();
 
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 publicRoutes.get(
   "/contact-messages",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", contactMessagesQuerySchema, validationErrorHook),
+  zValidator("query", contactMessagesQuerySchema, zodValidationErrorHook),
   async (c) => {
     const body = await publicService.listContactMessagesForAdmin(
       c.req.valid("query"),
@@ -50,7 +37,7 @@ publicRoutes.get(
 publicRoutes.post(
   "/contact-messages",
   rateLimiter("public"),
-  zValidator("json", createContactMessageSchema, validationErrorHook),
+  zValidator("json", createContactMessageSchema, zodValidationErrorHook),
   async (c) => {
     const body = await publicService.createContactMessage(c.req.valid("json"));
     return c.json(body, 201);
@@ -60,7 +47,7 @@ publicRoutes.post(
 publicRoutes.post(
   "/emails",
   rateLimiter("public"),
-  zValidator("json", sendOrderConfirmationEmailSchema, validationErrorHook),
+  zValidator("json", sendOrderConfirmationEmailSchema, zodValidationErrorHook),
   async (c) => {
     const {
       customerName,

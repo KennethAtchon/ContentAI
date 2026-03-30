@@ -11,7 +11,7 @@ import {
   captionAssetIdParamSchema,
   transcribeCaptionsSchema,
 } from "../../domain/editor/editor.schemas";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const app = new Hono<HonoEnv>();
 
@@ -20,7 +20,7 @@ app.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", transcribeCaptionsSchema, editorZodValidationHook),
+  zValidator("json", transcribeCaptionsSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { assetId } = c.req.valid("json");
@@ -33,7 +33,7 @@ app.get(
   "/:assetId",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", captionAssetIdParamSchema, editorZodValidationHook),
+  zValidator("param", captionAssetIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { assetId } = c.req.valid("param");

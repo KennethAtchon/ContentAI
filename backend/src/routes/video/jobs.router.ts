@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -15,27 +16,13 @@ import {
 import { videoJobIdParamSchema } from "../../domain/video/video.schemas";
 
 const jobsRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // GET /api/video/jobs/:jobId
 jobsRouter.get(
   "/jobs/:jobId",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", videoJobIdParamSchema, validationErrorHook),
+  zValidator("param", videoJobIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { jobId } = c.req.valid("param");
@@ -59,7 +46,7 @@ jobsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", videoJobIdParamSchema, validationErrorHook),
+  zValidator("param", videoJobIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { jobId } = c.req.valid("param");

@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -13,26 +14,12 @@ import {
 } from "../../domain/queue/queue.schemas";
 
 const itemsRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 itemsRouter.get(
   "/:id/detail",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", queueItemIdParamSchema, validationErrorHook),
+  zValidator("param", queueItemIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -50,7 +37,7 @@ itemsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", queueItemIdParamSchema, validationErrorHook),
+  zValidator("param", queueItemIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -68,8 +55,8 @@ itemsRouter.patch(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", queueItemIdParamSchema, validationErrorHook),
-  zValidator("json", updateQueueItemBodySchema, validationErrorHook),
+  zValidator("param", queueItemIdParamSchema, zodValidationErrorHook),
+  zValidator("json", updateQueueItemBodySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
@@ -88,7 +75,7 @@ itemsRouter.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", queueItemIdParamSchema, validationErrorHook),
+  zValidator("param", queueItemIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

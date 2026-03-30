@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -16,26 +17,12 @@ import {
 } from "../../domain/admin/admin.schemas";
 
 const ordersRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 ordersRouter.get(
   "/orders",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminOrdersQuerySchema, validationErrorHook),
+  zValidator("query", adminOrdersQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { page, limit, search, customerId } = c.req.valid("query");
 
@@ -54,7 +41,7 @@ ordersRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", adminCreateOrderBodySchema, validationErrorHook),
+  zValidator("json", adminCreateOrderBodySchema, zodValidationErrorHook),
   async (c) => {
     const { userId, totalAmount, status } = c.req.valid("json");
 
@@ -72,7 +59,7 @@ ordersRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", adminUpdateOrderBodySchema, validationErrorHook),
+  zValidator("json", adminUpdateOrderBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id, userId, totalAmount, status } = c.req.valid("json");
 
@@ -92,7 +79,7 @@ ordersRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", adminDeleteOrderBodySchema, validationErrorHook),
+  zValidator("json", adminDeleteOrderBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id, deletedBy } = c.req.valid("json");
 
@@ -106,7 +93,7 @@ ordersRouter.get(
   "/orders/:id",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("param", adminOrderIdParamSchema, validationErrorHook),
+  zValidator("param", adminOrderIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const order = await adminService.getOrderById(id);

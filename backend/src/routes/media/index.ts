@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   rateLimiter,
@@ -14,20 +15,6 @@ import { uuidParam } from "../../validation/shared.schemas";
 import { Errors } from "../../utils/errors/app-error";
 
 const app = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 // GET /api/media — list user-uploaded assets
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
@@ -95,7 +82,7 @@ app.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, validationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

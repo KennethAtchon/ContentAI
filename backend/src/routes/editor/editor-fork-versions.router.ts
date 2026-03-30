@@ -15,7 +15,7 @@ import {
 import { parseStoredEditorTracks } from "../../domain/editor/validate-stored-tracks";
 import { Errors } from "../../utils/errors/app-error";
 import { contentRepository, editorRepository } from "../../domain/singletons";
-import { editorZodValidationHook } from "./zod-validation-hook";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const forkVersionsRouter = new Hono<HonoEnv>();
 
@@ -24,8 +24,8 @@ forkVersionsRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
-  zValidator("json", forkProjectSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
+  zValidator("json", forkProjectSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const auth = c.get("auth");
@@ -63,7 +63,7 @@ forkVersionsRouter.get(
   "/:id/versions",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, editorZodValidationHook),
+  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const auth = c.get("auth");
@@ -82,7 +82,7 @@ forkVersionsRouter.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", editorSnapshotParamSchema, editorZodValidationHook),
+  zValidator("param", editorSnapshotParamSchema, zodValidationErrorHook),
   async (c) => {
     const { id, snapshotId } = c.req.valid("param");
     const auth = c.get("auth");

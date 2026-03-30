@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -13,26 +14,12 @@ import {
 } from "../../domain/queue/queue.schemas";
 
 const coreRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 coreRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", queueListQuerySchema, validationErrorHook),
+  zValidator("query", queueListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const query = c.req.valid("query");
@@ -50,7 +37,7 @@ coreRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", createQueueItemBodySchema, validationErrorHook),
+  zValidator("json", createQueueItemBodySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { generatedContentId } = c.req.valid("json");

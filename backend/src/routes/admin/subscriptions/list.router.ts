@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../../validation/zod-validation-hook";
 import { authMiddleware, rateLimiter } from "../../../middleware/protection";
 import type { HonoEnv } from "../../../types/hono.types";
 import { adminService } from "../../../domain/singletons";
@@ -10,26 +11,12 @@ import {
 } from "../../../domain/admin/admin-subscriptions-firestore";
 
 const listRouter = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 listRouter.get(
   "/subscriptions",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", adminSubscriptionsQuerySchema, validationErrorHook),
+  zValidator("query", adminSubscriptionsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { page, limit, status, tier, search } = c.req.valid("query");
 

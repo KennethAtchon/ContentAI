@@ -1,5 +1,6 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 import {
   authMiddleware,
   rateLimiter,
@@ -14,26 +15,12 @@ import {
 } from "../../domain/music/music.schemas";
 
 const app = new Hono<HonoEnv>();
-type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
-
-const validationErrorHook = (result: ValidationResult, c: Context) => {
-  if (!result.success) {
-    return c.json(
-      {
-        error: "Validation failed",
-        code: "INVALID_INPUT",
-        details: result.error?.issues ?? [],
-      },
-      422,
-    );
-  }
-};
 
 app.get(
   "/library",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", musicListQuerySchema, validationErrorHook),
+  zValidator("query", musicListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const q = c.req.valid("query");
     const body = await musicService.listLibrary(q);
@@ -46,7 +33,7 @@ app.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", musicAttachBodySchema, validationErrorHook),
+  zValidator("json", musicAttachBodySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { generatedContentId, musicTrackId } = c.req.valid("json");

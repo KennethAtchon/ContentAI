@@ -1,5 +1,5 @@
-import { analyzeReel } from "../../services/reels/reel-analyzer";
 import { getFileUrl, extractKeyFromUrl } from "../../services/storage/r2";
+import { runReelAiAnalysis } from "./reel-analysis-run";
 import { VIRAL_VIEWS_THRESHOLD } from "../../utils/config/envUtil";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import type { ICustomerRepository } from "../customer/customer.repository";
@@ -118,7 +118,7 @@ export class ReelsService {
   }
 
   async analyzeReelForUser(reelId: number, userId: string) {
-    const analysis = await analyzeReel(reelId, userId);
+    const analysis = await runReelAiAnalysis(this.reels, reelId, userId);
     await this.customer
       .insertFeatureUsage({
         userId,
@@ -128,6 +128,11 @@ export class ReelsService {
       })
       .catch(() => {});
     return { analysis };
+  }
+
+  /** Post-scrape pipeline (no usage ledger — system-triggered). */
+  async runBackgroundReelAnalysis(reelId: number) {
+    return runReelAiAnalysis(this.reels, reelId, undefined);
   }
 
   /**
