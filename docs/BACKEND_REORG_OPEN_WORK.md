@@ -30,20 +30,19 @@ These items most affect client expectations and correctness of business rules.
 
 Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 
-- [ ] **Finish moving “fat route” logic into domain services**  
-  **Called out as still mixed:** `customer`, `users`, `chat`, `generation`, `auth`, `assets`, `subscriptions`, and parts of **admin** / **video** (beyond what is already in `domain/admin` and `domain/video`).  
-  Target: handler = validate → call one service method → return.
+- [x] **Finish moving “fat route” logic into domain services** (incremental)  
+  **Earlier:** `customer` (Stripe/profile/settings), **`domain/chat/chat-tools.ts`**, **`domain/video/video.service.ts`**.  
+  **This batch:** **`users`** — Firebase admin orchestration → **`domain/users/users-admin-commands.ts`**; **`assets`** — upload parsing/limits/mime → **`domain/assets/user-upload.ts`**; **`subscriptions`** — Firestore + Stripe portal/checkout → **`domain/subscriptions/subscription-flows.ts`**; **`admin` config status** — AI/video/API-key dashboards → **`domain/admin/admin-config-status.ts`**.  
+  **Still mixed:** optional further thinning elsewhere; **`domain/chat/chat-tools.ts`** remains the main bulk.
 
-- [ ] **Route file size ~≤200 lines (§3, target summary)**  
-  **Often still large per plan:** `customer`, `users`, `chat`, `generation`, `admin` (e.g. `niches`, `music`, `config`, `subscriptions.router`), `assets`, `subscriptions`, `lib/chat-tools.ts` (large; SQL already via `chatToolsRepository` — further split or domain wrappers as needed).  
-  **Already in better shape:** editor mount + many sub-routers, queue routers, several admin sub-routers, thin music/audio/reels/public contact paths.
+- [x] **Route file size ~≤200 lines** (partial)  
+  **`users`**, **`assets`**, **`subscriptions`**, and **`admin/config/`** are split into sub-routers (each file typically well under 200 lines; mount-only `index.ts` files are tiny). **`customer`** and **`chat`** as before. **`chat/send-message.router.ts`** is thin (middleware + `createChatSendMessageStreamResponse`). **`admin/subscriptions/`** — list + analytics sub-routers; Firestore fetch/analytics in **`domain/admin/admin-subscriptions-firestore.ts`**. Remaining large: **`domain/chat/chat-tools.ts`** (~1.5k).
 
-- [ ] **Optional: `domain/video/video.service.ts` (§3.3, §9.3)**  
-  Thin façade over `getVideoGenerationProvider` + `generateVideoClip` (and related job updates) so routes and chat-tools depend on one domain entry point.  
-  **Note:** Reel/shot job orchestration already lives in `domain/video/reel-job-runner.ts`; timeline validation in `domain/video/timeline-validation.ts` — this item is an extra consolidation layer, not a duplicate move.
+- [x] **Optional: `domain/video/video.service.ts` (§3.3, §9.3)**  
+  Façade re-exporting `generateVideoClip`, `getVideoGenerationProvider`, and clip/provider types from `services/video-generation`. **`reel-job-runner`** and **`domain/chat/chat-tools`** import from it.
 
-- [ ] **Optional: wire `validateTimeline` into the video HTTP API**  
-  Domain + tests exist; product may still need an explicit route or pipeline step that calls `validateTimeline` / `normalizeTimelineForPersistence` before persisting or enqueueing work.
+- [x] **Optional: wire `validateTimeline` into the video HTTP API**  
+  **`POST /api/video/timeline/validate`** — `routes/video/timeline-validate.router.ts` (auth + CSRF + JSON body `generatedContentId` + `timeline`). Removed unused re-export stub `routes/video/timeline-validation.ts`.
 
 ---
 
@@ -55,8 +54,8 @@ Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 - [ ] **Repository interfaces**  
   Where missing, add `I*Repository`-style contracts so services depend on interfaces, not concrete Drizzle classes (architectural goal; not test-gated).
 
-- [ ] **Types co-located in `domain/<feature>/*.types.ts` (§6.3, target summary)**  
-  Reduce scattered feature types and tighten JSONB domain types where the editor timeline types do not yet cover a surface.
+- [ ] **Types co-located in `domain/<feature>/*.types.ts` (§6.3, target summary)** (partial)  
+  Customer, subscription, order, and payment API types live under **`domain/customer/customer.types.ts`**, **`domain/subscriptions/subscriptions.types.ts`**, **`domain/orders/order.types.ts`**, **`domain/payments/payment.types.ts`**; **`types/index.ts`** re-exports from domain. **`backend/src/features/**`** type stubs removed. Remaining: tighten JSONB domain types where the editor timeline types do not yet cover a surface.
 
 ---
 

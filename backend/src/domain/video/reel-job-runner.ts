@@ -1,5 +1,4 @@
-import { generateVideoClip } from "../../services/video-generation";
-import type { VideoProvider } from "../../services/video-generation";
+import { generateVideoClip, type VideoProvider } from "./video.service";
 import {
   videoJobService,
   type VideoJobKind,
