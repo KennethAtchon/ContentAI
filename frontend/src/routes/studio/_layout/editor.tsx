@@ -21,13 +21,10 @@ function parseEditorSearch(search: Record<string, unknown>) {
   return { projectId, contentId };
 }
 
-function EditorRouteComponent() {
-  const search = Route.useSearch();
-  return <EditorRoutePage search={search} />;
-}
-
-export const Route = createFileRoute("/studio/editor")({
+export const Route = createFileRoute("/studio/_layout/editor")({
   validateSearch: (search: Record<string, unknown>) => parseEditorSearch(search),
-  component: EditorRouteComponent,
+  component: () => {
+    const search = Route.useSearch();
+    return <EditorRoutePage search={search} />;
+  },
 });
-

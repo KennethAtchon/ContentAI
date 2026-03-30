@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/shared/utils/helpers/utils";
-import { StudioTopBar } from "@/shared/components/navigation/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateQueueQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
@@ -152,10 +151,7 @@ export function QueueView() {
   const selectedItem = items.find((item) => item.id === detailItemId) ?? null;
 
   return (
-    <div className="h-screen bg-studio-bg text-studio-fg font-studio grid grid-rows-[48px_1fr] overflow-hidden">
-      <StudioTopBar variant="studio" activeTab="queue" />
-
-      <div className="grid grid-cols-[340px_1fr] overflow-hidden">
+    <div className="h-full grid grid-cols-[340px_1fr] overflow-hidden">
         {/* ── Left: list panel ─────────────────────────── */}
         <div className="border-r border-overlay-sm flex flex-col overflow-hidden">
           {/* Panel header */}
@@ -315,7 +311,6 @@ export function QueueView() {
             />
           ) : null}
         </div>
-      </div>
     </div>
   );
 }

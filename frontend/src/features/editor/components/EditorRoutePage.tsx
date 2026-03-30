@@ -3,8 +3,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus } from "lucide-react";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { StudioTopBar } from "@/shared/components/navigation/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
@@ -343,40 +341,32 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
 
   if (activeProject) {
     return (
-      <AuthGuard authType="user">
-        <div className="flex flex-col h-screen overflow-hidden">
-          <EditorLayout
-            project={activeProject}
-            onBack={() => {
-              setActiveProject(null);
-              void navigate({
-                to: REDIRECT_PATHS.STUDIO_EDITOR,
-                search: { projectId: undefined, contentId: undefined },
-              });
-            }}
-          />
-        </div>
-      </AuthGuard>
+      <div className="fixed inset-0 z-50 bg-studio-bg flex flex-col overflow-hidden">
+        <EditorLayout
+          project={activeProject}
+          onBack={() => {
+            setActiveProject(null);
+            void navigate({
+              to: REDIRECT_PATHS.STUDIO_EDITOR,
+              search: { projectId: undefined, contentId: undefined },
+            });
+          }}
+        />
+      </div>
     );
   }
 
   if (isLoadingProject || (contentId && isOpeningContent)) {
     return (
-      <AuthGuard authType="user">
-        <div className="grid grid-rows-[48px_1fr] h-screen overflow-hidden">
-          <StudioTopBar variant="studio" activeTab="editor" />
-          <div className="flex items-center justify-center text-sm text-dim-3 italic">
-            {t("common_loading") ?? "Loading…"}
-          </div>
-        </div>
-      </AuthGuard>
+      <div className="flex items-center justify-center h-full text-sm text-dim-3 italic">
+        {t("common_loading") ?? "Loading…"}
+      </div>
     );
   }
 
   return (
-    <AuthGuard authType="user">
-      <div className="grid grid-rows-[48px_1fr] h-screen overflow-hidden">
-        <StudioTopBar variant="studio" activeTab="editor" />
+    <div className="h-full overflow-y-auto">
+      <div className="p-6">
 
         <div className="overflow-y-auto p-6">
           {isSmallScreen && (
@@ -462,6 +452,6 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
           )}
         </div>
       </div>
-    </AuthGuard>
+    </div>
   );
 }

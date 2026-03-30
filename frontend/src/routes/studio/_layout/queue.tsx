@@ -1,17 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { QueueView } from "@/features/studio/components/queue/QueueView";
 import { prefetchStudioQueue } from "@/shared/lib/route-data-prefetch";
 
-export const Route = createFileRoute("/studio/queue")({
+export const Route = createFileRoute("/studio/_layout/queue")({
   loader: ({ context }) => prefetchStudioQueue(context.queryClient),
-  component: QueuePage,
+  component: QueueView,
 });
-
-function QueuePage() {
-  return (
-    <AuthGuard authType="user">
-      <QueueView />
-    </AuthGuard>
-  );
-}
