@@ -1,6 +1,5 @@
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import {
   authMiddleware,
   rateLimiter,
@@ -9,7 +8,10 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { projectsService } from "../../domain/singletons";
 import { uuidParam } from "../../validation/shared.schemas";
-import { Errors } from "../../utils/errors/app-error";
+import {
+  createProjectSchema,
+  updateProjectSchema,
+} from "../../domain/projects/projects.schemas";
 
 const app = new Hono<HonoEnv>();
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
@@ -26,17 +28,6 @@ const validationErrorHook = (result: ValidationResult, c: Context) => {
     );
   }
 };
-
-// Zod schemas for validation
-const createProjectSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-});
-
-const updateProjectSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-});
 
 // GET /api/projects - List user projects
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {

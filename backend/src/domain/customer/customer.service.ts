@@ -1,5 +1,6 @@
 import type { ICustomerRepository } from "./customer.repository";
 import { Errors } from "../../utils/errors/app-error";
+import type { CustomerProfile } from "./customer.types";
 
 export interface UsageStats {
   reelsAnalyzed: number;
@@ -12,17 +13,7 @@ export interface UsageStats {
   resetDate: string;
 }
 
-export interface CustomerProfile {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  role: string;
-  timezone: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type { CustomerProfile } from "./customer.types";
 
 export class CustomerService {
   constructor(private readonly customerRepo: ICustomerRepository) {}

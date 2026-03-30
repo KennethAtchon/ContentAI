@@ -1,10 +1,4 @@
-/**
- * Payment Types
- *
- * TypeScript types for Stripe payment and checkout operations.
- */
-
-import type { SubscriptionTier } from "@/constants/subscription.constants";
+import type { SubscriptionTier } from "../../constants/subscription.constants";
 
 export interface CreateCheckoutRequest {
   priceId: string;

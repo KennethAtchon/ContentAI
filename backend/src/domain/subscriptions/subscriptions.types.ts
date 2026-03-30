@@ -1,13 +1,7 @@
-/**
- * Subscription Types
- *
- * TypeScript types for subscription-related data structures.
- */
-
-import {
+import type {
   SubscriptionTier,
   SubscriptionStatus,
-} from "@/constants/subscription.constants";
+} from "../../constants/subscription.constants";
 
 export interface Subscription {
   id: string;

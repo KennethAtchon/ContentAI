@@ -2,7 +2,6 @@ import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { rateLimiter } from "../../middleware/protection";
 import { analyticsEventSchema } from "../../domain/analytics/analytics.schemas";
-import { debugLog } from "../../utils/debug/debug";
 
 const analytics = new Hono();
 
@@ -21,18 +20,13 @@ const validationErrorHook = (result: ValidationResult, c: Context) => {
   }
 };
 
-// All analytics endpoints are fire-and-forget — they log metrics and return 200.
+// Fire-and-forget: validate body shape, acknowledge. (Wire to metrics backend when needed.)
 analytics.post(
   "/form-completion",
   rateLimiter("public"),
   zValidator("json", analyticsEventSchema, validationErrorHook),
   async (c) => {
-    const data = c.req.valid("json");
-    debugLog.info("Analytics event", {
-      service: "analytics",
-      operation: "form-completion",
-      data,
-    });
+    c.req.valid("json");
     return c.json({ success: true });
   },
 );
@@ -43,12 +37,7 @@ analytics.post(
   rateLimiter("public"),
   zValidator("json", analyticsEventSchema, validationErrorHook),
   async (c) => {
-    const data = c.req.valid("json");
-    debugLog.info("Analytics event", {
-      service: "analytics",
-      operation: "form-progress",
-      data,
-    });
+    c.req.valid("json");
     return c.json({ success: true });
   },
 );
@@ -59,12 +48,7 @@ analytics.post(
   rateLimiter("public"),
   zValidator("json", analyticsEventSchema, validationErrorHook),
   async (c) => {
-    const data = c.req.valid("json");
-    debugLog.info("Analytics event", {
-      service: "analytics",
-      operation: "search-performance",
-      data,
-    });
+    c.req.valid("json");
     return c.json({ success: true });
   },
 );
@@ -75,12 +59,7 @@ analytics.post(
   rateLimiter("public"),
   zValidator("json", analyticsEventSchema, validationErrorHook),
   async (c) => {
-    const data = c.req.valid("json");
-    debugLog.info("Analytics event", {
-      service: "analytics",
-      operation: "web-vitals",
-      data,
-    });
+    c.req.valid("json");
     return c.json({ success: true });
   },
 );

@@ -7,10 +7,11 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { assetsService } from "../../domain/singletons";
+import { parseMediaLibraryUploadForm } from "../../domain/assets/media-library-upload";
 import { uploadFile, deleteFile, getFileUrl } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { uuidParam } from "../../validation/shared.schemas";
-import { AppError, Errors } from "../../utils/errors/app-error";
+import { Errors } from "../../utils/errors/app-error";
 
 const app = new Hono<HonoEnv>();
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
@@ -27,27 +28,6 @@ const validationErrorHook = (result: ValidationResult, c: Context) => {
     );
   }
 };
-
-const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500 MB
-const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
-
-const ALLOWED_VIDEO_MIMES = new Set(["video/mp4", "video/quicktime"]);
-const ALLOWED_AUDIO_MIMES = new Set(["audio/mpeg", "audio/wav", "audio/mp4"]);
-const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-function getMediaType(mime: string): "video" | "audio" | "image" | null {
-  if (ALLOWED_VIDEO_MIMES.has(mime)) return "video";
-  if (ALLOWED_AUDIO_MIMES.has(mime)) return "audio";
-  if (ALLOWED_IMAGE_MIMES.has(mime)) return "image";
-  return null;
-}
-
-function getMaxBytes(mediaType: "video" | "audio" | "image"): number {
-  if (mediaType === "video") return MAX_VIDEO_BYTES;
-  if (mediaType === "audio") return MAX_AUDIO_BYTES;
-  return MAX_IMAGE_BYTES;
-}
 
 // GET /api/media — list user-uploaded assets
 app.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
@@ -78,44 +58,17 @@ app.post(
   async (c) => {
     const auth = c.get("auth");
     const form = await c.req.formData();
+    const { file: fileEntry, name, mediaType, mime } =
+      parseMediaLibraryUploadForm(form);
 
-    const fileEntry = form.get("file");
-    const nameOverride = form.get("name");
+    const ext = fileEntry.name.includes(".")
+      ? fileEntry.name.split(".").pop()!.toLowerCase()
+      : mime.split("/")[1];
 
-    if (!(fileEntry instanceof File)) {
-      throw new AppError("file is required", "INVALID_INPUT", 400);
-    }
-
-      const mime = fileEntry.type.toLowerCase();
-      const mediaType = getMediaType(mime);
-
-    if (!mediaType) {
-      throw new AppError(
-        "Unsupported file type. Allowed: mp4, mov, mp3, wav, jpeg, png, webp",
-        "INVALID_INPUT",
-        400,
-      );
-    }
-
-      const maxBytes = getMaxBytes(mediaType);
-    if (fileEntry.size > maxBytes) {
-      const limitMb = maxBytes / (1024 * 1024);
-      throw new AppError(`File exceeds ${limitMb}MB limit`, "INVALID_INPUT", 400);
-    }
-
-      const ext = fileEntry.name.includes(".")
-        ? fileEntry.name.split(".").pop()!.toLowerCase()
-        : mime.split("/")[1];
-
-      const itemId = crypto.randomUUID();
-      const r2Key = `media/library/${auth.user.id}/${itemId}.${ext}`;
-      const fileBuffer = Buffer.from(await fileEntry.arrayBuffer());
-      const r2Url = await uploadFile(fileBuffer, r2Key, mime);
-
-    const name =
-      nameOverride instanceof File
-        ? fileEntry.name
-        : ((nameOverride as string | null) ?? fileEntry.name);
+    const itemId = crypto.randomUUID();
+    const r2Key = `media/library/${auth.user.id}/${itemId}.${ext}`;
+    const fileBuffer = Buffer.from(await fileEntry.arrayBuffer());
+    const r2Url = await uploadFile(fileBuffer, r2Key, mime);
 
     const item = await assetsService.createUploadedAsset({
       id: itemId,

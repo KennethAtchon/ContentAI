@@ -1,8 +1,5 @@
 /**
- * Customer Types
- *
- * TypeScript types for customer-related data structures.
- * Mirrors the User model fields exposed to customer-facing endpoints.
+ * Shared customer / user shapes for API and services.
  */
 
 export interface Customer {
@@ -23,7 +20,7 @@ export interface Customer {
   updatedAt: Date;
 }
 
-/** The subset of Customer fields returned by GET /api/customer/profile */
+/** Subset returned by GET /api/customer/profile */
 export interface CustomerProfile {
   id: string;
   name: string;

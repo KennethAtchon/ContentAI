@@ -7,7 +7,7 @@ import verifyRouter from "./verify.router";
 import analyticsRouter from "./analytics.router";
 import customersRouter from "./customers.router";
 import ordersRouter from "./orders.router";
-import subscriptionsRouter from "./subscriptions.router";
+import subscriptionsRouter from "./subscriptions";
 import featureUsagesRouter from "./feature-usages.router";
 import costsRouter from "./costs.router";
 import systemRouter from "./system.router";

@@ -70,8 +70,8 @@ Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 - [ ] **Form-data / multipart (optional)**  
   Shared helpers or Zod preprocess for file upload fields where it improves consistency (thumbnails, etc.); keep intentional manual parsing where appropriate.
 
-- [ ] **Schema file naming (§7)**  
-  Align remaining route-only schemas with `domain/<feature>/<feature>.schemas.ts` as the canonical home; routes re-export or import from domain.
+- [ ] **Schema file naming (§7)** (partial)  
+  **`domain/video/video.schemas.ts`** — reel/shot, timeline validate body (`validateTimelineBodySchema`), job/timeline shapes; **`routes/video/schemas.ts`** re-exports. **`domain/chat/chat.schemas.ts`** + **`routes/chat/chat.schemas.ts`**. **`domain/projects/projects.schemas.ts`** — customer project create/update; **`routes/projects/index.ts`** imports from domain. **`domain/admin/admin.schemas.ts`** — platform music PATCH (`adminPatchMusicTrackBodySchema`, `platformMusicMoodSchema`). Same pattern as **`routes/editor/schemas.ts`** → **`domain/editor/editor.schemas.ts`**. Remaining: other route files that import schemas from `domain/*` inline bundles (generation, queue, reels, etc.) — optional further centralization per feature.
 
 ---
 
@@ -95,11 +95,11 @@ Goal: HTTP adapters only; orchestration and rules in `domain/*`.
 
 Verify with grep before deleting.
 
-- [ ] **Backend `src/features/*/`**  
-  If any remain under `backend/src`, remove after types absorbed into `domain/`.
+- [x] **Backend `src/features/*/`**  
+  Removed; API types live under `domain/**.types.ts` with `types/index.ts` re-exports.
 
-- [ ] **Inline helpers that belong in domain**  
-  Any remaining inline `buildFfmpegAtempoChain`, `deriveStages`, or similar in route files — should live under `domain/editor/timeline/` or `domain/queue/pipeline/` only.
+- [ ] **Inline helpers that belong in domain** (partial)  
+  **`domain/assets/media-library-upload.ts`** — mime/size/name parsing for **`POST /api/media/upload`** (was inline in **`routes/media/index.ts`**). Remaining: any inline `buildFfmpegAtempoChain`, `deriveStages`, or similar in route files — should live under `domain/editor/timeline/` or `domain/queue/pipeline/` only.
 
 - [ ] **Manual `c.req.json()` + field checks**  
   Replace with `zValidator` / shared schemas; delete duplicate validation blocks.
@@ -110,8 +110,8 @@ Verify with grep before deleting.
 - [ ] **`src/shared/` audit**  
   Move or delete utilities that now belong under `domain/` or `services/` after reorg.
 
-- [ ] **Low-value `debugLog.info` noise**  
-  Remove “request received” / “starting operation” style logs with no diagnostic value.
+- [ ] **Low-value `debugLog.info` noise** (partial)  
+  Removed fire-and-forget **`debugLog.info`** from **`routes/analytics/index.ts`** (four handlers). Continue pruning “request received” / “starting operation” style logs elsewhere as you touch those files.
 
 - [x] **Backup / stray files**  
   Removed `backend/src/routes/customer/index.ts.bak`.

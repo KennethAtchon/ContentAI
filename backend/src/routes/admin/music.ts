@@ -1,6 +1,5 @@
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import {
   authMiddleware,
   csrfMiddleware,
@@ -13,6 +12,7 @@ import { adminService } from "../../domain/singletons";
 import {
   adminMusicIdParamSchema,
   adminMusicQuerySchema,
+  adminPatchMusicTrackBodySchema,
 } from "../../domain/admin/admin.schemas";
 
 const musicAdminRouter = new Hono<HonoEnv>();
@@ -118,15 +118,8 @@ musicAdminRouter.patch(
   zValidator("param", adminMusicIdParamSchema, validationErrorHook),
   zValidator(
     "json",
-    z.object({
-      isActive: z.boolean().optional(),
-      name: z.string().min(1).optional(),
-      artistName: z.string().nullable().optional(),
-      mood: z
-        .enum(["energetic", "calm", "dramatic", "funny", "inspiring"])
-        .optional(),
-      genre: z.string().nullable().optional(),
-    }),
+    adminPatchMusicTrackBodySchema,
+    validationErrorHook,
   ),
   async (c) => {
     const { id } = c.req.valid("param");

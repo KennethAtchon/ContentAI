@@ -156,6 +156,22 @@ export const adminMusicIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const platformMusicMoodSchema = z.enum([
+  "energetic",
+  "calm",
+  "dramatic",
+  "funny",
+  "inspiring",
+]);
+
+export const adminPatchMusicTrackBodySchema = z.object({
+  isActive: z.boolean().optional(),
+  name: z.string().min(1).optional(),
+  artistName: z.string().nullable().optional(),
+  mood: platformMusicMoodSchema.optional(),
+  genre: z.string().nullable().optional(),
+});
+
 export const adminSystemExportQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(200).default(50),

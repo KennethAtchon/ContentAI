@@ -36,25 +36,28 @@ export type {
   UpdateSubscriptionRequest,
   SubscriptionUsageStats,
   SubscriptionBillingInfo,
-} from "../features/subscriptions/types/subscription.types";
+} from "../domain/subscriptions/subscriptions.types";
 
 export type {
   Customer,
   CreateCustomerRequest,
   UpdateCustomerRequest,
   CustomerProfile,
-} from "../features/customers/types/customer.types";
+} from "../domain/customer/customer.types";
 
 export type {
   Order,
+  OrderResponse,
   CreateOrderRequest,
   UpdateOrderRequest,
   OrderStatus,
-} from "../features/orders/types/order.types";
+} from "../domain/orders/order.types";
 
 export type {
   CheckoutSession,
   CreateCheckoutRequest,
   PaymentResult,
   StripeWebhookEvent,
-} from "../features/payments/types/payment.types";
+  PortalLinkRequest,
+  PortalLinkResult,
+} from "../domain/payments/payment.types";

@@ -6,16 +6,10 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { z } from "zod";
-import { timelineSchema } from "../../domain/video/video.schemas";
+import { validateTimelineBodySchema } from "../../domain/video/video.schemas";
 import { validateTimeline } from "../../domain/video/timeline-validation";
 
 const timelineValidateRouter = new Hono<HonoEnv>();
-
-const validateTimelineBodySchema = z.object({
-  generatedContentId: z.number().int().positive(),
-  timeline: timelineSchema,
-});
 
 // POST /api/video/timeline/validate
 timelineValidateRouter.post(
