@@ -6,14 +6,22 @@ Complete type definitions, function signatures, API contracts, DB schema, and co
 
 ## TypeScript Type System
 
-All types live in `frontend/src/features/editor/caption/types.ts`.
+Codebase-aligned ownership:
+- Timeline clip/project/action types stay in `frontend/src/features/editor/types/editor.ts`
+- Backend timeline JSON types stay in `backend/src/types/timeline.types.ts`
+- Caption renderer/layout/preset-only types live in `frontend/src/features/editor/caption/types.ts`
+- Route validation schemas stay in `backend/src/domain/editor/editor.schemas.ts`
 
 ### Core Data Types
 
 ```typescript
 // ─── Transcription Data ──────────────────────────────────────────────────────
 
-/** A single timestamped word from Whisper (or manual entry). */
+/**
+ * A single timestamped display token from Whisper (or manual entry).
+ * Kept as `Word` in v2 for compatibility with existing terminology, but
+ * consumers must treat it as a render token rather than a linguistic word.
+ */
 export interface Word {
   word: string;
   startMs: number;
@@ -26,9 +34,10 @@ export interface CaptionDoc {
   assetId: string;
   words: Word[];
   fullText: string;
-  language: string;
+  language: "en";
   source: "whisper" | "manual" | "import";
   createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
 }
 
 // ─── Grouping Layer ───────────────────────────────────────────────────────────
@@ -236,6 +245,11 @@ export type ExportMode = "full" | "approximate" | "static";
  * A TextPreset is the complete visual definition for a caption style.
  * All style, animation, and export behavior is declared here.
  * Presets are immutable — per-clip tweaks go in CaptionClip.styleOverrides.
+ *
+ * Although defined here for the caption engine, the visual parts of a preset
+ * (typography, layers, layout) may also be reused by other text clip types
+ * such as TitleClip. Caption-only fields like groupingMs, wordActivation, and
+ * timed export behavior are only consumed by CaptionClip.
  */
 export interface TextPreset {
   id: string;
@@ -297,6 +311,10 @@ export interface CaptionStyleOverrides {
  * A CaptionClip is a first-class timeline clip type.
  * It references a CaptionDoc and a TextPreset.
  * It does NOT embed word data — that lives in CaptionDoc (DB).
+ *
+ * This belongs in the existing editor timeline type files:
+ * - frontend/src/features/editor/types/editor.ts
+ * - backend/src/types/timeline.types.ts
  */
 export interface CaptionClip {
   // Base clip fields (shared with all timeline clips)
@@ -306,7 +324,10 @@ export interface CaptionClip {
   durationMs: number;
 
   // Caption-specific fields
+  originVoiceoverClipId?: string; // when auto-generated from a voiceover clip
   captionDocId: string;      // FK → caption_doc.id
+  sourceStartMs: number;     // inclusive range into caption_doc.words
+  sourceEndMs: number;       // exclusive range into caption_doc.words
   stylePresetId: string;     // resolved via getPreset(id)
   styleOverrides: CaptionStyleOverrides;
   groupingMs: number;        // overrides preset.groupingMs if > 0
@@ -383,6 +404,16 @@ export function buildPages(
   groupingMs?: number,
   gapThresholdMs?: number,
 ): CaptionPage[];
+
+/**
+ * Extract the subset of tokens that belong to a clip's source range and
+ * re-base them so the first visible token starts at 0 relative to the clip.
+ */
+export function sliceTokensToRange(
+  words: Word[],
+  sourceStartMs: number,
+  sourceEndMs: number,
+): Word[];
 ```
 
 ### Layout Engine
@@ -524,9 +555,29 @@ Response (200):
 
 **Breaking change:** `captionId` → `captionDocId` in the response. All call sites must update.
 
+### GET /api/captions/doc/:captionDocId
+
+Fetches the exact `CaptionDoc` referenced by a `CaptionClip`.
+
+Response shape:
+
+```json
+{
+  "captionDocId": "string",
+  "words": [...],
+  "fullText": "string",
+  "language": "en",
+  "source": "whisper"
+}
+```
+
+This is the canonical read path for editor preview and export-related UI.
+
 ### GET /api/captions/:assetId
 
-**Unchanged.** Response shape:
+Convenience lookup for the latest caption doc associated with an asset. Used for idempotent auto-transcription and asset-level status, not clip rendering.
+
+Response shape:
 
 ```json
 {
@@ -538,6 +589,33 @@ Response (200):
 ```
 
 **Breaking change:** `captionId` → `captionDocId`. Call sites must update.
+
+### PATCH /api/captions/doc/:captionDocId (new)
+
+Updates an existing caption doc after transcription.
+
+Request:
+```json
+{
+  "words": [{ "word": "ContentAI", "startMs": 0, "endMs": 420 }],
+  "fullText": "ContentAI launches today",
+  "language": "en"
+}
+```
+
+Response (200):
+```json
+{
+  "captionDocId": "string",
+  "updatedAt": "2026-03-30T12:00:00.000Z"
+}
+```
+
+Validation:
+- Same ordering/non-overlap rules as create
+- Empty docs are rejected
+- `language` must remain `"en"` in v2
+- Updates are in-place for the referenced `captionDocId`; preview and export both read the saved result
 
 ### POST /api/captions/manual (new)
 
@@ -563,6 +641,7 @@ Validation:
 - Each word's `startMs` must be < `endMs`.
 - Words must not overlap (word[n].endMs <= word[n+1].startMs).
 - `fullText` must not be empty.
+- `language` must be `"en"` in v2.
 
 ---
 
@@ -594,11 +673,12 @@ export const captionDocs = pgTable("caption_doc", {
   id:        text("id").primaryKey(),
   userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   assetId:   text("asset_id").references(() => assets.id, { onDelete: "cascade" }), // nullable for manual
-  language:  text("language").notNull().default("en"),
+  language:  text("language").notNull().default("en").$type<"en">(),
   words:     jsonb("words").notNull().$type<Word[]>(),
   fullText:  text("full_text").notNull(),
   source:    text("source").notNull().default("whisper").$type<"whisper" | "manual" | "import">(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 ```
 
@@ -629,7 +709,10 @@ Clips stored in the `composition.timeline` JSONB column gain a new shape for cap
   type: "caption",
   startMs: 0,
   durationMs: 30000,
+  originVoiceoverClipId: "voiceover-123",
   captionDocId: "cap-xyz",   // FK → caption_doc.id
+  sourceStartMs: 10000,
+  sourceEndMs: 20000,
   stylePresetId: "hormozi",
   styleOverrides: { positionY: 80 },
   groupingMs: 1400,
@@ -637,6 +720,8 @@ Clips stored in the `composition.timeline` JSONB column gain a new shape for cap
 ```
 
 **Critical improvement:** Words are no longer stored in the composition JSONB. The `captionWords` array (potentially 200+ items for a 2-minute voiceover) was stored redundantly — once in `caption_doc.words` and once inside every clip. The new design stores words once.
+
+**Related change:** We will also stop sending the raw AI-generated voiceover script through this flow. Instead, we will rely on auto-transcription to derive the caption text and create separate clips for each transcribed segment.
 
 ---
 
@@ -653,8 +738,11 @@ type EditorAction =
       type: "ADD_CAPTION_CLIP";
       captionDocId: string;
       assetId: string;
+      originVoiceoverClipId?: string;
       startMs: number;
       durationMs: number;
+      sourceStartMs: number;
+      sourceEndMs: number;
       presetId?: string;    // defaults to "hormozi"
       groupingMs?: number;  // defaults to preset.groupingMs
     }
@@ -677,6 +765,7 @@ type EditorAction =
 
 ```typescript
 // features/editor/caption/hooks/useTranscription.ts
+// Uses useAuthenticatedFetch() internally, matching existing mutation hooks.
 export function useTranscription(): UseMutationResult<
   { captionDocId: string; words: Word[]; fullText: string },
   Error,
@@ -684,7 +773,16 @@ export function useTranscription(): UseMutationResult<
 >;
 
 // features/editor/caption/hooks/useCaptionDoc.ts
-export function useCaptionDoc(assetId: string | null): UseQueryResult<CaptionDoc | null>;
+// Uses useQueryFetcher() internally, matching existing query hooks.
+export function useCaptionDoc(captionDocId: string | null): UseQueryResult<CaptionDoc | null>;
+
+// features/editor/caption/hooks/useUpdateCaptionDoc.ts
+// Uses useAuthenticatedFetch() internally, matching existing mutation hooks.
+export function useUpdateCaptionDoc(): UseMutationResult<
+  { captionDocId: string; updatedAt: string },
+  Error,
+  { captionDocId: string; words: Word[]; fullText: string; language: "en" }
+>;
 
 // features/editor/caption/hooks/useCaptionCanvas.ts
 /**
@@ -708,12 +806,16 @@ export function useCaptionCanvas(
 
 ```typescript
 // frontend/src/shared/lib/query-keys.ts
+// Keep caption keys under queryKeys.api.* to match the existing codebase.
 
 // Before:
 captionsByAsset: (assetId: string) => ["captions", "asset", assetId] as const
 
 // After:
-captionDoc: (assetId: string) => ["caption-doc", assetId] as const
+captionDoc: (captionDocId: string) =>
+  ["api", "captions", "doc", captionDocId] as const
+captionDocByAsset: (assetId: string) =>
+  ["api", "captions", "asset", assetId] as const
 ```
 
 ---
@@ -727,10 +829,14 @@ Remove all existing `editor_captions_*` keys. Add:
 | `caption_style_label` | "Caption style" |
 | `caption_position_y` | "Position Y" |
 | `caption_font_size` | "Font size" |
-| `caption_grouping` | "Words per group" |
+| `caption_grouping` | "Caption pacing" |
 | `caption_transcribing` | "Transcribing audio..." |
 | `caption_transcription_failed` | "Transcription failed. Try again." |
 | `caption_export_approximated` | "Some effects simplified in export" |
+| `caption_edit_transcript` | "Edit transcript" |
+| `caption_timing_label` | "Token timing" |
+| `caption_sync_warning` | "This caption style changes on export" |
+| `caption_language_scope` | "English only" |
 
 ---
 
@@ -767,4 +873,29 @@ interface CaptionStylePanelProps {
 }
 ```
 
-Renders: three sliders — Position Y (0–100%), Font Size (24–96px), Words per group (400ms–2400ms converted to an approx word count label).
+Renders: three sliders — Position Y (0–100%), Font Size (24–96px), Caption pacing (400ms–2400ms), plus an export-fidelity badge derived from the preset's `exportMode`.
+
+### `CaptionTranscriptEditor`
+
+New inspector panel for correcting caption content after transcription.
+
+Props:
+```typescript
+interface CaptionTranscriptEditorProps {
+  clip: CaptionClip;
+  captionDoc: CaptionDoc;
+  onSave: (next: { words: Word[]; fullText: string; language: "en" }) => void;
+}
+```
+
+Renders:
+- Full transcript text area for quick copy edits
+- Token list with editable `word`, `startMs`, and `endMs`
+- Split/merge token actions
+- Reset-to-transcription action for discarding unsaved local edits
+
+Rules:
+- Saves update the existing `captionDocId` rather than creating a second hidden doc
+- Validation errors are inline and block save
+- Preview re-renders from the saved doc response so editor and export stay aligned
+- The UI must label this feature as English-only; non-English input is out of scope for v2

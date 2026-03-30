@@ -10,10 +10,13 @@ The database is being wiped (`bun run db:reset`). Docker containers are being to
 
 This means there is no backwards compatibility problem to solve. There is no old data to read. There are no legacy compositions to handle. The question "what do we do with old caption clips?" has one answer: **it doesn't matter, they don't exist.**
 
+The same rule applies to legacy `TitleClip` data and UX. If old title overlays exist anywhere in the system, they are not migrated, preserved, or adapted. They are deleted and re-authored under the new text/title model. We are not carrying forward old `TitleClip` assumptions just because they already existed.
+
 Concretely, this rules out entire categories of work:
 
 - **No `LEGACY_ID_MAP`.** Old preset IDs do not exist in the new codebase. Not even as comments.
 - **No migration functions.** There is no data to migrate. `migrateLegacyCaptionClip()` is never written.
+- **No legacy `TitleClip` adapters.** Existing title overlays are deleted and reimagined; we do not preserve old title behavior as a compatibility mode.
 - **No adapter layers.** No wrapper that makes the old interface look like the new one. The old interface is deleted.
 - **No `@deprecated` annotations.** Nothing is deprecated — it is deleted.
 - **No "V2" naming.** There is no `useCaptionsV2` or `CaptionPresetNew`. The new thing has the canonical name.

@@ -269,7 +269,7 @@ OpusClip (a direct competitor) implements:
 - **Highlight word** — A single word at a time is highlighted in bright color (yellow or brand color)
 - **Emoji insertion** — Auto-placed emojis at emotionally resonant moments (future feature)
 
-**Implication for our UX:** The current "Generate Text for Clip" button-first UX is backwards. The new system should auto-transcribe when a voiceover asset is added to the timeline, and the Inspector should show the style picker as the primary UI.
+**Implication for our UX:** The current "Generate Text for Clip" button-first UX is backwards. The new system should auto-transcribe when a voiceover asset is added to the timeline, and the Inspector should show the style picker as the primary UI. (We will also remove SENDING the actual AI generated voice over script, rely on auto-transcribe to make separate clips for each text.)
 
 ---
 
