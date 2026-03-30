@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import coreRouter from "./core.router";
 import itemsRouter from "./items.router";
 

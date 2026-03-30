@@ -327,7 +327,23 @@ export function jsonError(
   status: number,
   extra?: Record<string, unknown>,
 ) {
-  return c.json({ error: message, ...extra }, status as any);
+  const defaultCode =
+    status === 400
+      ? "BAD_REQUEST"
+      : status === 401
+        ? "AUTH_REQUIRED"
+        : status === 403
+          ? "FORBIDDEN"
+          : status === 404
+            ? "NOT_FOUND"
+            : status === 422
+              ? "INVALID_INPUT"
+              : status === 503
+                ? "SERVICE_UNAVAILABLE"
+                : "INTERNAL_ERROR";
+  const code =
+    extra && typeof extra.code === "string" ? extra.code : defaultCode;
+  return c.json({ error: message, code, ...extra }, status as any);
 }
 
 export function jsonNotFound(c: Context, message = "Not found") {

@@ -66,6 +66,7 @@ export class QueueService {
 
     const items = rows.map((row) => {
       const typeCounts = assetCountMap[row.generatedContentId ?? -1] ?? {};
+      // Raw JSONB from join — used only for placeholder heuristic in deriveStages, not returned to clients.
       const stages = deriveStages(
         {
           generatedHook: row.generatedHook,

@@ -14,6 +14,7 @@ import {
   isMetricsEnabled,
 } from "./services/observability/metrics";
 import { debugLog } from "./utils/debug/debug";
+import { AppError } from "./utils/errors/app-error";
 
 // Route imports
 import healthRoutes from "./routes/health";
@@ -111,12 +112,12 @@ app.get("/api/ready", (c) => c.json({ status: "ready" }));
 // Prometheus metrics — protected by bearer token when METRICS_SECRET is set
 app.get("/api/metrics", async (c) => {
   if (!isMetricsEnabled()) {
-    return c.json({ error: "Metrics not enabled" }, 404);
+    throw new AppError("Metrics not enabled", "METRICS_DISABLED", 404);
   }
   if (METRICS_SECRET) {
     const auth = c.req.header("Authorization");
     if (auth !== `Bearer ${METRICS_SECRET}`) {
-      return c.json({ error: "Unauthorized" }, 401);
+      throw new AppError("Unauthorized", "AUTH_REQUIRED", 401);
     }
   }
   const content = await getMetricsContent();

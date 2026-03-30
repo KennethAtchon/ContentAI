@@ -1,6 +1,3 @@
-TODO: Remove the max length from text - I rethink my decision, makes no sense to cap length because: users could want a text to stay for a long time, and
-it behaves differently than clips (they ACTUALLY end)
-
 TODO: Explore and refactor the `Clip` type — it has become a catch-all struct that holds fields for every clip variant (caption, text, video, audio) as optional properties. This makes the type hard to reason about and impossible to statically enforce invariants (e.g., a video clip shouldn't have `captionDocId`, a caption clip shouldn't have `textContent`).
 
 The right direction is a discriminated union:

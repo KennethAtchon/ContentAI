@@ -2,7 +2,6 @@ import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { debugLog } from "../../utils/debug/debug";
 import { adminService } from "../../domain/singletons";
 import { adminFeatureUsagesQuerySchema } from "../../domain/admin/admin.schemas";
 
@@ -28,19 +27,10 @@ featureUsagesRouter.get(
   authMiddleware("admin"),
   zValidator("query", adminFeatureUsagesQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { page, limit } = c.req.valid("query");
+    const { page, limit } = c.req.valid("query");
 
-      const payload = await adminService.listFeatureUsages({ page, limit });
-      return c.json(payload);
-    } catch (error) {
-      debugLog.error("Failed to fetch feature usages", {
-        service: "admin-route",
-        operation: "getFeatureUsages",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch feature usages" }, 500);
-    }
+    const payload = await adminService.listFeatureUsages({ page, limit });
+    return c.json(payload);
   },
 );
 

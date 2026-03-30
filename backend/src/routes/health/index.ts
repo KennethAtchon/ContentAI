@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { rateLimiter } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import {
   db,
   getQueryStats,
@@ -11,6 +11,7 @@ import { authRepository } from "../../domain/singletons";
 import getRedisConnection from "../../services/db/redis";
 import { getErrorMetrics } from "../../services/observability/metrics";
 import { getEnvVar } from "../../utils/config/envUtil";
+import { Errors } from "../../utils/errors/app-error";
 
 const health = new Hono<HonoEnv>();
 
@@ -61,6 +62,7 @@ health.get("/", rateLimiter("health"), async (c) => {
         status: "unhealthy",
         timestamp: new Date().toISOString(),
         error: "Health check failed",
+        code: "HEALTH_CHECK_FAILED",
         response_time_ms: Date.now() - startTime,
       },
       503,
@@ -77,7 +79,7 @@ health.get("/error-monitoring", rateLimiter("health"), async (c) => {
     const metrics = getErrorMetrics();
     return c.json({ metrics });
   } catch {
-    return c.json({ error: "Error monitoring unavailable" }, 503);
+    throw Errors.serviceUnavailable("Error monitoring unavailable");
   }
 });
 

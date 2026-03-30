@@ -151,6 +151,7 @@ export async function applyRateLimit(
       return jsonResponse(
         {
           error: "Rate limit exceeded",
+          code: "RATE_LIMIT_EXCEEDED",
           message: "Too many requests. Please wait before trying again.",
           retryAfter: config.window,
         },
@@ -176,6 +177,7 @@ export async function applyRateLimit(
     return jsonResponse(
       {
         error: "Rate limit service unavailable",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Service temporarily unavailable. Please try again later.",
       },
       503,
@@ -224,6 +226,7 @@ export async function applyUserBasedRateLimit(
         return jsonResponse(
           {
             error: "User rate limit exceeded",
+            code: "USER_RATE_LIMIT_EXCEEDED",
             message:
               "You have made too many requests. Please wait before trying again.",
             retryAfter: userConfig.window,

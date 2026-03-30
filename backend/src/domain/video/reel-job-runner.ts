@@ -7,14 +7,16 @@ import {
 } from "../../services/video/job.service";
 import { debugLog } from "../../utils/debug/debug";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
-import { contentService } from "../../domain/singletons";
-import { refreshEditorTimeline } from "../editor/services/refresh-editor-timeline";
+import {
+  contentService,
+  editorRepository,
+} from "../singletons";
 import {
   buildMockDevReelShots,
   durationSecondsToMs,
   parseScriptShots,
   type ShotInput,
-} from "./utils";
+} from "./reel-shot-helpers";
 import { fetchOwnedContent, updatePhase4Metadata } from "./phase4-metadata";
 
 export async function runReelGeneration(input: {
@@ -73,7 +75,7 @@ export async function runReelGeneration(input: {
     const sceneDescription = content.sceneDescription ?? undefined;
 
     debugLog.info("[runReelGeneration] Starting clip generation", {
-      service: "video-route",
+      service: "video-domain",
       operation: "runReelGeneration",
       generatedContentId: job.generatedContentId,
       shotCount: shots.length,
@@ -108,19 +110,21 @@ export async function runReelGeneration(input: {
         ? `${sceneDescription}. ${shot.description}`
         : shot.description;
 
-      await refreshEditorTimeline(job.generatedContentId, job.userId, {
-        placeholderStatus: "generating",
-        shotIndex: shot.shotIndex,
-      }).catch((err) =>
-        debugLog.warn("refreshEditorTimeline (pre-generate) failed", {
-          err,
-          contentId: job.generatedContentId,
+      await editorRepository
+        .refreshEditorTimeline(job.generatedContentId, job.userId, {
+          placeholderStatus: "generating",
           shotIndex: shot.shotIndex,
-        }),
-      );
+        })
+        .catch((err) =>
+          debugLog.warn("refreshEditorTimeline (pre-generate) failed", {
+            err,
+            contentId: job.generatedContentId,
+            shotIndex: shot.shotIndex,
+          }),
+        );
 
       debugLog.info("[runReelGeneration] Sending prompt to video provider", {
-        service: "video-route",
+        service: "video-domain",
         operation: "runReelGeneration",
         shotIndex: shot.shotIndex,
         prompt: videoPrompt,
@@ -143,22 +147,24 @@ export async function runReelGeneration(input: {
         const msg =
           shotErr instanceof Error ? shotErr.message : "Unknown shot error";
         debugLog.error("Shot generation failed", {
-          service: "video-route",
+          service: "video-domain",
           operation: "runReelGeneration",
           jobId: job.id,
           shotIndex: shot.shotIndex,
           error: msg,
         });
-        await refreshEditorTimeline(job.generatedContentId, job.userId, {
-          placeholderStatus: "failed",
-          shotIndex: shot.shotIndex,
-        }).catch((err) =>
-          debugLog.warn("refreshEditorTimeline (on-failure) failed", {
-            err,
-            contentId: job.generatedContentId,
+        await editorRepository
+          .refreshEditorTimeline(job.generatedContentId, job.userId, {
+            placeholderStatus: "failed",
             shotIndex: shot.shotIndex,
-          }),
-        );
+          })
+          .catch((err) =>
+            debugLog.warn("refreshEditorTimeline (on-failure) failed", {
+              err,
+              contentId: job.generatedContentId,
+              shotIndex: shot.shotIndex,
+            }),
+          );
         continue;
       }
 
@@ -181,14 +187,15 @@ export async function runReelGeneration(input: {
         useClipAudio: false,
       });
 
-      await refreshEditorTimeline(job.generatedContentId, job.userId).catch(
-        (err) =>
+      await editorRepository
+        .refreshEditorTimeline(job.generatedContentId, job.userId)
+        .catch((err) =>
           debugLog.warn("refreshEditorTimeline (post-generate) failed", {
             err,
             contentId: job.generatedContentId,
             shotIndex: shot.shotIndex,
           }),
-      );
+        );
 
       await videoJobService.updateJob(job.id, {
         progress: {
@@ -239,7 +246,7 @@ export async function runReelGeneration(input: {
     }
 
     debugLog.error("Video reel job failed", {
-      service: "video-route",
+      service: "video-domain",
       operation: "runReelGeneration",
       jobId: job.id,
       generatedContentId: job.generatedContentId,
@@ -290,13 +297,14 @@ export async function runShotRegenerate(input: {
         },
       });
 
-    await refreshEditorTimeline(job.generatedContentId, job.userId).catch(
-      (err) =>
+    await editorRepository
+      .refreshEditorTimeline(job.generatedContentId, job.userId)
+      .catch((err) =>
         debugLog.warn("refreshEditorTimeline (shot-regenerate) failed", {
           err,
           contentId: job.generatedContentId,
         }),
-    );
+      );
 
     await videoJobService.updateJob(job.id, {
       status: "completed",
@@ -318,7 +326,7 @@ export async function runShotRegenerate(input: {
     });
 
     debugLog.error("Shot regenerate failed", {
-      service: "video-route",
+      service: "video-domain",
       operation: "runShotRegenerate",
       jobId: job.id,
       generatedContentId: job.generatedContentId,
@@ -330,7 +338,7 @@ export async function runShotRegenerate(input: {
 export function enqueue(kind: VideoJobKind, fn: () => Promise<void>): void {
   setTimeout(() => void fn(), 0);
   debugLog.info("Video job enqueued", {
-    service: "video-route",
+    service: "video-domain",
     operation: "enqueue",
     kind,
   });

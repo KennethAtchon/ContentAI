@@ -93,6 +93,19 @@ The timeline editor is the most complex subsystem. Key concepts:
 
 Reducer is split across files: `editor-reducer.ts` (dispatch), `editor-reducer-clip-ops.ts`, `editor-reducer-track-ops.ts`, `editor-reducer-session-ops.ts`, `editor-reducer-helpers.ts`.
 
+## Development Phase
+
+This app is in active development. There are no production users. The database can and will be reset at any time.
+
+**Never write backwards compatibility workarounds.** When a design changes:
+- Delete the old code. All of it.
+- Update every call site to the new interface.
+- Run `bun run db:reset` if the schema changes. Do not write migrations to preserve old data.
+- Do not write `LEGACY_ID_MAP`, adapter functions, `@deprecated` wrappers, or "temporary" shims.
+- Do not keep old files "for reference." Delete them.
+
+Backwards compatibility is a production concern. We are not in production. Writing compatibility code now is wasted work that makes the codebase harder to reason about.
+
 ## Key Patterns
 
 **Backend route pattern:**

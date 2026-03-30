@@ -267,6 +267,14 @@ Run these checks before declaring done:
 
 ---
 
+## Also: Remove Max Length Cap on Text Clips
+
+While ripping out the caption system, also remove the max length constraint on text clips. The cap makes no sense — a text overlay should be able to span any duration the user wants. Text clips don't "end" the way media clips do (a video clip is bounded by its source file). Capping length is an artificial constraint that fights the user.
+
+Find and delete wherever this cap is enforced — validation schema, reducer guard, or UI slider max — and remove it entirely.
+
+---
+
 ## No Migration. The DB Is Wiped.
 
 `bun run db:reset` has been run. Docker containers have been torn down. The database is empty. There is no old data.

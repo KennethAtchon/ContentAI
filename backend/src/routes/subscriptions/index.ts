@@ -163,7 +163,10 @@ subscriptions.post(
     if (!response.ok) {
       const errorData: any = await response
         .json()
-        .catch(() => ({ error: "Unknown error" }));
+        .catch(() => ({
+          error: "Unknown error",
+          code: "UPSTREAM_ERROR",
+        }));
       throw Errors.internal(
         errorData.error?.message || errorData.error || `HTTP ${response.status}`,
       );

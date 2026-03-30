@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import {
   deriveUseClipAudioByIndex,
   extractCaptionSourceText,
@@ -10,7 +10,11 @@ import jobsRouter from "./jobs.router";
 import reelGenerateRouter from "./reel-generate.router";
 import shotRegenerateRouter from "./shot-regenerate.router";
 
-export { getRetryRunner, runReelGeneration, runShotRegenerate } from "./reel-job-runner";
+export {
+  getRetryRunner,
+  runReelGeneration,
+  runShotRegenerate,
+} from "../../domain/video/reel-job-runner";
 
 const app = new Hono<HonoEnv>();
 app.route("/", reelGenerateRouter);

@@ -1,6 +1,5 @@
 /**
- * Typed API errors for use with the global route error handler.
- * Phase 1: defined and wired; routes may still return c.json() manually.
+ * Typed API errors for use with the global route error handler (`handleRouteError`).
  */
 
 export class AppError extends Error {
@@ -46,4 +45,10 @@ export const Errors = {
 
   conflict: (message: string, code = "CONFLICT") =>
     new AppError(message, code, 409),
+
+  serviceUnavailable: (message: string) =>
+    new AppError(message, "SERVICE_UNAVAILABLE", 503),
+
+  notConfigured: (message: string) =>
+    new AppError(message, "NOT_CONFIGURED", 500),
 };

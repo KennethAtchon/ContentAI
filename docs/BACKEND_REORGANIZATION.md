@@ -2,6 +2,7 @@
 
 > **Scope:** `backend/src/` — full structural overhaul for long-term maintainability.
 > **Goal:** Routes that are thin HTTP adapters. Services that contain all business logic. Repositories that own all database access. A structure where adding a feature means adding one file in a predictable place, not hunting across 4 directories.
+> **Not in scope:** expanding **automated unit/integration tests** or requiring **repository mocks** as part of this plan (**§11**).
 
 ---
 
@@ -41,7 +42,7 @@ A route handler should do: validate input → call a service → return the resu
 
 Database queries are written inline inside route handlers and service functions, sometimes in both. There is no abstraction between the Drizzle schema and the business logic. This means:
 - Changing a column name requires finding every `db.select().from(users).where(...)` scattered across 18 route files and 40 service files
-- Writing tests for service logic requires either hitting a real database or mocking Drizzle directly
+- Without repositories, any caller of business logic must hit a real database or reach into Drizzle directly
 - The same query is written multiple times in different files
 
 ### 1.3 Validation Is Inconsistent
@@ -106,7 +107,7 @@ Examples found:
 - `deriveStages()` defined inside `queue/index.ts`
 - Inline cost calculation logic in `admin/index.ts`
 
-These are pure functions. They should be in service/utility files with tests.
+These are pure functions. They should live in service/utility files, not inside handlers.
 
 ---
 
@@ -363,7 +364,7 @@ The naming is now unambiguous:
 
 Domain services call infrastructure services. Infrastructure services never import from `domain/`.
 
-### Rule 2: Service Functions Are Testable in Isolation
+### Rule 2: Domain Services Depend on Repositories (Not on `db`)
 
 Service functions take their dependencies as arguments or use constructor injection. They do not import the `db` singleton or call `redis` directly. They receive repositories.
 
@@ -383,11 +384,11 @@ export class UserService {
 }
 ```
 
-This makes unit tests trivial: pass a mock repository, no database needed.
+Constructor injection also keeps dependencies explicit (and allows fakes or stubs later if you choose to add automated tests outside this reorg).
 
 ### Rule 3: Business Logic Functions Are Not Defined Inside Route Handlers
 
-Any function that is more than 3 lines and performs a calculation, transformation, or decision must be extracted to a service or utility file with a descriptive name. Functions without names are untestable and unsearchable.
+Any function that is more than 3 lines and performs a calculation, transformation, or decision must be extracted to a service or utility file with a descriptive name. Functions without names are hard to reuse and impossible to grep for.
 
 ### Rule 4: Each Service File Exports One Service
 
@@ -433,7 +434,7 @@ Repositories are the only layer that imports from the Drizzle schema. No route h
 
 ### 5.3 Interface Per Repository
 
-Each repository implements an interface. This is what makes mocking in tests possible.
+Each repository implements an interface so call sites depend on a contract, not on Drizzle details.
 
 ```typescript
 // domain/editor/editor.repository.ts
@@ -878,13 +879,13 @@ These changes are purely structural and do not touch business logic.
 
 12. **Replace all manual `c.req.json()` validation** with `zValidator`. Start with routes that have the most fields (editor, generation). Create feature schema files in `domain/*/[feature].schemas.ts`.
 
-13. **Add Zod validation for JSONB timeline data** — validate the `tracks` column on every read from `editProjects`. Start throwing on malformed data in test/staging. This will reveal any existing corrupt data.
+13. **Add Zod validation for JSONB timeline data** — validate the `tracks` column on every read from `editProjects`. Start throwing on malformed data in staging first. This will reveal any existing corrupt data.
 
 ### Phase 5: Error Handling
 
 14. **Convert services to throw `AppError`** instead of returning null/undefined for not-found cases.
 
-15. **Remove try/catch from route handlers** one route at a time, relying on the global error handler. Verify behavior with integration tests at each step.
+15. **Remove try/catch from route handlers** one route at a time, relying on the global error handler. Verify behavior manually or in staging as you go.
 
 ### Phase 6: Infrastructure Cleanup
 
@@ -919,13 +920,13 @@ These changes are purely structural and do not touch business logic.
 - **`domain/reels/reels.repository.ts`** — usage counts, niches, filtered list + totals, analysis id sets (**`inArray`**), bulk/detail/export viral queries; **`reels.service.ts`** — dashboard payload, presigned media (**`AppError`** for missing reel/video), CSV/JSON export, **`analyzeReel`** + usage.
 - **`domain/public/public.repository.ts`** — paginated **`contact_message`** list + insert; **`public.service.ts`** — decrypt for admin list, encrypt + spam heuristics on create (**`AppError`**); **`routes/public/index.ts`** has no **`db`** for contact routes (email + upload handlers unchanged).
 - **`domain/queue/queue-editor-join.ts`** — shared `rootEditProjectJoinQueueItems` for queue list `LEFT JOIN` to root edit project.
-- **Still not done:** Under **`src/routes/`**, only **`health/index.ts`** imports **`services/db/db`** (intentional DB ping). **`lib/chat-tools.ts`**, **`jobs/daily-scan.ts`**, and **`services/config/*`** still use **`db`** directly — next consolidation targets. **§4 Rule 2** (constructors + mocked repos in tests) remains partial.
+- **Still not done:** Under **`src/routes/`**, only **`health/index.ts`** imports **`db`**. **`singletons.ts`** is the only other **`src/**`** file that opens **`db`** (constructs repositories). **§4 Rule 2** (constructor injection everywhere) is **partial** — some services/repos are still wired ad hoc. **Automated tests are out of scope** for this document (see **§11 — Scope**).
 
 **Phase 3 (route shrinkage):**
 
 - **Editor** — `routes/editor/index.ts` is a thin mount. **AI:** split into `editor-ai.router.ts` (mount only), `editor-ai-assembly.router.ts` (~185 lines), `editor-link-content.router.ts`. **Shared:** `routes/editor/zod-validation-hook.ts`. **Projects / fork / export / link** delegate heavily to `editorRepository`.
 - **Timeline domain:** `domain/editor/timeline/clip-trim.ts` (`normalizeMediaClipTrimFields`), `ai-assembly-tracks.ts`, existing `composition.ts` (FFmpeg chain).
-- **Still large / not fully extracted:** **Editor projects** router ~**230 lines** (create + sync still in-route). **Captions / export-worker** are thin; logic lives in **`captions.service`** and **`run-export-job`**. **`lib/chat-tools.ts`** still uses **`db`** heavily; chain-tip logic is deduped via **`resolveChainTip`** + **`content.repository`**. **`usage-gate`** / **`recordUsage`** delegate to **`customerRepository`**; **`cost-tracker`** to **`adminRepository.insertAiCostLedgerRow`**; **`queue-chain-guard`** uses **`AppDb`** only (no **`db`** import). **Queue:** thin routers + **`queueService`**.
+- **Still large / not fully extracted:** **Editor projects** router can still grow with new routes; **captions / export-worker** are thin (logic in **`captions.service`** / **`run-export-job`**). **`lib/chat-tools.ts`** delegates to **`chatToolsRepository`** (no route-level Drizzle). **`usage-gate`** / **`recordUsage`** → **`customerRepository`**; **`cost-tracker`** → **`adminRepository.insertAiCostLedgerRow`**; **`queue-chain-guard`** is typed on **`AppDb`** only. **Queue:** thin routers + **`queueService`**.
 
 **Phase 4 (validation):**
 
@@ -936,7 +937,7 @@ These changes are purely structural and do not touch business logic.
 **Phase 5 (errors):**
 
 - **Editor:** many handlers use **`throw Errors.*` / `AppError`** and dropped broad `try/catch` (e.g. projects list, patch, thumbnail, delete, sync, publish, new-draft, fork, restore, link). **POST `/api/editor`** (create project) keeps **`try/catch` only for Postgres `23505`** (unique root per content) then rethrows `AppError` **`project_exists`**.
-- **Elsewhere:** **customer**, **users**, **generation**, **chat**, **subscriptions**, **admin**, **video** workers, **auth**, and many handlers still mix manual `c.json` errors with throws; **integration tests** per route not systematically added.
+- **Elsewhere:** **customer**, **users**, **generation**, **chat**, **subscriptions**, **admin**, **video** workers, **auth**, and many handlers still mix manual `c.json` errors with throws.
 
 **Phase 6 (infrastructure):**
 
@@ -950,6 +951,26 @@ These changes are purely structural and do not touch business logic.
 
 Use this as the authoritative gap list; verify with grep/tree before picking up an item.
 
+#### Scope
+
+| In scope (this doc) | Out of scope |
+|---------------------|--------------|
+| Directory layout, repositories, thin routes, validation, **`AppError`** / global handler coverage, **`services/`** cleanup, §10 dead-code passes | **Automated unit tests**, **integration tests**, and **mandatory repository mocks** — not part of this reorg backlog; track under your testing roadmap if needed |
+
+Constructor injection and repository interfaces remain **architectural goals** for clarity and swapability; they are **not** gated on adding tests.
+
+#### Leftover work (in scope — snapshot)
+
+What is still open after the latest repo snapshot (details in the phase checklists below):
+
+1. **Phase 2 — Wiring:** Finish **constructor injection** for domain services that still rely on implicit globals or partial wiring; keep **`singletons.ts`** as the single composition root.
+2. **Phase 3 — Routes:** Split **admin** and **video** monoliths; move analytics, costs, and job pipelines further into **`domain/admin`** and (optionally) **`domain/video`**.
+3. **Phase 4 — Validation:** Optional form-data helpers; align schema file naming (**§7**); policy for **`tracks`** / queue list JSON (**parse** vs document-as-untrusted).
+4. **Phase 5 — Errors:** Replace manual **`c.json({ error: … })`** with **`throw AppError` / `Errors.*`** across remaining routes; prefer throw in domain for not-found/rules; audit legacy client shapes vs **§8.1**.
+5. **Phase 6 — Infrastructure:** Flatten **`services/`** per **§9.1**; optional **`domain/video/video.service.ts`**; trim **`services/firebase`** to verify + admin SDK; **§10** dead-code deletion.
+
+Optional: **`routes/health`** may delegate DB ping to a tiny repository helper for symmetry with the rest of the stack.
+
 #### Phase 2 — Repository layer
 
 - [x] **Queue list query:** `queueRepository.listQueueItemsPage` + **`queueService.listQueueItemsPage`** (`deriveStages`, asset counts, root/version batch SQL); **`routes/queue/core.router.ts`** validates and delegates.
@@ -959,8 +980,8 @@ Use this as the authoritative gap list; verify with grep/tree before picking up 
 - [x] **Audio (`routes/audio`):** **`audioRepository`** + **`audioService`** (uses **`assetsRepository`** for TTS inserts); no **`db`** in the router.
 - [x] **Reels (`routes/reels`):** **`reelsRepository`** + **`reelsService`** (usage, niches, list/bulk/detail/media-url, export, analyze + **`customerRepository.insertFeatureUsage`** for reel analysis); no **`db`** in the router. **`GET /export`** is registered **before** **`GET /:id`** so export is reachable.
 - [x] **Public / shared (`routes/public`):** **`publicRepository`** + **`publicService`** for **`contact-messages`** (GET list + POST create); no **`db`** in that router.
-- [ ] **Inject repositories into domain services** (constructors / factories); routes and `singletons.ts` wire instances; unit tests mock interfaces (**§4**).
-- [ ] **Non-route Drizzle:** move queries out of **`lib/chat-tools.ts`**, **`jobs/daily-scan.ts`**, and **`services/config/*.ts`** into appropriate **`domain/*` repositories** (or a small **`domain/config`** module), then inject from **`singletons`**.
+- [ ] **Inject repositories into domain services** (constructors / factories); routes and **`singletons.ts`** wire instances (**§4** Rule 2).
+- [x] **Non-route Drizzle:** **`domain/config/config.repository.ts`** backs **`SystemConfigService`** / **`UserSettingsService`** and **`config-seed`** (wired from **`singletons`**). **`jobs/daily-scan.ts`** uses **`adminRepository.listActiveNichesForDailyScan()`**. **`domain/chat/chat-tools.repository.ts`** holds all chat-tool SQL; **`lib/chat-tools.ts`** delegates to **`chatToolsRepository`** from **`singletons`**.
 
 **Routes under `src/routes/` importing `services/db/db` (verify: `rg 'services/db/db' src/routes` from `backend/`):**
 
@@ -970,14 +991,14 @@ Use this as the authoritative gap list; verify with grep/tree before picking up 
 
 All other route modules listed in earlier revisions (**`auth`**, **`chat`**, **`customer`**, **`users`**, **`generation`**, **`subscriptions`**, **`projects`**, **`assets`**, **`video/*`**, **`admin/*`**, **`editor/*`** except health) **no longer** import **`services/db/db`** as of this doc refresh.
 
-**Non-route `db` imports** (still to fold into repositories when you pick them up):
+**Non-route `db` imports** (verify: `rg 'services/db/db' src` from `backend/`):
 
-| Area | Files (representative) |
-|------|-------------------------|
-| Wiring | `domain/singletons.ts` |
-| Chat tools | `lib/chat-tools.ts` |
-| Jobs | `jobs/daily-scan.ts` |
-| Config / system settings | `services/config/config-seed.ts`, `user-settings.service.ts`, `system-config.service.ts` |
+| Area | Files |
+|------|--------|
+| Wiring | `domain/singletons.ts` (sole **`db`** holder for constructing repositories) |
+| Intentional | `routes/health/index.ts` (health checks) |
+
+**Config / chat-tool consumers** import **`systemConfigService`**, **`userSettingsService`**, and **`chatToolsRepository`** from **`domain/singletons`** (not from `services/config/*` singleton exports — those files export **classes** only).
 
 #### Phase 3 — Route size & domain logic
 
@@ -996,7 +1017,6 @@ All other route modules listed in earlier revisions (**`auth`**, **`chat`**, **`
 - [ ] **Customer, users, chat, generation, admin, video, auth, assets, subscriptions, etc.** — replace `return c.json({ error: ... }, nnn)` with **`throw new AppError(...)`** / **`Errors.*`**; remove defensive `try/catch` where the global handler suffices. (**Queue** / **editor** slices already lean on throws in many handlers.)
 - [ ] **Domain services** — prefer **throw** over **null + branch** for not-found and business rule failures (**§8**).
 - [ ] **Guarantee `{ error, code, details? }`** on every error path (**§8.1**); audit clients for legacy shapes.
-- [ ] **Integration tests** for critical flows after each batch of throw-based routes (**§8.4**).
 
 #### Phase 6 — Infrastructure & cleanup
 
@@ -1010,14 +1030,14 @@ All other route modules listed in earlier revisions (**`auth`**, **`chat`**, **`
 | Goal | Status |
 |------|--------|
 | Route files **&lt; ~200 lines** each | **Partial** — **captions**, **export-worker**, **music**, **audio**, **reels**, **public** (contact) are thin; **editor** AI assembly ~OK; **projects**, **queue** core OK; **customer**, **users**, **chat**, **generation**, **admin**, **video** workers, **assets**, **subscriptions** often still large. |
-| **All Drizzle in repositories** | **Partial** — **All `src/routes/*` except `health`** avoid **`db`**; **`singletons`**, **`lib/chat-tools`**, **`jobs/daily-scan`**, and **`services/config/*`** still open **`db`** directly (see **§11 non-route table**). |
+| **All Drizzle in repositories** | **Strong** — **All `src/routes/*` except `health`** avoid **`db`**; **`lib/chat-tools`**, **`jobs/daily-scan`**, and **`services/config/*`** use **`domain/*` repositories**; **`singletons`** alone imports **`db`** to construct repos (see **§11 non-route table**). |
 | **Business logic in `domain/` services** | **Partial** — orchestration lives in **`domain/`** for the slices above; **customer**, **users**, **chat**, **generation**, **admin**, **video** pipelines, **auth**, **assets** route still mix HTTP + SQL. |
 | **Bodies/query/params via `zValidator`** | **Done** (except intentional form-data gaps). |
 | **Timeline JSONB validated on read** | **Strong for editor pipeline**; queue list exposes tracks without parse — **decide policy**. |
 | **Types in `domain/*/types`** | **Partial**. |
 | **One error shape + global handler** | **Wired**; **coverage** still incomplete across routes. |
 | **Video provider selection explicit** | **`provider-selector.ts`** done; **domain video service** optional. |
-| **Tests mock repositories** | **Minimal** — pattern not rolled out broadly. |
+| **Automated tests (unit / integration)** | **Out of scope** for this reorg doc — see **§11 → Scope**. |
 
 ---
 
@@ -1041,7 +1061,8 @@ Use this as a quick map when navigating the partial migration:
 |------|----------------|
 | Auth | `auth.service.ts`, `auth.repository.ts`, `firebase-user-sync.ts` |
 | Customer | `customer.service.ts`, `customer.repository.ts`, `customer.schemas.ts` (usage insert, profile, orders, etc.) |
-| Chat | `chat.service.ts`, `chat.repository.ts` (routes delegate; **`lib/chat-tools.ts`** still uses **`db`**) |
+| Chat | `chat.service.ts`, `chat.repository.ts`, **`chat-tools.repository.ts`** (AI tool SQL); **`lib/chat-tools.ts`** delegates to **`chatToolsRepository`** |
+| Config | **`config.repository.ts`** — system config rows + user settings; **`services/config/*`** are HTTP-free service classes (instances from **`singletons`**) |
 | Admin | `admin.service.ts`, `admin.repository.ts`, `admin.schemas.ts` |
 | Editor | `editor.repository.ts`, `editor.service.ts`, `editor.schemas.ts`, `validate-stored-tracks.ts`, `run-export-job.ts`, `captions.repository.ts`, `captions.service.ts`, `export/ass-generator.ts`, `timeline/*`, `build-initial-timeline.ts`, `merge-new-assets.ts` |
 | Queue | `queue.repository.ts`, `queue.service.ts`, `queue.schemas.ts`, `queue-transitions.ts`, `queue-editor-join.ts`, `pipeline/stage-derivation.ts`, `pipeline/content-chain.ts`, `pipeline/asset-display.ts` |
@@ -1074,7 +1095,7 @@ rg 'c\.json\(\s*\{\s*error:' src/routes
 ### 12.4 How to read this document
 
 - **§1–§10** — Target architecture and rules (the north star).
-- **§11** — Ordered migration phases, **implementation status** (living), **remaining work** checklists, and **target summary** table.
+- **§11** — **Scope** (tests out of scope), **leftover work** snapshot, ordered migration phases, **implementation status** (living), checklists, and **target summary** table.
 - **Summary (end of document)** — Target end-state checklist; pair it with §11 for what is already shipped vs still open.
 
 ### 12.5 Related docs
@@ -1092,12 +1113,11 @@ When the reorganization is **fully** complete:
 
 - **Routes are &lt; ~200 lines** each — they validate, delegate, respond
 - **All Drizzle queries live in repositories** — changing a column touches one file
-- **Business logic is in `domain/` services** — testable without HTTP or database
+- **Business logic is in `domain/` services** — callable without HTTP concerns; persistence only via repositories
 - **One error shape** across the entire API — `{ error, code, details? }` (plus documented client-compat fields where needed)
 - **All routes use `zValidator`** (or thin wrappers) — no untyped JSON bodies for structured inputs
 - **JSONB timeline state is strictly typed and validated at runtime** — no silent timeline corruption
 - **Video provider selection is explicit** — `provider-selector` + optional `domain/video` orchestration
 - **Feature types are co-located with domain logic** — e.g. `domain/editor/editor.types.ts`, not scattered `features/*/types/`
-- **Tests can mock repositories** — unit tests for service logic do not require a real database
 
 The end state replaces monolithic route files (thousands of lines mixing FFmpeg, SQL, and HTTP) with small route modules and single-purpose domain files.

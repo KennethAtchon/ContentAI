@@ -16,7 +16,7 @@ import {
   runReelGeneration,
   runShotRegenerate,
   getRetryRunner,
-} from "../routes/video/index";
+} from "../domain/video/reel-job-runner";
 import type { VideoProvider } from "../services/video-generation";
 
 export interface ToolContext {

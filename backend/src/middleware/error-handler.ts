@@ -25,6 +25,15 @@ export const handleRouteError: ErrorHandler = (err, c: Context) => {
           err.details as { existingProjectId: string }
         ).existingProjectId;
       }
+      if (
+        err.code === "VIDEO_JOB_IN_PROGRESS" &&
+        typeof err.details === "object" &&
+        err.details !== null
+      ) {
+        const d = err.details as { jobId?: string; kind?: string };
+        if (d.jobId !== undefined) body.jobId = d.jobId;
+        if (d.kind !== undefined) body.kind = d.kind;
+      }
     }
     return c.json(body, err.statusCode as ContentfulStatusCode);
   }

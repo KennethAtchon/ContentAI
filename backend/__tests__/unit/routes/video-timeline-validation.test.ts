@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { TimelinePayload } from "../../../src/routes/video/schemas";
+import type { TimelinePayload } from "../../../src/domain/video/video.schemas";
 import {
   normalizeTimelineForPersistence,
   validateTimeline,
-} from "../../../src/routes/video/timeline-validation";
+} from "../../../src/domain/video/timeline-validation";
 
 function baseTimeline(
   overrides?: Partial<TimelinePayload>,

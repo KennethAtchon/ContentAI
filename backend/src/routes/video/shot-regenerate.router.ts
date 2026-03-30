@@ -5,12 +5,15 @@ import {
   csrfMiddleware,
   rateLimiter,
 } from "../../middleware/protection";
-import type { HonoEnv } from "../../middleware/protection";
+import type { HonoEnv } from "../../types/hono.types";
 import { videoJobService } from "../../services/video/job.service";
-import { debugLog } from "../../utils/debug/debug";
+import { Errors } from "../../utils/errors/app-error";
 import { regenerateShotSchema } from "./schemas";
 import { fetchOwnedContent } from "./phase4-metadata";
-import { enqueue, runShotRegenerate } from "./reel-job-runner";
+import {
+  enqueue,
+  runShotRegenerate,
+} from "../../domain/video/reel-job-runner";
 
 const shotRegenerateRouter = new Hono<HonoEnv>();
 
@@ -22,45 +25,36 @@ shotRegenerateRouter.post(
   authMiddleware("user"),
   zValidator("json", regenerateShotSchema),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const payload = c.req.valid("json");
+    const auth = c.get("auth");
+    const payload = c.req.valid("json");
 
-      const content = await fetchOwnedContent(
-        auth.user.id,
-        payload.generatedContentId,
-      );
-      if (!content) {
-        return c.json({ error: "Content not found" }, 404);
-      }
-
-      const job = await videoJobService.createJob({
-        userId: auth.user.id,
-        generatedContentId: payload.generatedContentId,
-        kind: "shot_regenerate",
-        request: payload,
-      });
-
-      enqueue("shot_regenerate", () =>
-        runShotRegenerate({
-          job,
-          shotIndex: payload.shotIndex,
-          prompt: payload.prompt,
-          durationSeconds: payload.durationSeconds,
-          aspectRatio: payload.aspectRatio,
-          provider: payload.provider,
-        }),
-      );
-
-      return c.json({ jobId: job.id, status: job.status }, 202);
-    } catch (error) {
-      debugLog.error("Failed to regenerate shot", {
-        service: "video-route",
-        operation: "regenerateShot",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to queue shot regeneration" }, 500);
+    const content = await fetchOwnedContent(
+      auth.user.id,
+      payload.generatedContentId,
+    );
+    if (!content) {
+      throw Errors.notFound("Content");
     }
+
+    const job = await videoJobService.createJob({
+      userId: auth.user.id,
+      generatedContentId: payload.generatedContentId,
+      kind: "shot_regenerate",
+      request: payload,
+    });
+
+    enqueue("shot_regenerate", () =>
+      runShotRegenerate({
+        job,
+        shotIndex: payload.shotIndex,
+        prompt: payload.prompt,
+        durationSeconds: payload.durationSeconds,
+        aspectRatio: payload.aspectRatio,
+        provider: payload.provider,
+      }),
+    );
+
+    return c.json({ jobId: job.id, status: job.status }, 202);
   },
 );
 

@@ -7,7 +7,6 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { musicService } from "../../domain/singletons";
-import { AppError } from "../../utils/errors/app-error";
 import { debugLog } from "../../utils/debug/debug";
 import {
   musicAttachBodySchema,
@@ -36,18 +35,9 @@ app.get(
   authMiddleware("user"),
   zValidator("query", musicListQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const q = c.req.valid("query");
-      const body = await musicService.listLibrary(q);
-      return c.json(body);
-    } catch (error) {
-      debugLog.error("Failed to fetch music library", {
-        service: "music-route",
-        operation: "getLibrary",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch music library" }, 500);
-    }
+    const q = c.req.valid("query");
+    const body = await musicService.listLibrary(q);
+    return c.json(body);
   },
 );
 
@@ -58,37 +48,27 @@ app.post(
   authMiddleware("user"),
   zValidator("json", musicAttachBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { generatedContentId, musicTrackId } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { generatedContentId, musicTrackId } = c.req.valid("json");
 
-      const json = await musicService.attachMusicToContent(
-        auth.user.id,
-        generatedContentId,
-        musicTrackId,
-      );
+    const json = await musicService.attachMusicToContent(
+      auth.user.id,
+      generatedContentId,
+      musicTrackId,
+    );
 
-      const { refreshEditorTimeline } = await import(
-        "../editor/services/refresh-editor-timeline"
-      );
-      await refreshEditorTimeline(generatedContentId, auth.user.id).catch(
-        (err) =>
-          debugLog.warn("refreshEditorTimeline (attach-music) failed", {
-            err,
-            contentId: generatedContentId,
-          }),
-      );
+    const { refreshEditorTimeline } = await import(
+      "../editor/services/refresh-editor-timeline"
+    );
+    await refreshEditorTimeline(generatedContentId, auth.user.id).catch(
+      (err) =>
+        debugLog.warn("refreshEditorTimeline (attach-music) failed", {
+          err,
+          contentId: generatedContentId,
+        }),
+    );
 
-      return c.json(json);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      debugLog.error("Failed to attach music", {
-        service: "music-route",
-        operation: "attachMusic",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to attach music" }, 500);
-    }
+    return c.json(json);
   },
 );
 

@@ -36,18 +36,9 @@ audioRouter.get(
   authMiddleware("user"),
   zValidator("query", audioListQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const q = c.req.valid("query");
-      const body = await audioService.listTrendingAudio(q);
-      return c.json(body);
-    } catch (error) {
-      debugLog.error("Failed to fetch trending audio", {
-        service: "audio-route",
-        operation: "getTrending",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch trending audio" }, 500);
-    }
+    const q = c.req.valid("query");
+    const body = await audioService.listTrendingAudio(q);
+    return c.json(body);
   },
 );
 
@@ -56,17 +47,8 @@ audioRouter.get(
   rateLimiter("customer"),
   authMiddleware("user"),
   async (c) => {
-    try {
-      const body = audioService.listVoicesWithPreviewUrls();
-      return c.json(body);
-    } catch (error) {
-      debugLog.error("Failed to fetch voices", {
-        service: "audio-route",
-        operation: "getVoices",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch voices" }, 500);
-    }
+    const body = audioService.listVoicesWithPreviewUrls();
+    return c.json(body);
   },
 );
 
@@ -77,10 +59,10 @@ audioRouter.post(
   authMiddleware("user"),
   zValidator("json", audioTtsBodySchema, validationErrorHook),
   async (c) => {
-    try {
-      const auth = c.get("auth");
-      const { generatedContentId, text, voiceId, speed } = c.req.valid("json");
+    const auth = c.get("auth");
+    const { generatedContentId, text, voiceId, speed } = c.req.valid("json");
 
+    try {
       const json = await audioService.generateVoiceover({
         userId: auth.user.id,
         generatedContentId,
@@ -107,20 +89,13 @@ audioRouter.post(
         error instanceof Error &&
         error.message.startsWith("TTS_PROVIDER_ERROR")
       ) {
-        return c.json(
-          {
-            error: "TTS_PROVIDER_ERROR",
-            message: "Voice generation failed. Please try again.",
-          },
+        throw new AppError(
+          "Voice generation failed. Please try again.",
+          "TTS_PROVIDER_ERROR",
           502,
         );
       }
-      debugLog.error("Failed to generate TTS", {
-        service: "audio-route",
-        operation: "generateTTS",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to generate voiceover" }, 500);
+      throw error;
     }
   },
 );

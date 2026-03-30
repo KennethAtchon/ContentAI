@@ -154,7 +154,7 @@ export class AdminService {
     if (body.status !== undefined) updateData.status = body.status;
 
     const updatedOrder = await this.repo.updateOrderRow(body.id, updateData);
-    if (!updatedOrder) return null;
+    if (!updatedOrder) throw Errors.notFound("Order");
     const orderUser = await this.repo.findUserBriefById(updatedOrder.userId);
     const user = orderUser ?? { name: "", email: "" };
     return formatOrderResponse({
@@ -165,13 +165,14 @@ export class AdminService {
 
   async deleteOrder(body: { id: string; deletedBy?: string }) {
     const existing = await this.repo.findOrderById(body.id);
-    if (!existing) return null;
+    if (!existing) throw Errors.notFound("Order");
 
     const deletedOrder = await this.repo.softDeleteOrder(
       body.id,
       body.deletedBy || "admin",
     );
-    if (!deletedOrder) return null;
+    if (!deletedOrder)
+      throw Errors.internal("Order could not be deleted");
 
     const orderUser = await this.repo.findUserBriefById(deletedOrder.userId);
     const user = orderUser ?? { name: "", email: "" };
@@ -186,7 +187,7 @@ export class AdminService {
 
   async getOrderById(id: string) {
     const orderRow = await this.repo.findOrderWithUserById(id);
-    if (!orderRow) return null;
+    if (!orderRow) throw Errors.notFound("Order");
     return formatOrderResponse({
       ...orderRow.order,
       user: {

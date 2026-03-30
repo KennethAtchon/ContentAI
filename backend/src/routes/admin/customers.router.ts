@@ -2,7 +2,6 @@ import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { debugLog } from "../../utils/debug/debug";
 import { adminService } from "../../domain/singletons";
 import { adminCustomersQuerySchema } from "../../domain/admin/admin.schemas";
 
@@ -28,19 +27,10 @@ customersRouter.get(
   authMiddleware("admin"),
   zValidator("query", adminCustomersQuerySchema, validationErrorHook),
   async (c) => {
-    try {
-      const { page, limit, search } = c.req.valid("query");
+    const { page, limit, search } = c.req.valid("query");
 
-      const payload = await adminService.listCustomers({ page, limit, search });
-      return c.json(payload);
-    } catch (error) {
-      debugLog.error("Failed to fetch customers", {
-        service: "admin-route",
-        operation: "getCustomers",
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      return c.json({ error: "Failed to fetch customers" }, 500);
-    }
+    const payload = await adminService.listCustomers({ page, limit, search });
+    return c.json(payload);
   },
 );
 
