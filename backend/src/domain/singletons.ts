@@ -31,7 +31,10 @@ import { UsersRepository } from "./users/users.repository";
 import { UsersService } from "./users/users.service";
 import { ChatRepository } from "./chat/chat.repository";
 import { ChatService } from "./chat/chat.service";
-import { ChatToolsRepository } from "./chat/chat-tools.repository";
+import {
+  ChatToolsRepository,
+  type IChatToolsRepository,
+} from "./chat/chat-tools.repository";
 import { ProjectsRepository } from "./projects/projects.repository";
 import { ProjectsService } from "./projects/projects.service";
 import { ConfigRepository } from "./config/config.repository";
@@ -103,7 +106,9 @@ export const usersRepository = new UsersRepository(db);
 export const usersService = new UsersService(usersRepository);
 
 export const chatRepository = new ChatRepository(db);
-export const chatToolsRepository = new ChatToolsRepository(db);
+export const chatToolsRepository: IChatToolsRepository = new ChatToolsRepository(
+  db,
+);
 export const chatService = new ChatService(chatRepository);
 
 export const projectsRepository = new ProjectsRepository(db);

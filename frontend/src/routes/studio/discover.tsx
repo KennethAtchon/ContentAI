@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { prefetchStudioDiscover } from "@/shared/lib/route-data-prefetch";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
+import { StudioTopBar } from "@/shared/components/navigation/StudioTopBar";
 import { ReelList } from "@/features/reels/components/ReelList";
 import { TikTokFeed } from "@/features/reels/components/TikTokFeed";
 import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";

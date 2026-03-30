@@ -64,7 +64,7 @@ This section reflects a fresh codebase rescan on March 29, 2026. The sections be
   - `features/editor/components/Timeline.tsx`
   - `features/editor/components/EditorWorkspace.tsx`
   - `features/editor/components/EditorTimelineSection.tsx`
-- Editor unit tests exist for split/snap/constraints plus additional reducer/composition coverage under `__tests__/unit/features/editor/`.
+- Editor unit tests exist for split/snap/constraints plus additional reducer/composition coverage under `frontend/__tests__/unit/features/editor/`.
 
 #### Chat
 

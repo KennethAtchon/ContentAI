@@ -7,7 +7,6 @@ import { I18nextProvider } from "react-i18next";
 import { router } from "./router";
 import { appQueryClient } from "./app-query-client";
 import i18n from "@/shared/lib/i18n";
-import { ThemeProvider } from "@/shared/providers/theme-provider";
 import { AppProvider } from "@/shared/contexts/app-context";
 
 // Initialize Sentry for error tracking
@@ -32,11 +31,9 @@ root.render(
     <I18nextProvider i18n={i18n}>
       <HelmetProvider>
         <QueryClientProvider client={appQueryClient}>
-          <ThemeProvider storageKey="ui-theme">
-            <AppProvider>
-              <RouterProvider router={router} context={{ queryClient: appQueryClient }} />
-            </AppProvider>
-          </ThemeProvider>
+          <AppProvider>
+            <RouterProvider router={router} context={{ queryClient: appQueryClient }} />
+          </AppProvider>
         </QueryClientProvider>
       </HelmetProvider>
     </I18nextProvider>

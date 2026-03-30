@@ -124,21 +124,30 @@ This document describes the architecture of the new caption system. It defines t
 └────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────┐
-│  BACKEND: src/domain/captions/                                             │
+│  BACKEND: src/domain/editor/captions/  (new subfolder)                     │
 │                                                                            │
 │  page-builder.ts     — Same buildPages() logic, TypeScript, no browser API │
-│                                                                            │
-│  ass-exporter.ts     — generateASS(pages, preset, resolution)              │
-│                        Derives style from canonical TextPreset             │
-│                        cssToASS(), msToASSTime() utilities                 │
 │                                                                            │
 │  preset-registry.ts  — Server-side preset registry (mirrors frontend)      │
 │                        Same IDs, same exportMode definitions               │
 │                                                                            │
-│  src/routes/editor/captions.ts  (mostly unchanged)                         │
-│    POST /api/captions/transcribe — Whisper, returns captionDocId           │
-│    GET  /api/captions/:assetId  — Returns CaptionDoc                       │
-│    POST /api/captions/manual    — Create doc from raw word data (new)      │
+│  src/domain/editor/export/ass-exporter.ts  (replaces ass-generator.ts)    │
+│    generateASS(pages, preset, resolution)                                  │
+│    Derives style from canonical TextPreset                                 │
+│    cssToASS(), msToASSTime() utilities                                     │
+│                                                                            │
+│  src/domain/editor/captions.service.ts  (rewritten)                        │
+│    transcribeAsset() — Whisper integration, idempotency, DB insert         │
+│    createManual()    — Create CaptionDoc from raw word data (new)          │
+│    getCaptionDoc()   — Fetch by assetId                                    │
+│                                                                            │
+│  src/domain/editor/captions.repository.ts  (updated)                       │
+│    DB queries against the renamed caption_doc table                        │
+│                                                                            │
+│  src/routes/editor/captions.ts  (thin route, mostly unchanged)             │
+│    POST /api/captions/transcribe — delegates to captions.service           │
+│    GET  /api/captions/:assetId  — delegates to captions.service            │
+│    POST /api/captions/manual    — new, delegates to captions.service       │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -217,9 +226,8 @@ In the DB composition JSON, the text track may contain both types. The editor re
 Presets are resolved client-side and server-side from the same canonical list. The resolution order:
 
 1. Look up `stylePresetId` in `BUILTIN_PRESETS`
-2. If not found, check `LEGACY_ID_MAP` and re-resolve
-3. If still not found, use `BUILTIN_PRESETS[0]` (the default)
-4. Apply `styleOverrides` on top of the resolved preset
+2. If not found, use `BUILTIN_PRESETS[0]` (the default)
+3. Apply `styleOverrides` on top of the resolved preset
 
 This means presets are never stored in the DB — only the `stylePresetId` string is stored. The full preset definition lives in the codebase.
 

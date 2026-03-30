@@ -1,11 +1,14 @@
 import { ReactNode } from "react";
+import { ThemeProvider } from "@/shared/providers/theme-provider";
 import { AuthProvider } from "./auth-context";
 import { ProfileProvider } from "./profile-context";
 
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <ProfileProvider>{children}</ProfileProvider>
-    </AuthProvider>
+    <ThemeProvider storageKey="ui-theme">
+      <AuthProvider>
+        <ProfileProvider>{children}</ProfileProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

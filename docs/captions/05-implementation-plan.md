@@ -16,8 +16,11 @@ Before touching any file, you must have read and understood:
 - [ ] `frontend/src/features/editor/components/PreviewArea.tsx`
 - [ ] `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`
 - [ ] `backend/src/routes/editor/captions.ts`
-- [ ] `backend/src/routes/editor/export/ass-generator.ts`
-- [ ] `backend/src/routes/editor/export-worker.ts`
+- [ ] `backend/src/domain/editor/export/ass-generator.ts`
+- [ ] `backend/src/domain/editor/captions.service.ts`
+- [ ] `backend/src/domain/editor/captions.repository.ts`
+- [ ] `backend/src/domain/editor/run-export-job.ts` (caption detection + ASS injection lives here, not export-worker)
+- [ ] `backend/src/routes/editor/export-worker.ts` (thin pass-through to run-export-job)
 - [ ] `backend/src/infrastructure/database/drizzle/schema.ts` (caption table)
 
 ---
@@ -32,7 +35,7 @@ Before touching any file, you must have read and understood:
 | `frontend/src/features/editor/hooks/useCaptionPreview.ts` | `frontend/src/features/editor/caption/renderer.ts` |
 | `frontend/src/features/editor/hooks/useCaptions.ts` | `frontend/src/features/editor/caption/hooks/useTranscription.ts` + `useCaptionDoc.ts` |
 | `frontend/src/features/editor/components/CaptionPresetTile.tsx` | Part of new `CaptionPresetPicker.tsx` |
-| `backend/src/routes/editor/export/ass-generator.ts` | `backend/src/domain/captions/ass-exporter.ts` |
+| `backend/src/domain/editor/export/ass-generator.ts` | `backend/src/domain/editor/export/ass-exporter.ts` (same folder, full rewrite) |
 
 ### Files to Heavily Modify (Not Delete)
 
@@ -47,7 +50,10 @@ Before touching any file, you must have read and understood:
 | `frontend/src/shared/lib/query-keys.ts` | Rename `captionsByAsset` → `captionDoc`. |
 | `frontend/src/translations/en.json` | Remove old keys, add new keys (see LLD). |
 | `backend/src/routes/editor/captions.ts` | Change response field `captionId` → `captionDocId`. Add `POST /manual` route. |
-| `backend/src/routes/editor/export-worker.ts` | Update caption clip detection (check `clip.type === "caption"`). Update ASS generation call to use new `generateASS` from `ass-exporter.ts`. |
+| `backend/src/domain/editor/run-export-job.ts` | Update caption clip detection (`clip.type === "caption"`). Load `CaptionDoc` from DB by `captionDocId`. Call new `generateASS` from `ass-exporter.ts`. |
+| `backend/src/routes/editor/export-worker.ts` | No caption logic here — it's a thin pass-through. No changes needed beyond ensuring it still delegates correctly. |
+| `backend/src/domain/editor/captions.service.ts` | Update `transcribeAsset()` to return `captionDocId`. Add `createManual()`. Update DB calls to use renamed table. |
+| `backend/src/domain/editor/captions.repository.ts` | Update all queries to use `captionDocs` (renamed table). Add `source` column handling. |
 | `backend/src/routes/editor/editor-ai.router.ts` | Update `ADD_CAPTION_CLIP` construction to new shape. |
 | `backend/src/routes/editor/services/build-initial-timeline.ts` | Update `buildCaptionClip()` to produce new `CaptionClip` shape. |
 | `backend/src/infrastructure/database/drizzle/schema.ts` | Rename `captions` → `captionDocs`. Add `source` column. Make `assetId` nullable. |
@@ -105,11 +111,14 @@ Before touching any file, you must have read and understood:
 
 ### Phase 3: Backend Domain Layer (New Files)
 
-Create `backend/src/domain/captions/`:
+Create `backend/src/domain/editor/captions/` (consistent with existing `domain/editor/` structure):
 
 1. `page-builder.ts` — implement `buildPages()`.
 2. `preset-registry.ts` — mirror of frontend presets (same 10 presets, same IDs, TypeScript objects). This file is verbose but necessary (no shared code rule).
-3. `ass-exporter.ts` — implement `generateASS(pages, preset, resolution, clipStartMs)`. Derives style from `TextPreset` objects in preset-registry. Includes `cssToASS()` and `msToASSTime()` utilities.
+
+In `backend/src/domain/editor/export/`:
+
+3. Delete `ass-generator.ts`. Write `ass-exporter.ts` — implement `generateASS(pages, preset, resolution, clipStartMs)`. Derives style from `TextPreset` objects in `preset-registry.ts`. Includes `cssToASS()` and `msToASSTime()` utilities.
 
 Write tests for Phase 3 now (`page-builder.test.ts`, `ass-exporter.test.ts`).
 
@@ -122,11 +131,13 @@ Write tests for Phase 3 now (`page-builder.test.ts`, `ass-exporter.test.ts`).
    - Add `POST /manual` route.
    - Update DB table reference from `captions` → `captionDocs`.
 
-2. `backend/src/routes/editor/export-worker.ts`:
-   - Delete `generateASS` import from old path.
-   - Import from `../../domain/captions/ass-exporter`.
+2. `backend/src/domain/editor/run-export-job.ts` (not export-worker — that's a thin wrapper):
+   - Delete `generateASS` import from old `ass-generator` path.
+   - Import from `./export/ass-exporter`.
    - Update caption clip detection: `clip.type === "caption"` instead of `clip.captionWords?.length`.
-   - Update ASS call: pass `CaptionPage[]` instead of raw `words[]`.
+   - Load `CaptionDoc` from DB using `captionDocId` on the clip.
+   - Call `buildPages(doc.words, clip.groupingMs)` to get pages.
+   - Pass `CaptionPage[]` to `generateASS` instead of raw `words[]`.
 
 3. `backend/src/routes/editor/editor-ai.router.ts`:
    - Update `ADD_CAPTION_CLIP` clip construction to new `CaptionClip` shape.
@@ -245,7 +256,7 @@ Run these checks before declaring done:
    grep -r "useCaptionPreview" frontend/src
    grep -r "drawCaptionsOnCanvas" frontend/src
    grep -r "CaptionPreset" frontend/src backend/src  # old flat type
-   grep -r "ass-generator" backend/src
+   grep -r "ass-generator" backend/src   # should be gone, replaced by ass-exporter
    grep -r "captionsByAsset" frontend/src
    ```
 

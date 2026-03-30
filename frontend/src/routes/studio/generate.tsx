@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
+import { StudioTopBar } from "@/shared/components/navigation/StudioTopBar";
 import { ChatLayout } from "@/features/chat/components/ChatLayout";
 import { useProjects } from "@/features/chat/hooks/use-projects";
 import { useState } from "react";

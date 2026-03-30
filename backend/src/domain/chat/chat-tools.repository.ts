@@ -657,3 +657,6 @@ export class ChatToolsRepository {
     return item!;
   }
 }
+
+/** DB port for AI chat tools (instance shape of {@link ChatToolsRepository}). */
+export type IChatToolsRepository = ChatToolsRepository;

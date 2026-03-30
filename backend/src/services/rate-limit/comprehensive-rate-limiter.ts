@@ -5,7 +5,7 @@ import {
   getClientIp,
   getSecurityIp,
   extractUserIdFromToken,
-} from "@/services/request-identity";
+} from "./request-identity";
 import {
   RATE_LIMIT_CONFIGS,
   getRateLimitConfig,
@@ -21,7 +21,7 @@ export {
   getClientIp,
   getSecurityIp,
   extractUserIdFromToken,
-} from "@/services/request-identity";
+} from "./request-identity";
 
 /** Path segments used to classify routes for rate limiting (pathname.includes(segment)). Map order = match priority. */
 const RATE_LIMIT_PATH_SEGMENTS = new Map<RateLimitType, readonly string[]>([

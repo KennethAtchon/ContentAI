@@ -35,9 +35,12 @@ The caption engine spans:
 | `frontend/src/features/editor/components/Inspector.tsx` | Caption generation UX, adds clips |
 | `frontend/src/features/editor/components/PreviewArea.tsx` | Canvas overlay, calls renderer per rAF |
 | `frontend/src/features/editor/types/editor.ts` | `CaptionWord`, 6 `caption*` fields on `Clip` |
-| `backend/src/routes/editor/captions.ts` | `POST /transcribe`, `GET /:assetId` |
-| `backend/src/routes/editor/export/ass-generator.ts` | ASS subtitle generation for FFmpeg |
-| `backend/src/routes/editor/export-worker.ts` | Caption clip detection + ASS injection |
+| `backend/src/routes/editor/captions.ts` | Thin route — delegates to `captions.service.ts` |
+| `backend/src/domain/editor/captions.service.ts` | Whisper transcription, idempotency, saves to DB |
+| `backend/src/domain/editor/captions.repository.ts` | DB queries for the `caption` table |
+| `backend/src/domain/editor/export/ass-generator.ts` | ASS subtitle generation for FFmpeg |
+| `backend/src/routes/editor/export-worker.ts` | Thin wrapper — delegates to `run-export-job.ts` |
+| `backend/src/domain/editor/run-export-job.ts` | Caption clip detection + ASS injection into FFmpeg pipeline |
 | `backend/src/infrastructure/database/drizzle/schema.ts` | `caption` table (words as JSONB) |
 | `frontend/src/features/editor/model/editor-reducer-clip-ops.ts` | `ADD_CAPTION_CLIP` action handler |
 

@@ -1,6 +1,6 @@
 /**
  * Unit tests for API error wrapper: withApiErrorHandling, error mapping, safeAsyncOperation, withStandardErrorHandling.
- * Uses preload mocks for debug and getClientIp from request-identity (real).
+ * Uses preload mocks for debug; api-error-wrapper defines its own getClientIp helper.
  */
 
 import { describe, it, expect } from "bun:test";

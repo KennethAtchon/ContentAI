@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus } from "lucide-react";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { StudioTopBar } from "@/features/studio/components/StudioTopBar";
+import { StudioTopBar } from "@/shared/components/navigation/StudioTopBar";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
@@ -465,4 +465,3 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     </AuthGuard>
   );
 }
-
