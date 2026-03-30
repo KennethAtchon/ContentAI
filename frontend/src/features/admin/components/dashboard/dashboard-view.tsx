@@ -1,35 +1,24 @@
-/**
- * Dashboard View - Modern SaaS Design
- *
- * Main admin dashboard view with metrics, analytics, and quick access to key sections.
- */
-
 "use client";
 
+import { Link } from "@tanstack/react-router";
 import {
-  DollarSign,
-  TrendingUp,
   Users,
   CreditCard,
-  Loader2,
-  AlertCircle,
+  ShoppingCart,
+  Database,
+  Mail,
+  Settings2,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { RecentOrdersList } from "@/features/admin/components/orders/recent-orders-list";
 import { AiCostDashboard } from "@/features/admin/components/dashboard/ai-cost-dashboard";
-import { Button } from "@/shared/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
 import { useApp } from "@/shared/contexts/app-context";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useTranslation } from "react-i18next";
+
+// ─── Response types ───────────────────────────────────────────────────────────
 
 interface CustomersCountResponse {
   totalCustomers: number;
@@ -53,363 +42,254 @@ interface SubscriptionsResponse {
   arpu: number;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const CURRENCY_FORMAT_OPTIONS = {
   style: "currency" as const,
   currency: "USD",
   maximumFractionDigits: 0,
 };
 
-const PERCENTAGE_DECIMAL_PLACES = 1;
 const DASHBOARD_LIST_LIMIT = 5;
 
-interface MetricCardProps {
-  title: string;
-  icon: React.ElementType;
-  value: string | number;
-  change: string;
-  loading: boolean;
-  error: string | null;
-  formatValue?: (value: any) => string;
-}
+// ─── Stat cell ────────────────────────────────────────────────────────────────
 
-function MetricCard({
-  title,
-  icon: Icon,
+function StatCell({
   value,
-  change,
-  loading,
-  error,
-  formatValue,
-  loadingText,
-}: MetricCardProps & { loadingText?: string }) {
-  const displayValue =
-    formatValue && typeof value === "number" ? formatValue(value) : value;
-
+  label,
+  sub,
+}: {
+  value: string;
+  label: string;
+  sub?: string;
+}) {
   return (
-    <Card className="border-2 hover:shadow-lg transition-shadow">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center gap-2 text-3xl font-bold text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            {loadingText || "Loading..."}
-          </div>
-        ) : error ? (
-          <div className="flex items-center gap-2 text-base text-destructive">
-            <AlertCircle className="h-4 w-4" />
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="text-4xl font-bold tracking-tight">
-              {displayValue}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">{change}</p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-interface TabSectionProps {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  linkHref: string;
-  linkText: string;
-  children: React.ReactNode;
-}
-
-function TabSection({
-  title,
-  description,
-  icon: Icon,
-  linkHref,
-  linkText,
-  children,
-}: TabSectionProps) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Icon className="h-5 w-5 text-primary" />
-            {title}
-          </h2>
-          <p className="text-muted-foreground text-base mt-1">{description}</p>
-        </div>
-        <Button asChild variant="outline" className="shadow-sm">
-          <Link to={linkHref}>{linkText}</Link>
-        </Button>
-      </div>
-      {children}
+    <div className="flex-1 bg-overlay-xs px-5 py-4 space-y-0.5 min-w-0">
+      <p className="text-2xl font-bold tracking-tight text-foreground truncate">
+        {value}
+      </p>
+      <p className="text-[11px] text-dim-2 leading-tight">{label}</p>
+      {sub && <p className="text-[10px] text-dim-3">{sub}</p>}
     </div>
   );
 }
 
+function StatRowSkeleton({ count }: { count: number }) {
+  return (
+    <div className="flex gap-1">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard view ───────────────────────────────────────────────────────────
+
 export function DashboardView() {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user, profile } = useApp();
   const fetcher = useQueryFetcher();
 
-  // Admin layout wraps with AuthGuard; user is guaranteed when this renders.
   const enabled = !!user;
 
-  const formatPercentageChange = (percentChange: number | null): string => {
-    if (percentChange === null) {
-      return t("admin_dashboard_no_comparison_data");
-    }
-
-    const sign = percentChange > 0 ? "+" : "";
-    return `${sign}${percentChange.toFixed(PERCENTAGE_DECIMAL_PLACES)}%`;
-  };
-
-  const {
-    data: customersData,
-    error: customersError,
-    isLoading: customersLoading,
-  } = useQuery({
+  const { data: customersData, isLoading: customersLoading } = useQuery({
     queryKey: queryKeys.api.admin.customersCount(),
     queryFn: () =>
       fetcher("/api/users/customers-count") as Promise<CustomersCountResponse>,
     enabled,
   });
 
-  const {
-    data: conversionData,
-    error: conversionError,
-    isLoading: conversionLoading,
-  } = useQuery({
+  const { data: conversionData, isLoading: conversionLoading } = useQuery({
     queryKey: queryKeys.api.admin.conversion(),
     queryFn: () =>
       fetcher("/api/admin/analytics") as Promise<ConversionResponse>,
     enabled,
   });
 
-  const {
-    data: revenueData,
-    error: revenueError,
-    isLoading: revenueLoading,
-  } = useQuery({
+  const { data: revenueData, isLoading: revenueLoading } = useQuery({
     queryKey: queryKeys.api.admin.revenue(),
     queryFn: () =>
-      fetcher("/api/customer/orders/total-revenue") as Promise<RevenueResponse>,
+      fetcher(
+        "/api/customer/orders/total-revenue"
+      ) as Promise<RevenueResponse>,
     enabled,
   });
 
-  const {
-    data: subscriptionsData,
-    error: subscriptionsError,
-    isLoading: subscriptionsLoading,
-  } = useQuery({
-    queryKey: queryKeys.api.admin.subscriptionsAnalytics(),
-    queryFn: () =>
-      fetcher(
-        "/api/admin/subscriptions/analytics"
-      ) as Promise<SubscriptionsResponse>,
-    enabled,
-  });
+  const { data: subscriptionsData, isLoading: subscriptionsLoading } = useQuery(
+    {
+      queryKey: queryKeys.api.admin.subscriptionsAnalytics(),
+      queryFn: () =>
+        fetcher(
+          "/api/admin/subscriptions/analytics"
+        ) as Promise<SubscriptionsResponse>,
+      enabled,
+    }
+  );
+
+  const name = profile?.name || user?.displayName || "";
+  const firstName = name.split(" ")[0] || "there";
+
+  const formatChange = (percentChange: number | null): string => {
+    if (percentChange === null) return t("admin_dashboard_no_comparison_data");
+    const sign = percentChange > 0 ? "+" : "";
+    return `${sign}${percentChange.toFixed(1)}%`;
+  };
+
+  const primaryLoading = subscriptionsLoading || customersLoading;
+  const secondaryLoading = conversionLoading || revenueLoading;
+
+  const quickAccess = [
+    {
+      href: "/admin/customers",
+      icon: Users,
+      label: t("metadata_admin_customers_title"),
+      desc: "Manage user accounts",
+    },
+    {
+      href: "/admin/subscriptions",
+      icon: CreditCard,
+      label: t("metadata_admin_subscriptions_title"),
+      desc: "Plans & billing",
+    },
+    {
+      href: "/admin/orders",
+      icon: ShoppingCart,
+      label: t("metadata_admin_orders_title"),
+      desc: "Purchase history",
+    },
+    {
+      href: "/admin/niches",
+      icon: Database,
+      label: "Niches & Scraping",
+      desc: "Content sources",
+    },
+    {
+      href: "/admin/contactmessages",
+      icon: Mail,
+      label: t("admin_nav_messages"),
+      desc: "User inquiries",
+    },
+    {
+      href: "/admin/system-config",
+      icon: Settings2,
+      label: t("admin_nav_system_config"),
+      desc: "App settings",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title={t("admin_dashboard_monthly_recurring_revenue_label")}
-          icon={DollarSign}
-          value={subscriptionsData?.mrr ?? 0}
-          change={t("admin_dashboard_subscription_revenue")}
-          loading={subscriptionsLoading}
-          error={
-            subscriptionsError instanceof Error
-              ? subscriptionsError.message
-              : subscriptionsError
-                ? String(subscriptionsError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-          formatValue={(value: number) =>
-            value.toLocaleString("en-US", CURRENCY_FORMAT_OPTIONS)
-          }
-        />
-
-        <MetricCard
-          title={t("admin_dashboard_active_subscriptions_label")}
-          icon={CreditCard}
-          value={subscriptionsData?.activeSubscriptions ?? 0}
-          change={t("admin_dashboard_currently_active")}
-          loading={subscriptionsLoading}
-          error={
-            subscriptionsError instanceof Error
-              ? subscriptionsError.message
-              : subscriptionsError
-                ? String(subscriptionsError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-          formatValue={(value: number) => value.toLocaleString()}
-        />
-
-        <MetricCard
-          title={t("admin_dashboard_average_revenue_per_user")}
-          icon={TrendingUp}
-          value={subscriptionsData?.arpu ?? 0}
-          change={`Churn: ${subscriptionsData?.churnRate?.toFixed(2) ?? 0}%`}
-          loading={subscriptionsLoading}
-          error={
-            subscriptionsError instanceof Error
-              ? subscriptionsError.message
-              : subscriptionsError
-                ? String(subscriptionsError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-          formatValue={(value: number) =>
-            value.toLocaleString("en-US", CURRENCY_FORMAT_OPTIONS)
-          }
-        />
-
-        <MetricCard
-          title={t("admin_dashboard_total_customers")}
-          icon={Users}
-          value={customersData?.totalCustomers ?? 0}
-          change={formatPercentageChange(customersData?.percentChange ?? null)}
-          loading={customersLoading}
-          error={
-            customersError instanceof Error
-              ? customersError.message
-              : customersError
-                ? String(customersError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-          formatValue={(value: number) => value.toLocaleString()}
-        />
+    <div className="space-y-10">
+      {/* Greeting */}
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+          Welcome back, {firstName}.
+        </h2>
+        <p className="text-sm text-dim-2 mt-1">Here's your platform overview.</p>
       </div>
 
-      {/* Additional Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <MetricCard
-          title={t("admin_dashboard_conversion_rate")}
-          icon={TrendingUp}
-          value={`${conversionData?.conversionRate ?? 0}%`}
-          change={formatPercentageChange(conversionData?.percentChange ?? null)}
-          loading={conversionLoading}
-          error={
-            conversionError instanceof Error
-              ? conversionError.message
-              : conversionError
-                ? String(conversionError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-        />
+      {/* Primary stats row: MRR, Active Subs, Customers, Churn */}
+      {primaryLoading ? (
+        <StatRowSkeleton count={4} />
+      ) : (
+        <div className="flex gap-px border border-border rounded-xl overflow-hidden">
+          <StatCell
+            value={(subscriptionsData?.mrr ?? 0).toLocaleString(
+              "en-US",
+              CURRENCY_FORMAT_OPTIONS
+            )}
+            label={t("admin_dashboard_monthly_recurring_revenue_label")}
+          />
+          <StatCell
+            value={(subscriptionsData?.activeSubscriptions ?? 0).toLocaleString()}
+            label={t("admin_dashboard_active_subscriptions_label")}
+          />
+          <StatCell
+            value={(customersData?.totalCustomers ?? 0).toLocaleString()}
+            label={t("admin_dashboard_total_customers")}
+            sub={formatChange(customersData?.percentChange ?? null)}
+          />
+          <StatCell
+            value={`${(subscriptionsData?.churnRate ?? 0).toFixed(2)}%`}
+            label={t("admin_dashboard_churn_rate")}
+          />
+        </div>
+      )}
 
-        <MetricCard
-          title={t("admin_dashboard_total_revenue")}
-          icon={DollarSign}
-          value={revenueData?.totalRevenue ?? 0}
-          change={formatPercentageChange(revenueData?.percentChange ?? null)}
-          loading={revenueLoading}
-          error={
-            revenueError instanceof Error
-              ? revenueError.message
-              : revenueError
-                ? String(revenueError)
-                : null
-          }
-          loadingText={t("subscription_manage_loading")}
-          formatValue={(value: number) =>
-            value.toLocaleString("en-US", CURRENCY_FORMAT_OPTIONS)
-          }
-        />
-      </div>
+      {/* Secondary stats row: Conversion, Total Revenue, ARPU */}
+      {secondaryLoading ? (
+        <StatRowSkeleton count={3} />
+      ) : (
+        <div className="flex gap-px border border-border rounded-xl overflow-hidden">
+          <StatCell
+            value={`${conversionData?.conversionRate ?? 0}%`}
+            label={t("admin_dashboard_conversion_rate")}
+            sub={formatChange(conversionData?.percentChange ?? null)}
+          />
+          <StatCell
+            value={(revenueData?.totalRevenue ?? 0).toLocaleString(
+              "en-US",
+              CURRENCY_FORMAT_OPTIONS
+            )}
+            label={t("admin_dashboard_total_revenue")}
+            sub={formatChange(revenueData?.percentChange ?? null)}
+          />
+          <StatCell
+            value={(subscriptionsData?.arpu ?? 0).toLocaleString(
+              "en-US",
+              CURRENCY_FORMAT_OPTIONS
+            )}
+            label={t("admin_dashboard_average_revenue_per_user")}
+          />
+        </div>
+      )}
 
-      {/* AI Cost Dashboard */}
-      <AiCostDashboard />
-
-      {/* Sections */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <TabSection
-          title={t("admin_dashboard_recent_orders")}
-          description={t(
-            "common_review_latest_customer_orders_and_transactions"
-          )}
-          icon={DollarSign}
-          linkHref="/admin/orders"
-          linkText={t("admin_dashboard_view_all_orders")}
-        >
-          <Card className="border-2">
-            <CardContent className="pt-6">
-              <RecentOrdersList limit={DASHBOARD_LIST_LIMIT} />
-            </CardContent>
-          </Card>
-        </TabSection>
-
-        <TabSection
-          title={t("metadata_admin_subscriptions_title")}
-          description={t("common_view_and_manage_customer_subscriptions")}
-          icon={CreditCard}
-          linkHref="/admin/subscriptions"
-          linkText={t("admin_dashboard_view_all_subscriptions")}
-        >
-          <Card className="border-2">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                {subscriptionsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : subscriptionsError ? (
-                  <div className="flex items-center gap-2 text-base text-destructive py-8">
-                    <AlertCircle className="h-4 w-4" />
-                    {subscriptionsError instanceof Error
-                      ? subscriptionsError.message
-                      : String(subscriptionsError)}
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base text-muted-foreground">
-                        {t("admin_dashboard_active_subscriptions_label")}
-                      </span>
-                      <span className="text-3xl font-bold">
-                        {subscriptionsData?.activeSubscriptions ?? 0}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base text-muted-foreground">
-                        {t("admin_dashboard_monthly_recurring_revenue_label")}
-                      </span>
-                      <span className="text-xl font-semibold">
-                        {subscriptionsData?.mrr?.toLocaleString(
-                          "en-US",
-                          CURRENCY_FORMAT_OPTIONS
-                        ) ?? "$0"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-base text-muted-foreground">
-                        {t("admin_dashboard_churn_rate")}
-                      </span>
-                      <span className="text-xl font-semibold">
-                        {subscriptionsData?.churnRate?.toFixed(2) ?? 0}%
-                      </span>
-                    </div>
-                  </>
-                )}
+      {/* Quick access */}
+      <div>
+        <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold mb-3">
+          Quick access
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {quickAccess.map(({ href, icon: Icon, label, desc }) => (
+            <Link
+              key={href}
+              to={href}
+              className="group flex items-start gap-3 p-3.5 rounded-xl border border-border bg-overlay-xs hover:bg-border hover:border-border transition-colors"
+            >
+              <Icon className="h-4 w-4 text-dim-3 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-dim-1 group-hover:text-foreground transition-colors">
+                  {label}
+                </p>
+                <p className="text-[10px] text-dim-3 mt-0.5">{desc}</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabSection>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* AI Cost Breakdown */}
+      <div className="space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
+          AI Cost Breakdown
+        </p>
+        <AiCostDashboard />
+      </div>
+
+      {/* Recent Orders */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-widest text-dim-3 font-semibold">
+            {t("admin_dashboard_recent_orders")}
+          </p>
+          <Link
+            to="/admin/orders"
+            className="text-xs text-dim-2 hover:text-dim-1 transition-colors"
+          >
+            {t("admin_dashboard_view_all_orders")} →
+          </Link>
+        </div>
+        <RecentOrdersList limit={DASHBOARD_LIST_LIMIT} />
       </div>
     </div>
   );

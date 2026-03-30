@@ -1,43 +1,35 @@
-/**
- * Dashboard Layout - Modern SaaS Design
- *
- * Modern admin dashboard layout with sidebar navigation and responsive design.
- */
-
 "use client";
 
-import React, { useState, useEffect, startTransition } from "react";
-import { Link } from "@tanstack/react-router";
-import { useLocation } from "@tanstack/react-router";
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import UserButton from "@/features/auth/components/user-button";
+import { useApp } from "@/shared/contexts/app-context";
+import { ThemeToggle } from "@/shared/components/theme-toggle";
 import {
   LayoutDashboard,
   ShoppingCart,
   Users,
   Code,
   Mail,
-  Menu,
-  X,
   CreditCard,
   HelpCircle,
   Database,
   Music,
   Settings2,
+  ArrowUpRight,
+  LogOut,
 } from "lucide-react";
-
-import { Button } from "@/shared/components/ui/button";
-import { HelpModal } from "@/features/admin/components/dashboard/help-modal";
 import { Dialog } from "@/shared/components/ui/dialog";
+import { HelpModal } from "@/features/admin/components/dashboard/help-modal";
 import { cn } from "@/shared/utils/helpers/utils";
+
+// ─── Nav items ────────────────────────────────────────────────────────────────
 
 interface AdminNavItem {
   href: string;
   icon: React.ElementType;
   label: string;
 }
-
-const BRAND_ICON = LayoutDashboard;
 
 function useAdminNavItems(): AdminNavItem[] {
   const { t } = useTranslation();
@@ -47,16 +39,8 @@ function useAdminNavItems(): AdminNavItem[] {
       icon: LayoutDashboard,
       label: t("admin_help_dashboard_section"),
     },
-    {
-      href: "/admin/niches",
-      icon: Database,
-      label: "Niches & Scraping",
-    },
-    {
-      href: "/admin/music",
-      icon: Music,
-      label: "Music Library",
-    },
+    { href: "/admin/niches", icon: Database, label: "Niches & Scraping" },
+    { href: "/admin/music", icon: Music, label: "Music Library" },
     {
       href: "/admin/subscriptions",
       icon: CreditCard,
@@ -90,44 +74,18 @@ function useAdminNavItems(): AdminNavItem[] {
   ];
 }
 
-function findNavItemByPath(
-  pathname: string,
-  navItems: AdminNavItem[]
-): AdminNavItem | undefined {
-  return navItems.find((item) => item.href === pathname);
+function isNavActive(href: string, pathname: string): boolean {
+  if (href === "/admin/dashboard") return pathname === href;
+  return pathname === href || pathname.startsWith(href + "/");
 }
 
-function findParentNavItem(
-  pathname: string,
-  navItems: AdminNavItem[]
-): AdminNavItem | undefined {
-  const parentMatches = navItems
-    .filter((item) => {
-      const normalizedHref = item.href.endsWith("/")
-        ? item.href
-        : `${item.href}/`;
-      return pathname.startsWith(normalizedHref) && item.href !== pathname;
-    })
-    .sort((a, b) => b.href.length - a.href.length);
-
-  return parentMatches[0];
-}
+// ─── Page title (for section header in non-dashboard pages) ──────────────────
 
 function capitalizeWords(text: string): string {
   return text
     .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
-}
-
-function createSubPageTitle(parentLabel: string, subPath: string): string {
-  const cleanSubPath = subPath.replace(/^\//, "").replace(/-/g, " ");
-
-  const capitalizedSubPath = capitalizeWords(cleanSubPath);
-
-  return capitalizedSubPath
-    ? `${parentLabel}: ${capitalizedSubPath}`
-    : parentLabel;
 }
 
 function getPageTitle(
@@ -135,240 +93,226 @@ function getPageTitle(
   navItems: AdminNavItem[],
   t: (key: string) => string
 ): string {
-  const exactMatch = findNavItemByPath(pathname, navItems);
-  if (exactMatch) {
-    return exactMatch.label;
+  const exact = navItems.find((item) => item.href === pathname);
+  if (exact) return exact.label;
+
+  const parent = navItems
+    .filter((item) => {
+      const normalized = item.href.endsWith("/") ? item.href : `${item.href}/`;
+      return pathname.startsWith(normalized) && item.href !== pathname;
+    })
+    .sort((a, b) => b.href.length - a.href.length)[0];
+
+  if (parent) {
+    const sub = pathname.substring(parent.href.length).replace(/^\//, "").replace(/-/g, " ");
+    return sub ? `${parent.label}: ${capitalizeWords(sub)}` : parent.label;
   }
 
-  const parentMatch = findParentNavItem(pathname, navItems);
-  if (parentMatch && pathname.startsWith(parentMatch.href)) {
-    const subPath = pathname.substring(parentMatch.href.length);
-    return createSubPageTitle(parentMatch.label, subPath);
-  }
-
-  if (pathname === "/admin/" || pathname === "/admin") {
-    return navItems[0]?.label || t("admin_help_dashboard_section");
-  }
-
-  const pathParts = pathname.split("/");
-  const lastPart = pathParts.pop() || "";
-  const cleanPath = lastPart.replace(/-/g, " ");
-
-  return (
-    capitalizeWords(cleanPath) ||
-    navItems[0]?.label ||
-    t("admin_help_dashboard_section")
-  );
+  const last = pathname.split("/").pop() || "";
+  return capitalizeWords(last.replace(/-/g, " ")) || t("admin_help_dashboard_section");
 }
 
-interface SidebarProps {
-  pathname: string;
-}
+// ─── Desktop sidebar ──────────────────────────────────────────────────────────
 
-function BrandHeader({ onClose }: { onClose?: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex h-16 items-center justify-between border-b border-overlay-sm bg-studio-surface px-6">
-      <Link
-        to="/admin/dashboard"
-        className="flex items-center gap-3 font-bold text-xl"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-studio-accent/15">
-          <BRAND_ICON className="h-5 w-5 text-studio-accent" />
-        </div>
-        <span className="bg-gradient-to-r from-studio-accent to-studio-purple bg-clip-text text-transparent">
-          {t("admin_brand_name")}
-        </span>
-      </Link>
-      {onClose && (
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-5 w-5" />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function NavigationLink({
-  item,
-  isActive,
+function AdminSidebarPanel({
+  pathname,
+  onHelpOpen,
 }: {
-  item: AdminNavItem;
-  isActive: boolean;
+  pathname: string;
+  onHelpOpen: () => void;
 }) {
-  const Icon = item.icon;
+  const { t } = useTranslation();
+  const { user, profile, logout } = useApp();
+  const navigate = useNavigate();
+  const adminNavItems = useAdminNavItems();
+
+  const name = profile?.name || user?.displayName || "Admin";
+  const email = profile?.email || user?.email || "";
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "AD";
 
   return (
-    <Link
-      to={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all",
-        isActive
-          ? "bg-studio-accent/[0.12] text-studio-accent"
-          : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      <span>{item.label}</span>
-    </Link>
+    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border">
+      <div className="flex flex-col gap-6 p-5 h-full">
+        {/* Identity */}
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/[0.10] dark:bg-amber-500/[0.08] border border-amber-500/[0.25] dark:border-amber-500/[0.15] flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">{initials}</span>
+            </div>
+            <div className="min-w-0 pt-0.5 flex-1">
+              <p className="font-semibold text-sm leading-tight truncate text-foreground">
+                {name}
+              </p>
+              <p className="text-[11px] text-dim-2 truncate mt-0.5">{email}</p>
+            </div>
+            <ThemeToggle />
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 dark:border-amber-500/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-amber-600 dark:bg-amber-400" />
+            Admin
+          </div>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5">
+          {adminNavItems.map(({ href, icon: Icon, label }) => {
+            const active = isNavActive(href, pathname);
+            return (
+              <Link
+                key={href}
+                to={href}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                  active
+                    ? "bg-overlay-sm text-foreground"
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs"
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-colors",
+                    active ? "text-amber-600 dark:text-amber-400" : ""
+                  )}
+                />
+                <span className={cn("font-medium", active ? "text-foreground" : "")}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="h-px bg-border" />
+
+        {/* Bottom actions */}
+        <div className="space-y-0.5">
+          <Link
+            to="/studio/discover"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-2 hover:text-dim-1 hover:bg-overlay-xs transition-colors group"
+          >
+            <ArrowUpRight className="h-4 w-4 shrink-0 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors" />
+            <span>Back to Studio</span>
+          </Link>
+          <button
+            onClick={onHelpOpen}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-2 hover:text-dim-1 hover:bg-overlay-xs transition-colors text-left"
+          >
+            <HelpCircle className="h-4 w-4 shrink-0" />
+            <span>{t("common_help")}</span>
+          </button>
+          <button
+            onClick={() => logout().then(() => navigate({ to: "/" }))}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dim-3 hover:text-red-400/80 hover:bg-red-500/[0.06] transition-colors text-left"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>{t("common_sign_out")}</span>
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }
 
-function DesktopSidebar({ pathname }: SidebarProps) {
+// ─── Mobile nav ───────────────────────────────────────────────────────────────
+
+function AdminMobileNav({ pathname }: { pathname: string }) {
+  const { user, profile } = useApp();
   const adminNavItems = useAdminNavItems();
 
+  const name = profile?.name || user?.displayName || "Admin";
+  const initials =
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((w: string) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "AD";
+
   return (
-    <div className="hidden w-64 flex-col border-r border-overlay-sm bg-studio-surface md:flex">
-      <BrandHeader />
-      <div className="flex-1 overflow-auto py-4">
-        <nav className="grid gap-1 px-3">
-          {adminNavItems.map((item) => (
-            <NavigationLink
-              key={item.href}
-              item={item}
-              isActive={pathname === item.href}
-            />
-          ))}
-        </nav>
+    <div className="md:hidden border-b border-border px-4 pt-4 pb-0">
+      {/* Identity strip */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-amber-500/[0.10] dark:bg-amber-500/[0.08] border border-amber-500/[0.25] dark:border-amber-500/[0.15] flex items-center justify-center">
+          <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{initials}</span>
+        </div>
+        <p className="text-sm font-semibold truncate">{name}</p>
+        <div className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 dark:border-amber-500/20">
+          <div className="w-1 h-1 rounded-full bg-amber-600 dark:bg-amber-400" />
+          Admin
+        </div>
       </div>
-      <div className="border-t border-border p-4">
-        <UserButton />
+
+      {/* Scrolling tab row */}
+      <div className="flex overflow-x-auto gap-1 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {adminNavItems.map(({ href, icon: Icon, label }) => {
+          const active = isNavActive(href, pathname);
+          return (
+            <Link
+              key={href}
+              to={href}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0 transition-colors font-medium",
+                active
+                  ? "bg-overlay-sm text-foreground"
+                  : "text-dim-2 hover:text-dim-1"
+              )}
+            >
+              <Icon className={cn("h-3.5 w-3.5", active ? "text-amber-600 dark:text-amber-400" : "")} />
+              {label}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-interface MobileSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  pathname: string;
-}
-
-function MobileSidebar({ isOpen, onClose, pathname }: MobileSidebarProps) {
-  const adminNavItems = useAdminNavItems();
-
-  return (
-    <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/50 md:hidden"
-          onClick={onClose}
-        />
-      )}
-      <div
-        className={cn(
-          "fixed top-0 left-0 bottom-0 w-3/4 max-w-[270px] z-30 transform transition-transform duration-300 ease-in-out flex flex-col border-r border-overlay-sm bg-studio-surface shadow-xl md:hidden",
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <BrandHeader onClose={onClose} />
-        <div className="flex-1 overflow-y-auto py-4">
-          <nav className="grid gap-1 px-3">
-            {adminNavItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-all",
-                  pathname === item.href
-                    ? "bg-studio-accent/[0.12] text-studio-accent"
-                    : "text-dim-2 hover:bg-overlay-sm hover:text-studio-fg"
-                )}
-                onClick={onClose}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="border-t border-border p-4">
-          <UserButton />
-        </div>
-      </div>
-    </>
-  );
-}
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const location = useLocation();
   const pathname = location.pathname;
   const adminNavItems = useAdminNavItems();
+  const [helpOpen, setHelpOpen] = useState(false);
 
-  const [layoutState, setLayoutState] = useState({
-    mobileNavOpen: false,
-    helpOpen: false,
-  });
+  const isDashboard =
+    pathname === "/admin/dashboard" ||
+    pathname === "/admin" ||
+    pathname === "/admin/";
 
-  const updateLayoutState = (updates: Partial<typeof layoutState>) => {
-    setLayoutState((prev) => ({ ...prev, ...updates }));
-  };
-
-  useEffect(() => {
-    startTransition(() => {
-      updateLayoutState({ mobileNavOpen: false });
-    });
-  }, [pathname]);
-
-  useEffect(() => {
-    const bodyStyle = document.body.style;
-    bodyStyle.overflow = layoutState.mobileNavOpen ? "hidden" : "unset";
-
-    return () => {
-      bodyStyle.overflow = "unset";
-    };
-  }, [layoutState.mobileNavOpen]);
+  const pageTitle = getPageTitle(pathname, adminNavItems, t);
 
   return (
-    <div className="flex h-screen bg-studio-bg">
-      <DesktopSidebar pathname={pathname} />
-      <MobileSidebar
-        isOpen={layoutState.mobileNavOpen}
-        onClose={() => updateLayoutState({ mobileNavOpen: false })}
-        pathname={pathname}
-      />
+    <div className="h-screen bg-studio-bg text-studio-fg font-studio overflow-hidden flex">
+      <AdminSidebarPanel pathname={pathname} onHelpOpen={() => setHelpOpen(true)} />
 
-      <div className="flex flex-col overflow-hidden w-full">
-        <header className="flex h-16 shrink-0 items-center gap-4 border-b border-overlay-sm bg-studio-topbar/95 backdrop-blur-sm px-4 md:px-6">
-          <Button
-            variant="outline"
-            size="icon"
-            className="shrink-0 md:hidden"
-            onClick={() => updateLayoutState({ mobileNavOpen: true })}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">
-              {t("common_toggle_navigation_menu")}
-            </span>
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {getPageTitle(pathname, adminNavItems, t)}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => updateLayoutState({ helpOpen: true })}
-              className="hover:bg-muted"
-            >
-              <HelpCircle className="h-5 w-5" />
-              <span className="sr-only">{t("common_help")}</span>
-            </Button>
-          </div>
-        </header>
+      <div className="flex-1 min-w-0 flex flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <AdminMobileNav pathname={pathname} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-          {children}
-        </main>
+        {/* Section header (desktop only, dashboard skips it) */}
+        {!isDashboard && (
+          <div className="hidden md:block px-8 pt-7 pb-0">
+            <h2 className="text-base font-semibold text-foreground">{pageTitle}</h2>
+            <div className="mt-5 h-px bg-border" />
+          </div>
+        )}
+
+        <main className="flex-1 p-5 md:px-8 md:py-7">{children}</main>
       </div>
 
-      <Dialog
-        open={layoutState.helpOpen}
-        onOpenChange={(open) => updateLayoutState({ helpOpen: open })}
-      >
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <HelpModal />
       </Dialog>
     </div>

@@ -364,7 +364,7 @@ function DeveloperPage() {
                   placeholder={t("admin_developer_select_table_placeholder")}
                 />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[60vh] overflow-y-auto">
                 {tables.map((table) => (
                   <SelectItem key={table.name} value={table.name}>
                     <div className="flex items-center gap-2">
