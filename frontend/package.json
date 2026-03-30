@@ -24,6 +24,7 @@
     "bundle-size": "bun run build && npx bundlesize",
     "i18n:check": "bun scripts/fix-i18n-interpolation.ts",
     "i18n:fix": "bun scripts/fix-i18n-interpolation.ts --fix",
+    "i18n:missing": "bun scripts/check-unloaded-translations.ts",
     "type-check": "tsc --noEmit",
     "type-check:strict": "tsc --noEmit --strict",
     "build:production": "NODE_ENV=production bun run build",

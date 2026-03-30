@@ -126,10 +126,10 @@ function DiscoverPage() {
           style={{ gridTemplateColumns: "220px 1fr 300px" }}
         >
           {/* Left sidebar */}
-          <aside className="bg-studio-surface border-r border-overlay-sm flex flex-col overflow-hidden">
+          <aside className="bg-studio-surface border-r border-border flex flex-col overflow-hidden">
             {/* Niche selector */}
             {niches.length > 0 && (
-              <div className="px-3 pt-3 pb-2 border-b border-overlay-sm">
+              <div className="px-3 pt-3 pb-2 border-b border-border">
                 <Select
                   value={activeNicheValue ?? undefined}
                   onValueChange={(val) => handleNicheChange(val)}
@@ -175,7 +175,7 @@ function DiscoverPage() {
                     <button
                       onClick={loadMore}
                       disabled={isFetching}
-                      className="mx-3 mb-2 py-1.5 text-sm text-dim-2 hover:text-studio-accent border border-overlay-sm rounded-lg transition-colors disabled:opacity-40"
+                      className="mx-3 mb-2 py-1.5 text-sm text-dim-2 hover:text-studio-accent border border-border rounded-lg transition-colors disabled:opacity-40"
                     >
                       {isFetching
                         ? "Loading…"
@@ -186,7 +186,7 @@ function DiscoverPage() {
                 {/* Resize handle */}
                 <div
                   onMouseDown={handleDragStart}
-                  className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-overlay-sm hover:border-studio-accent/30 transition-colors"
+                  className="h-[6px] shrink-0 cursor-row-resize flex items-center justify-center group border-t border-border hover:border-studio-accent/30 transition-colors"
                 >
                   <div className="w-6 h-[2px] rounded-full bg-overlay-md group-hover:bg-studio-accent/50 transition-colors" />
                 </div>
@@ -224,7 +224,7 @@ function DiscoverPage() {
           {selectedReel ? (
             <AnalysisPanel reel={selectedReel} />
           ) : (
-            <aside className="bg-studio-surface border-l border-overlay-sm flex items-center justify-center">
+            <aside className="bg-studio-surface border-l border-border flex items-center justify-center">
               <EmptyCanvas label={t("studio_panel_selectReel")} icon="✦" />
             </aside>
           )}

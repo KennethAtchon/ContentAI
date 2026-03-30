@@ -16,7 +16,7 @@ export function ReelList({ reels, activeId, onSelect }: Props) {
     <>
       {/* Header */}
       <div className="px-3.5 pt-3 pb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold tracking-[1.5px] uppercase text-dim-3">
+        <span className="text-[10px] font-semibold tracking-widest uppercase text-dim-3">
           {t("studio_sidebar_sourceReels")}
         </span>
         <span className="bg-studio-accent/15 text-studio-accent text-sm font-bold px-1.5 py-px rounded-full">

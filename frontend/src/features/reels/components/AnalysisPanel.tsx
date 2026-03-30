@@ -11,7 +11,7 @@ export function AnalysisPanel({ reel }: Props) {
   const { t } = useTranslation();
 
   return (
-    <aside className="bg-studio-surface border-l border-overlay-sm flex flex-col overflow-hidden font-studio">
+    <aside className="bg-studio-surface border-l border-border flex flex-col overflow-hidden font-studio">
       <div className="flex-1 overflow-y-auto p-4 space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Metrics grid */}
         <div>
