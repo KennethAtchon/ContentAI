@@ -269,7 +269,7 @@ OpusClip (a direct competitor) implements:
 - **Highlight word** — A single word at a time is highlighted in bright color (yellow or brand color)
 - **Emoji insertion** — Auto-placed emojis at emotionally resonant moments (future feature)
 
-**Implication for our UX:** The current "Generate Text for Clip" button-first UX is backwards. The new system should auto-transcribe when a voiceover asset is added to the timeline, and the Inspector should show the style picker as the primary UI. (We will also remove SENDING the actual AI generated voice over script, rely on auto-transcribe to make separate clips for each text.)
+**Implication for our UX:** Auto-caption on insert is a strong pattern in social-first tools like OpusClip. However, whether to trigger automatically on voiceover insertion versus on a deliberate one-step action is a product decision to validate with UX testing — not an industry requirement. The architectural commitment is tight clip linkage and idempotency. The Inspector should present the style picker as the primary UI, with caption generation triggered either automatically on voiceover add or on an explicit one-step action. (We will also remove SENDING the actual AI-generated voiceover script, relying on auto-transcribe to derive caption text and create separate clips for each transcribed segment.)
 
 ---
 

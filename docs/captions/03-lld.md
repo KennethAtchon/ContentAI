@@ -21,6 +21,12 @@ Codebase-aligned ownership:
  * A single timestamped display token from Whisper (or manual entry).
  * Kept as `Word` in v2 for compatibility with existing terminology, but
  * consumers must treat it as a render token rather than a linguistic word.
+ *
+ * This type is named `Word` because v2 is English-only and space-delimited
+ * tokenization is sufficient. It is NOT a linguistic primitive.
+ * If multilingual support is added, rename to `Token` and replace any
+ * grouping logic that assumes space-delimited words. Do not add behavior
+ * to this type that only makes sense for English.
  */
 export interface Word {
   word: string;

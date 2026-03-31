@@ -8,10 +8,10 @@ This document describes the architecture of the new caption system. It defines t
 
 1. **Clean separation of concerns** — transcription data, style definitions, and rendering are independent systems that communicate through typed contracts.
 2. **Declarative animation** — animations are JSON data, not code branches. Adding a new animation requires no changes to the renderer.
-3. **Trustworthy preview/export contract** — Preview and export resolve the same caption document and source range. When export cannot reproduce a visual effect exactly, the downgrade is explicit in the preset metadata and UI.
+3. **Trustworthy preview/export contract** — Preview and export resolve the same caption document and source range. The contract is explicit behavior, not parity: `full` means materially equivalent for export-safe styles; `approximate` means visibly related but not identical; `static` means animation is intentionally absent in export. When export cannot reproduce a visual effect exactly, the downgrade is explicit in the preset metadata and UI — nothing is silently dropped.
 4. **Extensible presets** — New presets can be added by writing a JSON object. No renderer changes required.
 5. **Multi-line word wrap** — Captions wrap correctly at any font size on any canvas dimension.
-6. **Auto-transcription** — Captions are generated automatically when a voiceover is added to the timeline, not on manual button press.
+6. **Auto-transcription** — Caption generation is tightly linked to voiceover clips. The target UX is one-step or automatic generation on voiceover insertion, subject to UX validation. The architectural commitment is idempotent clip linkage; the specific trigger mechanism (automatic vs. explicit) is a product decision, not an industry default.
 7. **Explicit v2 language scope** — v2 is English-only. Tokenization, layout assumptions, QA, and preset tuning are only guaranteed for English transcripts.
 
 ---
@@ -275,6 +275,8 @@ On success: dispatch ADD_CAPTION_CLIP with returned captionDocId
 Caption clip renders immediately on timeline
 ```
 
+**Product note:** Triggering automatically on voiceover insertion (as shown above) is the target UX for a social-first tool. Whether to trigger on-add or via a deliberate one-step action is a product decision to validate with UX testing — the key concern is preventing surprise duplication. The architectural design (idempotent clip linkage, deduplicated jobs, `originVoiceoverClipId`) is independent of the trigger mechanism and supports both approaches.
+
 The "Generate" button still exists for manual re-trigger (e.g., after re-recording), but it reuses the same clip linkage rather than creating duplicate caption clips. If the source voiceover is trimmed, replaced, or deleted, the linked caption clip is updated or marked stale accordingly.
 
 ---
@@ -339,4 +341,4 @@ This design must follow existing project conventions rather than inventing a par
 - **Character-level animation** — The AnimationDef type has `scope: "char"` as a future option, but no built-in preset uses it. The renderer will implement char-level in a subsequent version.
 - **SRT/VTT import** — The `source: "import"` value in `CaptionDoc` is reserved. The import route is not in scope for v2.
 - **Multiple simultaneous caption tracks** — The new architecture supports it (each `CaptionClip` references its own `CaptionDoc`), but the editor UI does not expose multi-track captions in v2.
-- **Non-English caption support** — v2 is explicitly English-only. `CaptionDoc.language` is stored for forward compatibility, but locale-aware tokenization, bidi layout, and non-English QA are out of scope and must not be implied as supported.
+- **Non-English caption support** — v2 is explicitly English-only. `CaptionDoc.language` is stored for forward compatibility, but locale-aware tokenization, bidi layout, and non-English QA are out of scope and must not be implied as supported. The `Word` type is a render token abstraction, not a linguistic primitive; it is named `Word` in v2 for simplicity, but future multilingual support will require treating it as a generic `Token` and replacing space-delimited grouping assumptions. Do not deepen coupling to English-specific word semantics in new code.

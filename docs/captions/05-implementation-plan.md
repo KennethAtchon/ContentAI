@@ -244,7 +244,7 @@ In `frontend/src/features/editor/hooks/useEditorStore.ts`:
 2. `Inspector.tsx`:
    - Remove `useAutoCaption()`.
    - Remove old `addCaptionClip()` call.
-   - Add clip-scoped auto-transcription trigger with dedupe: one caption job per voiceover clip.
+   - Add clip-scoped transcription trigger with dedupe: one caption job per voiceover clip. Whether this triggers automatically on voiceover insertion or via a one-step explicit action is a **product decision** — implement with a clear trigger point that can be toggled without architectural changes. Start with automatic triggering and revert to one-step if UX testing shows duplication/surprise issues.
    - Persist `idle | transcribing | ready | failed | stale` state for the selected voiceover clip.
    - Mount `CaptionPresetPicker`, `CaptionStylePanel`, and `CaptionTranscriptEditor` when selected clip is `type: "caption"`.
 
