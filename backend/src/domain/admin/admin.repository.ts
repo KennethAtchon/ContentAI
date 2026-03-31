@@ -1059,7 +1059,7 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async dedupeNicheReels(nicheId: number) {
-    const result = await this.db.execute(sql`
+    await this.db.execute(sql`
       DELETE FROM "reel"
       WHERE id IN (
         SELECT id FROM (

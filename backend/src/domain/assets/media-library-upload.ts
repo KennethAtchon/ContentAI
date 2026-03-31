@@ -35,7 +35,7 @@ export type ParsedMediaLibraryUpload = {
 
 /** Parse multipart for POST /api/media/upload; throws `AppError` with `INVALID_INPUT`. */
 export function parseMediaLibraryUploadForm(
-  form: FormData,
+  form: globalThis.FormData,
 ): ParsedMediaLibraryUpload {
   const fileEntry = form.get("file");
   if (!(fileEntry instanceof File)) {

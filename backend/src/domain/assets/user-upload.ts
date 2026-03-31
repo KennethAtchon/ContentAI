@@ -27,7 +27,9 @@ export type ParsedUserAssetUpload = {
 };
 
 /** Parse multipart fields for POST /api/assets/upload; throws `Errors.badRequest`. */
-export function parseUserAssetUploadForm(form: FormData): ParsedUserAssetUpload {
+export function parseUserAssetUploadForm(
+  form: globalThis.FormData,
+): ParsedUserAssetUpload {
   const fileEntry = form.get("file");
   const generatedContentIdRaw = String(form.get("generatedContentId") ?? "");
   const assetTypeRaw = String(form.get("assetType") ?? "");

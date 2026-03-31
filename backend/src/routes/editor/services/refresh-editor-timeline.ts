@@ -2,7 +2,6 @@ import type { TimelineClipJson } from "../../../domain/editor/timeline/clip-trim
 import { normalizeMediaClipTrimFields } from "../../../domain/editor/timeline/clip-trim";
 import { editorRepository } from "../../../domain/singletons";
 import {
-  mergePlaceholdersWithRealClips,
   type AssetMergeRow,
   type TimelineTrackJson,
 } from "../../../domain/editor/timeline/merge-placeholders-with-assets";

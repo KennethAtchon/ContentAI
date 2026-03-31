@@ -37,7 +37,7 @@ jobs:
         run: bun lint
 
       - name: Unit tests
-        run: bun test:unit 2>/dev/null || true
+        run: bun test:unit
 
       - name: Build
         run: bun run build
@@ -65,4 +65,7 @@ jobs:
         run: bun lint
 
       - name: Unit tests
-        run: bun test:unit 2>/dev/null || true
+        run: bun test:unit
+
+      - name: Build
+        run: bun run build

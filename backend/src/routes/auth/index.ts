@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { rateLimiter } from "../../middleware/protection";
 import { adminAuth } from "../../services/firebase/admin";
 import { authService } from "../../domain/singletons";
-import { AppError, Errors } from "../../utils/errors/app-error";
+import { Errors } from "../../utils/errors/app-error";
 
 const authRoutes = new Hono();
 

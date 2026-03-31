@@ -252,7 +252,11 @@ export async function safeAsyncOperation<T>(
   timeoutMs: number = 10000,
 ): Promise<T> {
   try {
-    return await withTimeout(operation(), timeoutMs, `${context} timeout`);
+    return await withTimeout(
+      Promise.resolve().then(operation),
+      timeoutMs,
+      `${context} timeout`,
+    );
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     reportError(err, { additionalData: { context } });
