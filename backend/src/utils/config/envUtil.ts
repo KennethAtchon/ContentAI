@@ -333,7 +333,35 @@ export function getAllowedCorsOrigins(): string[] {
       "https://127.0.0.1:3000",
     ];
   }
-  return CORS_ALLOWED_ORIGINS;
+
+  // In production, allow explicit CORS env list plus BASE_URL as a safe fallback.
+  // This prevents accidental deploys where CORS_ALLOWED_ORIGINS is omitted.
+  const normalizeOrigin = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+
+    const withScheme = /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+    try {
+      return new URL(withScheme).origin;
+    } catch {
+      return "";
+    }
+  };
+
+  const explicitOrigins = CORS_ALLOWED_ORIGINS.map(normalizeOrigin).filter(Boolean);
+  const baseOrigin = (() => {
+    if (!BASE_URL) return "";
+    try {
+      return normalizeOrigin(new URL(BASE_URL).origin);
+    } catch {
+      return "";
+    }
+  })();
+
+  return Array.from(new Set([...explicitOrigins, baseOrigin])).filter(Boolean);
 }
 
 /**
