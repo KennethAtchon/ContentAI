@@ -28,7 +28,7 @@ export class CaptionsService {
     }
     return {
       captionDocId: caption.id,
-      words: caption.words,
+      words: caption.tokens,
       fullText: caption.fullText,
     };
   }
@@ -57,7 +57,7 @@ export class CaptionsService {
     if (existing) {
       return {
         captionDocId: existing.id,
-        words: existing.words,
+        words: existing.tokens,
         fullText: existing.fullText,
       };
     }
@@ -147,7 +147,8 @@ export class CaptionsService {
       userId,
       assetId,
       language: "en",
-      words,
+      tokens: words,
+      source: "whisper",
       fullText: transcription.text ?? "",
     });
 

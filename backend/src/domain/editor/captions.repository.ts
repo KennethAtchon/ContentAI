@@ -1,19 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import {
-  captions,
-  type NewCaption,
+  captionDocs,
+  type NewCaptionDoc,
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 
-export type CaptionRow = typeof captions.$inferSelect;
+export type CaptionDocRow = typeof captionDocs.$inferSelect;
 
 export interface ICaptionsRepository {
   findByAssetAndUser(
     assetId: string,
     userId: string,
-  ): Promise<CaptionRow | null>;
+  ): Promise<CaptionDocRow | null>;
 
-  insert(row: NewCaption): Promise<CaptionRow>;
+  insert(row: NewCaptionDoc): Promise<CaptionDocRow>;
 }
 
 export class CaptionsRepository implements ICaptionsRepository {
@@ -22,19 +22,19 @@ export class CaptionsRepository implements ICaptionsRepository {
   async findByAssetAndUser(
     assetId: string,
     userId: string,
-  ): Promise<CaptionRow | null> {
+  ): Promise<CaptionDocRow | null> {
     const [row] = await this.db
       .select()
-      .from(captions)
+      .from(captionDocs)
       .where(
-        and(eq(captions.assetId, assetId), eq(captions.userId, userId)),
+        and(eq(captionDocs.assetId, assetId), eq(captionDocs.userId, userId)),
       )
       .limit(1);
     return row ?? null;
   }
 
-  async insert(row: NewCaption): Promise<CaptionRow> {
-    const [created] = await this.db.insert(captions).values(row).returning();
+  async insert(row: NewCaptionDoc): Promise<CaptionDocRow> {
+    const [created] = await this.db.insert(captionDocs).values(row).returning();
     if (!created) throw new Error("Insert caption returned no row");
     return created;
   }
