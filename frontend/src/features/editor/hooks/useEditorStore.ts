@@ -3,7 +3,6 @@ import type {
   Clip,
   EditProject,
   ExportJobStatus,
-  CaptionWord,
   Transition,
 } from "../types/editor";
 import { editorReducer } from "../model/editor-reducer";
@@ -110,17 +109,6 @@ export function useEditorReducer() {
       dispatch({ type: "SET_EXPORT_STATUS", status }),
     []
   );
-  const addCaptionClip = useCallback(
-    (params: {
-      captionId: string;
-      captionWords: CaptionWord[];
-      assetId: string;
-      presetId: string;
-      startMs: number;
-      durationMs: number;
-    }) => dispatch({ type: "ADD_CAPTION_CLIP", ...params }),
-    []
-  );
   const setTransition = useCallback(
     (
       trackId: string,
@@ -201,7 +189,6 @@ export function useEditorReducer() {
     redo,
     setExportJob,
     setExportStatus,
-    addCaptionClip,
     setTransition,
     removeTransition,
     reorderShots,

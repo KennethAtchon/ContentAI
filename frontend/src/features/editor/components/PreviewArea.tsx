@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
 import type { Clip, Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
-import { drawCaptionsOnCanvas } from "../hooks/useCaptionPreview";
 import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
 import {
@@ -47,7 +46,6 @@ export function PreviewArea({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
-  const captionCanvasRef = useRef<HTMLCanvasElement>(null);
   const assetUrlMap = useAssetUrlMap();
 
   const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
@@ -205,40 +203,6 @@ export function PreviewArea({
     runForTrack(audioTrack);
     runForTrack(musicTrack);
   }, [currentTimeMs, isPlaying, playbackRate, audioTrack, musicTrack]);
-
-  useEffect(() => {
-    let rafId = 0;
-    let cancelled = false;
-
-    const paint = () => {
-      if (cancelled) return;
-      const canvas = captionCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!textTrack) return;
-
-      for (const clip of textTrack.clips) {
-        if (!clip.captionWords?.length) continue;
-        if (!isClipActiveAtTimelineTime(clip, currentTimeMs)) continue;
-        drawCaptionsOnCanvas(
-          ctx,
-          clip,
-          currentTimeMs,
-          canvas.width,
-          canvas.height
-        );
-      }
-    };
-
-    rafId = requestAnimationFrame(paint);
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-    };
-  }, [currentTimeMs, textTrack]);
 
   // Prune stale entries from videoRefs/audioRefs after every render
   const currentVideoClipIds = new Set(videoTracks.flatMap((vt) => vt.clips.map((c) => c.id)));
@@ -429,14 +393,6 @@ export function PreviewArea({
               </div>
             );
           })}
-
-          <canvas
-            ref={captionCanvasRef}
-            width={resW}
-            height={resH}
-            className="absolute inset-0 w-full h-full"
-            style={{ pointerEvents: "none", zIndex: 11 }}
-          />
 
           {!hasContent && (
             <div className="flex flex-col items-center gap-2">

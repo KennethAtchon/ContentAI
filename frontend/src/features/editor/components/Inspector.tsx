@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import type { Clip, Transition } from "../types/editor";
-import { useAutoCaption } from "../hooks/useCaptions";
 import { useEditorContext } from "../context/EditorContext";
 import { InspectorTransitionPanel } from "./inspector/InspectorTransitionPanel";
 import { InspectorClipMetaPanel } from "./inspector/InspectorClipMetaPanel";
@@ -14,13 +13,11 @@ interface Props {
 
 export function Inspector({ onEffectPreview, selectedTransition }: Props) {
   const { t } = useTranslation();
-  const autoCaption = useAutoCaption();
   const {
     state,
     selectedClip: selectedClipCtx,
     selectedTrack,
     updateClip: onUpdateClip,
-    addCaptionClip: onAddCaptionClip,
     setTransition: onSetTransition,
     removeTransition: onRemoveTransition,
   } = useEditorContext();
@@ -30,35 +27,6 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
 
   const isTextClip = selectedTrack?.type === "text";
   const isMediaClip = !isTextClip;
-
-  const hasTimedCaptionWords = !!(selectedClip?.captionWords?.length);
-  const showCaptionStyleUi = selectedTrack?.type === "text";
-
-  const isGenerableClip =
-    !!selectedClip?.assetId &&
-    selectedTrack?.type !== "text" &&
-    !hasTimedCaptionWords;
-
-  const handleGenerateText = async () => {
-    if (!selectedClip?.assetId) return;
-    try {
-      const result = await autoCaption.mutateAsync(selectedClip.assetId);
-      const durationMs =
-        result.words.length > 0
-          ? result.words[result.words.length - 1].endMs
-          : selectedClip.durationMs;
-      onAddCaptionClip({
-        captionId: result.captionId,
-        captionWords: result.words,
-        assetId: selectedClip.assetId,
-        presetId: "hormozi",
-        startMs: selectedClip.startMs,
-        durationMs,
-      });
-    } catch {
-      // error surfaced via autoCaption.isError in child panel
-    }
-  };
 
   return (
     <div
@@ -86,12 +54,6 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
                 <InspectorClipMetaPanel
                   clip={selectedClip}
                   onUpdateClip={onUpdateClip}
-                  isGenerableClip={isGenerableClip}
-                  autoCaption={{
-                    isError: autoCaption.isError,
-                    isPending: autoCaption.isPending,
-                  }}
-                  onGenerateCaptions={handleGenerateText}
                 />
                 <InspectorClipVisualPanel
                   clip={selectedClip}
@@ -103,8 +65,6 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
                 <InspectorTextAndCaptionPanels
                   clip={selectedClip}
                   isTextClip={isTextClip}
-                  hasTimedCaptionWords={hasTimedCaptionWords}
-                  showCaptionStyleUi={showCaptionStyleUi}
                   onUpdateClip={onUpdateClip}
                 />
               </>

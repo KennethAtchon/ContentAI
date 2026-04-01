@@ -151,8 +151,6 @@ assemblyRouter.post(
         voiceover: auxPack.voiceover,
         music: auxPack.music,
         musicVolume: 0.22,
-        captionPresetId: "hormozi",
-        captionGroupSize: 3,
       });
       return c.json({
         timeline: standardTimeline,

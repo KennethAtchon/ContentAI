@@ -48,20 +48,6 @@ const clipDataSchema = z.object({
       align: z.enum(["left", "center", "right"]),
     })
     .optional(),
-  captionId: z.string().optional(),
-  captionWords: z
-    .array(
-      z.object({
-        word: z.string(),
-        startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-        endMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-      }),
-    )
-    .optional(),
-  captionPresetId: z.string().max(50).optional(),
-  captionGroupSize: z.number().int().min(1).max(10).optional(),
-  captionPositionY: z.number().min(0).max(100).optional(),
-  captionFontSizeOverride: z.number().int().min(8).max(200).optional(),
   /** Shot placeholders before generation completes — must be preserved on parse (Zod strips unknown keys). */
   isPlaceholder: z.literal(true).optional(),
   placeholderShotIndex: z.number().int().min(0).optional(),
@@ -132,10 +118,6 @@ export const aiAssemblyResponseSchema = z.object({
       transition: z.enum(["cut", "fade", "slide-left", "dissolve"]),
     }),
   ),
-  captionStyle: z
-    .enum(["hormozi", "clean-minimal", "dark-box", "karaoke", "bold-outline"])
-    .optional(),
-  captionGroupSize: z.number().int().min(1).max(6).optional(),
   musicVolume: z.number().min(0).max(1),
   totalDuration: z.number().int().min(1000).max(120000),
 });

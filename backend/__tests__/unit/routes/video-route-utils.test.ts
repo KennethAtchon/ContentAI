@@ -3,7 +3,6 @@ import {
   buildMockDevReelShots,
   deriveUseClipAudioByIndex,
   durationSecondsToMs,
-  extractCaptionSourceText,
   formatAssTime,
   parseScriptShots,
 } from "../../../src/routes/video/utils";
@@ -33,15 +32,6 @@ describe("video route utils", () => {
     const result = parseScriptShots(script);
     expect(result).toHaveLength(1);
     expect(result[0]?.durationSeconds).toBe(20);
-  });
-
-  test("extractCaptionSourceText removes timing tags and normalizes spacing", () => {
-    const text = extractCaptionSourceText({
-      cleanScriptForAudio: null,
-      generatedScript: "[0-3s]  Hello   world \n[3-6s] This   is   content",
-    });
-
-    expect(text).toBe("Hello world This is content");
   });
 
   test("deriveUseClipAudioByIndex maps per-shot toggle values", () => {

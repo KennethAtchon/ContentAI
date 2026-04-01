@@ -27,7 +27,7 @@ export class CaptionsService {
       );
     }
     return {
-      captionId: caption.id,
+      captionDocId: caption.id,
       words: caption.words,
       fullText: caption.fullText,
     };
@@ -56,7 +56,7 @@ export class CaptionsService {
     const existing = await this.captions.findByAssetAndUser(assetId, userId);
     if (existing) {
       return {
-        captionId: existing.id,
+        captionDocId: existing.id,
         words: existing.words,
         fullText: existing.fullText,
       };
@@ -159,7 +159,7 @@ export class CaptionsService {
     });
 
     return {
-      captionId: saved.id,
+      captionDocId: saved.id,
       words,
       fullText: saved.fullText,
     };

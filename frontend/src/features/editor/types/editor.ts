@@ -1,9 +1,3 @@
-export interface CaptionWord {
-  word: string;
-  startMs: number;
-  endMs: number;
-}
-
 export interface TextStyle {
   fontSize: number;
   fontWeight: "normal" | "bold";
@@ -47,15 +41,8 @@ export interface Clip {
   /** When false, preview shows full text for the whole clip; when true/undefined, text is split into timed on-screen chunks. */
   textAutoChunk?: boolean;
   textStyle?: TextStyle;
-  /** Reading-time ceiling for text clips; trim-right cannot exceed this. */
+  /** Reading-time ceiling for media-backed clips. */
   sourceMaxDurationMs?: number;
-  // Caption-only
-  captionId?: string;
-  captionWords?: CaptionWord[];
-  captionPresetId?: string;
-  captionGroupSize?: number;
-  captionPositionY?: number;
-  captionFontSizeOverride?: number;
 
   /** Placeholder slot until a real clip is generated */
   isPlaceholder?: true;
@@ -170,15 +157,6 @@ export type EditorAction =
   | { type: "REDO" }
   | { type: "SET_EXPORT_JOB"; jobId: string | null }
   | { type: "SET_EXPORT_STATUS"; status: ExportJobStatus | null }
-  | {
-      type: "ADD_CAPTION_CLIP";
-      captionId: string;
-      captionWords: CaptionWord[];
-      assetId: string;
-      presetId: string;
-      startMs: number;
-      durationMs: number;
-    }
   | {
       type: "SET_TRANSITION";
       trackId: string;

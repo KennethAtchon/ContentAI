@@ -4,12 +4,6 @@
  * Runtime validation (Zod) is deferred to a later phase.
  */
 
-export interface CaptionWord {
-  word: string;
-  startMs: number;
-  endMs: number;
-}
-
 export interface TextStyle {
   fontSize: number;
   fontWeight: "normal" | "bold";
@@ -48,12 +42,6 @@ export interface Clip {
   textAutoChunk?: boolean;
   textStyle?: TextStyle;
   sourceMaxDurationMs?: number;
-  captionId?: string;
-  captionWords?: CaptionWord[];
-  captionPresetId?: string;
-  captionGroupSize?: number;
-  captionPositionY?: number;
-  captionFontSizeOverride?: number;
   isPlaceholder?: true;
   placeholderShotIndex?: number;
   placeholderLabel?: string;

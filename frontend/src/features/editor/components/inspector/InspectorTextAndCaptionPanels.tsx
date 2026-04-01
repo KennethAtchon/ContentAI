@@ -2,8 +2,6 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { Switch } from "@/shared/components/ui/switch";
 import type { Clip } from "../../types/editor";
-import { CAPTION_PRESETS } from "../../constants/caption-presets";
-import { CaptionPresetTile } from "../CaptionPresetTile";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -13,16 +11,12 @@ import {
 interface Props {
   clip: Clip;
   isTextClip: boolean;
-  hasTimedCaptionWords: boolean;
-  showCaptionStyleUi: boolean;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
 }
 
 export function InspectorTextAndCaptionPanels({
   clip,
   isTextClip,
-  hasTimedCaptionWords,
-  showCaptionStyleUi,
   onUpdateClip,
 }: Props) {
   const { t } = useTranslation();
@@ -40,7 +34,7 @@ export function InspectorTextAndCaptionPanels({
         </InspectorSection>
       )}
 
-      {clip.textContent !== undefined && !hasTimedCaptionWords && (
+      {clip.textContent !== undefined && (
         <InspectorSection title={t("inspector_section_text_style")}>
           <InspectorPropRow label={t("editor_text_smart_chunks")}>
             <Switch
@@ -143,48 +137,6 @@ export function InspectorTextAndCaptionPanels({
         </InspectorSection>
       )}
 
-      {showCaptionStyleUi && (
-        <InspectorSection title={t("editor_captions_generate_section")}>
-          <div className="mb-2">
-            <p className="text-[10px] text-dim-3 mb-1.5">{t("editor_captions_style")}</p>
-            <div className="grid grid-cols-2 gap-1">
-              {CAPTION_PRESETS.map((p) => (
-                <CaptionPresetTile
-                  key={p.id}
-                  preset={p}
-                  selected={(clip.captionPresetId ?? CAPTION_PRESETS[0]!.id) === p.id}
-                  onClick={() => onUpdateClip(clip.id, { captionPresetId: p.id })}
-                  compact
-                />
-              ))}
-            </div>
-          </div>
-          <InspectorSliderRow
-            label={t("inspector_prop_caption_position_y")}
-            value={clip.captionPositionY ?? 80}
-            min={0}
-            max={100}
-            step={1}
-            onChange={(v) => onUpdateClip(clip.id, { captionPositionY: v })}
-          />
-          <InspectorSliderRow
-            label={t("inspector_prop_caption_font_size")}
-            value={clip.captionFontSizeOverride ?? 48}
-            min={16}
-            max={120}
-            step={2}
-            onChange={(v) => onUpdateClip(clip.id, { captionFontSizeOverride: v })}
-          />
-          <InspectorSliderRow
-            label={t("inspector_prop_caption_group_size")}
-            value={clip.captionGroupSize ?? 3}
-            min={1}
-            max={6}
-            step={1}
-            onChange={(v) => onUpdateClip(clip.id, { captionGroupSize: v })}
-          />
-        </InspectorSection>
-      )}
     </>
   );
 }

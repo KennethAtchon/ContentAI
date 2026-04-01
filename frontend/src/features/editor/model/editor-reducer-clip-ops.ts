@@ -284,45 +284,6 @@ export function reduceClipOps(
       };
     }
 
-    case "ADD_CAPTION_CLIP": {
-      const captionClip: Clip = {
-        id: crypto.randomUUID(),
-        assetId: action.assetId,
-        label: "Captions",
-        startMs: action.startMs,
-        durationMs: action.durationMs,
-        trimStartMs: 0,
-        trimEndMs: 0,
-        speed: 1,
-        opacity: 1,
-        warmth: 0,
-        contrast: 0,
-        positionX: 0,
-        positionY: 0,
-        scale: 1,
-        rotation: 0,
-        volume: 0,
-        muted: true,
-        captionId: action.captionId,
-        captionWords: action.captionWords,
-        captionPresetId: action.presetId,
-        captionGroupSize: 3,
-        captionPositionY: 80,
-        locallyModified: true,
-      };
-
-      const newTracks = state.tracks.map((t) =>
-        t.id === "text" ? { ...t, clips: [...t.clips, captionClip] } : t
-      );
-
-      return {
-        ...state,
-        ...pushPastTracks(state, newTracks),
-        durationMs: computeDuration(newTracks),
-        selectedClipId: captionClip.id,
-      };
-    }
-
     default:
       return null;
   }

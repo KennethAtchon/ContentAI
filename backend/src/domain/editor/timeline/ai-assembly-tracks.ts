@@ -13,12 +13,6 @@ export async function loadProjectShotAssets(
   );
 }
 
-export function mapCaptionStyleToPresetId(
-  style: z.infer<typeof aiAssemblyResponseSchema>["captionStyle"],
-): string {
-  return style ?? "hormozi";
-}
-
 export function convertAIResponseToTracks(
   aiResponse: z.infer<typeof aiAssemblyResponseSchema>,
   shotAssets: Array<{
@@ -111,44 +105,6 @@ export function convertAIResponseToTracks(
       ]
     : [];
 
-  const captionPresetId = aiResponse.captionStyle
-    ? mapCaptionStyleToPresetId(aiResponse.captionStyle)
-    : "hormozi";
-  const captionGroupSize = aiResponse.captionGroupSize ?? 3;
-  const textClips =
-    totalVideoMs > 0
-      ? [
-          {
-            id: `ai-caption-${crypto.randomUUID()}`,
-            assetId: aux.voiceover?.id ?? null,
-            label: "Captions",
-            startMs: 0,
-            durationMs: totalVideoMs,
-            trimStartMs: 0,
-            trimEndMs: 0,
-            sourceMaxDurationMs: totalVideoMs,
-            speed: 1,
-            opacity: 1,
-            warmth: 0,
-            contrast: 0,
-            positionX: 0,
-            positionY: 0,
-            scale: 1,
-            rotation: 0,
-            volume: 0,
-            muted: true,
-            captionPresetId,
-            captionGroupSize,
-            captionPositionY: 80,
-            captionWords: [] as {
-              word: string;
-              startMs: number;
-              endMs: number;
-            }[],
-          },
-        ]
-      : [];
-
   return [
     {
       id: "video",
@@ -183,7 +139,7 @@ export function convertAIResponseToTracks(
       name: "Caption",
       muted: false,
       locked: false,
-      clips: textClips,
+      clips: [],
       transitions: [],
     },
   ];
@@ -199,8 +155,6 @@ export function buildStandardPresetTracks(
     voiceover?: { id: string; durationMs: number | null };
     music?: { id: string; durationMs: number | null };
     musicVolume?: number;
-    captionPresetId?: string;
-    captionGroupSize?: number;
   },
 ) {
   let cursor = 0;
@@ -274,42 +228,6 @@ export function buildStandardPresetTracks(
       ]
     : [];
 
-  const capPreset = aux?.captionPresetId ?? "hormozi";
-  const capGroup = aux?.captionGroupSize ?? 3;
-  const textClips =
-    totalVideoMs > 0
-      ? [
-          {
-            id: `std-caption-${crypto.randomUUID()}`,
-            assetId: aux?.voiceover?.id ?? null,
-            label: "Captions",
-            startMs: 0,
-            durationMs: totalVideoMs,
-            trimStartMs: 0,
-            trimEndMs: 0,
-            sourceMaxDurationMs: totalVideoMs,
-            speed: 1,
-            opacity: 1,
-            warmth: 0,
-            contrast: 0,
-            positionX: 0,
-            positionY: 0,
-            scale: 1,
-            rotation: 0,
-            volume: 0,
-            muted: true,
-            captionPresetId: capPreset,
-            captionGroupSize: capGroup,
-            captionPositionY: 80,
-            captionWords: [] as {
-              word: string;
-              startMs: number;
-              endMs: number;
-            }[],
-          },
-        ]
-      : [];
-
   return [
     {
       id: "video",
@@ -344,7 +262,7 @@ export function buildStandardPresetTracks(
       name: "Caption",
       muted: false,
       locked: false,
-      clips: textClips,
+      clips: [],
       transitions: [],
     },
   ];

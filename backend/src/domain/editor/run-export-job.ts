@@ -6,7 +6,6 @@ import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { buildFfmpegAtempoChain } from "./timeline/composition";
 import { parseStoredEditorTracks } from "./validate-stored-tracks";
-import { generateASS } from "./export/ass-generator";
 
 export type ExportJobDbDeps = {
   updateExportJob: (
@@ -35,11 +34,6 @@ interface ClipData {
   positionX?: number;
   positionY?: number;
   scale?: number;
-  captionWords?: Array<{ word: string; startMs: number; endMs: number }>;
-  captionPresetId?: string;
-  captionGroupSize?: number;
-  captionPositionY?: number;
-  captionFontSizeOverride?: number;
   contrast?: number;
   warmth?: number;
   opacity?: number;
@@ -309,35 +303,6 @@ export async function runExportJob(
       );
       latestVideoLabel = label;
     });
-
-    const captionClips = textClips.filter(
-      (c: ClipData) => c.captionWords?.length && c.captionPresetId,
-    );
-
-    if (captionClips.length > 0) {
-      for (const captionClip of captionClips) {
-        const assContent = generateASS(
-          captionClip.captionWords ?? [],
-          captionClip.captionPresetId!,
-          [outW, outH],
-          captionClip.captionGroupSize ?? 3,
-          captionClip.startMs ?? 0,
-        );
-
-        const assPath = join(
-          tmpdir(),
-          `export-${jobId}-captions-${crypto.randomUUID()}.ass`,
-        );
-        writeFileSync(assPath, assContent, "utf-8");
-        tmpFiles.push(assPath);
-
-        const assLabel = `vcap${captionClips.indexOf(captionClip)}`;
-        filterParts.push(
-          `[${latestVideoLabel}]ass='${assPath.replace(/'/g, "'\\''")}'[${assLabel}]`,
-        );
-        latestVideoLabel = assLabel;
-      }
-    }
 
     const allAudioClips = [...audioClips, ...musicClips];
     let finalAudioLabel = "";

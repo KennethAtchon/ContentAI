@@ -126,8 +126,6 @@ export const queryKeys = {
     editorProject: (id: string) => ["api", "editor", "project", id] as const,
     editorExportStatus: (projectId: string) =>
       ["api", "editor", "export-status", projectId] as const,
-    captionsByAsset: (assetId: string) =>
-      ["captions", "asset", assetId] as const,
     editorByContent: (contentId?: number) =>
       ["api", "editor", "by-content", contentId] as const,
     editorAssets: (contentId?: number) =>

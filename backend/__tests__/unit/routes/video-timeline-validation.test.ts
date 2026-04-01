@@ -48,29 +48,4 @@ describe("video timeline-validation", () => {
     expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
   });
 
-  test("normalizeTimelineForPersistence caps duration and caption segments", () => {
-    const timeline: TimelinePayload = {
-      schemaVersion: 1,
-      fps: 30,
-      durationMs: 200_000,
-      tracks: {
-        video: [],
-        audio: [],
-        text: [],
-        captions: [
-          {
-            segments: [
-              { id: "c1", startMs: 0, endMs: 250_000 },
-            ],
-          } as Record<string, unknown>,
-        ],
-      },
-    };
-    const normalized = normalizeTimelineForPersistence(timeline);
-    expect(normalized.durationMs).toBe(180_000);
-    const cap = normalized.tracks.captions[0] as {
-      segments: Array<{ startMs: number; endMs: number }>;
-    };
-    expect(cap.segments[0]?.endMs).toBe(180_000);
-  });
 });
