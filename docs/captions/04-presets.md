@@ -1,8 +1,12 @@
 # Preset Definitions: Caption Engine v2
 
-10 built-in `TextPreset` objects. These are the canonical definitions — the source of truth for both frontend rendering and backend ASS export.
+10 built-in `TextPreset` objects. These are authored once as seed data and inserted into the `caption_preset` table. The seeded DB rows are the runtime source of truth for both frontend rendering and backend ASS export.
 
-All color values are CSS strings. Font sizes are calibrated for a 1080p (1920×1080 or 1080×1920) canvas.
+The same presets style every `CaptionClip`, including manual docs used for title-like static overlays; pick `exportMode: "static"` and presets without word activation when the clip should read as plain on-screen text.
+
+For readability, the JSON examples below omit stable `layers[].id` values. The real seeded payload must include them because `wordActivation.layerOverrides` targets layers by ID.
+
+All color values are CSS strings. Font sizes are calibrated for a 1080p canvas (`1920x1080` or `1080x1920`).
 
 ---
 
@@ -594,4 +598,4 @@ A colored box highlights behind the active word. The box moves word-to-word.
 
 ## Default Preset
 
-`"hormozi"` is the default. It is `BUILTIN_PRESETS[0]`. When a `stylePresetId` is missing or unresolvable, `getPreset()` returns `BUILTIN_PRESETS[0]`.
+`"hormozi"` is the default seeded preset. When a `stylePresetId` is missing or unresolvable, preset resolution falls back to the seeded `"hormozi"` row in `caption_preset`.

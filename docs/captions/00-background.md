@@ -4,25 +4,25 @@ This document records the root-cause analysis of the current caption system. The
 
 ---
 
-## Nuclear Reset. Nothing Is Preserved.
+## Nuclear Reset: Nothing Is Preserved
 
 The database is being wiped (`bun run db:reset`). Docker containers are being torn down. Every saved composition, every caption record, every exported file — gone. We are starting from a clean schema on a clean database.
 
 This means there is no backwards compatibility problem to solve. There is no old data to read. There are no legacy compositions to handle. The question "what do we do with old caption clips?" has one answer: **it doesn't matter, they don't exist.**
 
-The same rule applies to legacy `TitleClip` data and UX. If old title overlays exist anywhere in the system, they are not migrated, preserved, or adapted. They are deleted and re-authored under the new text/title model. We are not carrying forward old `TitleClip` assumptions just because they already existed.
+The same rule applies to legacy title/text overlay data and UX. If old title overlays exist anywhere in the system, they are not migrated, preserved, or adapted. They are deleted and re-authored as `CaptionClip` rows backed by a `CaptionDoc` (typically `source: "manual"` for static titles). There is no separate legacy `TitleClip` type to preserve.
 
 Concretely, this rules out entire categories of work:
 
 - **No `LEGACY_ID_MAP`.** Old preset IDs do not exist in the new codebase. Not even as comments.
 - **No migration functions.** There is no data to migrate. `migrateLegacyCaptionClip()` is never written.
-- **No legacy `TitleClip` adapters.** Existing title overlays are deleted and reimagined; we do not preserve old title behavior as a compatibility mode.
+- **No legacy title-clip adapters.** Old title overlay shapes are deleted; static titles are implemented only through `CaptionClip` + `CaptionDoc`, not a parallel clip discriminator.
 - **No adapter layers.** No wrapper that makes the old interface look like the new one. The old interface is deleted.
 - **No `@deprecated` annotations.** Nothing is deprecated — it is deleted.
 - **No "V2" naming.** There is no `useCaptionsV2` or `CaptionPresetNew`. The new thing has the canonical name.
 - **No "keep the old file for reference."** Old files are deleted from the repo, not renamed or archived.
 
-The database is empty. The codebase does not compile mid-rewrite. Both are correct. Work through them.
+The database is empty. The codebase may not compile mid-rewrite. Both are acceptable. Work through them.
 
 ---
 
@@ -47,7 +47,7 @@ The caption engine spans:
 | `backend/src/infrastructure/database/drizzle/schema.ts` | `caption` table (words as JSONB) |
 | `frontend/src/features/editor/model/editor-reducer-clip-ops.ts` | `ADD_CAPTION_CLIP` action handler |
 
-This is not a lot of code. But it is fundamentally broken in design, not in volume.
+This is not a large amount of code. The problem is not volume; it is the design.
 
 ---
 

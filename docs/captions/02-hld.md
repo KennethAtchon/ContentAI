@@ -8,11 +8,11 @@ This document describes the architecture of the new caption system. It defines t
 
 1. **Clean separation of concerns** — transcription data, style definitions, and rendering are independent systems that communicate through typed contracts.
 2. **Declarative animation** — animations are JSON data, not code branches. Adding a new animation requires no changes to the renderer.
-3. **Trustworthy preview/export contract** — Preview and export resolve the same caption document and source range. The contract is explicit behavior, not parity: `full` means materially equivalent for export-safe styles; `approximate` means visibly related but not identical; `static` means animation is intentionally absent in export. When export cannot reproduce a visual effect exactly, the downgrade is explicit in the preset metadata and UI — nothing is silently dropped.
+3. **Trustworthy preview/export contract** — Preview and export resolve the same caption document and source range. The contract is explicit behavior, not blind parity: `full` means materially equivalent for export-safe styles, `approximate` means visibly related but not identical, and `static` means animation is intentionally absent in export. When export cannot reproduce a visual effect exactly, the downgrade is declared in preset metadata and UI; nothing is silently dropped.
 4. **Extensible presets** — New presets can be added by writing a JSON object. No renderer changes required.
 5. **Multi-line word wrap** — Captions wrap correctly at any font size on any canvas dimension.
 6. **Auto-transcription** — Caption generation is tightly linked to voiceover clips. The target UX is one-step or automatic generation on voiceover insertion, subject to UX validation. The architectural commitment is idempotent clip linkage; the specific trigger mechanism (automatic vs. explicit) is a product decision, not an industry default.
-7. **Explicit v2 language scope** — v2 is English-only. Tokenization, layout assumptions, QA, and preset tuning are only guaranteed for English transcripts.
+7. **Explicit v2 language scope** — v2 is English-only. Tokenization, layout assumptions, QA, and preset tuning are only guaranteed for English transcripts, but the data model still uses the neutral term `Token` rather than `Word`.
 
 ---
 
@@ -30,9 +30,9 @@ This document describes the architecture of the new caption system. It defines t
 │  │                     │                                                   │
 │  │  CaptionDoc         │  Persisted in PostgreSQL (caption_doc table).     │
 │  │  ─────────────      │  Contains word-level timestamps from Whisper.     │
-│  │  id                 │  Created once per (user, asset) pair.             │
-│  │  assetId            │  Source: "whisper" | "manual" | "import"          │
-│  │  words: Word[]      │                                                   │
+│  │  id                 │  Editable caption doc owned by one CaptionClip.   │
+│  │  assetId            │  Optional source asset reference for transcription │
+│  │  tokens: Token[]    │                                                   │
 │  │  fullText           │                                                   │
 │  │  source             │                                                   │
 │  └──────────┬──────────┘                                                   │
@@ -42,9 +42,9 @@ This document describes the architecture of the new caption system. It defines t
 │  ┌─────────────────────┐                                                   │
 │  │  LAYER 2: GROUPING  │  How words are assembled into display units.      │
 │  │                     │                                                   │
-│  │  PageBuilder        │  Pure function. Takes words[] + groupingMs.       │
+│  │  PageBuilder        │  Pure function. Takes tokens[] + groupingMs.      │
 │  │  ─────────────      │  Outputs CaptionPage[].                           │
-│  │  buildPages()       │  Each page has a tokens[] with word timing.       │
+│  │  buildPages()       │  Each page has a tokens[] with token timing.      │
 │  │                     │  Runs frontend (preview) + backend (export).      │
 │  └──────────┬──────────┘                                                   │
 │             │                                                              │
@@ -94,8 +94,8 @@ This document describes the architecture of the new caption system. It defines t
 │  types.ts            — Caption-specific renderer/layout/preset types       │
 │                        (timeline clip shapes stay in existing editor types)│
 │                                                                            │
-│  presets.ts          — 10 built-in TextPreset definitions (JSON objects)   │
-│                        getPreset(id), BUILTIN_PRESETS                      │
+│  useCaptionPresets.ts — useQuery: GET /api/captions/presets                │
+│                        Resolves seeded built-in presets from backend       │
 │                                                                            │
 │  page-builder.ts     — buildPages(words, groupingMs): CaptionPage[]        │
 │                        Pure function, no imports, fully testable           │
@@ -131,8 +131,8 @@ This document describes the architecture of the new caption system. It defines t
 │                                                                            │
 │  page-builder.ts     — Same buildPages() logic, TypeScript, no browser API │
 │                                                                            │
-│  preset-registry.ts  — Server-side preset registry (mirrors frontend)      │
-│                        Same IDs, same exportMode definitions               │
+│  preset-seed.ts      — Seed data for built-in caption presets              │
+│                        Canonical source inserted into caption_preset table │
 │                                                                            │
 │  src/domain/editor/export/ass-exporter.ts  (replaces ass-generator.ts)    │
 │    generateASS(pages, preset, resolution)                                  │
@@ -173,7 +173,7 @@ CaptionClip loaded from DB composition
 useCaptionDoc(captionDocId) → GET /api/captions/doc/:captionDocId → CaptionDoc
        │
        ▼
-sliceTokens(doc.words, sourceStartMs, sourceEndMs) → buildPages(tokens, captionClip.groupingMs) → CaptionPage[]
+sliceTokensToRange(doc.tokens, sourceStartMs, sourceEndMs) → buildPages(tokens, captionClip.groupingMs) → CaptionPage[]
        │
        ▼
 [On each animation frame]
@@ -184,6 +184,10 @@ sliceTokens(doc.words, sourceStartMs, sourceEndMs) → buildPages(tokens, captio
        ▼
 Canvas overlay renders in PreviewArea (unchanged mount point)
 ```
+
+`sliceTokensToRange()` uses clamp-and-rebase semantics. Tokens fully outside the clip window are dropped. Tokens fully inside are kept. Tokens that partially overlap the left or right boundary are clamped to the visible window and then rebased relative to the clip. This same rule applies in preview and export.
+
+`renderFrame()` must support both page-scoped and token-scoped animations. The renderer composes transforms in this order: page animation, token animation (including `staggerMs` by token index), then active-token pulse/state styling. This is required for presets like `pop-scale`.
 
 ---
 
@@ -200,54 +204,92 @@ Load composition from DB
 For each CaptionClip:
   1. Load CaptionDoc from DB (captionDocId)
   2. Slice tokens to clip source window (sourceStartMs/sourceEndMs)
-  3. Resolve preset (stylePresetId) from preset-registry
+  3. Resolve preset (stylePresetId) from `caption_preset`
   4. Apply styleOverrides to preset
-  5. buildPages(tokens, captionClip.groupingMs) → CaptionPage[]
-  6. generateASS(pages, resolvedPreset, resolution, clipStartMs)
-  7. Write .ass file to /tmp
-  8. Inject ass= FFmpeg filter into pipeline
+  5. Derive a deterministic ASS style name from the fully resolved preset
+     (preset ID + export-relevant overrides such as fontSize / positionY)
+  6. buildPages(tokens, captionClip.groupingMs) → CaptionPage[]
+  7. generateASS(pages, resolvedPreset, resolution, clipStartMs, styleName) → ASS events
+       │
+       ▼
+Merge all clip ASS events into one subtitle timeline
+  8. Deduplicate resolved style variants by styleName
+  9. Sort events by absolute start time
+ 10. Emit one combined .ass file with shared Script Info + Styles + Events
+ 11. Write combined .ass file to /tmp
+ 12. Inject a single ass= filter into FFmpeg pipeline
        │
        ▼
 FFmpeg renders video with burned-in captions
 ```
 
+FFmpeg receives exactly one subtitle file for the composition. We do not create one `ass=` filter per caption clip. Instead, each clip contributes ASS dialogue events whose timestamps are rebased to absolute composition time via `clipStartMs`, then the exporter merges them into one file. Sequential clips become sequential events; overlapping clips remain overlapping events in the shared timeline.
+
+ASS style identity is based on the fully resolved export style, not only on `stylePresetId`. If two clips start from the same preset but differ in export-relevant overrides, they must produce different deterministic `styleName` values so their entries in the shared `Styles` section do not collide.
+
+This merge strategy is the formal export contract for multi-clip compositions.
+
+---
+
+## Init Flow
+
+`POST /api/editor/init` does not create a placeholder `CaptionClip` before transcription exists. Initial timeline construction stays synchronous and deterministic: it creates the voiceover clip, but defers caption clip creation until a real `captionDocId` is available from transcription.
+
+The sequence is:
+
+1. `build-initial-timeline.ts` creates the voiceover clip only.
+2. The editor enters caption job state `idle` for that voiceover clip.
+3. Auto-transcription or explicit generate triggers `POST /api/captions/transcribe`.
+4. On success, the reducer dispatches `ADD_CAPTION_CLIP` with the returned `captionDocId`.
+
+This means `CaptionClip.captionDocId` always points at a real persisted `caption_doc` row. There is no stub caption doc row and no transient caption clip shape with a null FK.
+
+`build-initial-timeline.ts` must not emit a caption clip. Any implementation note that still suggests building a `CaptionClip` during init is stale and should be removed.
+
 ---
 
 ## Timeline Integration
 
-The new `CaptionClip` is a subtype of the timeline clip — it coexists with text/title clips on the text track but has its own discriminator.
+`CaptionClip` is the **only** first-class clip type on the text track for timed on-screen text in v2. Speech captions, titles, lower-thirds, and other static text overlays all use the same discriminator — there is no separate `TitleClip` or parallel generic text clip for this layer.
 
 ```
 Text Track
-  ├── TitleClip  (type: "title")   — static text overlays
-  └── CaptionClip (type: "caption") — word-timed animated captions
+  └── CaptionClip (type: "caption") — timed text backed by a CaptionDoc
 ```
 
-In the DB composition JSON, the text track may contain both types. The editor reducer handles them differently. The renderer checks `clip.type` before calling the caption renderer.
+**Transcription-backed captions:** `CaptionDoc` from Whisper (`source: "whisper"`), optional `originVoiceoverClipId`, word grouping, active-word timing, and caption export as described elsewhere in this document.
 
-`TitleClip` and `CaptionClip` are intentionally different clip types because their behavior and data needs differ. A `TitleClip` is authored static text. A `CaptionClip` is transcript-driven timed text backed by a `CaptionDoc`. They may still share the same text styling primitives — typography, fill, stroke, shadow, background, positioning, and preset resolution — but only `CaptionClip` participates in word grouping, active-word timing, and caption-specific export behavior.
+**Title-like / static overlays:** Same `CaptionClip` shape. The `CaptionDoc` is created manually (`source: "manual"` via `POST /api/captions/manual`) with tokens covering the visible time range. Product UX can label this "Add title" while the data model stays unified. Prefer presets with no word activation, `exportMode: "static"` where appropriate, and/or a large `groupingMs` so the line reads as a single static block rather than word-by-word emphasis.
 
-**This is the key architectural change:** `type: "caption"` clips are no longer text clips with optional caption fields. They are a distinct clip type with their own data shape.
+In the DB composition JSON, the text track holds `CaptionClip` entries for all of the above. The editor reducer and renderer use `clip.type === "caption"` and load the linked `CaptionDoc`; there is no second clip type to branch on for titles.
+
+**This is the key architectural change:** `type: "caption"` clips are no longer text clips with optional caption fields. They are a distinct clip type with their own data shape, and they subsume static titles operationally.
 
 ---
 
 ## Preset Resolution
 
-Presets are resolved client-side and server-side from the same canonical list. The resolution order:
+Built-in presets are stored in the database as seeded rows in `caption_preset`. This is the canonical source of truth for both preview and export.
 
-1. Look up `stylePresetId` in `BUILTIN_PRESETS`
-2. If not found, use `BUILTIN_PRESETS[0]` (the default)
+Resolution order:
+
+1. Look up `stylePresetId` in `caption_preset`
+2. If not found, use the seeded default preset row (`id = "hormozi"`)
 3. Apply `styleOverrides` on top of the resolved preset
 
-This means presets are never stored in the DB — only the `stylePresetId` string is stored. The full preset definition lives in the codebase.
+The full built-in preset definition is therefore persisted once and consumed by both:
+- editor preview via `GET /api/captions/presets`
+- backend export via repository lookup / in-memory cache backed by `caption_preset`
 
-The preset/style system is not caption-exclusive. The same visual definition model can be reused by other text-based clip types, including `TitleClip`, as long as those clips only consume the styling/layout fields they need. Caption-specific behavior (`groupingMs`, `wordActivation`, export hints for timed captions) remains meaningful only for `CaptionClip`.
+This deliberately avoids frontend/backend preset drift. There is no mirrored preset registry and no second hand-maintained copy.
+
+`TextPreset` styles every `CaptionClip`, whether the doc came from Whisper or manual entry. Fields such as `groupingMs`, `wordActivation`, and timed export hints apply whenever the preset uses them; for static title-style clips, choose or tune presets so activation and animation are effectively off (e.g. `wordActivation: null`, `exportMode: "static"`, high `groupingMs`).
 
 ---
 
 ## Auto-Transcription Flow
 
-The current system requires the user to click "Generate Text for Clip" in the Inspector. The new system triggers automatically and is idempotent per voiceover clip:
+The current system requires the user to click "Generate Text for Clip" in the Inspector. The new system is designed around idempotent, clip-linked transcription and supports automatic triggering per voiceover clip:
 
 ```
 Voiceover clip added to audio track
@@ -275,9 +317,19 @@ On success: dispatch ADD_CAPTION_CLIP with returned captionDocId
 Caption clip renders immediately on timeline
 ```
 
-**Product note:** Triggering automatically on voiceover insertion (as shown above) is the target UX for a social-first tool. Whether to trigger on-add or via a deliberate one-step action is a product decision to validate with UX testing — the key concern is preventing surprise duplication. The architectural design (idempotent clip linkage, deduplicated jobs, `originVoiceoverClipId`) is independent of the trigger mechanism and supports both approaches.
+**Product note:** Automatic triggering on voiceover insertion is the current target UX for a social-first tool. If UX testing shows that this feels surprising or duplicative, the same architecture can switch to a deliberate one-step trigger without changing the clip/linkage model. The important commitment is idempotent clip linkage, deduplicated jobs, and `originVoiceoverClipId`.
 
 The "Generate" button still exists for manual re-trigger (e.g., after re-recording), but it reuses the same clip linkage rather than creating duplicate caption clips. If the source voiceover is trimmed, replaced, or deleted, the linked caption clip is updated or marked stale accordingly.
+
+`stale` is an editor-side synchronization state, not a DB-only flag. It is triggered when the source voiceover clip identified by `originVoiceoverClipId` changes in a way that invalidates the caption clip's timing or source asset:
+
+- voiceover trim changes `startMs`, `durationMs`, or the effective source window
+- voiceover asset replacement changes `assetId`
+- voiceover deletion removes the clip entirely
+
+When those events occur, the reducer marks the linked caption clip stale so the inspector and timeline can prompt for re-sync or remove the orphaned caption clip. A fresh transcription clears `stale` by updating or recreating the linked caption clip with a valid source window.
+
+Each `CaptionDoc` is clip-owned. It may reference an originating asset for transcription provenance, but it is not a shared editable doc reused across multiple caption clips. Re-transcription overwrites the existing `CaptionDoc` in place for that linked caption clip instead of creating a second doc and retargeting `captionDocId`. This keeps the clip linkage stable across retries without allowing edits on one clip to mutate another clip's transcript.
 
 ---
 
@@ -304,19 +356,21 @@ This is the contract with the user: exact when `full`, visibly downgraded but st
 Whisper output is treated as a draft, not a final artifact. Every `CaptionDoc` can be corrected after transcription:
 
 - Text can be edited without recreating the entire doc
-- Token timings can be adjusted for late/early word boundaries
+- Token timings can be adjusted for late/early token boundaries
 - Tokens can be split or merged for punctuation, emojis, or name corrections
 - Manual caption docs are created from the editor UI, not by forcing users to hand-author raw API payloads
 
 Preview and export always read the latest saved `CaptionDoc` by `captionDocId`. There is no separate preview-only correction state.
 
+That same in-place update rule applies to re-transcription. The system does not mint a second hidden caption doc for the same linked clip. If a user chooses to re-transcribe, the existing clip-owned doc is replaced with the new Whisper output and any prior manual corrections are discarded.
+
 ---
 
 ## No Shared Code Rule
 
-This project has a strict "no shared code between frontend and backend" rule (they communicate over HTTP only). The `buildPages()` function appears in both `frontend/src/features/editor/caption/page-builder.ts` and `backend/src/domain/captions/page-builder.ts`. This is intentional duplication — both implementations are identical TypeScript with no browser or Node-specific imports. Any change must update both.
+This project has a strict "no shared code between frontend and backend" rule (they communicate over HTTP only). The `buildPages()` function appears in both `frontend/src/features/editor/caption/page-builder.ts` and `backend/src/domain/editor/captions/page-builder.ts`. This is intentional duplication — both implementations are identical TypeScript with no browser or Node-specific imports. Any change must update both.
 
-The same applies to preset definitions: `frontend/src/features/editor/caption/presets.ts` and `backend/src/domain/captions/preset-registry.ts` are separate files that must stay in sync. A test in each package validates that both files define the same preset IDs.
+Preset definitions are the exception to "duplicate it locally": they are not maintained in parallel frontend/backend code files. Instead, built-in presets are seeded into `caption_preset`, exposed over HTTP to the frontend, and read by the backend directly from the database (optionally cached in-process). The seed data is authored once and inserted idempotently.
 
 ---
 
@@ -341,4 +395,4 @@ This design must follow existing project conventions rather than inventing a par
 - **Character-level animation** — The AnimationDef type has `scope: "char"` as a future option, but no built-in preset uses it. The renderer will implement char-level in a subsequent version.
 - **SRT/VTT import** — The `source: "import"` value in `CaptionDoc` is reserved. The import route is not in scope for v2.
 - **Multiple simultaneous caption tracks** — The new architecture supports it (each `CaptionClip` references its own `CaptionDoc`), but the editor UI does not expose multi-track captions in v2.
-- **Non-English caption support** — v2 is explicitly English-only. `CaptionDoc.language` is stored for forward compatibility, but locale-aware tokenization, bidi layout, and non-English QA are out of scope and must not be implied as supported. The `Word` type is a render token abstraction, not a linguistic primitive; it is named `Word` in v2 for simplicity, but future multilingual support will require treating it as a generic `Token` and replacing space-delimited grouping assumptions. Do not deepen coupling to English-specific word semantics in new code.
+- **Non-English caption support** — v2 is explicitly English-only. `CaptionDoc.language` is stored for forward compatibility, but locale-aware tokenization, bidi layout, and non-English QA are out of scope and must not be implied as supported. The timed transcript unit is named `Token` in v2 because it is a render/edit abstraction, not a linguistic word. Do not deepen coupling to English-specific word semantics in new code.

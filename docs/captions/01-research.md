@@ -130,7 +130,7 @@ Text Layer
 
 ## 4. OffscreenCanvas + Worker Architecture
 
-Research finding: OffscreenCanvas allows Canvas2D rendering in a Web Worker, completely off the main thread. The worker calls `requestAnimationFrame` independently without affecting UI responsiveness.
+Research finding: OffscreenCanvas allows Canvas2D rendering in a Web Worker, moving caption rendering work off the main thread. That makes it a good future path for keeping scrubbing and editor interactions responsive.
 
 ```javascript
 // Main thread
@@ -149,7 +149,7 @@ self.onmessage = ({ data: { canvas } }) => {
 };
 ```
 
-**Browser support (2026):** OffscreenCanvas is Baseline 2023 — fully supported in Chrome, Firefox, Safari 16.4+. It's safe to use.
+**Browser support (2026):** OffscreenCanvas is Baseline 2023 and broadly supported in modern Chrome, Firefox, and Safari releases. It is a reasonable target for a future optimization pass.
 
 ### Implication for Our Architecture
 
@@ -242,7 +242,7 @@ function wrapWords(
 
 ## 8. Spring Easing Implementation
 
-A spring function produces realistic bounce/elastic animations without explicit keyframes. The standard damped harmonic oscillator formula:
+A spring function produces realistic bounce/elastic animations without explicit keyframes. A damped harmonic oscillator is the usual mental model. The simplified example below is illustrative rather than production-ready:
 
 ```typescript
 // Simplified spring (critically/overdamped) — no overshoot variant
@@ -269,7 +269,7 @@ OpusClip (a direct competitor) implements:
 - **Highlight word** — A single word at a time is highlighted in bright color (yellow or brand color)
 - **Emoji insertion** — Auto-placed emojis at emotionally resonant moments (future feature)
 
-**Implication for our UX:** Auto-caption on insert is a strong pattern in social-first tools like OpusClip. However, whether to trigger automatically on voiceover insertion versus on a deliberate one-step action is a product decision to validate with UX testing — not an industry requirement. The architectural commitment is tight clip linkage and idempotency. The Inspector should present the style picker as the primary UI, with caption generation triggered either automatically on voiceover add or on an explicit one-step action. (We will also remove SENDING the actual AI-generated voiceover script, relying on auto-transcribe to derive caption text and create separate clips for each transcribed segment.)
+**Implication for our UX:** Auto-caption on insert is a strong pattern in social-first tools like OpusClip. However, whether to trigger automatically on voiceover insertion versus on a deliberate one-step action is a product decision to validate with UX testing, not an industry requirement. The architectural commitment is tight clip linkage and idempotency. The Inspector should present the style picker as the primary UI, with caption generation triggered either automatically on voiceover add or through a one-step explicit action. We will also stop sending the raw AI-generated voiceover script through this flow and instead rely on auto-transcription to derive caption text and create separate clips for each transcribed segment.
 
 ---
 

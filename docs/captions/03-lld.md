@@ -2,6 +2,8 @@
 
 Complete type definitions, function signatures, API contracts, DB schema, and component specifications.
 
+These definitions are normative. Example payloads later in the document sometimes omit incidental implementation detail for readability, but the contracts and field names in this file are the source of truth.
+
 ---
 
 ## TypeScript Type System
@@ -14,33 +16,40 @@ Codebase-aligned ownership:
 
 ### Core Data Types
 
+Terminology:
+- `Token` is the canonical data-model term and should be used now.
+- UI copy may still say "word" where that is more natural for users.
+- `Token` is the persisted transcript unit in `CaptionDoc`.
+- `PageToken` is a grouped, page-local projection of a `Token`.
+- `PageToken` repeats `startMs` and `endMs` on purpose so `CaptionPage` is self-contained for preview and export.
+
 ```typescript
 // ─── Transcription Data ──────────────────────────────────────────────────────
 
 /**
  * A single timestamped display token from Whisper (or manual entry).
- * Kept as `Word` in v2 for compatibility with existing terminology, but
- * consumers must treat it as a render token rather than a linguistic word.
+ * This is intentionally named `Token`, not `Word`.
  *
- * This type is named `Word` because v2 is English-only and space-delimited
- * tokenization is sufficient. It is NOT a linguistic primitive.
- * If multilingual support is added, rename to `Token` and replace any
- * grouping logic that assumes space-delimited words. Do not add behavior
- * to this type that only makes sense for English.
+ * Even in English, transcript units stop being clean "words" once users can
+ * split/merge punctuation, emojis, abbreviations, or names. The data model
+ * should match what the renderer and editor manipulate: timed display tokens.
  */
-export interface Word {
-  word: string;
+export interface Token {
+  text: string;
   startMs: number;
   endMs: number;
 }
 
-/** A CaptionDoc is a transcription attached to an asset. Persisted in DB. */
+/**
+ * A CaptionDoc is a persisted editable transcript owned by one CaptionClip.
+ * `assetId` is provenance only and may be null for manual captions.
+ */
 export interface CaptionDoc {
   id: string;
-  assetId: string;
-  words: Word[];
+  assetId: string | null;
+  tokens: Token[];
   fullText: string;
-  language: "en";
+  language: string; // v2 validation restricts this to "en"
   source: "whisper" | "manual" | "import";
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
@@ -48,9 +57,19 @@ export interface CaptionDoc {
 
 // ─── Grouping Layer ───────────────────────────────────────────────────────────
 
-/** A word with its position within a page. */
-export interface WordToken {
-  word: string;
+/**
+ * A token after grouping into a specific page.
+ *
+ * Relationship to `Token`:
+ * - `Token` is the source transcript unit persisted in `CaptionDoc`.
+ * - `PageToken` is a page-local projection of that token.
+ *
+ * `startMs` / `endMs` are repeated here because rendering and export evaluate
+ * token state from the page alone. Callers should not need to re-join against
+ * `CaptionDoc.tokens` while animating or serializing a page.
+ */
+export interface PageToken {
+  text: string;
   startMs: number;
   endMs: number;
   /** Index within the page's token list. */
@@ -60,7 +79,7 @@ export interface WordToken {
 }
 
 /**
- * A CaptionPage is a group of words that appear together on screen.
+ * A CaptionPage is a group of tokens that appear together on screen.
  * Built by buildPages() from a CaptionDoc.
  */
 export interface CaptionPage {
@@ -68,7 +87,7 @@ export interface CaptionPage {
   startMs: number;
   /** Absolute end time (relative to the clip's startMs). */
   endMs: number;
-  tokens: Omit<WordToken, "state">[];
+  tokens: Omit<PageToken, "state">[];
   /** Pre-joined display text of all tokens. */
   text: string;
 }
@@ -93,11 +112,12 @@ export type StyleLayer =
   | GlowLayer;
 
 export interface FillLayer {
+  id: string;
   type: "fill";
   color: string; // CSS color string
   /**
    * Optional per-state color overrides.
-   * If defined, overrides `color` for the given word state.
+   * If defined, overrides `color` for the given token state.
    */
   stateColors?: {
     upcoming?: string;
@@ -107,6 +127,7 @@ export interface FillLayer {
 }
 
 export interface StrokeLayer {
+  id: string;
   type: "stroke";
   color: string;
   width: number; // px
@@ -114,6 +135,7 @@ export interface StrokeLayer {
 }
 
 export interface ShadowLayer {
+  id: string;
   type: "shadow";
   color: string;
   offsetX: number;
@@ -122,11 +144,12 @@ export interface ShadowLayer {
 }
 
 /**
- * Background is applied per-word or per-line.
- * mode: "word" — a box is drawn behind each word individually (moves with active word)
- * mode: "line" — a single box covers all words in a line
+ * Background is applied per-token or per-line.
+ * mode: "word" — a box is drawn behind each token individually (moves with active token)
+ * mode: "line" — a single box covers all tokens in a line
  */
 export interface BackgroundLayer {
+  id: string;
   type: "background";
   color: string;
   padding: number;
@@ -134,7 +157,7 @@ export interface BackgroundLayer {
   mode: "word" | "line";
   /**
    * Optional per-state color overrides.
-   * Useful for "highlight box on active word" effect.
+   * Useful for "highlight box on active token" effect.
    */
   stateColors?: {
     upcoming?: string;
@@ -144,6 +167,7 @@ export interface BackgroundLayer {
 }
 
 export interface GlowLayer {
+  id: string;
   type: "glow";
   color: string;
   blur: number;
@@ -188,20 +212,39 @@ export interface AnimationDef {
   staggerMs?: number;
 }
 
+export interface LayerOverridePatch {
+  layerId: string;
+  color?: string;
+  width?: number;
+  join?: StrokeLayer["join"];
+  offsetX?: number;
+  offsetY?: number;
+  blur?: number;
+  padding?: number;
+  radius?: number;
+  mode?: BackgroundLayer["mode"];
+  stateColors?: {
+    upcoming?: string;
+    active?: string;
+    past?: string;
+  };
+}
+
 /**
- * Controls the visual state of the active word during playback.
- * Applied while a word's state === "active".
+ * Controls the visual state of the active token during playback.
+ * Applied while a token's state === "active".
  */
 export interface WordActivationEffect {
   /**
-   * Layer overrides applied to the active word.
-   * These override (not replace) the preset's base layers for active words.
-   * Typically used for stateColors on FillLayer/BackgroundLayer.
+   * Layer patches applied to the active token.
+   * Each patch targets one base layer by stable `layerId`.
+   * Merge rule: resolve the base layer by `id`, apply the patch, preserve
+   * original layer order, and ignore unknown layer IDs.
    */
-  layerOverrides?: Partial<StyleLayer>[];
+  layerOverrides?: LayerOverridePatch[];
   /**
-   * Optional scale pulse on word activation.
-   * The word scales from `from` to 1.0 over `durationMs`.
+   * Optional scale pulse on token activation.
+   * The token scales from `from` to 1.0 over `durationMs`.
    */
   scalePulse?: {
     from: number;
@@ -252,10 +295,11 @@ export type ExportMode = "full" | "approximate" | "static";
  * All style, animation, and export behavior is declared here.
  * Presets are immutable — per-clip tweaks go in CaptionClip.styleOverrides.
  *
- * Although defined here for the caption engine, the visual parts of a preset
- * (typography, layers, layout) may also be reused by other text clip types
- * such as TitleClip. Caption-only fields like groupingMs, wordActivation, and
- * timed export behavior are only consumed by CaptionClip.
+ * All on-text-track timed text is CaptionClip; there is no separate TitleClip.
+ * Preset fields (typography, layers, layout, groupingMs, wordActivation,
+ * exportMode) apply to every CaptionClip. Manual/title-like clips use the same
+ * types; static appearance is achieved by doc shape + preset choice (e.g. no
+ * word activation, static export mode, large groupingMs).
  */
 export interface TextPreset {
   id: string;
@@ -284,8 +328,8 @@ export interface TextPreset {
   exitAnimation: AnimationDef[] | null;
 
   /**
-   * Per-word activation effect: applied while state === "active".
-   * null = no activation effect (all words render identically).
+   * Per-token activation effect: applied while state === "active".
+   * null = no activation effect (all tokens render identically).
    */
   wordActivation: WordActivationEffect | null;
 
@@ -304,6 +348,8 @@ export interface TextPreset {
 /**
  * Per-clip overrides applied on top of the resolved preset.
  * All fields optional — only specified fields are overridden.
+ * Color overrides are out of scope for v2. Users who need custom colors
+ * should use a different preset rather than per-clip color mutation.
  */
 export interface CaptionStyleOverrides {
   positionY?: number;
@@ -332,9 +378,9 @@ export interface CaptionClip {
   // Caption-specific fields
   originVoiceoverClipId?: string; // when auto-generated from a voiceover clip
   captionDocId: string;      // FK → caption_doc.id
-  sourceStartMs: number;     // inclusive range into caption_doc.words
-  sourceEndMs: number;       // exclusive range into caption_doc.words
-  stylePresetId: string;     // resolved via getPreset(id)
+  sourceStartMs: number;     // inclusive time window start within the caption doc transcript
+  sourceEndMs: number;       // exclusive time window end within the caption doc transcript
+  stylePresetId: string;     // FK-like reference to caption_preset.id
   styleOverrides: CaptionStyleOverrides;
   groupingMs: number;        // overrides preset.groupingMs if > 0
 }
@@ -348,11 +394,11 @@ export interface CaptionClip {
 // frontend/src/features/editor/caption/types.ts (continued)
 
 /**
- * A positioned word within a computed layout.
+ * A positioned token within a computed layout.
  * Produced by computeLayout(). Consumed by renderFrame().
  */
-export interface PositionedWord {
-  word: string;
+export interface PositionedToken {
+  text: string;
   startMs: number;
   endMs: number;
   x: number;       // canvas px, center-anchor
@@ -369,7 +415,7 @@ export interface PositionedWord {
 export interface CaptionLayout {
   page: CaptionPage;
   preset: TextPreset;
-  words: PositionedWord[];
+  tokens: PositionedToken[];
   /** Total height of all lines. Used to position background box. */
   totalHeight: number;
   lineCount: number;
@@ -386,40 +432,108 @@ export interface CaptionLayout {
 
 ```typescript
 // frontend/src/features/editor/caption/page-builder.ts
-// backend/src/domain/captions/page-builder.ts  (identical copy)
+// backend/src/domain/editor/captions/page-builder.ts  (identical copy)
 
 /**
- * Groups words into display pages.
+ * Groups transcript tokens into display pages.
  *
  * Algorithm:
  *   Start a new page when:
- *   (a) the time gap between the last word's endMs and the next word's startMs
+ *   (a) the time gap between the last token's endMs and the next token's startMs
  *       exceeds `gapThresholdMs` (natural pause), OR
  *   (b) the accumulated duration of the current page exceeds `groupingMs`
  *
- * The `groupingMs` window controls how many words appear together.
- * A value of ~1200ms yields ~3 words at normal speaking pace.
- * A value of ~400ms yields word-by-word animation.
+ * Edge case:
+ *   If a single token's own duration exceeds `groupingMs`, it still forms
+ *   a valid one-token page. The algorithm must always advance by at least
+ *   one token and must never loop waiting for a shorter token.
  *
- * @param words   - Word-level timestamps from a CaptionDoc.
+ * The `groupingMs` window controls how many tokens appear together.
+ * A value of ~1200ms yields ~3 tokens at normal speaking pace.
+ * A value of ~400ms yields token-by-token animation.
+ *
+ * @param tokens   - Token-level timestamps from a CaptionDoc.
  * @param groupingMs - Max duration (ms) for one page. Default: 1400.
- * @param gapThresholdMs - Min gap (ms) between words to force a new page. Default: 800.
+ * @param gapThresholdMs - Min gap (ms) between tokens to force a new page. Default: 800.
  */
 export function buildPages(
-  words: Word[],
+  tokens: Token[],
   groupingMs?: number,
   gapThresholdMs?: number,
 ): CaptionPage[];
 
 /**
- * Extract the subset of tokens that belong to a clip's source range and
- * re-base them so the first visible token starts at 0 relative to the clip.
+ * Extract the subset of tokens that belong to a clip's source range.
+ *
+ * Contract:
+ * - Tokens fully outside the range are dropped.
+ * - Tokens fully inside the range are kept.
+ * - Tokens partially overlapping the left/right boundary are clamped to the
+ *   visible range and then rebased relative to `sourceStartMs`.
+ * - Tokens that become zero- or negative-length after clamping are dropped.
  */
 export function sliceTokensToRange(
-  words: Word[],
+  tokens: Token[],
   sourceStartMs: number,
   sourceEndMs: number,
-): Word[];
+): Token[];
+```
+
+### Export
+
+```typescript
+// backend/src/domain/editor/export/ass-exporter.ts
+
+export interface ExportResolution {
+  width: number;
+  height: number;
+}
+
+export interface AssEvent {
+  startMs: number; // absolute composition time
+  endMs: number;   // absolute composition time
+  text: string;    // ASS dialogue payload, including karaoke/style tags when needed
+  styleName: string; // deterministic name for one fully resolved export style variant
+}
+
+export interface AssStyleDef {
+  styleName: string;
+  preset: TextPreset; // already resolved with export-relevant overrides applied
+}
+
+/**
+ * Convert one CaptionClip's grouped pages into ASS dialogue events.
+ *
+ * clipStartMs rebases page-relative timing into absolute composition time.
+ * The exporter returns events rather than a full file so multiple caption
+ * clips can be merged into one shared .ass output for FFmpeg.
+ */
+export function generateASS(
+  pages: CaptionPage[],
+  preset: TextPreset,
+  resolution: ExportResolution,
+  clipStartMs: number,
+  styleName: string,
+): AssEvent[];
+
+/**
+ * Computes a deterministic ASS style identity from the fully resolved export
+ * style. Two clips that differ in export-relevant overrides must not reuse the
+ * same style name, even if they started from the same preset ID.
+ */
+export function deriveAssStyleName(preset: TextPreset): string;
+
+/**
+ * Combine ASS events from all caption clips in a composition into one file.
+ * The implementation sorts by absolute start time, deduplicates style defs by
+ * styleName, and emits a single ASS document with shared Script Info, Styles,
+ * and Events sections.
+ */
+export function serializeASS(
+  events: AssEvent[],
+  styles: AssStyleDef[],
+  resolution: ExportResolution,
+): string;
 ```
 
 ### Layout Engine
@@ -428,15 +542,15 @@ export function sliceTokensToRange(
 // frontend/src/features/editor/caption/layout-engine.ts
 
 /**
- * Compute the canvas positions of all words in a page.
+ * Compute the canvas positions of all tokens in a page.
  *
  * Steps:
- *   1. Measure each word with ctx.measureText() at preset font settings.
- *   2. Wrap words into lines within maxWidthPercent * canvasW.
+ *   1. Measure each token with ctx.measureText() at preset font settings.
+ *   2. Wrap tokens into lines within maxWidthPercent * canvasW.
  *   3. Stack lines vertically with preset.typography.lineHeight spacing.
  *   4. Anchor the block at preset.layout.positionY (% from top),
  *      applying styleOverrides.positionY if present.
- *   5. Return CaptionLayout with all word positions.
+ *   5. Return CaptionLayout with all token positions.
  *
  * The returned layout is stable — cache it until the page changes or
  * the canvas dimensions change.
@@ -467,14 +581,17 @@ export function computeLayout(
  * Pure function. No state mutations. Call once per animation frame.
  *
  * Steps:
- *   1. Determine word states (upcoming/active/past) based on relativeMs.
- *   2. Evaluate entry/exit animation progress (0..1) based on page timing.
- *   3. Apply canvas transform (translate/scale/opacity) for page animation.
- *   4. For each word in layout:
- *      a. Apply word activation scale pulse if state === "active".
- *      b. Draw layers in order (background, glow, shadow, stroke, fill).
- *      c. Apply stateColors from FillLayer and BackgroundLayer.
- *   5. Restore canvas transform.
+ *   1. Determine token states (upcoming/active/past) based on relativeMs.
+ *   2. Evaluate page-scoped entry/exit animations from page timing.
+ *   3. Evaluate token-scoped animations from token index + `staggerMs`.
+ *   4. Compose transforms in this order:
+ *      page transform -> token animation transform -> active-token pulse
+ *   5. For each token in layout:
+ *      a. Apply token-scoped transform if configured.
+ *      b. Apply token activation scale pulse if state === "active".
+ *      c. Draw layers in order (background, glow, shadow, stroke, fill).
+ *      d. Apply stateColors from FillLayer and BackgroundLayer.
+ *   6. Restore transforms.
  *
  * Does NOT clear the canvas — caller is responsible for clearRect().
  *
@@ -517,18 +634,30 @@ export function springValue(
 ### Preset Resolution
 
 ```typescript
-// frontend/src/features/editor/caption/presets.ts
-
-export const BUILTIN_PRESETS: readonly TextPreset[];
+// backend/src/domain/editor/captions/preset-seed.ts
+// Seeded into caption_preset during migration/bootstrap.
 
 /**
- * Resolve a preset ID (including legacy IDs) to a TextPreset.
- * Falls back to BUILTIN_PRESETS[0] if not found.
+ * Idempotently inserts/updates the built-in preset rows.
+ * This is the only authored source for built-in preset definitions.
  */
-export function getPreset(id: string): TextPreset;
+export const SEEDED_CAPTION_PRESETS: readonly TextPreset[];
+
+// frontend/src/features/editor/caption/hooks/useCaptionPresets.ts
+export function useCaptionPresets(): UseQueryResult<TextPreset[]>;
+
+// backend/src/domain/editor/captions/preset.repository.ts
+export interface CaptionPresetRecord extends TextPreset {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function getCaptionPreset(id: string): Promise<CaptionPresetRecord | null>;
+export function listCaptionPresets(): Promise<CaptionPresetRecord[]>;
 
 /**
- * Apply per-clip style overrides to a resolved preset.
+ * Apply per-clip style overrides to a resolved preset row.
  * Returns a new TextPreset object — does not mutate the original.
  */
 export function applyOverrides(
@@ -537,9 +666,76 @@ export function applyOverrides(
 ): TextPreset;
 ```
 
+### Font Loading
+
+```typescript
+// frontend/src/features/editor/caption/font-loader.ts
+
+export class FontLoader {
+  readonly ready: Promise<void>;
+
+  constructor();
+
+  /**
+   * Loads a font once by family/url pair. If the font is already registered,
+   * returns the existing in-flight or resolved promise.
+   *
+   * If loading fails, the promise resolves after recording the failure and
+   * the renderer falls back to the browser canvas fallback font stack.
+   */
+  load(fontFamily: string, url: string): Promise<void>;
+}
+```
+
 ---
 
 ## API Contracts
+
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant E as Editor UI
+    participant H as useCaptionCanvas
+    participant Q as useCaptionDoc
+    participant API as Captions API
+    participant S as captions.service
+    participant DB as caption_doc
+    participant PB as page-builder
+    participant LE as layout-engine
+    participant R as renderer
+    participant C as Canvas
+
+    U->>E: Open composition with CaptionClip
+    E->>Q: Load clip.captionDocId
+    Q->>API: GET /api/captions/doc/:captionDocId
+    API->>S: getCaptionDoc(captionDocId)
+    S->>DB: Read caption_doc row
+    DB-->>S: CaptionDoc
+    S-->>API: CaptionDoc
+    API-->>Q: CaptionDoc JSON
+    Q-->>E: captionDoc
+
+    E->>H: Provide CaptionClip + CaptionDoc + currentTimeMs
+    H->>PB: sliceTokensToRange(tokens, sourceStartMs, sourceEndMs)
+    PB-->>H: clip tokens
+    H->>PB: buildPages(tokens, groupingMs)
+    PB-->>H: CaptionPage[]
+
+    loop Each animation frame
+        H->>H: Find active page for currentTimeMs
+        alt Active page changed or canvas resized
+            H->>LE: computeLayout(page, preset, canvasW, canvasH)
+            LE-->>H: CaptionLayout
+        end
+        H->>R: renderFrame(ctx, layout, relativeMs, preset)
+        R->>C: Draw caption layers for frame
+    end
+```
+
+---
 
 ### POST /api/captions/transcribe
 
@@ -554,7 +750,7 @@ Response (200):
 ```json
 {
   "captionDocId": "string",
-  "words": [{ "word": "string", "startMs": 0, "endMs": 100 }],
+  "tokens": [{ "text": "string", "startMs": 0, "endMs": 100 }],
   "fullText": "string"
 }
 ```
@@ -570,7 +766,7 @@ Response shape:
 ```json
 {
   "captionDocId": "string",
-  "words": [...],
+  "tokens": [...],
   "fullText": "string",
   "language": "en",
   "source": "whisper"
@@ -588,13 +784,41 @@ Response shape:
 ```json
 {
   "captionDocId": "string",
-  "words": [...],
+  "tokens": [...],
   "fullText": "string",
   "source": "whisper"
 }
 ```
 
 **Breaking change:** `captionId` → `captionDocId`. Call sites must update.
+
+### GET /api/captions/presets (new)
+
+Fetches all seeded built-in caption presets from `caption_preset`.
+
+Response shape:
+
+```json
+[
+  {
+    "id": "hormozi",
+    "name": "Hormozi",
+    "typography": { "...": "..." },
+    "layers": [],
+    "layout": { "...": "..." },
+    "entryAnimation": null,
+    "exitAnimation": null,
+    "wordActivation": null,
+    "groupingMs": 1400,
+    "exportMode": "approximate"
+  }
+]
+```
+
+Rules:
+- Only seeded built-in presets are returned in v2.
+- No legacy preset IDs are resolved.
+- The frontend preset picker and preview must use this endpoint rather than a local hardcoded preset file.
 
 ### PATCH /api/captions/doc/:captionDocId (new)
 
@@ -603,7 +827,7 @@ Updates an existing caption doc after transcription.
 Request:
 ```json
 {
-  "words": [{ "word": "ContentAI", "startMs": 0, "endMs": 420 }],
+  "tokens": [{ "text": "ContentAI", "startMs": 0, "endMs": 420 }],
   "fullText": "ContentAI launches today",
   "language": "en"
 }
@@ -621,17 +845,17 @@ Validation:
 - Same ordering/non-overlap rules as create
 - Empty docs are rejected
 - `language` must remain `"en"` in v2
-- Updates are in-place for the referenced `captionDocId`; preview and export both read the saved result
+- Updates are in-place for the referenced clip-owned `captionDocId`; preview and export both read the saved result
 
 ### POST /api/captions/manual (new)
 
-Creates a `CaptionDoc` from manually entered word-timing data. Used for captions without an audio asset.
+Creates a `CaptionDoc` from manually entered word-timing data. Used for captions without an audio asset and for title-like static overlays (typically one logical line of tokens spanning the clip; then attach a `CaptionClip` on the text track).
 
 Request:
 ```json
 {
   "assetId": "string | null",
-  "words": [{ "word": "Hello", "startMs": 0, "endMs": 400 }],
+  "tokens": [{ "text": "Hello", "startMs": 0, "endMs": 400 }],
   "fullText": "string",
   "language": "en"
 }
@@ -643,15 +867,33 @@ Response (201):
 ```
 
 Validation:
-- Words must be sorted by `startMs`.
-- Each word's `startMs` must be < `endMs`.
-- Words must not overlap (word[n].endMs <= word[n+1].startMs).
+- Tokens must be sorted by `startMs`.
+- Each token's `startMs` must be < `endMs`.
+- Tokens must not overlap (token[n].endMs <= token[n+1].startMs).
 - `fullText` must not be empty.
 - `language` must be `"en"` in v2.
+- Manual docs are clip-owned after creation; they are not shared editable docs across multiple caption clips.
 
 ---
 
 ## Database Schema Changes
+
+### New `caption_preset` Table
+
+```sql
+CREATE TABLE "caption_preset" (
+  "id" text PRIMARY KEY,
+  "definition" jsonb NOT NULL,
+  "created_at" timestamp NOT NULL DEFAULT now(),
+  "updated_at" timestamp NOT NULL DEFAULT now()
+);
+```
+
+Notes:
+- `definition` stores the canonical `TextPreset` payload.
+- Built-in presets are seeded idempotently from `preset-seed.ts`.
+- v2 does not support user-authored presets; every row in `caption_preset` is system-seeded.
+- TODO (post-v2): add an admin-only preset management surface for viewing seeded presets and editing preset definitions safely. This should include auditability, validation before publish, and a clear rule for whether edits update seeded rows in place or create versioned replacements.
 
 ### Rename `caption` → `caption_doc`
 
@@ -679,8 +921,8 @@ export const captionDocs = pgTable("caption_doc", {
   id:        text("id").primaryKey(),
   userId:    text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   assetId:   text("asset_id").references(() => assets.id, { onDelete: "cascade" }), // nullable for manual
-  language:  text("language").notNull().default("en").$type<"en">(),
-  words:     jsonb("words").notNull().$type<Word[]>(),
+  language:  text("language").notNull().default("en").$type<string>(),
+  tokens:    jsonb("tokens").notNull().$type<Token[]>(),
   fullText:  text("full_text").notNull(),
   source:    text("source").notNull().default("whisper").$type<"whisper" | "manual" | "import">(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -688,7 +930,22 @@ export const captionDocs = pgTable("caption_doc", {
 });
 ```
 
-Note: `assetId` is now nullable (for manual captions without an audio asset). The unique index `(userId, assetId)` still applies — but only for rows where `assetId IS NOT NULL`.
+```typescript
+export const captionPresets = pgTable("caption_preset", {
+  id:        text("id").primaryKey(),
+  definition: jsonb("definition").notNull().$type<TextPreset>(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+```
+
+Ownership rule:
+- `caption_doc` is a clip-owned editable transcript.
+- `assetId` records provenance for transcription and status lookup, but it is not the ownership key.
+- Two caption clips must not share one editable `captionDocId`.
+- Re-transcription and transcript editing mutate only the doc referenced by that one clip.
+
+Note: `assetId` is now nullable (for manual captions without an audio asset). The unique index `(userId, assetId)` still applies — but only for rows where `assetId IS NOT NULL`. `language` is intentionally typed as `string` at the persistence boundary for forward compatibility, while the v2 API validation layer still restricts writes to `"en"`.
 
 ### Composition JSON: CaptionClip Shape
 
@@ -709,7 +966,7 @@ Clips stored in the `composition.timeline` JSONB column gain a new shape for cap
   captionPositionY: 80,
 }
 
-// After (a CaptionClip, words live in caption_doc table):
+// After (a CaptionClip, tokens live in caption_doc table):
 {
   id: "clip-123",
   type: "caption",
@@ -725,7 +982,9 @@ Clips stored in the `composition.timeline` JSONB column gain a new shape for cap
 }
 ```
 
-**Critical improvement:** Words are no longer stored in the composition JSONB. The `captionWords` array (potentially 200+ items for a 2-minute voiceover) was stored redundantly — once in `caption_doc.words` and once inside every clip. The new design stores words once.
+**Critical improvement:** Tokens are no longer stored in the composition JSONB. The old `captionWords` array (potentially 200+ items for a 2-minute voiceover) was stored redundantly — once in `caption_doc.tokens` and once inside every clip. The new design stores transcript tokens once.
+
+Terminology note: this section still shows legacy `captionWords` in the "before" example because it is describing the old shape. In the new design, timed transcript units are stored as `caption_doc.tokens`, not words.
 
 **Related change:** We will also stop sending the raw AI-generated voiceover script through this flow. Instead, we will rely on auto-transcription to derive the caption text and create separate clips for each transcribed segment.
 
@@ -743,7 +1002,6 @@ type EditorAction =
   | {
       type: "ADD_CAPTION_CLIP";
       captionDocId: string;
-      assetId: string;
       originVoiceoverClipId?: string;
       startMs: number;
       durationMs: number;
@@ -758,12 +1016,25 @@ type EditorAction =
       presetId?: string;
       overrides?: CaptionStyleOverrides;
       groupingMs?: number;
+    }
+  | {
+      type: "MARK_CAPTION_STALE";
+      clipId: string;
+      reason: "voiceover-trim-changed" | "voiceover-asset-replaced" | "voiceover-deleted";
     };
 ```
 
+`MARK_CAPTION_STALE` is dispatched when the linked voiceover clip identified by `originVoiceoverClipId` changes after transcription. Triggering editor events are:
+
+- trim or duration edits that invalidate `sourceStartMs` / `sourceEndMs`
+- asset replacement that changes the voiceover's `assetId`
+- voiceover clip deletion that orphans the caption clip
+
+`ADD_CAPTION_CLIP` is only dispatched after a real `captionDocId` exists. `build-initial-timeline.ts` does not create stub caption clips during editor init.
+
 ### Removed Action Types
 
-`ADD_CAPTION_CLIP` currently sets `captionWords` on the clip. The new action does not. Words are loaded separately via `useCaptionDoc`.
+`ADD_CAPTION_CLIP` currently sets `captionWords` on the clip. The new action does not. Tokens are loaded separately via `useCaptionDoc`.
 
 ---
 
@@ -773,27 +1044,35 @@ type EditorAction =
 // features/editor/caption/hooks/useTranscription.ts
 // Uses useAuthenticatedFetch() internally, matching existing mutation hooks.
 export function useTranscription(): UseMutationResult<
-  { captionDocId: string; words: Word[]; fullText: string },
+  { captionDocId: string; tokens: Token[]; fullText: string },
   Error,
   { assetId: string }
 >;
 
 // features/editor/caption/hooks/useCaptionDoc.ts
 // Uses useQueryFetcher() internally, matching existing query hooks.
+// Query is disabled when captionDocId is null.
 export function useCaptionDoc(captionDocId: string | null): UseQueryResult<CaptionDoc | null>;
+
+// features/editor/caption/hooks/useCaptionPresets.ts
+// Uses useQueryFetcher() internally. Reads seeded presets from the backend.
+export function useCaptionPresets(): UseQueryResult<TextPreset[]>;
 
 // features/editor/caption/hooks/useUpdateCaptionDoc.ts
 // Uses useAuthenticatedFetch() internally, matching existing mutation hooks.
 export function useUpdateCaptionDoc(): UseMutationResult<
   { captionDocId: string; updatedAt: string },
   Error,
-  { captionDocId: string; words: Word[]; fullText: string; language: "en" }
+  { captionDocId: string; tokens: Token[]; fullText: string; language: "en" }
 >;
 
 // features/editor/caption/hooks/useCaptionCanvas.ts
 /**
  * Manages the canvas ref, font loading, page computation, layout caching,
  * and animation frame loop for caption rendering.
+ * The hook owns the live CanvasRenderingContext2D reference used by
+ * computeLayout(), and it invalidates the cached CaptionLayout whenever
+ * the active page changes or canvasW/canvasH changes.
  *
  * Returns a ref to attach to the caption canvas element.
  */
@@ -818,6 +1097,8 @@ export function useCaptionCanvas(
 captionsByAsset: (assetId: string) => ["captions", "asset", assetId] as const
 
 // After:
+captionPresets: () =>
+  ["api", "captions", "presets"] as const
 captionDoc: (captionDocId: string) =>
   ["api", "captions", "doc", captionDocId] as const
 captionDocByAsset: (assetId: string) =>
@@ -864,6 +1145,11 @@ Renders: 2-column grid of preset tiles. Each tile shows:
 - Preset name
 - Live miniature canvas preview (static snapshot at t=0 of the entry animation)
 
+Implementation note:
+- Use one shared offscreen canvas and shared `FontLoader` instance to render tile snapshots sequentially after fonts are ready
+- Cache the resulting bitmap/data URL by preset ID so the picker does not recompute on every inspector render
+- Preview tiles are static thumbnails, not continuously animating canvases
+
 No longer renders sliders — those are in `CaptionStylePanel`.
 
 ### `CaptionStylePanel`
@@ -890,13 +1176,13 @@ Props:
 interface CaptionTranscriptEditorProps {
   clip: CaptionClip;
   captionDoc: CaptionDoc;
-  onSave: (next: { words: Word[]; fullText: string; language: "en" }) => void;
+  onSave: (next: { tokens: Token[]; fullText: string; language: "en" }) => void;
 }
 ```
 
 Renders:
 - Full transcript text area for quick copy edits
-- Token list with editable `word`, `startMs`, and `endMs`
+- Token list with editable `text`, `startMs`, and `endMs`
 - Split/merge token actions
 - Reset-to-transcription action for discarding unsaved local edits
 
@@ -905,3 +1191,22 @@ Rules:
 - Validation errors are inline and block save
 - Preview re-renders from the saved doc response so editor and export stay aligned
 - The UI must label this feature as English-only; non-English input is out of scope for v2
+
+### `CaptionLanguageScopeNotice`
+
+Reusable notice component that makes the v2 language constraint visible anywhere users can edit or generate captions.
+
+Props:
+```typescript
+interface CaptionLanguageScopeNoticeProps {
+  variant?: "inline" | "banner";
+}
+```
+
+Renders:
+- Translation key `caption_language_scope`
+- Copy equivalent to "English only"
+
+Usage:
+- Inline in `CaptionTranscriptEditor`
+- Near manual caption creation and transcription controls when caption language expectations need to be explicit

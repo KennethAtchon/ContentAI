@@ -27,13 +27,13 @@ Before touching any file, you must have read and understood:
 
 ## Blast Radius: Complete Deletion Checklist
 
-Legacy `TitleClip` compatibility is out of scope. If existing title overlays conflict with the new model, delete them and rebuild the title/text system cleanly. Do not add migration code, adapter fields, or fallback rendering paths for old `TitleClip` shapes.
+There is no `TitleClip` type in v2 — static titles are `CaptionClip` + manual `CaptionDoc`. If existing title-overlay code or shapes conflict with that model, delete them and rebuild on `CaptionClip` only. Do not add migration code, adapter fields, or fallback rendering paths for old title-specific clip shapes.
 
 ### Files to Delete Entirely
 
 | File | Replacement |
 |------|-------------|
-| `frontend/src/features/editor/constants/caption-presets.ts` | `frontend/src/features/editor/caption/presets.ts` |
+| `frontend/src/features/editor/constants/caption-presets.ts` | Backend-seeded presets exposed through `GET /api/captions/presets` and consumed by `useCaptionPresets.ts` |
 | `frontend/src/features/editor/hooks/useCaptionPreview.ts` | `frontend/src/features/editor/caption/renderer.ts` |
 | `frontend/src/features/editor/hooks/useCaptions.ts` | `frontend/src/features/editor/caption/hooks/useTranscription.ts` + `useCaptionDoc.ts` |
 | `frontend/src/features/editor/components/CaptionPresetTile.tsx` | Part of new `CaptionPresetPicker.tsx` |
@@ -57,7 +57,7 @@ Legacy `TitleClip` compatibility is out of scope. If existing title overlays con
 | `backend/src/domain/editor/captions.service.ts` | Update `transcribeAsset()` to return `captionDocId`. Add `createManual()`. Update DB calls to use renamed table. |
 | `backend/src/domain/editor/captions.repository.ts` | Update all queries to use `captionDocs` (renamed table). Add `source` column handling. |
 | `backend/src/routes/editor/editor-ai.router.ts` | Update `ADD_CAPTION_CLIP` construction to new shape. |
-| `backend/src/routes/editor/services/build-initial-timeline.ts` | Update `buildCaptionClip()` to produce new `CaptionClip` shape. |
+| `backend/src/routes/editor/services/build-initial-timeline.ts` | Remove any init-time caption clip creation; init should create only the voiceover clip. |
 | `backend/src/infrastructure/database/drizzle/schema.ts` | Rename `captions` → `captionDocs`. Add `source` column. Make `assetId` nullable. |
 | `backend/src/types/timeline.types.ts` | Remove `CaptionWord` and 6 `caption*` fields from backend `Clip`. Add `CaptionClip` type. |
 | `backend/src/types/index.ts` | Update re-exports. |
@@ -82,7 +82,7 @@ Legacy `TitleClip` compatibility is out of scope. If existing title overlays con
 | `frontend/__tests__/unit/features/editor/caption/layout-engine.test.ts` | `computeLayout()` word wrap, single line, overflow, positionY calc |
 | `frontend/__tests__/unit/features/editor/caption/slice-tokens.test.ts` | clip source-window slicing, re-basing timestamps, empty-range behavior |
 | `backend/__tests__/unit/domain/captions/page-builder.test.ts` | Same tests as frontend (identical function) |
-| `backend/__tests__/unit/domain/captions/ass-exporter.test.ts` | `generateASS()` for each export mode, legacy ID resolution, `cssToASS()` |
+| `backend/__tests__/unit/domain/captions/ass-exporter.test.ts` | `generateASS()` for each export mode, no legacy ID resolution, `cssToASS()` |
 | `backend/__tests__/unit/routes/editor/captions.test.ts` | `POST /manual` validation, `PATCH /doc/:captionDocId`, `captionDocId` response field |
 | `frontend/__tests__/unit/features/editor/caption/transcript-editor.test.tsx` | correction save flow, validation errors, split/merge actions |
 | `backend/__tests__/unit/routes/editor/captions-language.test.ts` | reject non-English `language` values on manual create/update |
@@ -91,7 +91,45 @@ Legacy `TitleClip` compatibility is out of scope. If existing title overlays con
 
 ## Build Order
 
-### Phase 1: DB Migration (Backend)
+### Phase 1: Legacy Caption Purge
+
+This phase exists to rip out caption-specific legacy assumptions before any new implementation starts. Do not skip it. Old caption fields and helper paths will keep leaking into the rewrite unless they are deleted up front.
+
+1. Delete legacy caption rendering entry points:
+   - `frontend/src/features/editor/constants/caption-presets.ts`
+   - `frontend/src/features/editor/hooks/useCaptionPreview.ts`
+   - `frontend/src/features/editor/hooks/useCaptions.ts`
+   - `backend/src/domain/editor/export/ass-generator.ts`
+2. Remove legacy caption data from timeline/runtime types on both frontend and backend:
+   - `captionId`
+   - `captionWords`
+   - `captionPresetId`
+   - `captionGroupSize`
+   - `captionPositionY`
+   - `captionFontSizeOverride`
+3. Delete caption-specific reducer/action behavior that assumes captions are just text clips with optional fields.
+4. Remove legacy query keys, translation keys, inspector controls, and helper utilities that refer to the old caption shape.
+5. Delete any leftover legacy preset resolution behavior:
+   - no legacy preset IDs
+   - no `LEGACY_ID_MAP`
+   - no compatibility fallback names
+6. Delete obsolete tests that lock in the old caption model before writing new ones.
+7. Run a repo-wide grep and make sure these return zero relevant results before moving on:
+   - `captionWords`
+   - `captionPresetId`
+   - `captionGroupSize`
+   - `captionPositionY`
+   - `captionFontSizeOverride`
+   - `useCaptionPreview`
+   - `drawCaptionsOnCanvas`
+   - `LEGACY_ID_MAP`
+   - `captionId` where it means the old caption row rather than `captionDocId`
+
+**At this point:** The codebase is allowed to be broken, but the old caption model is gone. That is the goal.
+
+---
+
+### Phase 2: DB Migration (Backend)
 
 1. Write migration: rename `caption` → `caption_doc`, add `source` column, make `assetId` nullable, add `updatedAt`.
 2. Constrain `language` to `"en"` for v2 at validation/type level.
@@ -101,18 +139,25 @@ Legacy `TitleClip` compatibility is out of scope. If existing title overlays con
 6. Run `bun run db:generate && bun run db:migrate`.
 7. Update `backend/src/types/index.ts` exports.
 
-**At this point:** Backend compiles. Old routes still work (the table is renamed, column names unchanged except `source` addition).
+**At this point:** Backend compiles against the new schema surface. Do not preserve old caption-route behavior beyond what the new contracts explicitly require.
+
+Preset source-of-truth update for Phase 2:
+- Add a new `caption_preset` table with JSONB `definition`, `created_at`, and `updated_at`.
+- Seed the 10 built-in presets idempotently into `caption_preset` as part of bootstrap/migration.
+- Treat seeded DB rows as the runtime source of truth for both preview and export.
+- Do not keep a mirrored frontend preset registry and backend preset registry.
 
 ---
 
-### Phase 2: Backend Type System
+### Phase 3: Backend Type System
 
 1. In `backend/src/types/timeline.types.ts`:
-   - Remove `CaptionWord` (it's now `Word` and lives in schema types).
+   - Remove `CaptionWord` (replace it with `Token` in schema/domain types).
    - Remove 6 `caption*` fields from `Clip`.
    - Add `CaptionClip` interface in-place (do not move timeline clip ownership out of this file family).
    - Add `sourceStartMs`, `sourceEndMs`, and optional `originVoiceoverClipId`.
-   - Export `Word` from schema types.
+   - Document that `captionDocId` points to a clip-owned editable transcript, not a shared asset-level doc.
+   - Export `Token` from schema types.
 
 2. In `backend/src/types/index.ts`: update exports.
 
@@ -120,23 +165,35 @@ Legacy `TitleClip` compatibility is out of scope. If existing title overlays con
 
 ---
 
-### Phase 3: Backend Domain Layer (New Files)
+### Phase 4: Backend Domain Layer (New Files)
+
+Preset source-of-truth note for this phase:
+- Do not build a mirrored `preset-registry.ts` on the backend and another preset list on the frontend.
+- Author the 10 built-in presets once in `preset-seed.ts`.
+- Seed them into `caption_preset`.
+- Read them back through `preset.repository.ts` and `/api/captions/presets`.
+- `ass-exporter.ts` must resolve presets from `caption_preset`, not from a hand-maintained backend-only registry.
 
 Create `backend/src/domain/editor/captions/` (consistent with existing `domain/editor/` structure):
 
 1. `page-builder.ts` — implement `buildPages()`.
 2. `slice-tokens.ts` — implement source-window slicing and timestamp re-basing.
-3. `preset-registry.ts` — mirror of frontend presets (same 10 presets, same IDs, TypeScript objects). This file is verbose but necessary (no shared code rule).
+3. `preset-seed.ts` — canonical built-in preset payload used to seed `caption_preset`.
+4. `preset.repository.ts` — backend lookup/caching for seeded preset rows.
 
 In `backend/src/domain/editor/export/`:
 
-4. Delete `ass-generator.ts`. Write `ass-exporter.ts` — implement `generateASS(pages, preset, resolution, clipStartMs)`. Derives style from `TextPreset` objects in `preset-registry.ts`. Includes `cssToASS()` and `msToASSTime()` utilities.
+5. Delete `ass-generator.ts`. Write `ass-exporter.ts` — implement `generateASS(pages, preset, resolution, clipStartMs, styleName)`. Derives style from seeded `caption_preset` rows, computes deterministic unique ASS style names per resolved export style, and includes `cssToASS()` and `msToASSTime()` utilities.
 
-Write tests for Phase 3 now (`page-builder.test.ts`, `slice-tokens.test.ts`, `ass-exporter.test.ts`).
+Write tests for Phase 4 now (`page-builder.test.ts`, `slice-tokens.test.ts`, `ass-exporter.test.ts`).
 
 ---
 
-### Phase 4: Backend Routes Update
+### Phase 5: Backend Routes Update
+
+Preset routing note for this phase:
+- Add `GET /api/captions/presets` backed by `caption_preset`.
+- The frontend preset picker must use this route rather than a local hardcoded preset file.
 
 1. `backend/src/routes/editor/captions.ts`:
    - Rename `captionId` → `captionDocId` in all responses.
@@ -152,16 +209,19 @@ Write tests for Phase 3 now (`page-builder.test.ts`, `slice-tokens.test.ts`, `as
    - Import from `./export/ass-exporter`.
    - Update caption clip detection: `clip.type === "caption"` instead of `clip.captionWords?.length`.
    - Load `CaptionDoc` from DB using `captionDocId` on the clip.
-   - Slice `doc.words` by `clip.sourceStartMs/sourceEndMs`.
+   - Slice `doc.tokens` by `clip.sourceStartMs/sourceEndMs`.
+   - Use clamp-and-rebase slicing behavior for boundary-overlapping tokens.
    - Call `buildPages(tokens, clip.groupingMs)` to get pages.
-   - Pass `CaptionPage[]` to `generateASS` instead of raw `words[]`.
+   - Derive a deterministic unique ASS style name from the fully resolved export style.
+   - Pass `CaptionPage[]` to `generateASS` instead of raw `tokens[]`.
 
 3. `backend/src/routes/editor/editor-ai.router.ts`:
    - Update `ADD_CAPTION_CLIP` clip construction to new `CaptionClip` shape.
-   - Remove `captionWords: []` field (words come from caption_doc).
+   - Remove `captionWords: []` field (tokens come from `caption_doc`).
 
 4. `backend/src/routes/editor/services/build-initial-timeline.ts`:
-   - Update `buildCaptionClip()` to return new `CaptionClip` shape with source window copied from the voiceover clip.
+   - Remove any init-time caption clip construction.
+   - `build-initial-timeline.ts` must create only the voiceover clip; the `CaptionClip` is created later after transcription returns a real `captionDocId`.
 
 5. **Delete** `backend/src/routes/editor/export/ass-generator.ts`.
 
@@ -169,7 +229,7 @@ Write tests for Phase 3 now (`page-builder.test.ts`, `slice-tokens.test.ts`, `as
 
 ---
 
-### Phase 5: Frontend Type System
+### Phase 6: Frontend Type System
 
 1. In `frontend/src/features/editor/types/editor.ts`:
    - Remove `CaptionWord` type (it was defined here, now lives in caption/types.ts).
@@ -183,22 +243,27 @@ Write tests for Phase 3 now (`page-builder.test.ts`, `slice-tokens.test.ts`, `as
    - Replace `captionsByAsset` with `queryKeys.api.captionDocByAsset(assetId)`.
    - Add `queryKeys.api.captionDoc(captionDocId)`.
 
-**At this point:** Frontend has many type errors. That's correct. Do not fix them yet — proceed to Phase 6.
+**At this point:** Frontend has many type errors. That's correct. Do not fix them yet — proceed to Phase 7.
 
 ---
 
-### Phase 6: Frontend Caption Module (New Files)
+### Phase 7: Frontend Caption Module (New Files)
+
+Preset-loading note for this phase:
+- Do not ship a new local `presets.ts` runtime registry on the frontend.
+- Add `hooks/useCaptionPresets.ts` for `GET /api/captions/presets`.
+- `CaptionPresetPicker` should render from the fetched seeded presets, not from a hardcoded frontend list.
 
 Create `frontend/src/features/editor/caption/`:
 
 1. `types.ts` — caption renderer/layout/preset types only; timeline types stay in `features/editor/types/editor.ts`.
 2. `easing.ts` — `evaluate()`, `springValue()`.
 3. `page-builder.ts` — `buildPages()`.
-4. `slice-tokens.ts` — apply clip source window before grouping.
+4. `slice-tokens.ts` — apply clip source window before grouping using clamp-and-rebase boundary behavior.
 5. `layout-engine.ts` — `computeLayout()`.
-6. `renderer.ts` — `renderFrame()`.
+6. `renderer.ts` — `renderFrame()` with page-scoped + token-scoped animation composition and active-token pulse composition.
 7. `font-loader.ts` — `FontLoader` class.
-8. `presets.ts` — 10 presets from `04-presets.md`.
+8. `hooks/useCaptionPresets.ts` — query seeded presets from `GET /api/captions/presets`.
 9. `hooks/useTranscription.ts` — mutation hook using `useAuthenticatedFetch()`.
 10. `hooks/useCaptionDoc.ts` — query hook by `captionDocId` using `useQueryFetcher()`.
 11. `hooks/useUpdateCaptionDoc.ts` — transcript correction mutation using `useAuthenticatedFetch()`.
@@ -208,7 +273,7 @@ Create `frontend/src/features/editor/caption/`:
 15. `components/CaptionTranscriptEditor.tsx`.
 16. `components/CaptionLanguageScopeNotice.tsx`.
 
-Write tests for Phase 6 (`page-builder.test.ts`, `slice-tokens.test.ts`, `easing.test.ts`, `layout-engine.test.ts`, `transcript-editor.test.tsx`).
+Write tests for Phase 7 (`page-builder.test.ts`, `slice-tokens.test.ts`, `easing.test.ts`, `layout-engine.test.ts`, `transcript-editor.test.tsx`).
 
 **Delete** these files now (their replacements are built):
 - `frontend/src/features/editor/constants/caption-presets.ts`
@@ -218,7 +283,7 @@ Write tests for Phase 6 (`page-builder.test.ts`, `slice-tokens.test.ts`, `easing
 
 ---
 
-### Phase 7: Frontend Reducer Update
+### Phase 8: Frontend Reducer Update
 
 In `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`:
 
@@ -234,7 +299,7 @@ In `frontend/src/features/editor/hooks/useEditorStore.ts`:
 
 ---
 
-### Phase 8: Frontend Component Update
+### Phase 9: Frontend Component Update
 
 1. `PreviewArea.tsx`:
    - Remove `captionCanvasRef`, `drawCaptionsOnCanvas` call.
@@ -244,7 +309,7 @@ In `frontend/src/features/editor/hooks/useEditorStore.ts`:
 2. `Inspector.tsx`:
    - Remove `useAutoCaption()`.
    - Remove old `addCaptionClip()` call.
-   - Add clip-scoped transcription trigger with dedupe: one caption job per voiceover clip. Whether this triggers automatically on voiceover insertion or via a one-step explicit action is a **product decision** — implement with a clear trigger point that can be toggled without architectural changes. Start with automatic triggering and revert to one-step if UX testing shows duplication/surprise issues.
+   - Add clip-scoped transcription trigger with dedupe: one caption job per voiceover clip. Whether this triggers automatically on voiceover insertion or via a one-step explicit action is a **product decision**. Implement it behind a single clear trigger point so the product can default to automatic now and switch to explicit later without architectural changes.
    - Persist `idle | transcribing | ready | failed | stale` state for the selected voiceover clip.
    - Mount `CaptionPresetPicker`, `CaptionStylePanel`, and `CaptionTranscriptEditor` when selected clip is `type: "caption"`.
 
@@ -258,7 +323,7 @@ In `frontend/src/features/editor/hooks/useEditorStore.ts`:
 
 ---
 
-### Phase 9: Translation Update
+### Phase 10: Translation Update
 
 In `frontend/src/translations/en.json`:
 1. Remove all `editor_captions_*` keys.
@@ -268,7 +333,7 @@ In `frontend/src/translations/en.json`:
 
 ---
 
-### Phase 10: Completeness Verification
+### Phase 11: Completeness Verification
 
 Run these checks before declaring done:
 
@@ -314,9 +379,9 @@ Run these checks before declaring done:
 
 ---
 
-## Also: Remove Max Length Cap on Text Clips
+## Also: Remove Max Length Cap on Caption Clips
 
-While ripping out the caption system, also remove the max length constraint on text clips. The cap makes no sense — a text overlay should be able to span any duration the user wants. Text clips don't "end" the way media clips do (a video clip is bounded by its source file). Capping length is an artificial constraint that fights the user.
+While ripping out the caption system, also remove the max length constraint on caption clips (including any inherited "text clip" guard that still applies to the text track). The cap makes no sense — an overlay should be able to span any duration the user wants. Caption clips are not bounded by a media file tail the same way a video clip is. Capping length is an artificial constraint that fights the user.
 
 Find and delete wherever this cap is enforced — validation schema, reducer guard, or UI slider max — and remove it entirely.
 
@@ -345,10 +410,10 @@ The schema is defined fresh from the new Drizzle schema. The first composition w
 | Preview loads a different caption doc than export | All rendering paths fetch by `captionDocId`; asset-level lookup is convenience-only. |
 | Trimmed/reused voiceovers render the wrong transcript slice | `CaptionClip` stores `sourceStartMs/sourceEndMs`; preview and export both slice/re-base before grouping. |
 | Whisper mistakes ship without correction | `CaptionTranscriptEditor` + `PATCH /api/captions/doc/:captionDocId` are required before feature-complete signoff. |
-| Auto-transcription creates duplicate caption clips | Caption generation is idempotent per voiceover clip and verified in Phase 10. |
+| Auto-transcription creates duplicate caption clips | Caption generation is idempotent per voiceover clip and verified in Phase 11. |
 | Users assume multilingual support | UI and API both enforce English-only scope in v2. |
 | Implementation drifts from existing project conventions | Verification requires `queryKeys.api.*`, `useQueryFetcher()`, `useAuthenticatedFetch()`, existing schema files, and the standalone `/api/captions` mount. |
-| Backend and frontend preset registries drift out of sync | A test in each package compares preset IDs. CI fails if they diverge. |
+| Backend and frontend preset registries drift out of sync | Eliminated by design. Both preview and export resolve the same seeded rows from `caption_preset`. |
 | `buildPages()` logic diverges between frontend and backend copies | Same test suite run in both packages validates identical output for identical input. |
 | Font loading fails in certain browser environments | `FontLoader` catches rejection and falls back to system sans-serif. Caption renders correctly (at wrong font) rather than failing to render. |
 | OffscreenCanvas transfer breaks the existing canvas ref pattern | The new `useCaptionCanvas` hook does not use OffscreenCanvas yet — it uses a regular canvas ref. OffscreenCanvas is a future optimization (Phase X). No risk in v2. |
