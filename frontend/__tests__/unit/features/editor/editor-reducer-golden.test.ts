@@ -246,4 +246,106 @@ describe("editorReducer golden paths", () => {
     expect(textClip).not.toHaveProperty("assetId");
     expect(textClip).not.toHaveProperty("captionDocId");
   });
+
+  test("ADD_CAPTION_CLIP adds a caption clip when the range is valid", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject(),
+    });
+
+    const updated = editorReducer(loaded, {
+      type: "ADD_CAPTION_CLIP",
+      trackId: "text",
+      captionDocId: "cap-1",
+      originVoiceoverClipId: "voice-1",
+      startMs: 500,
+      durationMs: 1500,
+      sourceStartMs: 0,
+      sourceEndMs: 1500,
+      presetId: "clean-minimal",
+      groupingMs: 1200,
+    });
+
+    const captionClip = updated.tracks
+      .find((track) => track.id === "text")
+      ?.clips.find((clip) => clip.type === "caption");
+
+    expect(captionClip).toMatchObject({
+      captionDocId: "cap-1",
+      stylePresetId: "clean-minimal",
+      groupingMs: 1200,
+    });
+  });
+
+  test("ADD_CAPTION_CLIP ignores invalid local caption ranges", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject(),
+    });
+
+    const updated = editorReducer(loaded, {
+      type: "ADD_CAPTION_CLIP",
+      trackId: "text",
+      captionDocId: "cap-1",
+      originVoiceoverClipId: "voice-1",
+      startMs: 500,
+      durationMs: 0,
+      sourceStartMs: 1000,
+      sourceEndMs: 1000,
+      presetId: "clean-minimal",
+    });
+
+    expect(updated).toBe(loaded);
+    expect(updated.tracks.find((track) => track.id === "text")?.clips).toHaveLength(0);
+  });
+
+  test("UPDATE_CAPTION_STYLE merges overrides and preserves the preset by default", () => {
+    const tracks = DEFAULT_TRACKS.map((track) =>
+      track.id === "text"
+        ? {
+            ...track,
+            clips: [
+              {
+                id: "caption-1",
+                type: "caption",
+                startMs: 0,
+                durationMs: 1500,
+                locallyModified: false,
+                originVoiceoverClipId: null,
+                captionDocId: "cap-1",
+                sourceStartMs: 0,
+                sourceEndMs: 1500,
+                stylePresetId: "clean-minimal",
+                styleOverrides: { fontSize: 56 },
+                groupingMs: 1400,
+              },
+            ],
+          }
+        : track
+    ) as Track[];
+
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({ tracks }),
+    });
+
+    const updated = editorReducer(loaded, {
+      type: "UPDATE_CAPTION_STYLE",
+      clipId: "caption-1",
+      overrides: { textTransform: "uppercase" },
+      groupingMs: 900,
+    });
+
+    expect(
+      updated.tracks.find((track) => track.id === "text")?.clips[0]
+    ).toMatchObject({
+      stylePresetId: "clean-minimal",
+      styleOverrides: {
+        fontSize: 56,
+        textTransform: "uppercase",
+      },
+      groupingMs: 900,
+      locallyModified: true,
+    });
+  });
 });

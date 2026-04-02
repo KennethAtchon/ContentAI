@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { CaptionClip, CaptionStyleOverrides } from "../../types/editor";
 import {
   InspectorSection,
@@ -14,10 +15,12 @@ interface Props {
 }
 
 export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
+  const { t } = useTranslation();
+
   return (
-    <InspectorSection title="Caption Style">
+    <InspectorSection title={t("editor_caption_style_title")}>
       <InspectorSliderRow
-        label="Grouping"
+        label={t("editor_caption_grouping_label")}
         value={clip.groupingMs}
         min={200}
         max={4000}
@@ -25,7 +28,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
         onChange={(groupingMs) => onUpdateStyle({ groupingMs })}
       />
       <InspectorSliderRow
-        label="Position Y"
+        label={t("editor_caption_position_y_label")}
         value={clip.styleOverrides.positionY ?? 80}
         min={0}
         max={100}
@@ -37,7 +40,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
         }
       />
       <InspectorSliderRow
-        label="Font Size"
+        label={t("editor_caption_font_size_label")}
         value={clip.styleOverrides.fontSize ?? 56}
         min={16}
         max={120}
@@ -48,7 +51,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
           })
         }
       />
-      <InspectorPropRow label="Text Case">
+      <InspectorPropRow label={t("editor_caption_text_case_label")}>
         <div className="flex gap-1">
           {(["none", "uppercase", "lowercase"] as const).map((value) => (
             <button
@@ -66,7 +69,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
                   : "border-overlay-sm bg-overlay-sm text-dim-2",
               ].join(" ")}
             >
-              {value}
+              {t(`editor_caption_text_case_${value}`)}
             </button>
           ))}
         </div>

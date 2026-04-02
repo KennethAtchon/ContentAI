@@ -4,6 +4,7 @@ import type { CaptionLayout, CaptionPage, TextPreset } from "@/features/editor/c
 
 interface DrawCall {
   kind: string;
+  text?: string;
   fillStyle?: string;
   strokeStyle?: string;
   shadowColor?: string;
@@ -60,16 +61,18 @@ function createMockContext() {
         fillStyle: this.fillStyle,
       });
     },
-    fillText() {
+    fillText(text: string) {
       calls.push({
         kind: "fillText",
+        text,
         fillStyle: this.fillStyle,
         shadowColor: this.shadowColor,
       });
     },
-    strokeText() {
+    strokeText(text: string) {
       calls.push({
         kind: "strokeText",
+        text,
         strokeStyle: this.strokeStyle,
       });
     },
@@ -189,8 +192,24 @@ describe("renderFrame", () => {
     });
     expect(calls[1]).toMatchObject({
       kind: "fillText",
+      text: "hello",
       fillStyle: "#FFFFFF",
       shadowColor: "transparent",
     });
+  });
+
+  test("applies textTransform before drawing text layers", () => {
+    const { ctx, calls } = createMockContext();
+    const preset = {
+      ...makePreset([{ id: "fill", type: "fill", color: "#FFFFFF" }]),
+      typography: {
+        ...makePreset([{ id: "fill", type: "fill", color: "#FFFFFF" }]).typography,
+        textTransform: "uppercase" as const,
+      },
+    };
+
+    renderFrame(ctx, makeLayout(), 1300, preset);
+
+    expect(calls.find((call) => call.kind === "fillText")?.text).toBe("HELLO");
   });
 });

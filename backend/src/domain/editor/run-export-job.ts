@@ -312,10 +312,18 @@ export async function runExportJob(
           userId,
           clip.captionDocId,
         );
-        if (!doc) continue;
+        if (!doc) {
+          throw new Error(
+            `Caption doc "${clip.captionDocId}" was not found for clip "${clip.id}"`,
+          );
+        }
 
         const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
-        if (!presetRecord) continue;
+        if (!presetRecord) {
+          throw new Error(
+            `Caption preset "${clip.stylePresetId}" was not found for clip "${clip.id}"`,
+          );
+        }
 
         const slicedTokens = sliceTokensToRange(
           doc.tokens,
@@ -335,7 +343,11 @@ export async function runExportJob(
         );
         if (pages.length === 0) continue;
 
-        styles.set(styleName, { ...resolvedPreset, createdAt: presetRecord.createdAt, updatedAt: presetRecord.updatedAt });
+        styles.set(styleName, {
+          ...resolvedPreset,
+          createdAt: presetRecord.createdAt,
+          updatedAt: presetRecord.updatedAt,
+        });
         events.push(
           ...generateASS(
             pages,

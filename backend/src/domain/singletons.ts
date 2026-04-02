@@ -81,6 +81,7 @@ export const queueService = new QueueService(queueRepository, editorRepository);
 
 export const editorService = new EditorService(
   editorRepository,
+  captionsRepository,
   contentRepository,
   queueRepository,
 );

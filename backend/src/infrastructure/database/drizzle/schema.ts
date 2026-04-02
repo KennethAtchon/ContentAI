@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+import type { TextPreset as CaptionTextPreset } from "../../../domain/editor/captions/types";
 
 export const users = pgTable("user", {
   id: text("id")
@@ -789,7 +790,7 @@ export type CaptionDocSource = "whisper" | "manual" | "import";
  * Phase 2 stores the canonical preset JSON in the database before the full
  * caption renderer/export type system lands in later phases.
  */
-export type CaptionPresetDefinition = Record<string, unknown>;
+export type CaptionPresetDefinition = CaptionTextPreset;
 
 export const captionDocs = pgTable(
   "caption_doc",

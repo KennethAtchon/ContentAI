@@ -153,7 +153,7 @@ export function useEditorReducer() {
         durationMs: number;
         sourceStartMs: number;
         sourceEndMs: number;
-        presetId?: string;
+        presetId: string;
         groupingMs?: number;
       }
     ) => dispatch({ type: "ADD_CAPTION_CLIP", trackId, ...payload }),

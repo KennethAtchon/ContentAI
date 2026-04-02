@@ -194,7 +194,7 @@ export type EditorAction =
       durationMs: number;
       sourceStartMs: number;
       sourceEndMs: number;
-      presetId?: string;
+      presetId: string;
       groupingMs?: number;
     }
   | { type: "UPDATE_CLIP"; clipId: string; patch: ClipPatch }

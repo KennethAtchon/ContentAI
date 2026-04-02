@@ -7,6 +7,7 @@ import type {
   StyleLayer,
   TextPreset,
 } from "./types";
+import { applyTextTransform } from "./text-transform";
 
 type TokenVisualState = "upcoming" | "active" | "past";
 
@@ -214,7 +215,13 @@ function drawLayer(
   state: TokenVisualState,
   layer: StyleLayer,
   lineBoxes: Map<number, LineBox>,
+  preset: TextPreset,
 ) {
+  const displayText = applyTextTransform(
+    token.text,
+    preset.typography.textTransform,
+  );
+
   if (layer.type === "background") {
     const padding = layer.padding ?? 0;
     const radius = layer.radius ?? 0;
@@ -255,7 +262,7 @@ function drawLayer(
     ctx.shadowOffsetX = layer.offsetX ?? 0;
     ctx.shadowOffsetY = layer.offsetY ?? 0;
     ctx.shadowBlur = layer.blur ?? 0;
-    ctx.fillText(token.text, token.x, token.y);
+    ctx.fillText(displayText, token.x, token.y);
     ctx.shadowColor = "transparent";
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
@@ -267,12 +274,12 @@ function drawLayer(
     ctx.strokeStyle = resolveLayerColor(layer, state);
     ctx.lineWidth = layer.width;
     ctx.lineJoin = layer.join ?? "round";
-    ctx.strokeText(token.text, token.x, token.y);
+    ctx.strokeText(displayText, token.x, token.y);
     return;
   }
 
   ctx.fillStyle = resolveLayerColor(layer, state);
-  ctx.fillText(token.text, token.x, token.y);
+  ctx.fillText(displayText, token.x, token.y);
 }
 
 function applyTransform(
@@ -358,7 +365,7 @@ export function renderFrame(
       translateY: wordEntryTransform.translateY + wordExitTransform.translateY,
     });
     for (const layer of layers) {
-      drawLayer(ctx, layout, token, state, layer, lineBoxes);
+      drawLayer(ctx, layout, token, state, layer, lineBoxes, preset);
     }
     ctx.restore();
   }

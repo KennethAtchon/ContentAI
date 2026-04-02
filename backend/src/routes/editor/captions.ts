@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   authMiddleware,
@@ -7,6 +7,8 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { captionsService } from "../../domain/singletons";
+import { checkRateLimit } from "../../services/rate-limit/rate-limit-redis";
+import { IS_DEVELOPMENT } from "../../utils/config/envUtil";
 import {
   captionAssetIdParamSchema,
   captionDocIdParamSchema,
@@ -18,11 +20,49 @@ import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const app = new Hono<HonoEnv>();
 
+const transcriptionRateLimiter: MiddlewareHandler<HonoEnv> = async (c, next) => {
+  if (IS_DEVELOPMENT) {
+    await next();
+    return;
+  }
+
+  const auth = c.get("auth");
+  const userId = auth.user.id;
+  const minuteAllowed = await checkRateLimit(userId, {
+    maxRequests: 2,
+    window: 60,
+    keyPrefix: "caption_transcribe_minute",
+  });
+  const hourAllowed = await checkRateLimit(userId, {
+    maxRequests: 20,
+    window: 3600,
+    keyPrefix: "caption_transcribe_hour",
+  });
+
+  if (!minuteAllowed || !hourAllowed) {
+    const retryAfter = minuteAllowed ? 3600 : 60;
+    c.res.headers.set("Retry-After", String(retryAfter));
+    c.res.headers.set("X-Rate-Limit-Limit", minuteAllowed ? "20" : "2");
+    c.res.headers.set("X-Rate-Limit-Remaining", "0");
+    c.res.headers.set("X-Rate-Limit-Reset", String(Date.now() + retryAfter * 1000));
+    return c.json(
+      {
+        error: "Too many transcription requests",
+        code: "RATE_LIMIT_EXCEEDED",
+      },
+      429,
+    );
+  }
+
+  await next();
+};
+
 app.post(
   "/transcribe",
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
+  transcriptionRateLimiter,
   zValidator("json", transcribeCaptionsSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");

@@ -18,6 +18,14 @@ import {
   updateClipInTracks,
 } from "./editor-reducer-helpers";
 
+function isValidCaptionClipRange(action: {
+  durationMs: number;
+  sourceStartMs: number;
+  sourceEndMs: number;
+}): boolean {
+  return action.durationMs > 0 && action.sourceStartMs < action.sourceEndMs;
+}
+
 export function reduceClipOps(
   state: EditorState,
   action: EditorAction
@@ -40,6 +48,10 @@ export function reduceClipOps(
     }
 
     case "ADD_CAPTION_CLIP": {
+      if (!isValidCaptionClipRange(action)) {
+        return state;
+      }
+
       const captionClip: CaptionClip = {
         id: crypto.randomUUID(),
         type: "caption",
@@ -49,7 +61,7 @@ export function reduceClipOps(
         durationMs: action.durationMs,
         sourceStartMs: action.sourceStartMs,
         sourceEndMs: action.sourceEndMs,
-        stylePresetId: action.presetId ?? "hormozi",
+        stylePresetId: action.presetId,
         styleOverrides: {},
         groupingMs: action.groupingMs ?? 1400,
         locallyModified: true,

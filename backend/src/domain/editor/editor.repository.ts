@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import {
   assets,
   contentAssets,
@@ -75,6 +75,11 @@ export interface IEditorRepository {
     userId: string,
     data: Record<string, unknown>,
   ): Promise<{ id: string; updatedAt: Date } | undefined>;
+
+  listProjectTracksForUser(
+    userId: string,
+    excludeProjectId?: string,
+  ): Promise<Array<{ id: string; tracks: unknown }>>;
 
   existsByIdForUser(projectId: string, userId: string): Promise<boolean>;
 
@@ -318,6 +323,23 @@ export class EditorRepository implements IEditorRepository {
       )
       .returning({ id: editProjects.id, updatedAt: editProjects.updatedAt });
     return updated;
+  }
+
+  async listProjectTracksForUser(
+    userId: string,
+    excludeProjectId?: string,
+  ): Promise<Array<{ id: string; tracks: unknown }>> {
+    return this.db
+      .select({ id: editProjects.id, tracks: editProjects.tracks })
+      .from(editProjects)
+      .where(
+        excludeProjectId
+          ? and(
+              eq(editProjects.userId, userId),
+              ne(editProjects.id, excludeProjectId),
+            )
+          : eq(editProjects.userId, userId),
+      );
   }
 
   async existsByIdForUser(

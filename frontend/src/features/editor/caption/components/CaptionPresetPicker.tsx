@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { InspectorPropRow, InspectorSection } from "../../components/inspector/InspectorPrimitives";
 import type { TextPreset } from "../types";
 
@@ -8,10 +9,11 @@ interface Props {
 }
 
 export function CaptionPresetPicker({ presets, value, onChange }: Props) {
+  const { t } = useTranslation();
   const selectedPreset = presets.find((preset) => preset.id === value) ?? null;
 
   return (
-    <InspectorSection title="Caption Preset">
+    <InspectorSection title={t("editor_caption_preset_title")}>
       <div className="flex flex-col gap-1.5">
         {presets.map((preset) => {
           const active = preset.id === value;
@@ -29,18 +31,19 @@ export function CaptionPresetPicker({ presets, value, onChange }: Props) {
             >
               <div className="text-xs font-medium text-dim-1">{preset.name}</div>
               <div className="text-[10px] text-dim-3">
-                {preset.exportMode} export, {preset.groupingMs}ms grouping
+                {t(`editor_caption_export_mode_${preset.exportMode}`)},{" "}
+                {t("editor_caption_grouping_value", { groupingMs: preset.groupingMs })}
               </div>
             </button>
           );
         })}
       </div>
-      <InspectorPropRow label="Current">
+      <InspectorPropRow label={t("editor_caption_current_label")}>
         <span className="text-[10px] text-dim-3">{value}</span>
       </InspectorPropRow>
       {selectedPreset && selectedPreset.exportMode !== "full" ? (
         <div className="rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[10px] text-amber-100">
-          Some visual effects in this caption style are simplified in the exported video.
+          {t("editor_caption_export_simplified_notice")}
         </div>
       ) : null}
     </InspectorSection>

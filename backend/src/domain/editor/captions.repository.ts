@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   captionDocs,
   type NewCaptionDoc,
@@ -25,6 +25,8 @@ export interface ICaptionsRepository {
     userId: string,
     patch: Pick<NewCaptionDoc, "tokens" | "fullText" | "language">,
   ): Promise<CaptionDocRow | null>;
+
+  deleteByIdsAndUser(captionDocIds: string[], userId: string): Promise<void>;
 }
 
 export class CaptionsRepository implements ICaptionsRepository {
@@ -88,5 +90,21 @@ export class CaptionsRepository implements ICaptionsRepository {
       )
       .returning();
     return updated ?? null;
+  }
+
+  async deleteByIdsAndUser(
+    captionDocIds: string[],
+    userId: string,
+  ): Promise<void> {
+    if (captionDocIds.length === 0) return;
+
+    await this.db
+      .delete(captionDocs)
+      .where(
+        and(
+          eq(captionDocs.userId, userId),
+          inArray(captionDocs.id, captionDocIds),
+        ),
+      );
   }
 }

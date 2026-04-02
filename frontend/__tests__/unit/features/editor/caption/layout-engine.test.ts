@@ -62,4 +62,30 @@ describe("computeLayout", () => {
 
     expect(layout.blockY).toBeGreaterThan(1200);
   });
+
+  test("measures transformed text for layout width", () => {
+    const page: CaptionPage = {
+      startMs: 0,
+      endMs: 500,
+      text: "hi",
+      tokens: [{ text: "hi", startMs: 0, endMs: 500, index: 0 }],
+    };
+    const uppercasePreset: TextPreset = {
+      ...preset,
+      typography: {
+        ...preset.typography,
+        textTransform: "uppercase",
+      },
+    };
+    const ctx = {
+      font: "",
+      measureText(text: string) {
+        return { width: text === "HI" ? 40 : 10 } as TextMetrics;
+      },
+    } as CanvasRenderingContext2D;
+
+    const layout = computeLayout(ctx, page, uppercasePreset, 1080, 1920);
+
+    expect(layout.tokens[0]?.width).toBe(40);
+  });
 });

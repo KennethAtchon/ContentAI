@@ -19,8 +19,12 @@ export class FontLoader {
         const face = new FontFace(fontFamily, `url(${url})`);
         await face.load();
         (document as Document & { fonts: FontFaceSet }).fonts.add(face);
-      } catch {
-        // Fail open. Renderer can fall back to browser fonts.
+      } catch (error) {
+        console.warn("Caption font failed to load; falling back to browser font.", {
+          fontFamily,
+          url,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
       }
     })();
 

@@ -33,6 +33,10 @@ describe("ass-exporter", () => {
       color: "&H332211&",
       alpha: "&H00&",
     });
+    expect(cssToASS("#ABC")).toEqual({
+      color: "&HCCBBAA&",
+      alpha: "&H00&",
+    });
     expect(cssToASS("rgba(255, 255, 255, 0.5)")).toEqual({
       color: "&HFFFFFF&",
       alpha: "&H80&",
@@ -59,8 +63,23 @@ describe("ass-exporter", () => {
 
     const events = generateASS(samplePages, preset, resolution, 0, "Cap_hormozi");
 
-    expect(events[0]?.text).toContain("{\\k30}hello");
-    expect(events[0]?.text).toContain("{\\k55}world");
+    expect(events[0]?.text).toContain("{\\k30}HELLO");
+    expect(events[0]?.text).toContain("{\\k55}WORLD");
+  });
+
+  test("generateASS applies textTransform consistently for export text", () => {
+    const preset = {
+      ...SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!,
+      typography: {
+        ...SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!
+          .typography,
+        textTransform: "uppercase" as const,
+      },
+    };
+
+    const events = generateASS(samplePages, preset, resolution, 0, "Cap_clean");
+
+    expect(events[0]?.text).toBe("HELLO WORLD");
   });
 
   test("deriveAssStyleName changes when export-relevant overrides change", () => {

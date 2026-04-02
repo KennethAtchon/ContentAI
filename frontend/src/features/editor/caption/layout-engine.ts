@@ -1,4 +1,5 @@
 import type { CaptionLayout, CaptionPage, TextPreset } from "./types";
+import { applyTextTransform } from "./text-transform";
 
 function resolveFontPx(preset: TextPreset, canvasW: number, canvasH: number): number {
   const scale = Math.min(canvasW / 1080, canvasH / 1920);
@@ -24,7 +25,11 @@ export function computeLayout(
   const spaceWidth = ctx.measureText(" ").width;
 
   page.tokens.forEach((token, index) => {
-    const width = ctx.measureText(token.text).width;
+    const displayText = applyTextTransform(
+      token.text,
+      preset.typography.textTransform,
+    );
+    const width = ctx.measureText(displayText).width;
     const nextWidth = currentLine.length === 0 ? width : currentWidth + spaceWidth + width;
 
     if (currentLine.length > 0 && nextWidth > maxWidth) {

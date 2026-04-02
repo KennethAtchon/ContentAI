@@ -49,7 +49,9 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
   const [captionSyncStatus, setCaptionSyncStatus] = useState<
     Record<string, "idle" | "transcribing" | "ready" | "failed" | "stale">
   >({});
+  const [captionSyncErrors, setCaptionSyncErrors] = useState<Record<string, string>>({});
   const textTrackId = tracks.find((track) => track.type === "text")?.id ?? null;
+  const defaultCaptionPresetId = captionPresets[0]?.id ?? null;
   const selectedAudioClip = selectedMediaClip && selectedTrack?.type === "audio"
     ? selectedMediaClip
     : null;
@@ -78,14 +80,22 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
     ? captionSyncStatus[selectedAudioClip.id] ??
       (captionClipIsStale ? "stale" : linkedCaptionClip ? "ready" : "idle")
     : "idle";
+  const captionActionError = selectedAudioClip
+    ? captionSyncErrors[selectedAudioClip.id] ?? ""
+    : "";
 
   const handleCaptionSync = async () => {
-    if (!selectedAudioClip?.assetId || !textTrackId) return;
+    if (!selectedAudioClip?.assetId || !textTrackId || !defaultCaptionPresetId) return;
 
     setCaptionSyncStatus((current) => ({
       ...current,
       [selectedAudioClip.id]: "transcribing",
     }));
+    setCaptionSyncErrors((current) => {
+      const next = { ...current };
+      delete next[selectedAudioClip.id];
+      return next;
+    });
 
     try {
       const result = await transcriptionMutation.mutateAsync({
@@ -114,6 +124,7 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
           durationMs: selectedAudioClip.durationMs,
           sourceStartMs,
           sourceEndMs,
+          presetId: defaultCaptionPresetId,
         });
       }
 
@@ -121,10 +132,15 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
         ...current,
         [selectedAudioClip.id]: "ready",
       }));
-    } catch {
+    } catch (error) {
       setCaptionSyncStatus((current) => ({
         ...current,
         [selectedAudioClip.id]: "failed",
+      }));
+      setCaptionSyncErrors((current) => ({
+        ...current,
+        [selectedAudioClip.id]:
+          error instanceof Error ? error.message : t("editor_caption_error_default"),
       }));
     }
   };
@@ -159,16 +175,25 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
                     captionAction={
                       selectedAudioClip
                         ? {
-                            label: linkedCaptionClip
-                              ? t("editor_caption_refresh")
-                              : t("editor_caption_create"),
-                            helperText: linkedCaptionClip
-                              ? t("editor_caption_refresh_hint")
-                              : t("editor_caption_create_hint"),
+                            label:
+                              captionActionStatus === "failed"
+                                ? t("editor_caption_retry")
+                                : linkedCaptionClip
+                                  ? t("editor_caption_refresh")
+                                  : t("editor_caption_create"),
+                            helperText:
+                              captionActionStatus === "failed"
+                                ? t("editor_caption_retry_hint", {
+                                    error: captionActionError || t("editor_caption_error_default"),
+                                  })
+                                : linkedCaptionClip
+                                  ? t("editor_caption_refresh_hint")
+                                  : t("editor_caption_create_hint"),
                             status: t(`editor_caption_status_${captionActionStatus}`),
                             disabled:
                               !selectedAudioClip.assetId ||
                               !textTrackId ||
+                              !defaultCaptionPresetId ||
                               transcriptionMutation.isPending ||
                               captionActionStatus === "transcribing",
                             onClick: () => {

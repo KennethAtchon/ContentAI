@@ -31,6 +31,9 @@ export function useTranscription() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.captionDoc(result.captionDocId),
       });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.api.captionPresets(),
+      });
     },
   });
 }

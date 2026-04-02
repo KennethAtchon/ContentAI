@@ -16,7 +16,6 @@ export interface CaptionPresetRecord extends TextPreset {
 export interface ICaptionPresetRepository {
   getCaptionPreset(id: string): Promise<CaptionPresetRecord | null>;
   listCaptionPresets(): Promise<CaptionPresetRecord[]>;
-  invalidateCache(): void;
 }
 
 function mapRow(row: CaptionPreset): CaptionPresetRecord {
@@ -52,11 +51,6 @@ export class CaptionPresetRepository implements ICaptionPresetRepository {
   private listCache: CaptionPresetRecord[] | null = null;
 
   constructor(private readonly db: AppDb) {}
-
-  invalidateCache() {
-    this.cache.clear();
-    this.listCache = null;
-  }
 
   async getCaptionPreset(id: string): Promise<CaptionPresetRecord | null> {
     if (this.cache.has(id)) {

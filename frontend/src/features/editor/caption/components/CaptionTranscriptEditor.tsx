@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
+  const { t } = useTranslation();
   const [fullText, setFullText] = useState(doc?.fullText ?? "");
 
   useEffect(() => {
@@ -19,15 +21,15 @@ export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
   }, [doc?.captionDocId, doc?.fullText]);
 
   return (
-    <InspectorSection title="Transcript">
+    <InspectorSection title={t("editor_caption_transcript_title")}>
       <textarea
         className="w-full rounded border border-overlay-sm bg-overlay-sm px-2 py-1.5 text-xs text-dim-1 resize-none"
         rows={5}
         value={fullText}
         onChange={(e) => setFullText(e.target.value)}
-        placeholder="Edit transcript text"
+        placeholder={t("editor_caption_transcript_placeholder")}
       />
-      <InspectorPropRow label="Save">
+      <InspectorPropRow label={t("editor_caption_save_label")}>
         <button
           type="button"
           disabled={!doc || isSaving}
@@ -41,7 +43,7 @@ export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
           }
           className="rounded border border-studio-accent px-2 py-1 text-[10px] text-studio-accent disabled:opacity-50"
         >
-          {isSaving ? "Saving..." : "Save"}
+          {isSaving ? t("editor_caption_saving") : t("editor_caption_save")}
         </button>
       </InspectorPropRow>
     </InspectorSection>

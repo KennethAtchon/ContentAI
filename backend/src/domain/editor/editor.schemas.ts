@@ -86,23 +86,41 @@ const textClipSchema = z.object({
   textStyle: textStyleSchema.optional(),
 });
 
-const captionClipSchema = z.object({
-  ...baseClipSchema,
-  type: z.literal("caption"),
-  originVoiceoverClipId: z.string().min(1).nullable(),
-  captionDocId: z.string().min(1),
-  sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  sourceEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  stylePresetId: z.string().min(1),
-  styleOverrides: z
-    .object({
-      positionY: z.number().optional(),
-      fontSize: z.number().optional(),
-      textTransform: z.enum(["none", "uppercase", "lowercase"]).optional(),
-    })
-    .default({}),
-  groupingMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
-});
+const captionClipSchema = z
+  .object({
+    ...baseClipSchema,
+    type: z.literal("caption"),
+    originVoiceoverClipId: z.string().min(1).nullable(),
+    captionDocId: z.string().min(1),
+    sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+    sourceEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+    stylePresetId: z.string().min(1),
+    styleOverrides: z
+      .object({
+        positionY: z.number().optional(),
+        fontSize: z.number().optional(),
+        textTransform: z.enum(["none", "uppercase", "lowercase"]).optional(),
+      })
+      .default({}),
+    groupingMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
+  })
+  .superRefine((value, ctx) => {
+    if (value.durationMs <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Caption clip durationMs must be greater than 0",
+        path: ["durationMs"],
+      });
+    }
+
+    if (value.sourceStartMs >= value.sourceEndMs) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Caption clip sourceStartMs must be less than sourceEndMs",
+        path: ["sourceStartMs"],
+      });
+    }
+  });
 
 const timelineClipSchema = z.discriminatedUnion("type", [
   videoClipSchema,

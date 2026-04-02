@@ -33,10 +33,35 @@ function clampByte(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
+function applyTextTransform(
+  text: string,
+  textTransform: TextPreset["typography"]["textTransform"],
+): string {
+  switch (textTransform) {
+    case "uppercase":
+      return text.toUpperCase();
+    case "lowercase":
+      return text.toLowerCase();
+    default:
+      return text;
+  }
+}
+
 function parseCssColor(input: string): { r: number; g: number; b: number; a: number } {
   const normalized = input.trim().toLowerCase();
   if (normalized === "transparent") {
     return { r: 0, g: 0, b: 0, a: 0 };
+  }
+
+  const shorthandHex = normalized.match(/^#([0-9a-f]{3})$/i);
+  if (shorthandHex) {
+    const value = shorthandHex[1]!;
+    return parseCssColor(
+      `#${value
+        .split("")
+        .map((char) => `${char}${char}`)
+        .join("")}`,
+    );
   }
 
   const hex = normalized.match(/^#([0-9a-f]{6})$/i);
@@ -168,18 +193,6 @@ function toStyleLine(
   ].join(",");
 }
 
-function karaokeText(page: CaptionPage): string {
-  return page.tokens
-    .map((token) => {
-      const durationCs = Math.max(
-        1,
-        Math.round((token.endMs - token.startMs) / 10),
-      );
-      return `{\\k${durationCs}}${escapeAssText(token.text)}`;
-    })
-    .join(" ");
-}
-
 export function generateASS(
   pages: CaptionPage[],
   preset: TextPreset,
@@ -193,8 +206,20 @@ export function generateASS(
     styleName,
     text:
       preset.exportMode === "approximate"
-        ? karaokeText(page)
-        : escapeAssText(page.text),
+        ? page.tokens
+            .map((token) => {
+              const durationCs = Math.max(
+                1,
+                Math.round((token.endMs - token.startMs) / 10),
+              );
+              return `{\\k${durationCs}}${escapeAssText(
+                applyTextTransform(token.text, preset.typography.textTransform),
+              )}`;
+            })
+            .join(" ")
+        : escapeAssText(
+            applyTextTransform(page.text, preset.typography.textTransform),
+          ),
   }));
 }
 
