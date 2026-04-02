@@ -134,7 +134,7 @@ export const editorTrackDataSchema = z.object({
   muted: z.boolean(),
   locked: z.boolean(),
   clips: z.array(timelineClipSchema),
-  transitions: z.array(transitionSchema).optional(),
+  transitions: z.array(transitionSchema).default([]),
 });
 
 export const editorStoredTracksSchema = z.array(editorTrackDataSchema);

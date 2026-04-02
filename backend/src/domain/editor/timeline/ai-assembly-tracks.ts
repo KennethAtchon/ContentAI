@@ -38,6 +38,7 @@ export function convertAIResponseToTracks(
     const clipDuration = t1 - t0;
     const clip = normalizeMediaClipTrimFields(shotDuration, {
       id: `ai-clip-${i}`,
+      type: "video",
       assetId: asset.id,
       label: `Shot ${cut.shotIndex + 1}`,
       startMs: cursor,
@@ -66,6 +67,7 @@ export function convertAIResponseToTracks(
     ? [
         normalizeMediaClipTrimFields(voiceDur, {
           id: `voiceover-${aux.voiceover.id}`,
+          type: "audio",
           assetId: aux.voiceover.id,
           label: "Voiceover",
           startMs: 0,
@@ -88,6 +90,7 @@ export function convertAIResponseToTracks(
     ? [
         normalizeMediaClipTrimFields(musicDur, {
           id: `music-${aux.music.id}`,
+          type: "music",
           assetId: aux.music.id,
           label: "Music",
           startMs: 0,
@@ -162,6 +165,7 @@ export function buildStandardPresetTracks(
     const durationMs = Math.max(1, asset.durationMs ?? 5000);
     const clip = normalizeMediaClipTrimFields(durationMs, {
       id: `std-clip-${i}`,
+      type: "video",
       assetId: asset.id,
       label: `Shot ${i + 1}`,
       startMs: cursor,
@@ -189,6 +193,7 @@ export function buildStandardPresetTracks(
     ? [
         normalizeMediaClipTrimFields(voiceDur, {
           id: `voiceover-${aux.voiceover.id}`,
+          type: "audio",
           assetId: aux.voiceover.id,
           label: "Voiceover",
           startMs: 0,
@@ -211,6 +216,7 @@ export function buildStandardPresetTracks(
     ? [
         normalizeMediaClipTrimFields(musicDur, {
           id: `music-${aux.music.id}`,
+          type: "music",
           assetId: aux.music.id,
           label: "Music",
           startMs: 0,

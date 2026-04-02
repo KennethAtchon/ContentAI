@@ -120,6 +120,7 @@ export function reconcileVideoClipsWithoutPlaceholders(
     } else {
       const row = normalizeMediaClipTrimFields(sourceDur, {
         id: crypto.randomUUID(),
+        type: "video",
         assetId: asset.id,
         label:
           genPrompt ??
@@ -240,6 +241,7 @@ export function mergePlaceholdersWithRealClips(
           })
         : normalizeMediaClipTrimFields(dur, {
             id: `voiceover-${voiceover.id}`,
+            type: "audio",
             assetId: voiceover.id,
             label: "Voiceover",
             startMs: 0,
@@ -276,6 +278,7 @@ export function mergePlaceholdersWithRealClips(
           })
         : normalizeMediaClipTrimFields(dur, {
             id: `music-${music.id}`,
+            type: "music",
             assetId: music.id,
             label: "Music",
             startMs: 0,

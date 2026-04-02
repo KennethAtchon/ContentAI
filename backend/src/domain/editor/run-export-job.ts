@@ -36,6 +36,12 @@ export type ExportJobDbDeps = {
   ) => Promise<void>;
 };
 
+function isRenderableMediaClip(
+  clip: Track["clips"][number],
+): clip is VideoClip | AudioClip | MusicClip {
+  return clip.type === "video" || clip.type === "audio" || clip.type === "music";
+}
+
 interface TransitionData {
   id: string;
   type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
@@ -112,7 +118,7 @@ export async function runExportJob(
 
     const assetIds = tracks
       .flatMap((t) => t.clips)
-      .filter(isMediaClip)
+      .filter(isRenderableMediaClip)
       .map((c) => c.assetId)
       .filter((id): id is string => !!id);
 

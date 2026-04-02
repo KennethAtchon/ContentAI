@@ -43,14 +43,14 @@ export interface MediaClipBase extends VisualClip {
   sourceMaxDurationMs?: number;
   volume: number;
   muted: boolean;
-}
-
-export interface VideoClip extends MediaClipBase {
-  type: "video";
   isPlaceholder?: true;
   placeholderShotIndex?: number;
   placeholderLabel?: string;
   placeholderStatus?: "pending" | "generating" | "failed";
+}
+
+export interface VideoClip extends MediaClipBase {
+  type: "video";
 }
 
 export interface AudioClip extends MediaClipBase {

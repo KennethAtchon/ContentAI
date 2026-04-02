@@ -784,7 +784,7 @@ export class EditorRepository implements IEditorRepository {
 
       const currentTracks = parseStoredEditorTracks(
         project.tracks,
-      ) as TimelineTrackJson[];
+      ) as unknown as TimelineTrackJson[];
 
       const incomingVideoIds = new Set(videoClipRows.map((a) => a.id));
       const incomingVoiceoverId = voiceover?.id ?? null;

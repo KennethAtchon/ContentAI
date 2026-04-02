@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Switch } from "@/shared/components/ui/switch";
 import type { Clip, TrackType } from "../../types/editor";
 import { INSPECTOR_EFFECT_DEFINITIONS } from "../../constants/inspector-ui-constants";
+import { isMediaClip as isMediaTimelineClip } from "../../utils/clip-types";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -128,7 +129,7 @@ export function InspectorClipVisualPanel({
         <InspectorSection title={t("inspector_section_sound")}>
           <InspectorSliderRow
             label={t("inspector_prop_volume")}
-            value={clip.volume ?? 1}
+            value={isMediaTimelineClip(clip) ? clip.volume : 1}
             min={0}
             max={2}
             step={0.05}
@@ -136,7 +137,7 @@ export function InspectorClipVisualPanel({
           />
           <InspectorPropRow label={t("inspector_prop_mute")}>
             <Switch
-              checked={clip.muted ?? false}
+              checked={isMediaTimelineClip(clip) ? clip.muted : false}
               onCheckedChange={(checked) => onUpdateClip(clip.id, { muted: checked })}
             />
           </InspectorPropRow>

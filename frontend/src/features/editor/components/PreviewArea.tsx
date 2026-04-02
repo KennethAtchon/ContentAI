@@ -309,9 +309,16 @@ export function PreviewArea({
                     effectPreviewOverride?.clipId === clip.id
                       ? effectPreviewOverride.patch
                       : null;
-                  const contrast = preview?.contrast ?? clip.contrast;
-                  const warmth = preview?.warmth ?? clip.warmth;
-                  const baseOpacity = preview?.opacity ?? clip.opacity ?? 1;
+                  const contrast =
+                    (preview && "contrast" in preview ? preview.contrast : undefined) ??
+                    clip.contrast;
+                  const warmth =
+                    (preview && "warmth" in preview ? preview.warmth : undefined) ??
+                    clip.warmth;
+                  const baseOpacity =
+                    (preview && "opacity" in preview ? preview.opacity : undefined) ??
+                    clip.opacity ??
+                    1;
 
                   const outgoing = getOutgoingTransitionStyle(
                     clip,

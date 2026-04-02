@@ -40,6 +40,7 @@ function makeVideoClip(
   const dur = Math.max(1, durationMs);
   return normalizeMediaClipTrimFields(dur, {
     id: crypto.randomUUID(),
+    type: "video",
     assetId,
     label: genPrompt ?? (shotIdx >= 0 ? `Shot ${shotIdx + 1}` : "Video clip"),
     startMs,
@@ -66,6 +67,7 @@ function makeAudioClip(
   const dur = Math.max(1, durationMs);
   return normalizeMediaClipTrimFields(dur, {
     id: `${idPrefix}-${assetId}`,
+    type: idPrefix === "music" ? "music" : "audio",
     assetId,
     label,
     startMs: 0,
@@ -99,7 +101,7 @@ export async function mergeNewAssetsIntoProject(
 
   const currentTracks = parseStoredEditorTracks(
     project.tracks,
-  ) as TimelineTrackJson[];
+  ) as unknown as TimelineTrackJson[];
   const alreadyMerged = new Set((project.mergedAssetIds ?? []) as string[]);
 
   if (!project.generatedContentId) {

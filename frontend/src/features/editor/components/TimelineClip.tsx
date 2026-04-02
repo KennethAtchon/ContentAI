@@ -30,7 +30,7 @@ import {
   PlaceholderContextMenu,
 } from "./ClipContextMenu";
 import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
-import { isMediaClip } from "../utils/clip-types";
+import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
 interface Props {
   clip: EditorTimelineClip;
@@ -89,6 +89,7 @@ export function TimelineClip({
   const dragCurrentMs = useRef(0);
   const assetUrlMap = useAssetUrlMap();
   const mediaClip = isMediaClip(clip) ? clip : null;
+  const videoClip = isVideoClip(clip) ? clip : null;
   const isAudioTrack = trackType === "audio" || trackType === "music";
   const hasWaveform = !!mediaClip && (isAudioTrack || trackType === "video");
   const isDisabled = mediaClip?.enabled === false;
@@ -117,7 +118,7 @@ export function TimelineClip({
   );
 
   const handleDragStart = (e: React.MouseEvent) => {
-    if (isLocked || (mediaClip && mediaClip.isPlaceholder)) return;
+    if (isLocked || (videoClip && videoClip.isPlaceholder)) return;
     e.stopPropagation();
     const dragStartX = e.clientX;
     const dragStartMs = clip.startMs;
@@ -163,7 +164,7 @@ export function TimelineClip({
   };
 
   const handleTrimLeft = (e: React.MouseEvent) => {
-    if (isLocked || !mediaClip || mediaClip.isPlaceholder) return;
+    if (isLocked || !mediaClip || (videoClip?.isPlaceholder ?? false)) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origStart = clip.startMs;
@@ -205,7 +206,7 @@ export function TimelineClip({
   };
 
   const handleTrimRight = (e: React.MouseEvent) => {
-    if (isLocked || !mediaClip || mediaClip.isPlaceholder) return;
+    if (isLocked || !mediaClip || (videoClip?.isPlaceholder ?? false)) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origDuration = clip.durationMs;
@@ -246,8 +247,8 @@ export function TimelineClip({
     window.addEventListener("mouseup", onUp);
   };
 
-  if (mediaClip?.isPlaceholder) {
-    const st = mediaClip.placeholderStatus ?? "pending";
+  if (videoClip?.isPlaceholder) {
+    const st = videoClip.placeholderStatus ?? "pending";
     return (
       <PlaceholderContextMenu onDelete={onDelete}>
         <div
@@ -269,7 +270,7 @@ export function TimelineClip({
               <Clock className="h-3 w-3 shrink-0 text-dim-3" aria-hidden />
             )}
             <span className="text-[10px] font-medium text-dim-2 truncate">
-              {mediaClip.placeholderLabel ?? mediaClip.label}
+              {videoClip.placeholderLabel ?? videoClip.label}
             </span>
           </div>
           <span className="text-[9px] px-1.5 text-dim-4">

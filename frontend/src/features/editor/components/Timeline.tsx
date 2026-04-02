@@ -35,7 +35,7 @@ import {
 } from "../constants/timeline-layout";
 import { useTimelinePlayheadScroll } from "../hooks/use-timeline-playhead-scroll";
 import { useTimelineAssetDrop } from "../hooks/use-timeline-asset-drop";
-import { isMediaClip } from "../utils/clip-types";
+import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
 interface Props {
   onAddClip: (trackId: string, clip: EditorTimelineClip) => void;
@@ -319,7 +319,7 @@ export function Timeline({
                     ))}
 
                     {track.type === "video" &&
-                      track.clips.filter(isMediaClip).slice(0, -1).map((clipA, idx, mediaClips) => {
+                      track.clips.filter(isVideoClip).slice(0, -1).map((clipA, idx, mediaClips) => {
                         const clipB = mediaClips[idx + 1];
                         const gapMs = clipB.startMs - (clipA.startMs + clipA.durationMs);
                         if (gapMs > 500) return null;

@@ -50,6 +50,7 @@ export function useTimelineAssetDrop(options: {
       setDropTargetTrackId(null);
       if (!e.dataTransfer.types.includes("application/x-contentai-asset")) return;
       if (track.locked) return;
+      if (track.type === "text") return;
       e.preventDefault();
 
       const raw = e.dataTransfer.getData("application/x-contentai-asset");

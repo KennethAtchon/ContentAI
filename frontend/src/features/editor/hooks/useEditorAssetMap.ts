@@ -6,9 +6,9 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import type { MediaItem } from "@/features/media/types/media.types";
-import type { Track } from "../types/editor";
+import type { MediaClip, Track, VideoClip } from "../types/editor";
 import { uploadProjectThumbnail } from "../services/editor-api";
-import { isMediaClip } from "../utils/clip-types";
+import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
 interface Asset {
   id: string;
@@ -121,16 +121,16 @@ export function useEditorAssetMap({
       const nowMs = atMs ?? currentTimeMs;
       const activeClip =
         videoTrack?.clips.find(
-          (clip): clip is import("../types/editor").Clip =>
-            isMediaClip(clip) &&
+          (clip): clip is VideoClip =>
+            isVideoClip(clip) &&
             !clip.isPlaceholder &&
             Boolean(clip.assetId) &&
             clip.startMs <= nowMs &&
             nowMs < clip.startMs + clip.durationMs
         ) ??
         videoTrack?.clips.find(
-          (clip): clip is import("../types/editor").Clip =>
-            isMediaClip(clip) && !clip.isPlaceholder && Boolean(clip.assetId)
+          (clip): clip is VideoClip =>
+            isVideoClip(clip) && !clip.isPlaceholder && Boolean(clip.assetId)
         );
       const url = activeClip?.assetId ? assetUrlMap.get(activeClip.assetId) : undefined;
       if (!url) return;
@@ -163,8 +163,8 @@ export function useEditorAssetMap({
     if (assetUrlMap.size === 0) return;
     const videoTrack = tracks.find((track) => track.type === "video");
     const firstClip = videoTrack?.clips.find(
-      (clip): clip is import("../types/editor").Clip =>
-        isMediaClip(clip) && !clip.isPlaceholder && Boolean(clip.assetId)
+      (clip): clip is VideoClip =>
+        isVideoClip(clip) && !clip.isPlaceholder && Boolean(clip.assetId)
     );
     if (!firstClip?.assetId) return;
     thumbnailCapturedRef.current = true;

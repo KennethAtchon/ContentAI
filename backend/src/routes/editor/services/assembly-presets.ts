@@ -1,47 +1,27 @@
-type EditorClip = {
-  id: string;
-  assetId: string | null;
-  startMs: number;
-  durationMs: number;
-  trimStartMs: number;
-  trimEndMs: number;
-  speed: number;
-  opacity: number;
-  warmth: number;
-  contrast: number;
-  positionX: number;
-  positionY: number;
-  scale: number;
-  rotation: number;
-  volume: number;
-  muted: boolean;
-};
+import type {
+  AudioClip,
+  MusicClip,
+  Track,
+  VideoClip,
+} from "../../../types/timeline.types";
 
-type EditorTrack = {
-  id: string;
-  type: string;
-  name: string;
-  muted: boolean;
-  locked: boolean;
-  clips: EditorClip[];
-};
+type PresetTrack = Track;
 
-// Standard: shots in original order, full duration — no-op.
-export function applyStandardPreset(tracks: EditorTrack[]): EditorTrack[] {
+export function applyStandardPreset(tracks: PresetTrack[]): PresetTrack[] {
   return tracks;
 }
 
-// FastCut: each clip trimmed to min(duration, 3000ms). Recalculates startMs.
-export function applyFastCutPreset(tracks: EditorTrack[]): EditorTrack[] {
-  const MAX_CLIP_MS = 3000;
+export function applyFastCutPreset(tracks: PresetTrack[]): PresetTrack[] {
+  const maxClipMs = 3000;
   return tracks.map((track) => {
     if (track.type !== "video") return track;
 
     let cursor = 0;
     const clips = track.clips.map((clip) => {
-      const trimmedDuration = Math.min(clip.durationMs, MAX_CLIP_MS);
+      if (clip.type !== "video") return clip;
+      const trimmedDuration = Math.min(clip.durationMs, maxClipMs);
       const removedRight = clip.durationMs - trimmedDuration;
-      const updated = {
+      const updated: VideoClip = {
         ...clip,
         startMs: cursor,
         durationMs: trimmedDuration,
@@ -55,23 +35,25 @@ export function applyFastCutPreset(tracks: EditorTrack[]): EditorTrack[] {
   });
 }
 
-// Cinematic: overlapping clips (fade feel) + music at 50%.
-export function applyCinematicPreset(tracks: EditorTrack[]): EditorTrack[] {
-  const FADE_MS = 500;
+export function applyCinematicPreset(tracks: PresetTrack[]): PresetTrack[] {
+  const fadeMs = 500;
 
   return tracks.map((track) => {
     if (track.type === "video") {
       let cursor = 0;
       const clips = track.clips.map((clip, i) => {
-        const updated = { ...clip, startMs: cursor };
-        cursor += clip.durationMs - (i < track.clips.length - 1 ? FADE_MS : 0);
+        if (clip.type !== "video") return clip;
+        const updated: VideoClip = { ...clip, startMs: cursor };
+        cursor += clip.durationMs - (i < track.clips.length - 1 ? fadeMs : 0);
         return updated;
       });
       return { ...track, clips };
     }
 
     if (track.type === "music") {
-      const clips = track.clips.map((clip) => ({ ...clip, volume: 0.5 }));
+      const clips = track.clips.map((clip) =>
+        clip.type === "music" ? ({ ...clip, volume: 0.5 } satisfies MusicClip) : clip,
+      );
       return { ...track, clips };
     }
 

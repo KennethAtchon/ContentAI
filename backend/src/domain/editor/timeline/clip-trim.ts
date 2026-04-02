@@ -1,31 +1,38 @@
-const MIN_CLIP_MS = 100;
+const minClipMs = 100;
 
-/** Minimal clip shape stored in edit_project.tracks JSONB */
 export type TimelineClipJson = Record<string, unknown> & {
-  id: string;
+  id?: string;
   assetId?: string | null;
+  type?: string;
   isPlaceholder?: true;
   placeholderShotIndex?: number;
   placeholderLabel?: string;
   placeholderStatus?: "pending" | "generating" | "failed";
+  trimStartMs?: number;
+  durationMs?: number;
+  trimEndMs?: number;
+  sourceMaxDurationMs?: number;
 };
 
-/**
- * Frontend/editor invariant for media clips (video, voiceover, music):
- * trimStartMs + durationMs + trimEndMs === sourceMaxDurationMs.
- * trimEndMs is the unused tail of the source file (not an absolute out-point).
- */
-export function normalizeMediaClipTrimFields(
+export function normalizeMediaClipTrimFields<T extends TimelineClipJson>(
   sourceMaxMs: number,
-  clip: TimelineClipJson,
-): TimelineClipJson {
-  const max = Math.max(MIN_CLIP_MS, Math.round(Number(sourceMaxMs) || MIN_CLIP_MS));
+  clip: T,
+): T & {
+  trimStartMs: number;
+  durationMs: number;
+  trimEndMs: number;
+  sourceMaxDurationMs: number;
+} {
+  const max = Math.max(minClipMs, Math.round(Number(sourceMaxMs) || minClipMs));
   let trimStart = Math.max(0, Math.floor(Number(clip.trimStartMs ?? 0)));
-  if (trimStart > max - MIN_CLIP_MS) trimStart = Math.max(0, max - MIN_CLIP_MS);
+  if (trimStart > max - minClipMs) trimStart = Math.max(0, max - minClipMs);
 
-  let durationMs = Math.max(MIN_CLIP_MS, Math.floor(Number(clip.durationMs ?? max - trimStart)));
+  let durationMs = Math.max(
+    minClipMs,
+    Math.floor(Number(clip.durationMs ?? max - trimStart)),
+  );
   if (trimStart + durationMs > max) {
-    durationMs = Math.max(MIN_CLIP_MS, max - trimStart);
+    durationMs = Math.max(minClipMs, max - trimStart);
   }
 
   const trimEndMs = Math.max(0, max - trimStart - durationMs);

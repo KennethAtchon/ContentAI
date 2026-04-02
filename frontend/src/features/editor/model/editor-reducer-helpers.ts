@@ -91,7 +91,8 @@ export function computeDuration(tracks: Track[]): number {
 export function alignClipTrimEndToInvariant(clip: TimelineClip): TimelineClip {
   if (!isMediaClip(clip)) return clip;
   const sm = clip.sourceMaxDurationMs;
-  if (sm === undefined || clip.assetId == null || clip.isPlaceholder) return clip;
+  if (sm === undefined || clip.assetId == null) return clip;
+  if (clip.type === "video" && clip.isPlaceholder) return clip;
   const ts = clip.trimStartMs ?? 0;
   const d = clip.durationMs ?? 0;
   const te = Math.max(0, sm - ts - d);

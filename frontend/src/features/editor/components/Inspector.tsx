@@ -190,7 +190,7 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
                 )}
                 <InspectorTextAndCaptionPanels
                   clip={selectedClip}
-                  isTextClip={isTextClip}
+                  isTextTrack={isTextClip}
                   onUpdateClip={onUpdateClip}
                 />
                 {selectedCaptionClip && (
