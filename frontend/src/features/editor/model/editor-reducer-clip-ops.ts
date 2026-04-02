@@ -4,7 +4,7 @@ import type {
   Track,
   CaptionClip,
   MediaClip,
-  TimelineClip,
+  Clip,
   ClipPatch,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
@@ -272,7 +272,7 @@ export function reduceClipOps(
       const track = state.tracks.find((t) => t.id === action.trackId);
       if (!track) return state;
 
-      const newClip: TimelineClip = {
+      const newClip: Clip = {
         ...state.clipboardClip,
         id: crypto.randomUUID(),
         startMs: action.startMs,
@@ -337,7 +337,7 @@ export function reduceClipOps(
           (max, c) => Math.max(max, c.startMs + c.durationMs),
           0
         );
-        const copy: TimelineClip = {
+        const copy: Clip = {
           ...clip,
           id: crypto.randomUUID(),
           startMs: trackEnd,
@@ -365,6 +365,17 @@ export function reduceClipOps(
         ...state,
         ...pushPastTracks(state, newTracks),
         durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "MARK_CAPTION_STALE": {
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, {
+        stale: true,
+        locallyModified: true,
+      });
+      return {
+        ...state,
+        ...pushPastTracks(state, newTracks),
       };
     }
 

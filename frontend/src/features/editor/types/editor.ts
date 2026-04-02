@@ -68,7 +68,7 @@ export interface TextClip extends VisualClip {
   textStyle?: TextStyle;
 }
 
-export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip | CaptionClip;
 export type MediaClip = VideoClip | AudioClip | MusicClip;
 
 export interface CaptionStyleOverrides {
@@ -86,9 +86,8 @@ export interface CaptionClip extends BaseClip {
   stylePresetId: string;
   styleOverrides: CaptionStyleOverrides;
   groupingMs: number;
+  stale?: boolean;
 }
-
-export type TimelineClip = Clip | CaptionClip;
 
 export type VideoClipPatch = Partial<Omit<VideoClip, "id" | "type">>;
 export type AudioClipPatch = Partial<Omit<AudioClip, "id" | "type">>;
@@ -110,7 +109,7 @@ export interface Track {
   name: string;
   muted: boolean;
   locked: boolean;
-  clips: TimelineClip[];
+  clips: Clip[];
   transitions: Transition[];
 }
 
@@ -161,7 +160,7 @@ export interface EditorState {
   zoom: number;
   tracks: Track[];
   selectedClipId: string | null;
-  clipboardClip: TimelineClip | null;
+  clipboardClip: Clip | null;
   clipboardSourceTrackId: string | null;
   past: EditorHistorySnapshot[];
   future: EditorHistorySnapshot[];
@@ -179,11 +178,11 @@ export type EditorAction =
   | { type: "SET_PLAYBACK_RATE"; rate: number }
   | { type: "SET_ZOOM"; zoom: number }
   | { type: "SELECT_CLIP"; clipId: string | null }
-  | { type: "ADD_CLIP"; trackId: string; clip: TimelineClip }
+  | { type: "ADD_CLIP"; trackId: string; clip: Clip }
   | {
       type: "ADD_CLIP_AUTO_PROMOTE";
       preferredTrackId: string;
-      clip: TimelineClip;
+      clip: Clip;
     }
   | {
       type: "ADD_CAPTION_CLIP";
@@ -234,7 +233,12 @@ export type EditorAction =
   | { type: "REMOVE_TRACK"; trackId: string }
   | { type: "RENAME_TRACK"; trackId: string; name: string }
   | { type: "REORDER_TRACKS"; trackIds: string[] }
-  | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] };
+  | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] }
+  | {
+      type: "MARK_CAPTION_STALE";
+      clipId: string;
+      reason: "voiceover-trim-changed" | "voiceover-asset-replaced" | "voiceover-deleted";
+    };
 
 export const TRACK_COLORS: Record<TrackType, string> = {
   video: "#a78bfa",

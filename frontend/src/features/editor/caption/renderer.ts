@@ -14,7 +14,10 @@ type TokenVisualState = "upcoming" | "active" | "past";
 interface ResolvedTransform {
   opacity: number;
   scale: number;
+  translateX: number;
   translateY: number;
+  rotation: number;
+  letterSpacing: number;
 }
 
 interface LineBox {
@@ -87,8 +90,17 @@ function applyAnimation(transform: ResolvedTransform, animation: AnimationDef, p
     case "scale":
       transform.scale *= value;
       break;
+    case "translateX":
+      transform.translateX += value;
+      break;
     case "translateY":
       transform.translateY += value;
+      break;
+    case "rotation":
+      transform.rotation += value;
+      break;
+    case "letterSpacing":
+      transform.letterSpacing += value;
       break;
   }
 }
@@ -104,7 +116,10 @@ function resolveTransform(
   const transform: ResolvedTransform = {
     opacity: 1,
     scale: 1,
+    translateX: 0,
     translateY: 0,
+    rotation: 0,
+    letterSpacing: 0,
   };
 
   for (const animation of animations ?? []) {
@@ -270,10 +285,20 @@ function drawLayer(
     return;
   }
 
+  if (layer.type === "glow") {
+    ctx.save();
+    ctx.shadowColor = layer.color;
+    ctx.shadowBlur = layer.blur;
+    ctx.fillStyle = layer.color;
+    ctx.fillText(displayText, token.x, token.y);
+    ctx.restore();
+    return;
+  }
+
   if (layer.type === "stroke") {
     ctx.strokeStyle = resolveLayerColor(layer, state);
     ctx.lineWidth = layer.width;
-    ctx.lineJoin = layer.join ?? "round";
+    ctx.lineJoin = layer.join;
     ctx.strokeText(displayText, token.x, token.y);
     return;
   }
@@ -289,7 +314,8 @@ function applyTransform(
   transform: ResolvedTransform,
 ) {
   ctx.globalAlpha *= transform.opacity;
-  ctx.translate(anchorX, anchorY + transform.translateY);
+  ctx.translate(anchorX + transform.translateX, anchorY + transform.translateY);
+  ctx.rotate((transform.rotation * Math.PI) / 180);
   ctx.scale(transform.scale, transform.scale);
   ctx.translate(-anchorX, -anchorY);
 }
@@ -330,7 +356,10 @@ export function renderFrame(
     {
       opacity: pageTransform.opacity * exitPageTransform.opacity,
       scale: pageTransform.scale * exitPageTransform.scale,
+      translateX: pageTransform.translateX + exitPageTransform.translateX,
       translateY: pageTransform.translateY + exitPageTransform.translateY,
+      rotation: pageTransform.rotation + exitPageTransform.rotation,
+      letterSpacing: pageTransform.letterSpacing + exitPageTransform.letterSpacing,
     },
   );
 
@@ -362,7 +391,10 @@ export function renderFrame(
     applyTransform(ctx, tokenCenterX, tokenCenterY, {
       opacity: wordEntryTransform.opacity * wordExitTransform.opacity,
       scale: wordEntryTransform.scale * wordExitTransform.scale * pulse,
+      translateX: wordEntryTransform.translateX + wordExitTransform.translateX,
       translateY: wordEntryTransform.translateY + wordExitTransform.translateY,
+      rotation: wordEntryTransform.rotation + wordExitTransform.rotation,
+      letterSpacing: wordEntryTransform.letterSpacing + wordExitTransform.letterSpacing,
     });
     for (const layer of layers) {
       drawLayer(ctx, layout, token, state, layer, lineBoxes, preset);

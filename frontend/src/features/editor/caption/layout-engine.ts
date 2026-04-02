@@ -85,6 +85,7 @@ export function computeLayout(
 
   return {
     page,
+    preset,
     tokens: positionedTokens,
     blockX:
       preset.layout.alignment === "left"
@@ -94,5 +95,8 @@ export function computeLayout(
     blockWidth,
     blockHeight,
     lineHeightPx,
+    lineCount: lines.length,
+    canvasW,
+    canvasH,
   };
 }

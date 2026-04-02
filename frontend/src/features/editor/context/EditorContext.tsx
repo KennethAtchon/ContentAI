@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo, ReactNode } from "react";
-import type { TimelineClip, Track } from "../types/editor";
+import type { Clip, Track } from "../types/editor";
 import type { EditorStore } from "../hooks/useEditorStore";
 
 interface EditorContextValue extends EditorStore {
   /** The clip currently selected, derived from state.selectedClipId */
-  selectedClip: TimelineClip | null;
+  selectedClip: Clip | null;
   /** The track that contains the selected clip */
   selectedTrack: Track | null;
   /** Timeline pixels per millisecond, derived from state.zoom */
@@ -27,7 +27,7 @@ interface EditorProviderProps {
 export function EditorProvider({ store, children }: EditorProviderProps) {
   const { state } = store;
 
-  const selectedClip = useMemo((): TimelineClip | null => {
+  const selectedClip = useMemo((): Clip | null => {
     if (!state.selectedClipId) return null;
     for (const track of state.tracks) {
       const clip = track.clips.find((c) => c.id === state.selectedClipId);

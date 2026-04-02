@@ -7,7 +7,6 @@ import type {
   Clip,
   ClipPatch,
   MediaClip,
-  TimelineClip as EditorTimelineClip,
   Track,
   TrackType,
 } from "../types/editor";
@@ -33,7 +32,7 @@ import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
 import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
 interface Props {
-  clip: EditorTimelineClip;
+  clip: Clip;
   trackType: TrackType;
   track: Track;
   zoom: number; // px/s

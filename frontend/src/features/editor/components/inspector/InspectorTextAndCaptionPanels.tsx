@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { Switch } from "@/shared/components/ui/switch";
-import type { ClipPatch, TimelineClip } from "../../types/editor";
+import type { ClipPatch, Clip } from "../../types/editor";
 import { isTextClip } from "../../utils/clip-types";
 import {
   InspectorSection,
@@ -10,7 +10,7 @@ import {
 } from "./InspectorPrimitives";
 
 interface Props {
-  clip: TimelineClip;
+  clip: Clip;
   isTextTrack: boolean;
   onUpdateClip: (clipId: string, patch: ClipPatch) => void;
 }

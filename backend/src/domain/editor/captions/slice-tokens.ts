@@ -9,13 +9,13 @@ export function sliceTokensToRange(
 
   return tokens
     .map((token) => ({
-      word: token.word,
+      text: token.text,
       startMs: Math.max(token.startMs, sourceStartMs),
       endMs: Math.min(token.endMs, sourceEndMs),
     }))
     .filter((token) => token.endMs > token.startMs)
     .map((token) => ({
-      word: token.word,
+      text: token.text,
       startMs: token.startMs - sourceStartMs,
       endMs: token.endMs - sourceStartMs,
     }));

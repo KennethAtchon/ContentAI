@@ -1,6 +1,6 @@
 import { useReducer, useCallback } from "react";
 import type {
-  TimelineClip,
+  Clip,
   ClipPatch,
   EditProject,
   ExportJobStatus,
@@ -47,7 +47,7 @@ export function useEditorReducer() {
     []
   );
   const addClip = useCallback(
-    (trackId: string, clip: TimelineClip) =>
+    (trackId: string, clip: Clip) =>
       dispatch({ type: "ADD_CLIP", trackId, clip }),
     []
   );
@@ -139,7 +139,7 @@ export function useEditorReducer() {
     []
   );
   const addClipAutoPromote = useCallback(
-    (preferredTrackId: string, clip: TimelineClip) =>
+    (preferredTrackId: string, clip: Clip) =>
       dispatch({ type: "ADD_CLIP_AUTO_PROMOTE", preferredTrackId, clip }),
     []
   );

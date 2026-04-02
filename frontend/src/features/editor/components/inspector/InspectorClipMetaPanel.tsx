@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import type { Clip } from "../../types/editor";
+import type { CaptionClip, Clip } from "../../types/editor";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -16,7 +16,7 @@ import {
 } from "./InspectorPrimitives";
 
 interface Props {
-  clip: Clip;
+  clip: Exclude<Clip, CaptionClip>;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
   captionAction?: {
     label: string;

@@ -20,8 +20,8 @@ import { TimelineClip } from "./TimelineClip";
 import { Playhead } from "./Playhead";
 import { SortableTrackHeader } from "./SortableTrackHeader";
 import type {
+  Clip,
   TextClip,
-  TimelineClip as EditorTimelineClip,
   TrackType,
 } from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
@@ -38,7 +38,7 @@ import { useTimelineAssetDrop } from "../hooks/use-timeline-asset-drop";
 import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
 interface Props {
-  onAddClip: (trackId: string, clip: EditorTimelineClip) => void;
+  onAddClip: (trackId: string, clip: Clip) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
   onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
   onClipSplit: (clipId: string) => void;

@@ -75,7 +75,6 @@ export interface TextClip extends VisualClip {
   textStyle?: TextStyle;
 }
 
-export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
 export type MediaClip = VideoClip | AudioClip | MusicClip;
 
 export interface CaptionStyleOverrides {
@@ -95,7 +94,7 @@ export interface CaptionClip extends BaseClip {
   groupingMs: number;
 }
 
-export type TimelineClip = Clip | CaptionClip;
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip | CaptionClip;
 
 export type TrackType = "video" | "audio" | "music" | "text";
 
@@ -105,7 +104,7 @@ export interface Track {
   name: string;
   muted: boolean;
   locked: boolean;
-  clips: TimelineClip[];
+  clips: Clip[];
   transitions: Transition[];
 }
 

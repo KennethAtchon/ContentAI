@@ -2,7 +2,6 @@ import type {
   EditorState,
   EditorAction,
   Clip,
-  TimelineClip,
   Track,
   Transition,
 } from "../types/editor";
@@ -91,7 +90,7 @@ export function reduceTrackOps(
 
       const clipMap = new Map(videoTrack.clips.map((c) => [c.id, c]));
       let cursor = 0;
-      const reorderedClips: TimelineClip[] = [];
+      const reorderedClips: Clip[] = [];
       for (const clipId of action.clipIds) {
         const clip = clipMap.get(clipId);
         if (!clip) continue;
@@ -160,7 +159,7 @@ export function reduceTrackOps(
             };
           }
 
-          const mergedClips: TimelineClip[] = [];
+          const mergedClips: Clip[] = [];
           const seen = new Set<string>();
           for (const sc of serverTrack.clips) {
             const local = localTrack.clips.find((lc) => lc.id === sc.id);

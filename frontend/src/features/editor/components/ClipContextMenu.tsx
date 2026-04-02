@@ -9,11 +9,11 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shared/components/ui/context-menu";
-import type { Track, TrackType, TimelineClip, Transition } from "../types/editor";
+import type { Track, TrackType, Clip, Transition } from "../types/editor";
 import { isCaptionClip } from "../utils/clip-types";
 
 interface ClipContextMenuProps {
-  clip: TimelineClip;
+  clip: Clip;
   track: Track;
   hasClipboard: boolean;
   children: React.ReactNode;

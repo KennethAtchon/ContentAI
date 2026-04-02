@@ -1,6 +1,6 @@
 import type {
   Track,
-  TimelineClip,
+  Clip,
   ClipPatch,
   EditorState,
   EditorHistorySnapshot,
@@ -87,15 +87,15 @@ export function computeDuration(tracks: Track[]): number {
   return max;
 }
 
-export function hydrateTimelineClip(clip: TimelineClip): TimelineClip {
+export function hydrateClip(clip: Clip): Clip {
   return {
     ...clip,
     locallyModified: clip.locallyModified ?? false,
   };
 }
 
-export function alignClipTrimEndToInvariant(clip: TimelineClip): TimelineClip {
-  clip = hydrateTimelineClip(clip);
+export function alignClipTrimEndToInvariant(clip: Clip): Clip {
+  clip = hydrateClip(clip);
   if (!isMediaClip(clip)) return clip;
   const sm = clip.sourceMaxDurationMs;
   if (sm === undefined || clip.assetId == null) return clip;
@@ -114,7 +114,7 @@ export function alignTracksTrimInvariant(tracks: Track[]): Track[] {
   }));
 }
 
-function sanitizeClipPatch(clip: TimelineClip, patch: ClipPatch): ClipPatch {
+function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
   const patchRecord = patch as Partial<Record<string, unknown>>;
   const pick = (...keys: string[]) =>
     Object.fromEntries(
@@ -220,7 +220,7 @@ export function updateClipInTracks(
       const nextClip = {
         ...clip,
         ...sanitizeClipPatch(clip, patch),
-      } as TimelineClip;
+      } as Clip;
       return alignClipTrimEndToInvariant(nextClip);
     }),
   }));

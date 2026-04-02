@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import type {
-  TimelineClip,
+  Clip,
   TrackType,
   Transition,
   ClipPatch,
@@ -28,7 +28,7 @@ export function useEditorClipActions({
   setMediaActiveTab,
 }: UseEditorClipActionsParams) {
   const handleAddClip = useCallback(
-    (trackId: string, clip: TimelineClip) => {
+    (trackId: string, clip: Clip) => {
       const track = store.state.tracks.find((item) => item.id === trackId);
       if (track && hasCollision(track, clip.startMs, clip.durationMs)) {
         toast.error(t("editor_clip_collision"));

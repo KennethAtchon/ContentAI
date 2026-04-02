@@ -777,12 +777,10 @@ export type AiCostEntry = typeof aiCostLedger.$inferSelect;
 // Word-level transcription data from Whisper, one row per (user, asset).
 
 export interface Token {
-  word: string;
+  text: string;
   startMs: number;
   endMs: number;
 }
-
-export interface CaptionWord extends Token {}
 
 export type CaptionDocSource = "whisper" | "manual" | "import";
 
@@ -804,7 +802,7 @@ export const captionDocs = pgTable(
     assetId: text("asset_id")
       .references(() => assets.id, { onDelete: "cascade" }),
     language: text("language").notNull().default("en"),
-    tokens: jsonb("tokens").notNull().$type<CaptionWord[]>(),
+    tokens: jsonb("tokens").notNull().$type<Token[]>(),
     fullText: text("full_text").notNull(),
     source: text("source").notNull().default("whisper").$type<CaptionDocSource>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),

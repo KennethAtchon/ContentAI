@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Skill(update-config)",
-      "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" /c/Users/kenne/Documents/Programs/ContentAI/backend/src/domain/editor/caption* --include=\"*.ts\")"
+      "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" /c/Users/kenne/Documents/Programs/ContentAI/backend/src/domain/editor/caption* --include=\"*.ts\")",
+      "Bash(bun run:*)"
     ]
   }
 }

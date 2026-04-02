@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
-import type { Track, Clip } from "../types/editor";
+import type { CaptionClip, Clip, Track } from "../types/editor";
 import { isMediaClip } from "../utils/clip-types";
 
 interface ShotOrderPanelProps {
@@ -31,7 +31,7 @@ function SortableShotCard({
   index,
   readOnly,
 }: {
-  clip: Clip;
+  clip: Exclude<Clip, CaptionClip>;
   index: number;
   readOnly?: boolean;
 }) {

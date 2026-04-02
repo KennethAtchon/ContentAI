@@ -45,7 +45,7 @@ export interface StrokeLayer {
   type: "stroke";
   color: string;
   width: number;
-  join?: "round" | "bevel" | "miter";
+  join: "round" | "bevel" | "miter";
   stateColors?: {
     upcoming?: string;
     active?: string;
@@ -76,11 +76,19 @@ export interface BackgroundLayer {
   };
 }
 
+export interface GlowLayer {
+  id: string;
+  type: "glow";
+  color: string;
+  blur: number;
+}
+
 export type StyleLayer =
   | FillLayer
   | StrokeLayer
   | ShadowLayer
-  | BackgroundLayer;
+  | BackgroundLayer
+  | GlowLayer;
 
 export type EasingFunction =
   | { type: "linear" }
@@ -89,8 +97,8 @@ export type EasingFunction =
   | { type: "spring"; stiffness: number; damping: number; mass: number };
 
 export interface AnimationDef {
-  scope: "page" | "word";
-  property: "opacity" | "scale" | "translateY";
+  scope: "page" | "word" | "char";
+  property: "opacity" | "scale" | "translateX" | "translateY" | "rotation" | "letterSpacing";
   from: number;
   to: number;
   durationMs: number;

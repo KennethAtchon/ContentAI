@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Switch } from "@/shared/components/ui/switch";
-import type { Clip, TrackType } from "../../types/editor";
+import type { CaptionClip, Clip, TrackType } from "../../types/editor";
 import { INSPECTOR_EFFECT_DEFINITIONS } from "../../constants/inspector-ui-constants";
 import { isMediaClip as isMediaTimelineClip } from "../../utils/clip-types";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./InspectorPrimitives";
 
 interface Props {
-  clip: Clip;
+  clip: Exclude<Clip, CaptionClip>;
   trackType: TrackType | undefined;
   isMediaClip: boolean;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;

@@ -13,12 +13,6 @@ import type {
 
 const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024;
 
-type CaptionTokenInput = {
-  text: string;
-  startMs: number;
-  endMs: number;
-};
-
 export class CaptionsService {
   private readonly openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -27,22 +21,6 @@ export class CaptionsService {
     private readonly captions: ICaptionsRepository,
     private readonly presets: ICaptionPresetRepository,
   ) {}
-
-  private toApiTokens(tokens: Token[]) {
-    return tokens.map((token) => ({
-      text: token.word,
-      startMs: token.startMs,
-      endMs: token.endMs,
-    }));
-  }
-
-  private fromInputTokens(tokens: CaptionTokenInput[]): Token[] {
-    return tokens.map((token) => ({
-      word: token.text,
-      startMs: token.startMs,
-      endMs: token.endMs,
-    }));
-  }
 
   async getCaptionsForAsset(userId: string, assetId: string) {
     const caption = await this.captions.findByAssetAndUser(assetId, userId);
@@ -55,7 +33,7 @@ export class CaptionsService {
     }
     return {
       captionDocId: caption.id,
-      tokens: this.toApiTokens(caption.tokens),
+      tokens: caption.tokens,
       fullText: caption.fullText,
       source: caption.source,
     };
@@ -73,7 +51,7 @@ export class CaptionsService {
 
     return {
       captionDocId: caption.id,
-      tokens: this.toApiTokens(caption.tokens),
+      tokens: caption.tokens,
       fullText: caption.fullText,
       language: caption.language,
       source: caption.source,
@@ -84,7 +62,7 @@ export class CaptionsService {
     userId: string,
     input: {
       assetId: string | null;
-      tokens: CaptionTokenInput[];
+      tokens: Token[];
       fullText: string;
       language: "en";
     },
@@ -93,7 +71,7 @@ export class CaptionsService {
       userId,
       assetId: input.assetId,
       language: input.language,
-      tokens: this.fromInputTokens(input.tokens),
+      tokens: input.tokens,
       source: "manual",
       fullText: input.fullText,
     });
@@ -105,13 +83,13 @@ export class CaptionsService {
     userId: string,
     captionDocId: string,
     input: {
-      tokens: CaptionTokenInput[];
+      tokens: Token[];
       fullText: string;
       language: "en";
     },
   ) {
     const updated = await this.captions.updateByIdAndUser(captionDocId, userId, {
-      tokens: this.fromInputTokens(input.tokens),
+      tokens: input.tokens,
       fullText: input.fullText,
       language: input.language,
     });
@@ -155,7 +133,7 @@ export class CaptionsService {
     if (existing && !options?.force) {
       return {
         captionDocId: existing.id,
-        tokens: this.toApiTokens(existing.tokens),
+        tokens: existing.tokens,
         fullText: existing.fullText,
       };
     }
@@ -235,7 +213,7 @@ export class CaptionsService {
     const whisperWords = transcription.words ?? [];
     const words: Token[] = whisperWords.map(
       (w: { word: string; start: number; end: number }) => ({
-        word: w.word,
+        text: w.word,
         startMs: Math.round(w.start * 1000),
         endMs: Math.round(w.end * 1000),
       }),
@@ -266,7 +244,7 @@ export class CaptionsService {
 
     return {
       captionDocId: saved.id,
-      tokens: this.toApiTokens(words),
+      tokens: saved.tokens,
       fullText: saved.fullText,
     };
   }

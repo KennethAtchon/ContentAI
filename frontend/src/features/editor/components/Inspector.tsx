@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ClipPatch, TimelineClip, Transition } from "../types/editor";
+import type { ClipPatch, Clip, Transition } from "../types/editor";
 import { useEditorContext } from "../context/EditorContext";
 import { isCaptionClip, isMediaClip } from "../utils/clip-types";
 import { useCaptionPresets } from "../caption/hooks/useCaptionPresets";

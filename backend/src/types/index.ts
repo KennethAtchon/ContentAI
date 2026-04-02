@@ -36,7 +36,6 @@ export type {
   MediaClip,
   CaptionStyleOverrides,
   CaptionClip,
-  TimelineClip,
   TrackType,
   Track,
   EditorTracks,
