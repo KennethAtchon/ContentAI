@@ -2,14 +2,15 @@ import type {
   EditorState,
   EditorAction,
   Track,
-  Clip,
   CaptionClip,
+  MediaClip,
   TimelineClip,
   ClipPatch,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
 import { estimateReadingDurationMs } from "../utils/text-segments";
+import { isCaptionClip, isMediaClip, isTextClip } from "../utils/clip-types";
 import {
   computeDuration,
   pushPastTracks,
@@ -135,10 +136,12 @@ export function reduceClipOps(
     case "UPDATE_CLIP": {
       let patch: ClipPatch = { ...action.patch, locallyModified: true };
 
-      if ("textContent" in action.patch) {
+      if ("textContent" in action.patch && typeof action.patch.textContent === "string") {
         const maxMs = estimateReadingDurationMs(action.patch.textContent ?? "");
-        patch.sourceMaxDurationMs = maxMs;
-        if (maxMs !== undefined) patch.durationMs = maxMs;
+        patch = {
+          ...patch,
+          durationMs: maxMs,
+        };
       }
 
       const newTracks = updateClipInTracks(state.tracks, action.clipId, patch);
@@ -153,7 +156,7 @@ export function reduceClipOps(
       const target = state.tracks
         .flatMap((track) => track.clips)
         .find((clip) => clip.id === action.clipId);
-      if (!target || !("type" in target) || target.type !== "caption") {
+      if (!target || !isCaptionClip(target)) {
         return state;
       }
 
@@ -227,7 +230,7 @@ export function reduceClipOps(
         enabled: (() => {
           for (const t of state.tracks) {
             const c = t.clips.find((cl) => cl.id === action.clipId);
-            if (c && "enabled" in c) return c.enabled === false ? true : false;
+            if (c && !isCaptionClip(c)) return c.enabled === false ? true : false;
           }
           return false;
         })(),
@@ -264,7 +267,7 @@ export function reduceClipOps(
         locallyModified: true,
       };
 
-      if ("assetId" in newClip) {
+      if (isMediaClip(newClip)) {
         const clampedStart = clampMoveToFreeSpace(
           track,
           newClip.id,
@@ -290,7 +293,9 @@ export function reduceClipOps(
       for (const track of state.tracks) {
         const idx = track.clips.findIndex((c) => c.id === action.clipId);
         if (idx === -1) continue;
-        const result = splitClip(track.clips[idx], action.atMs);
+        const clip = track.clips[idx];
+        if (!isMediaClip(clip)) break;
+        const result = splitClip(clip, action.atMs);
         if (!result) break;
         const newClips = [
           ...track.clips.slice(0, idx),

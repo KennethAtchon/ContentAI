@@ -1,4 +1,4 @@
-import type { Track, Clip } from "../types/editor";
+import type { MediaClip, Track } from "../types/editor";
 
 /**
  * Returns true if placing a clip at [startMs, startMs+durationMs) would
@@ -57,7 +57,7 @@ export function clampMoveToFreeSpace(
  */
 export function clampTrimEnd(
   track: Track,
-  clip: Clip,
+  clip: MediaClip,
   proposedDurationMs: number
 ): number {
   const nextClipStart = track.clips
@@ -75,7 +75,7 @@ export function clampTrimEnd(
  */
 export function clampTrimStart(
   track: Track,
-  clip: Clip,
+  clip: MediaClip,
   proposedStartMs: number
 ): number {
   const prevClipEnd = track.clips

@@ -19,7 +19,11 @@ import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { Playhead } from "./Playhead";
 import { SortableTrackHeader } from "./SortableTrackHeader";
-import type { Clip, TimelineClip as EditorTimelineClip, TrackType } from "../types/editor";
+import type {
+  TextClip,
+  TimelineClip as EditorTimelineClip,
+  TrackType,
+} from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
 import { useEditorContext } from "../context/EditorContext";
@@ -202,14 +206,12 @@ export function Timeline({
                 if (track.locked) return;
 
                 if (track.type === "text") {
-                  const clip: Clip = {
+                  const clip: TextClip = {
                     id: crypto.randomUUID(),
-                    assetId: null,
+                    type: "text",
                     label: t("editor_clip_default_label"),
                     startMs: pastePositionRef.current,
                     durationMs: 3000,
-                    trimStartMs: 0,
-                    trimEndMs: 0,
                     speed: 1,
                     enabled: true,
                     opacity: 1,
@@ -219,8 +221,6 @@ export function Timeline({
                     positionY: 0,
                     scale: 1,
                     rotation: 0,
-                    volume: 1,
-                    muted: false,
                     textContent: "",
                   };
                   onAddClip(track.id, clip);

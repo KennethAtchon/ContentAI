@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { Switch } from "@/shared/components/ui/switch";
-import type { Clip, ClipPatch, TimelineClip } from "../../types/editor";
-import { isTextContentClip } from "../../utils/clip-types";
+import type { ClipPatch, TimelineClip } from "../../types/editor";
+import { isTextClip } from "../../utils/clip-types";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -21,11 +21,11 @@ export function InspectorTextAndCaptionPanels({
   onUpdateClip,
 }: Props) {
   const { t } = useTranslation();
-  if (!isTextContentClip(clip)) return null;
+  if (!isTextClip(clip)) return null;
 
   return (
     <>
-      {isTextClip && clip.textContent !== undefined && (
+      {isTextClip && (
         <InspectorSection title={t("inspector_section_text")}>
           <textarea
             className="w-full text-xs bg-overlay-sm text-dim-1 px-2 py-1.5 rounded border border-overlay-md resize-none"
@@ -36,8 +36,7 @@ export function InspectorTextAndCaptionPanels({
         </InspectorSection>
       )}
 
-      {clip.textContent !== undefined && (
-        <InspectorSection title={t("inspector_section_text_style")}>
+      <InspectorSection title={t("inspector_section_text_style")}>
           <InspectorPropRow label={t("editor_text_smart_chunks")}>
             <Switch
               checked={clip.textAutoChunk === true}
@@ -136,8 +135,7 @@ export function InspectorTextAndCaptionPanels({
               ))}
             </div>
           </InspectorPropRow>
-        </InspectorSection>
-      )}
+      </InspectorSection>
 
     </>
   );

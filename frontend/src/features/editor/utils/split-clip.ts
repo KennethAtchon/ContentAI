@@ -1,4 +1,4 @@
-import type { Clip, TimelineClip } from "../types/editor";
+import type { MediaClip } from "../types/editor";
 
 /**
  * Splits a clip at `atMs` (a timeline position in ms).
@@ -8,8 +8,10 @@ import type { Clip, TimelineClip } from "../types/editor";
  *
  * Returns [clipA, clipB] or null if atMs is not strictly inside the clip.
  */
-export function splitClip(clip: TimelineClip, atMs: number): [Clip, Clip] | null {
-  if (!("assetId" in clip)) return null;
+export function splitClip(
+  clip: MediaClip,
+  atMs: number
+): [MediaClip, MediaClip] | null {
   if (atMs <= clip.startMs || atMs >= clip.startMs + clip.durationMs) {
     return null;
   }
@@ -17,7 +19,7 @@ export function splitClip(clip: TimelineClip, atMs: number): [Clip, Clip] | null
   const clipADuration = atMs - clip.startMs;
   const clipBDuration = clip.durationMs - clipADuration;
 
-  const clipA: Clip = {
+  const clipA: MediaClip = {
     ...clip,
     id: crypto.randomUUID(),
     durationMs: clipADuration,
@@ -25,7 +27,7 @@ export function splitClip(clip: TimelineClip, atMs: number): [Clip, Clip] | null
     trimEndMs: clip.trimEndMs + clipBDuration,
   };
 
-  const clipB: Clip = {
+  const clipB: MediaClip = {
     ...clip,
     id: crypto.randomUUID(),
     startMs: atMs,

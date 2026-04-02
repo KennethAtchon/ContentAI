@@ -1,169 +1,223 @@
-# Caption Engine v2 — Implementation Review
+# Caption Implementation — Red Team Review
 
-**Date:** 2026-04-01
-**Reviewed against:** `05-implementation-plan.md`, `02-hld.md`, `03-lld.md`, `04-presets.md`
-**Overall status:** ~70% functionally complete, ~90% architecturally sound
+**Date:** 2026-04-01  
+**Reviewer:** Red Team (automated + manual code inspection)  
+**Scope:** All caption-related code across backend and frontend
 
 ---
 
 ## Summary
 
-The data model, API contracts, database schema, type system, reducer actions, query keys, and module structure are all correctly implemented and follow both the plan and existing codebase conventions. All legacy caption fields (`captionWords`, `captionPresetId`, `captionGroupSize`, `captionPositionY`, etc.) are fully deleted with no backwards-compatibility shims.
-
-**The blocking gaps are isolated entirely to the Canvas2D rendering pipeline in `renderer.ts` and the animation timing logic in `useCaptionCanvas.ts`.** Nothing renders correctly in preview yet.
+The caption implementation is largely functional but has several real bugs, security gaps, and architectural issues that will cause visible problems in production. Issues are grouped by severity.
 
 ---
 
-## What Is Complete
+## Critical Bugs (P0)
 
-| Area | Files | Status |
-|---|---|---|
-| Type system | `types/editor.ts` | `CaptionClip`, `CaptionStyleOverrides`, `TimelineClip` union — correct |
-| Caption module structure | `caption/` directory | All required files present (`types.ts`, `page-builder.ts`, `slice-tokens.ts`, `layout-engine.ts`, `renderer.ts`, `easing.ts`, `font-loader.ts`, all hooks, all components) |
-| Reducer actions | `model/editor-reducer-clip-ops.ts` | `ADD_CAPTION_CLIP`, `UPDATE_CAPTION_STYLE` correctly implemented |
-| EditorContext | `context/EditorContext.tsx` | `addCaptionClip`, `updateCaptionStyle` exported |
-| Query keys | `shared/lib/query-keys.ts` | `captionDocByAsset`, `captionDoc`, `captionPresets` follow project convention |
-| Type guards | `utils/clip-types.ts` | `isCaptionClip`, `isMediaClip`, `isTextContentClip` |
-| Inspector integration | `components/Inspector.tsx` | Transcription trigger, stale-clip detection, all caption panels mounted |
-| Backend routes | `backend/src/routes/editor/captions.ts` | All 6 endpoints: transcribe, manual, presets, doc GET, doc PATCH, asset lookup |
-| Backend service | `backend/src/domain/editor/captions.service.ts` | All methods: transcribe, createManual, getCaptionDoc, updateCaptionDoc, listPresets, getCaptionsForAsset |
-| DB schema | `backend/.../schema.ts` | `captionDocs`, `captionPresets` tables with correct indexes |
-| Backend caption domain | `backend/src/domain/editor/captions/` | `page-builder.ts`, `slice-tokens.ts`, `types.ts`, `preset-seed.ts` (all 10 presets), `preset.repository.ts` |
-| Export layer | `backend/src/domain/editor/export/ass-exporter.ts` | Full ASS generation with color conversion, karaoke mode |
-| Export job integration | `backend/src/domain/editor/run-export-job.ts` | Caption clip detection, page building, ASS injection into FFmpeg filter graph |
-| Unit tests | `frontend/__tests__/unit/features/editor/caption/` | `page-builder`, `easing`, `layout-engine`, `slice-tokens`, `transcript-editor` |
-
----
-
-## Required Changes Before 100% Complete
-
-### P0 — Blocking (preview is visually wrong for all presets)
-
-#### 1. Implement multi-layer rendering in `renderer.ts`
+### 1. `textTransform` Not Applied in Canvas Renderer
 
 **File:** `frontend/src/features/editor/caption/renderer.ts`
 
-Currently `renderFrame()` only draws a text fill. Every preset defines multiple layers (stroke, shadow, background) that are completely ignored. The canvas output is unstyled plain text for all 10 presets.
+The `preset.typography.textTransform` field is stored and seeded (e.g., `"uppercase"` in the "hormozi" preset) but is never applied when drawing text to the canvas. The renderer passes `token.text` directly to `ctx.fillText()` without transformation.
 
-Rendering must follow a back-to-front order:
-
-1. **BackgroundLayer** — `ctx.fillRect()` with `padding` and `borderRadius`; respect `mode: "word" | "line"` (word = one box per token, line = one box per full line)
-2. **ShadowLayer** — apply `ctx.shadowColor`, `ctx.shadowOffsetX`, `ctx.shadowOffsetY`, `ctx.shadowBlur` before the fill pass, then clear after
-3. **StrokeLayer** — `ctx.strokeStyle`, `ctx.lineWidth`, `ctx.lineJoin = layer.join`, `ctx.strokeText()`
-4. **FillLayer** — `ctx.fillStyle`, `ctx.fillText()` (already done, but currently the only layer)
-
-Each layer resolves its color by checking `stateColors[token.state]` first, then falling back to `color`.
-
-**Affected presets if not fixed:** all 10 (stroke: hormozi, karaoke, bold-outline, pop-scale, glitch; background: dark-box, word-highlight-box; shadow: fade-scale, slide-up)
-
----
-
-#### 2. Implement entry/exit animation evaluation
-
-**Files:** `frontend/src/features/editor/caption/renderer.ts`, `useCaptionCanvas.ts`
-
-Currently `renderFrame()` only applies a scale pulse (`scalePulse`) on the active word. Page-level entry and exit animations (`scope: "page"`, properties: `opacity`, `scale`, `translateY`) are never evaluated.
-
-Changes needed:
-
-- In `useCaptionCanvas.ts`: compute `entryProgress` and `exitProgress` `[0, 1]` values from the clip's elapsed time relative to `page.startMs` and `page.endMs`, using the preset's `entryDurationMs` / `exitDurationMs` fields.
-- Pass `{ entryProgress, exitProgress }` into `renderFrame()`.
-- In `renderFrame()`: evaluate each `AnimationDef` in the active preset's `animations` array using the easing functions already in `easing.ts`. Apply the computed transform (opacity, scale, translateY) to the canvas context before rendering tokens.
-- For `scope: "word"`: apply the animation per-token with `staggerMs` offset applied to the token's index.
-
-**Affected presets if not fixed:** `pop-scale`, `slide-up`, `fade-scale`, `glitch` (3–4 of 10 presets show no animation)
-
----
-
-### P1 — High (per-state visual effects broken)
-
-#### 3. Apply `layerOverrides` on active token state
-
-**File:** `frontend/src/features/editor/caption/renderer.ts`
-
-`WordActivationEffect.layerOverrides` is typed in `types.ts` but `renderFrame()` never reads it. When `token.state === "active"`, layer color patches from `layerOverrides` must be merged onto the matching layer before rendering that token.
-
-Specifically, for each layer, check if the preset's `wordActivation.layerOverrides` contains an entry with a matching `layerId`. If so, merge the patch (color, stateColors, etc.) before rendering that layer for the active token only.
-
-**Affected presets if not fixed:** `word-highlight-box` (yellow background box on active word never appears)
-
----
-
-### P2 — Medium (UX debt / spec compliance)
-
-#### 4. Add export mode warning in `CaptionPresetPicker`
-
-**File:** `frontend/src/features/editor/caption/CaptionPresetPicker.tsx`
-
-Per `02-hld.md` (lines 343–350), the UI must show a notice when the selected preset uses `exportMode: "approximate"` or `exportMode: "static"`:
-
-> "Some visual effects in this caption style are simplified in the exported video."
-
-Add a conditional badge or inline notice on presets whose `exportMode !== "full"`. This sets correct user expectations since canvas preview and ASS export are not pixel-identical.
-
----
-
-#### 5. Add `ease-in-out` easing type
-
-**File:** `frontend/src/features/editor/caption/easing.ts`
-
-The `EasingFunction` union type and `evaluate()` switch are missing the `ease-in-out` case defined in `03-lld.md` (line 110). No current preset uses it, but the type spec is incomplete.
-
-Add `"ease-in-out"` to the union and implement it in `evaluate()`:
 ```typescript
-case "ease-in-out":
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+ctx.fillText(token.text, token.x, token.y); // ← never uppercased
 ```
 
----
+**Impact:** Preview shows lowercase text for presets that define `textTransform: "uppercase"`. If the ASS exporter applies the transform separately, there's a visible preview/export mismatch.
 
-### P3 — Low (test coverage)
-
-#### 6. Add ASS exporter unit tests
-
-**Missing file:** `backend/__tests__/unit/domain/captions/ass-exporter.test.ts`
-
-The plan's test checklist includes ASS exporter tests. Cover:
-- `msToASSTime()` conversion for edge cases (0ms, sub-second, >1hr)
-- `cssToASS()` hex color conversion including alpha
-- `generateASS()` output for a minimal page set (assert style line, dialogue line format)
-
-#### 7. Add renderer unit tests
-
-**Missing file:** `frontend/__tests__/unit/features/editor/caption/renderer.test.ts`
-
-Once P0 is resolved, add tests that mock a `CanvasRenderingContext2D` and assert:
-- Correct layer draw order (background before stroke before fill)
-- Layer color override applied on active token state
-- Correct canvas API calls per layer type
+**Fix:** Apply `token.text.toUpperCase()` (or the relevant transform) before calling `fillText`.
 
 ---
 
-## Codebase Pattern Compliance
+### 2. Hardcoded Preset ID Default
 
-All passing items below were verified by reading the source:
+**File:** `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`
 
-| Pattern | Status | Notes |
-|---|---|---|
-| `useAuthenticatedFetch` for all API calls | Pass | All caption mutation/query hooks use it |
-| Query keys from `shared/lib/query-keys.ts` | Pass | No inline string keys |
-| No cross-feature imports | Pass | Caption module is self-contained within `features/editor/` |
-| No legacy/compat code | Pass | Zero results for old field names |
-| Backend singleton pattern | Pass | `captionsService` in `singletons.ts` |
-| `@hono/zod-validator` for route validation | Pass | All 6 routes use schema validation |
-| `c.get("auth")` for user identity in handlers | Pass | No double token verification |
-| `bun:test` imports in test files | Pass | All caption tests use `describe`/`test`/`expect` from `"bun:test"` |
+```typescript
+stylePresetId: action.presetId ?? "hormozi",
+```
+
+This hardcodes `"hormozi"` as the fallback preset ID. If the preset is renamed, deleted, or the seed changes, every new caption clip created without an explicit preset ID will silently reference a nonexistent preset. The export job will skip it without error.
+
+**Fix:** Remove the hardcoded fallback. Require `presetId` at the call site, or load the first available preset from the store.
 
 ---
 
-## Effort Estimate to Close All Gaps
+### 3. Caption Doc Silently Skipped on Export
 
-| Work item | Effort |
-|---|---|
-| Multi-layer rendering (P0.1) | ~1 day |
-| Entry/exit animation evaluation (P0.2) | ~1 day |
-| Layer override patch on active token (P1) | ~0.5 day |
-| Export mode warning UI (P2) | ~0.5 day |
-| `ease-in-out` easing (P2) | ~15 min |
-| ASS exporter + renderer tests (P3) | ~0.5 day |
-| **Total** | **~3.5 days** |
+**File:** `backend/src/domain/editor/run-export-job.ts`
+
+```typescript
+const doc = await deps.findCaptionDocByIdForUser(userId, clip.captionDocId);
+if (!doc) continue; // ← silently skips
+```
+
+If a caption doc is deleted after a clip references it, the export completes successfully but the captions are absent from the output. The user receives no error.
+
+**Fix:** Treat a missing caption doc as an export error. Return a failure response or, at minimum, emit a warning that surfaces in the job status.
+
+---
+
+### 4. `#RGB` Shorthand Hex Crashes ASS Exporter
+
+**File:** `backend/src/domain/editor/export/ass-exporter.ts`
+
+The `parseCssColor()` function only matches 6-digit hex (`#RRGGBB`):
+
+```typescript
+const hex = normalized.match(/^#([0-9a-f]{6})$/i);
+```
+
+If any preset layer color uses the 3-digit shorthand (`#FFF`, `#ABC`), the function throws:
+
+```typescript
+throw new Error(`Unsupported CSS color: ${input}`);
+```
+
+Current seed presets use full-form hex, so this is latent — but one wrong preset color crashes the entire export job.
+
+**Fix:** Expand the regex to match `#RGB` and expand it to `#RRGGBB` before parsing.
+
+---
+
+## High Priority (P1)
+
+### 5. No Rate Limiting Specific to Transcription Cost
+
+**File:** `backend/src/routes/editor/captions.ts`
+
+The `/transcribe` endpoint uses a generic `rateLimiter("customer")`. Whisper API calls are billed per minute of audio, so repeated calls with `force: true` on long audio files expose unbounded cost. A user could hammer this endpoint.
+
+**Fix:** Add a stricter per-user rate limit on the transcription endpoint (e.g., 2 requests/minute, 20/hour).
+
+---
+
+### 6. `CaptionPresetDefinition` Type Is Too Loose
+
+**File:** `backend/src/infrastructure/database/drizzle/schema.ts`
+
+```typescript
+export type CaptionPresetDefinition = Record<string, unknown>;
+```
+
+This type is used for preset definitions stored in the database. It eliminates all type safety when reading or writing presets — any shape will pass. Any structural change to `TextPreset` will not be caught at compile time for the DB layer.
+
+**Fix:** Import and use `TextPreset` from the domain types file directly.
+
+---
+
+### 7. Missing i18n for Caption UI Strings
+
+**Files:** `frontend/src/features/editor/caption/components/CaptionPresetPicker.tsx`, related panel components
+
+User-visible strings are hardcoded in English:
+
+```typescript
+<div>{preset.exportMode} export, {preset.groupingMs}ms grouping</div>
+<div>Some visual effects in this caption style are simplified in the exported video.</div>
+```
+
+**Fix:** Run all user-visible strings through `t('key')` and add entries to `frontend/src/translations/en.json`.
+
+---
+
+### 8. Preset Cache `invalidateCache()` Is Never Called
+
+**File:** `backend/src/domain/editor/captions/preset.repository.ts`
+
+The repository has an `invalidateCache()` method that clears the in-memory preset list cache, but it is never called anywhere in the codebase. For now presets are read-only seed data, so this doesn't bite — but if presets ever become admin-editable at runtime, cached stale data will be served indefinitely.
+
+**Fix:** Either remove the method (acknowledging presets are static), or call it from the admin preset-update path.
+
+---
+
+## Medium Priority (P2)
+
+### 9. No Caption Clip Time Range Validation in Reducer
+
+**File:** `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`
+
+When building a `CaptionClip`, neither `sourceStartMs < sourceEndMs` nor `durationMs > 0` is checked. Zod validation catches this at the server PATCH boundary, but invalid local state can exist in the editor until autosave fires, potentially causing rendering anomalies.
+
+**Fix:** Add a guard in the reducer before pushing the clip.
+
+---
+
+### 10. No Orphaned Caption Doc Cleanup
+
+If a caption clip is removed from the timeline, its backing `caption_doc` row is not deleted. Orphaned rows accumulate indefinitely with no cleanup path.
+
+**Fix:** Either cascade-delete on clip removal, or add a periodic cleanup job that removes caption docs not referenced by any composition.
+
+---
+
+### 11. No Retry or Manual Fallback for Failed Transcriptions
+
+**File:** `frontend/src/features/editor/caption/hooks/useTranscription.ts`
+
+When transcription fails, the raw error is surfaced with no retry mechanism and no way to manually provide or edit caption tokens. For users with non-standard audio, this is a dead end.
+
+**Fix:** Provide a retry action in the error state, and consider a manual text-entry fallback.
+
+---
+
+## Test Coverage Gaps (P2)
+
+The following are untested or undertested:
+
+| Area | Gap |
+|------|-----|
+| `applyCaptionStyleOverrides()` | No unit test file exists |
+| `ADD_CAPTION_CLIP` / `UPDATE_CAPTION_STYLE` reducer actions | Not covered by reducer tests |
+| Caption validation schemas in `editor.schemas.ts` | No schema validation tests |
+| ASS exporter end-to-end | No tests for color conversion, page slicing, or style override application |
+| Export job caption path | No test for missing caption doc behavior |
+| Font load failure path | No test or log for canvas fallback |
+
+---
+
+## Low Priority / Cosmetic (P3)
+
+### 12. No Warning on Font Load Failure
+
+**File:** `frontend/src/features/editor/caption/renderer.ts`
+
+If the custom font fails to load, the canvas silently falls back to the system default font with no log or visual indicator. Should emit a `console.warn` at minimum.
+
+---
+
+### 13. Missing Query Invalidation for Presets After Transcription
+
+**File:** `frontend/src/features/editor/caption/hooks/useTranscription.ts`
+
+The `onSuccess` handler invalidates caption doc queries but not the preset list. Low risk today (presets don't change), but inconsistent.
+
+---
+
+## Verified as Correct (No Action Needed)
+
+These were suspected during review but confirmed to be correct:
+
+- Shadow layer canvas state is fully reset after drawing (color, offsets, blur all cleared)
+- Animation timing clamp math is correct (`Math.max(0, Math.min(1, ...))`)
+- `useCaptionCanvas` dependency array is complete
+- `CaptionClip` shape in `timeline.types.ts` matches `CaptionClipData` in `run-export-job.ts`
+- `groupingMs` fallback chain is correct in both renderer and export job
+- Layout engine `index` field is correctly preserved across line-breaking
+- `/presets` endpoint is properly auth-guarded
+
+---
+
+## Fix Priority Order
+
+1. `textTransform` not applied in renderer (visible user-facing bug)
+2. Hardcoded `"hormozi"` preset default (silent breakage risk)
+3. Silent caption skip in export (export correctness)
+4. `#RGB` shorthand crash in ASS exporter (export stability)
+5. `CaptionPresetDefinition` type looseness (architecture)
+6. Transcription rate limiting (cost/security)
+7. i18n missing strings (localization)
+8. Preset cache never invalidated (future-proofing)
+9. Test coverage gaps (correctness confidence)
+10. Everything else

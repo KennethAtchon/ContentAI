@@ -23,7 +23,12 @@ import {
   VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
   VIDEO_SYNC_SEEK_THRESHOLD_SEC,
 } from "../utils/editor-composition";
-import { isCaptionClip, isMediaClip, isTextContentClip } from "../utils/clip-types";
+import {
+  isCaptionClip,
+  isMediaClip,
+  isTextClip,
+  isVideoClip,
+} from "../utils/clip-types";
 
 interface Props {
   tracks: Track[];
@@ -93,7 +98,7 @@ export function PreviewArea({
 
   const activeTextClips = useMemo(
     () =>
-      (textTrack?.clips ?? []).filter(isTextContentClip).filter((c) =>
+      (textTrack?.clips ?? []).filter(isTextClip).filter((c) =>
         isClipActiveAtTimelineTime(c, currentTimeMs)
       ),
     [textTrack?.clips, currentTimeMs]
@@ -146,7 +151,7 @@ export function PreviewArea({
     );
     for (const videoTrack of videoTracks) {
       const trackTransitions = videoTrack.transitions ?? [];
-      const trackClips = videoTrack.clips.filter(isMediaClip);
+      const trackClips = videoTrack.clips.filter(isVideoClip);
       const activeIds =
         activeByTrack.get(videoTrack.id) ?? new Set<string>();
 
@@ -278,7 +283,7 @@ export function PreviewArea({
         >
           {/* Layered video tracks — Track 0 at bottom, Track N at top */}
           {videoTracks.map((videoTrack, trackIdx) => {
-            const trackClips = videoTrack.clips.filter(isMediaClip);
+            const trackClips = videoTrack.clips.filter(isVideoClip);
             const trackTransitions = videoTrack.transitions ?? [];
             const activeIds =
               activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();

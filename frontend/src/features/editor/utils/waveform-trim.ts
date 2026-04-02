@@ -1,4 +1,4 @@
-import type { Clip } from "../types/editor";
+import type { MediaClip } from "../types/editor";
 
 /**
  * Cuts full-asset waveform peaks down to the source time range this clip plays.
@@ -7,7 +7,7 @@ import type { Clip } from "../types/editor";
  */
 export function slicePeaksForClipTrim(
   peaks: Float32Array | null,
-  clip: Clip
+  clip: MediaClip
 ): Float32Array | null {
   if (!peaks || peaks.length === 0) return peaks;
 

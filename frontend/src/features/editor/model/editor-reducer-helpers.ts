@@ -1,11 +1,12 @@
 import type {
   Track,
-  Clip,
+  MediaClip,
   TimelineClip,
   ClipPatch,
   EditorState,
   EditorHistorySnapshot,
 } from "../types/editor";
+import { isMediaClip } from "../utils/clip-types";
 
 export function snapshotEditorState(state: EditorState): EditorHistorySnapshot {
   return {
@@ -88,7 +89,7 @@ export function computeDuration(tracks: Track[]): number {
 }
 
 export function alignClipTrimEndToInvariant(clip: TimelineClip): TimelineClip {
-  if (!("assetId" in clip)) return clip;
+  if (!isMediaClip(clip)) return clip;
   const sm = clip.sourceMaxDurationMs;
   if (sm === undefined || clip.assetId == null || clip.isPlaceholder) return clip;
   const ts = clip.trimStartMs ?? 0;

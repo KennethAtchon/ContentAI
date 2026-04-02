@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-/** Clients may send fractional ms (e.g. split at sub-frame playhead); normalize for Zod int + DB. */
 function roundFiniteMs(val: unknown): unknown {
   if (typeof val === "number" && Number.isFinite(val)) {
     return Math.round(val);
@@ -16,18 +15,16 @@ export const resolutionEnum = z.enum([
   "1080x1080",
 ]);
 
-const clipDataSchema = z.object({
+const baseClipSchema = {
   id: z.string().min(1),
-  assetId: z.string().nullable(),
-  label: z.string().max(200),
   startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  sourceMaxDurationMs: z
-    .preprocess(roundFiniteMs, z.number().int().min(0))
-    .optional(),
+};
+
+const visualClipSchema = {
+  label: z.string().max(200),
   speed: z.number().min(0.1).max(10),
+  enabled: z.boolean().optional(),
   opacity: z.number().min(0).max(1),
   warmth: z.number().min(-100).max(100),
   contrast: z.number().min(-100).max(100),
@@ -35,33 +32,63 @@ const clipDataSchema = z.object({
   positionY: z.number(),
   scale: z.number().min(0.01).max(10),
   rotation: z.number().min(-360).max(360),
+};
+
+const mediaClipSchema = {
+  assetId: z.string().nullable(),
+  trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  sourceMaxDurationMs: z
+    .preprocess(roundFiniteMs, z.number().int().min(0))
+    .optional(),
   volume: z.number().min(0).max(2),
   muted: z.boolean(),
-  enabled: z.boolean().optional(),
-  textContent: z.string().max(2000).optional(),
-  textAutoChunk: z.boolean().optional(),
-  textStyle: z
-    .object({
-      fontSize: z.number(),
-      fontWeight: z.enum(["normal", "bold"]),
-      color: z.string(),
-      align: z.enum(["left", "center", "right"]),
-    })
-    .optional(),
-  /** Shot placeholders before generation completes — must be preserved on parse (Zod strips unknown keys). */
+};
+
+const textStyleSchema = z.object({
+  fontSize: z.number(),
+  fontWeight: z.enum(["normal", "bold"]),
+  color: z.string(),
+  align: z.enum(["left", "center", "right"]),
+});
+
+const videoClipSchema = z.object({
+  ...baseClipSchema,
+  ...visualClipSchema,
+  ...mediaClipSchema,
+  type: z.literal("video"),
   isPlaceholder: z.literal(true).optional(),
   placeholderShotIndex: z.number().int().min(0).optional(),
   placeholderLabel: z.string().max(200).optional(),
-  placeholderStatus: z
-    .enum(["pending", "generating", "failed"])
-    .optional(),
+  placeholderStatus: z.enum(["pending", "generating", "failed"]).optional(),
+});
+
+const audioClipSchema = z.object({
+  ...baseClipSchema,
+  ...visualClipSchema,
+  ...mediaClipSchema,
+  type: z.literal("audio"),
+});
+
+const musicClipSchema = z.object({
+  ...baseClipSchema,
+  ...visualClipSchema,
+  ...mediaClipSchema,
+  type: z.literal("music"),
+});
+
+const textClipSchema = z.object({
+  ...baseClipSchema,
+  ...visualClipSchema,
+  type: z.literal("text"),
+  textContent: z.string().max(2000),
+  textAutoChunk: z.boolean().optional(),
+  textStyle: textStyleSchema.optional(),
 });
 
 const captionClipSchema = z.object({
-  id: z.string().min(1),
+  ...baseClipSchema,
   type: z.literal("caption"),
-  startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   originVoiceoverClipId: z.string().min(1).optional(),
   captionDocId: z.string().min(1),
   sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
@@ -76,6 +103,14 @@ const captionClipSchema = z.object({
     .default({}),
   groupingMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
 });
+
+const timelineClipSchema = z.discriminatedUnion("type", [
+  videoClipSchema,
+  audioClipSchema,
+  musicClipSchema,
+  textClipSchema,
+  captionClipSchema,
+]);
 
 const transitionSchema = z.object({
   id: z.string().min(1),
@@ -98,11 +133,10 @@ export const editorTrackDataSchema = z.object({
   name: z.string().min(1),
   muted: z.boolean(),
   locked: z.boolean(),
-  clips: z.array(z.union([clipDataSchema, captionClipSchema])),
+  clips: z.array(timelineClipSchema),
   transitions: z.array(transitionSchema).optional(),
 });
 
-/** Validates `edit_projects.tracks` JSONB on read (GET project). */
 export const editorStoredTracksSchema = z.array(editorTrackDataSchema);
 
 export const patchProjectSchema = z.object({

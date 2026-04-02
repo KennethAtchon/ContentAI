@@ -1,12 +1,15 @@
 import { useState, useCallback, type RefObject } from "react";
-import type { Track, Clip } from "../types/editor";
+import type { AudioClip, MusicClip, Track, VideoClip } from "../types/editor";
 import { parseTimelineAssetDragPayload } from "../utils/timeline-asset-drag-payload";
 import { ASSET_TYPE_TO_TRACK } from "../constants/timeline-layout";
 
 export function useTimelineAssetDrop(options: {
   scrollRef: RefObject<HTMLDivElement | null>;
   zoom: number;
-  onAddClip: (trackId: string, clip: Clip) => void;
+  onAddClip: (
+    trackId: string,
+    clip: VideoClip | AudioClip | MusicClip
+  ) => void;
 }) {
   const { scrollRef, zoom, onAddClip } = options;
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
@@ -62,8 +65,9 @@ export function useTimelineAssetDrop(options: {
       const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
       const startMs = Math.max(0, ((e.clientX - rect.left + scrollLeft) / zoom) * 1000);
 
-      const clip: Clip = {
+      const clip: VideoClip | AudioClip | MusicClip = {
         id: crypto.randomUUID(),
+        type: track.type,
         assetId: asset.assetId,
         label: asset.label,
         startMs,

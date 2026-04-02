@@ -3,8 +3,8 @@
  * transitions, and preload windows so export or other renderers can align with UI.
  */
 import type { CSSProperties } from "react";
-import type { Clip, Track, Transition } from "../types/editor";
-import { isMediaClip } from "./clip-types";
+import type { MediaClip, Track, Transition, VideoClip } from "../types/editor";
+import { isMediaClip, isVideoClip } from "./clip-types";
 
 export const PRELOAD_WINDOW_MS = 45_000;
 
@@ -51,7 +51,7 @@ export function isClipActiveAtTimelineTime(
 
 /** Source media time in seconds for an active clip at the given timeline time. */
 export function getClipSourceTimeSecondsAtTimelineTime(
-  clip: Clip,
+  clip: MediaClip,
   timelineTimeMs: number
 ): number {
   return (
@@ -68,7 +68,7 @@ export function buildActiveVideoClipIdsByTrackMap(
   for (const vt of videoTracks) {
     const ids = new Set(
       vt.clips
-        .filter(isMediaClip)
+        .filter(isVideoClip)
         .filter((c) => isClipActiveAtTimelineTime(c, currentTimeMs))
         .map((c) => c.id)
     );
@@ -78,10 +78,10 @@ export function buildActiveVideoClipIdsByTrackMap(
 }
 
 export function videoClipNeedsHeavyPreload(
-  clip: Clip,
+  clip: VideoClip,
   currentTimeMs: number,
   videoTransitions: Transition[],
-  videoClips: Clip[],
+  videoClips: VideoClip[],
   activeIds: Set<string>
 ): boolean {
   if (activeIds.has(clip.id)) return true;
@@ -106,7 +106,7 @@ export function videoClipNeedsHeavyPreload(
 }
 
 export function audioClipNeedsHeavyPreload(
-  clip: Clip,
+  clip: MediaClip,
   currentTimeMs: number
 ): boolean {
   const end = clip.startMs + clip.durationMs;
@@ -119,9 +119,9 @@ export function audioClipNeedsHeavyPreload(
 
 /** True when the playhead is in the dissolve/wipe handoff window before clip (incoming B). */
 export function isIncomingDissolveOrWipePrerenderWindow(
-  clip: Clip,
+  clip: VideoClip,
   trackTransitions: Transition[],
-  trackClips: Clip[],
+  trackClips: VideoClip[],
   currentTimeMs: number
 ): boolean {
   const incomingTransition = trackTransitions.find(
@@ -138,7 +138,7 @@ export function isIncomingDissolveOrWipePrerenderWindow(
 
 /** Style for the outgoing clip (clipA) during a transition. */
 export function getOutgoingTransitionStyle(
-  clip: Clip,
+  clip: VideoClip,
   transitions: Transition[],
   currentTimeMs: number
 ): CSSProperties {
@@ -173,9 +173,9 @@ export function getOutgoingTransitionStyle(
  * Returns null if the clip is not in an incoming transition window.
  */
 export function getIncomingTransitionStyle(
-  clip: Clip,
+  clip: VideoClip,
   transitions: Transition[],
-  allClips: Clip[],
+  allClips: VideoClip[],
   currentTimeMs: number
 ): CSSProperties | null {
   const transition = transitions.find((t) => t.clipBId === clip.id);

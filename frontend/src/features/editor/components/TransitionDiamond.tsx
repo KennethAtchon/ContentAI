@@ -1,9 +1,9 @@
-import type { Clip, Transition } from "../types/editor";
+import type { Transition, VideoClip } from "../types/editor";
 import { TransitionContextMenu } from "./ClipContextMenu";
 
 interface Props {
-  clipA: Clip;
-  clipB: Clip;
+  clipA: VideoClip;
+  clipB: VideoClip;
   transition: Transition | undefined;
   zoom: number;
   onSelect: () => void;

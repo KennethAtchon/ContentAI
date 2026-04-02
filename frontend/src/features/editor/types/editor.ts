@@ -13,45 +13,63 @@ export interface Transition {
   clipBId: string;
 }
 
-export interface Clip {
+export interface BaseClip {
   id: string;
-  assetId: string | null; // assets.id — null for text clips
-  label: string;
-  startMs: number; // position on timeline
+  startMs: number;
   durationMs: number;
-  trimStartMs: number;
-  trimEndMs: number;
-  speed: number;
-  // Enabled — disabled clips are skipped in preview/export
+  locallyModified?: boolean;
+}
+
+export interface NamedClip extends BaseClip {
+  label: string;
   enabled?: boolean;
-  // Look
+  speed: number;
+}
+
+export interface VisualClip extends NamedClip {
   opacity: number;
   warmth: number;
   contrast: number;
-  // Transform
   positionX: number;
   positionY: number;
   scale: number;
   rotation: number;
-  // Sound
+}
+
+export interface MediaClipBase extends VisualClip {
+  assetId: string | null;
+  trimStartMs: number;
+  trimEndMs: number;
+  sourceMaxDurationMs?: number;
   volume: number;
   muted: boolean;
-  // Text-only
-  textContent?: string;
-  /** When false, preview shows full text for the whole clip; when true/undefined, text is split into timed on-screen chunks. */
-  textAutoChunk?: boolean;
-  textStyle?: TextStyle;
-  /** Reading-time ceiling for media-backed clips. */
-  sourceMaxDurationMs?: number;
+}
 
-  /** Placeholder slot until a real clip is generated */
+export interface VideoClip extends MediaClipBase {
+  type: "video";
   isPlaceholder?: true;
   placeholderShotIndex?: number;
   placeholderLabel?: string;
   placeholderStatus?: "pending" | "generating" | "failed";
-  /** Set on user edits; stripped before PATCH save */
-  locallyModified?: boolean;
 }
+
+export interface AudioClip extends MediaClipBase {
+  type: "audio";
+}
+
+export interface MusicClip extends MediaClipBase {
+  type: "music";
+}
+
+export interface TextClip extends VisualClip {
+  type: "text";
+  textContent: string;
+  textAutoChunk?: boolean;
+  textStyle?: TextStyle;
+}
+
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
+export type MediaClip = VideoClip | AudioClip | MusicClip;
 
 export interface CaptionStyleOverrides {
   positionY?: number;
@@ -59,11 +77,8 @@ export interface CaptionStyleOverrides {
   textTransform?: "none" | "uppercase" | "lowercase";
 }
 
-export interface CaptionClip {
-  id: string;
+export interface CaptionClip extends BaseClip {
   type: "caption";
-  startMs: number;
-  durationMs: number;
   originVoiceoverClipId?: string;
   captionDocId: string;
   sourceStartMs: number;
@@ -71,11 +86,21 @@ export interface CaptionClip {
   stylePresetId: string;
   styleOverrides: CaptionStyleOverrides;
   groupingMs: number;
-  locallyModified?: boolean;
 }
 
 export type TimelineClip = Clip | CaptionClip;
-export type ClipPatch = Partial<Clip> & Partial<CaptionClip>;
+
+export type VideoClipPatch = Partial<Omit<VideoClip, "id" | "type">>;
+export type AudioClipPatch = Partial<Omit<AudioClip, "id" | "type">>;
+export type MusicClipPatch = Partial<Omit<MusicClip, "id" | "type">>;
+export type TextClipPatch = Partial<Omit<TextClip, "id" | "type">>;
+export type CaptionClipPatch = Partial<Omit<CaptionClip, "id" | "type">>;
+export type ClipPatch =
+  | VideoClipPatch
+  | AudioClipPatch
+  | MusicClipPatch
+  | TextClipPatch
+  | CaptionClipPatch;
 
 export type TrackType = "video" | "audio" | "music" | "text";
 
@@ -105,7 +130,6 @@ export interface EditProject {
   parentProjectId: string | null;
   mergedAssetIds?: string[];
   thumbnailUrl?: string | null;
-  // From linked generated_content (null for blank / list-view responses)
   generatedHook?: string | null;
   postCaption?: string | null;
   autoTitle?: boolean;
@@ -118,7 +142,6 @@ export interface ExportJobStatus {
   error?: string;
 }
 
-/** Single undo/redo snapshot (tracks + settings restored on undo). */
 export type EditorHistorySnapshot = {
   tracks: Track[];
   resolution: string;
@@ -126,7 +149,6 @@ export type EditorHistorySnapshot = {
   playbackRate: number;
 };
 
-// Editor state managed via useReducer
 export interface EditorState {
   editProjectId: string | null;
   title: string;
@@ -135,17 +157,14 @@ export interface EditorState {
   resolution: string;
   currentTimeMs: number;
   isPlaying: boolean;
-  playbackRate: number; // 1 normally; negative = reverse (JKL); >1 = fast forward
-  zoom: number; // pixels per second, default 40
+  playbackRate: number;
+  zoom: number;
   tracks: Track[];
   selectedClipId: string | null;
-  clipboardClip: TimelineClip | null; // copy/paste
-  /** Track id the copied clip came from (paste target when source clip was deleted). */
+  clipboardClip: TimelineClip | null;
   clipboardSourceTrackId: string | null;
-  // Undo/redo — each snapshot stores tracks + editor settings that can be undone
   past: EditorHistorySnapshot[];
   future: EditorHistorySnapshot[];
-  // Export
   exportJobId: string | null;
   exportStatus: ExportJobStatus | null;
   isReadOnly: boolean;

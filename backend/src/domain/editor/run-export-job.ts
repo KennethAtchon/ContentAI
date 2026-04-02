@@ -11,6 +11,13 @@ import {
   serializeASS,
 } from "./export/ass-exporter";
 import type { Token } from "../../infrastructure/database/drizzle/schema";
+import type {
+  AudioClip,
+  CaptionClip,
+  MusicClip,
+  Track,
+  VideoClip,
+} from "../../types/timeline.types";
 import type { CaptionPresetRecord } from "./captions/preset.repository";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
@@ -29,68 +36,12 @@ export type ExportJobDbDeps = {
   ) => Promise<void>;
 };
 
-interface ClipData {
-  id?: string;
-  assetId: string | null;
-  r2Key?: string;
-  startMs: number;
-  durationMs: number;
-  trimStartMs: number;
-  trimEndMs: number;
-  speed: number;
-  volume: number;
-  muted: boolean;
-  textContent?: string;
-  positionX?: number;
-  positionY?: number;
-  scale?: number;
-  contrast?: number;
-  warmth?: number;
-  opacity?: number;
-}
-
-interface CaptionClipData {
-  id: string;
-  type: "caption";
-  startMs: number;
-  durationMs: number;
-  originVoiceoverClipId?: string;
-  captionDocId: string;
-  sourceStartMs: number;
-  sourceEndMs: number;
-  stylePresetId: string;
-  styleOverrides: {
-    positionY?: number;
-    fontSize?: number;
-    textTransform?: "none" | "uppercase" | "lowercase";
-  };
-  groupingMs: number;
-}
-
 interface TransitionData {
   id: string;
   type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
   durationMs: number;
   clipAId: string;
   clipBId: string;
-}
-
-interface TrackData {
-  id?: string;
-  type: "video" | "audio" | "music" | "text";
-  muted: boolean;
-  clips: Array<ClipData | CaptionClipData>;
-  transitions?: TransitionData[];
-}
-
-function isMediaClip(clip: ClipData | CaptionClipData): clip is ClipData {
-  return (clip as CaptionClipData).type !== "caption";
-}
-
-function isCaptionClip(
-  clip: ClipData | CaptionClipData,
-): clip is CaptionClipData {
-  return (clip as CaptionClipData).type === "caption";
 }
 
 function escapeSubtitlesFilterPath(filePath: string): string {
@@ -147,7 +98,7 @@ export async function runExportJob(
   try {
     await deps.updateExportJob(jobId, { status: "rendering", progress: 5 });
 
-    const tracks = parseStoredEditorTracks(project.tracks) as TrackData[];
+    const tracks = parseStoredEditorTracks(project.tracks) as Track[];
     const fps = opts.fps ?? project.fps ?? 30;
     const resolution = opts.resolution ?? project.resolution ?? "1080x1920";
     const resolutionMap: Record<string, [number, number]> = {
@@ -187,7 +138,7 @@ export async function runExportJob(
 
     const videoClipsWithTrack = videoTracks.flatMap((t, trackIndex) =>
       t.clips
-        .filter(isMediaClip)
+        .filter((clip): clip is VideoClip => clip.type === "video")
         .filter((c) => c.assetId && assetsMap[c.assetId!])
         .map((c) => ({ clip: c, trackIndex })),
     );
@@ -202,10 +153,14 @@ export async function runExportJob(
       if (clip.id) clipTrackIndex.set(clip.id, trackIndex);
     }
     const videoTransitions = videoTracks.flatMap((t) => t.transitions ?? []);
-    const audioClips = (audioTrack?.clips ?? []).filter(isMediaClip).filter(
+    const audioClips = (audioTrack?.clips ?? []).filter(
+      (clip): clip is AudioClip => clip.type === "audio",
+    ).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
-    const musicClips = (musicTrack?.clips ?? []).filter(isMediaClip).filter(
+    const musicClips = (musicTrack?.clips ?? []).filter(
+      (clip): clip is MusicClip => clip.type === "music",
+    ).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
 
@@ -286,7 +241,9 @@ export async function runExportJob(
       );
     });
 
-    const captionClips = (textTrack?.clips ?? []).filter(isCaptionClip);
+    const captionClips = (textTrack?.clips ?? []).filter(
+      (clip): clip is CaptionClip => clip.type === "caption",
+    );
     let latestVideoLabel = "";
 
     if (videoInputCount === 1) {

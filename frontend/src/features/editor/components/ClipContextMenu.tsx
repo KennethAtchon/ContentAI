@@ -9,12 +9,11 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shared/components/ui/context-menu";
-import type { Clip, Track, TrackType, Transition } from "../types/editor";
-
-// ── Clip context menu ──────────────────────────────────────────────────────────
+import type { Track, TrackType, TimelineClip, Transition } from "../types/editor";
+import { isCaptionClip } from "../utils/clip-types";
 
 interface ClipContextMenuProps {
-  clip: Clip;
+  clip: TimelineClip;
   track: Track;
   hasClipboard: boolean;
   children: React.ReactNode;
@@ -41,7 +40,7 @@ export function ClipContextMenu({
   onDelete,
   onSetSpeed,
 }: ClipContextMenuProps) {
-  const isDisabled = clip.enabled === false;
+  const isDisabled = !isCaptionClip(clip) && clip.enabled === false;
 
   return (
     <ContextMenu>
@@ -67,26 +66,30 @@ export function ClipContextMenu({
           <ContextMenuShortcut>⌘V</ContextMenuShortcut>
         </ContextMenuItem>
 
-        <ContextMenuSeparator />
+        {!isCaptionClip(clip) && (
+          <>
+            <ContextMenuSeparator />
 
-        <ContextMenuItem onSelect={onToggleEnabled}>
-          {isDisabled ? "Enable Clip" : "Disable Clip"}
-        </ContextMenuItem>
+            <ContextMenuItem onSelect={onToggleEnabled}>
+              {isDisabled ? "Enable Clip" : "Disable Clip"}
+            </ContextMenuItem>
 
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>Speed</ContextMenuSubTrigger>
-          <ContextMenuSubContent>
-            {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4].map((s) => (
-              <ContextMenuItem
-                key={s}
-                onSelect={() => onSetSpeed(s)}
-                className={clip.speed === s ? "text-studio-accent" : ""}
-              >
-                {s}×{clip.speed === s ? " ✓" : ""}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>Speed</ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4].map((s) => (
+                  <ContextMenuItem
+                    key={s}
+                    onSelect={() => onSetSpeed(s)}
+                    className={clip.speed === s ? "text-studio-accent" : ""}
+                  >
+                    {s}x{clip.speed === s ? " ✓" : ""}
+                  </ContextMenuItem>
+                ))}
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+          </>
+        )}
 
         <ContextMenuSeparator />
 
@@ -105,8 +108,6 @@ export function ClipContextMenu({
     </ContextMenu>
   );
 }
-
-// ── Placeholder clip context menu ──────────────────────────────────────────────
 
 interface PlaceholderContextMenuProps {
   children: React.ReactNode;
@@ -131,8 +132,6 @@ export function PlaceholderContextMenu({
     </ContextMenu>
   );
 }
-
-// ── Track area context menu (right-click on empty track space) ─────────────────
 
 const ADD_CLIP_LABELS: Record<TrackType, string> = {
   video: "Add Video Clip at Position",
@@ -178,8 +177,6 @@ export function TrackAreaContextMenu({
   );
 }
 
-// ── Track header context menu ──────────────────────────────────────────────────
-
 interface TrackHeaderContextMenuProps {
   track: Track;
   children: React.ReactNode;
@@ -217,8 +214,6 @@ export function TrackHeaderContextMenu({
     </ContextMenu>
   );
 }
-
-// ── Transition diamond context menu ───────────────────────────────────────────
 
 interface TransitionContextMenuProps {
   transition: Transition | undefined;

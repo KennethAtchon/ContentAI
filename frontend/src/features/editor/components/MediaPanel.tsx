@@ -7,7 +7,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import type { Clip } from "../types/editor";
+import type { AudioClip, MusicClip, VideoClip } from "../types/editor";
 
 interface Asset {
   id: string;
@@ -22,7 +22,10 @@ interface Asset {
 interface Props {
   generatedContentId: number | null;
   currentTimeMs: number;
-  onAddClip: (trackId: string, clip: Clip) => void;
+  onAddClip: (
+    trackId: string,
+    clip: VideoClip | AudioClip | MusicClip
+  ) => void;
   readOnly?: boolean;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
@@ -36,9 +39,10 @@ interface Props {
 export type TabKey = "media" | "audio" | "generate";
 
 
-function makeClip(overrides: Partial<Clip>): Clip {
+function makeVideoClip(overrides: Partial<VideoClip>): VideoClip {
   return {
     id: crypto.randomUUID(),
+    type: "video",
     assetId: null,
     label: "Clip",
     startMs: 0,
@@ -54,6 +58,33 @@ function makeClip(overrides: Partial<Clip>): Clip {
     scale: 1,
     rotation: 0,
     volume: 1,
+    muted: false,
+    ...overrides,
+  };
+}
+
+function makeAudioClip(
+  type: "audio" | "music",
+  overrides: Partial<AudioClip | MusicClip>
+): AudioClip | MusicClip {
+  return {
+    id: crypto.randomUUID(),
+    type,
+    assetId: null,
+    label: "Clip",
+    startMs: 0,
+    durationMs: 5000,
+    trimStartMs: 0,
+    trimEndMs: 0,
+    speed: 1,
+    opacity: 1,
+    warmth: 0,
+    contrast: 0,
+    positionX: 0,
+    positionY: 0,
+    scale: 1,
+    rotation: 0,
+    volume: type === "music" ? 0.3 : 1,
     muted: false,
     ...overrides,
   };
@@ -104,7 +135,7 @@ export function MediaPanel({
   ];
 
   const addVideoClip = (asset: Asset) => {
-    const clip = makeClip({
+    const clip = makeVideoClip({
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: pendingAdd?.startMs ?? currentTimeMs,
@@ -117,7 +148,7 @@ export function MediaPanel({
 
   const addAudioClip = (asset: Asset) => {
     const defaultTrackId = asset.type === "music" ? "music" : "audio";
-    const clip = makeClip({
+    const clip = makeAudioClip(defaultTrackId, {
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
       startMs: pendingAdd?.startMs ?? currentTimeMs,

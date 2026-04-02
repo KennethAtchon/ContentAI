@@ -1,7 +1,6 @@
 /**
  * Strict TypeScript models for editor timeline JSONB (`edit_project.tracks`).
  * Aligned with `frontend/src/features/editor/types/editor.ts`.
- * Runtime validation (Zod) is deferred to a later phase.
  */
 import type { Token } from "../infrastructure/database/drizzle/schema";
 
@@ -22,16 +21,20 @@ export interface Transition {
   clipBId: string;
 }
 
-export interface Clip {
+export interface BaseClip {
   id: string;
-  assetId: string | null;
-  label: string;
   startMs: number;
   durationMs: number;
-  trimStartMs: number;
-  trimEndMs: number;
-  speed: number;
+  locallyModified?: boolean;
+}
+
+export interface NamedClip extends BaseClip {
+  label: string;
   enabled?: boolean;
+  speed: number;
+}
+
+export interface VisualClip extends NamedClip {
   opacity: number;
   warmth: number;
   contrast: number;
@@ -39,18 +42,42 @@ export interface Clip {
   positionY: number;
   scale: number;
   rotation: number;
+}
+
+export interface MediaClipBase extends VisualClip {
+  assetId: string | null;
+  trimStartMs: number;
+  trimEndMs: number;
+  sourceMaxDurationMs?: number;
   volume: number;
   muted: boolean;
-  textContent?: string;
-  textAutoChunk?: boolean;
-  textStyle?: TextStyle;
-  sourceMaxDurationMs?: number;
+}
+
+export interface VideoClip extends MediaClipBase {
+  type: "video";
   isPlaceholder?: true;
   placeholderShotIndex?: number;
   placeholderLabel?: string;
   placeholderStatus?: "pending" | "generating" | "failed";
-  locallyModified?: boolean;
 }
+
+export interface AudioClip extends MediaClipBase {
+  type: "audio";
+}
+
+export interface MusicClip extends MediaClipBase {
+  type: "music";
+}
+
+export interface TextClip extends VisualClip {
+  type: "text";
+  textContent: string;
+  textAutoChunk?: boolean;
+  textStyle?: TextStyle;
+}
+
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
+export type MediaClip = VideoClip | AudioClip | MusicClip;
 
 export interface CaptionStyleOverrides {
   positionY?: number;
@@ -58,15 +85,8 @@ export interface CaptionStyleOverrides {
   textTransform?: "none" | "uppercase" | "lowercase";
 }
 
-/**
- * Caption clips own their linked transcript via `captionDocId`.
- * This points to a clip-owned editable caption doc, not a shared asset-level doc.
- */
-export interface CaptionClip {
-  id: string;
+export interface CaptionClip extends BaseClip {
   type: "caption";
-  startMs: number;
-  durationMs: number;
   originVoiceoverClipId?: string;
   captionDocId: string;
   sourceStartMs: number;
@@ -76,6 +96,8 @@ export interface CaptionClip {
   groupingMs: number;
 }
 
+export type TimelineClip = Clip | CaptionClip;
+
 export type TrackType = "video" | "audio" | "music" | "text";
 
 export interface Track {
@@ -84,9 +106,8 @@ export interface Track {
   name: string;
   muted: boolean;
   locked: boolean;
-  clips: Array<Clip | CaptionClip>;
+  clips: TimelineClip[];
   transitions: Transition[];
 }
 
-/** Payload stored in `edit_project.tracks` (JSONB array of tracks). */
 export type EditorTracks = Track[];

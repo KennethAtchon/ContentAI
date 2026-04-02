@@ -6,6 +6,7 @@ import { TRACK_COLORS } from "../types/editor";
 import type {
   Clip,
   ClipPatch,
+  MediaClip,
   TimelineClip as EditorTimelineClip,
   Track,
   TrackType,
@@ -285,7 +286,7 @@ export function TimelineClip({
 
   return (
     <ClipContextMenu
-      clip={mediaClip ?? (clip as Clip)}
+      clip={mediaClip ?? clip}
       track={track}
       hasClipboard={hasClipboard}
       onSplit={onSplit}
@@ -347,7 +348,7 @@ export function TimelineClip({
           className="text-[10px] font-medium px-1.5 pt-1 truncate pointer-events-none"
           style={{ color }}
         >
-          {isDisabled ? "⊘ " : ""}{"label" in clip ? clip.label : "Caption"}
+          {isDisabled ? "⊘ " : ""}{clip.type === "caption" ? "Caption" : clip.label}
         </span>
 
         <span
