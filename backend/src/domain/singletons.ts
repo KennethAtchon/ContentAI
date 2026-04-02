@@ -15,6 +15,7 @@ import { MusicRepository } from "./music/music.repository";
 import { MusicService } from "./music/music.service";
 import { CaptionsRepository } from "./editor/captions.repository";
 import { CaptionsService } from "./editor/captions.service";
+import { CaptionPresetRepository } from "./editor/captions/preset.repository";
 import { EditorRepository } from "./editor/editor.repository";
 import { EditorService } from "./editor/editor.service";
 import { QueueRepository } from "./queue/queue.repository";
@@ -54,9 +55,11 @@ export const assetsRepository = new AssetsRepository(db);
 export const assetsService = new AssetsService(assetsRepository);
 
 export const captionsRepository = new CaptionsRepository(db);
+export const captionPresetRepository = new CaptionPresetRepository(db);
 export const captionsService = new CaptionsService(
   assetsRepository,
   captionsRepository,
+  captionPresetRepository,
 );
 
 export const contentRepository = new ContentRepository(db);

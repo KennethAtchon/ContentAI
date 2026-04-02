@@ -2,6 +2,16 @@ import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { NewAssetRow } from "../assets/assets.repository";
+import { buildPages } from "./captions/page-builder";
+import { applyOverrides } from "./captions/preset.repository";
+import { sliceTokensToRange } from "./captions/slice-tokens";
+import {
+  deriveAssStyleName,
+  generateASS,
+  serializeASS,
+} from "./export/ass-exporter";
+import type { Token } from "../../infrastructure/database/drizzle/schema";
+import type { CaptionPresetRecord } from "./captions/preset.repository";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { buildFfmpegAtempoChain } from "./timeline/composition";
@@ -39,6 +49,24 @@ interface ClipData {
   opacity?: number;
 }
 
+interface CaptionClipData {
+  id: string;
+  type: "caption";
+  startMs: number;
+  durationMs: number;
+  originVoiceoverClipId?: string;
+  captionDocId: string;
+  sourceStartMs: number;
+  sourceEndMs: number;
+  stylePresetId: string;
+  styleOverrides: {
+    positionY?: number;
+    fontSize?: number;
+    textTransform?: "none" | "uppercase" | "lowercase";
+  };
+  groupingMs: number;
+}
+
 interface TransitionData {
   id: string;
   type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
@@ -51,8 +79,25 @@ interface TrackData {
   id?: string;
   type: "video" | "audio" | "music" | "text";
   muted: boolean;
-  clips: ClipData[];
+  clips: Array<ClipData | CaptionClipData>;
   transitions?: TransitionData[];
+}
+
+function isMediaClip(clip: ClipData | CaptionClipData): clip is ClipData {
+  return (clip as CaptionClipData).type !== "caption";
+}
+
+function isCaptionClip(
+  clip: ClipData | CaptionClipData,
+): clip is CaptionClipData {
+  return (clip as CaptionClipData).type === "caption";
+}
+
+function escapeSubtitlesFilterPath(filePath: string): string {
+  return filePath
+    .replace(/\\/g, "/")
+    .replace(/:/g, "\\:")
+    .replace(/'/g, "\\'");
 }
 
 async function setJobProgress(
@@ -85,6 +130,13 @@ export async function runExportJob(
       userId: string,
       ids: string[],
     ) => Promise<Array<{ id: string; r2Key: string | null; type: string }>>;
+    findCaptionDocByIdForUser: (
+      userId: string,
+      captionDocId: string,
+    ) => Promise<{ id: string; tokens: Token[] } | null>;
+    getCaptionPreset: (
+      presetId: string,
+    ) => Promise<CaptionPresetRecord | null>;
     insertAssembledVideoAsset: (
       row: NewAssetRow,
     ) => Promise<{ id: string }>;
@@ -109,6 +161,7 @@ export async function runExportJob(
 
     const assetIds = tracks
       .flatMap((t) => t.clips)
+      .filter(isMediaClip)
       .map((c) => c.assetId)
       .filter((id): id is string => !!id);
 
@@ -134,6 +187,7 @@ export async function runExportJob(
 
     const videoClipsWithTrack = videoTracks.flatMap((t, trackIndex) =>
       t.clips
+        .filter(isMediaClip)
         .filter((c) => c.assetId && assetsMap[c.assetId!])
         .map((c) => ({ clip: c, trackIndex })),
     );
@@ -148,10 +202,10 @@ export async function runExportJob(
       if (clip.id) clipTrackIndex.set(clip.id, trackIndex);
     }
     const videoTransitions = videoTracks.flatMap((t) => t.transitions ?? []);
-    const audioClips = (audioTrack?.clips ?? []).filter(
+    const audioClips = (audioTrack?.clips ?? []).filter(isMediaClip).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
-    const musicClips = (musicTrack?.clips ?? []).filter(
+    const musicClips = (musicTrack?.clips ?? []).filter(isMediaClip).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
 
@@ -232,7 +286,7 @@ export async function runExportJob(
       );
     });
 
-    const textClips = textTrack?.clips ?? [];
+    const captionClips = (textTrack?.clips ?? []).filter(isCaptionClip);
     let latestVideoLabel = "";
 
     if (videoInputCount === 1) {
@@ -286,23 +340,74 @@ export async function runExportJob(
       latestVideoLabel = "vjoined";
     }
 
-    textClips.forEach((clip, i) => {
-      if (!clip.textContent) return;
-      const startSec = clip.startMs / 1000;
-      const endSec = (clip.startMs + clip.durationMs) / 1000;
-      const x = clip.positionX ?? 0;
-      const y = clip.positionY ?? 0;
-      const label = `vtxt${i}`;
-      const prevLabel = i === 0 ? latestVideoLabel : `vtxt${i - 1}`;
-      const textFilePath = join(tmpdir(), `export-${jobId}-text-${i}.txt`);
-      writeFileSync(textFilePath, clip.textContent);
-      tmpFiles.push(textFilePath);
-      filterParts.push(
-        `[${prevLabel}]drawtext=textfile='${textFilePath}':fontsize=48:fontcolor=white:` +
-          `x=${x}:y=${y}:enable='between(t,${startSec},${endSec})'[${label}]`,
-      );
-      latestVideoLabel = label;
-    });
+    if (captionClips.length > 0) {
+      const styles = new Map<string, CaptionPresetRecord>();
+      const events = [];
+
+      for (const clip of captionClips) {
+        const doc = await deps.findCaptionDocByIdForUser(
+          userId,
+          clip.captionDocId,
+        );
+        if (!doc) continue;
+
+        const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
+        if (!presetRecord) continue;
+
+        const slicedTokens = sliceTokensToRange(
+          doc.tokens,
+          clip.sourceStartMs,
+          clip.sourceEndMs,
+        );
+        if (slicedTokens.length === 0) continue;
+
+        const resolvedPreset = applyOverrides(
+          presetRecord,
+          clip.styleOverrides ?? {},
+        );
+        const styleName = deriveAssStyleName(resolvedPreset);
+        const pages = buildPages(
+          slicedTokens,
+          clip.groupingMs || resolvedPreset.groupingMs,
+        );
+        if (pages.length === 0) continue;
+
+        styles.set(styleName, { ...resolvedPreset, createdAt: presetRecord.createdAt, updatedAt: presetRecord.updatedAt });
+        events.push(
+          ...generateASS(
+            pages,
+            resolvedPreset,
+            { width: outW, height: outH },
+            clip.startMs,
+            styleName,
+          ),
+        );
+      }
+
+      if (events.length > 0) {
+        const assFilePath = join(tmpdir(), `export-${jobId}-captions.ass`);
+        writeFileSync(
+          assFilePath,
+          serializeASS(
+            events,
+            [...styles.entries()].map(([styleName, preset]) => ({
+              styleName,
+              preset,
+            })),
+            { width: outW, height: outH },
+          ),
+        );
+        tmpFiles.push(assFilePath);
+
+        const subtitleLabel = "vcaptions";
+        filterParts.push(
+          `[${latestVideoLabel}]subtitles='${escapeSubtitlesFilterPath(
+            assFilePath,
+          )}'[${subtitleLabel}]`,
+        );
+        latestVideoLabel = subtitleLabel;
+      }
+    }
 
     const allAudioClips = [...audioClips, ...musicClips];
     let finalAudioLabel = "";

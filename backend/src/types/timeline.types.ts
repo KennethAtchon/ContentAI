@@ -3,6 +3,9 @@
  * Aligned with `frontend/src/features/editor/types/editor.ts`.
  * Runtime validation (Zod) is deferred to a later phase.
  */
+import type { Token } from "../infrastructure/database/drizzle/schema";
+
+export type { Token };
 
 export interface TextStyle {
   fontSize: number;
@@ -49,6 +52,30 @@ export interface Clip {
   locallyModified?: boolean;
 }
 
+export interface CaptionStyleOverrides {
+  positionY?: number;
+  fontSize?: number;
+  textTransform?: "none" | "uppercase" | "lowercase";
+}
+
+/**
+ * Caption clips own their linked transcript via `captionDocId`.
+ * This points to a clip-owned editable caption doc, not a shared asset-level doc.
+ */
+export interface CaptionClip {
+  id: string;
+  type: "caption";
+  startMs: number;
+  durationMs: number;
+  originVoiceoverClipId?: string;
+  captionDocId: string;
+  sourceStartMs: number;
+  sourceEndMs: number;
+  stylePresetId: string;
+  styleOverrides: CaptionStyleOverrides;
+  groupingMs: number;
+}
+
 export type TrackType = "video" | "audio" | "music" | "text";
 
 export interface Track {
@@ -57,7 +84,7 @@ export interface Track {
   name: string;
   muted: boolean;
   locked: boolean;
-  clips: Clip[];
+  clips: Array<Clip | CaptionClip>;
   transitions: Transition[];
 }
 

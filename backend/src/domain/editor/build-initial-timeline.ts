@@ -1,4 +1,3 @@
-import { extractCaptionSourceText } from "../video/caption-source-text";
 import type { IContentRepository } from "../content/content.repository";
 import type { TimelineClipJson } from "./timeline/clip-trim";
 import {
@@ -6,40 +5,6 @@ import {
   type AssetMergeRow,
   type TimelineTrackJson,
 } from "./timeline/merge-placeholders-with-assets";
-
-/** Mirror of frontend estimateReadingDurationMs — 2.5 words/sec, 2s minimum. */
-function estimateReadingDurationMs(text: string): number {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  if (words === 0) return 2000;
-  return Math.max(2000, Math.ceil(words / 2.5) * 1000);
-}
-
-function normalizeCopy(s: string | null | undefined): string {
-  if (!s) return "";
-  return s.replace(/\s+/g, " ").trim();
-}
-
-/**
- * On-screen overlay text: hook + voiceover body (voiceover_script, no
- * timestamp lines). Post caption is for the social post only — not shown here.
- */
-export function composeOverlayText(input: {
-  generatedHook: string | null;
-  voiceoverScript: string | null;
-}): string {
-  const hook = normalizeCopy(input.generatedHook);
-  const clean = normalizeCopy(
-    extractCaptionSourceText({
-      voiceoverScript: input.voiceoverScript,
-      generatedScript: null,
-    }),
-  );
-
-  const parts: string[] = [];
-  if (hook) parts.push(hook);
-  if (clean && clean !== hook) parts.push(clean);
-  return parts.join("\n\n");
-}
 
 function emptyTracksFromVideo(
   videoClips: TimelineTrackJson["clips"],
@@ -84,43 +49,10 @@ function emptyTracksFromVideo(
   ];
 }
 
-function buildCaptionClip(text: string, spanMs: number): TimelineClipJson {
-  const trimmed = text.trim();
-  const dur = Math.min(
-    Math.max(spanMs, estimateReadingDurationMs(trimmed)),
-    180_000,
-  );
-  const codePoints = [...trimmed];
-  const label =
-    codePoints.length > 40
-      ? `${codePoints.slice(0, 37).join("")}…`
-      : trimmed;
-  return {
-    id: crypto.randomUUID(),
-    assetId: null,
-    label,
-    textContent: trimmed,
-    startMs: 0,
-    durationMs: dur,
-    trimStartMs: 0,
-    trimEndMs: 0,
-    sourceMaxDurationMs: dur,
-    speed: 1,
-    opacity: 1,
-    warmth: 0,
-    contrast: 0,
-    positionX: 0,
-    positionY: 0,
-    scale: 1,
-    rotation: 0,
-    volume: 0,
-    muted: true,
-  };
-}
-
 /**
- * Builds editor tracks from linked assets plus overlay copy from hook and
- * voiceover_script (not post_caption).
+ * Builds editor tracks from linked media assets.
+ * Caption clips are not created during init; they are added later once a real
+ * caption doc exists.
  */
 export async function buildInitialTimeline(
   content: IContentRepository,
@@ -196,21 +128,6 @@ export async function buildInitialTimeline(
         Number(clip.startMs ?? 0) + Number(clip.durationMs ?? 0);
       if (end > maxEnd) maxEnd = end;
     }
-  }
-
-  const overlayText = composeOverlayText({
-    generatedHook: row.generatedHook,
-    voiceoverScript: row.voiceoverScript,
-  });
-  if (overlayText.length > 0) {
-    const spanMs = Math.min(Math.max(maxEnd, 1000), 180_000);
-    tracks = tracks.map((t) =>
-      t.type === "text"
-        ? { ...t, clips: [buildCaptionClip(overlayText, spanMs)] }
-        : t,
-    );
-    const capEnd = spanMs;
-    if (capEnd > maxEnd) maxEnd = capEnd;
   }
 
   const durationMs = Math.min(Math.max(maxEnd, 1000), 180_000);

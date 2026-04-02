@@ -21,10 +21,12 @@ export type {
 } from "./hono.types";
 
 export type {
-  CaptionWord,
+  Token,
   TextStyle,
   Transition,
   Clip,
+  CaptionStyleOverrides,
+  CaptionClip,
   TrackType,
   Track,
   EditorTracks,

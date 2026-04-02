@@ -775,11 +775,13 @@ export type AiCostEntry = typeof aiCostLedger.$inferSelect;
 // ─── Captions ──────────────────────────────────────────────────────────────────
 // Word-level transcription data from Whisper, one row per (user, asset).
 
-export interface CaptionWord {
+export interface Token {
   word: string;
   startMs: number;
   endMs: number;
 }
+
+export interface CaptionWord extends Token {}
 
 export type CaptionDocSource = "whisper" | "manual" | "import";
 

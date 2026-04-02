@@ -154,7 +154,10 @@ export class EditorService {
       updateData.mergedAssetIds = [
         ...new Set(
           parsed.tracks
-            .flatMap((t) => t.clips.map((cl) => cl.assetId))
+            .flatMap((t) =>
+              t.clips
+                .flatMap((cl) => ("assetId" in cl ? [cl.assetId] : [])),
+            )
             .filter(
               (aid): aid is string =>
                 typeof aid === "string" && aid.length > 0,

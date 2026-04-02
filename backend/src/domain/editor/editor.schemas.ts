@@ -57,6 +57,26 @@ const clipDataSchema = z.object({
     .optional(),
 });
 
+const captionClipSchema = z.object({
+  id: z.string().min(1),
+  type: z.literal("caption"),
+  startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  originVoiceoverClipId: z.string().min(1).optional(),
+  captionDocId: z.string().min(1),
+  sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  sourceEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  stylePresetId: z.string().min(1),
+  styleOverrides: z
+    .object({
+      positionY: z.number().optional(),
+      fontSize: z.number().optional(),
+      textTransform: z.enum(["none", "uppercase", "lowercase"]).optional(),
+    })
+    .default({}),
+  groupingMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
+});
+
 const transitionSchema = z.object({
   id: z.string().min(1),
   type: z.enum([
@@ -78,7 +98,7 @@ export const editorTrackDataSchema = z.object({
   name: z.string().min(1),
   muted: z.boolean(),
   locked: z.boolean(),
-  clips: z.array(clipDataSchema),
+  clips: z.array(z.union([clipDataSchema, captionClipSchema])),
   transitions: z.array(transitionSchema).optional(),
 });
 
@@ -146,6 +166,80 @@ export const editorSnapshotParamSchema = z.object({
 export const captionAssetIdParamSchema = z.object({
   assetId: z.string().min(1),
 });
+
+export const captionDocIdParamSchema = z.object({
+  captionDocId: z.string().min(1),
+});
+
+const captionTokenInputSchema = z.object({
+  text: z.string().trim().min(1).max(200),
+  startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  endMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
+});
+
+function validateCaptionTokens(
+  tokens: Array<z.infer<typeof captionTokenInputSchema>>,
+  ctx: z.RefinementCtx,
+) {
+  if (tokens.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "At least one token is required",
+      path: ["tokens"],
+    });
+    return;
+  }
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.startMs >= token.endMs) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Token startMs must be less than endMs",
+        path: ["tokens", i, "startMs"],
+      });
+    }
+
+    if (i > 0) {
+      const previous = tokens[i - 1]!;
+      if (previous.startMs > token.startMs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Tokens must be sorted by startMs",
+          path: ["tokens", i, "startMs"],
+        });
+      }
+      if (previous.endMs > token.startMs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Tokens must not overlap",
+          path: ["tokens", i, "startMs"],
+        });
+      }
+    }
+  }
+}
+
+export const manualCaptionDocSchema = z
+  .object({
+    assetId: z.string().min(1).nullable(),
+    tokens: z.array(captionTokenInputSchema),
+    fullText: z.string().trim().min(1),
+    language: z.literal("en"),
+  })
+  .superRefine((value, ctx) => {
+    validateCaptionTokens(value.tokens, ctx);
+  });
+
+export const patchCaptionDocSchema = z
+  .object({
+    tokens: z.array(captionTokenInputSchema),
+    fullText: z.string().trim().min(1),
+    language: z.literal("en"),
+  })
+  .superRefine((value, ctx) => {
+    validateCaptionTokens(value.tokens, ctx);
+  });
 
 export const editorAssetsQuerySchema = z.object({
   contentId: z.coerce.number().int().positive().optional(),
