@@ -42,6 +42,7 @@ export type TabKey = "media" | "audio" | "generate";
 function makeVideoClip(overrides: Partial<VideoClip>): VideoClip {
   return {
     id: crypto.randomUUID(),
+    locallyModified: false,
     type: "video",
     assetId: null,
     label: "Clip",
@@ -50,6 +51,7 @@ function makeVideoClip(overrides: Partial<VideoClip>): VideoClip {
     trimStartMs: 0,
     trimEndMs: 0,
     speed: 1,
+    enabled: true,
     opacity: 1,
     warmth: 0,
     contrast: 0,
@@ -69,6 +71,7 @@ function makeAudioClip(
 ): AudioClip | MusicClip {
   return {
     id: crypto.randomUUID(),
+    locallyModified: false,
     type,
     assetId: null,
     label: "Clip",
@@ -77,6 +80,7 @@ function makeAudioClip(
     trimStartMs: 0,
     trimEndMs: 0,
     speed: 1,
+    enabled: true,
     opacity: 1,
     warmth: 0,
     contrast: 0,

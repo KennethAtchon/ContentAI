@@ -148,7 +148,7 @@ export function useEditorReducer() {
       trackId: string,
       payload: {
         captionDocId: string;
-        originVoiceoverClipId?: string;
+        originVoiceoverClipId: string | null;
         startMs: number;
         durationMs: number;
         sourceStartMs: number;

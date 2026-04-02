@@ -24,7 +24,7 @@ const baseClipSchema = {
 const visualClipSchema = {
   label: z.string().max(200),
   speed: z.number().min(0.1).max(10),
-  enabled: z.boolean().optional(),
+  enabled: z.boolean(),
   opacity: z.number().min(0).max(1),
   warmth: z.number().min(-100).max(100),
   contrast: z.number().min(-100).max(100),
@@ -82,14 +82,14 @@ const textClipSchema = z.object({
   ...visualClipSchema,
   type: z.literal("text"),
   textContent: z.string().max(2000),
-  textAutoChunk: z.boolean().optional(),
+  textAutoChunk: z.boolean(),
   textStyle: textStyleSchema.optional(),
 });
 
 const captionClipSchema = z.object({
   ...baseClipSchema,
   type: z.literal("caption"),
-  originVoiceoverClipId: z.string().min(1).optional(),
+  originVoiceoverClipId: z.string().min(1).nullable(),
   captionDocId: z.string().min(1),
   sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
   sourceEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),

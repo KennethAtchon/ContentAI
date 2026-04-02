@@ -25,12 +25,11 @@ export interface BaseClip {
   id: string;
   startMs: number;
   durationMs: number;
-  locallyModified?: boolean;
 }
 
 export interface NamedClip extends BaseClip {
   label: string;
-  enabled?: boolean;
+  enabled: boolean;
   speed: number;
 }
 
@@ -72,7 +71,7 @@ export interface MusicClip extends MediaClipBase {
 export interface TextClip extends VisualClip {
   type: "text";
   textContent: string;
-  textAutoChunk?: boolean;
+  textAutoChunk: boolean;
   textStyle?: TextStyle;
 }
 
@@ -87,7 +86,7 @@ export interface CaptionStyleOverrides {
 
 export interface CaptionClip extends BaseClip {
   type: "caption";
-  originVoiceoverClipId?: string;
+  originVoiceoverClipId: string | null;
   captionDocId: string;
   sourceStartMs: number;
   sourceEndMs: number;

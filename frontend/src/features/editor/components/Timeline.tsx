@@ -208,6 +208,7 @@ export function Timeline({
                 if (track.type === "text") {
                   const clip: TextClip = {
                     id: crypto.randomUUID(),
+                    locallyModified: false,
                     type: "text",
                     label: t("editor_clip_default_label"),
                     startMs: pastePositionRef.current,
@@ -222,6 +223,7 @@ export function Timeline({
                     scale: 1,
                     rotation: 0,
                     textContent: "",
+                    textAutoChunk: false,
                   };
                   onAddClip(track.id, clip);
                   onSelectClip(clip.id);

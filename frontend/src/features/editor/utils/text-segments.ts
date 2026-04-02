@@ -109,12 +109,12 @@ export function getActiveSegment(
   return segments[segments.length - 1]?.text ?? "";
 }
 
-/** Preview-only: full text when `textAutoChunk` is falsy (default off), else timed chunks from {@link splitTextIntoSegments}. */
+/** Preview-only: full text when `textAutoChunk` is off, else timed chunks from {@link splitTextIntoSegments}. */
 export function getTextClipPreviewDisplay(
   text: string,
   durationMs: number,
   elapsedMs: number,
-  textAutoChunk?: boolean
+  textAutoChunk: boolean
 ): string {
   if (!textAutoChunk) return text;
   const segments = splitTextIntoSegments(text, durationMs);

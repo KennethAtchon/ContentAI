@@ -1,6 +1,5 @@
 import type {
   Track,
-  MediaClip,
   TimelineClip,
   ClipPatch,
   EditorState,
@@ -88,7 +87,15 @@ export function computeDuration(tracks: Track[]): number {
   return max;
 }
 
+export function hydrateTimelineClip(clip: TimelineClip): TimelineClip {
+  return {
+    ...clip,
+    locallyModified: clip.locallyModified ?? false,
+  };
+}
+
 export function alignClipTrimEndToInvariant(clip: TimelineClip): TimelineClip {
+  clip = hydrateTimelineClip(clip);
   if (!isMediaClip(clip)) return clip;
   const sm = clip.sourceMaxDurationMs;
   if (sm === undefined || clip.assetId == null) return clip;
@@ -107,6 +114,100 @@ export function alignTracksTrimInvariant(tracks: Track[]): Track[] {
   }));
 }
 
+function sanitizeClipPatch(clip: TimelineClip, patch: ClipPatch): ClipPatch {
+  const patchRecord = patch as Partial<Record<string, unknown>>;
+  const pick = (...keys: string[]) =>
+    Object.fromEntries(
+      keys
+        .filter((key) => Object.prototype.hasOwnProperty.call(patchRecord, key))
+        .map((key) => [key, patchRecord[key]]),
+    ) as ClipPatch;
+
+  switch (clip.type) {
+    case "video":
+      return pick(
+        "startMs",
+        "durationMs",
+        "locallyModified",
+        "label",
+        "enabled",
+        "speed",
+        "opacity",
+        "warmth",
+        "contrast",
+        "positionX",
+        "positionY",
+        "scale",
+        "rotation",
+        "assetId",
+        "trimStartMs",
+        "trimEndMs",
+        "sourceMaxDurationMs",
+        "volume",
+        "muted",
+        "isPlaceholder",
+        "placeholderShotIndex",
+        "placeholderLabel",
+        "placeholderStatus",
+      );
+    case "audio":
+    case "music":
+      return pick(
+        "startMs",
+        "durationMs",
+        "locallyModified",
+        "label",
+        "enabled",
+        "speed",
+        "opacity",
+        "warmth",
+        "contrast",
+        "positionX",
+        "positionY",
+        "scale",
+        "rotation",
+        "assetId",
+        "trimStartMs",
+        "trimEndMs",
+        "sourceMaxDurationMs",
+        "volume",
+        "muted",
+      );
+    case "text":
+      return pick(
+        "startMs",
+        "durationMs",
+        "locallyModified",
+        "label",
+        "enabled",
+        "speed",
+        "opacity",
+        "warmth",
+        "contrast",
+        "positionX",
+        "positionY",
+        "scale",
+        "rotation",
+        "textContent",
+        "textAutoChunk",
+        "textStyle",
+      );
+    case "caption":
+      return pick(
+        "startMs",
+        "durationMs",
+        "locallyModified",
+        "originVoiceoverClipId",
+        "captionDocId",
+        "sourceStartMs",
+        "sourceEndMs",
+        "stylePresetId",
+        "styleOverrides",
+        "groupingMs",
+      );
+  }
+}
+
 export function updateClipInTracks(
   tracks: Track[],
   clipId: string,
@@ -114,7 +215,14 @@ export function updateClipInTracks(
 ): Track[] {
   return tracks.map((track) => ({
     ...track,
-    clips: track.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
+    clips: track.clips.map((clip) => {
+      if (clip.id !== clipId) return clip;
+      const nextClip = {
+        ...clip,
+        ...sanitizeClipPatch(clip, patch),
+      } as TimelineClip;
+      return alignClipTrimEndToInvariant(nextClip);
+    }),
   }));
 }
 

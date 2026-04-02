@@ -1,5 +1,6 @@
 import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import type { EditProject, Track, ExportJobStatus } from "../types/editor";
+import type { PersistedTrack } from "../utils/strip-local-editor-fields";
 
 export interface CreateProjectParams {
   title?: string;
@@ -8,7 +9,7 @@ export interface CreateProjectParams {
 
 export interface PatchProjectParams {
   title?: string;
-  tracks?: Track[];
+  tracks?: PersistedTrack[];
   durationMs?: number;
   fps?: number;
   resolution?: string;

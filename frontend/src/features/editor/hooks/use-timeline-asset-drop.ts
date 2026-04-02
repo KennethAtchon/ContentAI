@@ -68,6 +68,7 @@ export function useTimelineAssetDrop(options: {
 
       const clip: VideoClip | AudioClip | MusicClip = {
         id: crypto.randomUUID(),
+        locallyModified: false,
         type: track.type,
         assetId: asset.assetId,
         label: asset.label,
@@ -77,6 +78,7 @@ export function useTimelineAssetDrop(options: {
         trimStartMs: 0,
         trimEndMs: 0,
         speed: 1,
+        enabled: true,
         opacity: 1,
         warmth: 0,
         contrast: 0,

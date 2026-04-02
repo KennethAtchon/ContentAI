@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { slicePeaksForClipTrim } from "@/features/editor/utils/waveform-trim";
-import type { Clip } from "@/features/editor/types/editor";
+import type { MediaClip } from "@/features/editor/types/editor";
 
-function baseClip(overrides: Partial<Clip>): Clip {
+function baseClip(overrides: Partial<MediaClip>): MediaClip {
   return {
     id: "c1",
+    locallyModified: false,
+    type: "audio",
     assetId: "a1",
     label: "x",
     startMs: 0,
@@ -12,6 +14,7 @@ function baseClip(overrides: Partial<Clip>): Clip {
     trimStartMs: 0,
     trimEndMs: 0,
     speed: 1,
+    enabled: true,
     opacity: 1,
     warmth: 0,
     contrast: 0,
