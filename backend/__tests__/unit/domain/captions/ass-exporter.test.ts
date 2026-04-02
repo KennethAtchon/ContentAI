@@ -6,7 +6,6 @@ import {
   msToASSTime,
   serializeASS,
 } from "../../../../src/domain/editor/export/ass-exporter";
-import { applyOverrides } from "../../../../src/domain/editor/captions/preset.repository";
 import { SEEDED_CAPTION_PRESETS } from "../../../../src/domain/editor/captions/preset-seed";
 import type { CaptionPage } from "../../../../src/domain/editor/captions/types";
 
@@ -66,7 +65,13 @@ describe("ass-exporter", () => {
 
   test("deriveAssStyleName changes when export-relevant overrides change", () => {
     const base = SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!;
-    const adjusted = applyOverrides(base, { fontSize: base.typography.fontSize + 8 });
+    const adjusted = {
+      ...base,
+      typography: {
+        ...base.typography,
+        fontSize: base.typography.fontSize + 8,
+      },
+    };
 
     expect(deriveAssStyleName(base)).not.toBe(deriveAssStyleName(adjusted));
   });

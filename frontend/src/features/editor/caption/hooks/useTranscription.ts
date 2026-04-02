@@ -9,19 +9,24 @@ interface TranscriptionResponse {
   fullText: string;
 }
 
+interface TranscriptionInput {
+  assetId: string;
+  force?: boolean;
+}
+
 export function useTranscription() {
   const queryClient = useQueryClient();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   return useMutation({
-    mutationFn: async (assetId: string) =>
+    mutationFn: async (input: TranscriptionInput) =>
       authenticatedFetchJson<TranscriptionResponse>("/api/captions/transcribe", {
         method: "POST",
-        body: JSON.stringify({ assetId }),
+        body: JSON.stringify(input),
       }),
-    onSuccess: (result, assetId) => {
+    onSuccess: (result, input) => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.captionDocByAsset(assetId),
+        queryKey: queryKeys.api.captionDocByAsset(input.assetId),
       });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.api.captionDoc(result.captionDocId),

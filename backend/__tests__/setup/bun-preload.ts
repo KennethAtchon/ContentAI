@@ -394,6 +394,9 @@ mock.module("@/infrastructure/database/drizzle/schema", () => ({
   systemConfig: {},
   userSettings: {},
   aiCostLedger: {},
+  captionDocs: {},
+  captionDocsRelations: {},
+  captionPresets: {},
   captions: {},
 }));
 

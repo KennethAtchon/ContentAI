@@ -53,7 +53,7 @@ export function useCaptionCanvas({
       if (!page) return;
 
       const layout = computeLayout(ctx, page, preset, canvas.width, canvas.height);
-      renderFrame(ctx, layout, relativeMs - page.startMs, preset);
+      renderFrame(ctx, layout, relativeMs, preset);
     };
 
     void run();

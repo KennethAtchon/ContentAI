@@ -39,7 +39,7 @@ export const VIDEO_SYNC_SEEK_THRESHOLD_SEC = 0.1;
 export const VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC = 0.15;
 
 export function isClipActiveAtTimelineTime(
-  clip: Clip,
+  clip: { enabled?: boolean; startMs: number; durationMs: number },
   currentTimeMs: number
 ): boolean {
   return (

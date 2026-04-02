@@ -148,6 +148,7 @@ export const aiAssembleRequestSchema = z.object({
 
 export const transcribeCaptionsSchema = z.object({
   assetId: z.string().min(1),
+  force: z.boolean().optional(),
 });
 
 export const forkProjectSchema = z.object({

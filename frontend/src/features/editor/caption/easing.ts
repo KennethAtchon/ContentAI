@@ -35,6 +35,8 @@ export function evaluate(fn: EasingFunction, t: number): number {
       return clamped ** fn.power;
     case "ease-out":
       return 1 - (1 - clamped) ** fn.power;
+    case "ease-in-out":
+      return clamped < 0.5 ? 2 * clamped * clamped : -1 + (4 - 2 * clamped) * clamped;
     case "cubic-bezier":
       return cubicBezierAt(clamped, fn.x1, fn.y1, fn.x2, fn.y2);
     case "spring":

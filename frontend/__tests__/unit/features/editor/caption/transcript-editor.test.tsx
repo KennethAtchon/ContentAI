@@ -26,7 +26,7 @@ describe("CaptionTranscriptEditor", () => {
 
     const textarea = screen.getByPlaceholderText("Edit transcript text");
     fireEvent.change(textarea, { target: { value: "Updated transcript" } });
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(onSave).toHaveBeenCalledWith({
       fullText: "Updated transcript",

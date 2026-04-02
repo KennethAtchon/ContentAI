@@ -1,8 +1,12 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
-import type { Clip, ClipPatch, Track } from "../types/editor";
+import type { ClipPatch, Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
+import { useCaptionCanvas } from "../caption/hooks/useCaptionCanvas";
+import { useCaptionDoc } from "../caption/hooks/useCaptionDoc";
+import { useCaptionPresets } from "../caption/hooks/useCaptionPresets";
+import { applyCaptionStyleOverrides } from "../caption/apply-style-overrides";
 import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
 import {
@@ -19,7 +23,7 @@ import {
   VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
   VIDEO_SYNC_SEEK_THRESHOLD_SEC,
 } from "../utils/editor-composition";
-import { isMediaClip, isTextContentClip } from "../utils/clip-types";
+import { isCaptionClip, isMediaClip, isTextContentClip } from "../utils/clip-types";
 
 interface Props {
   tracks: Track[];
@@ -94,6 +98,30 @@ export function PreviewArea({
       ),
     [textTrack?.clips, currentTimeMs]
   );
+  const activeCaptionClip = useMemo(
+    () => {
+      const activeClips = (textTrack?.clips ?? [])
+        .filter(isCaptionClip)
+        .filter((clip) => isClipActiveAtTimelineTime(clip, currentTimeMs));
+      return activeClips[activeClips.length - 1] ?? null;
+    },
+    [textTrack?.clips, currentTimeMs]
+  );
+  const { data: captionPresets } = useCaptionPresets();
+  const { data: activeCaptionDoc } = useCaptionDoc(activeCaptionClip?.captionDocId ?? null);
+  const activeCaptionPreset = useMemo(() => {
+    const preset = captionPresets?.find((item) => item.id === activeCaptionClip?.stylePresetId);
+    if (!preset || !activeCaptionClip) return null;
+    return applyCaptionStyleOverrides(preset, activeCaptionClip.styleOverrides);
+  }, [captionPresets, activeCaptionClip]);
+  const captionCanvasRef = useCaptionCanvas({
+    clip: activeCaptionClip,
+    doc: activeCaptionDoc ?? null,
+    preset: activeCaptionPreset,
+    currentTimeMs,
+    canvasW: Math.max(1, Math.round(previewSize?.w ?? resW)),
+    canvasH: Math.max(1, Math.round(previewSize?.h ?? resH)),
+  });
 
   const audioClips = useMemo(
     () => [
@@ -224,7 +252,7 @@ export function PreviewArea({
     }
   });
 
-  const hasContent = videoTracks.some((vt) => vt.clips.length > 0);
+  const hasContent = tracks.some((track) => track.clips.length > 0);
   const timecode = formatHHMMSSd(currentTimeMs);
   const position = formatMMSS(currentTimeMs);
   const total = formatMMSS(durationMs);
@@ -399,6 +427,12 @@ export function PreviewArea({
               </div>
             );
           })}
+
+          <canvas
+            ref={captionCanvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            aria-hidden="true"
+          />
 
           {!hasContent && (
             <div className="flex flex-col items-center gap-2">

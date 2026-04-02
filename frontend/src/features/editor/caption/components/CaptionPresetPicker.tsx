@@ -8,6 +8,8 @@ interface Props {
 }
 
 export function CaptionPresetPicker({ presets, value, onChange }: Props) {
+  const selectedPreset = presets.find((preset) => preset.id === value) ?? null;
+
   return (
     <InspectorSection title="Caption Preset">
       <div className="flex flex-col gap-1.5">
@@ -36,6 +38,11 @@ export function CaptionPresetPicker({ presets, value, onChange }: Props) {
       <InspectorPropRow label="Current">
         <span className="text-[10px] text-dim-3">{value}</span>
       </InspectorPropRow>
+      {selectedPreset && selectedPreset.exportMode !== "full" ? (
+        <div className="rounded border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[10px] text-amber-100">
+          Some visual effects in this caption style are simplified in the exported video.
+        </div>
+      ) : null}
     </InspectorSection>
   );
 }

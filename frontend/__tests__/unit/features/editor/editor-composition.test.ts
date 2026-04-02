@@ -13,6 +13,7 @@ import {
 
 function clip(p: Partial<Clip> & Pick<Clip, "id" | "startMs" | "durationMs">): Clip {
   return {
+    assetId: "asset-1",
     trimStartMs: 0,
     trimEndMs: 0,
     speed: 1,

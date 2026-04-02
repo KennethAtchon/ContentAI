@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
 import {
   Select,
@@ -17,11 +18,19 @@ import {
 interface Props {
   clip: Clip;
   onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  captionAction?: {
+    label: string;
+    helperText: string;
+    status: string;
+    disabled?: boolean;
+    onClick: () => void;
+  };
 }
 
 export function InspectorClipMetaPanel({
   clip,
   onUpdateClip,
+  captionAction,
 }: Props) {
   const { t } = useTranslation();
 
@@ -61,6 +70,28 @@ export function InspectorClipMetaPanel({
           />
         </InspectorPropRow>
       </InspectorSection>
+      {captionAction && (
+        <InspectorSection title={t("inspector_section_captions")}>
+          <div className="space-y-2">
+            <p className="text-[11px] leading-4 text-dim-3">
+              {captionAction.helperText}
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={captionAction.disabled}
+                onClick={captionAction.onClick}
+                className="h-7 px-2.5 text-xs"
+              >
+                {captionAction.label}
+              </Button>
+              <InspectorValuePill value={captionAction.status} />
+            </div>
+          </div>
+        </InspectorSection>
+      )}
     </>
   );
 }

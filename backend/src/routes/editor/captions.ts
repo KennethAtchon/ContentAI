@@ -26,8 +26,10 @@ app.post(
   zValidator("json", transcribeCaptionsSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
-    const { assetId } = c.req.valid("json");
-    const body = await captionsService.transcribeAsset(auth.user.id, assetId);
+    const { assetId, force } = c.req.valid("json");
+    const body = await captionsService.transcribeAsset(auth.user.id, assetId, {
+      force,
+    });
     return c.json(body);
   },
 );

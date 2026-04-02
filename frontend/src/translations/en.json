@@ -1294,6 +1294,16 @@
   "editor_tracks_label": "Tracks",
   "editor_preview_label": "Preview",
   "editor_preview_empty": "Add clips to the timeline",
+  "editor_caption_create": "Create captions",
+  "editor_caption_create_hint": "Transcribe this voiceover clip and add one linked caption clip on the text track.",
+  "editor_caption_refresh": "Refresh captions",
+  "editor_caption_refresh_hint": "Reuse the linked caption clip for this voiceover and refresh its timing without creating duplicates.",
+  "editor_caption_english_only": "Caption transcription and editing are English-only right now.",
+  "editor_caption_status_idle": "Idle",
+  "editor_caption_status_transcribing": "Transcribing",
+  "editor_caption_status_ready": "Ready",
+  "editor_caption_status_failed": "Failed",
+  "editor_caption_status_stale": "Stale",
   "editor_transport_undo": "Undo (Cmd+Z)",
   "editor_transport_redo": "Redo (Cmd+Shift+Z)",
   "editor_transport_jump_start": "Jump to start",
@@ -1319,5 +1329,6 @@
   "editor_effect_cool": "Cool",
   "editor_effect_vignette": "Vignette",
   "editor_clip_default_label": "Clip",
-  "editor_audio_empty": "No audio assets"
+  "editor_audio_empty": "No audio assets",
+  "inspector_section_captions": "Captions"
 }

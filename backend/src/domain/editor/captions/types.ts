@@ -84,7 +84,7 @@ export type StyleLayer =
 
 export type EasingFunction =
   | { type: "linear" }
-  | { type: "ease-in" | "ease-out"; power: number }
+  | { type: "ease-in" | "ease-out" | "ease-in-out"; power: number }
   | { type: "cubic-bezier"; x1: number; y1: number; x2: number; y2: number }
   | { type: "spring"; stiffness: number; damping: number; mass: number };
 
@@ -102,6 +102,7 @@ export interface LayerOverridePatch {
   layerId: string;
   color?: string;
   width?: number;
+  join?: StrokeLayer["join"];
   offsetX?: number;
   offsetY?: number;
   blur?: number;

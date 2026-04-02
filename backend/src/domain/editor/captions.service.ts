@@ -127,7 +127,11 @@ export class CaptionsService {
     return this.presets.listCaptionPresets();
   }
 
-  async transcribeAsset(userId: string, assetId: string) {
+  async transcribeAsset(
+    userId: string,
+    assetId: string,
+    options?: { force?: boolean },
+  ) {
     const asset = await this.assets.findByIdForUser(assetId, userId);
     if (!asset) throw Errors.notFound("Asset");
 
@@ -148,7 +152,7 @@ export class CaptionsService {
     }
 
     const existing = await this.captions.findByAssetAndUser(assetId, userId);
-    if (existing) {
+    if (existing && !options?.force) {
       return {
         captionDocId: existing.id,
         tokens: this.toApiTokens(existing.tokens),
@@ -237,14 +241,21 @@ export class CaptionsService {
       }),
     );
 
-    const saved = await this.captions.insert({
-      userId,
-      assetId,
-      language: "en",
-      tokens: words,
-      source: "whisper",
-      fullText: transcription.text ?? "",
-    });
+    const saved = existing
+      ? await this.captions.updateByIdAndUser(existing.id, userId, {
+          tokens: words,
+          fullText: transcription.text ?? "",
+          language: "en",
+        })
+      : await this.captions.insert({
+          userId,
+          assetId,
+          language: "en",
+          tokens: words,
+          source: "whisper",
+          fullText: transcription.text ?? "",
+        });
+    if (!saved) throw Errors.notFound("Caption doc");
 
     debugLog.info("Caption transcription completed", {
       service: "captions-service",
