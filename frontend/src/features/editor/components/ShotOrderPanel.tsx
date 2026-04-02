@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import type { Track, Clip } from "../types/editor";
+import { isMediaClip } from "../utils/clip-types";
 
 interface ShotOrderPanelProps {
   videoTrack: Track;
@@ -81,7 +82,7 @@ export function ShotOrderPanel({
   readOnly,
 }: ShotOrderPanelProps) {
   const { t } = useTranslation();
-  const clips = [...videoTrack.clips].sort((a, b) => a.startMs - b.startMs);
+  const clips = [...videoTrack.clips].filter(isMediaClip).sort((a, b) => a.startMs - b.startMs);
   const clipIds = clips.map((c) => c.id);
 
   const sensors = useSensors(

@@ -1,6 +1,7 @@
 import { useReducer, useCallback } from "react";
 import type {
-  Clip,
+  TimelineClip,
+  ClipPatch,
   EditProject,
   ExportJobStatus,
   Transition,
@@ -46,12 +47,12 @@ export function useEditorReducer() {
     []
   );
   const addClip = useCallback(
-    (trackId: string, clip: Clip) =>
+    (trackId: string, clip: TimelineClip) =>
       dispatch({ type: "ADD_CLIP", trackId, clip }),
     []
   );
   const updateClip = useCallback(
-    (clipId: string, patch: Partial<Clip>) =>
+    (clipId: string, patch: ClipPatch) =>
       dispatch({ type: "UPDATE_CLIP", clipId, patch }),
     []
   );
@@ -138,8 +139,35 @@ export function useEditorReducer() {
     []
   );
   const addClipAutoPromote = useCallback(
-    (preferredTrackId: string, clip: Clip) =>
+    (preferredTrackId: string, clip: TimelineClip) =>
       dispatch({ type: "ADD_CLIP_AUTO_PROMOTE", preferredTrackId, clip }),
+    []
+  );
+  const addCaptionClip = useCallback(
+    (
+      trackId: string,
+      payload: {
+        captionDocId: string;
+        originVoiceoverClipId?: string;
+        startMs: number;
+        durationMs: number;
+        sourceStartMs: number;
+        sourceEndMs: number;
+        presetId?: string;
+        groupingMs?: number;
+      }
+    ) => dispatch({ type: "ADD_CAPTION_CLIP", trackId, ...payload }),
+    []
+  );
+  const updateCaptionStyle = useCallback(
+    (
+      clipId: string,
+      payload: {
+        presetId?: string;
+        overrides?: import("../types/editor").CaptionStyleOverrides;
+        groupingMs?: number;
+      }
+    ) => dispatch({ type: "UPDATE_CAPTION_STYLE", clipId, ...payload }),
     []
   );
   const addVideoTrack = useCallback(
@@ -193,6 +221,8 @@ export function useEditorReducer() {
     removeTransition,
     reorderShots,
     addClipAutoPromote,
+    addCaptionClip,
+    updateCaptionStyle,
     addVideoTrack,
     removeTrack,
     renameTrack,

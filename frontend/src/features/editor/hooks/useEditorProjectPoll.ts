@@ -4,6 +4,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { EditProject, Track } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
+import { isMediaClip } from "../utils/clip-types";
 
 /**
  * Polls the canonical editor project while placeholders exist, merges non-conflicting
@@ -25,7 +26,7 @@ export function useEditorProjectPoll(options: {
   const hasPlaceholders =
     store.state.tracks
       .find((t) => t.type === "video")
-      ?.clips.some((c) => c.isPlaceholder) ?? false;
+      ?.clips.some((c) => isMediaClip(c) && c.isPlaceholder) ?? false;
 
   useEffect(() => {
     if (!hasPlaceholders) setPollIntervalMs(2000);
@@ -58,9 +59,9 @@ export function useEditorProjectPoll(options: {
     const serverAllPlaceholders =
       !!serverVideo &&
       serverVideo.clips.length > 0 &&
-      serverVideo.clips.every((c) => c.isPlaceholder);
+      serverVideo.clips.every((c) => isMediaClip(c) && c.isPlaceholder);
     const localHasRealClip = localVideo?.clips.some(
-      (c) => Boolean(c.assetId) && !c.isPlaceholder
+      (c) => isMediaClip(c) && Boolean(c.assetId) && !c.isPlaceholder
     );
 
     if (serverAllPlaceholders && localHasRealClip) {

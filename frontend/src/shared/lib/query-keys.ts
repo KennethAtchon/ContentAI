@@ -130,6 +130,11 @@ export const queryKeys = {
       ["api", "editor", "by-content", contentId] as const,
     editorAssets: (contentId?: number) =>
       ["api", "editor", "assets", contentId] as const,
+    captionDocByAsset: (assetId: string) =>
+      ["api", "captions", "asset", assetId] as const,
+    captionDoc: (captionDocId: string) =>
+      ["api", "captions", "doc", captionDocId] as const,
+    captionPresets: () => ["api", "captions", "presets"] as const,
 
     mediaLibrary: () => ["api", "media", "library"] as const,
 

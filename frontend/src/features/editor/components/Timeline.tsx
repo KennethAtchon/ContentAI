@@ -19,7 +19,7 @@ import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { Playhead } from "./Playhead";
 import { SortableTrackHeader } from "./SortableTrackHeader";
-import type { Clip, TrackType } from "../types/editor";
+import type { Clip, TimelineClip as EditorTimelineClip, TrackType } from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
 import { useEditorContext } from "../context/EditorContext";
@@ -31,9 +31,10 @@ import {
 } from "../constants/timeline-layout";
 import { useTimelinePlayheadScroll } from "../hooks/use-timeline-playhead-scroll";
 import { useTimelineAssetDrop } from "../hooks/use-timeline-asset-drop";
+import { isMediaClip } from "../utils/clip-types";
 
 interface Props {
-  onAddClip: (trackId: string, clip: Clip) => void;
+  onAddClip: (trackId: string, clip: EditorTimelineClip) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
   onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
   onClipSplit: (clipId: string) => void;
@@ -286,20 +287,25 @@ export function Timeline({
                           onUpdateClip(clip.id, { startMs: newStartMs })
                         }
                         onTrimStart={(newTrimStartMs, newDurationMs) =>
-                          onUpdateClip(clip.id, {
-                            trimStartMs: newTrimStartMs,
-                            startMs: clip.startMs + (newTrimStartMs - clip.trimStartMs),
-                            durationMs: newDurationMs,
-                          })
+                          isMediaClip(clip)
+                            ? onUpdateClip(clip.id, {
+                                trimStartMs: newTrimStartMs,
+                                startMs:
+                                  clip.startMs + (newTrimStartMs - clip.trimStartMs),
+                                durationMs: newDurationMs,
+                              })
+                            : undefined
                         }
                         onTrimEnd={(newDurationMs) =>
-                          onUpdateClip(clip.id, {
-                            durationMs: newDurationMs,
-                            trimEndMs: Math.max(
-                              0,
-                              (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs
-                            ),
-                          })
+                          isMediaClip(clip)
+                            ? onUpdateClip(clip.id, {
+                                durationMs: newDurationMs,
+                                trimEndMs: Math.max(
+                                  0,
+                                  (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs
+                                ),
+                              })
+                            : undefined
                         }
                         onSplit={() => onClipSplit(clip.id)}
                         onDuplicate={() => onClipDuplicate(clip.id)}
@@ -313,8 +319,8 @@ export function Timeline({
                     ))}
 
                     {track.type === "video" &&
-                      track.clips.slice(0, -1).map((clipA, idx) => {
-                        const clipB = track.clips[idx + 1];
+                      track.clips.filter(isMediaClip).slice(0, -1).map((clipA, idx, mediaClips) => {
+                        const clipB = mediaClips[idx + 1];
                         const gapMs = clipB.startMs - (clipA.startMs + clipA.durationMs);
                         if (gapMs > 500) return null;
                         const transition = (track.transitions ?? []).find(

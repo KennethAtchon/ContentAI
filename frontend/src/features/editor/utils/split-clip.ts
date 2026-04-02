@@ -1,4 +1,4 @@
-import type { Clip } from "../types/editor";
+import type { Clip, TimelineClip } from "../types/editor";
 
 /**
  * Splits a clip at `atMs` (a timeline position in ms).
@@ -8,7 +8,8 @@ import type { Clip } from "../types/editor";
  *
  * Returns [clipA, clipB] or null if atMs is not strictly inside the clip.
  */
-export function splitClip(clip: Clip, atMs: number): [Clip, Clip] | null {
+export function splitClip(clip: TimelineClip, atMs: number): [Clip, Clip] | null {
+  if (!("assetId" in clip)) return null;
   if (atMs <= clip.startMs || atMs >= clip.startMs + clip.durationMs) {
     return null;
   }

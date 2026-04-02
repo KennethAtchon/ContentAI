@@ -1,4 +1,11 @@
-import type { Track, Clip, EditorState, EditorHistorySnapshot } from "../types/editor";
+import type {
+  Track,
+  Clip,
+  TimelineClip,
+  ClipPatch,
+  EditorState,
+  EditorHistorySnapshot,
+} from "../types/editor";
 
 export function snapshotEditorState(state: EditorState): EditorHistorySnapshot {
   return {
@@ -80,7 +87,8 @@ export function computeDuration(tracks: Track[]): number {
   return max;
 }
 
-export function alignClipTrimEndToInvariant(clip: Clip): Clip {
+export function alignClipTrimEndToInvariant(clip: TimelineClip): TimelineClip {
+  if (!("assetId" in clip)) return clip;
   const sm = clip.sourceMaxDurationMs;
   if (sm === undefined || clip.assetId == null || clip.isPlaceholder) return clip;
   const ts = clip.trimStartMs ?? 0;
@@ -100,7 +108,7 @@ export function alignTracksTrimInvariant(tracks: Track[]): Track[] {
 export function updateClipInTracks(
   tracks: Track[],
   clipId: string,
-  patch: Partial<Clip>
+  patch: ClipPatch
 ): Track[] {
   return tracks.map((track) => ({
     ...track,

@@ -1,4 +1,12 @@
-import type { EditorState, EditorAction, Track, Clip } from "../types/editor";
+import type {
+  EditorState,
+  EditorAction,
+  Track,
+  Clip,
+  CaptionClip,
+  TimelineClip,
+  ClipPatch,
+} from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
 import { estimateReadingDurationMs } from "../utils/text-segments";
@@ -27,6 +35,37 @@ export function reduceClipOps(
         ...state,
         ...pushPastTracks(state, newTracks),
         durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "ADD_CAPTION_CLIP": {
+      const captionClip: CaptionClip = {
+        id: crypto.randomUUID(),
+        type: "caption",
+        captionDocId: action.captionDocId,
+        originVoiceoverClipId: action.originVoiceoverClipId,
+        startMs: action.startMs,
+        durationMs: action.durationMs,
+        sourceStartMs: action.sourceStartMs,
+        sourceEndMs: action.sourceEndMs,
+        stylePresetId: action.presetId ?? "hormozi",
+        styleOverrides: {},
+        groupingMs: action.groupingMs ?? 1400,
+        locallyModified: true,
+      };
+      const newTracks = state.tracks.map((t) =>
+        t.id === action.trackId
+          ? {
+              ...t,
+              clips: [...t.clips, captionClip],
+            }
+          : t
+      );
+      return {
+        ...state,
+        ...pushPastTracks(state, newTracks),
+        durationMs: computeDuration(newTracks),
+        selectedClipId: captionClip.id,
       };
     }
 
@@ -94,13 +133,39 @@ export function reduceClipOps(
     }
 
     case "UPDATE_CLIP": {
-      let patch: Partial<Clip> = { ...action.patch, locallyModified: true };
+      let patch: ClipPatch = { ...action.patch, locallyModified: true };
 
       if ("textContent" in action.patch) {
         const maxMs = estimateReadingDurationMs(action.patch.textContent ?? "");
         patch.sourceMaxDurationMs = maxMs;
         if (maxMs !== undefined) patch.durationMs = maxMs;
       }
+
+      const newTracks = updateClipInTracks(state.tracks, action.clipId, patch);
+      return {
+        ...state,
+        ...pushPastTracks(state, newTracks),
+        durationMs: computeDuration(newTracks),
+      };
+    }
+
+    case "UPDATE_CAPTION_STYLE": {
+      const target = state.tracks
+        .flatMap((track) => track.clips)
+        .find((clip) => clip.id === action.clipId);
+      if (!target || !("type" in target) || target.type !== "caption") {
+        return state;
+      }
+
+      const patch: ClipPatch = {
+        locallyModified: true,
+        stylePresetId: action.presetId ?? target.stylePresetId,
+        styleOverrides: {
+          ...target.styleOverrides,
+          ...(action.overrides ?? {}),
+        },
+        groupingMs: action.groupingMs ?? target.groupingMs,
+      };
 
       const newTracks = updateClipInTracks(state.tracks, action.clipId, patch);
       return {
@@ -162,7 +227,7 @@ export function reduceClipOps(
         enabled: (() => {
           for (const t of state.tracks) {
             const c = t.clips.find((cl) => cl.id === action.clipId);
-            if (c) return c.enabled === false ? true : false;
+            if (c && "enabled" in c) return c.enabled === false ? true : false;
           }
           return false;
         })(),
@@ -192,20 +257,22 @@ export function reduceClipOps(
       const track = state.tracks.find((t) => t.id === action.trackId);
       if (!track) return state;
 
-      const newClip: Clip = {
+      const newClip: TimelineClip = {
         ...state.clipboardClip,
         id: crypto.randomUUID(),
         startMs: action.startMs,
         locallyModified: true,
       };
 
-      const clampedStart = clampMoveToFreeSpace(
-        track,
-        newClip.id,
-        newClip.startMs,
-        newClip.durationMs
-      );
-      newClip.startMs = clampedStart;
+      if ("assetId" in newClip) {
+        const clampedStart = clampMoveToFreeSpace(
+          track,
+          newClip.id,
+          newClip.startMs,
+          newClip.durationMs
+        );
+        newClip.startMs = clampedStart;
+      }
 
       const newTracks = state.tracks.map((t) =>
         t.id === action.trackId ? { ...t, clips: [...t.clips, newClip] } : t
@@ -253,7 +320,7 @@ export function reduceClipOps(
           (max, c) => Math.max(max, c.startMs + c.durationMs),
           0
         );
-        const copy: Clip = {
+        const copy: TimelineClip = {
           ...clip,
           id: crypto.randomUUID(),
           startMs: trackEnd,

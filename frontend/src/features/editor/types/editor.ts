@@ -53,6 +53,30 @@ export interface Clip {
   locallyModified?: boolean;
 }
 
+export interface CaptionStyleOverrides {
+  positionY?: number;
+  fontSize?: number;
+  textTransform?: "none" | "uppercase" | "lowercase";
+}
+
+export interface CaptionClip {
+  id: string;
+  type: "caption";
+  startMs: number;
+  durationMs: number;
+  originVoiceoverClipId?: string;
+  captionDocId: string;
+  sourceStartMs: number;
+  sourceEndMs: number;
+  stylePresetId: string;
+  styleOverrides: CaptionStyleOverrides;
+  groupingMs: number;
+  locallyModified?: boolean;
+}
+
+export type TimelineClip = Clip | CaptionClip;
+export type ClipPatch = Partial<Clip> & Partial<CaptionClip>;
+
 export type TrackType = "video" | "audio" | "music" | "text";
 
 export interface Track {
@@ -61,7 +85,7 @@ export interface Track {
   name: string;
   muted: boolean;
   locked: boolean;
-  clips: Clip[];
+  clips: TimelineClip[];
   transitions: Transition[];
 }
 
@@ -115,7 +139,7 @@ export interface EditorState {
   zoom: number; // pixels per second, default 40
   tracks: Track[];
   selectedClipId: string | null;
-  clipboardClip: Clip | null; // copy/paste
+  clipboardClip: TimelineClip | null; // copy/paste
   /** Track id the copied clip came from (paste target when source clip was deleted). */
   clipboardSourceTrackId: string | null;
   // Undo/redo — each snapshot stores tracks + editor settings that can be undone
@@ -136,13 +160,32 @@ export type EditorAction =
   | { type: "SET_PLAYBACK_RATE"; rate: number }
   | { type: "SET_ZOOM"; zoom: number }
   | { type: "SELECT_CLIP"; clipId: string | null }
-  | { type: "ADD_CLIP"; trackId: string; clip: Clip }
+  | { type: "ADD_CLIP"; trackId: string; clip: TimelineClip }
   | {
       type: "ADD_CLIP_AUTO_PROMOTE";
       preferredTrackId: string;
-      clip: Clip;
+      clip: TimelineClip;
     }
-  | { type: "UPDATE_CLIP"; clipId: string; patch: Partial<Clip> }
+  | {
+      type: "ADD_CAPTION_CLIP";
+      trackId: string;
+      captionDocId: string;
+      originVoiceoverClipId?: string;
+      startMs: number;
+      durationMs: number;
+      sourceStartMs: number;
+      sourceEndMs: number;
+      presetId?: string;
+      groupingMs?: number;
+    }
+  | { type: "UPDATE_CLIP"; clipId: string; patch: ClipPatch }
+  | {
+      type: "UPDATE_CAPTION_STYLE";
+      clipId: string;
+      presetId?: string;
+      overrides?: CaptionStyleOverrides;
+      groupingMs?: number;
+    }
   | { type: "REMOVE_CLIP"; clipId: string }
   | { type: "RIPPLE_DELETE_CLIP"; clipId: string }
   | { type: "SPLIT_CLIP"; clipId: string; atMs: number }

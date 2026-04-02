@@ -1,7 +1,7 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
-import type { Clip, Track } from "../types/editor";
+import type { Clip, ClipPatch, Track } from "../types/editor";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
 import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
@@ -19,6 +19,7 @@ import {
   VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
   VIDEO_SYNC_SEEK_THRESHOLD_SEC,
 } from "../utils/editor-composition";
+import { isMediaClip, isTextContentClip } from "../utils/clip-types";
 
 interface Props {
   tracks: Track[];
@@ -29,7 +30,7 @@ interface Props {
   durationMs: number;
   resolution: string;
   /** Temporary per-clip property override for effect hover preview. Not committed to state. */
-  effectPreviewOverride?: { clipId: string; patch: Partial<Clip> } | null;
+  effectPreviewOverride?: { clipId: string; patch: ClipPatch } | null;
 }
 
 export function PreviewArea({
@@ -88,7 +89,7 @@ export function PreviewArea({
 
   const activeTextClips = useMemo(
     () =>
-      (textTrack?.clips ?? []).filter((c) =>
+      (textTrack?.clips ?? []).filter(isTextContentClip).filter((c) =>
         isClipActiveAtTimelineTime(c, currentTimeMs)
       ),
     [textTrack?.clips, currentTimeMs]
@@ -96,11 +97,11 @@ export function PreviewArea({
 
   const audioClips = useMemo(
     () => [
-      ...(audioTrack?.clips ?? []).map((c) => ({
+      ...(audioTrack?.clips ?? []).filter(isMediaClip).map((c) => ({
         clip: c,
         track: audioTrack!,
       })),
-      ...(musicTrack?.clips ?? []).map((c) => ({
+      ...(musicTrack?.clips ?? []).filter(isMediaClip).map((c) => ({
         clip: c,
         track: musicTrack!,
       })),
@@ -117,7 +118,7 @@ export function PreviewArea({
     );
     for (const videoTrack of videoTracks) {
       const trackTransitions = videoTrack.transitions ?? [];
-      const trackClips = videoTrack.clips;
+      const trackClips = videoTrack.clips.filter(isMediaClip);
       const activeIds =
         activeByTrack.get(videoTrack.id) ?? new Set<string>();
 
@@ -173,7 +174,7 @@ export function PreviewArea({
   useEffect(() => {
     const runForTrack = (track: Track | undefined) => {
       if (!track) return;
-      for (const clip of track.clips) {
+      for (const clip of track.clips.filter(isMediaClip)) {
         const el = audioRefs.current.get(clip.id);
         if (!el) continue;
 
@@ -205,9 +206,14 @@ export function PreviewArea({
   }, [currentTimeMs, isPlaying, playbackRate, audioTrack, musicTrack]);
 
   // Prune stale entries from videoRefs/audioRefs after every render
-  const currentVideoClipIds = new Set(videoTracks.flatMap((vt) => vt.clips.map((c) => c.id)));
+  const currentVideoClipIds = new Set(
+    videoTracks.flatMap((vt) => vt.clips.filter(isMediaClip).map((c) => c.id))
+  );
   const currentAudioClipIds = new Set(
-    [...(audioTrack?.clips ?? []), ...(musicTrack?.clips ?? [])].map((c) => c.id)
+    [
+      ...(audioTrack?.clips ?? []).filter(isMediaClip),
+      ...(musicTrack?.clips ?? []).filter(isMediaClip),
+    ].map((c) => c.id)
   );
   useEffect(() => {
     for (const id of videoRefs.current.keys()) {
@@ -244,7 +250,7 @@ export function PreviewArea({
         >
           {/* Layered video tracks — Track 0 at bottom, Track N at top */}
           {videoTracks.map((videoTrack, trackIdx) => {
-            const trackClips = videoTrack.clips;
+            const trackClips = videoTrack.clips.filter(isMediaClip);
             const trackTransitions = videoTrack.transitions ?? [];
             const activeIds =
               activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set();

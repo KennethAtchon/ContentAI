@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
 import { Switch } from "@/shared/components/ui/switch";
-import type { Clip } from "../../types/editor";
+import type { Clip, ClipPatch, TimelineClip } from "../../types/editor";
+import { isTextContentClip } from "../../utils/clip-types";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -9,9 +10,9 @@ import {
 } from "./InspectorPrimitives";
 
 interface Props {
-  clip: Clip;
+  clip: TimelineClip;
   isTextClip: boolean;
-  onUpdateClip: (clipId: string, patch: Partial<Clip>) => void;
+  onUpdateClip: (clipId: string, patch: ClipPatch) => void;
 }
 
 export function InspectorTextAndCaptionPanels({
@@ -20,6 +21,7 @@ export function InspectorTextAndCaptionPanels({
   onUpdateClip,
 }: Props) {
   const { t } = useTranslation();
+  if (!isTextContentClip(clip)) return null;
 
   return (
     <>

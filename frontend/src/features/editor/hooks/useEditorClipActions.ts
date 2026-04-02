@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import type { Clip, TrackType, Transition } from "../types/editor";
+import type {
+  TimelineClip,
+  TrackType,
+  Transition,
+  ClipPatch,
+} from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { hasCollision } from "../utils/clip-constraints";
 import type { TabKey } from "../components/MediaPanel";
@@ -23,7 +28,7 @@ export function useEditorClipActions({
   setMediaActiveTab,
 }: UseEditorClipActionsParams) {
   const handleAddClip = useCallback(
-    (trackId: string, clip: Clip) => {
+    (trackId: string, clip: TimelineClip) => {
       const track = store.state.tracks.find((item) => item.id === trackId);
       if (track && hasCollision(track, clip.startMs, clip.durationMs)) {
         toast.error(t("editor_clip_collision"));
@@ -36,7 +41,7 @@ export function useEditorClipActions({
   );
 
   const handleUpdateClip = useCallback(
-    (clipId: string, patch: Partial<Clip>) => store.updateClip(clipId, patch),
+    (clipId: string, patch: ClipPatch) => store.updateClip(clipId, patch),
     [store]
   );
 

@@ -4,6 +4,7 @@
  */
 import type { CSSProperties } from "react";
 import type { Clip, Track, Transition } from "../types/editor";
+import { isMediaClip } from "./clip-types";
 
 export const PRELOAD_WINDOW_MS = 45_000;
 
@@ -67,6 +68,7 @@ export function buildActiveVideoClipIdsByTrackMap(
   for (const vt of videoTracks) {
     const ids = new Set(
       vt.clips
+        .filter(isMediaClip)
         .filter((c) => isClipActiveAtTimelineTime(c, currentTimeMs))
         .map((c) => c.id)
     );

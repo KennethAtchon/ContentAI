@@ -3,6 +3,7 @@ import type { EditorStore } from "./useEditorStore";
 import type { PatchProjectParams } from "../services/editor-api";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import type { EditorPublishSnapshot } from "./useEditorAutosave";
+import { isMediaClip } from "../utils/clip-types";
 
 export function useEditorKeyboard(options: {
   store: EditorStore;
@@ -160,6 +161,7 @@ export function useEditorKeyboard(options: {
             .find((c) => c.id === s.selectedClipId);
           if (
             clip &&
+            isMediaClip(clip) &&
             s.currentTimeMs > clip.startMs &&
             s.currentTimeMs < clip.startMs + clip.durationMs
           ) {
@@ -181,6 +183,7 @@ export function useEditorKeyboard(options: {
             .find((c) => c.id === s.selectedClipId);
           if (
             clip &&
+            isMediaClip(clip) &&
             s.currentTimeMs > clip.startMs &&
             s.currentTimeMs < clip.startMs + clip.durationMs
           ) {

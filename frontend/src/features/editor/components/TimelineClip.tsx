@@ -3,7 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
-import type { Clip, Track, TrackType } from "../types/editor";
+import type {
+  Clip,
+  ClipPatch,
+  TimelineClip as EditorTimelineClip,
+  Track,
+  TrackType,
+} from "../types/editor";
 import { useWaveformData } from "../hooks/useWaveformData";
 import { WaveformBars } from "./WaveformBars";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
@@ -23,9 +29,10 @@ import {
   PlaceholderContextMenu,
 } from "./ClipContextMenu";
 import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
+import { isMediaClip } from "../utils/clip-types";
 
 interface Props {
-  clip: Clip;
+  clip: EditorTimelineClip;
   trackType: TrackType;
   track: Track;
   zoom: number; // px/s
@@ -80,33 +87,36 @@ export function TimelineClip({
   const clipRef = useRef<HTMLDivElement>(null);
   const dragCurrentMs = useRef(0);
   const assetUrlMap = useAssetUrlMap();
+  const mediaClip = isMediaClip(clip) ? clip : null;
   const isAudioTrack = trackType === "audio" || trackType === "music";
-  const hasWaveform = isAudioTrack || trackType === "video";
-  const isDisabled = clip.enabled === false;
-  const playheadInsideClip = isClipActiveAtTimelineTime(clip, playheadMs);
+  const hasWaveform = !!mediaClip && (isAudioTrack || trackType === "video");
+  const isDisabled = mediaClip?.enabled === false;
+  const playheadInsideClip = mediaClip
+    ? isClipActiveAtTimelineTime(mediaClip, playheadMs)
+    : playheadMs >= clip.startMs && playheadMs < clip.startMs + clip.durationMs;
 
   const waveformUrl = hasWaveform
-    ? (assetUrlMap.get(clip.assetId ?? "") ?? undefined)
+    ? (assetUrlMap.get(mediaClip?.assetId ?? "") ?? undefined)
     : undefined;
   const { peaks, loading: waveformLoading } = useWaveformData(
-    hasWaveform ? (clip.assetId ?? undefined) : undefined,
+    hasWaveform ? (mediaClip?.assetId ?? undefined) : undefined,
     waveformUrl
   );
 
   const trimmedPeaks = useMemo(
-    () => slicePeaksForClipTrim(peaks, clip),
+    () => (mediaClip ? slicePeaksForClipTrim(peaks, mediaClip) : peaks),
     [
       peaks,
-      clip.trimStartMs,
+      mediaClip?.trimStartMs,
       clip.durationMs,
-      clip.trimEndMs,
-      clip.sourceMaxDurationMs,
-      clip.speed,
+      mediaClip?.trimEndMs,
+      mediaClip?.sourceMaxDurationMs,
+      mediaClip?.speed,
     ]
   );
 
   const handleDragStart = (e: React.MouseEvent) => {
-    if (isLocked || clip.isPlaceholder) return;
+    if (isLocked || (mediaClip && mediaClip.isPlaceholder)) return;
     e.stopPropagation();
     const dragStartX = e.clientX;
     const dragStartMs = clip.startMs;
@@ -152,12 +162,12 @@ export function TimelineClip({
   };
 
   const handleTrimLeft = (e: React.MouseEvent) => {
-    if (isLocked || clip.isPlaceholder) return;
+    if (isLocked || !mediaClip || mediaClip.isPlaceholder) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origStart = clip.startMs;
     const origDuration = clip.durationMs;
-    const origTrimStart = clip.trimStartMs;
+    const origTrimStart = mediaClip.trimStartMs;
 
     let pendingStart = origStart;
     let pendingDuration = origDuration;
@@ -167,7 +177,7 @@ export function TimelineClip({
       const dx = ev.clientX - startX;
       const deltaMs = (dx / zoom) * 1000;
       let newStart = Math.max(0, origStart + deltaMs);
-      newStart = clampTrimStart(track, clip, newStart);
+      newStart = clampTrimStart(track, mediaClip, newStart);
 
       const requestedUsed = newStart - origStart;
       pendingTrimStart = Math.max(0, origTrimStart + requestedUsed);
@@ -194,7 +204,7 @@ export function TimelineClip({
   };
 
   const handleTrimRight = (e: React.MouseEvent) => {
-    if (isLocked || clip.isPlaceholder) return;
+    if (isLocked || !mediaClip || mediaClip.isPlaceholder) return;
     e.stopPropagation();
     const startX = e.clientX;
     const origDuration = clip.durationMs;
@@ -204,17 +214,17 @@ export function TimelineClip({
     // Primary source: sourceMaxDurationMs (persisted, accounts for trimStartMs offset).
     // Fallback: trimEndMs buffer derived from invariant trimStartMs+durationMs+trimEndMs=sourceDuration.
     const maxDuration: number | undefined =
-      clip.sourceMaxDurationMs !== undefined
-        ? clip.sourceMaxDurationMs - (clip.trimStartMs ?? 0)
-        : (clip.trimEndMs ?? 0) > 0
-          ? origDuration + (clip.trimEndMs ?? 0)
+      mediaClip?.sourceMaxDurationMs !== undefined
+        ? mediaClip.sourceMaxDurationMs - (mediaClip.trimStartMs ?? 0)
+        : (mediaClip.trimEndMs ?? 0) > 0
+          ? origDuration + (mediaClip.trimEndMs ?? 0)
           : undefined;
 
     const onMove_ = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;
       const deltaMs = (dx / zoom) * 1000;
       let newDuration = Math.max(100, origDuration + deltaMs);
-      newDuration = clampTrimEnd(track, clip, newDuration);
+      newDuration = clampTrimEnd(track, mediaClip, newDuration);
       if (maxDuration !== undefined) {
         newDuration = Math.min(newDuration, maxDuration);
       }
@@ -235,8 +245,8 @@ export function TimelineClip({
     window.addEventListener("mouseup", onUp);
   };
 
-  if (clip.isPlaceholder) {
-    const st = clip.placeholderStatus ?? "pending";
+  if (mediaClip?.isPlaceholder) {
+    const st = mediaClip.placeholderStatus ?? "pending";
     return (
       <PlaceholderContextMenu onDelete={onDelete}>
         <div
@@ -258,7 +268,7 @@ export function TimelineClip({
               <Clock className="h-3 w-3 shrink-0 text-dim-3" aria-hidden />
             )}
             <span className="text-[10px] font-medium text-dim-2 truncate">
-              {clip.placeholderLabel ?? clip.label}
+              {mediaClip.placeholderLabel ?? mediaClip.label}
             </span>
           </div>
           <span className="text-[9px] px-1.5 text-dim-4">
@@ -275,7 +285,7 @@ export function TimelineClip({
 
   return (
     <ClipContextMenu
-      clip={clip}
+      clip={mediaClip ?? (clip as Clip)}
       track={track}
       hasClipboard={hasClipboard}
       onSplit={onSplit}
@@ -337,7 +347,7 @@ export function TimelineClip({
           className="text-[10px] font-medium px-1.5 pt-1 truncate pointer-events-none"
           style={{ color }}
         >
-          {isDisabled ? "⊘ " : ""}{clip.label}
+          {isDisabled ? "⊘ " : ""}{"label" in clip ? clip.label : "Caption"}
         </span>
 
         <span
@@ -350,7 +360,7 @@ export function TimelineClip({
         <div
           className="absolute left-0 top-0 h-full w-2 cursor-ew-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10"
           style={{ backgroundColor: color + "66" }}
-          onMouseDown={handleTrimLeft}
+          onMouseDown={mediaClip ? handleTrimLeft : undefined}
         >
           <div className="w-px h-4 bg-studio-fg/70 rounded" />
         </div>
@@ -358,7 +368,7 @@ export function TimelineClip({
         <div
           className="absolute right-0 top-0 h-full w-2 cursor-ew-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10"
           style={{ backgroundColor: color + "66" }}
-          onMouseDown={handleTrimRight}
+          onMouseDown={mediaClip ? handleTrimRight : undefined}
         >
           <div className="w-px h-4 bg-studio-fg/70 rounded" />
         </div>
