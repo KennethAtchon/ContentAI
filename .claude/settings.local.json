@@ -3,7 +3,11 @@
     "allow": [
       "Skill(update-config)",
       "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" /c/Users/kenne/Documents/Programs/ContentAI/backend/src/domain/editor/caption* --include=\"*.ts\")",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(xargs grep:*)",
+      "Bash(wc:*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(grep -n \"ShotOrderPanel\\\\|import.*ShotOrderPanel\" /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/EditorLayout.tsx /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/*.tsx)"
     ]
   }
 }
