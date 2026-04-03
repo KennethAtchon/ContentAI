@@ -5,6 +5,10 @@ import {
   type AssetMergeRow,
   type TimelineTrackJson,
 } from "./timeline/merge-placeholders-with-assets";
+import type { CaptionsService } from "./captions.service";
+import { buildCaptionClip } from "./timeline/build-caption-clip";
+import type { CaptionClip } from "../../types/timeline.types";
+import { debugLog } from "../../utils/debug/debug";
 
 function emptyTracksFromVideo(
   videoClips: TimelineTrackJson["clips"],
@@ -58,6 +62,7 @@ export async function buildInitialTimeline(
   content: IContentRepository,
   generatedContentId: number,
   userId: string,
+  captions?: CaptionsService,
 ): Promise<{ tracks: TimelineTrackJson[]; durationMs: number }> {
   const row = await content.findHookAndVoiceoverForUser(
     generatedContentId,
@@ -112,6 +117,19 @@ export async function buildInitialTimeline(
       }
     : undefined;
 
+  let captionClip: CaptionClip | null = null;
+  if (captions && voiceover && (voiceover.durationMs ?? 0) > 0) {
+    try {
+      const { captionDocId } = await captions.transcribeAsset(userId, voiceover.id);
+      captionClip = buildCaptionClip({ captionDocId, voiceoverAsset: voiceover, voiceoverClipId: null });
+    } catch (err) {
+      debugLog.warn("Caption transcription failed during buildInitialTimeline", {
+        service: "build-initial-timeline",
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  }
+
   let tracks = emptyTracksFromVideo([]);
   tracks = mergePlaceholdersWithRealClips(
     tracks,
@@ -120,6 +138,13 @@ export async function buildInitialTimeline(
     music,
     undefined,
   );
+
+  if (captionClip) {
+    const textTrack = tracks.find((t) => t.type === "text");
+    if (textTrack) {
+      textTrack.clips = [captionClip as unknown as TimelineClipJson];
+    }
+  }
 
   let maxEnd = 0;
   for (const track of tracks) {

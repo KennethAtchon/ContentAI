@@ -7,7 +7,9 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { editorRepository, contentService } from "../../domain/singletons";
+import { editorRepository, contentService, captionsService } from "../../domain/singletons";
+import { buildCaptionClip } from "../../domain/editor/timeline/build-caption-clip";
+import type { CaptionClip } from "../../types/timeline.types";
 import { debugLog } from "../../utils/debug/debug";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -88,6 +90,23 @@ assemblyRouter.post(
       totalVideoMs: shotSpan,
     };
 
+    const voiceoverAsset = auxPack.voiceover ?? null;
+    let captionClip: CaptionClip | null = null;
+    if (voiceoverAsset && (voiceoverAsset.durationMs ?? 0) > 0) {
+      try {
+        const { captionDocId } = await captionsService.transcribeAsset(
+          auth.user.id,
+          voiceoverAsset.id,
+        );
+        captionClip = buildCaptionClip({ captionDocId, voiceoverAsset, voiceoverClipId: null });
+      } catch (err) {
+        debugLog.warn(
+          "Caption transcription failed during ai-assemble; continuing without captions",
+          { service: "editor-route", operation: "aiAssemble", projectId: id, error: err instanceof Error ? err.message : "Unknown error" },
+        );
+      }
+    }
+
     const shotsContext = shotAssets.map((asset, i) => ({
       index: i,
       description:
@@ -151,7 +170,7 @@ assemblyRouter.post(
         voiceover: auxPack.voiceover,
         music: auxPack.music,
         musicVolume: 0.22,
-      });
+      }, captionClip);
       return c.json({
         timeline: standardTimeline,
         assembledBy: "ai" as const,
@@ -163,6 +182,7 @@ assemblyRouter.post(
       aiResponse,
       shotAssets,
       auxPack,
+      captionClip,
     );
 
     return c.json({

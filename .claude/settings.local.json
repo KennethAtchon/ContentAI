@@ -7,7 +7,8 @@
       "Bash(xargs grep:*)",
       "Bash(wc:*)",
       "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
-      "Bash(grep -n \"ShotOrderPanel\\\\|import.*ShotOrderPanel\" /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/EditorLayout.tsx /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/*.tsx)"
+      "Bash(grep -n \"ShotOrderPanel\\\\|import.*ShotOrderPanel\" /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/EditorLayout.tsx /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/*.tsx)",
+      "Bash(find:*)"
     ]
   }
 }

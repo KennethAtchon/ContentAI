@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { contentRepository } from "../../singletons";
 import { aiAssemblyResponseSchema } from "../editor.schemas";
 import { normalizeMediaClipTrimFields } from "./clip-trim";
+import type { CaptionClip } from "../../../types/timeline.types";
 
 export async function loadProjectShotAssets(
   userId: string,
@@ -25,6 +26,7 @@ export function convertAIResponseToTracks(
     music?: { id: string; durationMs: number | null };
     totalVideoMs: number;
   },
+  captionClip: CaptionClip | null = null,
 ) {
   let cursor = 0;
   const videoClips = aiResponse.cuts.map((cut, i) => {
@@ -145,7 +147,7 @@ export function convertAIResponseToTracks(
       name: "Caption",
       muted: false,
       locked: false,
-      clips: [],
+      clips: captionClip ? [captionClip] : [],
       transitions: [],
     },
   ];
@@ -162,6 +164,7 @@ export function buildStandardPresetTracks(
     music?: { id: string; durationMs: number | null };
     musicVolume?: number;
   },
+  captionClip: CaptionClip | null = null,
 ) {
   let cursor = 0;
   const videoClips = shotAssets.map((asset, i) => {
@@ -274,7 +277,7 @@ export function buildStandardPresetTracks(
       name: "Caption",
       muted: false,
       locked: false,
-      clips: [],
+      clips: captionClip ? [captionClip] : [],
       transitions: [],
     },
   ];

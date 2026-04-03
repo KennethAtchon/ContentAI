@@ -84,6 +84,7 @@ export const editorService = new EditorService(
   captionsRepository,
   contentRepository,
   queueRepository,
+  captionsService,
 );
 
 export const adminRepository = new AdminRepository(db);

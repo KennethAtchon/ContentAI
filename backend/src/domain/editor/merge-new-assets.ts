@@ -5,6 +5,9 @@ import { parseStoredEditorTracks } from "./validate-stored-tracks";
 import type { TimelineClipJson } from "./timeline/clip-trim";
 import { normalizeMediaClipTrimFields } from "./timeline/clip-trim";
 import type { TimelineTrackJson } from "./timeline/merge-placeholders-with-assets";
+import type { CaptionsService } from "./captions.service";
+import { buildCaptionClip } from "./timeline/build-caption-clip";
+import { debugLog } from "../../utils/debug/debug";
 
 function computeDuration(tracks: TimelineTrackJson[]): number {
   let maxEnd = 0;
@@ -91,6 +94,7 @@ export async function mergeNewAssetsIntoProject(
   content: IContentRepository,
   projectId: string,
   userId: string,
+  captions?: CaptionsService,
 ): Promise<{
   changed: boolean;
   tracks: TimelineTrackJson[];
@@ -181,6 +185,32 @@ export async function mergeNewAssetsIntoProject(
             1,
           ),
         );
+      }
+
+      if (captions && (asset.durationMs ?? 0) > 0) {
+        try {
+          const { captionDocId } = await captions.transcribeAsset(userId, asset.id);
+          const captionClip = buildCaptionClip({
+            captionDocId,
+            voiceoverAsset: asset,
+            voiceoverClipId: null,
+          });
+          const textTrack = tracks.find((t) => t.type === "text");
+          if (textTrack) {
+            const existingCaptionIdx = textTrack.clips.findIndex((c) => c.type === "caption");
+            if (existingCaptionIdx >= 0) {
+              textTrack.clips[existingCaptionIdx] = captionClip as unknown as TimelineClipJson;
+            } else {
+              textTrack.clips.push(captionClip as unknown as TimelineClipJson);
+            }
+          }
+        } catch (err) {
+          debugLog.warn("Caption transcription failed during mergeNewAssetsIntoProject", {
+            service: "merge-new-assets",
+            assetId: asset.id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
       }
     } else if (asset.role === "background_music") {
       const musicTrack = tracks.find((t) => t.type === "music");

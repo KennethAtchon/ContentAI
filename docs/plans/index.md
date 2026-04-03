@@ -1,0 +1,2 @@
+- [Editor Audit Fix Plan](editor-audit-fix-plan.md) — 23 bug/UX/missing-feature fixes across the timeline editor
+- [Caption Track Init Plan](caption-track-init-plan.md) — Wire Whisper transcription into editor init / ai-assemble so the text track is populated on creation

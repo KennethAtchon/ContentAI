@@ -14,7 +14,7 @@ import {
 } from "../../domain/editor/editor.schemas";
 import { parseStoredEditorTracks } from "../../domain/editor/validate-stored-tracks";
 import { Errors } from "../../utils/errors/app-error";
-import { contentRepository, editorRepository } from "../../domain/singletons";
+import { contentRepository, editorRepository, captionsService } from "../../domain/singletons";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const forkVersionsRouter = new Hono<HonoEnv>();
@@ -43,6 +43,7 @@ forkVersionsRouter.post(
         contentRepository,
         root.generatedContentId,
         auth.user.id,
+        captionsService,
       );
     }
 

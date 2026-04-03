@@ -8,6 +8,7 @@ import type { createProjectSchema, patchProjectSchema } from "./editor.schemas";
 import type { IEditorRepository } from "./editor.repository";
 import { buildInitialTimeline } from "./build-initial-timeline";
 import type { ICaptionsRepository } from "./captions.repository";
+import type { CaptionsService } from "./captions.service";
 import { mergeNewAssetsIntoProject } from "./merge-new-assets";
 import { parseStoredEditorTracks } from "./validate-stored-tracks";
 
@@ -17,6 +18,7 @@ export class EditorService {
     private readonly captions: ICaptionsRepository,
     private readonly content: IContentRepository,
     private readonly queue: IQueueRepository,
+    private readonly captionsService?: CaptionsService,
   ) {}
 
   private getCaptionDocIds(tracks: unknown): Set<string> {
@@ -116,6 +118,7 @@ export class EditorService {
         this.content,
         generatedContentId,
         userId,
+        this.captionsService,
       );
       tracks = result.tracks;
       durationMs = result.durationMs;
@@ -173,6 +176,7 @@ export class EditorService {
       this.content,
       projectId,
       userId,
+      this.captionsService,
     );
   }
 
