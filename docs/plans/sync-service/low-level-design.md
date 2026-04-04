@@ -1,28 +1,28 @@
-# SyncService — Low Level Design
+# SyncService - Low Level Design
 
 Implementation plan. Read `high-level-design.md` first while this folder still exists.
 
-**This folder (including `firing-map.md`) is planning material and will be removed later.** The implementation must not depend on it staying in the repo. **All behavior that matters — firing map, constraints, merge rules, wiring — must live in source comments** (and tests), written so a maintainer never needs these markdown files.
+**This folder (including `firing-map.md`) is planning material and will be removed later.** The implementation must not depend on it staying in the repo. **All behavior that matters - firing map, constraints, merge rules, wiring - must live in source comments** (and tests), written so a maintainer never needs these markdown files.
 
 ---
 
 ## In-code documentation (required)
 
-The LLD shows **shapes** of code, not the commentary the shipped tree must carry. Treat verbose, accurate comments as part of the deliverable; they are the **long-term** documentation.
+The LLD shows **shapes** of code, not the commentary the shipped tree must carry. Treat verbose, accurate comments as part of the deliverable; they are the long-term documentation.
 
 **`sync.service.ts`**
 
-- **Module- or class-level block (must subsume the firing map):** Spell out, in prose or structured comment, **every** path that triggers sync and **every** important path that does not (e.g. which chat tools call `onContentSaved` / `syncLinkedProjects`, which video tools do not). State that sync completes **before** the SSE event reaches the client. List invariants: no autosave version bump on `updateProjectForSync`, preservation of the existing video track when a fresh derive has zero video clips, user-sourced clips untouched, content-sourced clips replaced with trim/layout preserved per `assetId`, ancestor chain / `generatedContentId` behavior as implemented — enough detail that deleting `firing-map.md` loses no operational knowledge.
-- **Public methods:** JSDoc that a future maintainer can trust — purpose, caller context, and ordering guarantees where they matter.
+- **Module- or class-level block (must subsume the firing map):** Spell out, in prose or structured comment, **every** path that triggers sync and **every** important path that does not. State that sync completes **before** the SSE event reaches the client. List invariants: no autosave version bump on `updateProjectForSync`, preservation of the existing video track when a fresh derive has zero video clips, user-sourced clips untouched, content-sourced clips replaced with trim/layout preserved per `assetId`, ancestor chain / `generatedContentId` behavior as implemented, and the fact that chat session draft membership / `activeContentId` are owned elsewhere by the chat tool save path.
+- **Public methods:** JSDoc that a future maintainer can trust - purpose, caller context, and ordering guarantees where they matter.
 - **Private helpers (especially `mergeTrackSets`):** Explain **why** each rule exists and what breaks if it is violated, not just the mechanics of the loop. Call out edge cases (empty tracks, missing assets, idempotent caption path).
 
 **Wiring and call sites**
 
-- **`send-message.stream.ts`**, **`chat-tools.ts`**, **`editor.service.ts`:** Comments at the callback injection, tool success path, or `deriveTimeline` call that document the **full** trigger chain end-to-end (who sets `savedContentId`, what runs next, what the client observes after). A reader of any one file must not need the deleted docs to understand how sync is reached.
+- **`send-message.stream.ts`**, **`chat-tools.ts`**, **`editor.service.ts`:** Comments at the callback injection, tool success path, or `deriveTimeline` call that document the full trigger chain end-to-end (who sets `savedContentId`, when the session draft registry is updated, what runs next, what the client observes after). A reader of any one file must not need the deleted docs to understand how sync is reached.
 
 **Bar to clear**
 
-After `docs/plans/sync-service/` is gone, someone can still learn SyncService entirely from the backend source (and tests). Do not reference these plan files from production code as the place to “read more” — paste the substance into comments instead.
+After `docs/plans/sync-service/` is gone, someone can still learn SyncService entirely from the backend source (and tests). Do not reference these plan files from production code as the place to "read more" - paste the substance into comments instead.
 
 ---
 
@@ -40,7 +40,7 @@ After `docs/plans/sync-service/` is gone, someone can still learn SyncService en
 | `mergedAssetIds` recomputation in `patchAutosaveProject` | Yes |
 | `mergedAssetIds` on `EditProject` frontend type | Yes |
 
-**NOT deleted:** `refreshEditorTimeline` on `IEditorRepository` — still used by video job runner.
+**NOT deleted:** `refreshEditorTimeline` on `IEditorRepository` - still used by the video job runner.
 
 ---
 
@@ -49,12 +49,13 @@ After `docs/plans/sync-service/` is gone, someone can still learn SyncService en
 **File:** `backend/src/infrastructure/database/drizzle/schema.ts`
 
 Remove from `editProjects`:
+
 ```typescript
-// DELETE this line:
 mergedAssetIds: jsonb("merged_asset_ids").$type<string[]>().notNull().default([]),
 ```
 
 Then run:
+
 ```bash
 bun run db:reset
 ```
@@ -107,7 +108,7 @@ export class SyncService {
 
   /**
    * Build a fresh timeline from a content record's assets.
-   * Stateless — always produces source:"content" clips from current DB state.
+   * Stateless - always produces source:"content" clips from current DB state.
    * Used on initial project creation and as the base for syncLinkedProjects.
    */
   async deriveTimeline(
@@ -158,14 +159,14 @@ async deriveTimeline(userId, contentId) {
 
   if (voiceoverAsset && (voiceoverAsset.durationMs ?? 0) > 0) {
     try {
-      // transcribeAsset is idempotent — returns existing captionDocId if asset already has one
       const { captionDocId } = await this.captionsService.transcribeAsset(userId, voiceoverAsset.id);
       tracks.find((t) => t.type === "text")!.clips = [
         buildCaptionClip({ captionDocId, voiceoverAsset, voiceoverClipId: null }) as unknown as TimelineClipJson,
       ];
     } catch (err) {
       debugLog.warn("Caption transcription failed during deriveTimeline", {
-        service: "sync-service", contentId,
+        service: "sync-service",
+        contentId,
         error: err instanceof Error ? err.message : "unknown",
       });
     }
@@ -204,139 +205,47 @@ async syncLinkedProjects(userId, contentId) {
 ### Private helpers
 
 ```typescript
-private emptyTracks(): TimelineTrackJson[] {
-  return [
-    { id: crypto.randomUUID(), type: "video",  name: "Video",     muted: false, locked: false, clips: [], transitions: [] },
-    { id: crypto.randomUUID(), type: "audio",  name: "Voiceover", muted: false, locked: false, clips: [], transitions: [] },
-    { id: crypto.randomUUID(), type: "music",  name: "Music",     muted: false, locked: false, clips: [], transitions: [] },
-    { id: crypto.randomUUID(), type: "text",   name: "Text",      muted: false, locked: false, clips: [], transitions: [] },
-  ];
-}
-
-private buildVideoClips(assets: ContentAssetRow[]): TimelineClipJson[] {
-  let cursor = 0;
-  return assets.map((asset) => {
-    const dur = Math.max(1, asset.durationMs ?? 5000);
-    const meta = (asset.metadata as Record<string, unknown>) ?? {};
-    const label = typeof meta.generationPrompt === "string"
-      ? meta.generationPrompt
-      : `Shot ${this.shotIndex(asset.metadata) + 1}`;
-    const clip = normalizeMediaClipTrimFields(dur, {
-      id: crypto.randomUUID(),
-      type: "video", assetId: asset.id, label,
-      startMs: cursor, source: "content" as const,
-      speed: 1, enabled: true, opacity: 1,
-      warmth: 0, contrast: 0,
-      positionX: 0, positionY: 0, scale: 1, rotation: 0,
-      volume: 1, muted: false,
-    });
-    cursor += Number(clip.durationMs ?? dur);
-    return clip;
-  });
-}
-
-private buildAudioClip(asset: ContentAssetRow, idPrefix: string, label: string, volume: number): TimelineClipJson {
-  const dur = Math.max(1, asset.durationMs ?? 0);
-  return normalizeMediaClipTrimFields(dur, {
-    id: `${idPrefix}-${asset.id}`,
-    type: idPrefix === "music" ? "music" : "audio",
-    assetId: asset.id, label, startMs: 0,
-    source: "content" as const,
-    speed: 1, enabled: true, opacity: 1,
-    warmth: 0, contrast: 0,
-    positionX: 0, positionY: 0, scale: 1, rotation: 0,
-    volume, muted: false,
-  });
-}
+private emptyTracks(): TimelineTrackJson[] { ... }
+private buildVideoClips(assets: ContentAssetRow[]): TimelineClipJson[] { ... }
+private buildAudioClip(asset: ContentAssetRow, idPrefix: string, label: string, volume: number): TimelineClipJson { ... }
 
 /**
  * Merge fresh content-derived tracks with existing project tracks.
  * Rules:
  * 1. User clips (source:"user") always carried forward untouched.
- * 2. Content clips replaced by fresh ones, EXCEPT adjustments (trims, position,
+ * 2. Content clips replaced by fresh ones, except adjustments (trims, position,
  *    scale, rotation) are preserved when the same assetId existed before.
  * 3. If fresh video track is empty (new content version, no videos yet),
  *    keep existing video clips unchanged.
  */
-private mergeTrackSets(fresh: TimelineTrackJson[], existing: TimelineTrackJson[]): TimelineTrackJson[] {
-  const existingByAssetId = new Map<string, ClipUserAdjustments>();
-  for (const track of existing) {
-    for (const clip of track.clips) {
-      if (clip.source === "content" && typeof clip.assetId === "string") {
-        existingByAssetId.set(clip.assetId, {
-          trimStartMs: Number(clip.trimStartMs ?? 0),
-          trimEndMs:   Number(clip.trimEndMs ?? 0),
-          durationMs:  Number(clip.durationMs ?? 0),
-          positionX:   Number(clip.positionX ?? 0),
-          positionY:   Number(clip.positionY ?? 0),
-          scale:       Number(clip.scale ?? 1),
-          rotation:    Number(clip.rotation ?? 0),
-        });
-      }
-    }
-  }
+private mergeTrackSets(fresh: TimelineTrackJson[], existing: TimelineTrackJson[]): TimelineTrackJson[] { ... }
 
-  return fresh.map((freshTrack) => {
-    const existingTrack = existing.find((t) => t.type === freshTrack.type);
-
-    // Video track preservation: if fresh has no clips, keep existing video unchanged
-    if (freshTrack.type === "video" && freshTrack.clips.length === 0) {
-      return existingTrack ?? freshTrack;
-    }
-
-    const userClips = existingTrack?.clips.filter((c) => c.source === "user") ?? [];
-
-    const reconciledClips = freshTrack.clips.map((clip) => {
-      const prior = typeof clip.assetId === "string" ? existingByAssetId.get(clip.assetId) : undefined;
-      if (!prior) return clip;
-      return { ...clip, trimStartMs: prior.trimStartMs, trimEndMs: prior.trimEndMs, durationMs: prior.durationMs, positionX: prior.positionX, positionY: prior.positionY, scale: prior.scale, rotation: prior.rotation };
-    });
-
-    return { ...freshTrack, clips: [...reconciledClips, ...userClips] };
-  });
-}
-
-private shotIndex(metadata: unknown): number {
-  const m = metadata as Record<string, unknown> | null | undefined;
-  if (!m) return -1;
-  const v = m.shotIndex ?? m.shot_index;
-  if (typeof v === "number") return v;
-  if (typeof v === "string" && !Number.isNaN(Number(v))) return Number(v);
-  return -1;
-}
-
-private computeDuration(tracks: TimelineTrackJson[]): number {
-  let maxEnd = 0;
-  for (const track of tracks) {
-    for (const clip of track.clips) {
-      maxEnd = Math.max(maxEnd, Number(clip.startMs ?? 0) + Number(clip.durationMs ?? 0));
-    }
-  }
-  return Math.min(Math.max(maxEnd, 1000), 180_000);
-}
+private shotIndex(metadata: unknown): number { ... }
+private computeDuration(tracks: TimelineTrackJson[]): number { ... }
 ```
 
 ---
 
 ## `source` Field on Clip Types
 
-**Backend — `backend/src/domain/editor/timeline/clip-trim.ts`:**
+**Backend - `backend/src/domain/editor/timeline/clip-trim.ts`:**
 
-Add to `TimelineClipJson`:
 ```typescript
 source?: "content" | "user";
 ```
 
-**Frontend — `frontend/src/features/editor/types/editor.ts`:**
+**Frontend - `frontend/src/features/editor/types/editor.ts`:**
 
 Add to `MediaClipBase` (covers `VideoClip`, `AudioClip`, `MusicClip`) and `TextClip`:
+
 ```typescript
 source?: "content" | "user";
 ```
 
-**Frontend — `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`:**
+**Frontend - `frontend/src/features/editor/model/editor-reducer-clip-ops.ts`:**
 
 In `ADD_CLIP` case, set `source: "user"` on the inserted clip:
+
 ```typescript
 clips: [...t.clips, { ...action.clip, locallyModified: true, source: "user" as const }],
 ```
@@ -357,16 +266,7 @@ Add to `IEditorRepository` interface and `EditorRepository` class:
 async findProjectsByContentIds(
   userId: string,
   contentIds: number[],
-): Promise<{ id: string; tracks: unknown; durationMs: number }[]> {
-  if (contentIds.length === 0) return [];
-  return this.db
-    .select({ id: editProjects.id, tracks: editProjects.tracks, durationMs: editProjects.durationMs })
-    .from(editProjects)
-    .where(and(
-      eq(editProjects.userId, userId),
-      inArray(editProjects.generatedContentId, contentIds),
-    ));
-}
+): Promise<{ id: string; tracks: unknown; durationMs: number }[]> { ... }
 ```
 
 ### `updateProjectForSync`
@@ -384,20 +284,10 @@ async updateProjectForSync(
     generatedHook: string | null;
     postCaption: string | null;
   },
-): Promise<void> {
-  await this.db
-    .update(editProjects)
-    .set({
-      tracks: data.tracks,
-      durationMs: data.durationMs,
-      generatedContentId: data.generatedContentId,
-      generatedHook: data.generatedHook,
-      postCaption: data.postCaption,
-      // NOTE: no version bump — sync is transparent to autosave conflict detection
-    })
-    .where(and(eq(editProjects.id, projectId), eq(editProjects.userId, userId)));
-}
+): Promise<void> { ... }
 ```
+
+`updateProjectForSync` should not bump any autosave/version field. Sync must stay transparent to editor conflict detection.
 
 ---
 
@@ -411,16 +301,19 @@ export interface ToolContext {
   content: string;
   reelRefs?: number[];
   savedContentId?: number;
-  onContentSaved?: (contentId: number) => Promise<void>; // ADD
+  onContentSaved?: (contentId: number) => Promise<void>;
 }
 ```
 
-In `save_content`, `iterate_content`, and `edit_content_field` execute functions, after the DB write:
+In `save_content`, `iterate_content`, and `edit_content_field`, after the DB write:
+
 ```typescript
 context.savedContentId = row.id;
 await context.onContentSaved?.(row.id);
 return { success: true, contentId: row.id };
 ```
+
+These tool paths also own the chat-session side effects around drafts. `save_content` and `iterate_content` attach the saved content to the current session and advance `chat_sessions.activeContentId`. `edit_content_field` keeps the same session-owned draft active. SyncService should remain downstream of that save path rather than trying to manage chat session state itself.
 
 **File:** `backend/src/domain/chat/send-message.stream.ts`
 
@@ -435,7 +328,7 @@ const toolContext: ToolContext = {
 };
 ```
 
-`syncService` injected via singleton — see below.
+`syncService` injected via singleton - see below.
 
 ---
 
@@ -444,13 +337,15 @@ const toolContext: ToolContext = {
 **File:** `backend/src/domain/editor/editor.service.ts`
 
 Replace:
+
 ```typescript
-// OLD
 import { buildInitialTimeline } from "./build-initial-timeline";
 const result = await buildInitialTimeline(this.content, generatedContentId, userId, this.captionsService);
+```
 
-// NEW
-// syncService injected in constructor
+With:
+
+```typescript
 const result = await this.syncService.deriveTimeline(userId, generatedContentId);
 ```
 
@@ -474,27 +369,44 @@ export const syncService = new SyncService(
 
 ---
 
-## Frontend: Cache Invalidation
+## Frontend: Session Draft Visibility and Editor Project Refresh
 
 **File:** `frontend/src/features/chat/hooks/use-streaming-content-side-effects.ts`
 
-Add `sessionId` parameter. Add `invalidateSessionDrafts` to both the success and 409 branches:
+The client no longer relies on a one-shot `invalidateSessionDrafts(sessionId)` call after SSE. A streamed `contentId` can arrive before the session draft read path catches up, so the frontend now waits until the session draft query actually contains that ID.
+
+Use a helper such as:
 
 ```typescript
-.then(() => {
-  void invalidateEditorProjectsQueries(queryClient);
-  void invalidateChatProjectsQueries(queryClient);
-  void invalidateSessionDrafts(queryClient, sessionId); // ADD
+void ensureSessionDraftVisible(
+  queryClient,
+  sessionId,
+  contentId,
+  () => chatService.getSessionDrafts(sessionId),
+);
+```
+
+Then keep the editor-project side effects:
+
+```typescript
+void authenticatedFetchJson("/api/editor", {
+  method: "POST",
+  body: JSON.stringify({ generatedContentId: contentId }),
 })
-.catch((err) => {
-  if (status === 409 && body?.error === "project_exists") {
+  .then(() => {
     void invalidateEditorProjectsQueries(queryClient);
     void invalidateChatProjectsQueries(queryClient);
-    void invalidateSessionDrafts(queryClient, sessionId); // ADD
-    return;
-  }
-});
+  })
+  .catch((err) => {
+    if (status === 409 && body?.error === "project_exists") {
+      void invalidateEditorProjectsQueries(queryClient);
+      void invalidateChatProjectsQueries(queryClient);
+      return;
+    }
+  });
 ```
+
+`invalidateChatSessionQuery(sessionId)` still belongs to the stream completion path, not to SyncService.
 
 ---
 
@@ -509,9 +421,9 @@ Add `sessionId` parameter. Add `invalidateSessionDrafts` to both the success and
 | `backend/src/domain/editor/timeline/clip-trim.ts` | Add `source?: "content" \| "user"` to `TimelineClipJson` |
 | `backend/src/domain/editor/editor.repository.ts` | Add `findProjectsByContentIds`, add `updateProjectForSync`, remove `updateTracksDurationMerged` |
 | `backend/src/domain/editor/editor.service.ts` | Replace `buildInitialTimeline` with `syncService.deriveTimeline`, inject `SyncService`, remove `syncNewAssetsIntoProject` |
-| `backend/src/domain/chat/chat-tools.ts` | Add `onContentSaved` to `ToolContext`, call it in `save_content` / `iterate_content` / `edit_content_field` |
+| `backend/src/domain/chat/chat-tools.ts` | Add `onContentSaved` to `ToolContext`, keep session draft membership / active-draft updates in the tool save path |
 | `backend/src/domain/chat/send-message.stream.ts` | Set `onContentSaved` on `toolContext` |
 | `backend/src/domain/singletons.ts` | Register `syncService` |
 | `frontend/src/features/editor/types/editor.ts` | Add `source` to clip types |
 | `frontend/src/features/editor/model/editor-reducer-clip-ops.ts` | Set `source: "user"` on `ADD_CLIP`, `ADD_CLIP_AUTO_PROMOTE`, `PASTE_CLIP` |
-| `frontend/src/features/chat/hooks/use-streaming-content-side-effects.ts` | Add `sessionId` param, add `invalidateSessionDrafts` to both branches |
+| `frontend/src/features/chat/hooks/use-streaming-content-side-effects.ts` | Wait for the streamed draft to become query-visible, then refresh editor/chat project caches |
