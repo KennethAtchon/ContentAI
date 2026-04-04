@@ -18,6 +18,7 @@ import { CaptionsService } from "./editor/captions.service";
 import { CaptionPresetRepository } from "./editor/captions/preset.repository";
 import { EditorRepository } from "./editor/editor.repository";
 import { EditorService } from "./editor/editor.service";
+import { SyncService } from "./editor/sync/sync.service";
 import { QueueRepository } from "./queue/queue.repository";
 import { QueueService } from "./queue/queue.service";
 import { ReelsRepository } from "./reels/reels.repository";
@@ -79,12 +80,18 @@ export const editorRepository = new EditorRepository(db);
 export const queueRepository = new QueueRepository(db);
 export const queueService = new QueueService(queueRepository, editorRepository);
 
+export const syncService = new SyncService(
+  editorRepository,
+  contentRepository,
+  captionsService,
+);
+
 export const editorService = new EditorService(
   editorRepository,
   captionsRepository,
   contentRepository,
   queueRepository,
-  captionsService,
+  syncService,
 );
 
 export const adminRepository = new AdminRepository(db);

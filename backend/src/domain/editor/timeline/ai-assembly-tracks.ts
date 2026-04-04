@@ -1,3 +1,25 @@
+/**
+ * AI assembly track builders.
+ *
+ * These functions convert an AI model's assembly response (which shots to use,
+ * how to trim them, cut timing) into a full timeline track set. They are used
+ * today in the editor's manual AI-assembly flow.
+ *
+ * TODO (Phase 2 — assemble_video_cut chat tool):
+ * Wire these functions to a new chat tool that lets the AI arrange shots with
+ * full timing control in response to a user chat message. The flow would be:
+ *   1. AI calls assemble_video_cut tool with a cuts array
+ *   2. loadProjectShotAssets() fetches available shot assets
+ *   3. convertAIResponseToTracks() converts the AI response to tracks
+ *   4. The resulting track set is written to the editor project via
+ *      a new onEditorAction callback on ToolContext (see chat-tools.ts TODO)
+ *      or through SyncService.syncLinkedProjects with an assembly override
+ *
+ * The clips produced here should carry source:"content" for Phase 1 compatibility.
+ * When the assemble_video_cut tool is AI-initiated via chat, they should carry
+ * source:"ai_edit" so SyncService.mergeTrackSets can distinguish them from
+ * passively derived clips. See clip-trim.ts source field TODO.
+ */
 import type { z } from "zod";
 import { contentRepository } from "../../singletons";
 import { aiAssemblyResponseSchema } from "../editor.schemas";

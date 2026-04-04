@@ -25,18 +25,61 @@ export interface ToolContext {
   content: string;
   reelRefs?: number[];
   savedContentIds: number[];
+  /**
+   * Called by save_content, iterate_content, and edit_content_field after
+   * the DB write and session draft update succeed. SyncService uses this hook
+   * to update linked editor projects before SSE fires to the client.
+   *
+   * Ordering guarantee:
+   *   tool saves content + updates session draft →
+   *   onContentSaved fires → syncLinkedProjects writes editor projects →
+   *   SSE fires → client waits for draft visibility → editor re-fetches
+   *
+   * Set in send-message.stream.ts at stream construction time.
+   *
+   * TODO (Phase 2 — AI direct-edit tools):
+   * Add an onEditorAction callback here for AI tools that directly manipulate
+   * the editor timeline WITHOUT creating a new content version. Shape:
+   *
+   *   onEditorAction?: (projectId: string, ops: ClipOperation[]) => Promise<void>
+   *
+   * This enables tools like:
+   *   - trim_clip: AI trims a specific clip to a target duration
+   *   - reorder_shots: AI reorders video clips to match revised script pacing
+   *   - set_caption_preset: AI picks a caption style preset
+   *   - create_text_overlay: AI creates a lower third or title card
+   *   - assemble_video_cut: AI selects shots and sets cut timing (may use
+   *     onContentSaved or onEditorAction depending on whether a new content
+   *     version is needed)
+   *
+   * ClipOperation would be a discriminated union:
+   *   | { type: "trim_clip"; clipId: string; durationMs: number }
+   *   | { type: "reorder"; trackId: string; clipIds: string[] }
+   *   | { type: "set_preset"; trackId: string; presetId: string }
+   *   | { type: "insert_clip"; trackId: string; clip: TimelineClipJson }
+   *   | { type: "delete_clip"; clipId: string }
+   *
+   * Applied via a new IEditorRepository.applyClipOperations() method that
+   * writes without bumping the autosave conflict version (same rule as
+   * updateProjectForSync). See editor.repository.ts TODO.
+   */
+  onContentSaved?: (contentId: number) => Promise<void>;
 }
 
 async function registerCreatedContent(
   context: ToolContext,
   contentId: number,
 ): Promise<void> {
+  // Session draft membership and activeContentId are updated first, then
+  // SyncService syncs linked editor projects. Both must complete before the
+  // SSE event fires to the client.
   await chatService.attachContentToSessionAndSetActive(
     context.auth.user.id,
     context.sessionId,
     contentId,
   );
   context.savedContentIds.push(contentId);
+  await context.onContentSaved?.(contentId);
 }
 
 export function createSaveContentTool(context: ToolContext) {

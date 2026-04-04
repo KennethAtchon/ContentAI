@@ -64,7 +64,7 @@ export interface IContentRepository {
   findIdAndHookForUser(
     contentId: number,
     userId: string,
-  ): Promise<{ id: number; generatedHook: string | null } | null>;
+  ): Promise<{ id: number; generatedHook: string | null; postCaption: string | null } | null>;
 
   /** Content ids from `contentId` up through `parent_id` (includes `contentId`). */
   resolveContentAncestorChainIds(
@@ -313,11 +313,12 @@ export class ContentRepository implements IContentRepository {
   async findIdAndHookForUser(
     contentId: number,
     userId: string,
-  ): Promise<{ id: number; generatedHook: string | null } | null> {
+  ): Promise<{ id: number; generatedHook: string | null; postCaption: string | null } | null> {
     const [row] = await this.db
       .select({
         id: generatedContent.id,
         generatedHook: generatedContent.generatedHook,
+        postCaption: generatedContent.postCaption,
       })
       .from(generatedContent)
       .where(

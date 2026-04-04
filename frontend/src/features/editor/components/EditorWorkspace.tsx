@@ -18,11 +18,9 @@ interface EditorWorkspaceProps {
   mediaActiveTab: TabKey;
   pendingAdd: { trackId: string; startMs: number } | null;
   isReadOnly: boolean;
-  isSyncing: boolean;
   onSetEffectPreview: (value: { clipId: string; patch: Partial<Clip> } | null) => void;
   onSetMediaActiveTab: (tab: TabKey) => void;
   onClearPendingAdd: () => void;
-  onSyncAssets: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
 }
 
@@ -39,11 +37,9 @@ export function EditorWorkspace({
   mediaActiveTab,
   pendingAdd,
   isReadOnly,
-  isSyncing,
   onSetEffectPreview,
   onSetMediaActiveTab,
   onClearPendingAdd,
-  onSyncAssets,
   onAddClip,
 }: EditorWorkspaceProps) {
   const { state } = useEditorContext();
@@ -52,7 +48,6 @@ export function EditorWorkspace({
     <div className="flex flex-1 overflow-hidden min-h-0">
       <MediaPanel
         generatedContentId={project.generatedContentId}
-        mergedAssetIds={project.mergedAssetIds ?? []}
         currentTimeMs={currentTimeMs}
         onAddClip={onAddClip}
         readOnly={isReadOnly}
@@ -60,8 +55,6 @@ export function EditorWorkspace({
         onTabChange={onSetMediaActiveTab}
         pendingAdd={pendingAdd}
         onClearPendingAdd={onClearPendingAdd}
-        onSyncAssets={onSyncAssets}
-        isSyncing={isSyncing}
       />
 
       <PreviewArea

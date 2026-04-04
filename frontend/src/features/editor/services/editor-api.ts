@@ -63,17 +63,6 @@ export async function publishEditorProject(id: string): Promise<{
   });
 }
 
-export async function syncEditorProjectAssets(
-  id: string,
-): Promise<{ changed: boolean; tracks: Track[]; durationMs: number; mergedAssetIds: string[] }> {
-  return authenticatedFetchJson<{
-    changed: boolean;
-    tracks: Track[];
-    durationMs: number;
-    mergedAssetIds: string[];
-  }>(`/api/editor/${id}/sync-assets`, { method: "POST" });
-}
-
 export async function uploadProjectThumbnail(
   id: string,
   blob: Blob,

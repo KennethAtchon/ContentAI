@@ -10,7 +10,6 @@ import { useEditorKeyboard } from "./useEditorKeyboard";
 import { useEditorProjectPoll } from "./useEditorProjectPoll";
 import { useEditorLayoutMutations } from "./useEditorLayoutMutations";
 import { usePlayback } from "./usePlayback";
-import { useAssetSync } from "./useAssetSync";
 import { useEditorAssetMap } from "./useEditorAssetMap";
 import { useEditorClipActions } from "./useEditorClipActions";
 import { useEditorTransport } from "./useEditorTransport";
@@ -73,10 +72,6 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
     authenticatedFetchJson,
     onBack,
     flushSave,
-  });
-
-  const { syncAssets, isSyncing } = useAssetSync(project, (tracks, durationMs) => {
-    store.loadProject({ ...project, tracks, durationMs });
   });
 
   const onTick = useCallback((ms: number) => store.setCurrentTime(ms), [store.setCurrentTime]);
@@ -148,8 +143,6 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
     isPublishing,
     createNewDraft,
     isCreatingDraft,
-    syncAssets,
-    isSyncing,
     clipActions,
     transport,
   };

@@ -36,7 +36,7 @@ export function reduceClipOps(
         t.id === action.trackId
           ? {
               ...t,
-              clips: [...t.clips, { ...action.clip, locallyModified: true }],
+              clips: [...t.clips, { ...action.clip, locallyModified: true, source: "user" as const }],
             }
           : t
       );
@@ -89,7 +89,7 @@ export function reduceClipOps(
       if (!preferredTrack || preferredTrack.type !== "video") {
         const newTracks = state.tracks.map((t) =>
           t.id === preferredTrackId
-            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true }] }
+            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true, source: "user" as const }] }
             : t
         );
         return {
@@ -114,7 +114,7 @@ export function reduceClipOps(
       if (targetTrack) {
         newTracks = state.tracks.map((t) =>
           t.id === targetTrack.id
-            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true }] }
+            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true, source: "user" as const }] }
             : t
         );
       } else {
@@ -124,7 +124,7 @@ export function reduceClipOps(
           name: `Video ${videoTracks.length + 1}`,
           muted: false,
           locked: false,
-          clips: [{ ...clip, locallyModified: true }],
+          clips: [{ ...clip, locallyModified: true, source: "user" as const }],
           transitions: [],
         };
         const lastVideoIdx = state.tracks.reduce(
@@ -277,6 +277,7 @@ export function reduceClipOps(
         id: crypto.randomUUID(),
         startMs: action.startMs,
         locallyModified: true,
+        source: "user" as const,
       };
 
       if (isMediaClip(newClip)) {

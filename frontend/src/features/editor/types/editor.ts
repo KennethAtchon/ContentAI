@@ -47,6 +47,12 @@ export interface MediaClipBase extends VisualClip {
   placeholderShotIndex?: number;
   placeholderLabel?: string;
   placeholderStatus?: "pending" | "generating" | "failed";
+  /**
+   * Who placed this clip. "content" = AI-derived, "user" = manually added.
+   * Clips without this field are treated as "content" by SyncService.mergeTrackSets.
+   * TODO (Phase 2): Add "ai_edit" for clips placed by AI direct-edit tools.
+   */
+  source?: "content" | "user";
 }
 
 export interface VideoClip extends MediaClipBase {
@@ -66,6 +72,7 @@ export interface TextClip extends VisualClip {
   textContent: string;
   textAutoChunk: boolean;
   textStyle?: TextStyle;
+  source?: "content" | "user";
 }
 
 export type Clip = VideoClip | AudioClip | MusicClip | TextClip | CaptionClip;
@@ -87,6 +94,7 @@ export interface CaptionClip extends BaseClip {
   styleOverrides: CaptionStyleOverrides;
   groupingMs: number;
   stale?: boolean;
+  source?: "content" | "user";
 }
 
 export type VideoClipPatch = Partial<Omit<VideoClip, "id" | "type">>;
@@ -127,7 +135,6 @@ export interface EditProject {
   status: "draft" | "published";
   publishedAt: string | null;
   parentProjectId: string | null;
-  mergedAssetIds?: string[];
   thumbnailUrl?: string | null;
   generatedHook?: string | null;
   postCaption?: string | null;

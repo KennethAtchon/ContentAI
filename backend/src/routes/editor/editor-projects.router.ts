@@ -113,23 +113,6 @@ projectsRouter.delete(
 );
 
 projectsRouter.post(
-  "/:id/sync-assets",
-  rateLimiter("customer"),
-  csrfMiddleware(),
-  authMiddleware("user"),
-  zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
-  async (c) => {
-    const auth = c.get("auth");
-    const { id } = c.req.valid("param");
-    const result = await editorService.syncNewAssetsIntoProject(
-      auth.user.id,
-      id,
-    );
-    return c.json(result);
-  },
-);
-
-projectsRouter.post(
   "/:id/publish",
   rateLimiter("customer"),
   csrfMiddleware(),

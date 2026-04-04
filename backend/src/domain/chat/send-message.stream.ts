@@ -4,7 +4,7 @@ import { recordUsage } from "../../middleware/usage-gate";
 import { recordAiCost } from "../../lib/cost-tracker";
 import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "./chat-tools";
-import { chatService } from "../singletons";
+import { chatService, syncService } from "../singletons";
 import { Errors } from "../../utils/errors/app-error";
 import { debugLog } from "../../utils/debug/debug";
 import type { AuthResult } from "../../types/hono.types";
@@ -162,6 +162,13 @@ export async function createChatSendMessageStreamResponse(input: {
     content,
     reelRefs,
     savedContentIds,
+    // SyncService runs inside registerCreatedContent, before SSE fires.
+    // Ordering: tool saves content + updates session draft state →
+    //   onContentSaved fires → syncLinkedProjects writes editor projects →
+    //   SSE reveals contentId → client waits for draft to be query-visible →
+    //   editor queries re-fetch and merge via MERGE_TRACKS_FROM_SERVER.
+    onContentSaved: (contentId) =>
+      syncService.syncLinkedProjects(auth.user.id, contentId),
   };
 
   const result = streamText({

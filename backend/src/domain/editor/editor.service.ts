@@ -6,10 +6,8 @@ import type { IContentRepository } from "../content/content.repository";
 import type { IQueueRepository } from "../queue/queue.repository";
 import type { createProjectSchema, patchProjectSchema } from "./editor.schemas";
 import type { IEditorRepository } from "./editor.repository";
-import { buildInitialTimeline } from "./build-initial-timeline";
 import type { ICaptionsRepository } from "./captions.repository";
-import type { CaptionsService } from "./captions.service";
-import { mergeNewAssetsIntoProject } from "./merge-new-assets";
+import type { SyncService } from "./sync/sync.service";
 import { parseStoredEditorTracks } from "./validate-stored-tracks";
 
 export class EditorService {
@@ -18,7 +16,7 @@ export class EditorService {
     private readonly captions: ICaptionsRepository,
     private readonly content: IContentRepository,
     private readonly queue: IQueueRepository,
-    private readonly captionsService?: CaptionsService,
+    private readonly syncService: SyncService,
   ) {}
 
   private getCaptionDocIds(tracks: unknown): Set<string> {
@@ -114,12 +112,10 @@ export class EditorService {
     let tracks: unknown[] = [];
     let durationMs = 0;
     if (generatedContentId) {
-      const result = await buildInitialTimeline(
-        this.content,
-        generatedContentId,
-        userId,
-        this.captionsService,
-      );
+      // SyncService.deriveTimeline is the single source of truth for building
+      // editor tracks from content assets — used here for initial project creation
+      // and by syncLinkedProjects for all subsequent re-syncs.
+      const result = await this.syncService.deriveTimeline(userId, generatedContentId);
       tracks = result.tracks;
       durationMs = result.durationMs;
     }
@@ -170,16 +166,6 @@ export class EditorService {
     }
   }
 
-  async syncNewAssetsIntoProject(userId: string, projectId: string) {
-    return mergeNewAssetsIntoProject(
-      this.editor,
-      this.content,
-      projectId,
-      userId,
-      this.captionsService,
-    );
-  }
-
   async getProjectWithParsedTracks(userId: string, projectId: string) {
     const project = await this.editor.findByIdAndUserId(projectId, userId);
     if (!project) throw Errors.notFound("Edit project");
@@ -218,19 +204,6 @@ export class EditorService {
         (captionDocId) => !nextCaptionDocIds.has(captionDocId),
       );
       updateData.tracks = parsed.tracks;
-      updateData.mergedAssetIds = [
-        ...new Set(
-          parsed.tracks
-            .flatMap((t) =>
-              t.clips
-                .flatMap((cl) => ("assetId" in cl ? [cl.assetId] : [])),
-            )
-            .filter(
-              (aid): aid is string =>
-                typeof aid === "string" && aid.length > 0,
-            ),
-        ),
-      ];
     }
     if (parsed.durationMs !== undefined)
       updateData.durationMs = parsed.durationMs;

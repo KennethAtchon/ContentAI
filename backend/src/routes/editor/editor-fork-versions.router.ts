@@ -6,7 +6,6 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { buildInitialTimeline } from "../../domain/editor/build-initial-timeline";
 import {
   editorProjectIdParamSchema,
   editorSnapshotParamSchema,
@@ -14,7 +13,7 @@ import {
 } from "../../domain/editor/editor.schemas";
 import { parseStoredEditorTracks } from "../../domain/editor/validate-stored-tracks";
 import { Errors } from "../../utils/errors/app-error";
-import { contentRepository, editorRepository, captionsService } from "../../domain/singletons";
+import { editorRepository, syncService } from "../../domain/singletons";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const forkVersionsRouter = new Hono<HonoEnv>();
@@ -39,11 +38,9 @@ forkVersionsRouter.post(
 
     let aiTimeline: { tracks: unknown; durationMs: number } | null = null;
     if (body.resetToAI && root.generatedContentId) {
-      aiTimeline = await buildInitialTimeline(
-        contentRepository,
-        root.generatedContentId,
+      aiTimeline = await syncService.deriveTimeline(
         auth.user.id,
-        captionsService,
+        root.generatedContentId,
       );
     }
 

@@ -27,12 +27,36 @@ export interface IEditorRepository {
     userId: string,
   ): Promise<EditProjectRow | null>;
 
-  updateTracksDurationMerged(
+  /**
+   * Find all editor projects for a user linked to any of the given content IDs.
+   * Used by SyncService.syncLinkedProjects to find projects across the full
+   * ancestor chain of a content version.
+   */
+  findProjectsByContentIds(
+    userId: string,
+    contentIds: number[],
+  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number }>>;
+
+  /**
+   * Write synced tracks and denormalized content fields to an editor project.
+   *
+   * IMPORTANT: Must NOT bump any autosave/conflict version field.
+   * Sync writes are transparent to the editor's conflict detection system.
+   *
+   * TODO (Phase 2 — AI direct-edit):
+   * Add applyClipOperations(projectId, userId, ops: ClipOperation[]): Promise<void>
+   * for AI tools that directly mutate individual clips (trim, reorder, insert, delete)
+   * without going through a full content re-derive. Must not bump the conflict version.
+   * See chat-tools.ts ToolContext for the onEditorAction callback and ClipOperation shape.
+   */
+  updateProjectForSync(
     projectId: string,
-    patch: Pick<
-      EditProjectRow,
-      "tracks" | "durationMs" | "mergedAssetIds"
-    >,
+    userId: string,
+    data: {
+      tracks: unknown;
+      durationMs: number;
+      generatedContentId: number;
+    },
   ): Promise<void>;
 
   listForUserWithGeneratedContent(userId: string): Promise<
@@ -218,21 +242,51 @@ export class EditorRepository implements IEditorRepository {
     return row ?? null;
   }
 
-  async updateTracksDurationMerged(
+  async findProjectsByContentIds(
+    userId: string,
+    contentIds: number[],
+  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number }>> {
+    if (contentIds.length === 0) return [];
+    return this.db
+      .select({
+        id: editProjects.id,
+        tracks: editProjects.tracks,
+        durationMs: editProjects.durationMs,
+      })
+      .from(editProjects)
+      .where(
+        and(
+          eq(editProjects.userId, userId),
+          inArray(editProjects.generatedContentId, contentIds),
+          isNull(editProjects.parentProjectId),
+        ),
+      );
+  }
+
+  async updateProjectForSync(
     projectId: string,
-    patch: Pick<
-      EditProjectRow,
-      "tracks" | "durationMs" | "mergedAssetIds"
-    >,
+    userId: string,
+    data: {
+      tracks: unknown;
+      durationMs: number;
+      generatedContentId: number;
+    },
   ): Promise<void> {
+    // updatedAt advances via $onUpdateFn so the editor's poll picks up the change.
+    // We never touch the autosave conflict version — sync is transparent to the
+    // editor's conflict detection system.
+    // generatedHook and postCaption are not stored on edit_projects; they come
+    // via JOIN from generated_content, so advancing generatedContentId is enough.
     await this.db
       .update(editProjects)
       .set({
-        tracks: patch.tracks,
-        durationMs: patch.durationMs,
-        mergedAssetIds: patch.mergedAssetIds,
+        tracks: data.tracks,
+        durationMs: data.durationMs,
+        generatedContentId: data.generatedContentId,
       })
-      .where(eq(editProjects.id, projectId));
+      .where(
+        and(eq(editProjects.id, projectId), eq(editProjects.userId, userId)),
+      );
   }
 
   async listForUserWithGeneratedContent(userId: string) {

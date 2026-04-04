@@ -72,11 +72,9 @@ export function EditorLayout({ project, onBack }: Props) {
             mediaActiveTab={runtime.mediaActiveTab}
             pendingAdd={runtime.pendingAdd}
             isReadOnly={state.isReadOnly}
-            isSyncing={runtime.isSyncing}
             onSetEffectPreview={runtime.setEffectPreview}
             onSetMediaActiveTab={runtime.setMediaActiveTab}
             onClearPendingAdd={() => runtime.setPendingAdd(null)}
-            onSyncAssets={runtime.syncAssets}
             onAddClip={clipActions.handleAddClip}
           />
 
