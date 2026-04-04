@@ -30,8 +30,11 @@ export function useChatLayout(projects: Project[]) {
   const queryClient = useQueryClient();
 
   const sessionId = search.sessionId || "";
-  const { data: sessionData, isLoading: sessionLoading } = useChatSession(sessionId);
-  const { data: sessionDraftsData } = useSessionDrafts(sessionId.length > 0 ? sessionId : null);
+  const { data: sessionData, isLoading: sessionLoading } =
+    useChatSession(sessionId);
+  const { data: sessionDraftsData } = useSessionDrafts(
+    sessionId.length > 0 ? sessionId : null
+  );
   const {
     sendMessage,
     optimisticUserMessage,
@@ -79,22 +82,23 @@ export function useChatLayout(projects: Project[]) {
   const selectedProject = useMemo((): Project | undefined => {
     if (!projects?.length) return undefined;
     if (search.projectId) {
-      const fromUrl = projects.find((project) => project.id === search.projectId);
+      const fromUrl = projects.find(
+        (project) => project.id === search.projectId
+      );
       if (fromUrl) return fromUrl;
     }
     const sessionPid = sessionData?.session?.projectId;
-    if (sessionPid) return projects.find((project) => project.id === sessionPid);
+    if (sessionPid)
+      return projects.find((project) => project.id === sessionPid);
     return undefined;
   }, [projects, search.projectId, sessionData?.session?.projectId]);
 
-  const {
-    handleProjectSelect,
-    handleSessionSelect,
-    handleSessionDeleted,
-  } = useChatLayoutNavigation(selectedProject);
+  const { handleProjectSelect, handleSessionSelect, handleSessionDeleted } =
+    useChatLayoutNavigation(selectedProject);
 
   const selectedSession = sessionData?.session;
-  const isSessionResolving = Boolean(sessionId) && sessionLoading && !sessionData;
+  const isSessionResolving =
+    Boolean(sessionId) && sessionLoading && !sessionData;
 
   const hydratedSessionIdRef = useRef<string | null>(null);
   const prevSessionIdForResetRef = useRef(sessionId);

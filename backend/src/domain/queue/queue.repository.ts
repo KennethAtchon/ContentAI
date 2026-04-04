@@ -1,13 +1,4 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  ilike,
-  inArray,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import {
   assets,
   contentAssets,
@@ -195,10 +186,7 @@ export class QueueRepository implements IQueueRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(queueItems)
       .where(
-        and(
-          eq(queueItems.userId, userId),
-          eq(queueItems.status, "scheduled"),
-        ),
+        and(eq(queueItems.userId, userId), eq(queueItems.status, "scheduled")),
       );
     return row?.count ?? 0;
   }
@@ -740,16 +728,13 @@ export class QueueRepository implements IQueueRepository {
         item.generatedContentId,
       );
       if (originalContent) {
-        const tip = await resolveChainTip(
-          originalContent.id,
-          userId,
-          this.db,
-        );
-        const newContent = await this.insertGeneratedContentDuplicateFromOriginal(
-          userId,
-          originalContent,
-          tip,
-        );
+        const tip = await resolveChainTip(originalContent.id, userId, this.db);
+        const newContent =
+          await this.insertGeneratedContentDuplicateFromOriginal(
+            userId,
+            originalContent,
+            tip,
+          );
         newGeneratedContentId = newContent.id;
       }
     }

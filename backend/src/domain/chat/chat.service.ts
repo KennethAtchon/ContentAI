@@ -1,6 +1,81 @@
 import type { IChatRepository } from "./chat.repository";
 import { Errors } from "../../utils/errors/app-error";
 
+const CONTEXT_FIELD_LIMITS = {
+  prompt: 600,
+  generatedHook: 300,
+  postCaption: 700,
+  generatedScript: 1400,
+  voiceoverScript: 1000,
+  sceneDescription: 700,
+  generatedMetadata: 1000,
+} as const;
+
+type SessionDraftForContext = Awaited<
+  ReturnType<IChatRepository["listSessionDraftsForContext"]>
+>[number];
+
+type ActiveDraftForContext = NonNullable<
+  Awaited<ReturnType<IChatRepository["findContentForChatContext"]>>
+>;
+
+export function truncateContextField(
+  value: string | null | undefined,
+  maxLength: number,
+  contentId: number,
+): string {
+  if (!value) return "none";
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)} [truncated; call get_content with contentId ${contentId} for the full record]`;
+}
+
+export function buildSessionDraftInventorySection(
+  drafts: SessionDraftForContext[],
+  activeContentId?: number,
+): string {
+  if (drafts.length === 0) {
+    return "Session drafts:\n- none";
+  }
+
+  const lines = drafts.map((draft) => {
+    const activeMarker = draft.id === activeContentId ? " [ACTIVE]" : "";
+    const hookPreview = truncateContextField(
+      draft.generatedHook,
+      120,
+      draft.id,
+    );
+    return `- contentId ${draft.id}${activeMarker}; version ${draft.version}; status ${draft.status}; outputType ${draft.outputType}; hook "${hookPreview}"`;
+  });
+
+  return `Session drafts:\n${lines.join("\n")}`;
+}
+
+export function buildActiveDraftSection(draft: ActiveDraftForContext): string {
+  const metadataJson =
+    draft.generatedMetadata == null
+      ? "none"
+      : truncateContextField(
+          JSON.stringify(draft.generatedMetadata, null, 2),
+          CONTEXT_FIELD_LIMITS.generatedMetadata,
+          draft.id,
+        );
+
+  return `Active draft:
+id: ${draft.id}
+version: ${draft.version}
+status: ${draft.status}
+outputType: ${draft.outputType}
+prompt: "${truncateContextField(draft.prompt, CONTEXT_FIELD_LIMITS.prompt, draft.id)}"
+generatedHook: "${truncateContextField(draft.generatedHook, CONTEXT_FIELD_LIMITS.generatedHook, draft.id)}"
+postCaption: "${truncateContextField(draft.postCaption, CONTEXT_FIELD_LIMITS.postCaption, draft.id)}"
+generatedScript: "${truncateContextField(draft.generatedScript, CONTEXT_FIELD_LIMITS.generatedScript, draft.id)}"
+voiceoverScript: "${truncateContextField(draft.voiceoverScript, CONTEXT_FIELD_LIMITS.voiceoverScript, draft.id)}"
+sceneDescription: "${truncateContextField(draft.sceneDescription, CONTEXT_FIELD_LIMITS.sceneDescription, draft.id)}"
+generatedMetadata: ${metadataJson}
+parentId: ${draft.parentId ?? "none"}
+sourceReelId: ${draft.sourceReelId ?? "none"}`;
+}
+
 export class ChatService {
   constructor(private readonly chatRepo: IChatRepository) {}
 
@@ -40,11 +115,7 @@ export class ChatService {
     return { sessions };
   }
 
-  async createSession(
-    userId: string,
-    projectId: string,
-    title?: string,
-  ) {
+  async createSession(userId: string, projectId: string, title?: string) {
     // Verify project exists and belongs to user
     const project = await this.chatRepo.findProjectById(projectId, userId);
     if (!project) {
@@ -75,7 +146,10 @@ export class ChatService {
     }
 
     // Verify content exists and get its project
-    const content = await this.chatRepo.findContentById(Number(contentId), userId);
+    const content = await this.chatRepo.findContentById(
+      Number(contentId),
+      userId,
+    );
     if (!content) {
       throw Errors.notFound("Content");
     }
@@ -83,7 +157,7 @@ export class ChatService {
     // Find user's default project or create one for this content
     const sessions = await this.chatRepo.listSessions(userId, undefined);
     let projectId: string | null = sessions[0]?.projectId ?? null;
-    
+
     if (!projectId) {
       // Create a new project for this user if none exists
       const newProject = await this.chatRepo.createProject({
@@ -119,7 +193,10 @@ export class ChatService {
   ) {
     await this.assertSessionExists(sessionId, userId);
 
-    if (updates.activeContentId !== undefined && updates.activeContentId !== null) {
+    if (
+      updates.activeContentId !== undefined &&
+      updates.activeContentId !== null
+    ) {
       await this.assertSessionOwnsContent(
         sessionId,
         userId,
@@ -127,7 +204,11 @@ export class ChatService {
       );
     }
 
-    const updated = await this.chatRepo.updateSession(sessionId, userId, updates);
+    const updated = await this.chatRepo.updateSession(
+      sessionId,
+      userId,
+      updates,
+    );
 
     return { session: updated };
   }
@@ -333,55 +414,120 @@ export class ChatService {
     return { content };
   }
 
-  async buildChatContext(
+  async isContentAttachedToSession(
+    sessionId: string,
     userId: string,
-    projectName: string,
-    reelRefs?: number[],
-    activeContentId?: number,
+    contentId: number,
   ) {
-    let context = `Project: ${projectName}`;
+    const sessionContentIds = await this.chatRepo.listSessionContentIds(
+      sessionId,
+      userId,
+    );
+    return sessionContentIds.includes(contentId);
+  }
+
+  async listSessionDraftsForContext(sessionId: string, userId: string) {
+    await this.assertSessionExists(sessionId, userId);
+    return this.chatRepo.listSessionDraftsForContext(sessionId, userId);
+  }
+
+  async findActiveDraftForSessionContext(
+    sessionId: string,
+    userId: string,
+    effectiveActiveContentId?: number,
+  ) {
+    if (effectiveActiveContentId == null) {
+      return undefined;
+    }
+
+    const isAttached = await this.isContentAttachedToSession(
+      sessionId,
+      userId,
+      effectiveActiveContentId,
+    );
+    if (!isAttached) {
+      return undefined;
+    }
+
+    return this.chatRepo.findContentForChatContext(
+      effectiveActiveContentId,
+      userId,
+    );
+  }
+
+  async buildProjectAndAttachmentContext(
+    userId: string,
+    projectId: string | null,
+    reelRefs?: number[],
+    mediaRefs?: string[],
+  ) {
+    const sections: string[] = [];
+
+    if (projectId) {
+      const project = await this.chatRepo.findProjectById(projectId, userId);
+      if (project) {
+        sections.push(`Project: ${project.name}`);
+      }
+    }
 
     if (reelRefs && reelRefs.length > 0) {
-      const reelRows = await this.chatRepo.findReelsWithContext(reelRefs, userId);
+      const reelRows = await this.chatRepo.findReelsWithContext(
+        reelRefs,
+        userId,
+      );
 
       if (reelRows.length > 0) {
         const reelContext = reelRows
           .map(
             (r) =>
-              `Reel ID ${r.id} @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
+              `- Reel ID ${r.id} @${r.username} (${r.views.toLocaleString()} views, ${r.niche ?? "unknown niche"}): hook="${r.hook ?? "N/A"}"`,
           )
           .join("\n");
-        context += `\nAttached reels (use get_reel_analysis to fetch deep analysis before generating):\n${reelContext}`;
+        sections.push(
+          `Attached reels (use get_reel_analysis to fetch deep analysis before generating):\n${reelContext}`,
+        );
       }
     }
 
-    if (activeContentId) {
-      const active = await this.chatRepo.findContentForChatContext(
-        activeContentId,
-        userId,
-      );
-
-      if (active) {
-        const meta = active.generatedMetadata as Record<string, unknown> | null;
-        const hashtags = Array.isArray(meta?.hashtags)
-          ? (meta.hashtags as string[]).join(", ")
-          : "none";
-        const cta = (meta?.cta as string) ?? "none";
-
-        context += `\n\nActive Draft (ID: ${active.id}, v${active.version}, status: ${active.status}):
-Hook: "${active.generatedHook ?? "none"}"
-Post caption: "${active.postCaption ?? "none"}"
-Hashtags: ${hashtags}
-CTA: ${cta}
-Script (first 300 chars): "${(active.generatedScript ?? "none").slice(0, 300)}..."
-Scene Description: "${active.sceneDescription ?? "none"}"
-Type: ${active.outputType}
-
-For targeted field edits (postCaption, hook, hashtags, CTA only), call edit_content_field with contentId: ${active.id}.
-For full rewrites or multi-field changes, call iterate_content with parentContentId: ${active.id}.`;
+    if (mediaRefs && mediaRefs.length > 0) {
+      const assets = await this.chatRepo.findAssetsByIds(mediaRefs, userId);
+      if (assets.length > 0) {
+        const assetContext = assets
+          .map(
+            (asset) =>
+              `- Asset ID ${asset.id}: type=${asset.type}, source=${asset.source}, name="${asset.name ?? "unnamed"}", mimeType=${asset.mimeType ?? "unknown"}`,
+          )
+          .join("\n");
+        sections.push(`Attached media assets:\n${assetContext}`);
       }
     }
 
-    return context;
+    return sections.join("\n\n");
+  }
+
+  async buildSessionDraftInventoryContext(
+    sessionId: string,
+    userId: string,
+    activeContentId?: number,
+  ) {
+    const drafts = await this.listSessionDraftsForContext(sessionId, userId);
+    return buildSessionDraftInventorySection(drafts, activeContentId);
+  }
+
+  async buildActiveContentContext(
+    sessionId: string,
+    userId: string,
+    activeContentId?: number,
+  ) {
+    const active = await this.findActiveDraftForSessionContext(
+      sessionId,
+      userId,
+      activeContentId,
+    );
+    if (!active) {
+      return "";
+    }
+
+    return buildActiveDraftSection(active);
   }
 }

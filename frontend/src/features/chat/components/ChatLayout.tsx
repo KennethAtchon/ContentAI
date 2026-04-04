@@ -70,15 +70,21 @@ export function ChatLayout({
         {isSessionResolving ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">{t("studio_loading")}</p>
+            <p className="text-sm text-muted-foreground">
+              {t("studio_loading")}
+            </p>
           </div>
         ) : selectedSession ? (
           <>
             <div className="border-b px-5 py-3 shrink-0 flex items-center justify-between gap-3 min-w-0">
               <div className="min-w-0 flex-1">
-                <h2 className="text-base font-semibold truncate">{selectedSession.title}</h2>
+                <h2 className="text-base font-semibold truncate">
+                  {selectedSession.title}
+                </h2>
                 {selectedProject && (
-                  <p className="text-sm text-muted-foreground truncate">{selectedProject.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {selectedProject.name}
+                  </p>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -90,7 +96,9 @@ export function ChatLayout({
                     aria-label={t("workspace_video_generating_toast_show_aria")}
                   >
                     <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
-                    <span className="hidden sm:inline">{t("workspace_video_generating_toast_show")}</span>
+                    <span className="hidden sm:inline">
+                      {t("workspace_video_generating_toast_show")}
+                    </span>
                   </button>
                 ) : null}
                 <button
@@ -125,7 +133,9 @@ export function ChatLayout({
             </div>
             <div>
               <h2 className="text-lg font-semibold mb-1">
-                {selectedProject ? selectedProject.name : t("studio_chat_selectProject")}
+                {selectedProject
+                  ? selectedProject.name
+                  : t("studio_chat_selectProject")}
               </h2>
               <p className="text-base text-muted-foreground max-w-xs">
                 {selectedProject

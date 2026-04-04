@@ -237,13 +237,15 @@ Add unit tests for:
 
 ## Files To Change
 
-| File | Change |
-|---|---|
-| `backend/src/domain/chat/send-message.stream.ts` | Resolve effective active draft from session state and compose system/user messages correctly |
-| `backend/src/domain/chat/chat.service.ts` | Replace `buildChatContext()` with session-aware context builders and membership validation |
-| `backend/src/domain/chat/chat.repository.ts` | Add any missing session-membership reads needed for active-draft validation and draft inventory |
-| `backend/src/prompts/chat-generate.txt` | Document session drafts and active-draft grounding |
-| `backend/__tests__/unit/...` | Add validation and formatter tests |
+
+| File                                             | Change                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `backend/src/domain/chat/send-message.stream.ts` | Resolve effective active draft from session state and compose system/user messages correctly    |
+| `backend/src/domain/chat/chat.service.ts`        | Replace `buildChatContext()` with session-aware context builders and membership validation      |
+| `backend/src/domain/chat/chat.repository.ts`     | Add any missing session-membership reads needed for active-draft validation and draft inventory |
+| `backend/src/prompts/chat-generate.txt`          | Document session drafts and active-draft grounding                                              |
+| `backend/__tests__/unit/...`                     | Add validation and formatter tests                                                              |
+
 
 ---
 
@@ -255,3 +257,4 @@ Add unit tests for:
 4. The system prompt includes a compact session draft inventory plus detailed active-draft context.
 5. The final user message is the raw user text only.
 6. The model can rely on the active draft as the default artifact for edits without needing message-level content ids.
+

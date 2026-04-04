@@ -1,8 +1,4 @@
-import {
-  streamText,
-  stepCountIs,
-  createUIMessageStreamResponse,
-} from "ai";
+import { streamText, stepCountIs, createUIMessageStreamResponse } from "ai";
 import { loadPrompt, getModel, getModelInfo } from "../../lib/aiClient";
 import { recordUsage } from "../../middleware/usage-gate";
 import { recordAiCost } from "../../lib/cost-tracker";
@@ -12,6 +8,10 @@ import { chatService } from "../singletons";
 import { Errors } from "../../utils/errors/app-error";
 import { debugLog } from "../../utils/debug/debug";
 import type { AuthResult } from "../../types/hono.types";
+import {
+  composeChatRequest,
+  resolveEffectiveActiveContentId,
+} from "./send-message.helpers";
 
 function getChatSystemPrompt() {
   try {
@@ -35,6 +35,50 @@ export async function createChatSendMessageStreamResponse(input: {
   const session = await chatService.findSessionById(auth.user.id, sessionId);
   if (!session) {
     throw Errors.notFound("Session");
+  }
+
+  const requestedActiveContentId = activeContentId;
+  if (requestedActiveContentId != null) {
+    const isAttached = await chatService.isContentAttachedToSession(
+      sessionId,
+      auth.user.id,
+      requestedActiveContentId,
+    );
+    if (!isAttached) {
+      throw Errors.badRequest(
+        "Requested active draft is not attached to this session",
+        "CONTENT_NOT_IN_SESSION",
+      );
+    }
+  }
+
+  let effectiveActiveContentId = resolveEffectiveActiveContentId({
+    requestActiveContentId: requestedActiveContentId,
+    sessionActiveContentId: session.activeContentId,
+  });
+
+  if (
+    requestedActiveContentId == null &&
+    session.activeContentId != null &&
+    effectiveActiveContentId != null
+  ) {
+    const sessionActiveStillAttached =
+      await chatService.isContentAttachedToSession(
+        sessionId,
+        auth.user.id,
+        effectiveActiveContentId,
+      );
+
+    if (!sessionActiveStillAttached) {
+      debugLog.warn("[chat:send-message] Session active draft was detached", {
+        service: "chat-route",
+        operation: "active-draft-repair",
+        sessionId,
+        contentId: effectiveActiveContentId,
+      });
+      await chatService.setActiveContentId(auth.user.id, sessionId, null);
+      effectiveActiveContentId = undefined;
+    }
   }
 
   const messages = await chatService.getRecentMessages(sessionId, 20);
@@ -67,20 +111,40 @@ export async function createChatSendMessageStreamResponse(input: {
   if (session.title === "New Chat Session") {
     const autoTitle =
       content.substring(0, 50) + (content.length > 50 ? "..." : "");
-    await chatService.updateSession(auth.user.id, sessionId, { title: autoTitle });
+    await chatService.updateSession(auth.user.id, sessionId, {
+      title: autoTitle,
+    });
   }
 
-  const projectName = "My Project";
-  const context = await chatService.buildChatContext(
+  const projectAndAttachmentContext =
+    await chatService.buildProjectAndAttachmentContext(
+      auth.user.id,
+      session.projectId,
+      reelRefs,
+      mediaRefs,
+    );
+  const sessionDraftInventoryContext =
+    await chatService.buildSessionDraftInventoryContext(
+      sessionId,
+      auth.user.id,
+      effectiveActiveContentId,
+    );
+  const activeContentContext = await chatService.buildActiveContentContext(
+    sessionId,
     auth.user.id,
-    projectName,
-    reelRefs,
-    activeContentId,
+    effectiveActiveContentId,
   );
-  const systemPrompt = getChatSystemPrompt();
-  const userPrompt = context
-    ? `Context:\n${context}\n\nUser message: ${content}`
-    : content;
+  const { system, messages: requestMessages } = composeChatRequest({
+    baseSystemPrompt: getChatSystemPrompt(),
+    history: history.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+    userContent: content,
+    projectAndAttachmentContext,
+    sessionDraftInventoryContext,
+    activeContentContext,
+  });
 
   const { providerId: modelProvider, model: modelName } =
     await getModelInfo("generation");
@@ -98,14 +162,8 @@ export async function createChatSendMessageStreamResponse(input: {
 
   const result = streamText({
     model: await getModel("generation"),
-    system: systemPrompt,
-    messages: [
-      ...history.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
-      { role: "user", content: userPrompt },
-    ],
+    system,
+    messages: requestMessages,
     maxOutputTokens: 2048,
     toolChoice: "auto",
     stopWhen: stepCountIs(5),
@@ -126,8 +184,7 @@ export async function createChatSendMessageStreamResponse(input: {
         .trimEnd();
       try {
         const durationMs = Date.now() - streamStartMs;
-        const { inputTokens, outputTokens } =
-          extractUsageTokens(totalUsage);
+        const { inputTokens, outputTokens } = extractUsageTokens(totalUsage);
 
         await recordUsage(
           auth.user.id,

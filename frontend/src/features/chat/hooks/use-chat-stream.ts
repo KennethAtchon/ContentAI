@@ -30,8 +30,9 @@ export function useChatStream(sessionId: string) {
   const [isLimitReached, setIsLimitReached] = useState(false);
   const [isSavingContent, setIsSavingContent] = useState(false);
   const [streamingContentIds, setStreamingContentIds] = useState<number[]>([]);
-  const [latestStreamingContentId, setLatestStreamingContentId] =
-    useState<number | null>(null);
+  const [latestStreamingContentId, setLatestStreamingContentId] = useState<
+    number | null
+  >(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
 
@@ -67,7 +68,12 @@ export function useChatStream(sessionId: string) {
       abortRef.current = controller;
       streamingIdRef.current = `streaming-${sessionId}-${Date.now()}`;
 
-      const optimisticMsg = buildOptimisticUserMessage(sessionId, content, reelRefs, mediaRefs);
+      const optimisticMsg = buildOptimisticUserMessage(
+        sessionId,
+        content,
+        reelRefs,
+        mediaRefs
+      );
       setOptimisticUserMessage(optimisticMsg);
       setStreamingContent("");
       setIsStreaming(true);
@@ -76,7 +82,9 @@ export function useChatStream(sessionId: string) {
       setStreamingContentIds([]);
       setLatestStreamingContentId(null);
 
-      debugLog.info("[ChatStream] Optimistic user message set, sending HTTP POST");
+      debugLog.info(
+        "[ChatStream] Optimistic user message set, sending HTTP POST"
+      );
 
       try {
         const fetchStart = Date.now();
@@ -96,7 +104,10 @@ export function useChatStream(sessionId: string) {
 
         if (await handleChatMessagesForbiddenResponse(response, queryClient)) {
           setIsLimitReached(true);
-          clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
+          clearVisibleStreamMessages(
+            setOptimisticUserMessage,
+            setStreamingContent
+          );
           return;
         }
 
@@ -105,7 +116,10 @@ export function useChatStream(sessionId: string) {
 
         debugLog.info("[ChatStream] Starting SSE stream read");
 
-        const ingest: StreamIngestState = { accumulated: "", textDeltaCount: 0 };
+        const ingest: StreamIngestState = {
+          accumulated: "",
+          textDeltaCount: 0,
+        };
         const setters: StreamIngestSetters = {
           setStreamingContent,
           setIsSavingContent,
@@ -118,7 +132,11 @@ export function useChatStream(sessionId: string) {
           setStreamError,
         };
 
-        const { chunkCount } = await drainSseStreamIntoIngest(response.body, ingest, setters);
+        const { chunkCount } = await drainSseStreamIntoIngest(
+          response.body,
+          ingest,
+          setters
+        );
 
         debugLog.info("[ChatStream] Stream complete", {
           chunkCount,
@@ -126,8 +144,16 @@ export function useChatStream(sessionId: string) {
           finalContentLength: ingest.accumulated.length,
         });
 
-        patchSessionCacheAfterStream(queryClient, sessionId, optimisticMsg, ingest.accumulated);
-        clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
+        patchSessionCacheAfterStream(
+          queryClient,
+          sessionId,
+          optimisticMsg,
+          ingest.accumulated
+        );
+        clearVisibleStreamMessages(
+          setOptimisticUserMessage,
+          setStreamingContent
+        );
 
         debugLog.info("[ChatStream] Triggering background session refresh");
         void invalidateChatSessionQuery(queryClient, sessionId);
@@ -141,9 +167,14 @@ export function useChatStream(sessionId: string) {
           });
           if (err instanceof Error) setStreamError(err.message);
         }
-        clearVisibleStreamMessages(setOptimisticUserMessage, setStreamingContent);
+        clearVisibleStreamMessages(
+          setOptimisticUserMessage,
+          setStreamingContent
+        );
       } finally {
-        debugLog.info("[ChatStream] sendMessage finished — resetting streaming state");
+        debugLog.info(
+          "[ChatStream] sendMessage finished — resetting streaming state"
+        );
         setIsStreaming(false);
         setIsSavingContent(false);
       }

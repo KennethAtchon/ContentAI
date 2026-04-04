@@ -102,7 +102,13 @@ You have 21 tools. Use them as described below.
 
 ---
 
-**Active Draft context:** When context includes an "Active Draft" block, use that ID for edits unless the user specifies otherwise.
+**Session draft context:** The system message may include a **Session drafts** section listing the drafts attached to the current session. Use that inventory to understand what already exists in the workspace.
+
+**Active Draft context:** When the system message includes an **Active draft** block, use that ID as the default target for edits and iteration unless the user clearly specifies another draft.
+
+If the active draft snapshot is truncated, call `get_content` with that `contentId` before editing.
+
+Do not assume chat messages themselves identify drafts. The session-level draft context is the source of truth.
 
 **When NOT to call any tool:** The user asks a general question, wants advice, or is in conversation. Do not call tools during casual chat.
 

@@ -67,7 +67,12 @@ export function createSaveContentTool(context: ToolContext) {
         .describe(
           "Overall visual style for the reel, e.g. 'Cinematic documentary style, warm colour grading, handheld camera, close-ups'. Applied to all shots for visual coherence.",
         ),
-      postCaption: z.string().min(20).describe("Post caption text with emojis (for social platform post, not on-screen text)"),
+      postCaption: z
+        .string()
+        .min(20)
+        .describe(
+          "Post caption text with emojis (for social platform post, not on-screen text)",
+        ),
       hashtags: z
         .array(z.string())
         .min(3)
@@ -172,9 +177,8 @@ export function createGetReelAnalysisTool(context: ToolContext) {
         return { error: "reel_not_in_context" };
       }
       try {
-        const analysis = await chatToolsRepository.findReelAnalysisForTool(
-          reelId,
-        );
+        const analysis =
+          await chatToolsRepository.findReelAnalysisForTool(reelId);
         if (!analysis) {
           debugLog.info("[tool:get_reel_analysis] No analysis found for reel", {
             service: "chat-tools",
@@ -318,10 +322,11 @@ export function createEditContentFieldTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const parent = await chatToolsRepository.findFullGeneratedContentForUser(
-          context.auth.user.id,
-          contentId,
-        );
+        const parent =
+          await chatToolsRepository.findFullGeneratedContentForUser(
+            context.auth.user.id,
+            contentId,
+          );
 
         if (!parent) {
           return { error: "not_found" };
@@ -443,10 +448,11 @@ export function createIterateContentTool(context: ToolContext) {
         userId: context.auth.user.id,
       });
       try {
-        const parent = await chatToolsRepository.findFullGeneratedContentForUser(
-          context.auth.user.id,
-          parentContentId,
-        );
+        const parent =
+          await chatToolsRepository.findFullGeneratedContentForUser(
+            context.auth.user.id,
+            parentContentId,
+          );
 
         if (!parent) {
           debugLog.warn(
@@ -484,8 +490,8 @@ export function createIterateContentTool(context: ToolContext) {
           unknown
         > | null;
 
-        const row = await chatToolsRepository.transactionIterateContentNewVersion(
-          {
+        const row =
+          await chatToolsRepository.transactionIterateContentNewVersion({
             userId: context.auth.user.id,
             prompt: context.content,
             effectiveParent,
@@ -494,8 +500,7 @@ export function createIterateContentTool(context: ToolContext) {
               cta: cta ?? parentMeta?.cta,
               changeDescription,
             },
-          },
-        );
+          });
 
         await registerCreatedContent(context, row.id);
 
@@ -703,9 +708,8 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
         const r2Key = `voiceovers/${context.auth.user.id}/${contentId}/${Date.now()}.mp3`;
         const r2Url = await uploadFile(audioBuffer, r2Key, "audio/mpeg");
 
-        const existing = await chatToolsRepository.getVoiceoverAttachmentForContent(
-          contentId,
-        );
+        const existing =
+          await chatToolsRepository.getVoiceoverAttachmentForContent(contentId);
         if (existing) {
           if (existing.r2Key) {
             await deleteFile(existing.r2Key).catch(() => {});
@@ -726,9 +730,8 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
 
         await chatToolsRepository.linkVoiceoverAsset(contentId, asset.id);
 
-        const { refreshEditorTimeline } = await import(
-          "../../routes/editor/services/refresh-editor-timeline"
-        );
+        const { refreshEditorTimeline } =
+          await import("../../routes/editor/services/refresh-editor-timeline");
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
           (err: unknown) =>
             debugLog.warn(
@@ -833,9 +836,8 @@ export function createAttachMusicTool(context: ToolContext) {
         if (!content)
           return { success: false as const, reason: "content_not_found" };
 
-        const track = await chatToolsRepository.findActiveMusicTrackById(
-          musicTrackId,
-        );
+        const track =
+          await chatToolsRepository.findActiveMusicTrackById(musicTrackId);
 
         if (!track)
           return { success: false as const, reason: "track_not_found" };
@@ -847,9 +849,8 @@ export function createAttachMusicTool(context: ToolContext) {
           track.assetId,
         );
 
-        const { refreshEditorTimeline } = await import(
-          "../../routes/editor/services/refresh-editor-timeline"
-        );
+        const { refreshEditorTimeline } =
+          await import("../../routes/editor/services/refresh-editor-timeline");
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
           (err: unknown) =>
             debugLog.warn("refreshEditorTimeline (attach_music tool) failed", {
@@ -1162,9 +1163,8 @@ export function createRemoveMusicTool(_context: ToolContext) {
     }),
     execute: async ({ contentId }) => {
       try {
-        const link = await chatToolsRepository.findBackgroundMusicLink(
-          contentId,
-        );
+        const link =
+          await chatToolsRepository.findBackgroundMusicLink(contentId);
 
         if (!link) return { success: false as const, reason: "no_music" };
 

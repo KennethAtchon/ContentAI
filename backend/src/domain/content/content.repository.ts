@@ -72,9 +72,7 @@ export interface IContentRepository {
     userId: string,
   ): Promise<number[]>;
 
-  listAssetsLinkedToGeneratedContent(
-    generatedContentId: number,
-  ): Promise<
+  listAssetsLinkedToGeneratedContent(generatedContentId: number): Promise<
     Array<{
       assetId: string;
       role: string | null;
@@ -223,7 +221,10 @@ export interface IContentRepository {
     userId: string,
     limit: number,
     offset: number,
-  ): Promise<{ rows: Array<typeof generatedContent.$inferSelect>; total: number }>;
+  ): Promise<{
+    rows: Array<typeof generatedContent.$inferSelect>;
+    total: number;
+  }>;
 
   findGeneratedContentById(
     id: number,
@@ -533,10 +534,9 @@ export class ContentRepository implements IContentRepository {
       );
     } else if (options.excludeRoles && options.excludeRoles.length > 0) {
       conditions.push(
-        notInArray(
-          contentAssets.role,
-          options.excludeRoles,
-        ) as ReturnType<typeof eq>,
+        notInArray(contentAssets.role, options.excludeRoles) as ReturnType<
+          typeof eq
+        >,
       );
     }
 
@@ -625,7 +625,10 @@ export class ContentRepository implements IContentRepository {
     const sessionContentRows = await this.db
       .select({ contentId: chatSessionContent.contentId })
       .from(chatSessionContent)
-      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
+      .innerJoin(
+        chatSessions,
+        eq(chatSessionContent.sessionId, chatSessions.id),
+      )
       .where(
         and(
           eq(chatSessionContent.sessionId, sessionId),
@@ -634,9 +637,7 @@ export class ContentRepository implements IContentRepository {
       );
 
     const contentIds = [
-      ...new Set(
-        sessionContentRows.map((row) => row.contentId),
-      ),
+      ...new Set(sessionContentRows.map((row) => row.contentId)),
     ];
 
     if (contentIds.length === 0) {
@@ -754,7 +755,9 @@ export class ContentRepository implements IContentRepository {
     const [item] = await this.db
       .select()
       .from(generatedContent)
-      .where(and(eq(generatedContent.id, id), eq(generatedContent.userId, userId)))
+      .where(
+        and(eq(generatedContent.id, id), eq(generatedContent.userId, userId)),
+      )
       .limit(1);
 
     return item ?? null;
@@ -768,7 +771,9 @@ export class ContentRepository implements IContentRepository {
     const [updated] = await this.db
       .update(generatedContent)
       .set({ status })
-      .where(and(eq(generatedContent.id, id), eq(generatedContent.userId, userId)))
+      .where(
+        and(eq(generatedContent.id, id), eq(generatedContent.userId, userId)),
+      )
       .returning();
 
     return updated ?? null;
@@ -945,8 +950,12 @@ export class ContentRepository implements IContentRepository {
       );
 
     return rows.sort((a, b) => {
-      const ai = Number((a.metadata as Record<string, unknown>)?.shotIndex ?? 0);
-      const bi = Number((b.metadata as Record<string, unknown>)?.shotIndex ?? 0);
+      const ai = Number(
+        (a.metadata as Record<string, unknown>)?.shotIndex ?? 0,
+      );
+      const bi = Number(
+        (b.metadata as Record<string, unknown>)?.shotIndex ?? 0,
+      );
       return ai - bi;
     });
   }

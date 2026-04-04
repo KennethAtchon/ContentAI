@@ -1,5 +1,6 @@
 import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
 import {
+  assets,
   chatSessions,
   chatSessionContent,
   chatMessages,
@@ -9,10 +10,14 @@ import {
   generatedContent,
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
+import { resolveGeneratedContentChainTip } from "../content/content.repository";
 
 export interface IChatRepository {
   // Sessions
-  listSessions(userId: string, projectId?: string): Promise<
+  listSessions(
+    userId: string,
+    projectId?: string,
+  ): Promise<
     {
       id: string;
       title: string;
@@ -96,7 +101,10 @@ export interface IChatRepository {
   deleteSession(sessionId: string, userId: string): Promise<void>;
 
   // Messages
-  listMessages(sessionId: string, limit?: number): Promise<
+  listMessages(
+    sessionId: string,
+    limit?: number,
+  ): Promise<
     {
       id: string;
       sessionId: string;
@@ -151,9 +159,7 @@ export interface IChatRepository {
     }[],
   ): Promise<void>;
 
-  listAttachmentsForMessages(
-    messageIds: string[],
-  ): Promise<
+  listAttachmentsForMessages(messageIds: string[]): Promise<
     Array<{
       id: string;
       messageId: string;
@@ -225,6 +231,7 @@ export interface IChatRepository {
   ): Promise<
     | {
         id: number;
+        prompt: string | null;
         version: number;
         outputType: string;
         status: string;
@@ -234,8 +241,37 @@ export interface IChatRepository {
         voiceoverScript: string | null;
         sceneDescription: string | null;
         generatedMetadata: unknown;
+        parentId: number | null;
+        sourceReelId: number | null;
       }
     | undefined
+  >;
+
+  listSessionDraftsForContext(
+    sessionId: string,
+    userId: string,
+  ): Promise<
+    Array<{
+      id: number;
+      version: number;
+      outputType: string;
+      status: string;
+      generatedHook: string | null;
+      createdAt: Date;
+    }>
+  >;
+
+  findAssetsByIds(
+    assetIds: string[],
+    userId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      type: string;
+      source: string;
+      name: string | null;
+      mimeType: string | null;
+    }>
   >;
 
   findGeneratedContentByIds(
@@ -295,7 +331,9 @@ export class ChatRepository implements IChatRepository {
         updatedAt: chatSessions.updatedAt,
       })
       .from(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .limit(1);
 
     return session;
@@ -373,7 +411,9 @@ export class ChatRepository implements IChatRepository {
     const [updated] = await this.db
       .update(chatSessions)
       .set(data)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)))
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      )
       .returning({
         id: chatSessions.id,
         userId: chatSessions.userId,
@@ -399,13 +439,17 @@ export class ChatRepository implements IChatRepository {
     await this.db
       .update(chatSessions)
       .set({ activeContentId })
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      );
   }
 
   async deleteSession(sessionId: string, userId: string): Promise<void> {
     await this.db
       .delete(chatSessions)
-      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
+      .where(
+        and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+      );
   }
 
   async listMessages(sessionId: string, limit?: number) {
@@ -421,9 +465,7 @@ export class ChatRepository implements IChatRepository {
       .where(eq(chatMessages.sessionId, sessionId))
       .orderBy(chatMessages.createdAt);
 
-    const messages = limit
-      ? await base.limit(limit)
-      : await base;
+    const messages = limit ? await base.limit(limit) : await base;
 
     // Fetch attachments for all messages
     const messageIds = messages.map((m) => m.id);
@@ -526,7 +568,10 @@ export class ChatRepository implements IChatRepository {
     const rows = await this.db
       .select({ contentId: chatSessionContent.contentId })
       .from(chatSessionContent)
-      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
+      .innerJoin(
+        chatSessions,
+        eq(chatSessionContent.sessionId, chatSessions.id),
+      )
       .where(
         and(
           eq(chatSessionContent.sessionId, sessionId),
@@ -657,7 +702,9 @@ export class ChatRepository implements IChatRepository {
         username: reels.username,
         hook: reels.hook,
         views: reels.views,
-        niche: sql<string | null>`(SELECT n.name FROM niche n WHERE n.id = ${reels.nicheId})`,
+        niche: sql<
+          string | null
+        >`(SELECT n.name FROM niche n WHERE n.id = ${reels.nicheId})`,
       })
       .from(reels)
       .where(inArray(reels.id, reelIds));
@@ -667,6 +714,7 @@ export class ChatRepository implements IChatRepository {
     const [content] = await this.db
       .select({
         id: generatedContent.id,
+        prompt: generatedContent.prompt,
         version: generatedContent.version,
         outputType: generatedContent.outputType,
         status: generatedContent.status,
@@ -676,6 +724,8 @@ export class ChatRepository implements IChatRepository {
         voiceoverScript: generatedContent.voiceoverScript,
         sceneDescription: generatedContent.sceneDescription,
         generatedMetadata: generatedContent.generatedMetadata,
+        parentId: generatedContent.parentId,
+        sourceReelId: generatedContent.sourceReelId,
       })
       .from(generatedContent)
       .where(
@@ -689,6 +739,62 @@ export class ChatRepository implements IChatRepository {
     return content;
   }
 
+  async listSessionDraftsForContext(sessionId: string, userId: string) {
+    const attachedContentIds = await this.listSessionContentIds(
+      sessionId,
+      userId,
+    );
+    if (attachedContentIds.length === 0) return [];
+
+    const tipIds = [
+      ...new Set(
+        await Promise.all(
+          attachedContentIds.map(async (contentId) => {
+            const tip = await resolveGeneratedContentChainTip(
+              this.db,
+              contentId,
+              userId,
+            );
+            return tip.id;
+          }),
+        ),
+      ),
+    ];
+
+    return this.db
+      .select({
+        id: generatedContent.id,
+        version: generatedContent.version,
+        outputType: generatedContent.outputType,
+        status: generatedContent.status,
+        generatedHook: generatedContent.generatedHook,
+        createdAt: generatedContent.createdAt,
+      })
+      .from(generatedContent)
+      .where(
+        and(
+          eq(generatedContent.userId, userId),
+          inArray(generatedContent.id, tipIds),
+        ),
+      )
+      .orderBy(generatedContent.createdAt);
+  }
+
+  async findAssetsByIds(assetIds: string[], userId: string) {
+    if (assetIds.length === 0) return [];
+
+    return this.db
+      .select({
+        id: assets.id,
+        type: assets.type,
+        source: assets.source,
+        name: assets.name,
+        mimeType: assets.mimeType,
+      })
+      .from(assets)
+      .where(and(inArray(assets.id, assetIds), eq(assets.userId, userId)));
+  }
+
   async findGeneratedContentByIds(contentIds: number[], userId: string) {
     if (contentIds.length === 0) return [];
 
@@ -699,7 +805,10 @@ export class ChatRepository implements IChatRepository {
       })
       .from(generatedContent)
       .where(
-        and(inArray(generatedContent.id, contentIds), eq(generatedContent.userId, userId)),
+        and(
+          inArray(generatedContent.id, contentIds),
+          eq(generatedContent.userId, userId),
+        ),
       );
   }
 }
