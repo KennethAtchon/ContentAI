@@ -30,6 +30,7 @@ export function ChatLayout({
     workspaceOpen,
     setWorkspaceOpen,
     activeContentId,
+    persistedActiveContentId,
     setActiveContentId,
     requestAudioForContentId,
     displayMessages,
@@ -144,6 +145,7 @@ export function ChatLayout({
         <ContentWorkspace
           sessionId={selectedSession.id}
           activeContentId={activeContentId}
+          persistedActiveContentId={persistedActiveContentId}
           streamingContentId={streamingContentId}
           requestAudioForContentId={requestAudioForContentId}
           onActiveContentChange={setActiveContentId}

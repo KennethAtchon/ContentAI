@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
 import {
   chatSessions,
   chatMessages,
@@ -16,6 +16,7 @@ export interface IChatRepository {
       id: string;
       title: string;
       projectId: string | null;
+      activeContentId: number | null;
       project: { id: string; name: string } | null;
       createdAt: Date;
       updatedAt: Date;
@@ -31,6 +32,7 @@ export interface IChatRepository {
         id: string;
         userId: string;
         projectId: string | null;
+        activeContentId: number | null;
         title: string;
         createdAt: Date;
         updatedAt: Date;
@@ -46,6 +48,7 @@ export interface IChatRepository {
         id: string;
         userId: string;
         projectId: string | null;
+        activeContentId: number | null;
         title: string;
         createdAt: Date;
         updatedAt: Date;
@@ -58,10 +61,12 @@ export interface IChatRepository {
     userId: string;
     projectId: string;
     title: string;
+    activeContentId?: number | null;
   }): Promise<{
     id: string;
     userId: string;
     projectId: string | null;
+    activeContentId: number | null;
     title: string;
     createdAt: Date;
     updatedAt: Date;
@@ -70,15 +75,22 @@ export interface IChatRepository {
   updateSession(
     sessionId: string,
     userId: string,
-    data: { title: string },
+    data: { title?: string; activeContentId?: number | null },
   ): Promise<{
     id: string;
     userId: string;
     projectId: string | null;
+    activeContentId: number | null;
     title: string;
     createdAt: Date;
     updatedAt: Date;
   }>;
+
+  setActiveContentId(
+    sessionId: string,
+    userId: string,
+    activeContentId: number | null,
+  ): Promise<void>;
 
   deleteSession(sessionId: string, userId: string): Promise<void>;
 
@@ -248,6 +260,7 @@ export class ChatRepository implements IChatRepository {
         id: chatSessions.id,
         title: chatSessions.title,
         projectId: chatSessions.projectId,
+        activeContentId: chatSessions.activeContentId,
         project: {
           id: projects.id,
           name: projects.name,
@@ -271,6 +284,7 @@ export class ChatRepository implements IChatRepository {
         id: chatSessions.id,
         userId: chatSessions.userId,
         projectId: chatSessions.projectId,
+        activeContentId: chatSessions.activeContentId,
         title: chatSessions.title,
         createdAt: chatSessions.createdAt,
         updatedAt: chatSessions.updatedAt,
@@ -283,24 +297,28 @@ export class ChatRepository implements IChatRepository {
   }
 
   async findSessionByContentId(userId: string, contentId: string) {
-    // Find sessions that have messages referencing this content
+    // Match either a persisted active draft anchor or historical chat messages.
     const [session] = await this.db
       .select({
         id: chatSessions.id,
         userId: chatSessions.userId,
         projectId: chatSessions.projectId,
+        activeContentId: chatSessions.activeContentId,
         title: chatSessions.title,
         createdAt: chatSessions.createdAt,
         updatedAt: chatSessions.updatedAt,
       })
       .from(chatSessions)
-      .innerJoin(
+      .leftJoin(
         chatMessages,
         eq(chatSessions.id, chatMessages.sessionId),
       )
       .where(
         and(
-          eq(chatMessages.generatedContentId, Number(contentId)),
+          or(
+            eq(chatSessions.activeContentId, Number(contentId)),
+            eq(chatMessages.generatedContentId, Number(contentId)),
+          ),
           eq(chatSessions.userId, userId),
         ),
       )
@@ -315,6 +333,7 @@ export class ChatRepository implements IChatRepository {
     userId: string;
     projectId: string;
     title: string;
+    activeContentId?: number | null;
   }) {
     const [newSession] = await this.db
       .insert(chatSessions)
@@ -323,11 +342,13 @@ export class ChatRepository implements IChatRepository {
         userId: data.userId,
         projectId: data.projectId,
         title: data.title,
+        activeContentId: data.activeContentId ?? null,
       })
       .returning({
         id: chatSessions.id,
         userId: chatSessions.userId,
         projectId: chatSessions.projectId,
+        activeContentId: chatSessions.activeContentId,
         title: chatSessions.title,
         createdAt: chatSessions.createdAt,
         updatedAt: chatSessions.updatedAt,
@@ -343,7 +364,7 @@ export class ChatRepository implements IChatRepository {
   async updateSession(
     sessionId: string,
     userId: string,
-    data: { title: string },
+    data: { title?: string; activeContentId?: number | null },
   ) {
     const [updated] = await this.db
       .update(chatSessions)
@@ -353,6 +374,7 @@ export class ChatRepository implements IChatRepository {
         id: chatSessions.id,
         userId: chatSessions.userId,
         projectId: chatSessions.projectId,
+        activeContentId: chatSessions.activeContentId,
         title: chatSessions.title,
         createdAt: chatSessions.createdAt,
         updatedAt: chatSessions.updatedAt,
@@ -363,6 +385,17 @@ export class ChatRepository implements IChatRepository {
     }
 
     return updated;
+  }
+
+  async setActiveContentId(
+    sessionId: string,
+    userId: string,
+    activeContentId: number | null,
+  ): Promise<void> {
+    await this.db
+      .update(chatSessions)
+      .set({ activeContentId })
+      .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
   }
 
   async deleteSession(sessionId: string, userId: string): Promise<void> {

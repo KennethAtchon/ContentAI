@@ -18,6 +18,7 @@ type WorkspaceTab = "drafts" | "audio" | "video";
 interface ContentWorkspaceProps {
   sessionId: string;
   activeContentId: number | null;
+  persistedActiveContentId: number | null;
   streamingContentId: number | null;
   requestAudioForContentId: number | null;
   onActiveContentChange: (id: number) => void;
@@ -30,6 +31,7 @@ interface ContentWorkspaceProps {
 export function ContentWorkspace({
   sessionId,
   activeContentId,
+  persistedActiveContentId,
   streamingContentId,
   requestAudioForContentId,
   onActiveContentChange,
@@ -75,10 +77,21 @@ export function ContentWorkspace({
 
   // Auto-activate latest draft when none is active
   useEffect(() => {
-    if (!isLoading && !activeContentId && drafts.length > 0) {
+    if (
+      !isLoading &&
+      persistedActiveContentId == null &&
+      activeContentId == null &&
+      drafts.length > 0
+    ) {
       onActiveContentChange(drafts[drafts.length - 1].id);
     }
-  }, [isLoading, drafts.length, activeContentId, onActiveContentChange]);
+  }, [
+    isLoading,
+    drafts,
+    persistedActiveContentId,
+    activeContentId,
+    onActiveContentChange,
+  ]);
 
   const handleSelectDraft = (draft: SessionDraft) => {
     setSelectedDraft(draft);

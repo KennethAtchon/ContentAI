@@ -81,6 +81,7 @@ sessionsRouter.post(
     return c.json({
       sessionId: result.session.id,
       projectId: result.session.projectId,
+      activeContentId: result.session.activeContentId,
       isNew: result.isNew,
     });
   },
@@ -152,12 +153,12 @@ sessionsRouter.put(
   async (c) => {
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
-    const { title } = c.req.valid("json");
+    const updates = c.req.valid("json");
 
     const result = await chatService.updateSession(
       auth.user.id,
       sessionId,
-      title,
+      updates,
     );
 
     return c.json(result);

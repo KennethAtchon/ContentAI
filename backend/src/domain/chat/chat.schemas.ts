@@ -17,8 +17,12 @@ export const sendMessageSchema = z.object({
 });
 
 export const updateSessionSchema = z.object({
-  title: z.string().min(1).max(100),
-});
+  title: z.string().min(1).max(100).optional(),
+  activeContentId: z.number().int().positive().nullable().optional(),
+}).refine(
+  (data) => data.title !== undefined || data.activeContentId !== undefined,
+  { message: "At least one session field must be provided" },
+);
 
 export const resolveSessionForContentSchema = z.object({
   generatedContentId: z.number().int().positive(),

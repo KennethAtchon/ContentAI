@@ -67,7 +67,7 @@ export async function createChatSendMessageStreamResponse(input: {
   if (session.title === "New Chat Session") {
     const autoTitle =
       content.substring(0, 50) + (content.length > 50 ? "..." : "");
-    await chatService.updateSession(auth.user.id, sessionId, autoTitle);
+    await chatService.updateSession(auth.user.id, sessionId, { title: autoTitle });
   }
 
   const projectName = "My Project";

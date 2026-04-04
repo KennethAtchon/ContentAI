@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1774838579465,
-      "tag": "0000_broad_leo",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1774900000000,
-      "tag": "0001_caption_doc_and_preset",
+      "when": 1775327501984,
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

@@ -29,14 +29,23 @@ CREATE TABLE "asset" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "caption" (
+CREATE TABLE "caption_doc" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
-	"asset_id" text NOT NULL,
+	"asset_id" text,
 	"language" text DEFAULT 'en' NOT NULL,
-	"words" jsonb NOT NULL,
+	"tokens" jsonb NOT NULL,
 	"full_text" text NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"source" text DEFAULT 'whisper' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "caption_preset" (
+	"id" text PRIMARY KEY NOT NULL,
+	"definition" jsonb NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "chat_message" (
@@ -52,6 +61,7 @@ CREATE TABLE "chat_session" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"project_id" text,
+	"active_content_id" integer,
 	"title" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -333,11 +343,12 @@ CREATE TABLE "user" (
 );
 --> statement-breakpoint
 ALTER TABLE "asset" ADD CONSTRAINT "asset_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "caption" ADD CONSTRAINT "caption_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "caption" ADD CONSTRAINT "caption_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "caption_doc" ADD CONSTRAINT "caption_doc_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "caption_doc" ADD CONSTRAINT "caption_doc_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_session_id_chat_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."chat_session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_message" ADD CONSTRAINT "chat_message_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "chat_session" ADD CONSTRAINT "chat_session_active_content_id_generated_content_id_fk" FOREIGN KEY ("active_content_id") REFERENCES "public"."generated_content"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "content_asset" ADD CONSTRAINT "content_asset_generated_content_id_generated_content_id_fk" FOREIGN KEY ("generated_content_id") REFERENCES "public"."generated_content"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "content_asset" ADD CONSTRAINT "content_asset_asset_id_asset_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."asset"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "edit_project" ADD CONSTRAINT "edit_project_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -365,9 +376,9 @@ CREATE INDEX "ai_cost_ledger_user_id_idx" ON "ai_cost_ledger" USING btree ("user
 CREATE INDEX "ai_cost_ledger_feature_type_idx" ON "ai_cost_ledger" USING btree ("feature_type");--> statement-breakpoint
 CREATE INDEX "assets_user_id_idx" ON "asset" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "assets_type_source_idx" ON "asset" USING btree ("type","source");--> statement-breakpoint
-CREATE INDEX "captions_asset_idx" ON "caption" USING btree ("asset_id");--> statement-breakpoint
-CREATE INDEX "captions_user_idx" ON "caption" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "captions_user_asset_unique" ON "caption" USING btree ("user_id","asset_id");--> statement-breakpoint
+CREATE INDEX "caption_doc_asset_idx" ON "caption_doc" USING btree ("asset_id");--> statement-breakpoint
+CREATE INDEX "caption_doc_user_idx" ON "caption_doc" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "caption_doc_user_asset_unique" ON "caption_doc" USING btree ("user_id","asset_id") WHERE asset_id IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "chat_messages_session_id_idx" ON "chat_message" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_user_id_idx" ON "chat_session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "chat_sessions_project_id_idx" ON "chat_session" USING btree ("project_id");--> statement-breakpoint

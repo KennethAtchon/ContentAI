@@ -386,6 +386,10 @@ export const chatSessions = pgTable(
     projectId: text("project_id").references(() => projects.id, {
       onDelete: "cascade",
     }),
+    activeContentId: integer("active_content_id").references(
+      () => generatedContent.id,
+      { onDelete: "set null" },
+    ),
     title: text("title").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
@@ -673,6 +677,10 @@ export const chatSessionsRelations = relations(
     project: one(projects, {
       fields: [chatSessions.projectId],
       references: [projects.id],
+    }),
+    activeContent: one(generatedContent, {
+      fields: [chatSessions.activeContentId],
+      references: [generatedContent.id],
     }),
     messages: many(chatMessages),
   }),

@@ -26,6 +26,7 @@ export class ChatService {
       userId,
       projectId,
       title: sessionTitle,
+      activeContentId: null,
     });
 
     return { session: newSession };
@@ -68,23 +69,50 @@ export class ChatService {
       userId,
       projectId,
       title: content.generatedHook || "Chat Session",
+      activeContentId: Number(contentId),
     });
 
     return { session: newSession, isNew: true };
   }
 
-  async updateSession(userId: string, sessionId: string, title: string) {
+  async updateSession(
+    userId: string,
+    sessionId: string,
+    updates: { title?: string; activeContentId?: number | null },
+  ) {
     // Verify session exists and belongs to user
     const session = await this.chatRepo.findSessionById(sessionId, userId);
     if (!session) {
       throw Errors.notFound("Session");
     }
 
-    const updated = await this.chatRepo.updateSession(sessionId, userId, {
-      title,
-    });
+    if (updates.activeContentId !== undefined && updates.activeContentId !== null) {
+      const content = await this.chatRepo.findContentById(
+        updates.activeContentId,
+        userId,
+      );
+      if (!content) {
+        throw Errors.notFound("Content");
+      }
+    }
+
+    const updated = await this.chatRepo.updateSession(sessionId, userId, updates);
 
     return { session: updated };
+  }
+
+  async setActiveContentId(
+    userId: string,
+    sessionId: string,
+    activeContentId: number | null,
+  ) {
+    const session = await this.chatRepo.findSessionById(sessionId, userId);
+    if (!session) {
+      throw Errors.notFound("Session");
+    }
+
+    await this.chatRepo.setActiveContentId(sessionId, userId, activeContentId);
+    return { success: true };
   }
 
   async deleteSession(userId: string, sessionId: string) {

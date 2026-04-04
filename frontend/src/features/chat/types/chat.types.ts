@@ -10,6 +10,7 @@ export interface ChatSession {
   id: string;
   title: string;
   projectId: string;
+  activeContentId: number | null;
   project?: {
     id: string;
     name: string;
@@ -47,6 +48,7 @@ export interface CreateSessionRequest {
 
 export interface UpdateSessionRequest {
   title?: string;
+  activeContentId?: number | null;
 }
 
 export interface SessionDraft {

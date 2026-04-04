@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useApp } from "@/shared/contexts/app-context";
 import { useChatSession } from "./use-chat-sessions";
 import { useChatStream } from "./use-chat-stream";
@@ -12,6 +14,7 @@ import { useChatLayoutNavigation } from "./use-chat-layout-navigation";
 import { useChatDisplayMessages } from "./use-chat-display-messages";
 import { useChatSendWithPendingReels } from "./use-chat-send-with-pending-reels";
 import { getChatWorkspaceToggleClass } from "../lib/chat-layout-ui";
+import { chatService } from "../services/chat.service";
 import type { Project } from "../types/chat.types";
 
 interface ChatSearch {
@@ -23,6 +26,7 @@ interface ChatSearch {
 export function useChatLayout(projects: Project[]) {
   const search = useSearch({ strict: false }) as ChatSearch;
   const { user } = useApp();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const sessionId = search.sessionId || "";
@@ -92,20 +96,49 @@ export function useChatLayout(projects: Project[]) {
   const selectedSession = sessionData?.session;
   const isSessionResolving = Boolean(sessionId) && sessionLoading && !sessionData;
 
+  const hydratedSessionIdRef = useRef<string | null>(null);
   const prevSessionIdForResetRef = useRef(sessionId);
   useEffect(() => {
     if (prevSessionIdForResetRef.current === sessionId) return;
     prevSessionIdForResetRef.current = sessionId;
-    setActiveContentId(null);
     setWorkspaceOpen(false);
     setRequestAudioForContentId(null);
   }, [sessionId]);
 
+  useEffect(() => {
+    if (!sessionId) {
+      hydratedSessionIdRef.current = null;
+      setActiveContentId(null);
+      return;
+    }
+
+    const session = sessionData?.session;
+    if (!session) return;
+    if (hydratedSessionIdRef.current === session.id) return;
+
+    hydratedSessionIdRef.current = session.id;
+    setActiveContentId(session.activeContentId ?? null);
+  }, [sessionId, sessionData?.session]);
+
+  const handleSetActiveContentId = useCallback(
+    (contentId: number | null) => {
+      setActiveContentId(contentId);
+      if (!sessionId) return;
+
+      void chatService
+        .updateSessionMetadata(sessionId, { activeContentId: contentId })
+        .catch(() => {
+          toast.error(t("studio_chat_active_draft_save_failed"));
+        });
+    },
+    [sessionId, t]
+  );
+
   const handleOpenAudio = useCallback((contentId: number) => {
-    setActiveContentId(contentId);
+    handleSetActiveContentId(contentId);
     setRequestAudioForContentId(contentId);
     setWorkspaceOpen(true);
-  }, []);
+  }, [handleSetActiveContentId]);
 
   const workspaceToggleClass = getChatWorkspaceToggleClass(workspaceOpen);
 
@@ -124,7 +157,8 @@ export function useChatLayout(projects: Project[]) {
     workspaceOpen,
     setWorkspaceOpen,
     activeContentId,
-    setActiveContentId,
+    persistedActiveContentId: selectedSession?.activeContentId ?? null,
+    setActiveContentId: handleSetActiveContentId,
     requestAudioForContentId,
     displayMessages,
     isStreaming,

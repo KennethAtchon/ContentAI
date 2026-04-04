@@ -874,6 +874,7 @@
   "studio_chat_limitModal_body_maxPlan": "You've reached your monthly generation limit. Contact support to discuss additional capacity.",
   "studio_chat_limitModal_upgrade": "View plans",
   "studio_chat_limitModal_close": "Close",
+  "studio_chat_active_draft_save_failed": "Could not save the active draft selection.",
   "studio_loading": "Loading...",
   "studio_panel_audio": "Audio",
   "studio_panel_caption": "Caption",
