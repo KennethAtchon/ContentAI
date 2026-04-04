@@ -35,11 +35,9 @@ interface ChatPanelProps {
   isLimitReached?: boolean;
   isMaxPlan?: boolean;
   isSavingContent?: boolean;
-  streamingContentId?: number | null;
   reels?: unknown[];
   activeReelRefs?: Reel[];
   onResetLimitReached?: () => void;
-  onOpenAudio?: (contentId: number) => void;
 }
 
 export function ChatPanel({
@@ -51,10 +49,8 @@ export function ChatPanel({
   isLimitReached,
   isMaxPlan,
   isSavingContent,
-  streamingContentId,
   activeReelRefs,
   onResetLimitReached,
-  onOpenAudio,
 }: ChatPanelProps) {
   const { t } = useTranslation();
   const { user } = useApp();
@@ -194,13 +190,6 @@ export function ChatPanel({
               isSavingContent={
                 message.id === streamingMessageId ? isSavingContent : undefined
               }
-              streamingContentId={
-                message.id === streamingMessageId
-                  ? streamingContentId
-                  : undefined
-              }
-              onOpenAudio={onOpenAudio}
-              onSendMessage={onSendMessage}
               aiModelLabel={aiModelLabel}
             />
           ))

@@ -227,9 +227,10 @@ export class QueueRepository implements IQueueRepository {
     if (input.projectId) {
       conditions.push(
         sql`EXISTS (
-            SELECT 1 FROM chat_message cm
-            JOIN chat_session cs ON cm.session_id = cs.id
-            WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+            SELECT 1 FROM chat_session_content csc
+            JOIN chat_session cs ON csc.session_id = cs.id
+            WHERE csc.content_id = ${queueItems.generatedContentId}
+            AND cs.user_id = ${input.userId}
             AND cs.project_id = ${input.projectId}
           )`,
       );
@@ -240,10 +241,11 @@ export class QueueRepository implements IQueueRepository {
         or(
           ilike(generatedContent.generatedHook, term),
           sql`EXISTS (
-              SELECT 1 FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
+              SELECT 1 FROM chat_session_content csc
+              JOIN chat_session cs ON csc.session_id = cs.id
               JOIN project p ON cs.project_id = p.id
-              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              WHERE csc.content_id = ${queueItems.generatedContentId}
+              AND cs.user_id = ${input.userId}
               AND p.name ILIKE ${term}
             )`,
         ) as ReturnType<typeof eq>,
@@ -276,24 +278,27 @@ export class QueueRepository implements IQueueRepository {
           generatedMetadata: generatedContent.generatedMetadata,
           contentStatus: generatedContent.status,
           projectId: sql<string | null>`(
-              SELECT cs.project_id FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
-              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              SELECT cs.project_id FROM chat_session_content csc
+              JOIN chat_session cs ON csc.session_id = cs.id
+              WHERE csc.content_id = ${queueItems.generatedContentId}
+                AND cs.user_id = ${input.userId}
               ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
           projectName: sql<string | null>`(
-              SELECT p.name FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
+              SELECT p.name FROM chat_session_content csc
+              JOIN chat_session cs ON csc.session_id = cs.id
               JOIN project p ON cs.project_id = p.id
-              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              WHERE csc.content_id = ${queueItems.generatedContentId}
+                AND cs.user_id = ${input.userId}
               ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
           sessionId: sql<string | null>`(
-              SELECT cm.session_id FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
-              WHERE cm.generated_content_id = ${queueItems.generatedContentId}
+              SELECT cs.id FROM chat_session_content csc
+              JOIN chat_session cs ON csc.session_id = cs.id
+              WHERE csc.content_id = ${queueItems.generatedContentId}
+                AND cs.user_id = ${input.userId}
               ORDER BY cs.updated_at DESC
               LIMIT 1
             )`,
@@ -552,10 +557,10 @@ export class QueueRepository implements IQueueRepository {
   ): Promise<{ sessionId: string; projectId: string } | null> {
     const sessionRow = await this.db
       .execute(
-        sql`SELECT cm.session_id, cs.project_id
-              FROM chat_message cm
-              JOIN chat_session cs ON cm.session_id = cs.id
-              WHERE cm.generated_content_id = ${generatedContentId}
+        sql`SELECT csc.session_id, cs.project_id
+              FROM chat_session_content csc
+              JOIN chat_session cs ON csc.session_id = cs.id
+              WHERE csc.content_id = ${generatedContentId}
               ORDER BY cs.updated_at DESC
               LIMIT 1`,
       )

@@ -30,7 +30,7 @@ export type StreamIngestState = {
 export type StreamIngestSetters = {
   setStreamingContent: (value: string | null) => void;
   setIsSavingContent: (value: boolean) => void;
-  setStreamingContentId: (value: number | null) => void;
+  appendStreamingContentId: (value: number) => void;
   setStreamError: (value: string | null) => void;
 };
 
@@ -80,7 +80,10 @@ export function processStreamSseLine(
   }
 
   try {
-    const chunk = JSON.parse(jsonStr) as { type: string; [key: string]: unknown };
+    const chunk = JSON.parse(jsonStr) as {
+      type: string;
+      [key: string]: unknown;
+    };
 
     debugLog.debug("[ChatStream] Processed chunk", { chunk });
 
@@ -102,28 +105,35 @@ export function processStreamSseLine(
         break;
       }
       case "tool-input-start": {
-        debugLog.info("[ChatStream] tool-input-start received", { toolName: chunk.toolName });
+        debugLog.info("[ChatStream] tool-input-start received", {
+          toolName: chunk.toolName,
+        });
         if (CONTENT_WRITING_TOOLS.has(chunk.toolName as string)) {
           setters.setIsSavingContent(true);
         }
         break;
       }
       case "tool-output-available": {
-        const output = chunk.output as { contentId?: number; success?: boolean } | null;
+        const output = chunk.output as {
+          contentId?: number;
+          success?: boolean;
+        } | null;
         debugLog.info("[ChatStream] tool-output-available received", {
           toolName: chunk.toolName,
           success: output?.success,
           contentId: output?.contentId,
         });
         if (output?.contentId) {
-          setters.setStreamingContentId(output.contentId);
+          setters.appendStreamingContentId(output.contentId);
         }
         setters.setIsSavingContent(false);
         break;
       }
       case "error": {
         const errorText = (chunk.errorText as string) || "An error occurred";
-        debugLog.error("[ChatStream] Error chunk received from server", { errorText });
+        debugLog.error("[ChatStream] Error chunk received from server", {
+          errorText,
+        });
         setters.setStreamError(errorText);
         break;
       }

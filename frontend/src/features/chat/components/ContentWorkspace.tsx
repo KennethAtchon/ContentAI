@@ -7,8 +7,6 @@ import { AudioPanel } from "@/features/audio/components/AudioPanel";
 import { AudioPlaybackProvider } from "@/features/audio/contexts/AudioPlaybackContext";
 import { VideoWorkspacePanel } from "@/features/video/components/VideoWorkspacePanel";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
-import { useQueryClient } from "@tanstack/react-query";
-import { invalidateSessionDrafts } from "@/shared/lib/query-invalidation";
 import { cn } from "@/shared/utils/helpers/utils";
 import type { SessionDraft } from "../types/chat.types";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
@@ -19,8 +17,7 @@ interface ContentWorkspaceProps {
   sessionId: string;
   activeContentId: number | null;
   persistedActiveContentId: number | null;
-  streamingContentId: number | null;
-  requestAudioForContentId: number | null;
+  latestStreamingContentId: number | null;
   onActiveContentChange: (id: number) => void;
   onClose: () => void;
   videoJobId: string | null;
@@ -32,8 +29,7 @@ export function ContentWorkspace({
   sessionId,
   activeContentId,
   persistedActiveContentId,
-  streamingContentId,
-  requestAudioForContentId,
+  latestStreamingContentId,
   onActiveContentChange,
   onClose,
   videoJobId,
@@ -41,7 +37,6 @@ export function ContentWorkspace({
   onVideoJobStarted,
 }: ContentWorkspaceProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
   const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
 
@@ -54,26 +49,14 @@ export function ContentWorkspace({
     drafts[drafts.length - 1] ??
     null;
 
-  // Invalidate drafts when stream produces new content
   useEffect(() => {
-    if (streamingContentId) {
-      void invalidateSessionDrafts(queryClient, sessionId);
+    if (
+      latestStreamingContentId != null &&
+      drafts.some((draft) => draft.id === latestStreamingContentId)
+    ) {
+      setSelectedDraft(null);
     }
-  }, [streamingContentId, sessionId, queryClient]);
-
-  // Auto-select newly generated content as active
-  useEffect(() => {
-    if (streamingContentId) {
-      onActiveContentChange(streamingContentId);
-    }
-  }, [streamingContentId, onActiveContentChange]);
-
-  // Switch to audio tab when requested from parent
-  useEffect(() => {
-    if (requestAudioForContentId) {
-      setActiveTab("audio");
-    }
-  }, [requestAudioForContentId]);
+  }, [latestStreamingContentId, drafts]);
 
   // Auto-activate latest draft when none is active
   useEffect(() => {

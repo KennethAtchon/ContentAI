@@ -1,168 +1,450 @@
-# Plan 02: Multi-Draft Per Message
+# Plan 02: Session-Owned Draft Registry
 
-**Fixes:** one assistant turn can create multiple drafts, but only the last one is structurally linked today  
-**Risk:** Medium - schema migration plus repository/query changes  
-**Depends on:** Nothing  
-**Blocks:** Nothing
-
----
-
-## Problem
-
-`chat_message.generatedContentId` is a scalar foreign key. If a single assistant turn saves multiple `generated_content` rows, only the last one survives on the message row.
-
-That breaks session draft discovery because `findChainTipDraftsForSession()` still walks message-linked content ids.
+**Fixes:** `/generate` derives drafts by scanning assistant messages instead of the session owning its drafts  
+**Risk:** Medium - schema change plus chat/session contract cleanup across backend and frontend  
+**Depends on:** Plan 01  
+**Blocks:** Plan 03, Plan 05
 
 ---
 
-## Key Correction
+## Goal
 
-This plan should be **additive first**, not destructive.
+Delete the message-derived draft model and replace it with a session-owned draft registry.
 
-Dropping `chat_message.generatedContentId` immediately would create avoidable churn because current code still uses it in multiple places:
+The target architecture is:
 
-- `backend/src/domain/chat/chat.repository.ts`
-- `backend/src/domain/content/content.repository.ts`
-- `frontend/src/features/chat/components/ChatMessage.tsx`
-- frontend chat types and API payloads that still expect a single `generatedContentId`
+- `chat_session` owns the set of drafts available in that session
+- `chat_session.activeContentId` is the selected draft
+- chat messages are conversation history only
+- draft creation during chat updates session state directly
+- the workspace reads drafts from session-owned data, not from message history
 
-The safer rollout is:
-
-1. add a junction table
-2. backfill it from the existing scalar column
-3. write both models for a transition period
-4. move read paths to the junction table
-5. only then consider removing the scalar column
+If a chat session creates three drafts, the session should know that directly. We should never need to scan old messages to discover what the session contains.
 
 ---
 
-## Schema Changes
+## Problem In Current Code
 
-### 1. Add `chat_message_draft`
+Today the workspace gets drafts from `GET /api/chat/sessions/:id/content`, but the backend derives that list by scanning assistant messages:
+
+- `frontend/src/features/chat/hooks/use-session-drafts.ts` calls `/sessions/:id/content`
+- `backend/src/routes/chat/sessions.router.ts` delegates to `findChainTipDraftsForSession()`
+- `backend/src/domain/content/content.repository.ts` loads `chat_message.generatedContentId`
+- `backend/src/domain/chat/chat.repository.ts::findSessionByContentId()` also searches through `chat_message.generatedContentId`
+
+This is the wrong ownership model.
+
+The current pattern means:
+
+1. the session does not truly know its drafts
+2. draft membership is inferred from historical messages
+3. multi-draft assistant turns are fundamentally awkward because message rows only store one `generatedContentId`
+4. message rendering and workspace state are coupled to artifact persistence in a way that makes the model harder to reason about
+
+This is exactly backwards. A session should own its draft workspace. Messages should not be the source of truth for what exists in that workspace.
+
+---
+
+## New Model
+
+Split responsibilities cleanly.
+
+### Session owns drafts
+
+This answers:
+
+- which drafts belong to this chat session?
+- which draft is active?
+- which drafts should appear in the `/generate` workspace?
+
+This belongs to `chat_session` plus a new session-to-content join table.
+
+### Messages own conversation only
+
+This answers:
+
+- what did the user ask?
+- what did the assistant say?
+- what reels and assets were attached to the message?
+
+Messages do not need to know which generated content ids they "work on".
+
+---
+
+## Schema Rewrite
+
+### 1. Drop `chat_message.generatedContentId`
 
 **File:** `backend/src/infrastructure/database/drizzle/schema.ts`
 
-```typescript
-export const chatMessageDrafts = pgTable(
-  "chat_message_draft",
+Remove the column completely.
+
+We are in development mode. Do not preserve this as a compatibility field.
+
+### 2. Add `chat_session_content`
+
+Add a real session-owned draft membership table:
+
+```ts
+export const chatSessionContent = pgTable(
+  "chat_session_content",
   {
     id: serial("id").primaryKey(),
-    messageId: text("message_id")
+    sessionId: text("session_id")
       .notNull()
-      .references(() => chatMessages.id, { onDelete: "cascade" }),
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
     contentId: integer("content_id")
       .notNull()
       .references(() => generatedContent.id, { onDelete: "cascade" }),
-    slot: integer("slot").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("chat_message_draft_message_content_idx").on(t.messageId, t.contentId),
-    index("chat_message_draft_message_idx").on(t.messageId),
-    index("chat_message_draft_content_idx").on(t.contentId),
+    uniqueIndex("chat_session_content_session_content_idx").on(
+      t.sessionId,
+      t.contentId,
+    ),
+    index("chat_session_content_session_idx").on(t.sessionId),
+    index("chat_session_content_content_idx").on(t.contentId),
   ],
 );
 ```
 
-### 2. Keep `chat_message.generatedContentId` during rollout
+This table answers one question only: which generated content rows belong to this session?
 
-Do **not** drop the existing column in the first migration. Reinterpret it as:
+### 3. Add relations
 
-- `latestGeneratedContentId` in behavior
-- still physically stored in `generatedContentId` for compatibility
+- `chatSessionsRelations.contents = many(chatSessionContent)`
+- `chatSessionContent` relates to `chatSessions` and `generatedContent`
 
-That preserves existing UI affordances while the many-to-many model is introduced.
+### 4. Migration
 
-### 3. Backfill
+Migration stance:
 
-Migration SQL:
+- create `chat_session_content`
+- backfill it from the current message-derived world
+- drop `chat_message.generated_content_id`
+
+Backfill SQL sketch:
 
 ```sql
-INSERT INTO chat_message_draft (message_id, content_id, slot)
-SELECT id, generated_content_id, 0
+INSERT INTO chat_session_content (session_id, content_id)
+SELECT DISTINCT session_id, generated_content_id
 FROM chat_message
-WHERE generated_content_id IS NOT NULL
-ON CONFLICT DO NOTHING;
+WHERE generated_content_id IS NOT NULL;
+
+ALTER TABLE chat_message DROP COLUMN generated_content_id;
 ```
+
+This is a one-time migration to get us out of the old model.
 
 ---
 
-## Backend Changes
+## Backend Rewrite
+
+## Repository Contract Changes
+
+### `ChatRepository`
+
+Add session-owned content methods:
+
+```ts
+attachContentToSession(
+  sessionId: string,
+  userId: string,
+  contentId: number,
+): Promise<void>;
+
+listSessionContentIds(
+  sessionId: string,
+  userId: string,
+): Promise<number[]>;
+
+findSessionByContentId(
+  userId: string,
+  contentId: string,
+): Promise<...>;
+```
+
+`findSessionByContentId()` should now search:
+
+- `chat_session.activeContentId`
+- `chat_session_content.contentId`
+
+It should stop searching message rows entirely.
 
 ### `createAssistantMessage`
 
-**File:** `backend/src/domain/chat/chat.repository.ts`
+Change from:
 
-Update the write path to accept all ids produced in the turn:
-
-```typescript
+```ts
 createAssistantMessage(data: {
   id: string;
   sessionId: string;
   content: string;
-  contentIds: number[];
-}): Promise<void>
+  generatedContentId: number | null;
+}): Promise<void>;
 ```
 
-Write behavior:
+To:
 
-- insert the assistant message row
-- set `generatedContentId` on the message row to the **last** content id in `contentIds`, or `null` if none
-- bulk insert all ids into `chat_message_draft`
+```ts
+createAssistantMessage(data: {
+  id: string;
+  sessionId: string;
+  content: string;
+}): Promise<void>;
+```
 
-This keeps legacy single-id consumers working while enabling complete history.
+Assistant messages should persist text only.
 
-### `send-message.stream.ts`
+### `listMessages`
 
-Replace the single `savedContentId` accumulator with `savedContentIds: number[]`, preserving order and uniqueness.
+Stop returning message-level `generatedContentId`.
 
-### `findChainTipDraftsForSession`
+Frontend `ChatMessage` should no longer receive it because it no longer exists conceptually.
+
+---
+
+## Draft Membership Write Path
+
+## The session should be updated when content is created, not later by scanning history
+
+This is the core behavioral change.
+
+Today content-creating tools write `generated_content`, and later the system infers draft membership through messages. Replace that with direct session updates at content creation time.
+
+### `ToolContext` must know the session
+
+**File:** `backend/src/domain/chat/chat-tools.ts`
+
+Add `sessionId` to `ToolContext`.
+
+Every content-creating tool should, after a successful insert:
+
+1. attach the new `contentId` to the session
+2. advance `chat_session.activeContentId` to that new `contentId`
+3. register the id for streaming/UI side effects
+
+This should happen in:
+
+- `save_content`
+- `iterate_content`
+- `edit_content_field`
+
+The session becomes the source of truth the moment the draft is created.
+
+### Why update `activeContentId` on the server?
+
+Because the backend is the system actually creating the new draft.
+
+Relying on the client to notice a streamed `contentId` and then patch the session later is fragile. The server should persist the new active draft as part of the same logical operation that created it.
+
+Client-side active-draft updates can remain for responsiveness, but they should be mirroring persisted server state, not inventing it.
+
+---
+
+## Session Draft Query Rewrite
+
+### Rewrite `findChainTipDraftsForSession`
 
 **File:** `backend/src/domain/content/content.repository.ts`
 
-Move session draft discovery to `chat_message_draft` joined through `chat_message`. This is the main behavioral fix.
+Stop scanning `chat_message`.
 
-### `findSessionByContentId`
+New algorithm:
 
-**File:** `backend/src/domain/chat/chat.repository.ts`
+1. load all session-owned `contentId`s from `chat_session_content`
+2. dedupe ids
+3. resolve each id to the current chain tip in `generated_content`
+4. dedupe resolved tips
+5. return the unique tips ordered newest-first or oldest-first, whichever the workspace expects, but do it intentionally and document it
 
-Search via `chat_message_draft`, not only the scalar `chat_message.generatedContentId`.
+Important detail:
 
----
+The session table should store any version that was ever active in the session. The drafts endpoint should still return current chain tips for those chains, because the workspace cares about current usable drafts, not stale ancestors.
 
-## Frontend Impact
+### `GET /sessions/:id/content`
 
-No frontend state model change is required for the initial migration.
+This route can stay, but now it finally means what it says:
 
-That means:
-
-- do **not** add `streamingContentIds` yet
-- do **not** change SSE handling yet
-- keep `streamingContentId` as the latest emitted content id for the current turn
-
-Why: the user-visible bug is the missing draft in the session list, which is fixed by correcting backend persistence and session-draft queries.
-
-If the product later needs message-level UI for "this assistant message created 3 drafts", add a separate API contract such as `generatedContentIds: number[]` at that time.
+- fetch drafts owned by the session
+- do not reconstruct them from messages
 
 ---
 
-## Optional Cleanup Phase
+## Streaming Rewrite
 
-Only after all reads are migrated and no UI depends on the scalar field:
+## Keep multi-draft stream tracking, but make it ephemeral
 
-1. expose `generatedContentIds` on message APIs if needed
-2. migrate remaining single-id consumers
-3. remove `chat_message.generatedContentId`
+We still need to support more than one draft being created in a single assistant turn. The difference is that streamed content ids are now only for UI updates and side effects, not for message persistence.
 
-That cleanup is explicitly **not required** to fix the bug.
+### Backend stream state
+
+**File:** `backend/src/domain/chat/send-message.stream.ts`
+
+Replace:
+
+```ts
+let savedContentId: number | null = null;
+```
+
+With:
+
+```ts
+const savedContentIds: number[] = [];
+```
+
+`savedContentIds` is used for:
+
+- emitting multiple `contentId` events over SSE
+- editor auto-link side effects
+- queue invalidation side effects
+
+It is not written onto the assistant message.
+
+### Frontend stream state
+
+**Files:**
+
+- `frontend/src/features/chat/hooks/use-chat-stream.ts`
+- `frontend/src/features/chat/streaming/sse-client.ts`
+- `frontend/src/features/chat/hooks/use-streaming-content-side-effects.ts`
+
+Replace single-id state with:
+
+```ts
+streamingContentIds: number[];
+latestStreamingContentId: number | null;
+```
+
+The frontend should:
+
+- append each new streamed `contentId`
+- invalidate drafts/query state for the session
+- auto-create editor projects for each newly created content id
+- optionally mirror `activeContentId` locally to the latest streamed id for immediate UI response
+
+Again: this array is an in-flight stream concern, not persisted message state.
 
 ---
 
-## Files Changed Summary
+## Frontend Rewrite
+
+## Remove message-level draft identity
+
+### `frontend/src/features/chat/types/chat.types.ts`
+
+Remove:
+
+```ts
+generatedContentId?: number;
+```
+
+from `ChatMessage`.
+
+Messages should contain:
+
+- text
+- role
+- timestamps
+- reel refs / media refs
+
+and nothing draft-specific.
+
+### `ChatMessage.tsx`
+
+Current message rendering uses `message.generatedContentId` or `streamingContentId` to show:
+
+- audio status
+- draft-specific action chips
+- content-specific follow-up actions
+
+That coupling should be removed.
+
+Draft-aware UI should move to places that are actually session/draft aware:
+
+- the workspace panel
+- the active-draft indicator near the composer
+- any session-level draft picker
+
+`ChatMessage` should render the conversation, not pretend it owns draft state.
+
+### `ContentWorkspace.tsx`
+
+This component already thinks in terms of `drafts` plus `activeContentId`. That is the right abstraction. Keep that and change only the source of `drafts`:
+
+- drafts come from session-owned content membership
+- auto-selection follows `activeContentId`
+- no message scan assumptions remain
+
+---
+
+## Session Creation and Session Resolution
+
+### `findOrCreateSessionForContent`
+
+When creating a brand-new session from an existing content id:
+
+1. create the session
+2. seed `chat_session.activeContentId` with that content id
+3. insert a `chat_session_content` row for that content id
+
+If an existing session is found for that content id, it should be found through `chat_session_content`, not message history.
+
+### Session ownership validation
+
+Whenever the client tries to set `activeContentId`, the backend should validate:
+
+- the content exists
+- it belongs to the user
+- it is already attached to the session
+
+If it is not attached to the session, reject the update rather than letting session state drift.
+
+This becomes important for Plan 03 because active-draft AI context should be session-scoped, not just user-owned-content scoped.
+
+---
+
+## Explicitly Delete These Old Patterns
+
+This rewrite should remove:
+
+- `chat_message.generatedContentId`
+- scanning `chat_message` to build the workspace drafts list
+- `findSessionByContentId()` joins through `chat_message`
+- message-level draft UI assumptions in `ChatMessage.tsx`
+- the idea that a message is the owner of generated content membership
+
+That pattern should be considered dead after this plan lands.
+
+---
+
+## Files To Change
 
 | File | Change |
 |---|---|
-| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `chat_message_draft`; keep existing scalar column for compatibility |
-| `backend/src/domain/chat/chat.repository.ts` | Write both scalar and junction rows; update content/session lookups |
-| `backend/src/domain/chat/chat.service.ts` | Pass `contentIds` through save path |
-| `backend/src/domain/chat/send-message.stream.ts` | Accumulate all saved content ids in order |
-| `backend/src/domain/content/content.repository.ts` | Discover session drafts via `chat_message_draft` |
+| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `chat_session_content`; remove `chat_message.generatedContentId`; add relations |
+| `backend/src/domain/chat/chat.repository.ts` | Add session-content membership methods; stop persisting message draft ids; update session resolution |
+| `backend/src/domain/chat/chat.service.ts` | Attach content to session and validate active draft membership |
+| `backend/src/domain/chat/send-message.stream.ts` | Track multiple saved content ids for stream side effects only |
+| `backend/src/domain/chat/chat-tools.ts` | Give tools `sessionId`; attach created drafts to session and advance active draft server-side |
+| `backend/src/domain/content/content.repository.ts` | Build session drafts from `chat_session_content` and resolve chain tips there |
+| `backend/src/routes/chat/sessions.router.ts` | Keep `/sessions/:id/content`, but back it with session-owned membership |
+| `frontend/src/features/chat/types/chat.types.ts` | Remove `generatedContentId` from `ChatMessage` |
+| `frontend/src/features/chat/components/ChatMessage.tsx` | Remove draft-specific ownership assumptions |
+| `frontend/src/features/chat/hooks/use-chat-stream.ts` | Track multiple streamed content ids ephemerally |
+| `frontend/src/features/chat/streaming/sse-client.ts` | Append ids instead of replacing one |
+| `frontend/src/features/chat/hooks/use-streaming-content-side-effects.ts` | Run side effects for each new streamed content id |
+| `frontend/src/features/chat/components/ContentWorkspace.tsx` | Keep session-centered draft handling, but with real session-owned data |
+
+---
+
+## Acceptance Criteria
+
+1. The drafts shown in `/generate` come from session-owned membership, not from scanning chat messages.
+2. A single assistant turn can create multiple drafts and all of them are attached to the session immediately.
+3. Assistant messages persist conversation text only and do not store draft ids.
+4. `chat_session.activeContentId` is updated server-side when chat creates a new draft.
+5. `findSessionByContentId()` resolves through session-owned membership, not message history.
+6. The workspace can switch drafts cleanly because the session owns both the active pointer and the draft set.
+7. No backend read path depends on `chat_message.generatedContentId`.

@@ -27,7 +27,6 @@ export interface ChatMessage {
   content: string;
   reelRefs?: number[];
   mediaRefs?: string[];
-  generatedContentId?: number;
   createdAt: string;
 }
 

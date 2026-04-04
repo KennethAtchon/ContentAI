@@ -4,6 +4,37 @@ import { Errors } from "../../utils/errors/app-error";
 export class ChatService {
   constructor(private readonly chatRepo: IChatRepository) {}
 
+  private async assertSessionExists(sessionId: string, userId: string) {
+    const session = await this.chatRepo.findSessionById(sessionId, userId);
+    if (!session) {
+      throw Errors.notFound("Session");
+    }
+    return session;
+  }
+
+  private async assertSessionOwnsContent(
+    sessionId: string,
+    userId: string,
+    contentId: number,
+  ) {
+    const content = await this.chatRepo.findContentById(contentId, userId);
+    if (!content) {
+      throw Errors.notFound("Content");
+    }
+
+    const sessionContentIds = await this.chatRepo.listSessionContentIds(
+      sessionId,
+      userId,
+    );
+
+    if (!sessionContentIds.includes(contentId)) {
+      throw Errors.badRequest(
+        "Content is not attached to this session",
+        "CONTENT_NOT_IN_SESSION",
+      );
+    }
+  }
+
   async listSessions(userId: string, projectId?: string) {
     const sessions = await this.chatRepo.listSessions(userId, projectId);
     return { sessions };
@@ -72,6 +103,12 @@ export class ChatService {
       activeContentId: Number(contentId),
     });
 
+    await this.chatRepo.attachContentToSession(
+      newSession.id,
+      userId,
+      Number(contentId),
+    );
+
     return { session: newSession, isNew: true };
   }
 
@@ -80,20 +117,14 @@ export class ChatService {
     sessionId: string,
     updates: { title?: string; activeContentId?: number | null },
   ) {
-    // Verify session exists and belongs to user
-    const session = await this.chatRepo.findSessionById(sessionId, userId);
-    if (!session) {
-      throw Errors.notFound("Session");
-    }
+    await this.assertSessionExists(sessionId, userId);
 
     if (updates.activeContentId !== undefined && updates.activeContentId !== null) {
-      const content = await this.chatRepo.findContentById(
-        updates.activeContentId,
+      await this.assertSessionOwnsContent(
+        sessionId,
         userId,
+        updates.activeContentId,
       );
-      if (!content) {
-        throw Errors.notFound("Content");
-      }
     }
 
     const updated = await this.chatRepo.updateSession(sessionId, userId, updates);
@@ -106,9 +137,10 @@ export class ChatService {
     sessionId: string,
     activeContentId: number | null,
   ) {
-    const session = await this.chatRepo.findSessionById(sessionId, userId);
-    if (!session) {
-      throw Errors.notFound("Session");
+    await this.assertSessionExists(sessionId, userId);
+
+    if (activeContentId !== null) {
+      await this.assertSessionOwnsContent(sessionId, userId, activeContentId);
     }
 
     await this.chatRepo.setActiveContentId(sessionId, userId, activeContentId);
@@ -159,7 +191,6 @@ export class ChatService {
         type: a.type,
         reelId: a.reelId,
         mediaAssetId: a.mediaAssetId,
-        generatedContentId: undefined,
       })),
     );
   }
@@ -168,9 +199,32 @@ export class ChatService {
     id: string;
     sessionId: string;
     content: string;
-    generatedContentId: number | null;
   }) {
     await this.chatRepo.createAssistantMessage(data);
+  }
+
+  async attachContentToSession(
+    userId: string,
+    sessionId: string,
+    contentId: number,
+  ) {
+    await this.assertSessionExists(sessionId, userId);
+    const content = await this.chatRepo.findContentById(contentId, userId);
+    if (!content) {
+      throw Errors.notFound("Content");
+    }
+
+    await this.chatRepo.attachContentToSession(sessionId, userId, contentId);
+  }
+
+  async attachContentToSessionAndSetActive(
+    userId: string,
+    sessionId: string,
+    contentId: number,
+  ) {
+    await this.attachContentToSession(userId, sessionId, contentId);
+    await this.chatRepo.setActiveContentId(sessionId, userId, contentId);
+    return { success: true };
   }
 
   async touchSession(sessionId: string) {
@@ -227,7 +281,6 @@ export class ChatService {
         type: string;
         reelId?: number;
         mediaAssetId?: string;
-        generatedContentId?: number;
       }[];
     },
   ) {
@@ -252,7 +305,6 @@ export class ChatService {
           type: att.type,
           reelId: att.reelId,
           mediaAssetId: att.mediaAssetId,
-          generatedContentId: att.generatedContentId,
         })),
       );
     }

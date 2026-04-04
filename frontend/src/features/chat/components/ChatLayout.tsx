@@ -32,21 +32,19 @@ export function ChatLayout({
     activeContentId,
     persistedActiveContentId,
     setActiveContentId,
-    requestAudioForContentId,
     displayMessages,
     isStreaming,
     streamError,
     isLimitReached,
     isSavingContent,
     streamingMessageId,
-    streamingContentId,
+    latestStreamingContentId,
     activeReelRefs,
     resetLimitReached,
     workspaceToggleClass,
     showReelProgressRecall,
     handleShowReelProgressToast,
     handleSendMessage,
-    handleOpenAudio,
     handleProjectSelect,
     handleSessionSelect,
     handleSessionDeleted,
@@ -116,10 +114,8 @@ export function ChatLayout({
               isLimitReached={isLimitReached}
               isMaxPlan={hasEnterpriseAccess}
               isSavingContent={isSavingContent}
-              streamingContentId={streamingContentId}
               activeReelRefs={activeReelRefs}
               onResetLimitReached={resetLimitReached}
-              onOpenAudio={handleOpenAudio}
             />
           </>
         ) : (
@@ -146,8 +142,7 @@ export function ChatLayout({
           sessionId={selectedSession.id}
           activeContentId={activeContentId}
           persistedActiveContentId={persistedActiveContentId}
-          streamingContentId={streamingContentId}
-          requestAudioForContentId={requestAudioForContentId}
+          latestStreamingContentId={latestStreamingContentId}
           onActiveContentChange={setActiveContentId}
           onClose={() => setWorkspaceOpen(false)}
           videoJobId={videoJobId}

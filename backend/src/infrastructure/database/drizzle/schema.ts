@@ -403,6 +403,28 @@ export const chatSessions = pgTable(
   ],
 );
 
+export const chatSessionContent = pgTable(
+  "chat_session_content",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
+    contentId: integer("content_id")
+      .notNull()
+      .references(() => generatedContent.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("chat_session_content_session_content_idx").on(
+      t.sessionId,
+      t.contentId,
+    ),
+    index("chat_session_content_session_idx").on(t.sessionId),
+    index("chat_session_content_content_idx").on(t.contentId),
+  ],
+);
+
 export const chatMessages = pgTable(
   "chat_message",
   {
@@ -414,10 +436,6 @@ export const chatMessages = pgTable(
       .references(() => chatSessions.id, { onDelete: "cascade" }),
     role: text("role").notNull(), // "user" | "assistant" | "system"
     content: text("content").notNull(),
-    generatedContentId: integer("generated_content_id").references(
-      () => generatedContent.id,
-      { onDelete: "set null" },
-    ),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("chat_messages_session_id_idx").on(t.sessionId)],
@@ -509,7 +527,10 @@ export const editProjects = pgTable(
     // "draft" | "published"
     publishedAt: timestamp("published_at"),
     userHasEdited: boolean("user_has_edited").notNull().default(false),
-    mergedAssetIds: jsonb("merged_asset_ids").$type<string[]>().notNull().default([]),
+    mergedAssetIds: jsonb("merged_asset_ids")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     thumbnailUrl: text("thumbnail_url"),
     parentProjectId: text("parent_project_id").references(
       (): AnyPgColumn => editProjects.id,
@@ -682,7 +703,22 @@ export const chatSessionsRelations = relations(
       fields: [chatSessions.activeContentId],
       references: [generatedContent.id],
     }),
+    contents: many(chatSessionContent),
     messages: many(chatMessages),
+  }),
+);
+
+export const chatSessionContentRelations = relations(
+  chatSessionContent,
+  ({ one }) => ({
+    session: one(chatSessions, {
+      fields: [chatSessionContent.sessionId],
+      references: [chatSessions.id],
+    }),
+    content: one(generatedContent, {
+      fields: [chatSessionContent.contentId],
+      references: [generatedContent.id],
+    }),
   }),
 );
 
@@ -692,10 +728,6 @@ export const chatMessagesRelations = relations(
     session: one(chatSessions, {
       fields: [chatMessages.sessionId],
       references: [chatSessions.id],
-    }),
-    generatedContent: one(generatedContent, {
-      fields: [chatMessages.generatedContentId],
-      references: [generatedContent.id],
     }),
     attachments: many(messageAttachments),
   }),
@@ -807,12 +839,16 @@ export const captionDocs = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    assetId: text("asset_id")
-      .references(() => assets.id, { onDelete: "cascade" }),
+    assetId: text("asset_id").references(() => assets.id, {
+      onDelete: "cascade",
+    }),
     language: text("language").notNull().default("en"),
     tokens: jsonb("tokens").notNull().$type<Token[]>(),
     fullText: text("full_text").notNull(),
-    source: text("source").notNull().default("whisper").$type<CaptionDocSource>(),
+    source: text("source")
+      .notNull()
+      .default("whisper")
+      .$type<CaptionDocSource>(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
       .notNull()
@@ -838,9 +874,7 @@ export const captionDocsRelations = relations(captionDocs, ({ one }) => ({
 
 export const captionPresets = pgTable("caption_preset", {
   id: text("id").primaryKey(),
-  definition: jsonb("definition")
-    .notNull()
-    .$type<CaptionPresetDefinition>(),
+  definition: jsonb("definition").notNull().$type<CaptionPresetDefinition>(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .notNull()
@@ -873,6 +907,8 @@ export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type NewChatSession = typeof chatSessions.$inferInsert;
+export type ChatSessionContent = typeof chatSessionContent.$inferSelect;
+export type NewChatSessionContent = typeof chatSessionContent.$inferInsert;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type Asset = typeof assets.$inferSelect;

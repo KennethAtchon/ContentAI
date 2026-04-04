@@ -29,7 +29,9 @@ export function useChatStream(sessionId: string) {
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isLimitReached, setIsLimitReached] = useState(false);
   const [isSavingContent, setIsSavingContent] = useState(false);
-  const [streamingContentId, setStreamingContentId] = useState<number | null>(null);
+  const [streamingContentIds, setStreamingContentIds] = useState<number[]>([]);
+  const [latestStreamingContentId, setLatestStreamingContentId] =
+    useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamingIdRef = useRef<string>(STREAMING_MESSAGE_ID);
 
@@ -40,7 +42,8 @@ export function useChatStream(sessionId: string) {
     setIsStreaming(false);
     setStreamError(null);
     setIsSavingContent(false);
-    setStreamingContentId(null);
+    setStreamingContentIds([]);
+    setLatestStreamingContentId(null);
   }, [sessionId]);
 
   const sendMessage = useCallback(
@@ -70,7 +73,8 @@ export function useChatStream(sessionId: string) {
       setIsStreaming(true);
       setStreamError(null);
       setIsSavingContent(false);
-      setStreamingContentId(null);
+      setStreamingContentIds([]);
+      setLatestStreamingContentId(null);
 
       debugLog.info("[ChatStream] Optimistic user message set, sending HTTP POST");
 
@@ -105,7 +109,12 @@ export function useChatStream(sessionId: string) {
         const setters: StreamIngestSetters = {
           setStreamingContent,
           setIsSavingContent,
-          setStreamingContentId,
+          appendStreamingContentId: (contentId) => {
+            setStreamingContentIds((current) =>
+              current.includes(contentId) ? current : [...current, contentId]
+            );
+            setLatestStreamingContentId(contentId);
+          },
           setStreamError,
         };
 
@@ -155,7 +164,8 @@ export function useChatStream(sessionId: string) {
     streamError,
     isLimitReached,
     isSavingContent,
-    streamingContentId,
+    streamingContentIds,
+    latestStreamingContentId,
     resetLimitReached,
   };
 }

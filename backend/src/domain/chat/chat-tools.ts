@@ -3,7 +3,7 @@ import { z } from "zod";
 import { debugLog } from "../../utils/debug/debug";
 import type { HonoEnv } from "../../types/hono.types";
 import { resolveChainTip } from "../queue/pipeline/content-chain";
-import { chatToolsRepository } from "../singletons";
+import { chatService, chatToolsRepository } from "../singletons";
 import { VOICES, getVoiceById } from "../../config/voices";
 import { OPENAI_API_KEY, FAL_API_KEY } from "../../utils/config/envUtil";
 import { generateSpeech } from "../../services/tts/elevenlabs";
@@ -21,9 +21,22 @@ import type { VideoProvider } from "../video/video.service";
 
 export interface ToolContext {
   auth: HonoEnv["Variables"]["auth"];
+  sessionId: string;
   content: string;
   reelRefs?: number[];
-  savedContentId?: number;
+  savedContentIds: number[];
+}
+
+async function registerCreatedContent(
+  context: ToolContext,
+  contentId: number,
+): Promise<void> {
+  await chatService.attachContentToSessionAndSetActive(
+    context.auth.user.id,
+    context.sessionId,
+    contentId,
+  );
+  context.savedContentIds.push(contentId);
 }
 
 export function createSaveContentTool(context: ToolContext) {
@@ -108,7 +121,7 @@ export function createSaveContentTool(context: ToolContext) {
           outputType: contentType,
         });
 
-        context.savedContentId = row.id;
+        await registerCreatedContent(context, row.id);
 
         debugLog.info("[tool:save_content] Content saved to DB", {
           service: "chat-tools",
@@ -349,7 +362,7 @@ export function createEditContentFieldTool(context: ToolContext) {
           },
         });
 
-        context.savedContentId = row.id;
+        await registerCreatedContent(context, row.id);
 
         debugLog.info("[tool:edit_content_field] Edit saved", {
           service: "chat-tools",
@@ -484,7 +497,7 @@ export function createIterateContentTool(context: ToolContext) {
           },
         );
 
-        context.savedContentId = row.id;
+        await registerCreatedContent(context, row.id);
 
         debugLog.info("[tool:iterate_content] New version saved to DB", {
           service: "chat-tools",

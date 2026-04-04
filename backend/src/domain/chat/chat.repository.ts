@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, inArray, or } from "drizzle-orm";
 import {
   chatSessions,
+  chatSessionContent,
   chatMessages,
   messageAttachments,
   projects,
@@ -107,7 +108,6 @@ export interface IChatRepository {
         type: string;
         reelId: number | null;
         mediaAssetId: string | null;
-        generatedContentId: number | null;
       }[];
     }[]
   >;
@@ -129,8 +129,15 @@ export interface IChatRepository {
     id: string;
     sessionId: string;
     content: string;
-    generatedContentId: number | null;
   }): Promise<void>;
+
+  attachContentToSession(
+    sessionId: string,
+    userId: string,
+    contentId: number,
+  ): Promise<void>;
+
+  listSessionContentIds(sessionId: string, userId: string): Promise<number[]>;
 
   updateSessionTimestamp(sessionId: string): Promise<void>;
 
@@ -141,7 +148,6 @@ export interface IChatRepository {
       type: string;
       reelId?: number | null;
       mediaAssetId?: string | null;
-      generatedContentId?: number | null;
     }[],
   ): Promise<void>;
 
@@ -154,7 +160,6 @@ export interface IChatRepository {
       type: string;
       reelId: number | null;
       mediaAssetId: string | null;
-      generatedContentId: number | null;
     }>
   >;
 
@@ -297,7 +302,6 @@ export class ChatRepository implements IChatRepository {
   }
 
   async findSessionByContentId(userId: string, contentId: string) {
-    // Match either a persisted active draft anchor or historical chat messages.
     const [session] = await this.db
       .select({
         id: chatSessions.id,
@@ -310,14 +314,14 @@ export class ChatRepository implements IChatRepository {
       })
       .from(chatSessions)
       .leftJoin(
-        chatMessages,
-        eq(chatSessions.id, chatMessages.sessionId),
+        chatSessionContent,
+        eq(chatSessions.id, chatSessionContent.sessionId),
       )
       .where(
         and(
           or(
             eq(chatSessions.activeContentId, Number(contentId)),
-            eq(chatMessages.generatedContentId, Number(contentId)),
+            eq(chatSessionContent.contentId, Number(contentId)),
           ),
           eq(chatSessions.userId, userId),
         ),
@@ -434,7 +438,6 @@ export class ChatRepository implements IChatRepository {
         type: messageAttachments.entityType,
         reelId: messageAttachments.reelId,
         mediaAssetId: messageAttachments.assetId,
-        generatedContentId: sql<null>`NULL`,
       })
       .from(messageAttachments)
       .where(inArray(messageAttachments.messageId, messageIds));
@@ -486,15 +489,52 @@ export class ChatRepository implements IChatRepository {
     id: string;
     sessionId: string;
     content: string;
-    generatedContentId: number | null;
   }): Promise<void> {
     await this.db.insert(chatMessages).values({
       id: data.id,
       sessionId: data.sessionId,
       role: "assistant",
       content: data.content,
-      generatedContentId: data.generatedContentId,
     });
+  }
+
+  async attachContentToSession(
+    sessionId: string,
+    userId: string,
+    contentId: number,
+  ): Promise<void> {
+    const session = await this.findSessionById(sessionId, userId);
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    await this.db
+      .insert(chatSessionContent)
+      .values({
+        sessionId,
+        contentId,
+      })
+      .onConflictDoNothing({
+        target: [chatSessionContent.sessionId, chatSessionContent.contentId],
+      });
+  }
+
+  async listSessionContentIds(
+    sessionId: string,
+    userId: string,
+  ): Promise<number[]> {
+    const rows = await this.db
+      .select({ contentId: chatSessionContent.contentId })
+      .from(chatSessionContent)
+      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
+      .where(
+        and(
+          eq(chatSessionContent.sessionId, sessionId),
+          eq(chatSessions.userId, userId),
+        ),
+      );
+
+    return [...new Set(rows.map((row) => row.contentId))];
   }
 
   async updateSessionTimestamp(sessionId: string): Promise<void> {
@@ -510,7 +550,6 @@ export class ChatRepository implements IChatRepository {
       type: string;
       reelId?: number | null;
       mediaAssetId?: string | null;
-      generatedContentId?: number | null;
     }[],
   ): Promise<void> {
     if (attachments.length === 0) return;
@@ -537,7 +576,6 @@ export class ChatRepository implements IChatRepository {
         type: messageAttachments.entityType,
         reelId: messageAttachments.reelId,
         mediaAssetId: messageAttachments.assetId,
-        generatedContentId: sql<null>`NULL`,
       })
       .from(messageAttachments)
       .where(inArray(messageAttachments.messageId, messageIds));

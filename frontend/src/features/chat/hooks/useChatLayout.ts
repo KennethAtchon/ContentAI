@@ -41,13 +41,13 @@ export function useChatLayout(projects: Project[]) {
     streamError,
     isLimitReached,
     isSavingContent,
-    streamingContentId,
+    streamingContentIds,
+    latestStreamingContentId,
     resetLimitReached,
   } = useChatStream(sessionId);
 
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [activeContentId, setActiveContentId] = useState<number | null>(null);
-  const [requestAudioForContentId, setRequestAudioForContentId] = useState<number | null>(null);
 
   const { pendingReelIds, handleSendMessage } = useChatSendWithPendingReels(
     sessionId,
@@ -74,7 +74,7 @@ export function useChatLayout(projects: Project[]) {
     reelIdFromSearch: search.reelId,
   });
 
-  useStreamingContentSideEffects(streamingContentId, queryClient);
+  useStreamingContentSideEffects(sessionId, streamingContentIds, queryClient);
 
   const selectedProject = useMemo((): Project | undefined => {
     if (!projects?.length) return undefined;
@@ -102,7 +102,6 @@ export function useChatLayout(projects: Project[]) {
     if (prevSessionIdForResetRef.current === sessionId) return;
     prevSessionIdForResetRef.current = sessionId;
     setWorkspaceOpen(false);
-    setRequestAudioForContentId(null);
   }, [sessionId]);
 
   useEffect(() => {
@@ -120,6 +119,11 @@ export function useChatLayout(projects: Project[]) {
     setActiveContentId(session.activeContentId ?? null);
   }, [sessionId, sessionData?.session]);
 
+  useEffect(() => {
+    if (latestStreamingContentId == null) return;
+    setActiveContentId(latestStreamingContentId);
+  }, [latestStreamingContentId]);
+
   const handleSetActiveContentId = useCallback(
     (contentId: number | null) => {
       setActiveContentId(contentId);
@@ -133,12 +137,6 @@ export function useChatLayout(projects: Project[]) {
     },
     [sessionId, t]
   );
-
-  const handleOpenAudio = useCallback((contentId: number) => {
-    handleSetActiveContentId(contentId);
-    setRequestAudioForContentId(contentId);
-    setWorkspaceOpen(true);
-  }, [handleSetActiveContentId]);
 
   const workspaceToggleClass = getChatWorkspaceToggleClass(workspaceOpen);
 
@@ -159,21 +157,19 @@ export function useChatLayout(projects: Project[]) {
     activeContentId,
     persistedActiveContentId: selectedSession?.activeContentId ?? null,
     setActiveContentId: handleSetActiveContentId,
-    requestAudioForContentId,
     displayMessages,
     isStreaming,
     streamError,
     isLimitReached,
     isSavingContent,
     streamingMessageId,
-    streamingContentId,
+    latestStreamingContentId,
     activeReelRefs,
     resetLimitReached,
     workspaceToggleClass,
     showReelProgressRecall,
     handleShowReelProgressToast,
     handleSendMessage,
-    handleOpenAudio,
     handleProjectSelect,
     handleSessionSelect,
     handleSessionDeleted,

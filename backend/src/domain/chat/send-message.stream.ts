@@ -86,18 +86,14 @@ export async function createChatSendMessageStreamResponse(input: {
     await getModelInfo("generation");
   const streamStartMs = Date.now();
 
-  let savedContentId: number | null = null;
+  const savedContentIds: number[] = [];
 
   const toolContext: ToolContext = {
     auth,
+    sessionId,
     content,
     reelRefs,
-    get savedContentId() {
-      return savedContentId || undefined;
-    },
-    set savedContentId(value: number | undefined) {
-      savedContentId = value || null;
-    },
+    savedContentIds,
   };
 
   const result = streamText({
@@ -145,7 +141,6 @@ export async function createChatSendMessageStreamResponse(input: {
           id: assistantMessageId,
           sessionId,
           content: text,
-          generatedContentId: savedContentId,
         });
 
         await chatService.touchSession(sessionId);

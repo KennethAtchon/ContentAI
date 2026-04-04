@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import {
   invalidateChatProjectsQueries,
   invalidateEditorProjectsQueries,
   invalidateQueueQueries,
+  invalidateSessionDrafts,
 } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 
@@ -13,38 +14,53 @@ import { debugLog } from "@/shared/utils/debug/debug";
  * ensure an editor project exists for that content (409 project_exists is benign).
  */
 export function useStreamingContentSideEffects(
-  streamingContentId: number | null,
+  sessionId: string,
+  streamingContentIds: number[],
   queryClient: QueryClient
 ): void {
-  useEffect(() => {
-    if (!streamingContentId) return;
-    void invalidateQueueQueries(queryClient);
-  }, [streamingContentId, queryClient]);
+  const processedIdsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
-    if (!streamingContentId) return;
-    void authenticatedFetchJson("/api/editor", {
-      method: "POST",
-      body: JSON.stringify({ generatedContentId: streamingContentId }),
-    })
-      .then(() => {
-        void invalidateEditorProjectsQueries(queryClient);
-        void invalidateChatProjectsQueries(queryClient);
+    processedIdsRef.current.clear();
+  }, [sessionId]);
+
+  useEffect(() => {
+    const newContentIds = streamingContentIds.filter((contentId) => {
+      if (processedIdsRef.current.has(contentId)) {
+        return false;
+      }
+      processedIdsRef.current.add(contentId);
+      return true;
+    });
+
+    if (newContentIds.length === 0) return;
+
+    for (const contentId of newContentIds) {
+      void invalidateQueueQueries(queryClient);
+      void invalidateSessionDrafts(queryClient, sessionId);
+      void authenticatedFetchJson("/api/editor", {
+        method: "POST",
+        body: JSON.stringify({ generatedContentId: contentId }),
       })
-      .catch((err) => {
-        const status = (err as { status?: number }).status;
-        const body = (err as { body?: { error?: string } }).body;
-        if (status === 409 && body?.error === "project_exists") {
+        .then(() => {
           void invalidateEditorProjectsQueries(queryClient);
           void invalidateChatProjectsQueries(queryClient);
-          return;
-        }
-        debugLog.error("Failed to auto-create editor project", {
-          service: "chat-layout",
-          operation: "auto-create-editor",
-          contentId: streamingContentId,
-          error: err instanceof Error ? err.message : String(err),
+        })
+        .catch((err) => {
+          const status = (err as { status?: number }).status;
+          const body = (err as { body?: { error?: string } }).body;
+          if (status === 409 && body?.error === "project_exists") {
+            void invalidateEditorProjectsQueries(queryClient);
+            void invalidateChatProjectsQueries(queryClient);
+            return;
+          }
+          debugLog.error("Failed to auto-create editor project", {
+            service: "chat-layout",
+            operation: "auto-create-editor",
+            contentId,
+            error: err instanceof Error ? err.message : String(err),
+          });
         });
-      });
-  }, [streamingContentId, queryClient]);
+    }
+  }, [sessionId, streamingContentIds, queryClient]);
 }

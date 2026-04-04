@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
 import {
   assets,
-  chatMessages,
+  chatSessionContent,
+  chatSessions,
   contentAssets,
   generatedContent,
   queueItems,
@@ -621,23 +622,20 @@ export class ContentRepository implements IContentRepository {
     userId: string,
     sessionId: string,
   ): ReturnType<IContentRepository["findChainTipDraftsForSession"]> {
-    // Get all generatedContentIds from chatMessages for this session
-    const messageRows = await this.db
-      .select({ generatedContentId: chatMessages.generatedContentId })
-      .from(chatMessages)
+    const sessionContentRows = await this.db
+      .select({ contentId: chatSessionContent.contentId })
+      .from(chatSessionContent)
+      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
       .where(
         and(
-          eq(chatMessages.sessionId, sessionId),
-          eq(chatMessages.role, "assistant"),
-          isNotNull(chatMessages.generatedContentId),
+          eq(chatSessionContent.sessionId, sessionId),
+          eq(chatSessions.userId, userId),
         ),
       );
 
     const contentIds = [
       ...new Set(
-        messageRows
-          .map((r) => r.generatedContentId)
-          .filter((id): id is number => id != null),
+        sessionContentRows.map((row) => row.contentId),
       ),
     ];
 
@@ -645,7 +643,27 @@ export class ContentRepository implements IContentRepository {
       return [];
     }
 
-    // Fetch those generatedContent records with ownership check
+    const tipIds = [
+      ...new Set(
+        (
+          await Promise.all(
+            contentIds.map(async (contentId) => {
+              const tip = await resolveGeneratedContentChainTip(
+                this.db,
+                contentId,
+                userId,
+              );
+              return tip.id;
+            }),
+          )
+        ).filter((id): id is number => id != null),
+      ),
+    ];
+
+    if (tipIds.length === 0) {
+      return [];
+    }
+
     const records = await this.db
       .select({
         id: generatedContent.id,
@@ -664,38 +682,13 @@ export class ContentRepository implements IContentRepository {
       .from(generatedContent)
       .where(
         and(
-          inArray(generatedContent.id, contentIds),
+          inArray(generatedContent.id, tipIds),
           eq(generatedContent.userId, userId),
         ),
-      );
-
-    // Find tips: records that have no children anywhere in the table.
-    const childRows = await this.db
-      .select({ parentId: generatedContent.parentId })
-      .from(generatedContent)
-      .where(
-        and(
-          inArray(generatedContent.parentId, contentIds),
-          eq(generatedContent.userId, userId),
-        ),
-      );
-
-    const idsWithChildren = new Set(
-      childRows
-        .map((r) => r.parentId)
-        .filter((id): id is number => id != null),
-    );
-
-    const tips = records
-      .filter((r) => !idsWithChildren.has(r.id))
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt ?? 0).getTime() -
-          new Date(b.createdAt ?? 0).getTime(),
       )
-      .map(({ parentId: _parentId, ...rest }) => rest);
+      .orderBy(generatedContent.createdAt);
 
-    return tips;
+    return records.map(({ parentId: _parentId, ...rest }) => rest);
   }
 
   async listGenerationHistory(
