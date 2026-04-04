@@ -9,7 +9,6 @@ import {
   computeDuration,
   pushPastTracks,
 } from "./editor-reducer-helpers";
-import { isMediaClip } from "../utils/clip-types";
 
 export function reduceTrackOps(
   state: EditorState,

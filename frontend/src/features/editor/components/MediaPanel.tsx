@@ -95,7 +95,7 @@ export function MediaPanel({
   generatedContentId,
   currentTimeMs,
   onAddClip,
-  readOnly,
+  readOnly: _readOnly,
   activeTab,
   onTabChange,
   pendingAdd,

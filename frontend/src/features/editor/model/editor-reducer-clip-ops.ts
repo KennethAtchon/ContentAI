@@ -3,14 +3,13 @@ import type {
   EditorAction,
   Track,
   CaptionClip,
-  MediaClip,
   Clip,
   ClipPatch,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
 import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
 import { estimateReadingDurationMs } from "../utils/text-segments";
-import { isCaptionClip, isMediaClip, isTextClip } from "../utils/clip-types";
+import { isCaptionClip, isMediaClip } from "../utils/clip-types";
 import {
   computeDuration,
   pushPastTracks,

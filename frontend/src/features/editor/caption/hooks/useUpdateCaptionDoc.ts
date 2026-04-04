@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { queryKeys } from "@/shared/lib/query-keys";
-import type { CaptionDoc, Token } from "../types";
+import type { Token } from "../types";
 
 interface UpdateCaptionDocInput {
   captionDocId: string;

@@ -46,6 +46,7 @@ function createMockContext() {
       Object.assign(this, previous);
     },
     translate() {},
+    rotate() {},
     scale() {},
     beginPath() {},
     roundRect() {},

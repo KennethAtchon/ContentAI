@@ -4,7 +4,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import type { EditProject, Track } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
-import { isMediaClip, isVideoClip } from "../utils/clip-types";
+import { isVideoClip } from "../utils/clip-types";
 
 /**
  * Polls the canonical editor project while placeholders exist, merges non-conflicting

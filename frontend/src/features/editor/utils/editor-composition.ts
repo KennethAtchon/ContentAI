@@ -4,7 +4,7 @@
  */
 import type { CSSProperties } from "react";
 import type { MediaClip, Track, Transition, VideoClip } from "../types/editor";
-import { isMediaClip, isVideoClip } from "./clip-types";
+import { isVideoClip } from "./clip-types";
 
 export const PRELOAD_WINDOW_MS = 45_000;
 

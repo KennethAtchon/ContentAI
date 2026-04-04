@@ -6,9 +6,9 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import type { MediaItem } from "@/features/media/types/media.types";
-import type { MediaClip, Track, VideoClip } from "../types/editor";
+import type { Track, VideoClip } from "../types/editor";
 import { uploadProjectThumbnail } from "../services/editor-api";
-import { isMediaClip, isVideoClip } from "../utils/clip-types";
+import { isVideoClip } from "../utils/clip-types";
 
 interface Asset {
   id: string;

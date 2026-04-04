@@ -5,8 +5,6 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type {
   Clip,
-  ClipPatch,
-  MediaClip,
   Track,
   TrackType,
 } from "../types/editor";

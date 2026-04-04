@@ -12,19 +12,18 @@ export class FontLoader {
     if (existing) return existing;
 
     const promise = (async () => {
-      if (typeof FontFace === "undefined" || !("fonts" in document)) {
+      const documentWithFonts = document as typeof document & {
+        fonts?: { add: (face: unknown) => void };
+      };
+      if (typeof globalThis.FontFace === "undefined" || !documentWithFonts.fonts) {
         return;
       }
       try {
-        const face = new FontFace(fontFamily, `url(${url})`);
+        const face = new globalThis.FontFace(fontFamily, `url(${url})`);
         await face.load();
-        (document as Document & { fonts: FontFaceSet }).fonts.add(face);
-      } catch (error) {
-        console.warn("Caption font failed to load; falling back to browser font.", {
-          fontFamily,
-          url,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
+        documentWithFonts.fonts.add(face);
+      } catch {
+        return;
       }
     })();
 

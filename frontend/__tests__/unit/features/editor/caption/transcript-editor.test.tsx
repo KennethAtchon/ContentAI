@@ -24,9 +24,11 @@ describe("CaptionTranscriptEditor", () => {
       />,
     );
 
-    const textarea = screen.getByPlaceholderText("Edit transcript text");
+    const textarea = screen.getByPlaceholderText(
+      "editor_caption_transcript_placeholder",
+    );
     fireEvent.change(textarea, { target: { value: "Updated transcript" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "editor_caption_save" }));
 
     expect(onSave).toHaveBeenCalledWith({
       fullText: "Updated transcript",

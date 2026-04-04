@@ -42,14 +42,6 @@ function isRenderableMediaClip(
   return clip.type === "video" || clip.type === "audio" || clip.type === "music";
 }
 
-interface TransitionData {
-  id: string;
-  type: "fade" | "slide-left" | "slide-up" | "dissolve" | "wipe-right" | "none";
-  durationMs: number;
-  clipAId: string;
-  clipBId: string;
-}
-
 function escapeSubtitlesFilterPath(filePath: string): string {
   return filePath
     .replace(/\\/g, "/")
@@ -169,6 +161,9 @@ export async function runExportJob(
     ).filter(
       (c) => c.assetId && assetsMap[c.assetId],
     );
+    const captionClips = (textTrack?.clips ?? []).filter(
+      (clip): clip is CaptionClip => clip.type === "caption",
+    );
 
     if (videoClips.length === 0) {
       await deps.updateExportJob(jobId, {
@@ -176,6 +171,24 @@ export async function runExportJob(
         error: "No video clips on timeline",
       });
       return;
+    }
+
+    if (captionClips.length > 0) {
+      for (const clip of captionClips) {
+        const doc = await deps.findCaptionDocByIdForUser(userId, clip.captionDocId);
+        if (!doc) {
+          throw new Error(
+            `Caption doc "${clip.captionDocId}" was not found for clip "${clip.id}"`,
+          );
+        }
+
+        const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
+        if (!presetRecord) {
+          throw new Error(
+            `Caption preset "${clip.stylePresetId}" was not found for clip "${clip.id}"`,
+          );
+        }
+      }
     }
 
     const downloadToTmp = async (
@@ -247,9 +260,6 @@ export async function runExportJob(
       );
     });
 
-    const captionClips = (textTrack?.clips ?? []).filter(
-      (clip): clip is CaptionClip => clip.type === "caption",
-    );
     let latestVideoLabel = "";
 
     if (videoInputCount === 1) {
@@ -308,21 +318,10 @@ export async function runExportJob(
       const events = [];
 
       for (const clip of captionClips) {
-        const doc = await deps.findCaptionDocByIdForUser(
-          userId,
-          clip.captionDocId,
-        );
-        if (!doc) {
-          throw new Error(
-            `Caption doc "${clip.captionDocId}" was not found for clip "${clip.id}"`,
-          );
-        }
-
+        const doc = await deps.findCaptionDocByIdForUser(userId, clip.captionDocId);
         const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
-        if (!presetRecord) {
-          throw new Error(
-            `Caption preset "${clip.stylePresetId}" was not found for clip "${clip.id}"`,
-          );
+        if (!doc || !presetRecord) {
+          throw new Error("Caption validation unexpectedly failed during export rendering");
         }
 
         const slicedTokens = sliceTokensToRange(

@@ -1,5 +1,4 @@
 import type {
-  AudioClip,
   MusicClip,
   Track,
   VideoClip,

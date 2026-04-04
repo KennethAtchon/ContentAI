@@ -76,6 +76,24 @@ import { TextEncoder, TextDecoder } from "util";
   async text() {
     return this.body || "";
   }
+  async arrayBuffer() {
+    if (this.body instanceof ArrayBuffer) {
+      return this.body;
+    }
+    if (ArrayBuffer.isView(this.body)) {
+      return this.body.buffer.slice(
+        this.body.byteOffset,
+        this.body.byteOffset + this.body.byteLength,
+      );
+    }
+    if (typeof this.body === "string") {
+      return new TextEncoder().encode(this.body).buffer;
+    }
+    if (this.body == null) {
+      return new ArrayBuffer(0);
+    }
+    return new TextEncoder().encode(String(this.body)).buffer;
+  }
   clone() {
     return new (global as any).Response(this.body, {
       status: this.status,
@@ -386,6 +404,7 @@ mock.module("@/infrastructure/database/drizzle/schema", () => ({
   contentAssets: {},
   projects: {},
   chatSessions: {},
+  chatSessionContent: {},
   chatMessages: {},
   messageAttachments: {},
   musicTracks: {},

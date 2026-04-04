@@ -138,7 +138,7 @@ describe("runExportJob", () => {
       },
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
     expect(updateExportJob.mock.calls.at(-1)).toEqual([
       "job-1",
       {
