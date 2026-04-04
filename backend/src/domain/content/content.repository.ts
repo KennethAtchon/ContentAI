@@ -622,6 +622,9 @@ export class ContentRepository implements IContentRepository {
     userId: string,
     sessionId: string,
   ): ReturnType<IContentRepository["findChainTipDraftsForSession"]> {
+    // The session owns draft membership directly now. We still resolve each
+    // attached version to its chain tip so the workspace shows the latest draft
+    // on each chain instead of stale ancestors.
     const sessionContentRows = await this.db
       .select({ contentId: chatSessionContent.contentId })
       .from(chatSessionContent)

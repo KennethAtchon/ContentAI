@@ -39,6 +39,7 @@ export function ChatLayout({
     isSavingContent,
     streamingMessageId,
     latestStreamingContentId,
+    activeDraftLabel,
     activeReelRefs,
     resetLimitReached,
     workspaceToggleClass,
@@ -123,6 +124,8 @@ export function ChatLayout({
               isMaxPlan={hasEnterpriseAccess}
               isSavingContent={isSavingContent}
               activeReelRefs={activeReelRefs}
+              activeDraftLabel={activeDraftLabel}
+              onOpenWorkspace={() => setWorkspaceOpen(true)}
               onResetLimitReached={resetLimitReached}
             />
           </>

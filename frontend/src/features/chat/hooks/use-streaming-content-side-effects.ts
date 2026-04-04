@@ -2,12 +2,13 @@ import { useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
 import {
+  ensureSessionDraftVisible,
   invalidateChatProjectsQueries,
   invalidateEditorProjectsQueries,
   invalidateQueueQueries,
-  invalidateSessionDrafts,
 } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
+import { chatService } from "../services/chat.service";
 
 /**
  * When chat stream finishes saving generated content, refresh queue cache and
@@ -37,7 +38,20 @@ export function useStreamingContentSideEffects(
 
     for (const contentId of newContentIds) {
       void invalidateQueueQueries(queryClient);
-      void invalidateSessionDrafts(queryClient, sessionId);
+      void ensureSessionDraftVisible(
+        queryClient,
+        sessionId,
+        contentId,
+        () => chatService.getSessionDrafts(sessionId)
+      ).catch((err) => {
+        debugLog.error("Failed to refresh session drafts after streaming", {
+          service: "chat-layout",
+          operation: "ensure-session-draft-visible",
+          sessionId,
+          contentId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
       void authenticatedFetchJson("/api/editor", {
         method: "POST",
         body: JSON.stringify({ generatedContentId: contentId }),

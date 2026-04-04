@@ -746,6 +746,8 @@ export class ChatRepository implements IChatRepository {
     );
     if (attachedContentIds.length === 0) return [];
 
+    // Session membership stores every draft version the session has touched,
+    // but prompt/workspace context should talk about the current usable tips.
     const tipIds = [
       ...new Set(
         await Promise.all(

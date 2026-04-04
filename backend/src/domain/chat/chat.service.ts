@@ -24,6 +24,8 @@ export function truncateContextField(
   maxLength: number,
   contentId: number,
 ): string {
+  // Keep prompt context bounded, but leave the model an explicit escape hatch
+  // to fetch the full artifact when it needs exact source text.
   if (!value) return "none";
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)} [truncated; call get_content with contentId ${contentId} for the full record]`;
@@ -92,6 +94,8 @@ export class ChatService {
     userId: string,
     contentId: number,
   ) {
+    // Session membership is the source of truth. User ownership alone is no
+    // longer enough to treat a draft as valid chat state for this chat.
     const content = await this.chatRepo.findContentById(contentId, userId);
     if (!content) {
       throw Errors.notFound("Content");
@@ -303,6 +307,8 @@ export class ChatService {
     sessionId: string,
     contentId: number,
   ) {
+    // Content-creating tools call this so the workspace state is persisted by
+    // the server at the same moment the new draft is created.
     await this.attachContentToSession(userId, sessionId, contentId);
     await this.chatRepo.setActiveContentId(sessionId, userId, contentId);
     return { success: true };
@@ -436,6 +442,8 @@ export class ChatService {
     userId: string,
     effectiveActiveContentId?: number,
   ) {
+    // The active draft used for AI grounding must be coherent with the session
+    // the user is currently chatting in, not merely "a draft this user owns".
     if (effectiveActiveContentId == null) {
       return undefined;
     }
@@ -510,6 +518,8 @@ export class ChatService {
     userId: string,
     activeContentId?: number,
   ) {
+    // Give the model a compact map of the session workspace without spending
+    // the token budget on full draft bodies for every draft in the session.
     const drafts = await this.listSessionDraftsForContext(sessionId, userId);
     return buildSessionDraftInventorySection(drafts, activeContentId);
   }

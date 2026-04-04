@@ -14,6 +14,7 @@ import { useChatLayoutNavigation } from "./use-chat-layout-navigation";
 import { useChatDisplayMessages } from "./use-chat-display-messages";
 import { useChatSendWithPendingReels } from "./use-chat-send-with-pending-reels";
 import { getChatWorkspaceToggleClass } from "../lib/chat-layout-ui";
+import { getSessionDraftLabel } from "../lib/draft-labels";
 import { chatService } from "../services/chat.service";
 import type { Project } from "../types/chat.types";
 
@@ -151,6 +152,17 @@ export function useChatLayout(projects: Project[]) {
     streamingMessageId,
     sessionId,
   });
+  const activeDraftIndex =
+    sessionDraftsData?.drafts.findIndex((draft) => draft.id === activeContentId) ??
+    -1;
+  const activeDraft =
+    activeDraftIndex >= 0 ? sessionDraftsData?.drafts[activeDraftIndex] : null;
+  const activeDraftLabel =
+    activeDraft && activeDraftIndex >= 0
+      ? getSessionDraftLabel(activeDraft, activeDraftIndex, t, {
+          maxLength: 72,
+        })
+      : null;
 
   return {
     selectedProject,
@@ -168,6 +180,7 @@ export function useChatLayout(projects: Project[]) {
     isSavingContent,
     streamingMessageId,
     latestStreamingContentId,
+    activeDraftLabel,
     activeReelRefs,
     resetLimitReached,
     workspaceToggleClass,

@@ -212,13 +212,43 @@ export async function invalidateAfterChatMessageSent(
 
 // ── Session drafts (studio workspace) ─────────────────────────────────────────
 
-export async function invalidateSessionDrafts(
+const SESSION_DRAFT_VISIBILITY_RETRY_DELAYS_MS = [0, 150, 300, 600, 1000] as const;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function ensureSessionDraftVisible(
   queryClient: QueryClient,
-  sessionId: string
+  sessionId: string,
+  contentId: number,
+  fetchDrafts: () => Promise<{ drafts: Array<{ id: number }> }>,
+  options?: {
+    retryDelaysMs?: readonly number[];
+    wait?: (ms: number) => Promise<void>;
+  }
 ): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.api.sessionDrafts(sessionId),
-  });
+  const retryDelaysMs =
+    options?.retryDelaysMs ?? SESSION_DRAFT_VISIBILITY_RETRY_DELAYS_MS;
+  const waitForRetry = options?.wait ?? wait;
+
+  // A newly streamed content id can arrive before the session drafts read path
+  // catches up. Keep refetching the real server-backed query until that id is
+  // actually visible in the cache, rather than rendering a guessed draft.
+  for (const delayMs of retryDelaysMs) {
+    if (delayMs > 0) {
+      await waitForRetry(delayMs);
+    }
+
+    const data = await queryClient.fetchQuery({
+      queryKey: queryKeys.api.sessionDrafts(sessionId),
+      queryFn: fetchDrafts,
+    });
+
+    if (data.drafts.some((draft) => draft.id === contentId)) {
+      return;
+    }
+  }
 }
 
 // ── Generated content, assets, video jobs ─────────────────────────────────────

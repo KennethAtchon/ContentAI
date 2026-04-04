@@ -38,10 +38,12 @@ export function ContentWorkspace({
 }: ContentWorkspaceProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("drafts");
-  const [selectedDraft, setSelectedDraft] = useState<SessionDraft | null>(null);
+  const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
 
   const { data, isLoading } = useSessionDrafts(sessionId);
   const drafts = data?.drafts ?? [];
+  const selectedDraft =
+    drafts.find((draft) => draft.id === selectedDraftId) ?? null;
 
   const resolvedVideoDraft =
     selectedDraft ??
@@ -50,11 +52,19 @@ export function ContentWorkspace({
     null;
 
   useEffect(() => {
+    // Keep detail views derived from the latest query result so the open draft
+    // does not drift stale after refetches or streamed updates.
+    if (selectedDraftId != null && !selectedDraft) {
+      setSelectedDraftId(null);
+    }
+  }, [selectedDraftId, selectedDraft]);
+
+  useEffect(() => {
     if (
       latestStreamingContentId != null &&
       drafts.some((draft) => draft.id === latestStreamingContentId)
     ) {
-      setSelectedDraft(null);
+      setSelectedDraftId(null);
     }
   }, [latestStreamingContentId, drafts]);
 
@@ -77,11 +87,10 @@ export function ContentWorkspace({
   ]);
 
   const handleSelectDraft = (draft: SessionDraft) => {
-    setSelectedDraft(draft);
-  };
-
-  const handleSetActive = (id: number) => {
-    onActiveContentChange(id);
+    // In this workspace, opening a draft means the user wants the AI to keep
+    // iterating on that draft next, so selection and activation move together.
+    setSelectedDraftId(draft.id);
+    onActiveContentChange(draft.id);
   };
 
   const handleOpenAudio = () => {
@@ -103,7 +112,7 @@ export function ContentWorkspace({
   };
 
   const handleBack = () => {
-    setSelectedDraft(null);
+    setSelectedDraftId(null);
   };
 
   const draftCount = drafts.length;
@@ -182,14 +191,12 @@ export function ContentWorkspace({
             onBack={handleBack}
             onOpenAudio={handleOpenAudio}
             onOpenVideo={handleOpenVideo}
-            onSetActive={handleSetActive}
           />
         ) : (
           <DraftsList
             drafts={drafts}
             activeContentId={activeContentId}
             onSelect={handleSelectDraft}
-            onSetActive={handleSetActive}
           />
         )
       ) : activeTab === "audio" ? (

@@ -7,6 +7,7 @@ import {
   Zap,
   Film,
   FileText,
+  ChevronRight,
   Repeat2,
   Eye,
   MessageSquare,
@@ -37,6 +38,8 @@ interface ChatPanelProps {
   isSavingContent?: boolean;
   reels?: unknown[];
   activeReelRefs?: Reel[];
+  activeDraftLabel?: string | null;
+  onOpenWorkspace?: () => void;
   onResetLimitReached?: () => void;
 }
 
@@ -50,6 +53,8 @@ export function ChatPanel({
   isMaxPlan,
   isSavingContent,
   activeReelRefs,
+  activeDraftLabel,
+  onOpenWorkspace,
   onResetLimitReached,
 }: ChatPanelProps) {
   const { t } = useTranslation();
@@ -241,6 +246,22 @@ export function ChatPanel({
             </div>
           ) : (
             <>
+              {activeDraftLabel && onOpenWorkspace && (
+                <button
+                  type="button"
+                  onClick={onOpenWorkspace}
+                  className="mb-3 flex max-w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-border hover:bg-muted/50 hover:text-foreground"
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-primary/70" />
+                  <span className="shrink-0 text-muted-foreground/70">
+                    {t("studio_chat_active_draft_indicator")}
+                  </span>
+                  <span className="truncate text-foreground/85">
+                    {activeDraftLabel}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                </button>
+              )}
               <ChatInput
                 activeReelRefs={activeReelRefs}
                 onSendMessage={onSendMessage}

@@ -10,7 +10,6 @@ interface DraftDetailProps {
   onBack: () => void;
   onOpenAudio: () => void;
   onOpenVideo: () => void;
-  onSetActive: (id: number) => void;
 }
 
 function Section({
@@ -36,7 +35,6 @@ export function DraftDetail({
   onBack,
   onOpenAudio,
   onOpenVideo,
-  onSetActive,
 }: DraftDetailProps) {
   const { t } = useTranslation();
   const { data: assetsData } = useContentAssets(draft.id);
@@ -85,15 +83,6 @@ export function DraftDetail({
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
-        {!isActive && (
-          <button
-            onClick={() => onSetActive(draft.id)}
-            className="w-full py-1.5 text-sm text-muted-foreground border border-dashed border-border/60 rounded-lg hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            {t("workspace_set_active_for_ai")}
-          </button>
-        )}
-
         {draft.generatedHook && (
           <Section label={t("workspace_section_hook")}>
             <p className="text-base leading-relaxed text-foreground">

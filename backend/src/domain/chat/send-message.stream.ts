@@ -39,6 +39,8 @@ export async function createChatSendMessageStreamResponse(input: {
 
   const requestedActiveContentId = activeContentId;
   if (requestedActiveContentId != null) {
+    // The client can hint which draft is active, but the server stays
+    // authoritative and only accepts drafts already attached to this session.
     const isAttached = await chatService.isContentAttachedToSession(
       sessionId,
       auth.user.id,
@@ -62,6 +64,8 @@ export async function createChatSendMessageStreamResponse(input: {
     session.activeContentId != null &&
     effectiveActiveContentId != null
   ) {
+    // Repair stale session state instead of silently grounding the model on a
+    // detached draft that no longer belongs in this workspace.
     const sessionActiveStillAttached =
       await chatService.isContentAttachedToSession(
         sessionId,
@@ -162,6 +166,8 @@ export async function createChatSendMessageStreamResponse(input: {
 
   const result = streamText({
     model: await getModel("generation"),
+    // Keep workspace grounding in the system prompt so the final user message
+    // is only the raw text the user typed.
     system,
     messages: requestMessages,
     maxOutputTokens: 2048,
