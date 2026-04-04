@@ -1,5 +1,7 @@
 # SyncService — User Journeys
 
+> **Planning only — this file will be deleted.** Preserve any scenario nuance that affects code in tests and/or comments at the relevant implementation sites.
+
 Each scenario traces what the user does, what fires on the backend, and what the editor sees.
 
 ---

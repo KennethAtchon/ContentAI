@@ -1,163 +1,79 @@
 # Plan 05: Active Draft UX Rethink
 
-**Fixes:** UX consequences of Bugs 2 + 4 (now that active draft is persisted, the UI should reflect it clearly)  
-**Risk:** Low — frontend-only  
-**Depends on:** Plan 01 (active draft must be reliably persisted before this is worth building)  
+**Fixes:** active draft is persisted but still not obvious in everyday chat workflow  
+**Risk:** Low - frontend-only  
+**Depends on:** Plan 01  
 **Blocks:** Nothing
 
 ---
 
-## Problem
+## Current UX
 
-The current UX for managing active drafts is opaque and requires two separate actions:
+The current workspace already has some good pieces:
 
-1. **Click a draft card** → previews the draft in `DraftDetail`, but does NOT change what the AI will iterate on.
-2. **Click "Set Active" button** → actually changes `activeContentId`, which the AI uses.
+- `DraftsList.tsx` visually marks the active draft
+- `DraftDetail.tsx` can show whether the opened draft is active
+- there is a separate "Set Active" action
 
-Users don't understand why clicking a draft doesn't immediately make it the working context. The distinction between "viewing" and "activating" is not intuitive. The result: users often change drafts without noticing the AI is still iterating the old one.
-
-Additionally:
-- There is no visible indicator in the chat input area showing which draft the AI is currently working on.
-- On session open, the active draft is not visually highlighted in the drafts list — the user has no way to know which one is "active" without clicking around.
+The remaining issue is that viewing and activating are still split across multiple clicks, and the composer area does not clearly tell the user what the AI is about to iterate.
 
 ---
 
-## Changes
+## UX Direction
 
-### 1. Collapse "Select" and "Set Active" into a single click
+### 1. Clicking a draft row should activate it and open its detail view
 
-**File:** `frontend/src/features/chat/components/DraftsList.tsx`
+**Files:** `frontend/src/features/chat/components/ContentWorkspace.tsx`, `frontend/src/features/chat/components/DraftsList.tsx`
 
-Currently, `DraftsList` has two distinct interactions:
-- Clicking a card calls `onSelect(draft)` — updates `selectedDraft` in ContentWorkspace
-- The "Set Active" button calls `onSetActive(draft.id)` — updates `activeContentId` in useChatLayout
-
-Collapse them: clicking a draft card should both preview it AND set it as active.
-
-**Remove** the separate "Set Active" button entirely.
-
-**Change `onSelect` prop** to call both `onActiveContentChange` and the local selection:
-
-In `ContentWorkspace.tsx`, the `handleSelectDraft` handler becomes:
+Change `handleSelectDraft` so it performs both actions:
 
 ```typescript
 const handleSelectDraft = (draft: SessionDraft) => {
   setSelectedDraft(draft);
-  onActiveContentChange(draft.id); // ← now happens on every click, not just "Set Active"
+  onActiveContentChange(draft.id);
 };
 ```
 
-Remove `handleSetActive` and the `onSetActive` prop from `DraftsList`. The component only needs `onSelect`.
+Then remove the extra "Set Active" affordance from `DraftsList`.
 
-### 2. Visual state: active draft is highlighted
+This matches the user's mental model: the draft they click is the draft they are now working on.
 
-**File:** `frontend/src/features/chat/components/DraftsList.tsx`
+### 2. Keep the active styling, but make it survive navigation cleanly
 
-`DraftsList` receives `activeContentId` as a prop (it likely already does, or gets `drafts` + a selection indicator). Add a visible "active" state to the draft card:
+`DraftsList` already highlights the active draft. Keep that pattern and ensure it remains correct after:
 
-- The active draft card gets a distinct highlighted border (e.g., `ring-2 ring-primary`) and a small "Active" badge or dot.
-- The non-active drafts look normal.
-- On session open, the active draft is immediately highlighted because `activeContentId` is now initialized from the persisted session value (Plan 01).
+- session reload
+- session switch
+- auto-activation of a newly generated draft
 
-```typescript
-// In DraftsList, on each card:
-const isActive = draft.id === activeContentId;
+### 3. Surface the active draft near the composer
 
-<div
-  className={cn(
-    "draft-card ...",
-    isActive && "ring-2 ring-primary"
-  )}
-  onClick={() => onSelect(draft)}
->
-  {isActive && (
-    <span className="badge">Active</span>
-  )}
-  {/* ... draft content */}
-</div>
-```
+**File:** `frontend/src/features/chat/components/ChatPanel.tsx`
 
-### 3. Chat input context indicator
+Add a small line above the input:
 
-**File:** `frontend/src/features/chat/components/ChatPanel.tsx` (or wherever the chat input lives)
-
-Add a small non-intrusive line above or inside the chat input showing which draft is currently active:
-
-```
+```text
 Working on: "Why your morning routine is killing your gains"
 ```
 
-This gives the user confidence that the AI knows which draft they're iterating. It should:
-- Only show when `activeContentId` is set AND there is at least one draft in the session.
-- Truncate the hook to ~60 characters with an ellipsis.
-- Be styled subtly — secondary text color, small font — not a prominent UI element.
-- Be clickable: clicking it opens the workspace sidebar to the drafts tab.
+Rules:
 
-Implementation:
+- only show when an active draft exists
+- truncate long hooks
+- clicking the indicator opens the workspace
+- styling stays subtle; this is context, not a headline
 
-```typescript
-// In ChatPanel (or wherever the send bar is rendered):
-// Receive activeContentId and drafts as props, or access via context
+### 4. Reuse existing draft-selection components where sensible
 
-const activeDraft = drafts.find((d) => d.id === activeContentId);
-
-{activeDraft && (
-  <button
-    className="text-xs text-muted-foreground hover:text-foreground truncate max-w-xs"
-    onClick={onOpenWorkspace}
-  >
-    Working on: "{activeDraft.generatedHook?.slice(0, 60) ?? "Draft"}"
-  </button>
-)}
-```
-
-The `drafts` and `activeContentId` are already available in `useChatLayout`. Pass them through to wherever the send bar renders, or expose `activeDraft` directly from `useChatLayout`:
-
-```typescript
-// In useChatLayout.ts — add to return value:
-const activeDraft = useMemo(() =>
-  sessionDraftsData?.drafts.find((d) => d.id === activeContentId) ?? null,
-  [sessionDraftsData?.drafts, activeContentId]
-);
-
-return {
-  // ... existing
-  activeDraft,
-};
-```
-
-### 4. Auto-activate on new content — now persists immediately
-
-With Plan 01 in place, `onActiveContentChange` now calls `handleSetActiveDraft` which persists to the DB. The existing auto-activate effect in `ContentWorkspace.tsx:63-67` already calls `onActiveContentChange(streamingContentId)` — so new drafts auto-persist as active with no additional wiring. This just works.
-
-### 5. Remove "Set Active" translation key
-
-**File:** `frontend/src/translations/en.json`
-
-Remove the translation entry for the "Set Active" button (whatever key it uses). No dead strings.
+There is already a `DraftPicker.tsx` in the chat feature. If it fits the composer area, prefer reusing or adapting that component instead of inventing a second independent draft selector.
 
 ---
 
-## DraftsList Props Before and After
+## Non-goals
 
-**Before:**
-```typescript
-interface DraftsListProps {
-  drafts: SessionDraft[];
-  activeContentId: number | null;
-  onSelect: (draft: SessionDraft) => void;
-  onSetActive: (id: number) => void; // ← REMOVE
-}
-```
-
-**After:**
-```typescript
-interface DraftsListProps {
-  drafts: SessionDraft[];
-  activeContentId: number | null;
-  onSelect: (draft: SessionDraft) => void; // now implies "select + activate"
-}
-```
+- changing the persisted active-draft data model
+- adding another modal or drawer just for draft context
+- introducing separate "selected" and "active" concepts again under new names
 
 ---
 
@@ -165,8 +81,7 @@ interface DraftsListProps {
 
 | File | Change |
 |---|---|
-| `frontend/src/features/chat/components/DraftsList.tsx` | Remove "Set Active" button, add active highlight + badge, remove `onSetActive` prop |
-| `frontend/src/features/chat/components/ContentWorkspace.tsx` | `handleSelectDraft` calls `onActiveContentChange`, remove `handleSetActive` |
-| `frontend/src/features/chat/components/ChatPanel.tsx` | Add "Working on: [hook]" context indicator above send bar |
-| `frontend/src/features/chat/hooks/useChatLayout.ts` | Expose `activeDraft` in return value |
-| `frontend/src/translations/en.json` | Remove "Set Active" key |
+| `frontend/src/features/chat/components/ContentWorkspace.tsx` | Make draft selection activate immediately |
+| `frontend/src/features/chat/components/DraftsList.tsx` | Remove separate "Set Active" affordance; rely on row click |
+| `frontend/src/features/chat/components/ChatPanel.tsx` | Show the current active draft near the composer |
+| `frontend/src/features/chat/hooks/useChatLayout.ts` | Expose active draft data needed by the composer indicator |

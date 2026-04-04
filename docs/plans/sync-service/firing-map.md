@@ -1,5 +1,7 @@
 # SyncService — Firing Map
 
+> **Planning only — this file will be deleted.** Replicate this map (triggers, ordering, DB effects) in `sync.service.ts` and related wiring comments so the repo stays complete without it.
+
 Complete reference of every trigger point, what executes, what DB fields change, and how conflicts are resolved.
 
 ---

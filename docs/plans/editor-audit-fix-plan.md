@@ -6,6 +6,28 @@
 
 ---
 
+## Status Snapshot (Updated 2026-04-04)
+
+This document predates the current editor refactor and should now be read as a **historical backlog plus remaining gap list**, not a file-by-file implementation script.
+
+Several items originally planned here have already landed in the current codebase:
+
+- `BUG-002` is fixed in `frontend/src/features/editor/hooks/useEditorLayoutMutations.ts` via `aiAssemble.onError`.
+- `BUG-004` and `BUG-005` are fixed in `frontend/src/features/editor/components/ExportModal.tsx`.
+- `UX-006` and most of `UX-007` are covered by the refactored inspector structure in `frontend/src/features/editor/components/Inspector.tsx` and `frontend/src/features/editor/components/inspector/*`.
+- `UX-008` is landed via `formatHHMMSSd()` and its usage in `frontend/src/features/editor/components/PreviewArea.tsx`.
+- `MISSING-001` and `MISSING-002` are largely landed through `Timeline.tsx`, `TimelineClip.tsx`, and `use-timeline-asset-drop.ts`.
+
+Because of that, the current ownership map is different from the one assumed below:
+
+| Old ownership assumption | Current ownership area |
+|---|---|
+| `EditorLayout.tsx` monolith | `EditorToolbar.tsx`, `EditorDialogs.tsx`, `useEditorLayoutRuntime.ts`, `useEditorLayoutMutations.ts` |
+| `Inspector.tsx` only | `Inspector.tsx` plus `components/inspector/*` |
+| Timeline drag/drop logic inline | `Timeline.tsx`, `TimelineClip.tsx`, `use-timeline-asset-drop.ts` |
+
+Use this updated ownership map when executing any unfinished items from the rest of the plan.
+
 ## Overview
 
 The editor has 23 confirmed defects across four categories: critical bugs that lose user data, UX regressions that produce silent failures, missing spec features, and state management inconsistencies. This document describes a phased fix plan. Each phase is independently shippable with no cross-phase dependencies, so they can be parallelized if needed.

@@ -1,7 +1,7 @@
-# Plan 02: Multi-Draft Per Message (Junction Table)
+# Plan 02: Multi-Draft Per Message
 
-**Fixes:** Bug 3 (one assistant message structurally capped at one draft)  
-**Risk:** Medium — DB migration + query rewrite + frontend SSE handling  
+**Fixes:** one assistant turn can create multiple drafts, but only the last one is structurally linked today  
+**Risk:** Medium - schema migration plus repository/query changes  
 **Depends on:** Nothing  
 **Blocks:** Nothing
 
@@ -9,13 +9,36 @@
 
 ## Problem
 
-`chat_messages.generatedContentId` is a scalar `integer`. When the AI calls a content tool (e.g. `save_content`) more than once in a single response turn, the `savedContentId` variable in `send-message.stream.ts:89-100` is overwritten each time. Only the last content ID is persisted to `chat_messages`. All prior `generated_content` records created in the same turn are orphaned — they exist in the DB but are never reachable from `findChainTipDraftsForSession()`, so they never appear in the drafts panel.
+`chat_message.generatedContentId` is a scalar foreign key. If a single assistant turn saves multiple `generated_content` rows, only the last one survives on the message row.
+
+That breaks session draft discovery because `findChainTipDraftsForSession()` still walks message-linked content ids.
+
+---
+
+## Key Correction
+
+This plan should be **additive first**, not destructive.
+
+Dropping `chat_message.generatedContentId` immediately would create avoidable churn because current code still uses it in multiple places:
+
+- `backend/src/domain/chat/chat.repository.ts`
+- `backend/src/domain/content/content.repository.ts`
+- `frontend/src/features/chat/components/ChatMessage.tsx`
+- frontend chat types and API payloads that still expect a single `generatedContentId`
+
+The safer rollout is:
+
+1. add a junction table
+2. backfill it from the existing scalar column
+3. write both models for a transition period
+4. move read paths to the junction table
+5. only then consider removing the scalar column
 
 ---
 
 ## Schema Changes
 
-### 1. New table: `chat_message_drafts`
+### 1. Add `chat_message_draft`
 
 **File:** `backend/src/infrastructure/database/drizzle/schema.ts`
 
@@ -30,324 +53,107 @@ export const chatMessageDrafts = pgTable(
     contentId: integer("content_id")
       .notNull()
       .references(() => generatedContent.id, { onDelete: "cascade" }),
-    slot: smallint("slot").notNull().default(0), // ordering within the message turn
+    slot: integer("slot").notNull().default(0),
   },
   (t) => [
-    uniqueIndex("chat_message_drafts_message_content_idx").on(t.messageId, t.contentId),
-    index("chat_message_drafts_message_id_idx").on(t.messageId),
-    index("chat_message_drafts_content_id_idx").on(t.contentId),
+    uniqueIndex("chat_message_draft_message_content_idx").on(t.messageId, t.contentId),
+    index("chat_message_draft_message_idx").on(t.messageId),
+    index("chat_message_draft_content_idx").on(t.contentId),
   ],
 );
 ```
 
-Add Drizzle relations:
+### 2. Keep `chat_message.generatedContentId` during rollout
 
-```typescript
-export const chatMessageDraftsRelations = relations(chatMessageDrafts, ({ one }) => ({
-  message: one(chatMessages, {
-    fields: [chatMessageDrafts.messageId],
-    references: [chatMessages.id],
-  }),
-  content: one(generatedContent, {
-    fields: [chatMessageDrafts.contentId],
-    references: [generatedContent.id],
-  }),
-}));
-```
+Do **not** drop the existing column in the first migration. Reinterpret it as:
 
-Update `chatMessagesRelations` to include the new junction:
+- `latestGeneratedContentId` in behavior
+- still physically stored in `generatedContentId` for compatibility
 
-```typescript
-export const chatMessagesRelations = relations(chatMessages, ({ one, many }) => ({
-  session: one(chatSessions, { ... }),
-  generatedContent: one(generatedContent, { ... }), // keep for now — see migration note
-  attachments: many(messageAttachments),
-  drafts: many(chatMessageDrafts), // ← ADD
-}));
-```
+That preserves existing UI affordances while the many-to-many model is introduced.
 
-### 2. Remove `chat_messages.generatedContentId`
+### 3. Backfill
 
-**File:** `backend/src/infrastructure/database/drizzle/schema.ts`
-
-Remove the column from the table definition:
-
-```typescript
-// DELETE this line from chatMessages:
-generatedContentId: integer("generated_content_id").references(
-  () => generatedContent.id,
-  { onDelete: "set null" },
-),
-```
-
-Remove the relation from `chatMessagesRelations`:
-
-```typescript
-// DELETE:
-generatedContent: one(generatedContent, {
-  fields: [chatMessages.generatedContentId],
-  references: [generatedContent.id],
-}),
-```
-
-**Migration note:** Before dropping the column, a data migration is needed to backfill `chat_message_drafts` from existing `chat_messages.generatedContentId` values. The migration:
+Migration SQL:
 
 ```sql
 INSERT INTO chat_message_draft (message_id, content_id, slot)
 SELECT id, generated_content_id, 0
 FROM chat_message
-WHERE generated_content_id IS NOT NULL;
-
-ALTER TABLE chat_message DROP COLUMN generated_content_id;
+WHERE generated_content_id IS NOT NULL
+ON CONFLICT DO NOTHING;
 ```
-
-Run: `bun run db:generate && bun run db:migrate`
 
 ---
 
 ## Backend Changes
 
-### 1. `IChatRepository` — new methods for message drafts
+### `createAssistantMessage`
 
 **File:** `backend/src/domain/chat/chat.repository.ts`
 
-Replace `createAssistantMessage` signature:
+Update the write path to accept all ids produced in the turn:
 
-**Old:**
 ```typescript
 createAssistantMessage(data: {
-  id: string;
-  sessionId: string;
-  content: string;
-  generatedContentId: number | null;
-}): Promise<void>
-```
-
-**New:**
-```typescript
-createAssistantMessage(data: {
-  id: string;
-  sessionId: string;
-  content: string;
-  contentIds: number[]; // all content IDs produced in this turn
-}): Promise<void>
-```
-
-Implementation — insert the message then bulk-insert the junction rows:
-
-```typescript
-async createAssistantMessage(data: {
   id: string;
   sessionId: string;
   content: string;
   contentIds: number[];
-}): Promise<void> {
-  await this.db.insert(chatMessages).values({
-    id: data.id,
-    sessionId: data.sessionId,
-    role: "assistant",
-    content: data.content,
-    // no generatedContentId column anymore
-  });
-
-  if (data.contentIds.length > 0) {
-    await this.db.insert(chatMessageDrafts).values(
-      data.contentIds.map((contentId, slot) => ({
-        messageId: data.id,
-        contentId,
-        slot,
-      })),
-    );
-  }
-}
+}): Promise<void>
 ```
 
-### 2. `ChatService.saveAssistantMessage` — update call
+Write behavior:
 
-**File:** `backend/src/domain/chat/chat.service.ts`
+- insert the assistant message row
+- set `generatedContentId` on the message row to the **last** content id in `contentIds`, or `null` if none
+- bulk insert all ids into `chat_message_draft`
 
-Find `saveAssistantMessage` and update the `createAssistantMessage` call to pass `contentIds` instead of `generatedContentId`:
+This keeps legacy single-id consumers working while enabling complete history.
 
-```typescript
-async saveAssistantMessage(data: {
-  id: string;
-  sessionId: string;
-  content: string;
-  contentIds: number[]; // ← was: generatedContentId: number | null
-}): Promise<void> {
-  await this.chatRepo.createAssistantMessage({
-    id: data.id,
-    sessionId: data.sessionId,
-    content: data.content,
-    contentIds: data.contentIds,
-  });
-  await this.chatRepo.updateSessionTimestamp(data.sessionId);
-}
-```
+### `send-message.stream.ts`
 
-### 3. `send-message.stream.ts` — collect all content IDs, not just the last
+Replace the single `savedContentId` accumulator with `savedContentIds: number[]`, preserving order and uniqueness.
 
-**File:** `backend/src/domain/chat/send-message.stream.ts`
-
-**Old (lines 89-100):**
-```typescript
-let savedContentId: number | null = null;
-const toolContext: ToolContext = {
-  get savedContentId() { return savedContentId || undefined; },
-  set savedContentId(value) { savedContentId = value || null; },
-};
-```
-
-**New — collect all IDs in order:**
-```typescript
-const savedContentIds: number[] = [];
-const toolContext: ToolContext = {
-  get savedContentId() { return savedContentIds[savedContentIds.length - 1] || undefined; },
-  set savedContentId(value: number | undefined) {
-    if (value && !savedContentIds.includes(value)) {
-      savedContentIds.push(value);
-    }
-  },
-};
-```
-
-**In `onFinish` (lines 144-149):**
-```typescript
-// Old:
-await chatService.saveAssistantMessage({
-  id: assistantMessageId,
-  sessionId,
-  content: text,
-  generatedContentId: savedContentId,
-});
-
-// New:
-await chatService.saveAssistantMessage({
-  id: assistantMessageId,
-  sessionId,
-  content: text,
-  contentIds: savedContentIds,
-});
-```
-
-### 4. `ToolContext` interface — update type
-
-**File:** `backend/src/domain/chat/chat-tools.ts`
-
-The `savedContentId` getter/setter already works since we're keeping the property name. No interface change needed — the setter now appends to an array behind the scenes but the tool-facing API (get/set `savedContentId`) stays the same. Tools don't need to know about the array.
-
-### 5. `ContentRepository.findChainTipDraftsForSession` — rewrite query
+### `findChainTipDraftsForSession`
 
 **File:** `backend/src/domain/content/content.repository.ts`
 
-This is the most impactful query change. Currently it traces content IDs through `chat_messages.generatedContentId`. It must now join through `chat_message_drafts`.
+Move session draft discovery to `chat_message_draft` joined through `chat_message`. This is the main behavioral fix.
 
-**Old pattern:**
-```typescript
-const messageRows = await this.db
-  .select({ generatedContentId: chatMessages.generatedContentId })
-  .from(chatMessages)
-  .where(and(
-    eq(chatMessages.sessionId, sessionId),
-    eq(chatMessages.role, "assistant"),
-    isNotNull(chatMessages.generatedContentId),
-  ));
-```
-
-**New pattern:**
-```typescript
-const draftRows = await this.db
-  .select({ contentId: chatMessageDrafts.contentId })
-  .from(chatMessageDrafts)
-  .innerJoin(chatMessages, eq(chatMessageDrafts.messageId, chatMessages.id))
-  .where(
-    and(
-      eq(chatMessages.sessionId, sessionId),
-      eq(chatMessages.role, "assistant"),
-    )
-  );
-
-const contentIds = [...new Set(draftRows.map((r) => r.contentId))];
-```
-
-The rest of the query (fetching records, finding chain tips, sorting) is unchanged.
-
-### 6. `ChatRepository.findSessionByContentId` — update join
+### `findSessionByContentId`
 
 **File:** `backend/src/domain/chat/chat.repository.ts`
 
-This method finds a session by searching for a message with the given `generatedContentId`. It must now join through `chat_message_drafts`:
-
-```typescript
-async findSessionByContentId(userId: string, contentId: string) {
-  const [session] = await this.db
-    .select({
-      id: chatSessions.id,
-      userId: chatSessions.userId,
-      projectId: chatSessions.projectId,
-      title: chatSessions.title,
-      activeContentId: chatSessions.activeContentId,
-      createdAt: chatSessions.createdAt,
-      updatedAt: chatSessions.updatedAt,
-    })
-    .from(chatSessions)
-    .innerJoin(chatMessages, eq(chatSessions.id, chatMessages.sessionId))
-    .innerJoin(chatMessageDrafts, eq(chatMessages.id, chatMessageDrafts.messageId))
-    .where(
-      and(
-        eq(chatMessageDrafts.contentId, Number(contentId)),
-        eq(chatSessions.userId, userId),
-      ),
-    )
-    .orderBy(desc(chatSessions.updatedAt))
-    .limit(1);
-
-  return session;
-}
-```
+Search via `chat_message_draft`, not only the scalar `chat_message.generatedContentId`.
 
 ---
 
-## Frontend Changes
+## Frontend Impact
 
-### 1. SSE client — accumulate multiple `streamingContentId` values
+No frontend state model change is required for the initial migration.
 
-**File:** `frontend/src/features/chat/streaming/sse-client.ts`
+That means:
 
-Currently, `setStreamingContentId` is called with a single number, replacing the previous value. With multi-draft support, each `tool-output-available` chunk in a single turn can carry a different `contentId`.
+- do **not** add `streamingContentIds` yet
+- do **not** change SSE handling yet
+- keep `streamingContentId` as the latest emitted content id for the current turn
 
-The `StreamIngestSetters` type and `drainSseStreamIntoIngest` both need to support multiple IDs emitted across one stream turn. The simplest approach: keep `streamingContentId` as the most-recently-emitted ID (same as now for single-draft), but also maintain a `streamingContentIds: number[]` for multi-draft contexts.
+Why: the user-visible bug is the missing draft in the session list, which is fixed by correcting backend persistence and session-draft queries.
 
-In `use-chat-stream.ts`, add a parallel `streamingContentIds` state:
+If the product later needs message-level UI for "this assistant message created 3 drafts", add a separate API contract such as `generatedContentIds: number[]` at that time.
 
-```typescript
-const [streamingContentId, setStreamingContentId] = useState<number | null>(null);
-const [streamingContentIds, setStreamingContentIds] = useState<number[]>([]);
-```
+---
 
-In the SSE `tool-output-available` handler:
-```typescript
-case "tool-output-available": {
-  const output = chunk.output as { contentId?: number };
-  if (output?.contentId) {
-    setStreamingContentId(output.contentId);
-    setStreamingContentIds((prev) =>
-      prev.includes(output.contentId!) ? prev : [...prev, output.contentId!]
-    );
-  }
-  break;
-}
-```
+## Optional Cleanup Phase
 
-Reset `streamingContentIds` alongside `streamingContentId` when a new stream starts.
+Only after all reads are migrated and no UI depends on the scalar field:
 
-### 2. `ContentWorkspace.tsx` — invalidate on any new streaming content ID
+1. expose `generatedContentIds` on message APIs if needed
+2. migrate remaining single-id consumers
+3. remove `chat_message.generatedContentId`
 
-**File:** `frontend/src/features/chat/components/ContentWorkspace.tsx`
-
-The invalidation effect already runs when `streamingContentId` changes. With multi-draft, this still works — it fires after each tool call within the turn. No change needed unless we want to batch the invalidations (optimization, not required).
-
-The auto-activate effect (`onActiveContentChange(streamingContentId)`) should still use the last content ID in the turn — which `streamingContentId` already represents.
+That cleanup is explicitly **not required** to fix the bug.
 
 ---
 
@@ -355,10 +161,8 @@ The auto-activate effect (`onActiveContentChange(streamingContentId)`) should st
 
 | File | Change |
 |---|---|
-| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `chatMessageDrafts` table, remove `generatedContentId` from `chatMessages`, update relations |
-| `backend/src/domain/chat/chat.repository.ts` | Update `createAssistantMessage`, update `findSessionByContentId` |
-| `backend/src/domain/chat/chat.service.ts` | Update `saveAssistantMessage` signature |
-| `backend/src/domain/chat/send-message.stream.ts` | Collect all `savedContentIds`, pass array to `saveAssistantMessage` |
-| `backend/src/domain/content/content.repository.ts` | Rewrite `findChainTipDraftsForSession` to join through `chat_message_drafts` |
-| `frontend/src/features/chat/streaming/sse-client.ts` | Add `streamingContentIds` accumulator |
-| `frontend/src/features/chat/hooks/use-chat-stream.ts` | Add `streamingContentIds` state, expose it |
+| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `chat_message_draft`; keep existing scalar column for compatibility |
+| `backend/src/domain/chat/chat.repository.ts` | Write both scalar and junction rows; update content/session lookups |
+| `backend/src/domain/chat/chat.service.ts` | Pass `contentIds` through save path |
+| `backend/src/domain/chat/send-message.stream.ts` | Accumulate all saved content ids in order |
+| `backend/src/domain/content/content.repository.ts` | Discover session drafts via `chat_message_draft` |

@@ -1,6 +1,28 @@
 # SyncService — Low Level Design
 
-Implementation plan. Read `high-level-design.md` first.
+Implementation plan. Read `high-level-design.md` first while this folder still exists.
+
+**This folder (including `firing-map.md`) is planning material and will be removed later.** The implementation must not depend on it staying in the repo. **All behavior that matters — firing map, constraints, merge rules, wiring — must live in source comments** (and tests), written so a maintainer never needs these markdown files.
+
+---
+
+## In-code documentation (required)
+
+The LLD shows **shapes** of code, not the commentary the shipped tree must carry. Treat verbose, accurate comments as part of the deliverable; they are the **long-term** documentation.
+
+**`sync.service.ts`**
+
+- **Module- or class-level block (must subsume the firing map):** Spell out, in prose or structured comment, **every** path that triggers sync and **every** important path that does not (e.g. which chat tools call `onContentSaved` / `syncLinkedProjects`, which video tools do not). State that sync completes **before** the SSE event reaches the client. List invariants: no autosave version bump on `updateProjectForSync`, preservation of the existing video track when a fresh derive has zero video clips, user-sourced clips untouched, content-sourced clips replaced with trim/layout preserved per `assetId`, ancestor chain / `generatedContentId` behavior as implemented — enough detail that deleting `firing-map.md` loses no operational knowledge.
+- **Public methods:** JSDoc that a future maintainer can trust — purpose, caller context, and ordering guarantees where they matter.
+- **Private helpers (especially `mergeTrackSets`):** Explain **why** each rule exists and what breaks if it is violated, not just the mechanics of the loop. Call out edge cases (empty tracks, missing assets, idempotent caption path).
+
+**Wiring and call sites**
+
+- **`send-message.stream.ts`**, **`chat-tools.ts`**, **`editor.service.ts`:** Comments at the callback injection, tool success path, or `deriveTimeline` call that document the **full** trigger chain end-to-end (who sets `savedContentId`, what runs next, what the client observes after). A reader of any one file must not need the deleted docs to understand how sync is reached.
+
+**Bar to clear**
+
+After `docs/plans/sync-service/` is gone, someone can still learn SyncService entirely from the backend source (and tests). Do not reference these plan files from production code as the place to “read more” — paste the substance into comments instead.
 
 ---
 

@@ -2,6 +2,8 @@
 
 **Module location:** `backend/src/domain/editor/sync/sync.service.ts`
 
+**Ephemeral:** This folder is implementation planning only and **will be deleted** once SyncService ships. Anything useful here (firing map, constraints, journeys) must be **copied into code comments** (and tests) so the repo stays understandable without these files.
+
 ## What it does
 
 Keeps editor project timelines in sync with AI-generated content. After any text content tool call succeeds, SyncService re-derives the editor timeline from the latest content assets and writes it back to all linked editor projects — before the SSE event fires to the frontend.
@@ -43,4 +45,4 @@ Only fires when a content tool sets `context.savedContentId`. Three tools do thi
 | `user-journey.md` | Every user scenario and what happens end-to-end |
 | `firing-map.md` | Complete table of every trigger, what fires, what updates |
 | `high-level-design.md` | The problem, the two systems, key design decisions |
-| `low-level-design.md` | Implementation plan — exact files, methods, code shapes |
+| `low-level-design.md` | Implementation plan — exact files, methods, code shapes; **requires** self-contained in-code comments that replace this folder when it is deleted — see “In-code documentation” there |

@@ -1,75 +1,95 @@
 # Plan 01: Persist Active Draft on Session
 
-**Fixes:** Bug 2 (active draft resets on reload), Bug 4 (AI corrects its own conversation history)  
-**Risk:** Low — additive schema change + small frontend wiring  
+**Fixes:** active draft resets on reload; server and client can disagree about which draft is active  
+**Risk:** Low-medium - additive schema change plus hydration/persistence wiring  
 **Depends on:** Nothing  
-**Blocks:** Plan 05 (UX rethink depends on this being reliable first)
+**Blocks:** Plan 05
 
 ---
 
 ## Problem
 
-`activeContentId` is pure React state in `useChatLayout.ts:45`:
+`activeContentId` is currently local React state in `frontend/src/features/chat/hooks/useChatLayout.ts`. On session switches it is explicitly reset to `null`, and `ContentWorkspace.tsx` then falls back to the latest draft.
 
-```typescript
-const [activeContentId, setActiveContentId] = useState<number | null>(null);
-```
+That creates three correctness problems:
 
-On every session load or tab switch, it resets to `null`. `ContentWorkspace.tsx:77-81` then auto-activates the last draft (most recently created chain tip) as a fallback. This is wrong — the last draft is not necessarily the one the user was working on.
-
-The AI receives the active draft as context on every message send (`send-message.stream.ts:74-79`). If the wrong draft is active, the AI iterates the wrong content — contradicting the conversation history already in the thread.
+1. Reloading a session loses the user's working draft.
+2. Switching sessions briefly shows the wrong draft until the user re-selects one.
+3. Sessions created from an existing content item do not automatically carry that content forward as the active draft anchor.
 
 ---
 
-## Schema Change
+## Decisions
+
+### 1. `chat_session` becomes the source of truth
+
+Add `activeContentId` to `chat_session` with `ON DELETE SET NULL`.
 
 **File:** `backend/src/infrastructure/database/drizzle/schema.ts`
 
-Add `activeContentId` to `chatSessions`:
+### 2. Session APIs must return the persisted active id everywhere
+
+Any route that returns a session object should include `activeContentId`, especially:
+
+- `GET /api/chat/sessions`
+- `GET /api/chat/sessions/:id`
+- `POST /api/chat/sessions`
+- `POST /api/chat/sessions/resolve-for-content`
+
+### 3. Creating or resolving a session from content should seed the active draft
+
+When `findOrCreateSessionForContent()` creates a brand-new session for a specific `generated_content` row, that row should become `session.activeContentId` immediately. Otherwise the first load of the new session starts in an ambiguous state.
+
+### 4. Client hydration must be keyed to session identity, not every refetch
+
+Do not run `setActiveContentId(sessionData.session.activeContentId)` on every query refresh. That would overwrite a local user change if the PATCH is still in flight.
+
+Hydrate only when the active `sessionId` changes, using a ref such as:
 
 ```typescript
-export const chatSessions = pgTable(
-  "chat_session",
-  {
-    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id").notNull(),
-    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    activeContentId: integer("active_content_id").references(   // ← ADD
-      () => generatedContent.id,
-      { onDelete: "set null" }
-    ),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdateFn(() => new Date()),
-  },
-  (t) => [
-    index("chat_sessions_user_id_idx").on(t.userId),
-    index("chat_sessions_project_id_idx").on(t.projectId),
-  ],
-);
+const hydratedSessionIdRef = useRef<string | null>(null);
+
+useEffect(() => {
+  const session = sessionData?.session;
+  if (!session) return;
+  if (hydratedSessionIdRef.current === session.id) return;
+  hydratedSessionIdRef.current = session.id;
+  setActiveContentId(session.activeContentId ?? null);
+}, [sessionData?.session]);
 ```
 
-`ON DELETE SET NULL` means if the referenced content is deleted, the session just loses its active anchor — safe fallback.
+### 5. Persist explicit user changes, but keep the UI responsive
 
-Run: `bun run db:generate && bun run db:migrate`
+When the user activates a draft, update local state immediately and persist in the background. If persistence fails, keep the local selection for the current session and show a toast; do not silently revert.
 
 ---
 
 ## Backend Changes
 
-### 1. `IChatRepository` — add `activeContentId` to session return types
+### Schema
+
+Add:
+
+```typescript
+activeContentId: integer("active_content_id").references(
+  () => generatedContent.id,
+  { onDelete: "set null" },
+),
+```
+
+Run:
+
+```bash
+bun run db:generate
+bun run db:migrate
+```
+
+### Repository
 
 **File:** `backend/src/domain/chat/chat.repository.ts`
 
-Every method that returns a session object needs `activeContentId: number | null` in its return type. Affected methods:
-
-- `findSessionById` — return shape
-- `findSessionByContentId` — return shape
-- `createSession` — return shape
-- `updateSession` — input data type + return shape
-- `listSessions` — return shape
-
-Add a new method:
+- Include `activeContentId` in all session return shapes.
+- Add:
 
 ```typescript
 setActiveContentId(
@@ -79,211 +99,62 @@ setActiveContentId(
 ): Promise<void>
 ```
 
-Implementation:
-
-```typescript
-async setActiveContentId(
-  sessionId: string,
-  userId: string,
-  activeContentId: number | null,
-): Promise<void> {
-  await this.db
-    .update(chatSessions)
-    .set({ activeContentId })
-    .where(
-      and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId))
-    );
-}
-```
-
-Update all existing `select` calls that return session rows to include:
-
-```typescript
-activeContentId: chatSessions.activeContentId,
-```
-
-### 2. `ChatService` — expose `setActiveContentId`
+### Service
 
 **File:** `backend/src/domain/chat/chat.service.ts`
 
-Add:
+- Add `setActiveContentId(userId, sessionId, activeContentId)`.
+- In `findOrCreateSessionForContent()`, when creating a new session from a content id, persist that content id as the session's `activeContentId`.
 
-```typescript
-async setActiveContentId(
-  userId: string,
-  sessionId: string,
-  activeContentId: number | null,
-): Promise<void> {
-  const session = await this.chatRepo.findSessionById(sessionId, userId);
-  if (!session) throw Errors.notFound("Session");
-  await this.chatRepo.setActiveContentId(sessionId, userId, activeContentId);
-}
-```
-
-### 3. Sessions router — new PATCH endpoint
+### Router
 
 **File:** `backend/src/routes/chat/sessions.router.ts`
 
-Add a route for patching session metadata. Validate with zod:
+Add a metadata update path. Either of these is acceptable, but pick one and use it consistently:
 
-```typescript
-const patchSessionSchema = z.object({
-  activeContentId: z.number().nullable().optional(),
-});
+- extend the existing `PUT /sessions/:id` body to allow `activeContentId`
+- add a dedicated `PATCH /sessions/:id` endpoint for partial metadata updates
 
-sessionsRouter.patch(
-  "/:id",
-  rateLimiter(),
-  csrfMiddleware(),
-  authMiddleware("user"),
-  validateBody(patchSessionSchema),
-  async (c) => {
-    const auth = c.get("auth");
-    const sessionId = c.req.param("id");
-    const body = c.req.valid("json");
-
-    if (body.activeContentId !== undefined) {
-      await chatService.setActiveContentId(
-        auth.user.id,
-        sessionId,
-        body.activeContentId,
-      );
-    }
-
-    return c.json({ ok: true });
-  },
-);
-```
-
-### 4. `findSessionById` must return `activeContentId`
-
-The frontend loads the session via `GET /api/chat/sessions/:id`. That route calls `chatService.findSessionById`. Ensure it returns `activeContentId` in the response body so the frontend can initialize state from it.
+The important contract is that title updates and active-draft updates do not require separate frontend fetch models.
 
 ---
 
 ## Frontend Changes
 
-### 1. Session type — add `activeContentId`
+### `useChatLayout.ts`
 
-**File:** `frontend/src/features/chat/types/chat.types.ts`
-
-Find the session object shape (wherever `ChatSession` or session response is typed) and add:
+Replace the raw setter usage with an owned handler:
 
 ```typescript
-activeContentId: number | null;
-```
-
-### 2. Chat service — add `patchSession`
-
-**File:** `frontend/src/features/chat/services/chat.service.ts`
-
-```typescript
-patchSession(
-  sessionId: string,
-  data: { activeContentId?: number | null },
-): Promise<{ ok: boolean }> {
-  return authenticatedFetchJson(`/api/chat/sessions/${sessionId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  });
-}
-```
-
-### 3. `useChatLayout.ts` — initialize from session, persist on change
-
-**File:** `frontend/src/features/chat/hooks/useChatLayout.ts`
-
-**Current (line 45):**
-```typescript
-const [activeContentId, setActiveContentId] = useState<number | null>(null);
-```
-
-**Replace with:** initialize from the loaded session data once it arrives:
-
-```typescript
-const [activeContentId, setActiveContentId] = useState<number | null>(null);
-
-// Initialize from persisted session value on load
-useEffect(() => {
-  const persisted = sessionData?.session?.activeContentId ?? null;
-  if (persisted !== null) {
-    setActiveContentId(persisted);
-  }
-}, [sessionData?.session?.id]); // only run when session identity changes, not on every re-render
-```
-
-Add a `handleSetActiveDraft` callback that both updates local state and persists to the backend:
-
-```typescript
-const handleSetActiveDraft = useCallback((contentId: number) => {
+const handleSetActiveContentId = useCallback((contentId: number | null) => {
   setActiveContentId(contentId);
-  if (sessionId) {
-    void chatService.patchSession(sessionId, { activeContentId: contentId });
-  }
-}, [sessionId]);
+  if (!sessionId) return;
+  void chatService.updateSessionMetadata(sessionId, { activeContentId: contentId })
+    .catch(() => toast.error(t("studio_chat_active_draft_save_failed")));
+}, [sessionId, t]);
 ```
 
-Pass `handleSetActiveDraft` down instead of `setActiveContentId` wherever the active draft is changed by user interaction (DraftsList "Set Active" button, clicking a draft).
+Also update the session-switch reset effect:
 
-The reset effect (lines 96-102) — which fires when `sessionId` changes — should remain, but should NOT reset to `null`. Instead it should let the `sessionData` initialization effect above restore the correct value for the new session:
+- keep `workspaceOpen` and `requestAudioForContentId` resets
+- do **not** permanently reset `activeContentId` to `null` after the new session has loaded
+- instead clear transient local state, then let the per-session hydration effect restore the persisted value
 
-```typescript
-useEffect(() => {
-  if (prevSessionIdForResetRef.current === sessionId) return;
-  prevSessionIdForResetRef.current = sessionId;
-  // Don't reset activeContentId here — let the session load effect restore it
-  setWorkspaceOpen(false);
-  setRequestAudioForContentId(null);
-}, [sessionId]);
-```
+### `ContentWorkspace.tsx`
 
-### 4. `ContentWorkspace.tsx` — change auto-activate fallback
+Keep the fallback auto-activation, but only for sessions whose persisted `activeContentId` is `null`. That means the component needs access to the hydrated session value, not just the derived local state.
 
-**File:** `frontend/src/features/chat/components/ContentWorkspace.tsx`
+### Types / services
 
-**Current (lines 77-81):**
-```typescript
-useEffect(() => {
-  if (!isLoading && !activeContentId && drafts.length > 0) {
-    onActiveContentChange(drafts[drafts.length - 1].id);
-  }
-}, [isLoading, drafts.length, activeContentId, onActiveContentChange]);
-```
-
-This should only fire for brand-new sessions that have never had an active draft set — i.e., when `session.activeContentId` is null AND the session has just been loaded:
-
-```typescript
-useEffect(() => {
-  if (!isLoading && !activeContentId && drafts.length > 0) {
-    // Fallback: session has no persisted active draft (first ever use), pick latest
-    onActiveContentChange(drafts[drafts.length - 1].id);
-  }
-}, [isLoading, drafts.length, activeContentId, onActiveContentChange]);
-```
-
-The logic is unchanged, but it will now only fire in the genuine "no active draft ever set" case because `activeContentId` is initialized from `session.activeContentId` before the drafts load.
+- add `activeContentId: number | null` to `ChatSession`
+- add a chat service method for updating session metadata
 
 ---
 
-## Auto-advance After New Content is Generated
+## Rollout Notes
 
-When a content tool saves a new draft, `streamingContentId` fires in `ContentWorkspace.tsx:63-67`:
-
-```typescript
-useEffect(() => {
-  if (streamingContentId) {
-    onActiveContentChange(streamingContentId);
-  }
-}, [streamingContentId, onActiveContentChange]);
-```
-
-`onActiveContentChange` is wired to `handleSetActiveDraft` from step 3 above. So every time the AI generates new content, the new draft is automatically persisted as the session's active draft. No extra wiring needed.
-
----
-
-## What Changes at the AI Context Layer
-
-No changes needed to `chat.service.ts:buildChatContext()` or `send-message.stream.ts`. The `activeContentId` passed to the stream is already sourced from `useChatLayout.activeContentId`, which is now correctly initialized from and synced to the DB. The AI will receive the right draft on every message.
+- This is additive and safe to ship before Plans 02-05.
+- After this lands, all downstream plans should treat `session.activeContentId` as the canonical persisted anchor.
 
 ---
 
@@ -291,11 +162,11 @@ No changes needed to `chat.service.ts:buildChatContext()` or `send-message.strea
 
 | File | Change |
 |---|---|
-| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `activeContentId` column to `chatSessions` |
-| `backend/src/domain/chat/chat.repository.ts` | Add `setActiveContentId()`, update all session return shapes |
-| `backend/src/domain/chat/chat.service.ts` | Add `setActiveContentId()` |
-| `backend/src/routes/chat/sessions.router.ts` | Add `PATCH /:id` route |
-| `frontend/src/features/chat/types/chat.types.ts` | Add `activeContentId` to session type |
-| `frontend/src/features/chat/services/chat.service.ts` | Add `patchSession()` |
-| `frontend/src/features/chat/hooks/useChatLayout.ts` | Initialize from session, add `handleSetActiveDraft`, fix reset effect |
-| `frontend/src/features/chat/components/ContentWorkspace.tsx` | Fallback auto-activate only for brand-new sessions |
+| `backend/src/infrastructure/database/drizzle/schema.ts` | Add `chat_session.active_content_id` |
+| `backend/src/domain/chat/chat.repository.ts` | Return and update `activeContentId` |
+| `backend/src/domain/chat/chat.service.ts` | Add setter; seed active draft when session is created from content |
+| `backend/src/routes/chat/sessions.router.ts` | Accept active-draft metadata updates |
+| `frontend/src/features/chat/types/chat.types.ts` | Add `activeContentId` to `ChatSession` |
+| `frontend/src/features/chat/services/chat.service.ts` | Add session metadata update call |
+| `frontend/src/features/chat/hooks/useChatLayout.ts` | Hydrate per session and persist changes safely |
+| `frontend/src/features/chat/components/ContentWorkspace.tsx` | Restrict fallback auto-activation to genuinely unset sessions |

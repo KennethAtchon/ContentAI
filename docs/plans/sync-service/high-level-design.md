@@ -1,5 +1,7 @@
 # SyncService — High Level Design
 
+This document is **planning-only** and will be removed with the rest of `docs/plans/sync-service/`. The shipped code must embed the same ideas in comments (firing paths, constraints, non-goals) so nothing here is required to maintain the system.
+
 ## The Problem
 
 ReelStudio has two systems that share data but have no live connection:
