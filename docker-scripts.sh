@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Docker Development Scripts for WebsiteTemplate2
+# Docker Development Scripts for ReelStudio
 
 set -e
 
@@ -121,7 +121,7 @@ case "${1:-help}" in
     
     "stop")
         log_info "Stopping Docker services..."
-        docker compose down
+        docker compose down --remove-orphans
         log_info "Services stopped."
         ;;
     
@@ -159,76 +159,40 @@ case "${1:-help}" in
     
     "build")
         log_info "Building Docker images..."
-        docker compose build
+        docker_with_mock build
         log_info "Build completed."
         ;;
     
     "clean")
-        log_warn "This will remove ALL Docker resources including containers, images, volumes, networks, and build cache. Continue? (y/N)"
+        log_warn "This will remove the ReelStudio Docker containers, images, networks, and named volumes. Continue? (y/N)"
         read -r response
         if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-            log_info "Cleaning up ALL Docker resources..."
-            
-            # Stop and remove all containers
-            log_info "Stopping and removing all containers..."
-            docker stop $(docker ps -aq) 2>/dev/null || true
-            docker rm $(docker ps -aq) 2>/dev/null || true
-            
-            # Remove all images
-            log_info "Removing all Docker images..."
-            docker rmi $(docker images -q) 2>/dev/null || true
-            docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
-            
-            # Remove all volumes
-            log_info "Removing all Docker volumes..."
-            docker volume rm $(docker volume ls -q) 2>/dev/null || true
-            
-            # Remove all networks
-            log_info "Removing all Docker networks..."
-            docker network rm $(docker network ls -q) 2>/dev/null || true
-            
-            # Clean up system
-            log_info "Cleaning up Docker system..."
-            docker system prune -af --volumes
-            
-            # Remove compose-specific resources
-            log_info "Removing compose-specific resources..."
-            docker compose down -v --remove-orphans 2>/dev/null || true
-            
-            log_info "Complete cleanup finished. All Docker resources removed."
+            log_info "Cleaning up ReelStudio resources..."
+            docker compose down --volumes --remove-orphans --rmi local
+            log_info "Project cleanup finished."
         else
             log_info "Cleanup cancelled."
         fi
         ;;
     
     "production")
-        log_info "Starting production services with nginx..."
-        check_docker
-        MOCK_EXTERNALS=0
-        for arg in "${@:2}"; do
-            case "$arg" in
-                --mock-externals) MOCK_EXTERNALS=1 ;;
-                *)
-                    log_error "Unknown production option: $arg (use --mock-externals if you need fixture mocks)"
-                    exit 1
-                    ;;
-            esac
-        done
-        if check_env; then
-            if [ "$MOCK_EXTERNALS" = 1 ]; then
-                log_warn "Production stack with --mock-externals: backend will use fixture mocks. Not for real deployments."
-                log_info "Backend DEV_MOCK_EXTERNAL_INTEGRATIONS=true (docker-compose.dev-mock.yml)."
-            fi
-            NODE_ENV=production docker_with_mock --profile production up -d
-            log_info "Production services started. Access via http://localhost"
-        else
-            log_error "Please configure .env file first."
-        fi
+        log_error "The local Compose stack is development-only now. Build deployment images from backend/Dockerfile and frontend/Dockerfile directly for production-style runs."
+        exit 1
         ;;
     
     "status")
         log_info "Service status:"
         docker compose ps
+        ;;
+
+    "prepare"|"prep")
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        exec "$SCRIPT_DIR/scripts/prepare-docker-dev.sh" "${@:2}"
+        ;;
+
+    "check-env")
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        exec "$SCRIPT_DIR/scripts/check-env.sh" "${@:2}"
         ;;
 
     "copy-env")
@@ -253,7 +217,7 @@ case "${1:-help}" in
         ;;
     
     "help"|*)
-        echo "Docker Development Scripts for WebsiteTemplate2"
+        echo "Docker Development Scripts for ReelStudio"
         echo ""
         echo "Usage: $0 [command]"
         echo ""
@@ -272,18 +236,22 @@ case "${1:-help}" in
         echo "  shell-frontend - Open shell in frontend container"
         echo "  build          - Build Docker images"
         echo "  clean          - Remove all containers, networks, and volumes"
-        echo "  production     - Start production services with nginx"
-        echo "  production --mock-externals - Same, but force backend fixture mocks (dev/testing only)"
+        echo "  production     - Deprecated (local compose is dev-only; use service Dockerfiles directly)"
         echo "  status         - Show service status"
+        echo "  prepare        - After clone or lockfile change: copy-env, validate, build backend/frontend images"
+        echo "  prepare --infra - Only root .env + pull postgres/redis (host app with bun dev)"
         echo "  copy-env       - Copy .env.example → .env (root, backend, frontend)"
         echo "  copy-env --force - Same, overwriting existing .env files"
+        echo "  check-env      - Validate required keys / formats (after editing .env)"
+        echo "  check-env --connect - Same + try Postgres + Redis (must be reachable)"
         echo "  help           - Show this help message"
         echo ""
         echo "Examples:"
+        echo "  $0 prepare                  # First-time / fresh pull: env + image build"
         echo "  $0 start                    # Start development environment"
         echo "  $0 start --mock-externals   # Docker dev with mocked video/TTS/scrape APIs"
         echo "  $0 infra                    # DB + Redis only (run app with bun dev)"
         echo "  $0 migrate                  # Run database migrations"
-        echo "  $0 production               # Start production environment"
+        echo "  $0 build                    # Build the local development images"
         ;;
 esac

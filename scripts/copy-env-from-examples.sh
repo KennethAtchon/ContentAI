@@ -41,3 +41,6 @@ copy_one() {
 copy_one .env.example .env
 copy_one backend/.env.example backend/.env
 copy_one frontend/.env.example frontend/.env
+
+echo ""
+echo "Fill in real values, then run: ./scripts/check-env.sh"

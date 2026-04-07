@@ -1,8 +1,13 @@
+name: contentai
+
+x-bun-service: &bun-service
+  init: true
+  networks:
+    - contentai-network
+
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: contentAI-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-contentAI}
@@ -12,118 +17,115 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - contentAI-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-contentAI}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-contentAI}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - contentai-network
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: contentAI-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - contentAI-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - contentai-network
 
-  # Backend API
   backend:
+    <<: *bun-service
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: ${NODE_ENV:-development}
-    container_name: contentAI-backend
-    restart: unless-stopped
+      target: development
     env_file:
-      - .env
+      - ./.env
       - ./backend/.env
     environment:
-      # Override localhost URLs from backend/.env with Docker service names (defaults must match postgres service)
+      NODE_ENV: development
+      PORT: 3001
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-contentAI}?sslmode=disable
       REDIS_URL: redis://redis:6379
-      # Default on for local Docker (fixtures for scrape / video / TTS). Override via root `.env`: DEV_MOCK_EXTERNAL_INTEGRATIONS=false
       DEV_MOCK_EXTERNAL_INTEGRATIONS: ${DEV_MOCK_EXTERNAL_INTEGRATIONS:-true}
+      BUN_INSTALL_CACHE_DIR: /root/.bun/install/cache
     ports:
       - "3001:3001"
     volumes:
       - ./backend:/app
-      - /app/node_modules
-      - /app/dist
+      - backend_node_modules:/app/node_modules
+      - backend_bun_cache:/root/.bun/install/cache
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - contentAI-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/live"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/api/live"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Frontend Application
   frontend:
+    <<: *bun-service
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: ${NODE_ENV:-development}
-    container_name: contentAI-frontend
-    restart: unless-stopped
+      target: development
     env_file:
-      - .env
+      - ./.env
       - ./frontend/.env
     environment:
-      # Browser on the host must use published ports (not Docker service hostnames)
+      NODE_ENV: development
       VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_DEV_HOST: 0.0.0.0
+      VITE_DEV_PROXY_TARGET: http://backend:3001
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-true}
+      VITE_POLLING_INTERVAL: ${VITE_POLLING_INTERVAL:-300}
+      BUN_INSTALL_CACHE_DIR: /root/.bun/install/cache
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/dist
+      - frontend_node_modules:/app/node_modules
+      - frontend_bun_cache:/root/.bun/install/cache
     depends_on:
-      - backend
-    networks:
-      - contentAI-network
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # E2E Testing Service
   e2e-tests:
     build:
       context: ./e2e
       dockerfile: Dockerfile.e2e
       target: e2e
-    container_name: contentAI-e2e
     environment:
-      - NODE_ENV=test
-      - E2E_BASE_URL=http://frontend:3000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/contentAI?sslmode=disable
-      - VITE_API_URL=http://backend:3001
-      - VITE_APP_URL=http://frontend:3000
+      NODE_ENV: test
+      E2E_BASE_URL: http://frontend:3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/contentAI?sslmode=disable
+      VITE_API_URL: http://backend:3001
+      VITE_APP_URL: http://frontend:3000
     env_file:
       - ./backend/.env
     volumes:
       - ./frontend/test-results:/app/test-results
       - ./frontend/playwright-report:/app/playwright-report
       - ./backend:/app/backend:ro
-    networks:
-      - contentAI-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,34 +135,19 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
+    networks:
+      - contentai-network
     profiles:
       - e2e
 
-  # Nginx Reverse Proxy (Production)
-  nginx:
-    image: nginx:alpine
-    container_name: contentAI-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - contentAI-network
-    profiles:
-      - production
-
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
+  backend_node_modules:
+  frontend_node_modules:
+  backend_bun_cache:
+  frontend_bun_cache:
 
 networks:
-  contentAI-network:
+  contentai-network:
     driver: bridge

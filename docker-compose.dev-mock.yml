@@ -1,4 +1,4 @@
-# Optional override: use with `docker compose -f docker-compose.yml -f docker-compose.dev-mock.yml up`
+# Optional dev override: use with `docker compose -f docker-compose.yml -f docker-compose.dev-mock.yml up`
 # or `./docker-scripts.sh start --mock-externals`
 #
 # Main `docker-compose.yml` already defaults `DEV_MOCK_EXTERNAL_INTEGRATIONS` to true for local Docker.

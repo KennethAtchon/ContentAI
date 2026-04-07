@@ -60,8 +60,20 @@ echo "Database is ready."
 echo "Running database migrations..."
 bun run scripts/migrate.ts
 
-echo "Seeding voice previews..."
-bun run scripts/seed-voice-previews.ts
+if [ "${SEED_VOICE_PREVIEWS_ON_BOOT:-false}" = "true" ]; then
+  if [ -n "${ELEVENLABS_API_KEY:-}" ] \
+    && [ -n "${R2_ACCOUNT_ID:-}" ] \
+    && [ -n "${R2_ACCESS_KEY_ID:-}" ] \
+    && [ -n "${R2_SECRET_ACCESS_KEY:-}" ] \
+    && [ -n "${R2_BUCKET_NAME:-}" ]; then
+    echo "Seeding voice previews..."
+    bun run scripts/seed-voice-previews.ts
+  else
+    echo "Skipping voice preview seed: required provider env vars are missing."
+  fi
+else
+  echo "Skipping voice preview seed (set SEED_VOICE_PREVIEWS_ON_BOOT=true to enable)."
+fi
 
 if [ "$NODE_ENV" = "development" ]; then
   echo "Starting development server..."

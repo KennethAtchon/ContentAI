@@ -1,80 +1,60 @@
 # Backend Dockerfile
-# Match frontend base (oven/bun:1-alpine) so layers dedupe across services; apk is much faster than
-# Debian/trixie apt for ffmpeg + avoids pulling a separate static-ffmpeg image (~minutes on cold builds).
-FROM oven/bun:1-alpine AS base
+# Shared Bun base keeps frontend/backend layers aligned while staying lightweight on Alpine.
+FROM oven/bun:1.2.14-alpine AS base
+
+WORKDIR /app
 
 # fontconfig + DejaVu: drawtext in editor export; curl/psql for ops / debugging.
-RUN apk update \
-    && apk add \
-        curl \
-        ffmpeg \
-        font-dejavu \
-        fontconfig \
-        postgresql16-client \
-        tzdata
+RUN apk add --no-cache \
+    curl \
+    ffmpeg \
+    font-dejavu \
+    fontconfig \
+    postgresql16-client \
+    tzdata
 
 # Install dependencies only when needed
 FROM base AS deps
-WORKDIR /app
-
-# Copy package files
-COPY package.json bun.lock ./
-RUN bun install
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 # Development stage
 FROM base AS development
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+ENV NODE_ENV=development
+
+COPY package.json bun.lock bunfig.toml ./
+COPY scripts ./scripts
 
 # Expose port
 EXPOSE 3001
 
-# Seed and start server
-CMD ["sh", "scripts/start.sh"]
+# Keep dependencies inside a Linux volume instead of reusing host-built modules.
+CMD ["sh", "scripts/docker-entrypoint-dev.sh"]
 
 # Build stage
 FROM base AS builder
-WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Set build environment variables
-ARG DATABASE_URL
-ARG FIREBASE_PROJECT_ID
-ARG FIREBASE_CLIENT_EMAIL
-ARG FIREBASE_PRIVATE_KEY
-
-ENV DATABASE_URL=$DATABASE_URL
-ENV FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID
-ENV FIREBASE_CLIENT_EMAIL=$FIREBASE_CLIENT_EMAIL
-ENV FIREBASE_PRIVATE_KEY=$FIREBASE_PRIVATE_KEY
 
 # Build the application
 RUN bun run build
 
 # Production stage
 FROM base AS production
-WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy package files
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/bun.lock ./bun.lock
+COPY package.json bun.lock bunfig.toml ./
 
 # Install production dependencies
-RUN bun install --production
+RUN bun install --frozen-lockfile --production
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
 
-# Copy Drizzle migrations
-COPY --from=builder /app/src/infrastructure/database/drizzle/migrations ./src/infrastructure/database/drizzle/migrations
-
 # Expose port
 EXPOSE 3001
-
 
 # Seed and start production server
 CMD ["sh", "scripts/start.sh"]

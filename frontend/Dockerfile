@@ -1,29 +1,30 @@
 # Frontend Dockerfile
-FROM oven/bun:1-alpine AS base
+FROM oven/bun:1.2.14-alpine AS base
+
+WORKDIR /app
 
 # Install dependencies only when needed
 FROM base AS deps
-WORKDIR /app
 
 # Copy package files
-COPY package.json bun.lock ./
-RUN bun install
+COPY package.json bun.lock bunfig.toml ./
+RUN bun install --frozen-lockfile
 
 # Development stage
 FROM base AS development
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+ENV NODE_ENV=development
+
+COPY package.json bun.lock bunfig.toml ./
+COPY scripts ./scripts
 
 # Expose port
 EXPOSE 3000
 
-# Start development server
-CMD ["bun", "run", "dev", "--host", "0.0.0.0"]
+# Keep dependencies inside a Linux volume instead of reusing host-built modules.
+CMD ["sh", "scripts/docker-entrypoint-dev.sh"]
 
 # Build stage
 FROM base AS builder
-WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -61,4 +62,6 @@ FROM nginx:alpine AS production
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-CMD ["/bin/sh", "-c", "PORT=${PORT:-4173} envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+EXPOSE 80
+
+CMD ["/bin/sh", "-c", "PORT=${PORT:-80} envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

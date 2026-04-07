@@ -3,6 +3,13 @@ import react from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import path from "path";
 
+const usePolling = ["1", "true", "yes"].includes(
+  (process.env.VITE_USE_POLLING ?? "false").toLowerCase()
+);
+const pollingInterval = Number(process.env.VITE_POLLING_INTERVAL ?? "300");
+const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET ?? "http://localhost:3001";
+const devHost = process.env.VITE_DEV_HOST ?? "localhost";
+
 export default defineConfig({
   logLevel: "error",
   plugins: [react(), TanStackRouterVite()],
@@ -14,13 +21,21 @@ export default defineConfig({
     },
   },
   server: {
+    host: devHost,
     port: 3000,
-    // Allow Docker service hostnames (e.g. "frontend") used by the e2e container
-    allowedHosts: ["frontend", "localhost"],
+    strictPort: true,
+    // Allow Docker service hostnames (e.g. "frontend") used by the e2e container.
+    allowedHosts: ["frontend", "localhost", "127.0.0.1"],
+    watch: usePolling
+      ? {
+          usePolling: true,
+          interval: pollingInterval,
+        }
+      : undefined,
     proxy: {
       "/api": {
-        // Backend API (see CLAUDE.md). Browser base URL is separate (`VITE_API_URL` in envUtil).
-        target: "http://localhost:3001",
+        // Browser base URL is separate (`VITE_API_URL` in envUtil).
+        target: devProxyTarget,
         changeOrigin: true,
       },
     },
