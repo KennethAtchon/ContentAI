@@ -1,1 +1,0 @@
-conduct research on backend, create a report on the codebase looks, can we make it better organized? can we add some gaurds to prevent AI from adding unsupported code? is the project a proper template, is everything easily updatable? 
