@@ -24,7 +24,7 @@ export function useChatDisplayMessages(options: {
     if (optimisticUserMessage && !serverIds.has(optimisticUserMessage.id)) {
       extra.push(optimisticUserMessage);
     }
-    if (streamingContent) {
+    if (streamingContent !== null) {
       extra.push({
         id: streamingMessageId,
         sessionId,

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { invalidateChatSessionQuery } from "@/shared/lib/query-invalidation";
+import { invalidateAfterChatMessageSent } from "@/shared/lib/query-invalidation";
 import { debugLog } from "@/shared/utils/debug/debug";
 import type { ChatMessage } from "../types/chat.types";
 import { chatService } from "../services/chat.service";
@@ -156,7 +156,7 @@ export function useChatStream(sessionId: string) {
         );
 
         debugLog.info("[ChatStream] Triggering background session refresh");
-        void invalidateChatSessionQuery(queryClient, sessionId);
+        void invalidateAfterChatMessageSent(queryClient, sessionId);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           debugLog.info("[ChatStream] Stream aborted by user");

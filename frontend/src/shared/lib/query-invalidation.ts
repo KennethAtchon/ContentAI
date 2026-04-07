@@ -200,12 +200,22 @@ export async function invalidateChatSessionQuery(
   });
 }
 
+export async function invalidateSessionDraftsQuery(
+  queryClient: QueryClient,
+  sessionId: string
+): Promise<void> {
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.api.sessionDrafts(sessionId),
+  });
+}
+
 export async function invalidateAfterChatMessageSent(
   queryClient: QueryClient,
   sessionId: string
 ): Promise<void> {
   await Promise.all([
     invalidateChatSessionQuery(queryClient, sessionId),
+    invalidateSessionDraftsQuery(queryClient, sessionId),
     invalidateChatSessionsQueries(queryClient),
   ]);
 }

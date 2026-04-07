@@ -125,6 +125,13 @@ export function useChatLayout(projects: Project[]) {
   }, [sessionId, sessionData?.session]);
 
   useEffect(() => {
+    const persistedActiveContentId = sessionData?.session?.activeContentId ?? null;
+    if (persistedActiveContentId == null) return;
+
+    setActiveContentId((current) => current ?? persistedActiveContentId);
+  }, [sessionData?.session?.activeContentId]);
+
+  useEffect(() => {
     if (latestStreamingContentId == null) return;
     setActiveContentId(latestStreamingContentId);
   }, [latestStreamingContentId]);

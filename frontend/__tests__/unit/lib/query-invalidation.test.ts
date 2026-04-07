@@ -1,6 +1,9 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
-import { ensureSessionDraftVisible } from "@/shared/lib/query-invalidation";
+import {
+  ensureSessionDraftVisible,
+  invalidateAfterChatMessageSent,
+} from "@/shared/lib/query-invalidation";
 import { queryKeys } from "@/shared/lib/query-keys";
 
 describe("query-invalidation", () => {
@@ -73,6 +76,39 @@ describe("query-invalidation", () => {
           queryKeys.api.sessionDrafts("session-2")
         )
       ).toEqual({ drafts: [{ id: 1 }] });
+    });
+  });
+
+  describe("invalidateAfterChatMessageSent", () => {
+    it("refreshes session detail, session drafts, and session lists together", async () => {
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      });
+      const invalidateSpy = spyOn(client, "invalidateQueries");
+
+      await invalidateAfterChatMessageSent(client, "session-3");
+
+      const invalidatedKeys = invalidateSpy.mock.calls.map(([filters]) =>
+        JSON.stringify(
+          (filters as { queryKey?: unknown }).queryKey
+        )
+      );
+
+      expect(invalidatedKeys).toContain(
+        JSON.stringify(queryKeys.api.chatSession("session-3"))
+      );
+      expect(invalidatedKeys).toContain(
+        JSON.stringify(queryKeys.api.sessionDrafts("session-3"))
+      );
+      expect(invalidatedKeys).toContain(
+        JSON.stringify(queryKeys.api.chatSessionsRoot())
+      );
+
+      invalidateSpy.mockRestore();
     });
   });
 });
