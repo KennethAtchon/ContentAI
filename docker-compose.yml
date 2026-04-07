@@ -15,7 +15,7 @@ services:
     networks:
       - contentAI-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-website_template}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-contentAI}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,8 +50,10 @@ services:
       - ./backend/.env
     environment:
       # Override localhost URLs from backend/.env with Docker service names (defaults must match postgres service)
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-website_template}?sslmode=disable
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-contentAI}?sslmode=disable
       REDIS_URL: redis://redis:6379
+      # Default on for local Docker (fixtures for scrape / video / TTS). Override via root `.env`: DEV_MOCK_EXTERNAL_INTEGRATIONS=false
+      DEV_MOCK_EXTERNAL_INTEGRATIONS: ${DEV_MOCK_EXTERNAL_INTEGRATIONS:-true}
     ports:
       - "3001:3001"
     volumes:
@@ -82,6 +84,9 @@ services:
     env_file:
       - .env
       - ./frontend/.env
+    environment:
+      # Browser on the host must use published ports (not Docker service hostnames)
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     ports:
       - "3000:3000"
     volumes:

@@ -1,7 +1,8 @@
 # Optional override: use with `docker compose -f docker-compose.yml -f docker-compose.dev-mock.yml up`
 # or `./docker-scripts.sh start --mock-externals`
 #
-# Forces DEV_MOCK_EXTERNAL_INTEGRATIONS=true on the backend container (fixture video/TTS + mock scrape).
+# Main `docker-compose.yml` already defaults `DEV_MOCK_EXTERNAL_INTEGRATIONS` to true for local Docker.
+# Use this file only when you want to force `true` even if root `.env` sets it to false (e.g. CI scripts).
 # See docs/plans/dev-mock-external-integrations.md
 
 services:

@@ -19,7 +19,8 @@ export default defineConfig({
     allowedHosts: ["frontend", "localhost"],
     proxy: {
       "/api": {
-        target: process.env.VITE_API_URL || "http://localhost:3002",
+        // Backend API (see CLAUDE.md). Browser base URL is separate (`VITE_API_URL` in envUtil).
+        target: "http://localhost:3001",
         changeOrigin: true,
       },
     },

@@ -230,6 +230,27 @@ case "${1:-help}" in
         log_info "Service status:"
         docker compose ps
         ;;
+
+    "copy-env")
+        FORCE_FLAG=()
+        for arg in "${@:2}"; do
+            case "$arg" in
+                --force|-f) FORCE_FLAG=(--force) ;;
+                -h|--help)
+                    echo "Usage: $0 copy-env [--force]"
+                    echo "  Copies all .env.example files to .env (root, backend, frontend)."
+                    echo "  Use --force to overwrite existing .env files."
+                    exit 0
+                    ;;
+                *)
+                    log_error "Unknown copy-env option: $arg (use --force)"
+                    exit 1
+                    ;;
+            esac
+        done
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        exec "$SCRIPT_DIR/scripts/copy-env-from-examples.sh" "${FORCE_FLAG[@]}"
+        ;;
     
     "help"|*)
         echo "Docker Development Scripts for WebsiteTemplate2"
@@ -254,6 +275,8 @@ case "${1:-help}" in
         echo "  production     - Start production services with nginx"
         echo "  production --mock-externals - Same, but force backend fixture mocks (dev/testing only)"
         echo "  status         - Show service status"
+        echo "  copy-env       - Copy .env.example → .env (root, backend, frontend)"
+        echo "  copy-env --force - Same, overwriting existing .env files"
         echo "  help           - Show this help message"
         echo ""
         echo "Examples:"
