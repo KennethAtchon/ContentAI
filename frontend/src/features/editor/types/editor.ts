@@ -151,6 +151,7 @@ export interface ExportJobStatus {
 export type EditorHistorySnapshot = {
   tracks: Track[];
   resolution: string;
+  fps: number;
   title: string;
   playbackRate: number;
 };
@@ -180,6 +181,7 @@ export type EditorAction =
   | { type: "LOAD_PROJECT"; project: EditProject }
   | { type: "SET_TITLE"; title: string }
   | { type: "SET_RESOLUTION"; resolution: string }
+  | { type: "SET_FPS"; fps: 24 | 25 | 30 | 60 }
   | { type: "SET_CURRENT_TIME"; ms: number }
   | { type: "SET_PLAYING"; playing: boolean }
   | { type: "SET_PLAYBACK_RATE"; rate: number }

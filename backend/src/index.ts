@@ -40,6 +40,7 @@ import videoRoutes from "./routes/video/index";
 import mediaRoutes from "./routes/media/index";
 import { startDailyScan } from "./jobs/daily-scan";
 import { seedSystemConfig } from "./services/config/config-seed";
+import { seedCaptionPresets } from "./services/config/caption-preset-seed";
 
 const app = new Hono();
 
@@ -136,7 +137,8 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   port,
 });
 
-// Seed system config defaults, then start cron jobs based on DB flag
+// Seed static data and system config defaults, then start cron jobs based on DB flag
+seedCaptionPresets();
 seedSystemConfig()
   .then(async () => {
     const { systemConfigService } = await import("./domain/singletons");

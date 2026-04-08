@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { memo, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
@@ -54,7 +54,7 @@ interface Props {
   onSnapChange?: (snapMs: number | null) => void;
 }
 
-export function TimelineClip({
+function TimelineClipInner({
   clip,
   trackType,
   track,
@@ -375,3 +375,23 @@ export function TimelineClip({
     </ClipContextMenu>
   );
 }
+
+export const TimelineClip = memo(
+  TimelineClipInner,
+  (prev, next) =>
+    prev.clip === next.clip &&
+    prev.track === next.track &&
+    prev.zoom === next.zoom &&
+    prev.isSelected === next.isSelected &&
+    prev.isLocked === next.isLocked &&
+    prev.hasClipboard === next.hasClipboard &&
+    prev.tracks === next.tracks &&
+    isClipActiveAtTimelineTime(
+      isMediaClip(prev.clip) ? prev.clip : { ...prev.clip, enabled: true },
+      prev.playheadMs
+    ) ===
+      isClipActiveAtTimelineTime(
+        isMediaClip(next.clip) ? next.clip : { ...next.clip, enabled: true },
+        next.playheadMs
+      ),
+);

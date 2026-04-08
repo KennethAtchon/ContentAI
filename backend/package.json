@@ -20,6 +20,7 @@
     "db:introspect": "drizzle-kit introspect",
     "seed:voice-previews": "bun run scripts/seed-voice-previews.ts",
     "check-env": "bun scripts/check-local-env.ts",
+    "db:seed": "bun run scripts/db-seed.ts",
     "db:reset": "bash scripts/db-reset.sh",
     "test": "bun test",
     "test:unit": "bun test __tests__/unit",

@@ -16,6 +16,7 @@ export interface CaptionPresetRecord extends TextPreset {
 export interface ICaptionPresetRepository {
   getCaptionPreset(id: string): Promise<CaptionPresetRecord | null>;
   listCaptionPresets(): Promise<CaptionPresetRecord[]>;
+  seedPresetsIfEmpty(presets: readonly TextPreset[]): Promise<void>;
 }
 
 function mapRow(row: CaptionPreset): CaptionPresetRecord {
@@ -67,6 +68,21 @@ export class CaptionPresetRepository implements ICaptionPresetRepository {
     const mapped = mapRow(row);
     this.cache.set(mapped.id, mapped);
     return mapped;
+  }
+
+  async seedPresetsIfEmpty(presets: readonly TextPreset[]): Promise<void> {
+    const rows = await this.db.select().from(captionPresets);
+    if (rows.length > 0) return;
+
+    await this.db.insert(captionPresets).values(
+      presets.map((p) => ({
+        id: p.id,
+        definition: p as unknown as Record<string, unknown>,
+      }))
+    ).onConflictDoNothing();
+
+    // Invalidate list cache so next call re-fetches fresh rows
+    this.listCache = null;
   }
 
   async listCaptionPresets(): Promise<CaptionPresetRecord[]> {

@@ -43,6 +43,7 @@ interface EditorToolbarProps {
   fps: number;
   zoom: number;
   resolution: string;
+  onFpsChange: (fps: 24 | 25 | 30 | 60) => void;
   isDirty: boolean;
   isSavingPatch: boolean;
   lastSavedAt: unknown;
@@ -81,6 +82,7 @@ export function EditorToolbar({
   fps,
   zoom,
   resolution,
+  onFpsChange,
   isDirty,
   isSavingPatch,
   lastSavedAt,
@@ -234,6 +236,19 @@ export function EditorToolbar({
         }}
       />
 
+      <select
+        value={String(fps)}
+        onChange={(e) => onFpsChange(Number(e.target.value) as 24 | 25 | 30 | 60)}
+        className="ml-2 h-8 rounded border border-overlay-md bg-transparent px-2 text-xs text-dim-2 outline-none"
+        title="Timeline FPS"
+      >
+        {[24, 25, 30, 60].map((value) => (
+          <option key={value} value={value} className="bg-studio-surface text-dim-1">
+            {value} fps
+          </option>
+        ))}
+      </select>
+
       {!isReadOnly && (
         <>
           <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
@@ -317,4 +332,3 @@ export function EditorToolbar({
     </div>
   );
 }
-

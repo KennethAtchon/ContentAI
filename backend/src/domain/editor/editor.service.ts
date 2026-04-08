@@ -8,6 +8,7 @@ import type { createProjectSchema, patchProjectSchema } from "./editor.schemas";
 import type { IEditorRepository } from "./editor.repository";
 import type { ICaptionsRepository } from "./captions.repository";
 import type { SyncService } from "./sync/sync.service";
+import { sanitizeEditorTrackOverlaps } from "./timeline/track-overlaps";
 import { parseStoredEditorTracks } from "./validate-stored-tracks";
 
 export class EditorService {
@@ -198,12 +199,13 @@ export class EditorService {
       }
     }
     if (parsed.tracks !== undefined) {
+      const sanitizedTracks = sanitizeEditorTrackOverlaps(parsed.tracks);
       const previousCaptionDocIds = this.getCaptionDocIds(existing.tracks);
-      const nextCaptionDocIds = this.getCaptionDocIds(parsed.tracks);
+      const nextCaptionDocIds = this.getCaptionDocIds(sanitizedTracks);
       removedCaptionDocIds = [...previousCaptionDocIds].filter(
         (captionDocId) => !nextCaptionDocIds.has(captionDocId),
       );
-      updateData.tracks = parsed.tracks;
+      updateData.tracks = sanitizedTracks;
     }
     if (parsed.durationMs !== undefined)
       updateData.durationMs = parsed.durationMs;

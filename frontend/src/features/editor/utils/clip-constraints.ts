@@ -28,27 +28,48 @@ export function clampMoveToFreeSpace(
   proposedStartMs: number,
   durationMs: number
 ): number {
-  const others = track.clips.filter((c) => c.id !== movingClipId);
+  const others = track.clips
+    .filter((c) => c.id !== movingClipId)
+    .sort((a, b) => a.startMs - b.startMs);
   let start = Math.max(0, proposedStartMs);
 
-  for (let i = 0; i < others.length; i++) {
-    let collisionFound = false;
-    for (const other of others) {
+  for (let attempt = 0; attempt < others.length + 1; attempt++) {
+    const collision = others.find((other) => {
       const otherEnd = other.startMs + other.durationMs;
-      if (start < otherEnd && start + durationMs > other.startMs) {
-        const snapBefore = Math.max(0, other.startMs - durationMs);
-        const snapAfter = otherEnd;
-        const distBefore = Math.abs(proposedStartMs - snapBefore);
-        const distAfter = Math.abs(proposedStartMs - snapAfter);
-        start = distBefore <= distAfter ? snapBefore : snapAfter;
-        collisionFound = true;
-        break;
-      }
+      return start < otherEnd && start + durationMs > other.startMs;
+    });
+    if (!collision) return start;
+
+    const snapBefore = Math.max(0, collision.startMs - durationMs);
+    const snapAfter = collision.startMs + collision.durationMs;
+    const distBefore = Math.abs(proposedStartMs - snapBefore);
+    const distAfter = Math.abs(proposedStartMs - snapAfter);
+    const beforeFree = !others.some((other) => {
+      const otherEnd = other.startMs + other.durationMs;
+      return snapBefore < otherEnd && snapBefore + durationMs > other.startMs;
+    });
+
+    if (beforeFree && distBefore <= distAfter) {
+      start = snapBefore;
+    } else {
+      start = snapAfter;
     }
-    if (!collisionFound) break;
   }
 
   return start;
+}
+
+export function enforceNoOverlap(
+  track: Track,
+  clipId: string,
+  proposedStartMs: number,
+  durationMs: number
+): number {
+  const startMs = Math.max(0, proposedStartMs);
+  if (!hasCollision(track, startMs, durationMs, clipId)) {
+    return startMs;
+  }
+  return clampMoveToFreeSpace(track, clipId, startMs, durationMs);
 }
 
 /**

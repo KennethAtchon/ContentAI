@@ -187,4 +187,72 @@ describe("mergePlaceholdersWithRealClips", () => {
     expect(out[0]!.trimEndMs).toBe(0);
     expect(out[0]!.sourceMaxDurationMs).toBe(20_000);
   });
+
+  test("reconcile pushes preserved starts rightward when they would overlap", () => {
+    const out = reconcileVideoClipsWithoutPlaceholders(
+      [
+        {
+          id: "clip-1",
+          assetId: "a1",
+          startMs: 0,
+          durationMs: 3000,
+          trimStartMs: 0,
+          trimEndMs: 0,
+        },
+        {
+          id: "clip-2",
+          assetId: "a2",
+          startMs: 1000,
+          durationMs: 2000,
+          trimStartMs: 0,
+          trimEndMs: 0,
+        },
+      ],
+      [
+        { id: "a1", role: "video_clip", durationMs: 3000, metadata: { shotIndex: 0 } },
+        { id: "a2", role: "video_clip", durationMs: 2000, metadata: { shotIndex: 1 } },
+      ],
+    );
+
+    expect(out[0]!.startMs).toBe(0);
+    expect(out[1]!.startMs).toBe(3000);
+  });
+
+  test("voiceover merge resolves overlap with user audio clips at zero", () => {
+    const tracks = structuredClone(baseTracks);
+    tracks[1]!.clips = [
+      {
+        id: "user-audio",
+        type: "audio",
+        assetId: "user-audio-asset",
+        label: "User clip",
+        startMs: 0,
+        durationMs: 1000,
+        trimStartMs: 0,
+        trimEndMs: 0,
+        speed: 1,
+        enabled: true,
+        opacity: 1,
+        warmth: 0,
+        contrast: 0,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+        rotation: 0,
+        volume: 1,
+        muted: false,
+      },
+    ];
+
+    const out = mergePlaceholdersWithRealClips(
+      tracks,
+      [],
+      { id: "voiceover-asset", role: "voiceover", durationMs: 3000, metadata: {} },
+      undefined,
+    );
+    const audio = out.find((track) => track.type === "audio")!;
+    expect(audio.clips).toHaveLength(2);
+    expect(audio.clips[0]!.id).toBe("user-audio");
+    expect(audio.clips[1]!.startMs).toBe(1000);
+  });
 });

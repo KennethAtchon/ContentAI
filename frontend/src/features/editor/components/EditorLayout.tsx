@@ -52,6 +52,7 @@ export function EditorLayout({ project, onBack }: Props) {
             onZoomOut={transport.zoomOut}
             onZoomFit={transport.zoomFit}
             onResolutionChange={store.setResolution}
+            onFpsChange={store.setFps}
             onCaptureThumbnail={() => void runtime.captureThumbnail()}
             onOpenExport={() => runtime.setShowExport(true)}
             onOpenPublishDialog={() => runtime.setPublishDialogOpen(true)}
@@ -120,4 +121,3 @@ export function EditorLayout({ project, onBack }: Props) {
     </EditorProvider>
   );
 }
-

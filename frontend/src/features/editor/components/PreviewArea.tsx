@@ -19,6 +19,7 @@ import {
   getOutgoingTransitionStyle,
   isClipActiveAtTimelineTime,
   isIncomingDissolveOrWipePrerenderWindow,
+  PREVIEW_MEDIA_MOUNT_WINDOW_MS,
   videoClipNeedsHeavyPreload,
   VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
   VIDEO_SYNC_SEEK_THRESHOLD_SEC,
@@ -86,10 +87,10 @@ export function PreviewArea({
     return () => obs.disconnect();
   }, [resW, resH]);
 
-  const videoTracks = tracks.filter((t) => t.type === "video");
-  const audioTrack = tracks.find((t) => t.type === "audio");
-  const musicTrack = tracks.find((t) => t.type === "music");
-  const textTrack = tracks.find((t) => t.type === "text");
+  const videoTracks = useMemo(() => tracks.filter((t) => t.type === "video"), [tracks]);
+  const audioTrack = useMemo(() => tracks.find((t) => t.type === "audio"), [tracks]);
+  const musicTrack = useMemo(() => tracks.find((t) => t.type === "music"), [tracks]);
+  const textTrack = useMemo(() => tracks.find((t) => t.type === "text"), [tracks]);
 
   const activeVideoClipIdsByTrack = useMemo(
     () => buildActiveVideoClipIdsByTrackMap(videoTracks, currentTimeMs),
@@ -142,18 +143,22 @@ export function PreviewArea({
     [audioTrack, musicTrack]
   );
 
+  const isClipWithinMountWindow = (startMs: number, durationMs: number) => {
+    const endMs = startMs + durationMs;
+    return (
+      currentTimeMs >= startMs - PREVIEW_MEDIA_MOUNT_WINDOW_MS &&
+      currentTimeMs <= endMs + PREVIEW_MEDIA_MOUNT_WINDOW_MS
+    );
+  };
+
   // Depends only on time + track data — not on derived Maps — so unrelated
   // re-renders (e.g. selection) do not re-run sync; still updates every frame while playing.
   useEffect(() => {
-    const activeByTrack = buildActiveVideoClipIdsByTrackMap(
-      videoTracks,
-      currentTimeMs
-    );
     for (const videoTrack of videoTracks) {
       const trackTransitions = videoTrack.transitions ?? [];
       const trackClips = videoTrack.clips.filter(isVideoClip);
       const activeIds =
-        activeByTrack.get(videoTrack.id) ?? new Set<string>();
+        activeVideoClipIdsByTrack.get(videoTrack.id) ?? new Set<string>();
 
       for (const clip of trackClips) {
         const el = videoRefs.current.get(clip.id);
@@ -202,7 +207,7 @@ export function PreviewArea({
         }
       }
     }
-  }, [currentTimeMs, isPlaying, playbackRate, videoTracks]);
+  }, [activeVideoClipIdsByTrack, currentTimeMs, isPlaying, playbackRate, videoTracks]);
 
   useEffect(() => {
     const runForTrack = (track: Track | undefined) => {
@@ -358,6 +363,11 @@ export function PreviewArea({
                   }
 
                   const resolvedSrc = assetUrlMap.get(clip.assetId ?? "");
+                  const shouldMount = isClipWithinMountWindow(
+                    clip.startMs,
+                    clip.durationMs
+                  );
+                  if (!shouldMount) return null;
 
                   return (
                     <div key={clip.id} className="absolute inset-0">
@@ -387,21 +397,23 @@ export function PreviewArea({
             );
           })}
 
-          {audioClips.map(({ clip }) => (
-            <audio
-              key={clip.id}
-              ref={(el) => {
-                if (el) audioRefs.current.set(clip.id, el);
-                else audioRefs.current.delete(clip.id);
-              }}
-              src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
-              preload={
-                audioClipNeedsHeavyPreload(clip, currentTimeMs)
-                  ? "auto"
-                  : "metadata"
-              }
-            />
-          ))}
+          {audioClips
+            .filter(({ clip }) => isClipWithinMountWindow(clip.startMs, clip.durationMs))
+            .map(({ clip }) => (
+              <audio
+                key={clip.id}
+                ref={(el) => {
+                  if (el) audioRefs.current.set(clip.id, el);
+                  else audioRefs.current.delete(clip.id);
+                }}
+                src={assetUrlMap.get(clip.assetId ?? "") ?? ""}
+                preload={
+                  audioClipNeedsHeavyPreload(clip, currentTimeMs)
+                    ? "auto"
+                    : "metadata"
+                }
+              />
+            ))}
 
           {activeTextClips.map((clip) => {
             if (!clip.textContent) return null;

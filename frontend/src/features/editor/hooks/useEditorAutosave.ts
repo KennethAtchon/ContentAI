@@ -17,6 +17,7 @@ export interface EditorPublishSnapshot {
   durationMs: number;
   title: string;
   resolution: string;
+  fps: number;
 }
 
 export function useEditorAutosave(options: {
@@ -26,8 +27,9 @@ export function useEditorAutosave(options: {
   durationMs: number;
   title: string;
   resolution: string;
+  fps: number;
 }) {
-  const { projectId, isReadOnly, tracks, durationMs, title, resolution } =
+  const { projectId, isReadOnly, tracks, durationMs, title, resolution, fps } =
     options;
   const queryClient = useQueryClient();
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -42,8 +44,9 @@ export function useEditorAutosave(options: {
     durationMs,
     title,
     resolution,
+    fps,
   });
-  editorPublishStateRef.current = { tracks, durationMs, title, resolution };
+  editorPublishStateRef.current = { tracks, durationMs, title, resolution, fps };
 
   const {
     mutate: queueSave,
@@ -84,6 +87,7 @@ export function useEditorAutosave(options: {
         durationMs: snap.durationMs,
         title: snap.title,
         resolution: snap.resolution,
+        fps: snap.fps,
       });
     };
   }, [queueSave]);
@@ -112,6 +116,16 @@ export function useEditorAutosave(options: {
     }
   }, [resolution, isReadOnly, scheduleSave]);
 
+  const fpsRef = useRef(fps);
+  useEffect(() => {
+    if (fpsRef.current === fps) return;
+    fpsRef.current = fps;
+    if (!isReadOnly) {
+      setIsDirty(true);
+      scheduleSave({ fps });
+    }
+  }, [fps, isReadOnly, scheduleSave]);
+
   useEffect(() => {
     const id = setInterval(() => {
       if (!isReadOnlyRef.current && !isSavingPatchRef.current) {
@@ -121,6 +135,7 @@ export function useEditorAutosave(options: {
           durationMs: snap.durationMs,
           title: snap.title,
           resolution: snap.resolution,
+          fps: snap.fps,
         });
       }
     }, EDITOR_AUTOSAVE_INTERVAL_MS);

@@ -65,5 +65,9 @@ else
   echo "ℹ️  Run 'bun run db:push' or 'bun run db:migrate' when ready."
 fi
 
+# 5. Seed caption presets
+echo ""
+echo "🌱  Seeding caption presets..."
+bun run db:seed
 echo ""
 echo "🎉  Migration reset complete."

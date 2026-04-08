@@ -8,6 +8,7 @@ import type {
 import {
   computeDuration,
   pushPastTracks,
+  sanitizeTracksNoOverlap,
 } from "./editor-reducer-helpers";
 
 export function reduceTrackOps(
@@ -201,8 +202,8 @@ export function reduceTrackOps(
       });
       return {
         ...state,
-        tracks: merged,
-        durationMs: computeDuration(merged),
+        tracks: sanitizeTracksNoOverlap(merged),
+        durationMs: computeDuration(sanitizeTracksNoOverlap(merged)),
       };
     }
 

@@ -7,7 +7,7 @@ import type {
   ClipPatch,
 } from "../types/editor";
 import { splitClip } from "../utils/split-clip";
-import { clampMoveToFreeSpace, hasCollision } from "../utils/clip-constraints";
+import { enforceNoOverlap, hasCollision } from "../utils/clip-constraints";
 import { estimateReadingDurationMs } from "../utils/text-segments";
 import { isCaptionClip, isMediaClip } from "../utils/clip-types";
 import {
@@ -16,6 +16,10 @@ import {
   removeClipFromTracks,
   updateClipInTracks,
 } from "./editor-reducer-helpers";
+
+function findTrackByClipId(tracks: Track[], clipId: string): Track | null {
+  return tracks.find((track) => track.clips.some((clip) => clip.id === clipId)) ?? null;
+}
 
 function isValidCaptionClipRange(action: {
   durationMs: number;
@@ -32,12 +36,25 @@ export function reduceClipOps(
   switch (action.type) {
     case "ADD_CLIP": {
       const newTracks = state.tracks.map((t) =>
-        t.id === action.trackId
-          ? {
+        t.id !== action.trackId
+          ? t
+          : {
               ...t,
-              clips: [...t.clips, { ...action.clip, locallyModified: true, source: "user" as const }],
+              clips: [
+                ...t.clips,
+                {
+                  ...action.clip,
+                  startMs: enforceNoOverlap(
+                    t,
+                    action.clip.id,
+                    action.clip.startMs,
+                    action.clip.durationMs
+                  ),
+                  locallyModified: true,
+                  source: "user" as const,
+                },
+              ],
             }
-          : t
       );
       return {
         ...state,
@@ -66,12 +83,23 @@ export function reduceClipOps(
         locallyModified: true,
       };
       const newTracks = state.tracks.map((t) =>
-        t.id === action.trackId
-          ? {
+        t.id !== action.trackId
+          ? t
+          : {
               ...t,
-              clips: [...t.clips, captionClip],
+              clips: [
+                ...t.clips,
+                {
+                  ...captionClip,
+                  startMs: enforceNoOverlap(
+                    t,
+                    captionClip.id,
+                    captionClip.startMs,
+                    captionClip.durationMs
+                  ),
+                },
+              ],
             }
-          : t
       );
       return {
         ...state,
@@ -87,9 +115,20 @@ export function reduceClipOps(
 
       if (!preferredTrack || preferredTrack.type !== "video") {
         const newTracks = state.tracks.map((t) =>
-          t.id === preferredTrackId
-            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true, source: "user" as const }] }
-            : t
+          t.id !== preferredTrackId
+            ? t
+            : {
+                ...t,
+                clips: [
+                  ...t.clips,
+                  {
+                    ...clip,
+                    startMs: enforceNoOverlap(t, clip.id, clip.startMs, clip.durationMs),
+                    locallyModified: true,
+                    source: "user" as const,
+                  },
+                ],
+              }
         );
         return {
           ...state,
@@ -112,9 +151,25 @@ export function reduceClipOps(
 
       if (targetTrack) {
         newTracks = state.tracks.map((t) =>
-          t.id === targetTrack.id
-            ? { ...t, clips: [...t.clips, { ...clip, locallyModified: true, source: "user" as const }] }
-            : t
+          t.id !== targetTrack.id
+            ? t
+            : {
+                ...t,
+                clips: [
+                  ...t.clips,
+                  {
+                    ...clip,
+                    startMs: enforceNoOverlap(
+                      t,
+                      clip.id,
+                      clip.startMs,
+                      clip.durationMs
+                    ),
+                    locallyModified: true,
+                    source: "user" as const,
+                  },
+                ],
+              }
         );
       } else {
         const newTrack: Track = {
@@ -152,6 +207,24 @@ export function reduceClipOps(
         patch = {
           ...patch,
           durationMs: maxMs,
+        };
+      }
+
+      const track = findTrackByClipId(state.tracks, action.clipId);
+      const currentClip = track?.clips.find((clip) => clip.id === action.clipId);
+      if (
+        track &&
+        currentClip &&
+        (Object.prototype.hasOwnProperty.call(action.patch, "startMs") ||
+          Object.prototype.hasOwnProperty.call(action.patch, "durationMs"))
+      ) {
+        const nextDuration =
+          typeof patch.durationMs === "number" ? patch.durationMs : currentClip.durationMs;
+        const nextStart =
+          typeof patch.startMs === "number" ? patch.startMs : currentClip.startMs;
+        patch = {
+          ...patch,
+          startMs: enforceNoOverlap(track, currentClip.id, nextStart, nextDuration),
         };
       }
 
@@ -274,20 +347,15 @@ export function reduceClipOps(
       const newClip: Clip = {
         ...state.clipboardClip,
         id: crypto.randomUUID(),
-        startMs: action.startMs,
+        startMs: enforceNoOverlap(
+          track,
+          state.clipboardClip.id,
+          action.startMs,
+          state.clipboardClip.durationMs
+        ),
         locallyModified: true,
         source: "user" as const,
       };
-
-      if (isMediaClip(newClip)) {
-        const clampedStart = clampMoveToFreeSpace(
-          track,
-          newClip.id,
-          newClip.startMs,
-          newClip.durationMs
-        );
-        newClip.startMs = clampedStart;
-      }
 
       const newTracks = state.tracks.map((t) =>
         t.id === action.trackId ? { ...t, clips: [...t.clips, newClip] } : t
@@ -340,7 +408,7 @@ export function reduceClipOps(
         const copy: Clip = {
           ...clip,
           id: crypto.randomUUID(),
-          startMs: trackEnd,
+          startMs: enforceNoOverlap(track, clip.id, trackEnd, clip.durationMs),
           locallyModified: true,
         };
         newTracks = state.tracks.map((t) =>
@@ -357,8 +425,11 @@ export function reduceClipOps(
     }
 
     case "MOVE_CLIP": {
+      const track = findTrackByClipId(state.tracks, action.clipId);
+      const clip = track?.clips.find((item) => item.id === action.clipId);
+      if (!track || !clip) return state;
       const newTracks = updateClipInTracks(state.tracks, action.clipId, {
-        startMs: action.startMs,
+        startMs: enforceNoOverlap(track, action.clipId, action.startMs, clip.durationMs),
         locallyModified: true,
       });
       return {

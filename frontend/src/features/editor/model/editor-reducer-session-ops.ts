@@ -3,6 +3,7 @@ import {
   alignTracksTrimInvariant,
   computeDuration,
   DEFAULT_TRACKS,
+  sanitizeTracksNoOverlap,
   snapshotEditorState,
 } from "./editor-reducer-helpers";
 
@@ -17,7 +18,7 @@ export function reduceSessionOps(
         project.tracks && project.tracks.length > 0
           ? project.tracks
           : DEFAULT_TRACKS;
-      const tracks = alignTracksTrimInvariant(rawTracks);
+      const tracks = sanitizeTracksNoOverlap(alignTracksTrimInvariant(rawTracks));
       const computedDuration = computeDuration(tracks);
       return {
         ...state,
@@ -53,6 +54,14 @@ export function reduceSessionOps(
         future: [],
       };
 
+    case "SET_FPS":
+      return {
+        ...state,
+        fps: action.fps,
+        past: [...state.past, snapshotEditorState(state)].slice(-50),
+        future: [],
+      };
+
     case "SET_CURRENT_TIME":
       return { ...state, currentTimeMs: Math.min(Math.max(0, action.ms), state.durationMs) };
 
@@ -82,6 +91,7 @@ export function reduceSessionOps(
         future: [snapshotEditorState(state), ...state.future].slice(0, 50),
         tracks: previous.tracks,
         resolution: previous.resolution,
+        fps: previous.fps,
         title: previous.title,
         playbackRate: previous.playbackRate,
         durationMs: computeDuration(previous.tracks),
@@ -97,6 +107,7 @@ export function reduceSessionOps(
         future: state.future.slice(1),
         tracks: next.tracks,
         resolution: next.resolution,
+        fps: next.fps,
         title: next.title,
         playbackRate: next.playbackRate,
         durationMs: computeDuration(next.tracks),

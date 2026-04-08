@@ -52,7 +52,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
         }
       />
       <InspectorPropRow label={t("editor_caption_text_case_label")}>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap justify-end gap-1">
           {(["none", "uppercase", "lowercase"] as const).map((value) => (
             <button
               key={value}
@@ -63,7 +63,7 @@ export function CaptionStylePanel({ clip, onUpdateStyle }: Props) {
                 })
               }
               className={[
-                "rounded border px-2 py-0.5 text-[10px] capitalize",
+                "rounded border px-1.5 py-0.5 text-[10px] capitalize",
                 (clip.styleOverrides.textTransform ?? "none") === value
                   ? "border-studio-accent bg-studio-accent/10 text-studio-accent"
                   : "border-overlay-sm bg-overlay-sm text-dim-2",

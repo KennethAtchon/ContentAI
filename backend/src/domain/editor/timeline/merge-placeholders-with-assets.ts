@@ -1,5 +1,6 @@
 import type { TimelineClipJson } from "./clip-trim";
 import { normalizeMediaClipTrimFields } from "./clip-trim";
+import { sanitizeTrackOverlaps } from "./track-overlaps";
 
 export type TimelineTrackJson = {
   id: string;
@@ -142,7 +143,15 @@ export function reconcileVideoClipsWithoutPlaceholders(
       cursor += Number(row.durationMs ?? sourceDur);
     }
   }
-  return result;
+  return sanitizeTrackOverlaps({
+    id: "video",
+    type: "video",
+    name: "Video",
+    muted: false,
+    locked: false,
+    clips: result,
+    transitions: [],
+  }).clips;
 }
 
 export function mergePlaceholdersWithRealClips(
@@ -258,7 +267,13 @@ export function mergePlaceholdersWithRealClips(
             volume: 1,
             muted: false,
           });
-      return { ...track, clips: [...nonVoiceoverClips, voiceoverClip] };
+      return {
+        ...track,
+        clips: sanitizeTrackOverlaps({
+          ...track,
+          clips: [...nonVoiceoverClips, voiceoverClip],
+        }).clips,
+      };
     }
 
     if (track.type === "music") {
@@ -296,7 +311,13 @@ export function mergePlaceholdersWithRealClips(
             volume: 0.3,
             muted: false,
           });
-      return { ...track, clips: [...nonMusicClips, musicClip] };
+      return {
+        ...track,
+        clips: sanitizeTrackOverlaps({
+          ...track,
+          clips: [...nonMusicClips, musicClip],
+        }).clips,
+      };
     }
 
     return track;

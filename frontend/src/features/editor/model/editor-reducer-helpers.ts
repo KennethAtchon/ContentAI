@@ -7,10 +7,17 @@ import type {
 } from "../types/editor";
 import { isMediaClip } from "../utils/clip-types";
 
+function compareClipsByTimeline(a: Clip, b: Clip): number {
+  if (a.startMs !== b.startMs) return a.startMs - b.startMs;
+  if (a.durationMs !== b.durationMs) return a.durationMs - b.durationMs;
+  return a.id.localeCompare(b.id);
+}
+
 export function snapshotEditorState(state: EditorState): EditorHistorySnapshot {
   return {
     tracks: state.tracks,
     resolution: state.resolution,
+    fps: state.fps,
     title: state.title,
     playbackRate: state.playbackRate,
   };
@@ -112,6 +119,40 @@ export function alignTracksTrimInvariant(tracks: Track[]): Track[] {
     ...t,
     clips: t.clips.map(alignClipTrimEndToInvariant),
   }));
+}
+
+export function sanitizeTracksNoOverlap(tracks: Track[]): Track[] {
+  return tracks.map((track) => {
+    if (track.clips.length < 2) {
+      return {
+        ...track,
+        clips: track.clips.map(alignClipTrimEndToInvariant),
+      };
+    }
+
+    const ordered = [...track.clips].sort(compareClipsByTimeline);
+    let changed = false;
+    let cursor = 0;
+
+    const clips = ordered.map((clip) => {
+      const aligned = alignClipTrimEndToInvariant(clip);
+      const safeStart = Math.max(cursor, Math.max(0, aligned.startMs));
+      cursor = safeStart + aligned.durationMs;
+      if (safeStart === aligned.startMs) {
+        return aligned;
+      }
+      changed = true;
+      return { ...aligned, startMs: safeStart };
+    });
+
+    const sameOrder =
+      !changed &&
+      clips.length === track.clips.length &&
+      clips.every((clip, index) => clip === track.clips[index]);
+
+    if (sameOrder) return track;
+    return { ...track, clips };
+  });
 }
 
 function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
@@ -237,6 +278,6 @@ export function pushPastTracks(state: EditorState, newTracks: Track[]): Pick<Edi
   return {
     past: [...state.past, snapshotEditorState(state)].slice(-50),
     future: [],
-    tracks: newTracks,
+    tracks: sanitizeTracksNoOverlap(newTracks),
   };
 }

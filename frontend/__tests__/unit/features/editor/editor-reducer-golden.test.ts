@@ -277,6 +277,145 @@ describe("editorReducer golden paths", () => {
     });
   });
 
+  test("LOAD_PROJECT self-heals overlapping clips", () => {
+    const tracks = DEFAULT_TRACKS.map((track) =>
+      track.id === "video"
+        ? {
+            ...track,
+            clips: [
+              {
+                id: "clip-1",
+                locallyModified: false,
+                assetId: "a1",
+                type: "video",
+                label: "First",
+                startMs: 0,
+                durationMs: 1000,
+                trimStartMs: 0,
+                trimEndMs: 0,
+                speed: 1,
+                enabled: true,
+                opacity: 1,
+                warmth: 0,
+                contrast: 0,
+                positionX: 0,
+                positionY: 0,
+                scale: 1,
+                rotation: 0,
+                volume: 1,
+                muted: false,
+              },
+              {
+                id: "clip-2",
+                locallyModified: false,
+                assetId: "a2",
+                type: "video",
+                label: "Second",
+                startMs: 500,
+                durationMs: 1000,
+                trimStartMs: 0,
+                trimEndMs: 0,
+                speed: 1,
+                enabled: true,
+                opacity: 1,
+                warmth: 0,
+                contrast: 0,
+                positionX: 0,
+                positionY: 0,
+                scale: 1,
+                rotation: 0,
+                volume: 1,
+                muted: false,
+              },
+            ],
+          }
+        : track,
+    );
+
+    const state = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({ tracks }),
+    });
+
+    const videoTrack = state.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips[0]?.startMs).toBe(0);
+    expect(videoTrack?.clips[1]?.startMs).toBe(1000);
+  });
+
+  test("UPDATE_CLIP moving onto another clip auto-resolves", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({
+        tracks: DEFAULT_TRACKS.map((track) =>
+          track.id === "video"
+            ? {
+                ...track,
+                clips: [
+                  {
+                    id: "clip-1",
+                    locallyModified: false,
+                    assetId: "a1",
+                    type: "video",
+                    label: "First",
+                    startMs: 0,
+                    durationMs: 1000,
+                    trimStartMs: 0,
+                    trimEndMs: 0,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    volume: 1,
+                    muted: false,
+                  },
+                  {
+                    id: "clip-2",
+                    locallyModified: false,
+                    assetId: "a2",
+                    type: "video",
+                    label: "Second",
+                    startMs: 2000,
+                    durationMs: 1000,
+                    trimStartMs: 0,
+                    trimEndMs: 0,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    volume: 1,
+                    muted: false,
+                  },
+                ],
+              }
+            : track,
+        ),
+      }),
+    });
+
+    const updated = editorReducer(loaded, {
+      type: "UPDATE_CLIP",
+      clipId: "clip-2",
+      patch: { startMs: 500 },
+    });
+
+    const videoTrack = updated.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips[0]?.id).toBe("clip-1");
+    expect(videoTrack?.clips[1]).toMatchObject({
+      id: "clip-2",
+      startMs: 1000,
+    });
+  });
+
   test("ADD_CAPTION_CLIP ignores invalid local caption ranges", () => {
     const loaded = editorReducer(INITIAL_EDITOR_STATE, {
       type: "LOAD_PROJECT",

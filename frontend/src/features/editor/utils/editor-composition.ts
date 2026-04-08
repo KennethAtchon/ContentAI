@@ -6,7 +6,8 @@ import type { CSSProperties } from "react";
 import type { MediaClip, Track, Transition, VideoClip } from "../types/editor";
 import { isVideoClip } from "./clip-types";
 
-export const PRELOAD_WINDOW_MS = 45_000;
+export const PRELOAD_WINDOW_MS = 12_000;
+export const PREVIEW_MEDIA_MOUNT_WINDOW_MS = 30_000;
 
 /** Browsers clamp `HTMLMediaElement.playbackRate`; combined JKL × clip speed is clamped to this range. */
 const HTML_MEDIA_PLAYBACK_RATE_MIN = -16;

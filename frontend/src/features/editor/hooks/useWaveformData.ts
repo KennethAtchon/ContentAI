@@ -11,17 +11,39 @@ type DecodedAudio = Awaited<
 const peakCache = new Map<string, Float32Array>();
 
 const pendingDecodes = new Map<string, Promise<Float32Array>>();
+const MAX_CONCURRENT_DECODES = 2;
+let activeDecodeCount = 0;
+const decodeQueue: Array<() => void> = [];
+let sharedAudioContext: AudioContext | null = null;
+
+function getSharedAudioContext(): AudioContext {
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    sharedAudioContext = new globalThis.AudioContext();
+  }
+  return sharedAudioContext;
+}
+
+async function withDecodeSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (activeDecodeCount >= MAX_CONCURRENT_DECODES) {
+    await new Promise<void>((resolve) => decodeQueue.push(resolve));
+  }
+
+  activeDecodeCount += 1;
+  try {
+    return await task();
+  } finally {
+    activeDecodeCount -= 1;
+    const next = decodeQueue.shift();
+    if (next) next();
+  }
+}
 
 async function decodePeaksFromArrayBuffer(
   arrayBuffer: ArrayBuffer
 ): Promise<Float32Array> {
-  const ctx = new globalThis.AudioContext();
-  let decoded: DecodedAudio;
-  try {
-    decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
-  } finally {
-    ctx.close().catch(() => {});
-  }
+  const decoded: DecodedAudio = await withDecodeSlot(() =>
+    getSharedAudioContext().decodeAudioData(arrayBuffer.slice(0))
+  );
 
   const channelData = decoded.getChannelData(0);
   const totalSamples = channelData.length;

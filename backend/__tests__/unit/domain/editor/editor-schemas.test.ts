@@ -57,4 +57,68 @@ describe("editor.schemas caption validation", () => {
       true,
     );
   });
+
+  test("rejects overlapping clips on the same track", () => {
+    const result = editorStoredTracksSchema.safeParse([
+      {
+        id: "video",
+        type: "video",
+        name: "Video",
+        muted: false,
+        locked: false,
+        transitions: [],
+        clips: [
+          {
+            id: "clip-1",
+            type: "video",
+            assetId: "asset-1",
+            label: "First",
+            startMs: 0,
+            durationMs: 1000,
+            trimStartMs: 0,
+            trimEndMs: 0,
+            speed: 1,
+            enabled: true,
+            opacity: 1,
+            warmth: 0,
+            contrast: 0,
+            positionX: 0,
+            positionY: 0,
+            scale: 1,
+            rotation: 0,
+            volume: 1,
+            muted: false,
+          },
+          {
+            id: "clip-2",
+            type: "video",
+            assetId: "asset-2",
+            label: "Second",
+            startMs: 500,
+            durationMs: 1000,
+            trimStartMs: 0,
+            trimEndMs: 0,
+            speed: 1,
+            enabled: true,
+            opacity: 1,
+            warmth: 0,
+            contrast: 0,
+            positionX: 0,
+            positionY: 0,
+            scale: 1,
+            rotation: 0,
+            volume: 1,
+            muted: false,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.success).toBeFalse();
+    expect(
+      result.error?.issues.some((issue) =>
+        issue.message.includes('Clip "clip-2" overlaps with "clip-1"'),
+      ),
+    ).toBe(true);
+  });
 });

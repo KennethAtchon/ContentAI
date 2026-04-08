@@ -68,6 +68,7 @@ import type { IContentRepository } from "../../content/content.repository";
 import type { IEditorRepository } from "../editor.repository";
 import type { CaptionsService } from "../captions.service";
 import type { TimelineTrackJson } from "../timeline/merge-placeholders-with-assets";
+import { sanitizeTrackOverlaps } from "../timeline/track-overlaps";
 import type { TimelineClipJson } from "../timeline/clip-trim";
 import { normalizeMediaClipTrimFields } from "../timeline/clip-trim";
 import { buildCaptionClip } from "../timeline/build-caption-clip";
@@ -414,7 +415,11 @@ export class SyncService {
       return {
         ...(existingTrack ?? freshTrack),
         id: existingTrack?.id ?? freshTrack.id,
-        clips: [...mergedContentClips, ...userClips],
+        clips: sanitizeTrackOverlaps({
+          ...(existingTrack ?? freshTrack),
+          id: existingTrack?.id ?? freshTrack.id,
+          clips: [...mergedContentClips, ...userClips],
+        }).clips,
       };
     });
   }

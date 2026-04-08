@@ -58,6 +58,7 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
     durationMs: store.state.durationMs,
     title: store.state.title,
     resolution: store.state.resolution,
+    fps: store.state.fps,
   });
 
   const {

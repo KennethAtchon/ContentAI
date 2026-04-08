@@ -27,19 +27,30 @@ export function useCaptionCanvas({
 }: UseCaptionCanvasParams): RefObject<HTMLCanvasElement | null> {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fontLoader = useMemo(() => new FontLoader(), []);
+  const lastRenderedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.width = canvasW;
-    canvas.height = canvasH;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!clip || !doc || !preset) return;
+    const hasCaptionFrame = !!clip && !!doc && !!preset;
+    if (!hasCaptionFrame) {
+      if (lastRenderedKeyRef.current !== null) {
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext("2d");
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        lastRenderedKeyRef.current = null;
+      }
+      return;
+    }
 
     const run = async () => {
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       if (preset.typography.fontUrl) {
         await fontLoader.load(preset.typography.fontFamily, preset.typography.fontUrl);
       }
@@ -51,6 +62,10 @@ export function useCaptionCanvas({
         pages.find((candidate) => relativeMs >= candidate.startMs && relativeMs < candidate.endMs) ??
         null;
       if (!page) return;
+
+      const renderKey = `${clip.id}:${page.startMs}:${page.endMs}:${canvas.width}:${canvas.height}:${Math.round(relativeMs)}`;
+      if (renderKey === lastRenderedKeyRef.current) return;
+      lastRenderedKeyRef.current = renderKey;
 
       const layout = computeLayout(ctx, page, preset, canvas.width, canvas.height);
       renderFrame(ctx, layout, relativeMs, preset);

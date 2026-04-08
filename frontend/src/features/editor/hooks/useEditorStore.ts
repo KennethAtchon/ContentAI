@@ -26,6 +26,10 @@ export function useEditorReducer() {
     (resolution: string) => dispatch({ type: "SET_RESOLUTION", resolution }),
     []
   );
+  const setFps = useCallback(
+    (fps: 24 | 25 | 30 | 60) => dispatch({ type: "SET_FPS", fps }),
+    []
+  );
   const setCurrentTime = useCallback(
     (ms: number) => dispatch({ type: "SET_CURRENT_TIME", ms }),
     []
@@ -196,6 +200,7 @@ export function useEditorReducer() {
     loadProject,
     setTitle,
     setResolution,
+    setFps,
     setCurrentTime,
     setPlaying,
     setPlaybackRate,

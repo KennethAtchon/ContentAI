@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -90,6 +90,7 @@ export function Timeline({
   const hasClipboard = !!state.clipboardClip;
   const { t } = useTranslation();
   const [activeSnapMs, setActiveSnapMs] = useState<number | null>(null);
+  const [visibleWindow, setVisibleWindow] = useState({ startMs: 0, endMs: 30_000 });
   const rulerScrollRef = useRef<HTMLDivElement>(null);
   const headersRef = useRef<HTMLDivElement>(null);
 
@@ -121,6 +122,23 @@ export function Timeline({
     TIMELINE_MIN_CONTENT_WIDTH_PX
   );
   const tracksContentHeight = tracks.length * TRACK_HEIGHT;
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const updateVisibleWindow = () => {
+      const startMs = Math.max(0, (node.scrollLeft / zoom) * 1000 - 2000);
+      const endMs = ((node.scrollLeft + node.clientWidth) / zoom) * 1000 + 2000;
+      setVisibleWindow((current) =>
+        current.startMs === startMs && current.endMs === endMs
+          ? current
+          : { startMs, endMs }
+      );
+    };
+    updateVisibleWindow();
+    node.addEventListener("scroll", updateVisibleWindow, { passive: true });
+    return () => node.removeEventListener("scroll", updateVisibleWindow);
+  }, [scrollRef, zoom]);
 
   useTimelinePlayheadScroll(scrollRef, currentTimeMs, zoom);
 
@@ -278,7 +296,12 @@ export function Timeline({
                       );
                     }}
                   >
-                    {track.clips.map((clip) => (
+                    {track.clips
+                      .filter((clip) => {
+                        const clipEnd = clip.startMs + clip.durationMs;
+                        return clip.startMs <= visibleWindow.endMs && clipEnd >= visibleWindow.startMs;
+                      })
+                      .map((clip) => (
                       <TimelineClip
                         key={clip.id}
                         clip={clip}
