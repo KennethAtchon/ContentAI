@@ -7,12 +7,6 @@ import type {
 } from "../types/editor";
 import { isMediaClip } from "../utils/clip-types";
 
-function compareClipsByTimeline(a: Clip, b: Clip): number {
-  if (a.startMs !== b.startMs) return a.startMs - b.startMs;
-  if (a.durationMs !== b.durationMs) return a.durationMs - b.durationMs;
-  return a.id.localeCompare(b.id);
-}
-
 export function snapshotEditorState(state: EditorState): EditorHistorySnapshot {
   return {
     tracks: state.tracks,
@@ -130,11 +124,18 @@ export function sanitizeTracksNoOverlap(tracks: Track[]): Track[] {
       };
     }
 
-    const ordered = [...track.clips].sort(compareClipsByTimeline);
+    const ordered = track.clips
+      .map((clip, index) => ({ clip, index }))
+      .sort((a, b) => {
+        if (a.clip.startMs !== b.clip.startMs) {
+          return a.clip.startMs - b.clip.startMs;
+        }
+        return a.index - b.index;
+      });
     let changed = false;
     let cursor = 0;
 
-    const clips = ordered.map((clip) => {
+    const clips = ordered.map(({ clip }) => {
       const aligned = alignClipTrimEndToInvariant(clip);
       const safeStart = Math.max(cursor, Math.max(0, aligned.startMs));
       cursor = safeStart + aligned.durationMs;

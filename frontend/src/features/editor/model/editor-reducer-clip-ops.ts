@@ -343,13 +343,14 @@ export function reduceClipOps(
       if (!state.clipboardClip) return state;
       const track = state.tracks.find((t) => t.id === action.trackId);
       if (!track) return state;
+      const newClipId = crypto.randomUUID();
 
       const newClip: Clip = {
         ...state.clipboardClip,
-        id: crypto.randomUUID(),
+        id: newClipId,
         startMs: enforceNoOverlap(
           track,
-          state.clipboardClip.id,
+          newClipId,
           action.startMs,
           state.clipboardClip.durationMs
         ),

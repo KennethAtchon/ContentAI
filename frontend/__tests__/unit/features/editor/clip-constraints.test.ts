@@ -55,6 +55,17 @@ describe("clip-constraints", () => {
     expect(clampMoveToFreeSpace(track, "moving", 1300, 1000)).toBe(2000);
   });
 
+  test("clampMoveToFreeSpace keeps scanning until it finds a truly free gap", () => {
+    const moving = makeClip("moving", 0, 1000);
+    const track = makeTrack([
+      moving,
+      makeClip("block-1", 1000, 1000),
+      makeClip("block-2", 2000, 1000),
+    ]);
+
+    expect(clampMoveToFreeSpace(track, "moving", 1500, 1000)).toBe(3000);
+  });
+
   test("clampTrimEnd cannot overlap next clip", () => {
     const clip = makeClip("a", 1000, 1000);
     const track = makeTrack([clip, makeClip("b", 2500, 1000)]);
@@ -68,4 +79,3 @@ describe("clip-constraints", () => {
     expect(clampTrimStart(track, clip, 1800)).toBe(1800);
   });
 });
-

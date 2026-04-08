@@ -255,4 +255,42 @@ describe("mergePlaceholdersWithRealClips", () => {
     expect(audio.clips[0]!.id).toBe("user-audio");
     expect(audio.clips[1]!.startMs).toBe(1000);
   });
+
+  test("music merge resolves overlap with user music clips at zero", () => {
+    const tracks = structuredClone(baseTracks);
+    tracks[2]!.clips = [
+      {
+        id: "user-music",
+        type: "music",
+        assetId: "user-music-asset",
+        label: "User music",
+        startMs: 0,
+        durationMs: 1500,
+        trimStartMs: 0,
+        trimEndMs: 0,
+        speed: 1,
+        enabled: true,
+        opacity: 1,
+        warmth: 0,
+        contrast: 0,
+        positionX: 0,
+        positionY: 0,
+        scale: 1,
+        rotation: 0,
+        volume: 1,
+        muted: false,
+      },
+    ];
+
+    const out = mergePlaceholdersWithRealClips(
+      tracks,
+      [],
+      undefined,
+      { id: "music-asset", role: "background_music", durationMs: 3000, metadata: {} },
+    );
+    const music = out.find((track) => track.type === "music")!;
+    expect(music.clips).toHaveLength(2);
+    expect(music.clips[0]!.id).toBe("user-music");
+    expect(music.clips[1]!.startMs).toBe(1500);
+  });
 });

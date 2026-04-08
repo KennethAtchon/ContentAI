@@ -342,6 +342,74 @@ describe("editorReducer golden paths", () => {
     expect(videoTrack?.clips[1]?.startMs).toBe(1000);
   });
 
+  test("LOAD_PROJECT preserves original order when clips share the same start", () => {
+    const tracks = DEFAULT_TRACKS.map((track) =>
+      track.id === "video"
+        ? {
+            ...track,
+            clips: [
+              {
+                id: "z-clip",
+                locallyModified: false,
+                assetId: "a1",
+                type: "video",
+                label: "First inserted",
+                startMs: 0,
+                durationMs: 1000,
+                trimStartMs: 0,
+                trimEndMs: 0,
+                speed: 1,
+                enabled: true,
+                opacity: 1,
+                warmth: 0,
+                contrast: 0,
+                positionX: 0,
+                positionY: 0,
+                scale: 1,
+                rotation: 0,
+                volume: 1,
+                muted: false,
+              },
+              {
+                id: "a-clip",
+                locallyModified: false,
+                assetId: "a2",
+                type: "video",
+                label: "Second inserted",
+                startMs: 0,
+                durationMs: 1000,
+                trimStartMs: 0,
+                trimEndMs: 0,
+                speed: 1,
+                enabled: true,
+                opacity: 1,
+                warmth: 0,
+                contrast: 0,
+                positionX: 0,
+                positionY: 0,
+                scale: 1,
+                rotation: 0,
+                volume: 1,
+                muted: false,
+              },
+            ],
+          }
+        : track,
+    );
+
+    const state = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({ tracks }),
+    });
+
+    const videoTrack = state.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips[0]?.id).toBe("z-clip");
+    expect(videoTrack?.clips[1]).toMatchObject({
+      id: "a-clip",
+      startMs: 1000,
+    });
+  });
+
   test("UPDATE_CLIP moving onto another clip auto-resolves", () => {
     const loaded = editorReducer(INITIAL_EDITOR_STATE, {
       type: "LOAD_PROJECT",
@@ -414,6 +482,246 @@ describe("editorReducer golden paths", () => {
       id: "clip-2",
       startMs: 1000,
     });
+  });
+
+  test("PASTE_CLIP on the same track does not overlap the source clip", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({
+        tracks: DEFAULT_TRACKS.map((track) =>
+          track.id === "text"
+            ? {
+                ...track,
+                clips: [
+                  {
+                    id: "text-1",
+                    locallyModified: false,
+                    type: "text",
+                    label: "Title",
+                    startMs: 0,
+                    durationMs: 1000,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    textContent: "hello",
+                    textAutoChunk: false,
+                  },
+                ],
+              }
+            : track,
+        ),
+      }),
+    });
+
+    const copied = editorReducer(loaded, { type: "COPY_CLIP", clipId: "text-1" });
+    const pasted = editorReducer(copied, {
+      type: "PASTE_CLIP",
+      trackId: "text",
+      startMs: 0,
+    });
+
+    const textTrack = pasted.tracks.find((track) => track.id === "text");
+    expect(textTrack?.clips).toHaveLength(2);
+    expect(textTrack?.clips[0]?.startMs).toBe(0);
+    expect(textTrack?.clips[1]?.startMs).toBe(1000);
+  });
+
+  test("MERGE_TRACKS_FROM_SERVER sanitizes conflicting local and server clips", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({
+        tracks: DEFAULT_TRACKS.map((track) =>
+          track.id === "video"
+            ? {
+                ...track,
+                clips: [
+                  {
+                    id: "local-user",
+                    locallyModified: true,
+                    assetId: "user-asset",
+                    type: "video",
+                    label: "User clip",
+                    startMs: 0,
+                    durationMs: 1000,
+                    trimStartMs: 0,
+                    trimEndMs: 0,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    volume: 1,
+                    muted: false,
+                    source: "user",
+                  },
+                ],
+              }
+            : track,
+        ),
+      }),
+    });
+
+    const merged = editorReducer(loaded, {
+      type: "MERGE_TRACKS_FROM_SERVER",
+      tracks: DEFAULT_TRACKS.map((track) =>
+        track.id === "video"
+          ? {
+              ...track,
+              clips: [
+                {
+                  id: "server-content",
+                  locallyModified: false,
+                  assetId: "content-asset",
+                  type: "video",
+                  label: "Server clip",
+                  startMs: 0,
+                  durationMs: 1000,
+                  trimStartMs: 0,
+                  trimEndMs: 0,
+                  speed: 1,
+                  enabled: true,
+                  opacity: 1,
+                  warmth: 0,
+                  contrast: 0,
+                  positionX: 0,
+                  positionY: 0,
+                  scale: 1,
+                  rotation: 0,
+                  volume: 1,
+                  muted: false,
+                },
+              ],
+            }
+          : track,
+      ),
+    });
+
+    const videoTrack = merged.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips).toHaveLength(2);
+    expect(videoTrack?.clips[0]?.id).toBe("server-content");
+    expect(videoTrack?.clips[1]).toMatchObject({
+      id: "local-user",
+      startMs: 1000,
+    });
+  });
+
+  test("rapid ADD_CLIP calls sequentialize overlapping imports", () => {
+    let state = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject(),
+    });
+
+    for (const id of ["clip-1", "clip-2", "clip-3"]) {
+      state = editorReducer(state, {
+        type: "ADD_CLIP",
+        trackId: "video",
+        clip: {
+          id,
+          locallyModified: false,
+          assetId: `${id}-asset`,
+          type: "video",
+          label: id,
+          startMs: 0,
+          durationMs: 1000,
+          trimStartMs: 0,
+          trimEndMs: 0,
+          speed: 1,
+          enabled: true,
+          opacity: 1,
+          warmth: 0,
+          contrast: 0,
+          positionX: 0,
+          positionY: 0,
+          scale: 1,
+          rotation: 0,
+          volume: 1,
+          muted: false,
+        },
+      });
+    }
+
+    const videoTrack = state.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([0, 1000, 2000]);
+  });
+
+  test("DUPLICATE_CLIP on a non-contiguous track stays non-overlapping", () => {
+    const loaded = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({
+        tracks: DEFAULT_TRACKS.map((track) =>
+          track.id === "video"
+            ? {
+                ...track,
+                clips: [
+                  {
+                    id: "clip-1",
+                    locallyModified: false,
+                    assetId: "a1",
+                    type: "video",
+                    label: "First",
+                    startMs: 0,
+                    durationMs: 1000,
+                    trimStartMs: 0,
+                    trimEndMs: 0,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    volume: 1,
+                    muted: false,
+                  },
+                  {
+                    id: "clip-2",
+                    locallyModified: false,
+                    assetId: "a2",
+                    type: "video",
+                    label: "Second",
+                    startMs: 3000,
+                    durationMs: 1000,
+                    trimStartMs: 0,
+                    trimEndMs: 0,
+                    speed: 1,
+                    enabled: true,
+                    opacity: 1,
+                    warmth: 0,
+                    contrast: 0,
+                    positionX: 0,
+                    positionY: 0,
+                    scale: 1,
+                    rotation: 0,
+                    volume: 1,
+                    muted: false,
+                  },
+                ],
+              }
+            : track,
+        ),
+      }),
+    });
+
+    const duplicated = editorReducer(loaded, {
+      type: "DUPLICATE_CLIP",
+      clipId: "clip-1",
+    });
+
+    const videoTrack = duplicated.tracks.find((track) => track.id === "video");
+    expect(videoTrack?.clips).toHaveLength(3);
+    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([0, 3000, 4000]);
   });
 
   test("ADD_CAPTION_CLIP ignores invalid local caption ranges", () => {

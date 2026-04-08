@@ -112,4 +112,57 @@ describe("SyncService.syncLinkedProjects", () => {
       stylePresetId: "hormozi",
     });
   });
+
+  test("mergeTrackSets pushes user clips rightward when they conflict with fresh content clips", () => {
+    const service = new SyncService({} as any, {} as any, {} as any);
+
+    const merged = (service as any).mergeTrackSets(
+      [
+        {
+          id: "fresh-video",
+          type: "video",
+          name: "Video",
+          muted: false,
+          locked: false,
+          transitions: [],
+          clips: [
+            {
+              id: "content-1",
+              type: "video",
+              assetId: "content-asset",
+              startMs: 0,
+              durationMs: 1000,
+            },
+          ],
+        },
+      ],
+      [
+        {
+          id: "existing-video",
+          type: "video",
+          name: "Video",
+          muted: false,
+          locked: false,
+          transitions: [],
+          clips: [
+            {
+              id: "user-1",
+              type: "video",
+              assetId: "user-asset",
+              startMs: 0,
+              durationMs: 1000,
+              source: "user",
+            },
+          ],
+        },
+      ],
+    ) as TimelineTrackJson[];
+
+    expect(merged[0]?.clips).toHaveLength(2);
+    expect(merged[0]?.clips[0]?.id).toBe("content-1");
+    expect(merged[0]?.clips[1]).toMatchObject({
+      id: "user-1",
+      startMs: 1000,
+    });
+  });
 });
