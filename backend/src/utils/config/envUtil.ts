@@ -267,14 +267,14 @@ export const DEV_MOCK_EXTERNAL_INTEGRATIONS =
 
 /**
  * Milliseconds to wait inside mocked `generateVideoClip` before uploading the fixture (simulates provider latency).
- * Only read when `DEV_MOCK_EXTERNAL_INTEGRATIONS` is active. Default `15000`. Set `0` for instant mocks (e.g. tests).
+ * Only read when `DEV_MOCK_EXTERNAL_INTEGRATIONS` is active. Default `3000`. Set `0` for instant mocks (e.g. tests).
  */
 export const DEV_MOCK_VIDEO_CLIP_DELAY_MS = (() => {
   if (!IS_DEVELOPMENT) return 0;
   const raw = process.env.DEV_MOCK_VIDEO_CLIP_DELAY_MS;
-  if (raw === undefined || raw === "") return 5_000;
+  if (raw === undefined || raw === "") return 3_000;
   const n = parseInt(raw, 10);
-  if (Number.isNaN(n)) return 5_000;
+  if (Number.isNaN(n)) return 3_000;
   return Math.max(0, n);
 })();
 

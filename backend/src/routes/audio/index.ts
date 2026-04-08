@@ -7,7 +7,7 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { audioService } from "../../domain/singletons";
+import { audioService, syncService } from "../../domain/singletons";
 import { AppError } from "../../utils/errors/app-error";
 import { debugLog } from "../../utils/debug/debug";
 import {
@@ -57,17 +57,14 @@ audioRouter.post(
         voiceId,
         speed,
       });
-
-      const { refreshEditorTimeline } = await import(
-        "../editor/services/refresh-editor-timeline"
-      );
-      await refreshEditorTimeline(generatedContentId, auth.user.id).catch(
-        (err) =>
-          debugLog.warn("refreshEditorTimeline (voiceover) failed", {
+      await syncService
+        .syncLinkedProjects(auth.user.id, generatedContentId)
+        .catch((err) =>
+          debugLog.warn("syncLinkedProjects (voiceover) failed", {
             err,
             contentId: generatedContentId,
           }),
-      );
+        );
 
       return c.json(json);
     } catch (error) {

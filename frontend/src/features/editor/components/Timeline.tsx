@@ -202,6 +202,13 @@ export function Timeline({
             style={{ width: totalWidthPx, height: tracksContentHeight, position: "relative" }}
           >
             {tracks.map((track, trackIndex) => {
+              const transitionableVideoClips =
+                track.type === "video"
+                  ? [...track.clips]
+                      .filter(isVideoClip)
+                      .sort((a, b) => a.startMs - b.startMs)
+                  : [];
+
               const handleAddClipAtPosition = () => {
                 if (track.locked) return;
 
@@ -321,13 +328,17 @@ export function Timeline({
                     ))}
 
                     {track.type === "video" &&
-                      track.clips.filter(isVideoClip).slice(0, -1).map((clipA, idx, mediaClips) => {
-                        const clipB = mediaClips[idx + 1];
+                      transitionableVideoClips.slice(0, -1).map((clipA, idx) => {
+                        const clipB = transitionableVideoClips[idx + 1];
+                        if (!clipB) return null;
+
                         const gapMs = clipB.startMs - (clipA.startMs + clipA.durationMs);
                         if (gapMs > 500) return null;
+
                         const transition = (track.transitions ?? []).find(
                           (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id
                         );
+
                         return (
                           <TransitionDiamond
                             key={`td-${clipA.id}-${clipB.id}`}
