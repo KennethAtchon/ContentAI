@@ -13,12 +13,6 @@ mock.module("firebase/auth", () => ({
   })),
 }));
 
-mock.module("@tanstack/react-query", () => ({
-  useQueryClient: mock(() => ({
-    invalidateQueries: mock(),
-  })),
-}));
-
 import {
   useSubscription,
   useHasTierAccess,

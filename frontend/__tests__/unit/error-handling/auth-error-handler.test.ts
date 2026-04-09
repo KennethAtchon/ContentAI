@@ -4,12 +4,20 @@
 
 import { describe, it, expect, mock } from "bun:test";
 
-// Mock the debugLog module before importing the function under test
+// Mock debug before importing the module under test. Must expose the full logger surface:
+// a partial mock replaces the real module for the whole process and breaks later tests.
 const mockWarn = mock(() => {});
+const noop = mock(() => {});
+const debugLogStub = {
+  info: noop,
+  warn: mockWarn,
+  error: noop,
+  debug: noop,
+  timezone: noop,
+};
 mock.module("@/shared/utils/debug/debug", () => ({
-  debugLog: {
-    warn: mockWarn,
-  },
+  debugLog: debugLogStub,
+  default: debugLogStub,
 }));
 
 import { getAuthErrorMessage } from "@/shared/utils/error-handling/auth-error-handler";

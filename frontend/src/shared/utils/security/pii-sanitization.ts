@@ -8,7 +8,6 @@
  */
 
 import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
-import { debugLog } from "../debug/debug";
 
 export interface SanitizationConfig {
   preserveLength?: boolean; // Keep original length with asterisks
@@ -346,7 +345,9 @@ export function safeLogError(message: string, error: any, context?: any): void {
     // Don't include the full error object to prevent PII leakage
   };
 
-  debugLog.error(sanitizedMessage, {
+  // Avoid debugLog here: debug.ts imports this module; circular init leaves debugLog incomplete in tests/CI.
+  // eslint-disable-next-line no-console -- intentional: same sanitized payload as former debugLog.error
+  console.error(sanitizedMessage, {
     service: "pii-sanitization",
     operation: "logSecureError",
     error: sanitizedError,

@@ -8,8 +8,6 @@
  * backend/src/utils/config/envUtil.ts and must never appear here.
  */
 
-import { debugLog } from "../debug/debug";
-
 function getEnvVar(name: string, defaultValue = ""): string {
   const value = (import.meta.env as Record<string, string>)[name];
   return value ?? defaultValue;
@@ -18,10 +16,9 @@ function getEnvVar(name: string, defaultValue = ""): string {
 function getEnvVarRequired(name: string): string {
   const value = (import.meta.env as Record<string, string>)[name];
   if (!value) {
-    debugLog.warn(`Missing required env var: ${name}`, {
-      service: "envUtil",
-      operation: "getEnvVarRequired",
-    });
+    // Avoid importing debugLog here: debug.ts imports envUtil; circular init breaks debugLog in tests.
+    // eslint-disable-next-line no-console -- intentional
+    console.warn(`[envUtil] Missing required env var: ${name}`);
   }
   return value ?? "";
 }
