@@ -127,6 +127,24 @@ sessionsRouter.get(
   },
 );
 
+sessionsRouter.get(
+  "/sessions/:id/delete-preview",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  zValidator("param", uuidParam, chatValidationErrorHook),
+  async (c) => {
+    const auth = c.get("auth");
+    const { id: sessionId } = c.req.valid("param");
+
+    const preview = await chatService.getSessionDeletePreview(
+      auth.user.id,
+      sessionId,
+    );
+
+    return c.json(preview);
+  },
+);
+
 sessionsRouter.delete(
   "/sessions/:id",
   rateLimiter("customer"),

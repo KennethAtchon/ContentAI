@@ -245,6 +245,7 @@ export function ChatInput({
             variant="ghost"
             onClick={() => setPickerOpen(true)}
             disabled={disabled}
+            title={disabled ? "Wait for the current response to finish." : t("studio_chat_attachReel")}
             aria-label={t("studio_chat_attachReel")}
             className="shrink-0 mb-0.5 text-muted-foreground hover:text-foreground"
           >
@@ -264,6 +265,13 @@ export function ChatInput({
             variant="ghost"
             onClick={() => videoInputRef.current?.click()}
             disabled={disabled || uploadMedia.isPending}
+            title={
+              disabled
+                ? "Wait for the current response to finish."
+                : uploadMedia.isPending
+                  ? "Uploading video..."
+                  : t("chat_attach_video")
+            }
             aria-label={t("chat_attach_video")}
             className="shrink-0 mb-0.5 text-muted-foreground hover:text-foreground"
           >
@@ -282,6 +290,7 @@ export function ChatInput({
             onBlur={() => setTimeout(() => setSlashMenuOpen(false), 150)}
             placeholder={t("studio_chat_typeMessage")}
             disabled={disabled}
+            title={disabled ? "Wait for the current response to finish." : undefined}
             className="flex-1 min-h-[44px] max-h-[200px] resize-none"
             rows={2}
           />
@@ -289,6 +298,13 @@ export function ChatInput({
             type="submit"
             size="icon"
             disabled={!message.trim() || disabled}
+            title={
+              disabled
+                ? "Wait for the current response to finish."
+                : !message.trim()
+                  ? "Type a message to send."
+                  : t("studio_chat_sendMessage")
+            }
             aria-label={t("studio_chat_sendMessage")}
             className="shrink-0 mb-0.5"
           >

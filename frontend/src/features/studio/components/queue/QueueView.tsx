@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { cn } from "@/shared/utils/helpers/utils";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { invalidateQueueQueries } from "@/shared/lib/query-invalidation";
@@ -21,11 +22,17 @@ import type { StatusFilter, Project, QueueDetail, VersionGroup } from "./queue.t
 import { QueueListItem } from "./QueueListItem";
 import { StackedQueueCard } from "./StackedQueueCard";
 import { DetailPanel } from "./DetailPanel";
+import { useResolvedParam } from "@/shared/hooks/use-resolved-param";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 
 export function QueueView() {
   const { t } = useTranslation();
+  const search = useSearch({ strict: false }) as { projectId?: string };
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>(
+    search.projectId ?? "all"
+  );
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
@@ -115,6 +122,27 @@ export function QueueView() {
 
   const items = data?.items ?? [];
   const projects = projectsData?.projects ?? [];
+  const selectedProjectExists =
+    projectFilter === "all" || projects.some((project) => project.id === projectFilter);
+
+  const clearMissingProjectFilter = useCallback(() => {
+    setProjectFilter("all");
+    void navigate({
+      to: "/studio/queue",
+      search: { projectId: undefined },
+      replace: true,
+    });
+  }, [navigate]);
+
+  useResolvedParam({
+    paramValue: projectFilter === "all" ? null : projectFilter,
+    isMissing:
+      projectFilter !== "all" &&
+      projects.length > 0 &&
+      !selectedProjectExists,
+    notFoundMessage: "Project not found",
+    onMissing: clearMissingProjectFilter,
+  });
   const filters: StatusFilter[] = [
     "all",
     "draft",
@@ -228,10 +256,14 @@ export function QueueView() {
               <div className="flex flex-col items-center gap-2 py-16 text-center px-4">
                 <span className="text-4xl opacity-25">📅</span>
                 <p className="text-sm font-medium text-dim-3">
-                  {t("studio_queue_empty")}
+                  {projectFilter !== "all" && selectedProjectExists
+                    ? "No queue items for this project"
+                    : t("studio_queue_empty")}
                 </p>
                 <p className="text-sm text-dim-3">
-                  {t("studio_queue_emptySub")}
+                  {projectFilter !== "all" && selectedProjectExists
+                    ? "Try another project or clear the filter."
+                    : t("studio_queue_emptySub")}
                 </p>
               </div>
             ) : (
@@ -309,7 +341,11 @@ export function QueueView() {
                 duplicateItem.variables === detailData.queueItem.id
               }
             />
-          ) : null}
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-dim-3">
+              Queue item not found. It may have been deleted.
+            </div>
+          )}
         </div>
     </div>
   );

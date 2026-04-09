@@ -20,6 +20,7 @@ export const queryKeys = {
     usageStats: () => ["api", "account", "usage"] as const,
     /** Prefix for all `/api/users/...` queries (e.g. admin order form user picker) */
     usersQueriesRoot: () => ["api", "users"] as const,
+    usersList: (url: string) => ["api", "users", "list", url] as const,
     userSettings: () => ["api", "customer", "settings"] as const,
     /** Account page voice list (`/api/audio/voices`); keep in sync with TTS system config */
     userSettingsVoices: () =>

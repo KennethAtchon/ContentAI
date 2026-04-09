@@ -1,9 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useApp } from "@/shared/contexts/app-context";
 import { queryKeys } from "@/shared/lib/query-keys";
 import {
+  invalidateChatSessionsQueries,
   invalidateChatProjectQueries,
   invalidateChatProjectsQueries,
+  removeDeletedChatProjectQueries,
 } from "@/shared/lib/query-invalidation";
 import { chatService } from "../services/chat.service";
 import type {
@@ -64,8 +67,15 @@ export const useDeleteProject = () => {
 
   return useMutation({
     mutationFn: (id: string) => chatService.deleteProject(id),
-    onSuccess: () => {
-      void invalidateChatProjectsQueries(queryClient);
+    onSuccess: (_result, id) => {
+      removeDeletedChatProjectQueries(queryClient, id);
+      void Promise.all([
+        invalidateChatProjectsQueries(queryClient),
+        invalidateChatSessionsQueries(queryClient),
+      ]);
+    },
+    onError: () => {
+      toast.error("Failed to delete project");
     },
   });
 };

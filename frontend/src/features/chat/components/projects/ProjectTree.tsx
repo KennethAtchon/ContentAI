@@ -28,6 +28,8 @@ interface ProjectTreeProps {
   onSaveSessionTitle: () => void;
   onDeleteProjectRequest: (projectId: string) => void;
   onDeleteSessionRequest: (sessionId: string) => void;
+  usageLimitReached?: boolean;
+  createSessionDisabledReason?: string;
   t: (key: string) => string;
 }
 
@@ -56,6 +58,8 @@ export function ProjectTree({
   onSaveSessionTitle,
   onDeleteProjectRequest,
   onDeleteSessionRequest,
+  usageLimitReached,
+  createSessionDisabledReason,
   t,
 }: ProjectTreeProps) {
   if (projectsLoading) {
@@ -113,6 +117,8 @@ export function ProjectTree({
           onSaveSessionTitle={onSaveSessionTitle}
           onDeleteProjectRequest={onDeleteProjectRequest}
           onDeleteSessionRequest={onDeleteSessionRequest}
+          usageLimitReached={usageLimitReached}
+          createSessionDisabledReason={createSessionDisabledReason}
           t={t}
         />
       ))}

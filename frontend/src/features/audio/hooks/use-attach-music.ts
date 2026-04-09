@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
 import { audioService } from "../services/audio.service";
 import type { AttachMusicRequest } from "../types/audio.types";
@@ -13,6 +14,10 @@ export function useAttachMusic() {
         queryClient,
         variables.generatedContentId
       );
+      toast.success("Music attached");
+    },
+    onError: () => {
+      toast.error("Failed to attach music");
     },
   });
 }

@@ -2,10 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ImagePlus } from "lucide-react";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
+import {
+  invalidateEditorProjectsQueries,
+  removeDeletedEditorProjectQuery,
+} from "@/shared/lib/query-invalidation";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import { useResolvedParam } from "@/shared/hooks/use-resolved-param";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useApp } from "@/shared/contexts/app-context";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
@@ -63,6 +68,7 @@ interface ProjectCardProps {
   onOpen: () => void;
   onOpenInChat: () => void;
   isLinking: boolean;
+  isDeleting: boolean;
   onDelete: () => void;
   onThumbnailChange: (url: string) => void;
   t: (key: string) => string;
@@ -75,6 +81,7 @@ function ProjectCard({
   onOpen,
   onOpenInChat,
   isLinking,
+  isDeleting,
   onDelete,
   onThumbnailChange,
   t,
@@ -89,6 +96,8 @@ function ProjectCard({
     try {
       const result = await uploadProjectThumbnail(proj.id, file);
       onThumbnailChange(result.thumbnailUrl);
+    } catch {
+      toast.error("Failed to upload thumbnail.");
     } finally {
       setIsUploading(false);
       e.target.value = "";
@@ -168,15 +177,22 @@ function ProjectCard({
         <button
           onClick={onOpenInChat}
           disabled={isLinking}
+          title={
+            isLinking
+              ? "Linking this project to chat..."
+              : t("editor_open_in_ai_chat")
+          }
           className="py-1.5 px-2.5 text-xs rounded-lg bg-overlay-sm text-dim-2 border border-overlay-md cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-50"
         >
           {t("editor_open_in_ai_chat")}
         </button>
         <button
           onClick={onDelete}
+          disabled={isDeleting}
+          title={isDeleting ? "Deleting project..." : t("editor_delete_project")}
           className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
         >
-          {t("editor_delete_project")}
+          {isDeleting ? "Deleting..." : t("editor_delete_project")}
         </button>
       </div>
     </div>
@@ -193,7 +209,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   const navigate = useNavigate();
   const [activeProject, setActiveProject] = useState<EditProject | null>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [isProjectMissing, setIsProjectMissing] = useState(false);
   const [isSmallScreen] = useState(() => window.innerWidth < 1280);
+  const fetchAndOpenRef = useRef<AbortController | null>(null);
 
   const syncEditorUrl = useCallback(
     (project: EditProject) => {
@@ -211,15 +229,33 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
 
   const fetchAndOpen = useCallback(
     async (id: string) => {
+      if (fetchAndOpenRef.current) {
+        fetchAndOpenRef.current.abort();
+      }
+      const controller = new AbortController();
+      fetchAndOpenRef.current = controller;
       setIsLoadingProject(true);
       try {
         const res = await authenticatedFetchJson<{ project: EditProject }>(
-          `/api/editor/${id}`
+          `/api/editor/${id}`,
+          { signal: controller.signal }
         );
+        if (controller.signal.aborted) return;
+        setIsProjectMissing(false);
         setActiveProject(res.project);
         syncEditorUrl(res.project);
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        if (status === 404) {
+          setIsProjectMissing(true);
+        } else if (!controller.signal.aborted) {
+          toast.error("Failed to open project.");
+        }
       } finally {
-        setIsLoadingProject(false);
+        if (fetchAndOpenRef.current === controller) {
+          fetchAndOpenRef.current = null;
+          setIsLoadingProject(false);
+        }
       }
     },
     [authenticatedFetchJson, syncEditorUrl]
@@ -232,6 +268,28 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   });
   const projects = data?.projects ?? [];
 
+  useResolvedParam({
+    paramValue: projectIdFromUrl,
+    isLoading: isLoadingProject || isLoading,
+    isMissing:
+      Boolean(projectIdFromUrl) &&
+      !activeProject &&
+      (isProjectMissing ||
+        (!isLoading &&
+          projects.length > 0 &&
+          !projects.some((project) => project.id === projectIdFromUrl))),
+    notFoundMessage: "Project not found",
+    onMissing: () => {
+      setActiveProject(null);
+      setIsProjectMissing(false);
+      void navigate({
+        to: REDIRECT_PATHS.STUDIO_EDITOR,
+        search: { projectId: undefined, contentId: undefined },
+        replace: true,
+      });
+    },
+  });
+
   const { mutate: createFromContent, isPending: isOpeningContent } = useMutation({
     mutationFn: (cId: number) =>
       authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
@@ -240,6 +298,7 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
       }),
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
+      setIsProjectMissing(false);
       setActiveProject(res.project);
       syncEditorUrl(res.project);
     },
@@ -294,16 +353,29 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
       }),
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
+      setIsProjectMissing(false);
       setActiveProject(res.project);
       syncEditorUrl(res.project);
     },
   });
 
-  const { mutate: deleteProject } = useMutation({
+  const deleteProjectMutation = useMutation({
     mutationFn: (id: string) =>
       authenticatedFetchJson(`/api/editor/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
+    onSuccess: (_result, id) => {
+      removeDeletedEditorProjectQuery(queryClient, id);
       void invalidateEditorProjectsQueries(queryClient);
+      if (activeProject?.id === id) {
+        setActiveProject(null);
+        void navigate({
+          to: REDIRECT_PATHS.STUDIO_EDITOR,
+          search: { projectId: undefined, contentId: undefined },
+          replace: true,
+        });
+      }
+    },
+    onError: () => {
+      toast.error("Failed to delete project.");
     },
   });
 
@@ -382,6 +454,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
                 <button
                   onClick={() => createProject()}
                   disabled={isCreating}
+                  title={
+                    isCreating ? "Creating a new project..." : "Create a new project"
+                  }
                   className={[
                     "flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple",
                     "text-white text-sm font-semibold px-4 py-2 rounded-lg border-0 cursor-pointer",
@@ -405,6 +480,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
                   <button
                     onClick={() => createProject()}
                     disabled={isCreating}
+                    title={
+                      isCreating ? "Creating a new project..." : "Create a new project"
+                    }
                     className="bg-studio-accent/10 border border-studio-accent/30 text-studio-accent text-sm px-5 py-2 rounded-lg cursor-pointer hover:bg-studio-accent/15 transition-colors"
                   >
                     {t("editor_new_project")}
@@ -424,9 +502,13 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
                         onOpen={() => void fetchAndOpen(proj.id)}
                         onOpenInChat={() => openInAIChat(proj)}
                         isLinking={isLinking}
+                        isDeleting={
+                          deleteProjectMutation.isPending &&
+                          deleteProjectMutation.variables === proj.id
+                        }
                         onDelete={() => {
                           if (confirm(`Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`)) {
-                            deleteProject(proj.id);
+                            deleteProjectMutation.mutate(proj.id);
                           }
                         }}
                         onThumbnailChange={(url) => {

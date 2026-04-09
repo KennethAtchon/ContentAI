@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { invalidateAfterGenerateReel } from "@/shared/lib/query-invalidation";
 import type {
@@ -22,6 +23,10 @@ export function useGenerateReel() {
         variables.generatedContentId,
         res.jobId
       );
+      toast.success("Reel queued for generation");
+    },
+    onError: () => {
+      toast.error("Failed to queue reel generation");
     },
   });
 }

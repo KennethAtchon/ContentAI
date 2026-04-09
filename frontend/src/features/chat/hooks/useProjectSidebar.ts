@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { debugLog } from "@/shared/utils/debug/debug";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useApp } from "@/shared/contexts/app-context";
 import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
+import { chatService } from "../services/chat.service";
 import {
   useProjects,
   useCreateProject,
@@ -72,6 +74,12 @@ export function useProjectSidebar({
   const createSessionMutation = useCreateChatSession();
   const deleteSessionMutation = useDeleteChatSession();
   const updateSessionMutation = useUpdateChatSession();
+  const { data: deleteSessionPreview, isLoading: deleteSessionPreviewLoading } =
+    useQuery({
+      queryKey: ["chat-session-delete-preview", deleteSessionId],
+      queryFn: () => chatService.getDeleteSessionPreview(deleteSessionId!),
+      enabled: !!deleteSessionId,
+    });
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +119,11 @@ export function useProjectSidebar({
     if (!deleteProjectId) return;
     try {
       await deleteProjectMutation.mutateAsync(deleteProjectId);
+      if (deleteProjectId === selectedProjectId && onSessionDeleted) {
+        onSessionDeleted();
+      }
     } catch (error) {
+      toast.error("Failed to delete project");
       debugLog.error("Failed to delete project", {
         service: "project-sidebar",
         operation: "handleConfirmDeleteProject",
@@ -130,6 +142,7 @@ export function useProjectSidebar({
         onSessionDeleted();
       }
     } catch (error) {
+      toast.error("Failed to delete session");
       debugLog.error("Failed to delete session", {
         service: "project-sidebar",
         operation: "handleConfirmDeleteSession",
@@ -237,6 +250,9 @@ export function useProjectSidebar({
     handleCancelEditingProject,
     handleSaveProjectName,
     isCreatingProject: createProjectMutation.isPending,
+    isDeletingProject: deleteProjectMutation.isPending,
+    isDeletingSession: deleteSessionMutation.isPending,
+    deleteSessionPreview,
+    deleteSessionPreviewLoading,
   };
 }
-

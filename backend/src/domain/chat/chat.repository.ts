@@ -8,6 +8,7 @@ import {
   projects,
   reels,
   generatedContent,
+  editProjects,
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 import { resolveGeneratedContentChainTip } from "../content/content.repository";
@@ -99,6 +100,17 @@ export interface IChatRepository {
   ): Promise<void>;
 
   deleteSession(sessionId: string, userId: string): Promise<void>;
+
+  getSessionDeletePreview(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
+    messages: number;
+    generatedContent: number;
+    editorProjects: number;
+  }>;
+
+  deleteSessionWithCleanup(sessionId: string, userId: string): Promise<void>;
 
   // Messages
   listMessages(
@@ -288,6 +300,74 @@ export interface IChatRepository {
 export class ChatRepository implements IChatRepository {
   constructor(private readonly db: AppDb) {}
 
+  private async buildSessionDeletePlan(sessionId: string, userId: string) {
+    const [messageCountRow] = await this.db
+      .select({
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(chatMessages)
+      .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
+      .where(
+        and(eq(chatMessages.sessionId, sessionId), eq(chatSessions.userId, userId)),
+      );
+
+    const contentRows = await this.db
+      .select({
+        contentId: chatSessionContent.contentId,
+      })
+      .from(chatSessionContent)
+      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
+      .where(
+        and(eq(chatSessionContent.sessionId, sessionId), eq(chatSessions.userId, userId)),
+      );
+
+    const contentIds = contentRows.map((row) => row.contentId);
+    if (contentIds.length === 0) {
+      return {
+        messages: messageCountRow?.count ?? 0,
+        generatedContentIds: [] as number[],
+        editorProjectIds: [] as string[],
+      };
+    }
+
+    const ownershipRows = await this.db
+      .select({
+        contentId: chatSessionContent.contentId,
+        sessionCount: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(chatSessionContent)
+      .where(inArray(chatSessionContent.contentId, contentIds))
+      .groupBy(chatSessionContent.contentId);
+
+    const generatedContentIds = ownershipRows
+      .filter((row) => row.sessionCount === 1)
+      .map((row) => row.contentId);
+
+    const editorProjectIds =
+      generatedContentIds.length === 0
+        ? []
+        : (
+            await this.db
+              .select({
+                id: editProjects.id,
+              })
+              .from(editProjects)
+              .where(
+                and(
+                  eq(editProjects.userId, userId),
+                  inArray(editProjects.generatedContentId, generatedContentIds),
+                  eq(editProjects.userHasEdited, false),
+                ),
+              )
+          ).map((row) => row.id);
+
+    return {
+      messages: messageCountRow?.count ?? 0,
+      generatedContentIds,
+      editorProjectIds,
+    };
+  }
+
   async listSessions(userId: string, projectId?: string) {
     const whereClause = projectId
       ? and(
@@ -450,6 +530,37 @@ export class ChatRepository implements IChatRepository {
       .where(
         and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
       );
+  }
+
+  async getSessionDeletePreview(sessionId: string, userId: string) {
+    const plan = await this.buildSessionDeletePlan(sessionId, userId);
+    return {
+      messages: plan.messages,
+      generatedContent: plan.generatedContentIds.length,
+      editorProjects: plan.editorProjectIds.length,
+    };
+  }
+
+  async deleteSessionWithCleanup(sessionId: string, userId: string): Promise<void> {
+    const plan = await this.buildSessionDeletePlan(sessionId, userId);
+
+    await this.db.transaction(async (tx) => {
+      if (plan.editorProjectIds.length > 0) {
+        await tx
+          .delete(editProjects)
+          .where(inArray(editProjects.id, plan.editorProjectIds));
+      }
+
+      if (plan.generatedContentIds.length > 0) {
+        await tx
+          .delete(generatedContent)
+          .where(inArray(generatedContent.id, plan.generatedContentIds));
+      }
+
+      await tx
+        .delete(chatSessions)
+        .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
+    });
   }
 
   async listMessages(sessionId: string, limit?: number) {

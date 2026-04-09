@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateCaptionDocQuery } from "@/shared/lib/query-invalidation";
 import type { Token } from "../types";
 
 interface UpdateCaptionDocInput {
@@ -28,9 +28,7 @@ export function useUpdateCaptionDoc() {
         },
       ),
     onSuccess: (_result, input) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.captionDoc(input.captionDocId),
-      });
+      void invalidateCaptionDocQuery(queryClient, input.captionDocId);
     },
   });
 }

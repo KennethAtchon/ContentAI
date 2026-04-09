@@ -37,13 +37,13 @@ export function useEditorProjectPoll(options: {
     queryKey: queryKeys.api.editorProject(project.id),
     queryFn: () => projectFetcher(`/api/editor/${project.id}`),
     enabled: !!project.id,
-    refetchInterval: hasPlaceholders ? pollIntervalMs : false,
+    refetchInterval: hasPlaceholders ? pollIntervalMs : 15_000,
   });
 
   useEffect(() => {
     store.loadProject(project);
     lastHandledServerUpdatedAt.current = project.updatedAt;
-  }, [project.id]);
+  }, [project, store]);
 
   useEffect(() => {
     const serverP = polledPayload?.project;

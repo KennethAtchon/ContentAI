@@ -51,9 +51,14 @@ export function useEditorLayoutMutations(options: {
           method: "POST",
         }
       ),
-    onSuccess: () => {
+    onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
       onBack();
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/studio/editor?projectId=${res.project.id}${res.project.generatedContentId ? `&contentId=${res.project.generatedContentId}` : ""}`
+      );
     },
   });
 

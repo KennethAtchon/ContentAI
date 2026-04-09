@@ -5,6 +5,7 @@ import { useApp } from "@/shared/contexts/app-context";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
 import { ThemeToggle } from "@/shared/components/theme-toggle";
+import { ScopedErrorBoundary } from "@/shared/components/layout/error-boundary";
 import { cn } from "@/shared/utils/helpers/utils";
 import { getTierDisplay } from "@/features/account/components/account-helpers";
 import { APP_NAME } from "@/shared/constants/app.constants";
@@ -171,7 +172,13 @@ function StudioPageLayout() {
       <div className="h-screen bg-studio-bg text-studio-fg font-studio flex flex-col overflow-hidden">
         <StudioTopBar pathname={location.pathname} />
         <main className="flex-1 min-h-0 overflow-hidden">
-          <Outlet />
+          <ScopedErrorBoundary
+            title="Something went wrong in Studio"
+            description="Refresh the page to retry this studio screen."
+            className="h-full"
+          >
+            <Outlet />
+          </ScopedErrorBoundary>
         </main>
       </div>
     </AuthGuard>

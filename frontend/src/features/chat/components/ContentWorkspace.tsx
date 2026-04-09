@@ -201,7 +201,16 @@ export function ContentWorkspace({
         )
       ) : activeTab === "audio" ? (
         <AudioPlaybackProvider>
-          {(activeContentId ?? drafts[drafts.length - 1]?.id) ? (
+          {isLoading ? (
+            <div className="flex-1 flex flex-col gap-2 px-3 py-3">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-20 bg-muted/50 rounded-lg animate-pulse"
+                />
+              ))}
+            </div>
+          ) : (activeContentId ?? drafts[drafts.length - 1]?.id) ? (
             <AudioPanel
               generatedContentId={
                 activeContentId ?? drafts[drafts.length - 1]!.id
@@ -213,6 +222,15 @@ export function ContentWorkspace({
             </div>
           )}
         </AudioPlaybackProvider>
+      ) : isLoading ? (
+        <div className="flex-1 flex flex-col gap-2 px-3 py-3">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-20 bg-muted/50 rounded-lg animate-pulse"
+            />
+          ))}
+        </div>
       ) : resolvedVideoDraft ? (
         <VideoWorkspacePanel
           draft={resolvedVideoDraft}

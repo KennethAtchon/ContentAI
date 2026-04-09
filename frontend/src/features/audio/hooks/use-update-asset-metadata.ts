@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { invalidateContentAssetsForGeneration } from "@/shared/lib/query-invalidation";
 import { audioService } from "../services/audio.service";
 
@@ -10,6 +11,9 @@ export function useUpdateAssetMetadata(generatedContentId: number) {
       audioService.updateAssetMetadata(assetId, metadata),
     onSuccess: () => {
       void invalidateContentAssetsForGeneration(queryClient, generatedContentId);
+    },
+    onError: () => {
+      toast.error("Failed to update audio settings");
     },
   });
 }

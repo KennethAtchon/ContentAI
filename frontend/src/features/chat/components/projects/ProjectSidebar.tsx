@@ -88,6 +88,10 @@ export function ProjectSidebar({
           onSaveSessionTitle={sidebar.handleSaveSessionTitle}
           onDeleteProjectRequest={sidebar.setDeleteProjectId}
           onDeleteSessionRequest={sidebar.setDeleteSessionId}
+          usageLimitReached={sidebar.usageLimitReached}
+          createSessionDisabledReason={
+            sidebar.usageLimitReached ? sidebar.t("studio_chat_limit_reached") : undefined
+          }
           t={sidebar.t}
         />
       </div>
@@ -108,9 +112,12 @@ export function ProjectSidebar({
         setDeleteSessionId={sidebar.setDeleteSessionId}
         onConfirmDeleteProject={sidebar.handleConfirmDeleteProject}
         onConfirmDeleteSession={sidebar.handleConfirmDeleteSession}
+        isDeletingProject={sidebar.isDeletingProject}
+        isDeletingSession={sidebar.isDeletingSession}
+        deleteSessionPreview={sidebar.deleteSessionPreview}
+        deleteSessionPreviewLoading={sidebar.deleteSessionPreviewLoading}
         t={sidebar.t}
       />
     </div>
   );
 }
-

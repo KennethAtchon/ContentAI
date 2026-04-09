@@ -239,9 +239,18 @@ export class ChatService {
       throw Errors.notFound("Session");
     }
 
-    await this.chatRepo.deleteSession(sessionId, userId);
+    await this.chatRepo.deleteSessionWithCleanup(sessionId, userId);
 
     return { success: true };
+  }
+
+  async getSessionDeletePreview(userId: string, sessionId: string) {
+    const session = await this.chatRepo.findSessionById(sessionId, userId);
+    if (!session) {
+      throw Errors.notFound("Session");
+    }
+
+    return this.chatRepo.getSessionDeletePreview(sessionId, userId);
   }
 
   async findSessionById(userId: string, sessionId: string) {

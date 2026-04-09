@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { queryKeys } from "@/shared/lib/query-keys";
-import { invalidateChatSessionsQueries } from "@/shared/lib/query-invalidation";
+import {
+  invalidateChatSessionsQueries,
+  invalidateEditorProjectsQueries,
+  removeDeletedChatSessionQueries,
+} from "@/shared/lib/query-invalidation";
 import { chatService } from "../services/chat.service";
 import type {
   CreateSessionRequest,
@@ -39,8 +44,15 @@ export const useDeleteChatSession = () => {
 
   return useMutation({
     mutationFn: (id: string) => chatService.deleteChatSession(id),
-    onSuccess: () => {
-      void invalidateChatSessionsQueries(queryClient);
+    onSuccess: (_result, id) => {
+      removeDeletedChatSessionQueries(queryClient, id);
+      void Promise.all([
+        invalidateChatSessionsQueries(queryClient),
+        invalidateEditorProjectsQueries(queryClient),
+      ]);
+    },
+    onError: () => {
+      toast.error("Failed to delete session");
     },
   });
 };

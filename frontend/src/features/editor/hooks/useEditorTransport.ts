@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { toast } from "sonner";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import type { EditorStore } from "./useEditorStore";
 
@@ -96,7 +97,7 @@ export function useEditorTransport({
       await flushSave(makeSnapshot(editorPublishStateRef.current));
       await runPublish();
     } catch {
-      // keep dialog closed; user can retry publish
+      toast.error("Failed to publish project.");
     }
   }, [setPublishDialogOpen, saveTimerRef, flushSave, editorPublishStateRef, runPublish]);
 

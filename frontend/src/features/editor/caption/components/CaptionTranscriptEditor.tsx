@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   InspectorSection,
   InspectorPropRow,
@@ -15,10 +16,21 @@ interface Props {
 export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
   const { t } = useTranslation();
   const [fullText, setFullText] = useState(doc?.fullText ?? "");
+  const [draftDocId, setDraftDocId] = useState<string | null>(doc?.captionDocId ?? null);
 
   useEffect(() => {
+    if (
+      draftDocId &&
+      doc?.captionDocId &&
+      draftDocId !== doc.captionDocId &&
+      fullText !== (doc.fullText ?? "")
+    ) {
+      toast.error("Save or discard your transcript edits before switching clips.");
+      return;
+    }
+    setDraftDocId(doc?.captionDocId ?? null);
     setFullText(doc?.fullText ?? "");
-  }, [doc?.captionDocId, doc?.fullText]);
+  }, [doc?.captionDocId, doc?.fullText, draftDocId, fullText]);
 
   return (
     <InspectorSection title={t("editor_caption_transcript_title")}>
@@ -33,6 +45,13 @@ export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
         <button
           type="button"
           disabled={!doc || isSaving}
+          title={
+            !doc
+              ? "Select a caption clip first."
+              : isSaving
+                ? t("editor_caption_saving")
+                : t("editor_caption_save")
+          }
           onClick={() =>
             doc &&
             onSave({

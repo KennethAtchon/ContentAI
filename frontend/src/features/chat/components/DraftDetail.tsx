@@ -37,7 +37,7 @@ export function DraftDetail({
   onOpenVideo,
 }: DraftDetailProps) {
   const { t } = useTranslation();
-  const { data: assetsData } = useContentAssets(draft.id);
+  const { data: assetsData, isError } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
   const voiceoverAsset =
     assets.find((a) => a.role === "voiceover" || a.type === "voiceover") ?? null;
@@ -83,6 +83,11 @@ export function DraftDetail({
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
+        {isError && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Failed to load draft assets. Audio and video previews may be unavailable.
+          </div>
+        )}
         {draft.generatedHook && (
           <Section label={t("workspace_section_hook")}>
             <p className="text-base leading-relaxed text-foreground">

@@ -1,4 +1,4 @@
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateEditorProjectQuery } from "@/shared/lib/query-invalidation";
 import { EditorProvider } from "../context/EditorContext";
 import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
 import { useEditorLayoutRuntime } from "../hooks/useEditorLayoutRuntime";
@@ -81,9 +81,7 @@ export function EditorLayout({ project, onBack }: Props) {
 
           <EditorTimelineSection
             onSyncTimeline={() =>
-              void runtime.queryClient.invalidateQueries({
-                queryKey: queryKeys.api.editorProject(project.id),
-              })
+              void invalidateEditorProjectQuery(runtime.queryClient, project.id)
             }
             onAddClip={clipActions.handleAddClip}
             onDeleteAllClipsInTrack={clipActions.handleDeleteAllClipsInTrack}

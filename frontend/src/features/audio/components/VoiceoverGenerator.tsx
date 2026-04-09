@@ -228,6 +228,15 @@ export function VoiceoverGenerator({
       <button
         onClick={() => void handleGenerate()}
         disabled={isGenerating || !selectedVoiceId || !scriptValue.trim()}
+        title={
+          isGenerating
+            ? "Generating voiceover..."
+            : !selectedVoiceId
+              ? "Choose a voice before generating."
+              : !scriptValue.trim()
+                ? "Enter a script before generating."
+                : t("audio_generate_button")
+        }
         className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-base font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isGenerating ? (

@@ -320,15 +320,27 @@ function applyTransform(
   ctx.translate(-anchorX, -anchorY);
 }
 
+/**
+ * Paints one caption frame: applies page-level and per-word transforms, then draws each preset layer
+ * (backgrounds, shadow, glow, stroke, fill) so colors and fonts match `computeLayout` measurements.
+ *
+ * @param ctx - Target canvas context; caller should have cleared the frame.
+ * @param layout - Positions and metrics from `computeLayout` (layout-engine) for the active page.
+ * @param relativeMs - Playhead time relative to the clip start (same clock as layout’s page window).
+ * @param preset - Layer stack, animations, and typography used for drawing.
+ */
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   layout: CaptionLayout,
   relativeMs: number,
   preset: TextPreset,
 ): void {
+  // Derive rendered font size from layout.lineHeightPx so it stays in sync with measureText in computeLayout.
   const fontPx = layout.lineHeightPx / preset.typography.lineHeight;
   const pageElapsedMs = relativeMs - layout.page.startMs;
   const pageRemainingMs = layout.page.endMs - relativeMs;
+
+  // Page-wide entry/exit animations (scope "page"): one transform applied around the whole caption block.
   const pageTransform = resolveTransform(
     preset.entryAnimation,
     "entry",
@@ -343,12 +355,16 @@ export function renderFrame(
     pageElapsedMs,
     pageRemainingMs,
   );
+
+  // Per-line boxes and a single visual state per line (for line-mode backgrounds that span the full line).
   const lineBoxes = buildLineBoxes(layout, relativeMs);
 
   ctx.save();
   ctx.font = `${preset.typography.fontWeight} ${fontPx}px ${preset.typography.fontFamily}`;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
+
+  // Transform stack: origin at block center so page entry/exit scale/rotate around the caption as a unit.
   applyTransform(
     ctx,
     layout.blockX + layout.blockWidth / 2,
@@ -365,7 +381,10 @@ export function renderFrame(
 
   for (const token of layout.tokens) {
     const state = tokenState(token, relativeMs);
+    // Active tokens may swap in layer patches (e.g. brighter fill) from wordActivation.
     const layers = resolveLayers(preset, state);
+
+    // Per-token entry/exit (scope "word"), staggered by token index.
     const wordEntryTransform = resolveTransform(
       preset.entryAnimation,
       "entry",
@@ -383,6 +402,8 @@ export function renderFrame(
       token.index,
     );
     const pulse = resolvePulseScale(preset, token, state, relativeMs);
+
+    // Token anchor: horizontal center, vertical center of the line box (matches layout-engine’s y offset).
     const tokenTop = token.y - layout.lineHeightPx * 0.8;
     const tokenCenterX = token.x + token.width / 2;
     const tokenCenterY = tokenTop + layout.lineHeightPx / 2;
@@ -396,6 +417,7 @@ export function renderFrame(
       rotation: wordEntryTransform.rotation + wordExitTransform.rotation,
       letterSpacing: wordEntryTransform.letterSpacing + wordExitTransform.letterSpacing,
     });
+    // Layer order is preset-defined: backgrounds first, then shadow/glow, stroke, then fill on top.
     for (const layer of layers) {
       drawLayer(ctx, layout, token, state, layer, lineBoxes, preset);
     }

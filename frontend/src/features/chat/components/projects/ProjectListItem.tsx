@@ -26,6 +26,8 @@ interface ProjectListItemProps {
   onSaveSessionTitle: () => void;
   onDeleteProjectRequest: (projectId: string) => void;
   onDeleteSessionRequest: (sessionId: string) => void;
+  usageLimitReached?: boolean;
+  createSessionDisabledReason?: string;
   t: (key: string) => string;
 }
 
@@ -52,6 +54,8 @@ export function ProjectListItem({
   onSaveSessionTitle,
   onDeleteProjectRequest,
   onDeleteSessionRequest,
+  usageLimitReached,
+  createSessionDisabledReason,
   t,
 }: ProjectListItemProps) {
   return (
@@ -121,6 +125,12 @@ export function ProjectListItem({
               size="sm"
               variant="ghost"
               className="h-6 w-6 p-0 shrink-0"
+              disabled={usageLimitReached}
+              title={
+                usageLimitReached
+                  ? createSessionDisabledReason
+                  : t("studio_chat_addSession")
+              }
               aria-label={t("studio_chat_addSession")}
               onClick={(e) => {
                 e.stopPropagation();
@@ -186,4 +196,3 @@ export function ProjectListItem({
     </div>
   );
 }
-

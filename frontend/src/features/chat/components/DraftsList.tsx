@@ -23,7 +23,7 @@ function DraftCard({
   onSelect: (draft: SessionDraft) => void;
 }) {
   const { t } = useTranslation();
-  const { data: assetsData } = useContentAssets(draft.id);
+  const { data: assetsData, isError } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
   const hasVoiceover = assets.some(
     (a) => a.role === "voiceover" || a.type === "voiceover"
@@ -79,6 +79,9 @@ function DraftCard({
         </div>
 
         <div className="flex items-center gap-1">
+          {isError && (
+            <span className="text-xs text-destructive">Assets unavailable</span>
+          )}
           {hasVoiceover && (
             <span className="flex items-center gap-0.5 text-sm text-success dark:text-success">
               <Mic className="h-3 w-3" />

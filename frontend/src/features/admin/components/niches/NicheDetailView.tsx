@@ -52,6 +52,7 @@ export function NicheDetailView({ nicheId }: { nicheId: number }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
   const [scrapeOptionsOpen, setScrapeOptionsOpen] = useState(false);
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false);
   const [toast, setToast] = useState<{
     msg: string;
     type: "info" | "success" | "error";
@@ -138,11 +139,13 @@ export function NicheDetailView({ nicheId }: { nicheId: number }) {
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
+    setIsDeletingSelected(true);
     await Promise.allSettled(
       ids.map((id) => deleteReel.mutateAsync({ reelId: id, nicheId }))
     );
     setSelected(new Set());
     showToast(`Deleted ${ids.length} reel(s)`, "success");
+    setIsDeletingSelected(false);
   };
 
   const handleExport = () => {
@@ -420,10 +423,10 @@ export function NicheDetailView({ nicheId }: { nicheId: number }) {
                       size="sm"
                       className="h-7 gap-1.5 text-sm text-error hover:text-error hover:bg-error/10"
                       onClick={handleDeleteSelected}
-                      disabled={deleteReel.isPending}
+                      disabled={isDeletingSelected}
                     >
                       <Trash2 className="h-3 w-3" />
-                      {deleteReel.isPending
+                      {isDeletingSelected
                         ? t("admin_niche_deleting")
                         : t("admin_niche_delete_selected")}
                     </Button>

@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useApp } from "@/shared/contexts/app-context";
+import { useResolvedParam } from "@/shared/hooks/use-resolved-param";
+import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import { useChatSession } from "./use-chat-sessions";
 import { useChatStream } from "./use-chat-stream";
 import { useSessionDrafts } from "./use-session-drafts";
@@ -29,6 +31,7 @@ export function useChatLayout(projects: Project[]) {
   const { user } = useApp();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const sessionId = search.sessionId || "";
   const { data: sessionData, isLoading: sessionLoading } =
@@ -100,6 +103,41 @@ export function useChatLayout(projects: Project[]) {
   const selectedSession = sessionData?.session;
   const isSessionResolving =
     Boolean(sessionId) && sessionLoading && !sessionData;
+
+  const clearMissingParams = useCallback(
+    (nextSearch: Partial<ChatSearch>) => {
+      const has = <K extends keyof ChatSearch>(key: K) =>
+        Object.prototype.hasOwnProperty.call(nextSearch, key);
+      void navigate({
+        to: REDIRECT_PATHS.STUDIO_GENERATE,
+        search: {
+          sessionId: has("sessionId") ? nextSearch.sessionId : search.sessionId,
+          projectId: has("projectId") ? nextSearch.projectId : search.projectId,
+          reelId: has("reelId") ? nextSearch.reelId : search.reelId,
+        },
+        replace: true,
+      });
+    },
+    [navigate, search.projectId, search.reelId, search.sessionId]
+  );
+
+  useResolvedParam({
+    paramValue: search.sessionId,
+    isLoading: sessionLoading,
+    isMissing:
+      Boolean(search.sessionId) && !sessionLoading && !sessionData?.session,
+    notFoundMessage: "Session not found",
+    onMissing: () => clearMissingParams({ sessionId: undefined }),
+  });
+
+  useResolvedParam({
+    paramValue: search.projectId,
+    isMissing:
+      Boolean(search.projectId) && projects.length > 0 && !selectedProject,
+    notFoundMessage: "Project not found",
+    onMissing: () =>
+      clearMissingParams({ projectId: undefined, sessionId: undefined }),
+  });
 
   const hydratedSessionIdRef = useRef<string | null>(null);
   const prevSessionIdForResetRef = useRef(sessionId);

@@ -119,6 +119,8 @@ const auth = c.get("auth"); // DecodedIdToken + db user
 
 **Query keys:** Import from `shared/lib/query-keys.ts` — do not inline string keys.
 
+**Disabled controls:** Every disabled button or other interactive control must explain why it is disabled via a `title` attribute or adjacent helper text.
+
 **i18n:** All user-visible strings go through `react-i18next` (`t('key')`). Translation files at `frontend/src/translations/en.json`.
 
 **Testing:** Bun's built-in test runner. Frontend unit tests in `frontend/__tests__/unit/`. Use `bun:test` imports (`describe`, `test`, `expect` from `"bun:test"`).

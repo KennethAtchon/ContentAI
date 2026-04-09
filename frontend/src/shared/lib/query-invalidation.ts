@@ -5,6 +5,10 @@ import { queryKeys } from "./query-keys";
  * All React Query cache invalidation should go through this module so
  * cross-key relationships stay in one place. When you add a mutation, add or
  * reuse a helper here; avoid calling `invalidateQueries` ad hoc in features.
+ *
+ * Mutation convention:
+ * - user-triggered mutations should surface `toast.error(...)` on failure
+ * - delete mutations should remove deleted entity queries, then invalidate lists
  */
 
 const ADMIN_SYSTEM_CONFIG_PREFIX = ["api", "admin", "system-config"] as const;
@@ -191,6 +195,13 @@ export async function invalidateChatSessionsQueries(
   });
 }
 
+export function removeDeletedEntityQueries(
+  queryClient: QueryClient,
+  queryKey: readonly unknown[]
+): void {
+  queryClient.removeQueries({ queryKey });
+}
+
 export async function invalidateChatSessionQuery(
   queryClient: QueryClient,
   sessionId: string
@@ -207,6 +218,24 @@ export async function invalidateSessionDraftsQuery(
   await queryClient.invalidateQueries({
     queryKey: queryKeys.api.sessionDrafts(sessionId),
   });
+}
+
+export function removeDeletedChatSessionQueries(
+  queryClient: QueryClient,
+  sessionId: string
+): void {
+  removeDeletedEntityQueries(queryClient, queryKeys.api.chatSession(sessionId));
+  removeDeletedEntityQueries(
+    queryClient,
+    queryKeys.api.sessionDrafts(sessionId)
+  );
+}
+
+export function removeDeletedChatProjectQueries(
+  queryClient: QueryClient,
+  projectId: string
+): void {
+  removeDeletedEntityQueries(queryClient, queryKeys.api.project(projectId));
 }
 
 export async function invalidateAfterChatMessageSent(
@@ -323,6 +352,22 @@ export async function invalidateEditorProjectsQueries(
   });
 }
 
+export async function invalidateEditorProjectQuery(
+  queryClient: QueryClient,
+  projectId: string
+): Promise<void> {
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.api.editorProject(projectId),
+  });
+}
+
+export function removeDeletedEditorProjectQuery(
+  queryClient: QueryClient,
+  projectId: string
+): void {
+  removeDeletedEntityQueries(queryClient, queryKeys.api.editorProject(projectId));
+}
+
 // ── Media library (customer) ──────────────────────────────────────────────────
 
 export async function invalidateMediaLibraryQueries(
@@ -408,6 +453,31 @@ export async function invalidateAfterSubscriptionRoleChange(
     }),
     queryClient.invalidateQueries({
       queryKey: queryKeys.api.admin.subscriptionsAnalytics(),
+    }),
+  ]);
+}
+
+export async function invalidateCaptionDocQuery(
+  queryClient: QueryClient,
+  captionDocId: string
+): Promise<void> {
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.api.captionDoc(captionDocId),
+  });
+}
+
+export async function invalidateCaptionQueriesAfterTranscription(
+  queryClient: QueryClient,
+  assetId: string,
+  captionDocId: string
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.api.captionDocByAsset(assetId),
+    }),
+    invalidateCaptionDocQuery(queryClient, captionDocId),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.api.captionPresets(),
     }),
   ]);
 }

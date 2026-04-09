@@ -304,6 +304,9 @@ export function EditorToolbar({
           <button
             onClick={onCreateNewDraft}
             disabled={isCreatingDraft}
+            title={
+              isCreatingDraft ? "Creating a new draft..." : t("editor_new_draft")
+            }
             className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
           >
             <FilePlus size={14} />
@@ -323,6 +326,13 @@ export function EditorToolbar({
             type="button"
             onClick={onOpenPublishDialog}
             disabled={isPublishing || isSavingPatch}
+            title={
+              isPublishing
+                ? "Publishing..."
+                : isSavingPatch
+                  ? "Wait for autosave to finish before publishing."
+                  : t("editor_publish_button")
+            }
             className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
           >
             {t("editor_publish_button")}

@@ -16,6 +16,14 @@ interface ProjectSidebarDeleteDialogsProps {
   setDeleteSessionId: (value: string | null) => void;
   onConfirmDeleteProject: () => void;
   onConfirmDeleteSession: () => void;
+  isDeletingProject: boolean;
+  isDeletingSession: boolean;
+  deleteSessionPreview?: {
+    messages: number;
+    generatedContent: number;
+    editorProjects: number;
+  };
+  deleteSessionPreviewLoading: boolean;
   t: (key: string) => string;
 }
 
@@ -26,6 +34,10 @@ export function ProjectSidebarDeleteDialogs({
   setDeleteSessionId,
   onConfirmDeleteProject,
   onConfirmDeleteSession,
+  isDeletingProject,
+  isDeletingSession,
+  deleteSessionPreview,
+  deleteSessionPreviewLoading,
   t,
 }: ProjectSidebarDeleteDialogsProps) {
   return (
@@ -42,12 +54,15 @@ export function ProjectSidebarDeleteDialogs({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("studio_chat_cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingProject}>
+              {t("studio_chat_cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={onConfirmDeleteProject}
+              disabled={isDeletingProject}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t("studio_chat_delete")}
+              {isDeletingProject ? "Deleting..." : t("studio_chat_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -63,14 +78,28 @@ export function ProjectSidebarDeleteDialogs({
             <AlertDialogDescription>
               {t("studio_chat_deleteSessionDescription")}
             </AlertDialogDescription>
+            <div className="rounded-md border border-border/60 bg-muted/40 p-3 text-sm text-muted-foreground">
+              {deleteSessionPreviewLoading ? (
+                <p>Loading delete preview...</p>
+              ) : (
+                <>
+                  <p>{deleteSessionPreview?.messages ?? 0} messages will be removed.</p>
+                  <p>{deleteSessionPreview?.generatedContent ?? 0} drafts will be removed.</p>
+                  <p>{deleteSessionPreview?.editorProjects ?? 0} editor projects will be removed.</p>
+                </>
+              )}
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("studio_chat_cancel")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingSession}>
+              {t("studio_chat_cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={onConfirmDeleteSession}
+              disabled={isDeletingSession}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t("studio_chat_delete")}
+              {isDeletingSession ? "Deleting..." : t("studio_chat_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -78,4 +107,3 @@ export function ProjectSidebarDeleteDialogs({
     </>
   );
 }
-

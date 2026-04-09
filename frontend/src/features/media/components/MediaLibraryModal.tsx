@@ -16,7 +16,7 @@ interface Props {
 
 export function MediaLibraryModal({ open, onOpenChange }: Props) {
   const { t } = useTranslation();
-  const { data, isLoading } = useMediaLibrary();
+  const { data, isLoading, isError, refetch } = useMediaLibrary();
   const deleteMedia = useDeleteMedia();
 
   const items = data?.items ?? [];
@@ -33,11 +33,25 @@ export function MediaLibraryModal({ open, onOpenChange }: Props) {
 
           {isLoading && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {t("media_library_uploading")}
+              Loading media library...
             </p>
           )}
 
-          {!isLoading && items.length === 0 && (
+          {isError && !isLoading && (
+            <div className="py-4 text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Failed to load media library.
+              </p>
+              <button
+                onClick={() => void refetch()}
+                className="text-sm text-primary hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isLoading && !isError && items.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
               {t("media_library_empty")}
             </p>

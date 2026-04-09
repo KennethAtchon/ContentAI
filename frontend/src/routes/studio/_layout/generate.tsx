@@ -6,7 +6,7 @@ import { useState } from "react";
 
 function GeneratePage() {
   const { t } = useTranslation();
-  const { data: projects, isPending } = useProjects();
+  const { data: projects, isPending, isError, refetch } = useProjects();
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
 
   return (
@@ -18,6 +18,20 @@ function GeneratePage() {
             <p className="text-base font-semibold text-dim-2 mt-3">
               {t("studio_loading")}
             </p>
+          </div>
+        </div>
+      ) : isError ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-3">
+            <p className="text-base font-semibold text-dim-2">
+              Failed to load your projects
+            </p>
+            <button
+              onClick={() => void refetch()}
+              className="px-4 py-2 rounded-lg border border-overlay-md text-sm text-dim-1 hover:bg-overlay-xs transition-colors"
+            >
+              Retry
+            </button>
           </div>
         </div>
       ) : projects !== undefined ? (

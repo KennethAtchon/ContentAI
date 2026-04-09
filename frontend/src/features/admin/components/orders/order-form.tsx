@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { queryKeys } from "@/shared/lib/query-keys";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -121,7 +122,7 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
   const usersEnabled = (customerSearchOpen || customerSearchTerm.trim()) !== "";
 
   const { data: usersData, error: usersError } = useQuery({
-    queryKey: ["api", "users", "list", usersUrl],
+    queryKey: queryKeys.api.usersList(usersUrl),
     queryFn: () => fetcher(usersUrl),
     enabled: usersEnabled,
     staleTime: 300,

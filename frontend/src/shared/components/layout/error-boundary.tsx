@@ -83,6 +83,73 @@ export class ErrorBoundary extends React.Component<
   }
 }
 
+interface ScopedErrorBoundaryProps {
+  children: React.ReactNode;
+  title: string;
+  description: string;
+  retryLabel?: string;
+  className?: string;
+}
+
+export function ScopedErrorBoundary({
+  children,
+  title,
+  description,
+  retryLabel = "Retry",
+  className,
+}: ScopedErrorBoundaryProps) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <ScopedErrorFallback
+          title={title}
+          description={description}
+          retryLabel={retryLabel}
+          className={className}
+        />
+      }
+    >
+      {children}
+    </ErrorBoundary>
+  );
+}
+
+function ScopedErrorFallback({
+  title,
+  description,
+  retryLabel,
+  className,
+}: {
+  title: string;
+  description: string;
+  retryLabel: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={[
+        "flex min-h-full items-center justify-center p-6",
+        className ?? "",
+      ].join(" ")}
+    >
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <CardTitle>{title}</CardTitle>
+          </div>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => window.location.reload()} className="w-full">
+            {retryLabel}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 /**
  * Enhanced error boundary content with development details and cute production messages
  */

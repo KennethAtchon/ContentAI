@@ -129,6 +129,22 @@ export const chatService = {
     }
   },
 
+  async getDeleteSessionPreview(
+    id: string
+  ): Promise<{
+    messages: number;
+    generatedContent: number;
+    editorProjects: number;
+  }> {
+    const response = await authenticatedFetch(
+      `${API_BASE}/chat/sessions/${id}/delete-preview`
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch delete preview");
+    }
+    return response.json();
+  },
+
   async updateChatSession(
     id: string,
     updates: UpdateSessionRequest

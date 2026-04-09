@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { invalidateCaptionQueriesAfterTranscription } from "@/shared/lib/query-invalidation";
 import type { Token } from "../types";
 
 interface TranscriptionResponse {
@@ -25,15 +25,11 @@ export function useTranscription() {
         body: JSON.stringify(input),
       }),
     onSuccess: (result, input) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.captionDocByAsset(input.assetId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.captionDoc(result.captionDocId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.api.captionPresets(),
-      });
+      void invalidateCaptionQueriesAfterTranscription(
+        queryClient,
+        input.assetId,
+        result.captionDocId
+      );
     },
   });
 }
