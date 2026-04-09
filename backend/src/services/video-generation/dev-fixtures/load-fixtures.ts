@@ -58,10 +58,3 @@ export function getDevMockVoiceBuffer(): Buffer {
   }
   return voiceBuffer;
 }
-
-/** Matches `elevenlabs.ts` heuristic (~128 kbps) for stable `durationMs`. */
-export function estimateMp3DurationMsFromBufferSize(
-  byteLength: number,
-): number {
-  return Math.round((byteLength / 16000) * 1000);
-}

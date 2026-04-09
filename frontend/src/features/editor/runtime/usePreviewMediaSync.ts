@@ -61,7 +61,6 @@ export function usePreviewMediaSync({
         const element = videoRefs.current.get(clip.id);
         if (!element) continue;
 
-        element.muted = track.muted;
         const isActive = activeIds.has(clip.id);
         const isIncomingWindow = isIncomingDissolveOrWipePrerenderWindow(
           clip,
@@ -86,6 +85,8 @@ export function usePreviewMediaSync({
               playbackRate,
               clip.speed || 1
             );
+            element.volume = Math.min(1, Math.max(0, clip.volume ?? 1));
+            element.muted = (clip.muted ?? false) || track.muted;
             if (isPlaying && element.paused) element.play().catch(() => {});
             if (!isPlaying && !element.paused) element.pause();
             return;
@@ -103,18 +104,21 @@ export function usePreviewMediaSync({
               playbackRate,
               clip.speed || 1
             );
+            // Incoming prerender windows should prepare frames, not leak early audio.
+            element.volume = Math.min(1, Math.max(0, clip.volume ?? 1));
+            element.muted = true;
             if (isPlaying && element.paused) element.play().catch(() => {});
             if (!isPlaying && !element.paused) element.pause();
             return;
           }
 
+          element.muted = true;
           if (!element.paused) element.pause();
         };
 
         const requestFrame = (
           element.requestVideoFrameCallback as VideoFrameRequestCallback | undefined
         )?.bind(element);
-        syncElement();
         if (isPlaying && requestFrame) {
           const cancelFrame = (
             element.cancelVideoFrameCallback as CancelVideoFrameRequestCallback | undefined
@@ -123,6 +127,7 @@ export function usePreviewMediaSync({
           if (existingHandle !== undefined && cancelFrame) {
             cancelFrame(existingHandle);
           }
+          syncElement();
           const handle = requestFrame(() => syncElement());
           videoFrameHandlesRef.current.set(clip.id, handle);
         } else {

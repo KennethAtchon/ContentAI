@@ -42,7 +42,7 @@ export function useEditorProjectPoll(options: {
   useEffect(() => {
     store.loadProject(project);
     lastHandledServerUpdatedAt.current = project.updatedAt;
-  }, [project, store]);
+  }, [project, store.loadProject]);
 
   useEffect(() => {
     const serverP = polledPayload?.project;
@@ -92,7 +92,7 @@ export function useEditorProjectPoll(options: {
       store.loadProject(pending);
       return null;
     });
-  }, [store]);
+  }, [store.loadProject]);
 
   return {
     scriptResetPending,

@@ -800,7 +800,7 @@ function AiTabContent({
           label="Model"
           value={getStr("openrouter_model")}
           onSave={(v) => updateEntry("openrouter_model", v)}
-          placeholder="google/gemini-2.0-flash-lite-001"
+          placeholder="google/gemma-4-31b-it"
         />
       </Section>
 

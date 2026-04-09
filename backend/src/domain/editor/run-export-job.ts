@@ -48,6 +48,94 @@ function escapeSubtitlesFilterPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
+function getClipPlaybackSpeed(clip: { speed?: number }): number {
+  return clip.speed && Number.isFinite(clip.speed) && clip.speed > 0
+    ? clip.speed
+    : 1;
+}
+
+function getClipSourceDurationSeconds(clip: {
+  durationMs: number;
+  speed?: number;
+}): number {
+  const durationMs = Number(clip.durationMs);
+  const safeDurationMs =
+    Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0;
+  return (safeDurationMs / 1000) * getClipPlaybackSpeed(clip);
+}
+
+function toNonNegativeFiniteNumber(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return fallback;
+  return numeric;
+}
+
+async function probeHasAudioStream(filePath: string): Promise<boolean> {
+  const timeoutMs = 10_000;
+  const proc = Bun.spawn(
+    [
+      "ffprobe",
+      "-v",
+      "error",
+      "-select_streams",
+      "a",
+      "-show_entries",
+      "stream=codec_type",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      filePath,
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const exitedOrTimedOut = await Promise.race([
+    proc.exited.then(() => "exited" as const),
+    new Promise<"timeout">((resolve) => {
+      timeoutId = setTimeout(() => {
+        try {
+          proc.kill();
+        } catch {
+          // Ignore kill failures; process may already be gone.
+        }
+        resolve("timeout");
+      }, timeoutMs);
+    }),
+  ]);
+
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
+
+  if (exitedOrTimedOut === "timeout") {
+    debugLog.warn("ffprobe timed out while probing audio stream", {
+      service: "export-job",
+      operation: "probeHasAudioStream",
+      filePath,
+      timeoutMs,
+    });
+    return false;
+  }
+
+  if (proc.exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    debugLog.warn("ffprobe exited non-zero while probing audio stream", {
+      service: "export-job",
+      operation: "probeHasAudioStream",
+      filePath,
+      exitCode: proc.exitCode,
+      stderrTail: stderr.slice(-300),
+    });
+    return false;
+  }
+
+  const stdout = await new Response(proc.stdout).text();
+  return stdout.trim().length > 0;
+}
+
 async function setJobProgress(
   deps: ExportJobDbDeps,
   jobId: string,
@@ -201,12 +289,14 @@ export async function runExportJob(
     };
 
     const ffmpegInputs: string[] = [];
+    const videoInputHasAudio: boolean[] = [];
 
     for (const clip of videoClips) {
       const asset = assetsMap[clip.assetId!];
       const ext = asset.r2Key.split(".").pop() ?? "mp4";
       const path = await downloadToTmp(asset.r2Key, ext);
       ffmpegInputs.push("-i", path);
+      videoInputHasAudio.push(await probeHasAudioStream(path));
     }
 
     await setJobProgress(deps, jobId, 40);
@@ -222,7 +312,8 @@ export async function runExportJob(
     const videoInputCount = videoClips.length;
 
     videoClips.forEach((clip, i) => {
-      const trimStart = (clip.trimStartMs ?? 0) / 1000;
+      const trimStart = toNonNegativeFiniteNumber(clip.trimStartMs) / 1000;
+      const sourceDurationSec = getClipSourceDurationSeconds(clip);
       const pts =
         clip.speed && clip.speed !== 1
           ? `setpts=${(1 / clip.speed).toFixed(4)}*PTS,`
@@ -245,7 +336,7 @@ export async function runExportJob(
         colorFilters.length > 0 ? colorFilters.join(",") + "," : "";
 
       filterParts.push(
-        `[${i}:v]trim=start=${trimStart}:duration=${clip.durationMs / 1000},` +
+        `[${i}:v]trim=start=${trimStart}:duration=${sourceDurationSec},` +
           `${pts}scale=${outW}:${outH}:force_original_aspect_ratio=decrease,` +
           `pad=${outW}:${outH}:(ow-iw)/2:(oh-ih)/2:black,${colorStr}setpts=PTS-STARTPTS[v${i}]`,
       );
@@ -379,24 +470,63 @@ export async function runExportJob(
       }
     }
 
-    const allAudioClips = [...audioClips, ...musicClips];
+    type ExportAudioInput = {
+      clip: AudioClip | MusicClip | VideoClip;
+      inputIdx: number;
+      trackMuted: boolean;
+    };
+
+    const videoAudioInputs: ExportAudioInput[] = videoClipsWithTrack.flatMap(
+      ({ clip, trackIndex }, inputIdx) => {
+        if (
+          videoTracks[trackIndex]?.muted ||
+          !clip.assetId ||
+          !videoInputHasAudio[inputIdx]
+        ) {
+          return [];
+        }
+        return [
+          {
+            clip,
+            inputIdx,
+            trackMuted: !!videoTracks[trackIndex]?.muted,
+          },
+        ];
+      },
+    );
+
+    const audioInputs: ExportAudioInput[] = [
+      ...videoAudioInputs,
+      ...audioClips.map((clip, i) => ({
+        clip,
+        inputIdx: videoInputCount + i,
+        trackMuted: !!audioTrack?.muted,
+      })),
+      ...musicClips.map((clip, i) => ({
+        clip,
+        inputIdx: videoInputCount + audioClips.length + i,
+        trackMuted: !!musicTrack?.muted,
+      })),
+    ];
     let finalAudioLabel = "";
-    if (allAudioClips.length > 0) {
-      allAudioClips.forEach((clip, i) => {
-        const inputIdx = videoInputCount + i;
-        const vol = (clip.muted ? 0 : (clip.volume ?? 1)).toFixed(2);
-        const trimStart = (clip.trimStartMs ?? 0) / 1000;
-        const durSec = clip.durationMs / 1000;
-        const atempo = buildFfmpegAtempoChain(clip.speed ?? 1);
+    if (audioInputs.length > 0) {
+      audioInputs.forEach(({ clip, inputIdx, trackMuted }, i) => {
+        const vol = (trackMuted || clip.muted ? 0 : (clip.volume ?? 1)).toFixed(
+          2,
+        );
+        const trimStart = toNonNegativeFiniteNumber(clip.trimStartMs) / 1000;
+        const durSec = getClipSourceDurationSeconds(clip);
+        const atempo = buildFfmpegAtempoChain(getClipPlaybackSpeed(clip));
         const tempoPart = atempo ? `,${atempo}` : "";
+        const delayMs = Math.round(toNonNegativeFiniteNumber(clip.startMs));
         filterParts.push(
-          `[${inputIdx}:a]atrim=start=${trimStart}:duration=${durSec},asetpts=PTS-STARTPTS${tempoPart},volume=${vol}[a${i}]`,
+          `[${inputIdx}:a]atrim=start=${trimStart}:duration=${durSec},asetpts=PTS-STARTPTS${tempoPart},volume=${vol},adelay=${delayMs}|${delayMs}[a${i}]`,
         );
       });
-      if (allAudioClips.length > 1) {
-        const amixInputs = allAudioClips.map((_, i) => `[a${i}]`).join("");
+      if (audioInputs.length > 1) {
+        const amixInputs = audioInputs.map((_, i) => `[a${i}]`).join("");
         filterParts.push(
-          `${amixInputs}amix=inputs=${allAudioClips.length}[amix]`,
+          `${amixInputs}amix=inputs=${audioInputs.length}:normalize=0[amix]`,
         );
         finalAudioLabel = "amix";
       } else {

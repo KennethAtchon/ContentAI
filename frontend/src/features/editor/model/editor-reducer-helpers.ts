@@ -102,10 +102,16 @@ export function alignClipTrimEndToInvariant(clip: Clip): Clip {
   if (sm === undefined || clip.assetId == null) return clip;
   if (clip.type === "video" && clip.isPlaceholder) return clip;
   const ts = clip.trimStartMs ?? 0;
-  const d = clip.durationMs ?? 0;
-  const te = Math.max(0, sm - ts - d);
-  if (te === (clip.trimEndMs ?? 0)) return clip;
-  return { ...clip, trimEndMs: te };
+  const speed =
+    clip.speed && Number.isFinite(clip.speed) && clip.speed > 0
+      ? clip.speed
+      : 1;
+  const maxTimelineDuration = Math.max(100, Math.floor((sm - ts) / speed));
+  const d = Math.max(100, Math.min(clip.durationMs ?? 0, maxTimelineDuration));
+  const consumedSourceMs = Math.round(d * speed);
+  const te = Math.max(0, sm - ts - consumedSourceMs);
+  if (d === (clip.durationMs ?? 0) && te === (clip.trimEndMs ?? 0)) return clip;
+  return { ...clip, durationMs: d, trimEndMs: te };
 }
 
 export function alignTracksTrimInvariant(tracks: Track[]): Track[] {

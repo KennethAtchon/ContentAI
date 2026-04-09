@@ -17,8 +17,8 @@ export const resolutionEnum = z.enum([
 
 const baseClipSchema = {
   id: z.string().min(1),
-  startMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  startMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
+  durationMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
 };
 
 const visualClipSchema = {
@@ -36,10 +36,10 @@ const visualClipSchema = {
 
 const mediaClipSchema = {
   assetId: z.string().nullable(),
-  trimStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-  trimEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+  trimStartMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
+  trimEndMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
   sourceMaxDurationMs: z
-    .preprocess(roundFiniteMs, z.number().int().min(0))
+    .preprocess(roundFiniteMs, z.number().finite().int().min(0))
     .optional(),
   volume: z.number().min(0).max(2),
   muted: z.boolean(),
@@ -92,8 +92,8 @@ const captionClipSchema = z
     type: z.literal("caption"),
     originVoiceoverClipId: z.string().min(1).nullable(),
     captionDocId: z.string().min(1),
-    sourceStartMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
-    sourceEndMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+    sourceStartMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
+    sourceEndMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(0)),
     stylePresetId: z.string().min(1),
     styleOverrides: z
       .object({
@@ -102,7 +102,7 @@ const captionClipSchema = z
         textTransform: z.enum(["none", "uppercase", "lowercase"]).optional(),
       })
       .default({}),
-    groupingMs: z.preprocess(roundFiniteMs, z.number().int().min(1)),
+    groupingMs: z.preprocess(roundFiniteMs, z.number().finite().int().min(1)),
   })
   .superRefine((value, ctx) => {
     if (value.durationMs <= 0) {

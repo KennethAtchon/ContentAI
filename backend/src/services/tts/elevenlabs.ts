@@ -2,8 +2,8 @@ import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
   ELEVENLABS_API_KEY,
 } from "../../utils/config/envUtil";
+import { estimateMp3DurationMs } from "./mp3-duration";
 import {
-  estimateMp3DurationMsFromBufferSize,
   getDevMockVoiceBuffer,
 } from "../video-generation/dev-fixtures/load-fixtures";
 import { systemConfigService } from "../../domain/singletons";
@@ -47,7 +47,7 @@ export async function generateSpeech(
 ): Promise<TTSResult> {
   if (DEV_MOCK_EXTERNAL_INTEGRATIONS) {
     const audioBuffer = getDevMockVoiceBuffer();
-    const durationMs = estimateMp3DurationMsFromBufferSize(audioBuffer.length);
+    const durationMs = estimateMp3DurationMs(audioBuffer);
     debugLog.info(
       "DEV_MOCK_EXTERNAL_INTEGRATIONS — returning fixture MP3 for TTS",
       {
@@ -110,8 +110,7 @@ export async function generateSpeech(
   const arrayBuffer = await response.arrayBuffer();
   const audioBuffer = Buffer.from(arrayBuffer);
 
-  // Estimate duration from buffer size (mp3 at ~128kbps = 16000 bytes/second)
-  const durationMs = Math.round((audioBuffer.length / 16000) * 1000);
+  const durationMs = estimateMp3DurationMs(audioBuffer);
 
   return { audioBuffer, durationMs };
 }

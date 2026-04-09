@@ -1,7 +1,8 @@
+import { useCallback } from "react";
 import { Play } from "lucide-react";
 import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
-import type { PreviewScene } from "../scene/preview-scene";
+import type { PreviewScene, PreviewVideoObject, PreviewAudioObject } from "../scene/preview-scene";
 
 interface PreviewStageSurfaceProps {
   captionCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -15,6 +16,56 @@ interface PreviewStageSurfaceProps {
   scene: PreviewScene;
   t: (key: string) => string;
   totalDurationMs: number;
+}
+
+/**
+ * Stable video element wrapper. Using a component with useCallback keeps the
+ * ref callback identity fixed across parent rerenders, preventing React from
+ * calling the old ref with null and the new ref with the element on every frame.
+ */
+function VideoClipElement({
+  clip,
+  registerVideoRef,
+}: {
+  clip: PreviewVideoObject;
+  registerVideoRef: (clipId: string, element: HTMLVideoElement | null) => void;
+}) {
+  const ref = useCallback(
+    (el: HTMLVideoElement | null) => registerVideoRef(clip.id, el),
+    [clip.id, registerVideoRef]
+  );
+  return (
+    <div className="absolute inset-0">
+      <video
+        ref={ref}
+        {...(clip.src ? { src: clip.src } : {})}
+        className="absolute inset-0 w-full h-full object-contain"
+        style={clip.style}
+        playsInline
+        preload={clip.preload}
+      />
+      {!clip.src && (
+        <div className="absolute inset-0 bg-overlay-sm animate-pulse rounded" />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Stable audio element wrapper — same ref-stability rationale as VideoClipElement.
+ */
+function AudioClipElement({
+  clip,
+  registerAudioRef,
+}: {
+  clip: PreviewAudioObject;
+  registerAudioRef: (clipId: string, element: HTMLAudioElement | null) => void;
+}) {
+  const ref = useCallback(
+    (el: HTMLAudioElement | null) => registerAudioRef(clip.id, el),
+    [clip.id, registerAudioRef]
+  );
+  return <audio ref={ref} src={clip.src} preload={clip.preload} />;
 }
 
 /**
@@ -64,29 +115,20 @@ export function PreviewStageSurface({
           {scene.videoObjects
             .filter((clip) => clip.shouldMount)
             .map((clip) => (
-              <div key={clip.id} className="absolute inset-0">
-                <video
-                  ref={(element) => registerVideoRef(clip.id, element)}
-                  {...(clip.src ? { src: clip.src } : {})}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  style={clip.style}
-                  playsInline
-                  preload={clip.preload}
-                />
-                {!clip.src && (
-                  <div className="absolute inset-0 bg-overlay-sm animate-pulse rounded" />
-                )}
-              </div>
+              <VideoClipElement
+                key={clip.id}
+                clip={clip}
+                registerVideoRef={registerVideoRef}
+              />
             ))}
 
           {scene.audioObjects
             .filter((clip) => clip.shouldMount)
             .map((clip) => (
-              <audio
+              <AudioClipElement
                 key={clip.id}
-                ref={(element) => registerAudioRef(clip.id, element)}
-                src={clip.src}
-                preload={clip.preload}
+                clip={clip}
+                registerAudioRef={registerAudioRef}
               />
             ))}
 

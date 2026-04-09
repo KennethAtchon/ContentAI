@@ -64,6 +64,18 @@ describe("editor-composition", () => {
     );
   });
 
+  test("getClipSourceTimeSecondsAtTimelineTime clamps to source max", () => {
+    const c = clip({
+      id: "a",
+      startMs: 0,
+      durationMs: 10_000,
+      trimStartMs: 0,
+      speed: 2,
+      sourceMaxDurationMs: 6_000,
+    });
+    expect(getClipSourceTimeSecondsAtTimelineTime(c, 9_000)).toBe(6);
+  });
+
   test("buildActiveVideoClipIdsByTrackMap groups by track", () => {
     const vt: Track = {
       id: "v1",

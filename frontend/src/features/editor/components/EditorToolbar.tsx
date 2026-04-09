@@ -315,9 +315,6 @@ export function EditorToolbar({
             </span>
           ) : isDirty ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-amber-400">
-                {t("editor_unsaved_changes")}
-              </span>
               <button
                 onClick={onSaveNow}
                 className="px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-amber-400 cursor-pointer hover:bg-amber-400/25 transition-colors"

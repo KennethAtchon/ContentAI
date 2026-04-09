@@ -13,19 +13,13 @@ interface UsePreviewPlaybackBridgeParams {
 }
 
 /**
- * Maintains a preview-local playback clock so the stage can advance smoothly
- * without dispatching `SET_CURRENT_TIME` into the reducer on every animation
- * frame.
+ * Drives the editor playhead via requestAnimationFrame, while publishing
+ * periodic checkpoints to the reducer for the rest of the editor UI.
  *
- * The reducer still owns the semantic editor playhead for transport controls,
- * keyboard actions, timeline UI, and other non-preview consumers. This hook
- * bridges the two by:
- * - driving a local rAF clock while playback is active
- * - publishing throttled checkpoints back to editor state
- * - snapping back to reducer time when an explicit seek or large drift occurs
- *
- * This keeps playback responsive while preserving a single source of truth for
- * persisted/editor-facing timeline state.
+ * A preview-local ref tracks the running position between ticks so the rAF
+ * closure always reads the latest value without relying on React state lag.
+ * The reducer is the single source of truth; `previewCurrentTimeMs` is derived
+ * from it and kept in sync via the resync effect for explicit seeks.
  */
 export function usePreviewPlaybackBridge({
   currentTimeMs,
@@ -54,6 +48,7 @@ export function usePreviewPlaybackBridge({
     previewCurrentTimeRef.current = previewCurrentTimeMs;
   }, [previewCurrentTimeMs]);
 
+  // Snap preview time to reducer time on explicit seeks or when paused.
   useEffect(() => {
     const diff = Math.abs(currentTimeMs - previewCurrentTimeRef.current);
     if (!isPlaying || diff > PLAYHEAD_RESYNC_THRESHOLD_MS) {
@@ -73,6 +68,8 @@ export function usePreviewPlaybackBridge({
       return;
     }
 
+    if (durationMs <= 0) return;
+
     wasPlayingRef.current = true;
     const tick = (timestamp: number) => {
       if (lastTimestampRef.current === null) {
@@ -89,7 +86,6 @@ export function usePreviewPlaybackBridge({
 
       previewCurrentTimeRef.current = clampedTimeMs;
       setPreviewCurrentTimeMs(clampedTimeMs);
-
       if (
         Math.abs(clampedTimeMs - lastPublishedAtRef.current) >=
         PLAYHEAD_PUBLISH_INTERVAL_MS

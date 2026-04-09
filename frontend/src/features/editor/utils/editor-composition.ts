@@ -55,10 +55,19 @@ export function getClipSourceTimeSecondsAtTimelineTime(
   clip: MediaClip,
   timelineTimeMs: number
 ): number {
-  return (
-    ((timelineTimeMs - clip.startMs) / 1000) * (clip.speed || 1) +
-    (clip.trimStartMs ?? 0) / 1000
-  );
+  const speed =
+    clip.speed && Number.isFinite(clip.speed) && clip.speed > 0
+      ? clip.speed
+      : 1;
+  const sourceTimeSeconds =
+    ((timelineTimeMs - clip.startMs) / 1000) * speed +
+    (clip.trimStartMs ?? 0) / 1000;
+  const sourceMaxSeconds =
+    clip.sourceMaxDurationMs != null && clip.sourceMaxDurationMs > 0
+      ? clip.sourceMaxDurationMs / 1000
+      : null;
+  if (sourceMaxSeconds == null) return Math.max(0, sourceTimeSeconds);
+  return Math.max(0, Math.min(sourceMaxSeconds, sourceTimeSeconds));
 }
 
 export function buildActiveVideoClipIdsByTrackMap(
