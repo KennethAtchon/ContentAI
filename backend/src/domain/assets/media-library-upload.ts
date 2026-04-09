@@ -54,10 +54,7 @@ export function parseMediaLibraryUploadForm(
   const maxBytes = getMediaLibraryMaxBytes(mediaType);
   if (fileEntry.size > maxBytes) {
     const limitMb = maxBytes / (1024 * 1024);
-    throw Errors.badRequest(
-      `File exceeds ${limitMb}MB limit`,
-      "INVALID_INPUT",
-    );
+    throw Errors.badRequest(`File exceeds ${limitMb}MB limit`, "INVALID_INPUT");
   }
 
   const nameRaw = form.get("name");

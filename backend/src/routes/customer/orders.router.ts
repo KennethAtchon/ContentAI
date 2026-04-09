@@ -63,12 +63,16 @@ ordersRouter.post(
     const { stripeSessionId, status } = c.req.valid("json");
 
     const { order, status: httpStatus } =
-      await createOrderFromStripeCheckoutSession(stripeClient, customerService, {
-        userId: auth.user.id,
-        firebaseUid: auth.firebaseUser.uid,
-        stripeSessionId,
-        status,
-      });
+      await createOrderFromStripeCheckoutSession(
+        stripeClient,
+        customerService,
+        {
+          userId: auth.user.id,
+          firebaseUid: auth.firebaseUser.uid,
+          stripeSessionId,
+          status,
+        },
+      );
 
     return c.json({ order }, httpStatus);
   },

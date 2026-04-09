@@ -11,10 +11,13 @@ export async function seedCaptionPresets(): Promise<void> {
   try {
     await captionPresetRepository.seedPresetsIfEmpty(SEEDED_CAPTION_PRESETS);
 
-    debugLog.info(`Caption presets seeded (${SEEDED_CAPTION_PRESETS.length} presets)`, {
-      service: "caption-preset-seed",
-      operation: "seed",
-    });
+    debugLog.info(
+      `Caption presets seeded (${SEEDED_CAPTION_PRESETS.length} presets)`,
+      {
+        service: "caption-preset-seed",
+        operation: "seed",
+      },
+    );
   } catch (error) {
     debugLog.error("Failed to seed caption presets", {
       service: "caption-preset-seed",

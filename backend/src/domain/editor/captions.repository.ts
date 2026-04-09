@@ -54,10 +54,7 @@ export class CaptionsRepository implements ICaptionsRepository {
       .select()
       .from(captionDocs)
       .where(
-        and(
-          eq(captionDocs.id, captionDocId),
-          eq(captionDocs.userId, userId),
-        ),
+        and(eq(captionDocs.id, captionDocId), eq(captionDocs.userId, userId)),
       )
       .limit(1);
     return row ?? null;
@@ -83,10 +80,7 @@ export class CaptionsRepository implements ICaptionsRepository {
         updatedAt: new Date(),
       })
       .where(
-        and(
-          eq(captionDocs.id, captionDocId),
-          eq(captionDocs.userId, userId),
-        ),
+        and(eq(captionDocs.id, captionDocId), eq(captionDocs.userId, userId)),
       )
       .returning();
     return updated ?? null;

@@ -74,6 +74,8 @@ export default [
         MouseEvent: "readonly",
         HTMLElement: "readonly",
         confirm: "readonly",
+        BeforeUnloadEvent: "readonly",
+        AudioContext: "readonly",
       },
     },
     plugins: {

@@ -45,7 +45,11 @@ export function OpenChatButton({
       });
       void navigate({
         to: REDIRECT_PATHS.STUDIO_GENERATE,
-        search: { sessionId: result.sessionId, projectId: result.projectId, reelId: undefined },
+        search: {
+          sessionId: result.sessionId,
+          projectId: result.projectId,
+          reelId: undefined,
+        },
       });
     } finally {
       setIsResolving(false);

@@ -4,7 +4,8 @@ import type { Track } from "@/types/timeline.types";
 process.env.FIREBASE_API_KEY = process.env.FIREBASE_API_KEY ?? "test-api-key";
 process.env.FIREBASE_AUTH_DOMAIN =
   process.env.FIREBASE_AUTH_DOMAIN ?? "test.firebaseapp.com";
-process.env.FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? "test-project";
+process.env.FIREBASE_PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID ?? "test-project";
 process.env.FIREBASE_STORAGE_BUCKET =
   process.env.FIREBASE_STORAGE_BUCKET ?? "test-bucket";
 process.env.FIREBASE_MESSAGING_SENDER_ID =
@@ -14,7 +15,8 @@ process.env.FIREBASE_APP_ID =
 process.env.FIREBASE_CLIENT_EMAIL =
   process.env.FIREBASE_CLIENT_EMAIL ?? "test@example.com";
 process.env.FIREBASE_PRIVATE_KEY =
-  process.env.FIREBASE_PRIVATE_KEY ?? "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----";
+  process.env.FIREBASE_PRIVATE_KEY ??
+  "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----";
 process.env.CSRF_SECRET = process.env.CSRF_SECRET ?? "test-csrf-secret";
 
 mock.module("@/services/storage/r2", () => ({
@@ -143,7 +145,9 @@ describe("runExportJob", () => {
       "job-1",
       {
         status: "failed",
-        error: expect.stringContaining('Caption doc "missing-doc" was not found'),
+        error: expect.stringContaining(
+          'Caption doc "missing-doc" was not found',
+        ),
       },
     ]);
   });

@@ -83,7 +83,9 @@ export function clampTrimEnd(
 ): number {
   const nextClipStart = track.clips
     .filter((c) => c.id !== clip.id && c.startMs > clip.startMs)
-    .reduce<number | null>((min, c) => (min === null || c.startMs < min ? c.startMs : min), null);
+    .reduce<
+      number | null
+    >((min, c) => (min === null || c.startMs < min ? c.startMs : min), null);
 
   if (nextClipStart === null) return Math.max(100, proposedDurationMs);
   const maxDuration = nextClipStart - clip.startMs;

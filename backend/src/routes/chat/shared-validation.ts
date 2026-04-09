@@ -1,11 +1,11 @@
 import type { Context } from "hono";
 
-export type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+export type ValidationResult = {
+  success: boolean;
+  error?: { issues: unknown[] };
+};
 
-export function chatValidationErrorHook(
-  result: ValidationResult,
-  c: Context,
-) {
+export function chatValidationErrorHook(result: ValidationResult, c: Context) {
   if (!result.success) {
     return c.json(
       {

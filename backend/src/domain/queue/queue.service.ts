@@ -130,10 +130,11 @@ export class QueueService {
     }
 
     try {
-      const queueItem = await this.queue.createDraftQueueItemAndMarkContentQueued(
-        userId,
-        generatedContentId,
-      );
+      const queueItem =
+        await this.queue.createDraftQueueItemAndMarkContentQueued(
+          userId,
+          generatedContentId,
+        );
       return { queueItem };
     } catch (e) {
       if (e instanceof QueueChainError) {
@@ -176,10 +177,7 @@ export class QueueService {
   }
 
   async getQueueItemDetail(userId: string, queueItemId: number) {
-    const item = await this.queue.findQueueItemByIdForUser(
-      queueItemId,
-      userId,
-    );
+    const item = await this.queue.findQueueItemByIdForUser(queueItemId, userId);
     if (!item) throw Errors.notFound("Queue item");
 
     let content: GeneratedContentRow | null = null;
@@ -318,10 +316,7 @@ export class QueueService {
     queueItemId: number,
     body: z.infer<typeof updateQueueItemBodySchema>,
   ) {
-    const item = await this.queue.findQueueItemByIdForUser(
-      queueItemId,
-      userId,
-    );
+    const item = await this.queue.findQueueItemByIdForUser(queueItemId, userId);
     if (!item) throw Errors.notFound("Queue item");
 
     const updateData: Record<string, unknown> = {};

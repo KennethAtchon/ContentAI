@@ -63,7 +63,10 @@ export function PreviewArea({
 
   // Compute preview box dimensions that fit within the available space
   // while maintaining the correct aspect ratio (portrait, landscape, square).
-  const [previewSize, setPreviewSize] = useState<{ w: number; h: number } | null>(null);
+  const [previewSize, setPreviewSize] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
@@ -87,10 +90,22 @@ export function PreviewArea({
     return () => obs.disconnect();
   }, [resW, resH]);
 
-  const videoTracks = useMemo(() => tracks.filter((t) => t.type === "video"), [tracks]);
-  const audioTrack = useMemo(() => tracks.find((t) => t.type === "audio"), [tracks]);
-  const musicTrack = useMemo(() => tracks.find((t) => t.type === "music"), [tracks]);
-  const textTrack = useMemo(() => tracks.find((t) => t.type === "text"), [tracks]);
+  const videoTracks = useMemo(
+    () => tracks.filter((t) => t.type === "video"),
+    [tracks]
+  );
+  const audioTrack = useMemo(
+    () => tracks.find((t) => t.type === "audio"),
+    [tracks]
+  );
+  const musicTrack = useMemo(
+    () => tracks.find((t) => t.type === "music"),
+    [tracks]
+  );
+  const textTrack = useMemo(
+    () => tracks.find((t) => t.type === "text"),
+    [tracks]
+  );
 
   const activeVideoClipIdsByTrack = useMemo(
     () => buildActiveVideoClipIdsByTrackMap(videoTracks, currentTimeMs),
@@ -99,24 +114,25 @@ export function PreviewArea({
 
   const activeTextClips = useMemo(
     () =>
-      (textTrack?.clips ?? []).filter(isTextClip).filter((c) =>
-        isClipActiveAtTimelineTime(c, currentTimeMs)
-      ),
+      (textTrack?.clips ?? [])
+        .filter(isTextClip)
+        .filter((c) => isClipActiveAtTimelineTime(c, currentTimeMs)),
     [textTrack?.clips, currentTimeMs]
   );
-  const activeCaptionClip = useMemo(
-    () => {
-      const activeClips = (textTrack?.clips ?? [])
-        .filter(isCaptionClip)
-        .filter((clip) => isClipActiveAtTimelineTime(clip, currentTimeMs));
-      return activeClips[activeClips.length - 1] ?? null;
-    },
-    [textTrack?.clips, currentTimeMs]
-  );
+  const activeCaptionClip = useMemo(() => {
+    const activeClips = (textTrack?.clips ?? [])
+      .filter(isCaptionClip)
+      .filter((clip) => isClipActiveAtTimelineTime(clip, currentTimeMs));
+    return activeClips[activeClips.length - 1] ?? null;
+  }, [textTrack?.clips, currentTimeMs]);
   const { data: captionPresets } = useCaptionPresets();
-  const { data: activeCaptionDoc } = useCaptionDoc(activeCaptionClip?.captionDocId ?? null);
+  const { data: activeCaptionDoc } = useCaptionDoc(
+    activeCaptionClip?.captionDocId ?? null
+  );
   const activeCaptionPreset = useMemo(() => {
-    const preset = captionPresets?.find((item) => item.id === activeCaptionClip?.stylePresetId);
+    const preset = captionPresets?.find(
+      (item) => item.id === activeCaptionClip?.stylePresetId
+    );
     if (!preset || !activeCaptionClip) return null;
     return applyCaptionStyleOverrides(preset, activeCaptionClip.styleOverrides);
   }, [captionPresets, activeCaptionClip]);
@@ -179,7 +195,10 @@ export function PreviewArea({
             clip,
             currentTimeMs
           );
-          if (Math.abs(el.currentTime - targetTime) > VIDEO_SYNC_SEEK_THRESHOLD_SEC) {
+          if (
+            Math.abs(el.currentTime - targetTime) >
+            VIDEO_SYNC_SEEK_THRESHOLD_SEC
+          ) {
             el.currentTime = targetTime;
           }
           el.playbackRate = effectiveHtmlMediaPlaybackRate(
@@ -207,7 +226,13 @@ export function PreviewArea({
         }
       }
     }
-  }, [activeVideoClipIdsByTrack, currentTimeMs, isPlaying, playbackRate, videoTracks]);
+  }, [
+    activeVideoClipIdsByTrack,
+    currentTimeMs,
+    isPlaying,
+    playbackRate,
+    videoTracks,
+  ]);
 
   useEffect(() => {
     const runForTrack = (track: Track | undefined) => {
@@ -223,7 +248,10 @@ export function PreviewArea({
             clip,
             currentTimeMs
           );
-          if (Math.abs(el.currentTime - targetTime) > VIDEO_SYNC_SEEK_THRESHOLD_SEC) {
+          if (
+            Math.abs(el.currentTime - targetTime) >
+            VIDEO_SYNC_SEEK_THRESHOLD_SEC
+          ) {
             el.currentTime = targetTime;
           }
           el.playbackRate = effectiveHtmlMediaPlaybackRate(
@@ -268,7 +296,10 @@ export function PreviewArea({
   const total = formatMMSS(durationMs);
 
   return (
-    <div ref={outerRef} className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0">
+    <div
+      ref={outerRef}
+      className="flex-1 flex flex-col items-center justify-center bg-studio-bg overflow-hidden px-2 py-2 min-w-0"
+    >
       <p className="text-[10px] font-semibold text-dim-3 mb-2 tracking-widest uppercase">
         {t("editor_preview_label")}
       </p>
@@ -315,13 +346,17 @@ export function PreviewArea({
                       ? effectPreviewOverride.patch
                       : null;
                   const contrast =
-                    (preview && "contrast" in preview ? preview.contrast : undefined) ??
-                    clip.contrast;
+                    (preview && "contrast" in preview
+                      ? preview.contrast
+                      : undefined) ?? clip.contrast;
                   const warmth =
-                    (preview && "warmth" in preview ? preview.warmth : undefined) ??
-                    clip.warmth;
+                    (preview && "warmth" in preview
+                      ? preview.warmth
+                      : undefined) ?? clip.warmth;
                   const baseOpacity =
-                    (preview && "opacity" in preview ? preview.opacity : undefined) ??
+                    (preview && "opacity" in preview
+                      ? preview.opacity
+                      : undefined) ??
                     clip.opacity ??
                     1;
 
@@ -398,7 +433,9 @@ export function PreviewArea({
           })}
 
           {audioClips
-            .filter(({ clip }) => isClipWithinMountWindow(clip.startMs, clip.durationMs))
+            .filter(({ clip }) =>
+              isClipWithinMountWindow(clip.startMs, clip.durationMs)
+            )
             .map(({ clip }) => (
               <audio
                 key={clip.id}

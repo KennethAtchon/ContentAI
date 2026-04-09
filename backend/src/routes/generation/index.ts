@@ -19,7 +19,6 @@ import { AppError, Errors } from "../../utils/errors/app-error";
 
 const generationRouter = new Hono<HonoEnv>();
 
-
 // POST /api/generation
 // Creates a generation job (reel analysis + script/hook generation)
 generationRouter.post(
@@ -115,7 +114,10 @@ generationRouter.get(
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
 
-    const item = await contentService.findGeneratedContentById(id, auth.user.id);
+    const item = await contentService.findGeneratedContentById(
+      id,
+      auth.user.id,
+    );
 
     if (!item) {
       throw Errors.notFound("Generated content");
@@ -139,7 +141,10 @@ generationRouter.post(
     const { id } = c.req.valid("param");
     const { scheduledFor } = c.req.valid("json");
 
-    const item = await contentService.findGeneratedContentById(id, auth.user.id);
+    const item = await contentService.findGeneratedContentById(
+      id,
+      auth.user.id,
+    );
 
     if (!item) {
       throw Errors.notFound("Generated content");

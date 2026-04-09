@@ -33,9 +33,7 @@ export class AdminService {
     } = counts;
 
     const conversionRate =
-      totalCustomers > 0
-        ? (customersWithPaidOrders / totalCustomers) * 100
-        : 0;
+      totalCustomers > 0 ? (customersWithPaidOrders / totalCustomers) * 100 : 0;
     const lastMonthConversionRate =
       lastMonthCustomers > 0
         ? (lastMonthCustomersWithPaidOrders / lastMonthCustomers) * 100
@@ -171,8 +169,7 @@ export class AdminService {
       body.id,
       body.deletedBy || "admin",
     );
-    if (!deletedOrder)
-      throw Errors.internal("Order could not be deleted");
+    if (!deletedOrder) throw Errors.internal("Order could not be deleted");
 
     const orderUser = await this.repo.findUserBriefById(deletedOrder.userId);
     const user = orderUser ?? { name: "", email: "" };

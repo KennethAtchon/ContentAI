@@ -29,9 +29,13 @@ export function isTextClip(clip: Clip): clip is TextClip {
 }
 
 export function isMediaClip(clip: Clip): clip is MediaClip {
-  return clip.type === "video" || clip.type === "audio" || clip.type === "music";
+  return (
+    clip.type === "video" || clip.type === "audio" || clip.type === "music"
+  );
 }
 
-export function isNonCaptionClip(clip: Clip): clip is Exclude<Clip, CaptionClip> {
+export function isNonCaptionClip(
+  clip: Clip
+): clip is Exclude<Clip, CaptionClip> {
   return clip.type !== "caption";
 }

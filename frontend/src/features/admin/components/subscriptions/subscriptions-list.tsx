@@ -21,12 +21,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
-import { usePaginatedData, type PaginationInfo } from "@/shared/hooks/use-paginated-data";
-import { DataTable, type ColumnDef } from "@/shared/components/data-display/DataTable";
-import { Subscription } from "@/features/subscriptions/types/subscription.types";
 import {
-  type SubscriptionStatus,
-} from "@/shared/constants/subscription.constants";
+  usePaginatedData,
+  type PaginationInfo,
+} from "@/shared/hooks/use-paginated-data";
+import {
+  DataTable,
+  type ColumnDef,
+} from "@/shared/components/data-display/DataTable";
+import { Subscription } from "@/features/subscriptions/types/subscription.types";
+import { type SubscriptionStatus } from "@/shared/constants/subscription.constants";
 import { toSubscriptionTier } from "@/shared/utils/type-guards/subscription-type-guards";
 
 const API_ENDPOINT = "/api/admin/subscriptions";
@@ -72,7 +76,9 @@ function toDateOrNull(value: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function mapAdminSubscriptionRowToSubscription(row: AdminSubscriptionApiRow): Subscription {
+function mapAdminSubscriptionRowToSubscription(
+  row: AdminSubscriptionApiRow
+): Subscription {
   const tier = toSubscriptionTier(row.tier);
   const userId = typeof row.customerId === "string" ? row.customerId : "";
 
@@ -139,10 +145,29 @@ function UserIdCell({ userId }: { userId: string | null | undefined }) {
 function SubscriptionStatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
   if (s === "active") return <Badge className="capitalize">{s}</Badge>;
-  if (s === "trialing") return <Badge variant="secondary" className="capitalize">{s}</Badge>;
-  if (s === "past_due") return <Badge variant="destructive" className="capitalize">{s}</Badge>;
-  if (s === "canceled") return <Badge variant="outline" className="capitalize">{s}</Badge>;
-  return <Badge variant="secondary" className="capitalize">{s}</Badge>;
+  if (s === "trialing")
+    return (
+      <Badge variant="secondary" className="capitalize">
+        {s}
+      </Badge>
+    );
+  if (s === "past_due")
+    return (
+      <Badge variant="destructive" className="capitalize">
+        {s}
+      </Badge>
+    );
+  if (s === "canceled")
+    return (
+      <Badge variant="outline" className="capitalize">
+        {s}
+      </Badge>
+    );
+  return (
+    <Badge variant="secondary" className="capitalize">
+      {s}
+    </Badge>
+  );
 }
 
 export function SubscriptionsList() {
@@ -153,7 +178,10 @@ export function SubscriptionsList() {
 
   const urlBuilder = useMemo(
     () => (page: number, limit: number) => {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (tierFilter !== "all") params.set("tier", tierFilter);
       return `${API_ENDPOINT}?${params}`;
@@ -161,19 +189,35 @@ export function SubscriptionsList() {
     [statusFilter, tierFilter]
   );
 
-  const { data, loading, error, pagination, fetchPage } = usePaginatedData<Subscription>(urlBuilder, {
-    initialLimit: 20,
-    serviceName: "subscriptions-list",
-    transformResponse: (response: unknown) => {
-      const r = response as AdminSubscriptionsApiResponse;
-      const rawList = Array.isArray(r.subscriptions) ? r.subscriptions : [];
-      const list = rawList.map((row) =>
-        mapAdminSubscriptionRowToSubscription(row as AdminSubscriptionApiRow)
-      );
-      const p = r.pagination ?? { total: list.length, page: 1, limit: 20, totalPages: 1, hasMore: false };
-      return { data: list, pagination: { page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages, hasMore: p.hasMore } };
-    },
-  });
+  const { data, loading, error, pagination, fetchPage } =
+    usePaginatedData<Subscription>(urlBuilder, {
+      initialLimit: 20,
+      serviceName: "subscriptions-list",
+      transformResponse: (response: unknown) => {
+        const r = response as AdminSubscriptionsApiResponse;
+        const rawList = Array.isArray(r.subscriptions) ? r.subscriptions : [];
+        const list = rawList.map((row) =>
+          mapAdminSubscriptionRowToSubscription(row as AdminSubscriptionApiRow)
+        );
+        const p = r.pagination ?? {
+          total: list.length,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+          hasMore: false,
+        };
+        return {
+          data: list,
+          pagination: {
+            page: p.page,
+            limit: p.limit,
+            total: p.total,
+            totalPages: p.totalPages,
+            hasMore: p.hasMore,
+          },
+        };
+      },
+    });
 
   useEffect(() => {
     fetchPage(1);
@@ -199,7 +243,11 @@ export function SubscriptionsList() {
     {
       key: "tier",
       header: t("admin_subscriptions_col_tier"),
-      cell: (row) => <Badge variant="outline" className="capitalize">{row.tier}</Badge>,
+      cell: (row) => (
+        <Badge variant="outline" className="capitalize">
+          {row.tier}
+        </Badge>
+      ),
     },
     {
       key: "status",
@@ -210,9 +258,13 @@ export function SubscriptionsList() {
       key: "usage",
       header: t("admin_subscriptions_col_usage"),
       cell: (row) =>
-        row.usageLimit === null
-          ? <span className="text-muted-foreground">{t("admin_subscriptions_usage_unlimited")}</span>
-          : `${row.usageCount} / ${row.usageLimit}`,
+        row.usageLimit === null ? (
+          <span className="text-muted-foreground">
+            {t("admin_subscriptions_usage_unlimited")}
+          </span>
+        ) : (
+          `${row.usageCount} / ${row.usageLimit}`
+        ),
     },
     {
       key: "period",
@@ -238,7 +290,12 @@ export function SubscriptionsList() {
   ];
 
   const paginationState = pagination
-    ? { page: pagination.page, totalPages: pagination.totalPages, total: pagination.total, hasMore: pagination.hasMore }
+    ? {
+        page: pagination.page,
+        totalPages: pagination.totalPages,
+        total: pagination.total,
+        hasMore: pagination.hasMore,
+      }
     : undefined;
 
   const filters = (
@@ -295,7 +352,12 @@ export function SubscriptionsList() {
         previous: t("common_pagination_previous"),
         next: t("common_pagination_next"),
         showing: paginationState
-          ? t("common_pagination_showing", { page: paginationState.page, totalPages: paginationState.totalPages, total: paginationState.total, item: t("common_pagination_subscriptions") })
+          ? t("common_pagination_showing", {
+              page: paginationState.page,
+              totalPages: paginationState.totalPages,
+              total: paginationState.total,
+              item: t("common_pagination_subscriptions"),
+            })
           : undefined,
       }}
     />

@@ -16,7 +16,10 @@ function readBox(
   return { type, headerSize, totalSize: size };
 }
 
-function readMvhdDurationSeconds(buf: Buffer, dataStart: number): number | null {
+function readMvhdDurationSeconds(
+  buf: Buffer,
+  dataStart: number,
+): number | null {
   if (dataStart + 1 > buf.length) return null;
   const version = buf[dataStart];
   if (version === 1) {
@@ -56,7 +59,9 @@ function findMvhdInMoov(
  * Reads `moov`/`mvhd` duration (seconds). Used for dev fixture MP4s so stored
  * `durationMs` matches the actual file instead of the requested clip length.
  */
-export function estimateMp4DurationSecondsFromBuffer(buf: Buffer): number | null {
+export function estimateMp4DurationSecondsFromBuffer(
+  buf: Buffer,
+): number | null {
   let offset = 0;
   while (offset + 8 <= buf.length) {
     const box = readBox(buf, offset);

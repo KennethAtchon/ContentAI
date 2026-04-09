@@ -18,7 +18,9 @@ export function reduceSessionOps(
         project.tracks && project.tracks.length > 0
           ? project.tracks
           : DEFAULT_TRACKS;
-      const tracks = sanitizeTracksNoOverlap(alignTracksTrimInvariant(rawTracks));
+      const tracks = sanitizeTracksNoOverlap(
+        alignTracksTrimInvariant(rawTracks)
+      );
       const computedDuration = computeDuration(tracks);
       return {
         ...state,
@@ -63,7 +65,10 @@ export function reduceSessionOps(
       };
 
     case "SET_CURRENT_TIME":
-      return { ...state, currentTimeMs: Math.min(Math.max(0, action.ms), state.durationMs) };
+      return {
+        ...state,
+        currentTimeMs: Math.min(Math.max(0, action.ms), state.durationMs),
+      };
 
     case "SET_PLAYING":
       return { ...state, isPlaying: action.playing };

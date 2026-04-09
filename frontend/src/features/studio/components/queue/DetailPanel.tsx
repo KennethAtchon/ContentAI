@@ -2,7 +2,15 @@ import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/utils/helpers/utils";
-import { Check, X, Loader2, Copy, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import {
+  Check,
+  X,
+  Loader2,
+  Copy,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+} from "lucide-react";
 import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
 import { OpenChatButton } from "@/routes/studio/_components/OpenChatButton";
 import type { PipelineStage } from "@/features/reels/types/reel.types";
@@ -68,10 +76,7 @@ export function DetailPanel({
   const videoClips = assets.filter((a) => a.type === "video_clip");
   const assembled = assets.find((a) => a.type === "assembled_video");
   const finalVideoUrl =
-    detail.latestExportUrl ??
-    assembled?.r2Url ??
-    content?.videoR2Url ??
-    null;
+    detail.latestExportUrl ?? assembled?.r2Url ?? content?.videoR2Url ?? null;
 
   function handleDelete() {
     if (confirmDelete) {
@@ -94,7 +99,8 @@ export function DetailPanel({
     hashtags?: string[];
     cta?: string;
   } | null;
-  const hasMetadata = (metadata?.hashtags?.length ?? 0) > 0 || Boolean(metadata?.cta);
+  const hasMetadata =
+    (metadata?.hashtags?.length ?? 0) > 0 || Boolean(metadata?.cta);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -241,7 +247,9 @@ export function DetailPanel({
             <div className="space-y-3">
               {(metadata?.hashtags?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-sm text-dim-3">{t("studio_queue_detail_hashtags")}</p>
+                  <p className="text-sm text-dim-3">
+                    {t("studio_queue_detail_hashtags")}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {metadata!.hashtags!.map((tag) => (
                       <span
@@ -256,7 +264,9 @@ export function DetailPanel({
               )}
               {metadata?.cta && (
                 <div className="space-y-1">
-                  <p className="text-sm text-dim-3">{t("studio_queue_detail_cta")}</p>
+                  <p className="text-sm text-dim-3">
+                    {t("studio_queue_detail_cta")}
+                  </p>
                   <p className="text-sm text-dim-1 italic">"{metadata.cta}"</p>
                 </div>
               )}

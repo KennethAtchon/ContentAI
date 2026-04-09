@@ -78,7 +78,10 @@ function StatRowSkeleton({ count }: { count: number }) {
   return (
     <div className="flex gap-1">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse" />
+        <div
+          key={i}
+          className="h-16 flex-1 rounded-lg bg-overlay-xs animate-pulse"
+        />
       ))}
     </div>
   );
@@ -110,9 +113,7 @@ export function DashboardView() {
   const { data: revenueData, isLoading: revenueLoading } = useQuery({
     queryKey: queryKeys.api.admin.revenue(),
     queryFn: () =>
-      fetcher(
-        "/api/customer/orders/total-revenue"
-      ) as Promise<RevenueResponse>,
+      fetcher("/api/customer/orders/total-revenue") as Promise<RevenueResponse>,
     enabled,
   });
 
@@ -185,7 +186,9 @@ export function DashboardView() {
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">
           Welcome back, {firstName}.
         </h2>
-        <p className="text-sm text-dim-2 mt-1">Here's your platform overview.</p>
+        <p className="text-sm text-dim-2 mt-1">
+          Here's your platform overview.
+        </p>
       </div>
 
       {/* Primary stats row: MRR, Active Subs, Customers, Churn */}
@@ -201,7 +204,9 @@ export function DashboardView() {
             label={t("admin_dashboard_monthly_recurring_revenue_label")}
           />
           <StatCell
-            value={(subscriptionsData?.activeSubscriptions ?? 0).toLocaleString()}
+            value={(
+              subscriptionsData?.activeSubscriptions ?? 0
+            ).toLocaleString()}
             label={t("admin_dashboard_active_subscriptions_label")}
           />
           <StatCell

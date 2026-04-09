@@ -103,13 +103,15 @@ export function reduceTrackOps(
       }
 
       const oldTransitions = videoTrack.transitions ?? [];
-      const newTransitions = reorderedClips.slice(0, -1).flatMap((clipA, idx) => {
-        const clipB = reorderedClips[idx + 1];
-        const existing = oldTransitions.find(
-          (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id
-        );
-        return existing ? [existing] : [];
-      });
+      const newTransitions = reorderedClips
+        .slice(0, -1)
+        .flatMap((clipA, idx) => {
+          const clipB = reorderedClips[idx + 1];
+          const existing = oldTransitions.find(
+            (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id
+          );
+          return existing ? [existing] : [];
+        });
 
       const newTracks = state.tracks.map((t) =>
         t.id === action.trackId
@@ -155,7 +157,8 @@ export function reduceTrackOps(
             return {
               ...localTrack,
               clips: serverTrack.clips.map((c) => ({ ...c })),
-              transitions: serverTrack.transitions ?? localTrack.transitions ?? [],
+              transitions:
+                serverTrack.transitions ?? localTrack.transitions ?? [],
             };
           }
 
@@ -172,7 +175,8 @@ export function reduceTrackOps(
           return {
             ...localTrack,
             clips: mergedClips,
-            transitions: serverTrack.transitions ?? localTrack.transitions ?? [],
+            transitions:
+              serverTrack.transitions ?? localTrack.transitions ?? [],
           };
         }
 
@@ -182,7 +186,9 @@ export function reduceTrackOps(
           localTrack.type === "text"
         ) {
           const localClipMap = new Map(localTrack.clips.map((c) => [c.id, c]));
-          const serverClipMap = new Map(serverTrack.clips.map((c) => [c.id, c]));
+          const serverClipMap = new Map(
+            serverTrack.clips.map((c) => [c.id, c])
+          );
 
           const mergedClips = serverTrack.clips.map((sc) => {
             const local = localClipMap.get(sc.id);
@@ -218,10 +224,17 @@ export function reduceTrackOps(
         clips: [],
         transitions: [],
       };
-      const afterIdx = state.tracks.findIndex((t) => t.id === action.afterTrackId);
-      const newTracks = afterIdx >= 0
-        ? [...state.tracks.slice(0, afterIdx + 1), track, ...state.tracks.slice(afterIdx + 1)]
-        : [...state.tracks, track];
+      const afterIdx = state.tracks.findIndex(
+        (t) => t.id === action.afterTrackId
+      );
+      const newTracks =
+        afterIdx >= 0
+          ? [
+              ...state.tracks.slice(0, afterIdx + 1),
+              track,
+              ...state.tracks.slice(afterIdx + 1),
+            ]
+          : [...state.tracks, track];
       return {
         ...state,
         ...pushPastTracks(state, newTracks),
@@ -233,7 +246,9 @@ export function reduceTrackOps(
       if (action.track.type === "video") {
         let insertAt: number;
         if (action.afterTrackId) {
-          const idx = state.tracks.findIndex((t) => t.id === action.afterTrackId);
+          const idx = state.tracks.findIndex(
+            (t) => t.id === action.afterTrackId
+          );
           insertAt = idx >= 0 ? idx + 1 : state.tracks.length;
         } else {
           const lastVideoIdx = state.tracks.reduce(

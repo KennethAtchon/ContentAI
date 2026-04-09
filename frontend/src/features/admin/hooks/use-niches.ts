@@ -2,7 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { nichesService } from "../services/niches.service";
 import type { NicheReelsParams } from "../types";
-import { useCreateNiche, useDeleteAdminReel, useDeleteNiche, useDedupeNiche, useScanNiche, useUpdateNiche } from "./use-niche-mutations";
+import {
+  useCreateNiche,
+  useDeleteAdminReel,
+  useDeleteNiche,
+  useDedupeNiche,
+  useScanNiche,
+  useUpdateNiche,
+} from "./use-niche-mutations";
 
 export type {
   JobStatus,
@@ -14,7 +21,14 @@ export type {
   ScrapeConfigOverride,
 } from "../types";
 
-export { useCreateNiche, useUpdateNiche, useDeleteNiche, useScanNiche, useDedupeNiche, useDeleteAdminReel };
+export {
+  useCreateNiche,
+  useUpdateNiche,
+  useDeleteNiche,
+  useScanNiche,
+  useDedupeNiche,
+  useDeleteAdminReel,
+};
 
 export function useNiches(params?: { search?: string; active?: boolean }) {
   return useQuery({
@@ -39,9 +53,10 @@ export function useNicheJobs(nicheId: number) {
     enabled: nicheId > 0,
     refetchInterval: (query) => {
       const jobs = query.state.data?.jobs ?? [];
-      const hasActive = jobs.some((job) => job.status === "queued" || job.status === "running");
+      const hasActive = jobs.some(
+        (job) => job.status === "queued" || job.status === "running"
+      );
       return hasActive ? 3000 : false;
     },
   });
 }
-

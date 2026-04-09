@@ -3,7 +3,7 @@ import type { Token } from "./types";
 export function sliceTokensToRange(
   tokens: Token[],
   sourceStartMs: number,
-  sourceEndMs: number,
+  sourceEndMs: number
 ): Token[] {
   if (sourceEndMs <= sourceStartMs) return [];
 

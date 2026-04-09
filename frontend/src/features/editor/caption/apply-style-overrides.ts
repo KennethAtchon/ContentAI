@@ -3,7 +3,7 @@ import type { TextPreset } from "./types";
 
 export function applyCaptionStyleOverrides(
   preset: TextPreset,
-  overrides: CaptionStyleOverrides,
+  overrides: CaptionStyleOverrides
 ): TextPreset {
   return {
     ...preset,

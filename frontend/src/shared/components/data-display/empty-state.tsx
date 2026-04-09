@@ -34,7 +34,9 @@ export function EmptyState({
       <div className="py-8 text-center">
         <Icon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <p className="text-xl font-medium text-foreground mb-2">{title}</p>
-        {description && <p className="text-muted-foreground mb-4">{description}</p>}
+        {description && (
+          <p className="text-muted-foreground mb-4">{description}</p>
+        )}
         {action && (
           <>
             {action.href ? (

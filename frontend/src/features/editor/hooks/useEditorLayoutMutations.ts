@@ -2,7 +2,10 @@ import { useMutation, type QueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
-import { publishEditorProject, type PatchProjectParams } from "../services/editor-api";
+import {
+  publishEditorProject,
+  type PatchProjectParams,
+} from "../services/editor-api";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import type { EditProject } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
@@ -91,7 +94,8 @@ export function useEditorLayoutMutations(options: {
       }
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : t("editor_ai_assemble_error");
+      const msg =
+        err instanceof Error ? err.message : t("editor_ai_assemble_error");
       toast.error(msg);
     },
   });

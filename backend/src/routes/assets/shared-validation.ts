@@ -1,6 +1,9 @@
 import type { Context } from "hono";
 
-export type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
+export type ValidationResult = {
+  success: boolean;
+  error?: { issues: unknown[] };
+};
 
 export function assetsValidationErrorHook(
   result: ValidationResult,

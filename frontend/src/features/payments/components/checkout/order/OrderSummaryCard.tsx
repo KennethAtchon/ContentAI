@@ -1,5 +1,10 @@
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { CreditCard, DollarSign, Loader2 } from "lucide-react";
 import type { OrderItem } from "../order-checkout.types";
 
@@ -33,13 +38,17 @@ export function OrderSummaryCard({
               <span className="text-muted-foreground">
                 {item.name} × {item.quantity}
               </span>
-              <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+              <span className="font-medium">
+                ${(item.price * item.quantity).toFixed(2)}
+              </span>
             </div>
           ))}
         </div>
         <div className="border-t pt-4 space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-xl font-semibold">{t("admin_contact_messages_total")}</span>
+            <span className="text-xl font-semibold">
+              {t("admin_contact_messages_total")}
+            </span>
             <span className="text-3xl font-bold">
               <DollarSign className="inline h-5 w-5" />
               {subtotal.toFixed(2)}
@@ -64,9 +73,10 @@ export function OrderSummaryCard({
             </>
           )}
         </Button>
-        <p className="text-sm text-center text-muted-foreground">{t("checkout_redirected_to_stripe")}</p>
+        <p className="text-sm text-center text-muted-foreground">
+          {t("checkout_redirected_to_stripe")}
+        </p>
       </CardContent>
     </Card>
   );
 }
-

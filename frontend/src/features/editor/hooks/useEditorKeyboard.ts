@@ -148,8 +148,7 @@ export function useEditorKeyboard(options: {
           const ownerTrack = s.tracks.find((t) =>
             t.clips.some((c) => c.id === s.clipboardClip?.id)
           );
-          const trackId =
-            s.clipboardSourceTrackId ?? ownerTrack?.id ?? "video";
+          const trackId = s.clipboardSourceTrackId ?? ownerTrack?.id ?? "video";
           st.pasteClip(trackId, s.currentTimeMs);
         }
       }

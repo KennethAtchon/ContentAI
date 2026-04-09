@@ -14,7 +14,11 @@ import { Button } from "@/shared/components/ui/button";
 import { isUnlimited } from "./account-helpers";
 import type { Section, SidebarUsage } from "../types";
 
-export function StudioOverview({ onNavigate }: { onNavigate: (s: Section) => void }) {
+export function StudioOverview({
+  onNavigate,
+}: {
+  onNavigate: (s: Section) => void;
+}) {
   const { t } = useTranslation();
   const { user, profile } = useApp();
   const fetcher = useQueryFetcher<SidebarUsage>();

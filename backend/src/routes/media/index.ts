@@ -45,8 +45,12 @@ app.post(
   async (c) => {
     const auth = c.get("auth");
     const form = await c.req.formData();
-    const { file: fileEntry, name, mediaType, mime } =
-      parseMediaLibraryUploadForm(form);
+    const {
+      file: fileEntry,
+      name,
+      mediaType,
+      mime,
+    } = parseMediaLibraryUploadForm(form);
 
     const ext = fileEntry.name.includes(".")
       ? fileEntry.name.split(".").pop()!.toLowerCase()

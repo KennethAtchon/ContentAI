@@ -104,12 +104,18 @@ function getPageTitle(
     .sort((a, b) => b.href.length - a.href.length)[0];
 
   if (parent) {
-    const sub = pathname.substring(parent.href.length).replace(/^\//, "").replace(/-/g, " ");
+    const sub = pathname
+      .substring(parent.href.length)
+      .replace(/^\//, "")
+      .replace(/-/g, " ");
     return sub ? `${parent.label}: ${capitalizeWords(sub)}` : parent.label;
   }
 
   const last = pathname.split("/").pop() || "";
-  return capitalizeWords(last.replace(/-/g, " ")) || t("admin_help_dashboard_section");
+  return (
+    capitalizeWords(last.replace(/-/g, " ")) ||
+    t("admin_help_dashboard_section")
+  );
 }
 
 // ─── Desktop sidebar ──────────────────────────────────────────────────────────
@@ -144,7 +150,9 @@ function AdminSidebarPanel({
         <div className="space-y-3">
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-xl bg-amber-500/[0.10] dark:bg-amber-500/[0.08] border border-amber-500/[0.25] dark:border-amber-500/[0.15] flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">{initials}</span>
+              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                {initials}
+              </span>
             </div>
             <div className="min-w-0 pt-0.5 flex-1">
               <p className="font-semibold text-sm leading-tight truncate text-foreground">
@@ -184,7 +192,9 @@ function AdminSidebarPanel({
                     active ? "text-amber-600 dark:text-amber-400" : ""
                   )}
                 />
-                <span className={cn("font-medium", active ? "text-foreground" : "")}>
+                <span
+                  className={cn("font-medium", active ? "text-foreground" : "")}
+                >
                   {label}
                 </span>
               </Link>
@@ -244,7 +254,9 @@ function AdminMobileNav({ pathname }: { pathname: string }) {
       {/* Identity strip */}
       <div className="flex items-center gap-2.5 mb-3">
         <div className="w-8 h-8 rounded-lg bg-amber-500/[0.10] dark:bg-amber-500/[0.08] border border-amber-500/[0.25] dark:border-amber-500/[0.15] flex items-center justify-center">
-          <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{initials}</span>
+          <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+            {initials}
+          </span>
         </div>
         <p className="text-sm font-semibold truncate">{name}</p>
         <div className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 dark:border-amber-500/20">
@@ -268,7 +280,12 @@ function AdminMobileNav({ pathname }: { pathname: string }) {
                   : "text-dim-2 hover:text-dim-1"
               )}
             >
-              <Icon className={cn("h-3.5 w-3.5", active ? "text-amber-600 dark:text-amber-400" : "")} />
+              <Icon
+                className={cn(
+                  "h-3.5 w-3.5",
+                  active ? "text-amber-600 dark:text-amber-400" : ""
+                )}
+              />
               {label}
             </Link>
           );
@@ -296,7 +313,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-screen bg-studio-bg text-studio-fg font-studio overflow-hidden flex">
-      <AdminSidebarPanel pathname={pathname} onHelpOpen={() => setHelpOpen(true)} />
+      <AdminSidebarPanel
+        pathname={pathname}
+        onHelpOpen={() => setHelpOpen(true)}
+      />
 
       <div className="flex-1 min-w-0 flex flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <AdminMobileNav pathname={pathname} />
@@ -304,7 +324,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Section header (desktop only, dashboard skips it) */}
         {!isDashboard && (
           <div className="hidden md:block px-8 pt-7 pb-0">
-            <h2 className="text-base font-semibold text-foreground">{pageTitle}</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              {pageTitle}
+            </h2>
             <div className="mt-5 h-px bg-border" />
           </div>
         )}

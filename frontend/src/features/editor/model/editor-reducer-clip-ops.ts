@@ -18,7 +18,10 @@ import {
 } from "./editor-reducer-helpers";
 
 function findTrackByClipId(tracks: Track[], clipId: string): Track | null {
-  return tracks.find((track) => track.clips.some((clip) => clip.id === clipId)) ?? null;
+  return (
+    tracks.find((track) => track.clips.some((clip) => clip.id === clipId)) ??
+    null
+  );
 }
 
 function isValidCaptionClipRange(action: {
@@ -111,7 +114,9 @@ export function reduceClipOps(
 
     case "ADD_CLIP_AUTO_PROMOTE": {
       const { preferredTrackId, clip } = action;
-      const preferredTrack = state.tracks.find((t) => t.id === preferredTrackId);
+      const preferredTrack = state.tracks.find(
+        (t) => t.id === preferredTrackId
+      );
 
       if (!preferredTrack || preferredTrack.type !== "video") {
         const newTracks = state.tracks.map((t) =>
@@ -123,7 +128,12 @@ export function reduceClipOps(
                   ...t.clips,
                   {
                     ...clip,
-                    startMs: enforceNoOverlap(t, clip.id, clip.startMs, clip.durationMs),
+                    startMs: enforceNoOverlap(
+                      t,
+                      clip.id,
+                      clip.startMs,
+                      clip.durationMs
+                    ),
                     locallyModified: true,
                     source: "user" as const,
                   },
@@ -138,7 +148,9 @@ export function reduceClipOps(
       }
 
       const videoTracks = state.tracks.filter((t) => t.type === "video");
-      const preferredIdx = videoTracks.findIndex((t) => t.id === preferredTrackId);
+      const preferredIdx = videoTracks.findIndex(
+        (t) => t.id === preferredTrackId
+      );
       const ordered = [
         ...videoTracks.slice(preferredIdx),
         ...videoTracks.slice(0, preferredIdx),
@@ -202,7 +214,10 @@ export function reduceClipOps(
     case "UPDATE_CLIP": {
       let patch: ClipPatch = { ...action.patch, locallyModified: true };
 
-      if ("textContent" in action.patch && typeof action.patch.textContent === "string") {
+      if (
+        "textContent" in action.patch &&
+        typeof action.patch.textContent === "string"
+      ) {
         const maxMs = estimateReadingDurationMs(action.patch.textContent ?? "");
         patch = {
           ...patch,
@@ -211,7 +226,9 @@ export function reduceClipOps(
       }
 
       const track = findTrackByClipId(state.tracks, action.clipId);
-      const currentClip = track?.clips.find((clip) => clip.id === action.clipId);
+      const currentClip = track?.clips.find(
+        (clip) => clip.id === action.clipId
+      );
       if (
         track &&
         currentClip &&
@@ -219,12 +236,21 @@ export function reduceClipOps(
           Object.prototype.hasOwnProperty.call(action.patch, "durationMs"))
       ) {
         const nextDuration =
-          typeof patch.durationMs === "number" ? patch.durationMs : currentClip.durationMs;
+          typeof patch.durationMs === "number"
+            ? patch.durationMs
+            : currentClip.durationMs;
         const nextStart =
-          typeof patch.startMs === "number" ? patch.startMs : currentClip.startMs;
+          typeof patch.startMs === "number"
+            ? patch.startMs
+            : currentClip.startMs;
         patch = {
           ...patch,
-          startMs: enforceNoOverlap(track, currentClip.id, nextStart, nextDuration),
+          startMs: enforceNoOverlap(
+            track,
+            currentClip.id,
+            nextStart,
+            nextDuration
+          ),
         };
       }
 
@@ -314,7 +340,8 @@ export function reduceClipOps(
         enabled: (() => {
           for (const t of state.tracks) {
             const c = t.clips.find((cl) => cl.id === action.clipId);
-            if (c && !isCaptionClip(c)) return c.enabled === false ? true : false;
+            if (c && !isCaptionClip(c))
+              return c.enabled === false ? true : false;
           }
           return false;
         })(),
@@ -430,7 +457,12 @@ export function reduceClipOps(
       const clip = track?.clips.find((item) => item.id === action.clipId);
       if (!track || !clip) return state;
       const newTracks = updateClipInTracks(state.tracks, action.clipId, {
-        startMs: enforceNoOverlap(track, action.clipId, action.startMs, clip.durationMs),
+        startMs: enforceNoOverlap(
+          track,
+          action.clipId,
+          action.startMs,
+          clip.durationMs
+        ),
         locallyModified: true,
       });
       return {

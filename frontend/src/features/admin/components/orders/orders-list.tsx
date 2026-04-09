@@ -7,7 +7,10 @@ import { MoreHorizontal, Package } from "lucide-react";
 import { formatDateWithTimezone } from "@/shared/utils/helpers/date";
 import { OrderWithDetails } from "@/shared/types";
 import { usePaginatedData } from "@/shared/hooks/use-paginated-data";
-import { DataTable, type ColumnDef } from "@/shared/components/data-display/DataTable";
+import {
+  DataTable,
+  type ColumnDef,
+} from "@/shared/components/data-display/DataTable";
 
 import {
   Avatar,
@@ -46,32 +49,72 @@ interface OrdersListProps {
 
 interface OrdersApiResponse {
   orders: Order[];
-  pagination: { total: number; page: number; limit: number; totalPages: number; hasMore: boolean };
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
 }
 
 function getInitials(name: string): string {
-  return name.split(" ").map((n) => n.charAt(0)).join("").toUpperCase().slice(0, 2) || "??";
+  return (
+    name
+      .split(" ")
+      .map((n) => n.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "??"
+  );
 }
 
-function OrderStatusBadge({ status, t }: { status: string; t: (k: string) => string }) {
+function OrderStatusBadge({
+  status,
+  t,
+}: {
+  status: string;
+  t: (k: string) => string;
+}) {
   const s = status.toLowerCase();
-  if (s === "paid") return <Badge className="bg-success hover:bg-success">{t("admin_orders_paid")}</Badge>;
-  if (s === "pending") return <Badge variant="outline" className="text-warning border-warning">{t("admin_orders_pending")}</Badge>;
-  if (s === "cancelled") return <Badge variant="destructive">{t("admin_orders_cancelled")}</Badge>;
+  if (s === "paid")
+    return (
+      <Badge className="bg-success hover:bg-success">
+        {t("admin_orders_paid")}
+      </Badge>
+    );
+  if (s === "pending")
+    return (
+      <Badge variant="outline" className="text-warning border-warning">
+        {t("admin_orders_pending")}
+      </Badge>
+    );
+  if (s === "cancelled")
+    return <Badge variant="destructive">{t("admin_orders_cancelled")}</Badge>;
   return <Badge variant="secondary">{s}</Badge>;
 }
 
-export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: OrdersListProps) {
+export function OrdersList({
+  limit,
+  searchQuery,
+  statusFilter,
+  refreshKey,
+}: OrdersListProps) {
   const { t } = useTranslation();
 
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [viewProductsOrder, setViewProductsOrder] = useState<Order | null>(null);
+  const [viewProductsOrder, setViewProductsOrder] = useState<Order | null>(
+    null
+  );
   const [viewProductsOpen, setViewProductsOpen] = useState(false);
 
   const urlBuilder = useMemo(
     () => (page: number, pageLimit: number) => {
-      const params = new URLSearchParams({ page: String(page), limit: String(pageLimit) });
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageLimit),
+      });
       if (searchQuery?.trim()) params.set("search", searchQuery.trim());
       if (statusFilter?.trim()) params.set("status", statusFilter.trim());
       return `${API_ENDPOINT}?${params}`;
@@ -79,14 +122,36 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
     [searchQuery, statusFilter]
   );
 
-  const { data: orders, loading, error, pagination, fetchPage, refetch } = usePaginatedData<Order>(urlBuilder, {
+  const {
+    data: orders,
+    loading,
+    error,
+    pagination,
+    fetchPage,
+    refetch,
+  } = usePaginatedData<Order>(urlBuilder, {
     initialLimit: limit ?? 20,
     serviceName: "orders-list",
     transformResponse: (response: unknown) => {
       const r = response as OrdersApiResponse;
       const list = r.orders ?? [];
-      const p = r.pagination ?? { total: list.length, page: 1, limit: limit ?? 20, totalPages: 1, hasMore: false };
-      return { data: list, pagination: { page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages, hasMore: p.hasMore } };
+      const p = r.pagination ?? {
+        total: list.length,
+        page: 1,
+        limit: limit ?? 20,
+        totalPages: 1,
+        hasMore: false,
+      };
+      return {
+        data: list,
+        pagination: {
+          page: p.page,
+          limit: p.limit,
+          total: p.total,
+          totalPages: p.totalPages,
+          hasMore: p.hasMore,
+        },
+      };
     },
   });
 
@@ -108,12 +173,17 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
       cell: (row) => (
         <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={row.customer.avatar || DEFAULT_AVATAR_IMAGE} alt={row.customer.name} />
+            <AvatarImage
+              src={row.customer.avatar || DEFAULT_AVATAR_IMAGE}
+              alt={row.customer.name}
+            />
             <AvatarFallback>{getInitials(row.customer.name)}</AvatarFallback>
           </Avatar>
           <div>
             <div className="font-medium">{row.customer.name}</div>
-            <div className="text-sm text-muted-foreground">{row.customer.email}</div>
+            <div className="text-sm text-muted-foreground">
+              {row.customer.email}
+            </div>
           </div>
         </div>
       ),
@@ -121,9 +191,12 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
     {
       key: "date",
       header: t("admin_orders_col_date"),
-      cell: (row) => formatDateWithTimezone(
-        row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt
-      ),
+      cell: (row) =>
+        formatDateWithTimezone(
+          row.createdAt instanceof Date
+            ? row.createdAt.toISOString()
+            : row.createdAt
+        ),
     },
     {
       key: "type",
@@ -137,7 +210,9 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
     {
       key: "status",
       header: t("admin_orders_col_status"),
-      cell: (row) => <OrderStatusBadge status={row.status ?? "pending"} t={t} />,
+      cell: (row) => (
+        <OrderStatusBadge status={row.status ?? "pending"} t={t} />
+      ),
     },
     {
       key: "total",
@@ -154,12 +229,21 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">{t("admin_contact_messages_actions")}</span>
+              <span className="sr-only">
+                {t("admin_contact_messages_actions")}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t("admin_contact_messages_actions")}</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => { setEditOrder(row); setEditOpen(true); }}>
+            <DropdownMenuLabel>
+              {t("admin_contact_messages_actions")}
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => {
+                setEditOrder(row);
+                setEditOpen(true);
+              }}
+            >
               {t("admin_orders_edit")}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -169,7 +253,12 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
   ];
 
   const paginationState = pagination
-    ? { page: pagination.page, totalPages: pagination.totalPages, total: pagination.total, hasMore: pagination.hasMore }
+    ? {
+        page: pagination.page,
+        totalPages: pagination.totalPages,
+        total: pagination.total,
+        hasMore: pagination.hasMore,
+      }
     : undefined;
 
   return (
@@ -185,26 +274,51 @@ export function OrdersList({ limit, searchQuery, statusFilter, refreshKey }: Ord
         onPageChange={(p) => fetchPage(p)}
         emptyIcon={Package}
         emptyMessage={t("admin_orders_empty_title")}
-        emptyDescription={searchQuery || statusFilter ? t("common_no_orders_match_your_current_filters") : t("account_orders_no_orders")}
+        emptyDescription={
+          searchQuery || statusFilter
+            ? t("common_no_orders_match_your_current_filters")
+            : t("account_orders_no_orders")
+        }
         paginationLabels={{
           previous: t("common_pagination_previous"),
           next: t("common_pagination_next"),
           showing: paginationState
-            ? t("common_pagination_showing", { page: paginationState.page, totalPages: paginationState.totalPages, total: paginationState.total, item: t("admin_orders_title") })
+            ? t("common_pagination_showing", {
+                page: paginationState.page,
+                totalPages: paginationState.totalPages,
+                total: paginationState.total,
+                item: t("admin_orders_title"),
+              })
             : undefined,
         }}
       />
 
       <OrderProductsModal
         open={viewProductsOpen}
-        onOpenChange={(open) => { setViewProductsOpen(open); if (!open) setViewProductsOrder(null); }}
+        onOpenChange={(open) => {
+          setViewProductsOpen(open);
+          if (!open) setViewProductsOrder(null);
+        }}
         order={viewProductsOrder}
       />
 
-      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) setEditOrder(null); }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setEditOrder(null);
+        }}
+      >
         <DialogContent className="max-w-lg w-full">
           {editOrder && (
-            <OrderForm order={editOrder} onSubmit={() => refetch()} onClose={() => { setEditOpen(false); setEditOrder(null); }} />
+            <OrderForm
+              order={editOrder}
+              onSubmit={() => refetch()}
+              onClose={() => {
+                setEditOpen(false);
+                setEditOrder(null);
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>

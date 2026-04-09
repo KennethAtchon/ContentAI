@@ -44,7 +44,9 @@ export function InspectorClipMetaPanel({
           <InspectorValuePill value={`${(clip.startMs / 1000).toFixed(2)}s`} />
         </InspectorPropRow>
         <InspectorPropRow label={t("inspector_prop_duration")}>
-          <InspectorValuePill value={`${(clip.durationMs / 1000).toFixed(2)}s`} />
+          <InspectorValuePill
+            value={`${(clip.durationMs / 1000).toFixed(2)}s`}
+          />
         </InspectorPropRow>
         <InspectorPropRow label={t("inspector_prop_speed")}>
           <Select
@@ -66,7 +68,9 @@ export function InspectorClipMetaPanel({
         <InspectorPropRow label={t("inspector_prop_enabled")}>
           <Switch
             checked={clip.enabled !== false}
-            onCheckedChange={(checked) => onUpdateClip(clip.id, { enabled: checked })}
+            onCheckedChange={(checked) =>
+              onUpdateClip(clip.id, { enabled: checked })
+            }
           />
         </InspectorPropRow>
       </InspectorSection>

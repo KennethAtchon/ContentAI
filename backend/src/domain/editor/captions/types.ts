@@ -98,7 +98,13 @@ export type EasingFunction =
 
 export interface AnimationDef {
   scope: "page" | "word" | "char";
-  property: "opacity" | "scale" | "translateX" | "translateY" | "rotation" | "letterSpacing";
+  property:
+    | "opacity"
+    | "scale"
+    | "translateX"
+    | "translateY"
+    | "rotation"
+    | "letterSpacing";
   from: number;
   to: number;
   durationMs: number;

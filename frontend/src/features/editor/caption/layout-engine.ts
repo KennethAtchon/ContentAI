@@ -2,7 +2,11 @@ import type { CaptionLayout, CaptionPage, TextPreset } from "./types";
 import { applyTextTransform } from "./text-transform";
 
 /** Scales preset font size from the design reference frame (1080×1920) to the actual canvas, preserving aspect. */
-function resolveFontPx(preset: TextPreset, canvasW: number, canvasH: number): number {
+function resolveFontPx(
+  preset: TextPreset,
+  canvasW: number,
+  canvasH: number
+): number {
   const scale = Math.min(canvasW / 1080, canvasH / 1920);
   return preset.typography.fontSize * scale;
 }
@@ -27,7 +31,7 @@ export function computeLayout(
   page: CaptionPage,
   preset: TextPreset,
   canvasW: number,
-  canvasH: number,
+  canvasH: number
 ): CaptionLayout {
   // Typography and wrapping box: sizes are in canvas pixels; maxWidth caps how wide a line may grow.
   const fontPx = resolveFontPx(preset, canvasW, canvasH);
@@ -46,11 +50,12 @@ export function computeLayout(
   page.tokens.forEach((token, index) => {
     const displayText = applyTextTransform(
       token.text,
-      preset.typography.textTransform,
+      preset.typography.textTransform
     );
     const width = ctx.measureText(displayText).width;
     // Width if we append this token: first token on the line has no leading space; later tokens add one space.
-    const nextWidth = currentLine.length === 0 ? width : currentWidth + spaceWidth + width;
+    const nextWidth =
+      currentLine.length === 0 ? width : currentWidth + spaceWidth + width;
 
     // Break before this token if the current line is non-empty and would exceed the wrap width.
     if (currentLine.length > 0 && nextWidth > maxWidth) {
@@ -68,7 +73,8 @@ export function computeLayout(
       lineIndex: lines.length,
       index,
     });
-    currentWidth = currentLine.length === 1 ? width : currentWidth + spaceWidth + width;
+    currentWidth =
+      currentLine.length === 1 ? width : currentWidth + spaceWidth + width;
   });
 
   if (currentLine.length > 0) {
@@ -77,7 +83,10 @@ export function computeLayout(
 
   // Pixel width of each line (sum of token widths + spaces between tokens).
   const lineWidths = lines.map((line) =>
-    line.reduce((sum, token, idx) => sum + token.width + (idx > 0 ? spaceWidth : 0), 0),
+    line.reduce(
+      (sum, token, idx) => sum + token.width + (idx > 0 ? spaceWidth : 0),
+      0
+    )
   );
   const blockWidth = Math.max(0, ...lineWidths);
   const blockHeight = Math.max(lineHeightPx, lines.length * lineHeightPx);

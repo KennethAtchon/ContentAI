@@ -13,14 +13,17 @@ function toPage(tokens: Token[]): CaptionPage {
       endMs: token.endMs,
       index,
     })),
-    text: tokens.map((token) => token.text).join(" ").trim(),
+    text: tokens
+      .map((token) => token.text)
+      .join(" ")
+      .trim(),
   };
 }
 
 export function buildPages(
   tokens: Token[],
   groupingMs = DEFAULT_GROUPING_MS,
-  gapThresholdMs = DEFAULT_GAP_THRESHOLD_MS,
+  gapThresholdMs = DEFAULT_GAP_THRESHOLD_MS
 ): CaptionPage[] {
   if (tokens.length === 0) return [];
 

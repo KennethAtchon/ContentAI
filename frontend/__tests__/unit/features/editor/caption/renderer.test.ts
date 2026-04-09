@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { renderFrame } from "@/features/editor/caption/renderer";
-import type { CaptionLayout, CaptionPage, TextPreset } from "@/features/editor/caption/types";
+import type {
+  CaptionLayout,
+  CaptionPage,
+  TextPreset,
+} from "@/features/editor/caption/types";
 
 interface DrawCall {
   kind: string;
@@ -146,13 +150,23 @@ describe("renderFrame", () => {
         radius: 0,
         mode: "word",
       },
-      { id: "stroke", type: "stroke", color: "#222222", width: 2, join: "round" },
+      {
+        id: "stroke",
+        type: "stroke",
+        color: "#222222",
+        width: 2,
+        join: "round",
+      },
       { id: "fill", type: "fill", color: "#FFFFFF" },
     ]);
 
     renderFrame(ctx, makeLayout(), 1300, preset);
 
-    expect(calls.map((call) => call.kind)).toEqual(["fillRect", "strokeText", "fillText"]);
+    expect(calls.map((call) => call.kind)).toEqual([
+      "fillRect",
+      "strokeText",
+      "fillText",
+    ]);
   });
 
   test("applies active-token layer overrides before rendering", () => {
@@ -166,7 +180,9 @@ describe("renderFrame", () => {
 
     renderFrame(ctx, makeLayout(), 1300, preset);
 
-    expect(calls.find((call) => call.kind === "fillText")?.fillStyle).toBe("#FF0000");
+    expect(calls.find((call) => call.kind === "fillText")?.fillStyle).toBe(
+      "#FF0000"
+    );
   });
 
   test("renders shadow layers with shadow styling before fill", () => {
@@ -204,7 +220,8 @@ describe("renderFrame", () => {
     const preset = {
       ...makePreset([{ id: "fill", type: "fill", color: "#FFFFFF" }]),
       typography: {
-        ...makePreset([{ id: "fill", type: "fill", color: "#FFFFFF" }]).typography,
+        ...makePreset([{ id: "fill", type: "fill", color: "#FFFFFF" }])
+          .typography,
         textTransform: "uppercase" as const,
       },
     };

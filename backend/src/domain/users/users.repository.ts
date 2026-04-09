@@ -33,9 +33,7 @@ export interface IUsersRepository {
     total: number;
   }>;
 
-  findById(
-    id: string,
-  ): Promise<{
+  findById(id: string): Promise<{
     id: string;
     firebaseUid: string | null;
     name: string;
@@ -125,9 +123,7 @@ export interface IUsersRepository {
     lastMonthCustomers: number;
   }>;
 
-  findByFirebaseUid(
-    firebaseUid: string,
-  ): Promise<{
+  findByFirebaseUid(firebaseUid: string): Promise<{
     id: string;
     firebaseUid: string | null;
     name: string;

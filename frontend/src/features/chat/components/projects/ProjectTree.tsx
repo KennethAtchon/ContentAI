@@ -82,7 +82,12 @@ export function ProjectTree({
             {t("studio_chat_noProjectsDescription")}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={onNewProject} className="mt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onNewProject}
+          className="mt-1"
+        >
           <Plus className="h-3 w-3 mr-1.5" />
           {t("studio_chat_newProject")}
         </Button>

@@ -22,10 +22,7 @@ interface Asset {
 interface Props {
   generatedContentId: number | null;
   currentTimeMs: number;
-  onAddClip: (
-    trackId: string,
-    clip: VideoClip | AudioClip | MusicClip
-  ) => void;
+  onAddClip: (trackId: string, clip: VideoClip | AudioClip | MusicClip) => void;
   readOnly?: boolean;
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
@@ -34,7 +31,6 @@ interface Props {
 }
 
 export type TabKey = "media" | "audio" | "generate";
-
 
 function makeVideoClip(overrides: Partial<VideoClip>): VideoClip {
   return {
@@ -126,7 +122,9 @@ export function MediaPanel({
   const TABS: { key: TabKey; label: string }[] = [
     { key: "media", label: t("editor_media_tab") },
     { key: "audio", label: t("editor_audio_tab") },
-...(generatedContentId ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }] : []),
+    ...(generatedContentId
+      ? [{ key: "generate" as TabKey, label: t("editor_generate_tab") }]
+      : []),
   ];
 
   const addVideoClip = (asset: Asset) => {
@@ -245,7 +243,10 @@ export function MediaPanel({
                           ),
                         })
                       );
-                      e.dataTransfer.setData(`application/x-contentai-type-${asset.type}`, "1");
+                      e.dataTransfer.setData(
+                        `application/x-contentai-type-${asset.type}`,
+                        "1"
+                      );
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => addVideoClip(asset)}
@@ -306,7 +307,10 @@ export function MediaPanel({
                               label: item.name,
                             })
                           );
-                          e.dataTransfer.setData("application/x-contentai-type-video_clip", "1");
+                          e.dataTransfer.setData(
+                            "application/x-contentai-type-video_clip",
+                            "1"
+                          );
                           e.dataTransfer.effectAllowed = "copy";
                         }}
                         onClick={() =>
@@ -373,7 +377,10 @@ export function MediaPanel({
                           ),
                         })
                       );
-                      e.dataTransfer.setData(`application/x-contentai-type-${asset.type}`, "1");
+                      e.dataTransfer.setData(
+                        `application/x-contentai-type-${asset.type}`,
+                        "1"
+                      );
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => addAudioClip(asset)}
@@ -402,14 +409,13 @@ export function MediaPanel({
           </>
         )}
 
-{activeTab === "generate" && (
+        {activeTab === "generate" && (
           <div className="flex flex-col items-center gap-3 p-4 pt-6">
             <p className="text-xs italic text-dim-3 text-center">
               {t("editor_generate_up_to_date")}
             </p>
           </div>
         )}
-
       </div>
     </div>
   );

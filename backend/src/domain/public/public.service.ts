@@ -47,7 +47,9 @@ export class PublicService {
         const v = decrypted[field];
         if (v) {
           try {
-            (decrypted as Record<string, unknown>)[field] = decrypt(v as string);
+            (decrypted as Record<string, unknown>)[field] = decrypt(
+              v as string,
+            );
           } catch {
             /* leave ciphertext if decrypt fails */
           }

@@ -10,7 +10,10 @@ import type {
   ScrapeJob,
 } from "../types";
 
-function buildNichesQuery(params?: { search?: string; active?: boolean }): string {
+function buildNichesQuery(params?: {
+  search?: string;
+  active?: boolean;
+}): string {
   const qp = new URLSearchParams();
   if (params?.search) qp.set("search", params.search);
   if (params?.active !== undefined) qp.set("active", String(params.active));
@@ -46,16 +49,22 @@ export const nichesService = {
     id: number,
     body: { name?: string; description?: string; isActive?: boolean }
   ) {
-    return authenticatedFetchJson<{ niche: AdminNiche }>(`/api/admin/niches/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    });
+    return authenticatedFetchJson<{ niche: AdminNiche }>(
+      `/api/admin/niches/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }
+    );
   },
 
   remove(id: number) {
-    return authenticatedFetchJson<{ deleted: boolean }>(`/api/admin/niches/${id}`, {
-      method: "DELETE",
-    });
+    return authenticatedFetchJson<{ deleted: boolean }>(
+      `/api/admin/niches/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
   },
 
   listReels(nicheId: number, params: NicheReelsParams = {}) {
@@ -65,7 +74,9 @@ export const nichesService = {
   },
 
   listJobs(nicheId: number) {
-    return authenticatedFetchJson<{ jobs: ScrapeJob[] }>(`/api/admin/niches/${nicheId}/jobs`);
+    return authenticatedFetchJson<{ jobs: ScrapeJob[] }>(
+      `/api/admin/niches/${nicheId}/jobs`
+    );
   },
 
   scan(nicheId: number, config?: ScrapeConfigOverride) {

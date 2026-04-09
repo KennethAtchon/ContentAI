@@ -6,7 +6,6 @@ import { analyticsEventSchema } from "../../domain/analytics/analytics.schemas";
 
 const analytics = new Hono();
 
-
 // Fire-and-forget: validate body shape, acknowledge. (Wire to metrics backend when needed.)
 analytics.post(
   "/form-completion",

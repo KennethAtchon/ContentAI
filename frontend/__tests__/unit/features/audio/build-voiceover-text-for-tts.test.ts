@@ -4,25 +4,31 @@ import { buildVoiceoverTextForTts } from "../../../../src/features/audio/utils/b
 describe("buildVoiceoverTextForTts", () => {
   it("returns hook only when no clean script", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "Hook line", voiceoverScript: null }),
+      buildVoiceoverTextForTts({
+        generatedHook: "Hook line",
+        voiceoverScript: null,
+      })
     ).toBe("Hook line");
   });
 
   it("returns body only when no hook", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: "Body text here" }),
+      buildVoiceoverTextForTts({
+        generatedHook: null,
+        voiceoverScript: "Body text here",
+      })
     ).toBe("Body text here");
   });
 
   it("returns empty string when both are null", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: null }),
+      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: null })
     ).toBe("");
   });
 
   it("returns empty string when both are empty/whitespace", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "  ", voiceoverScript: "   " }),
+      buildVoiceoverTextForTts({ generatedHook: "  ", voiceoverScript: "   " })
     ).toBe("");
   });
 
@@ -39,7 +45,7 @@ describe("buildVoiceoverTextForTts", () => {
       buildVoiceoverTextForTts({
         generatedHook: "Same text",
         voiceoverScript: "Same text",
-      }),
+      })
     ).toBe("Same text");
   });
 
@@ -48,7 +54,7 @@ describe("buildVoiceoverTextForTts", () => {
       buildVoiceoverTextForTts({
         generatedHook: "Same   text",
         voiceoverScript: "  Same text  ",
-      }),
+      })
     ).toBe("Same text");
   });
 
@@ -65,7 +71,7 @@ describe("buildVoiceoverTextForTts", () => {
       buildVoiceoverTextForTts({
         generatedHook: "Hook",
         voiceoverScript: "[intro]\n[outro]",
-      }),
+      })
     ).toBe("Hook");
   });
 
@@ -80,7 +86,7 @@ describe("buildVoiceoverTextForTts", () => {
 
   it("returns hook when body is empty after trim", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "Hook", voiceoverScript: "" }),
+      buildVoiceoverTextForTts({ generatedHook: "Hook", voiceoverScript: "" })
     ).toBe("Hook");
   });
 });

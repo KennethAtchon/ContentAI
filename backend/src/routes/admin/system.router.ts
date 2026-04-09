@@ -30,7 +30,8 @@ systemRouter.post(
 
     const summary = {
       total: results.length,
-      successful: results.filter((r: { success?: boolean }) => r.success).length,
+      successful: results.filter((r: { success?: boolean }) => r.success)
+        .length,
       failed: results.filter((r: { success?: boolean }) => !r.success).length,
       results,
     };

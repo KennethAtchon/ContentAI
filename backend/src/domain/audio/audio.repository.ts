@@ -68,10 +68,8 @@ export class AudioRepository implements IAudioRepository {
         audioId: reels.audioId,
         audioName: reels.audioName,
         artistName: trendingAudio.artistName,
-        useCount:
-          sql<number>`sum(case when ${reels.scrapedAt} >= ${startWindow} then 1 else 0 end)::int`,
-        prevCount:
-          sql<number>`sum(case when ${reels.scrapedAt} < ${startWindow} then 1 else 0 end)::int`,
+        useCount: sql<number>`sum(case when ${reels.scrapedAt} >= ${startWindow} then 1 else 0 end)::int`,
+        prevCount: sql<number>`sum(case when ${reels.scrapedAt} < ${startWindow} then 1 else 0 end)::int`,
         lastSeen: sql<string>`max(${reels.scrapedAt})::text`,
       })
       .from(reels)

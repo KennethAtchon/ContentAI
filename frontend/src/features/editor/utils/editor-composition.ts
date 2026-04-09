@@ -127,7 +127,8 @@ export function isIncomingDissolveOrWipePrerenderWindow(
 ): boolean {
   const incomingTransition = trackTransitions.find(
     (t) =>
-      t.clipBId === clip.id && (t.type === "dissolve" || t.type === "wipe-right")
+      t.clipBId === clip.id &&
+      (t.type === "dissolve" || t.type === "wipe-right")
   );
   if (!incomingTransition) return false;
   const clipA = trackClips.find((c) => c.id === incomingTransition.clipAId);

@@ -9,7 +9,10 @@ export function useDeleteAsset(generatedContentId: number) {
   return useMutation({
     mutationFn: (assetId: string) => audioService.deleteAsset(assetId),
     onSuccess: () => {
-      void invalidateContentAssetsForGeneration(queryClient, generatedContentId);
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        generatedContentId
+      );
     },
     onError: () => {
       toast.error("Failed to delete asset");

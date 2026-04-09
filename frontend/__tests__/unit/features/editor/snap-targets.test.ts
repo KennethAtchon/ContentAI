@@ -67,4 +67,3 @@ describe("snap-targets", () => {
     expect(findNearestSnap(6030, [0, 5000, 6000], 20)).toBeNull();
   });
 });
-

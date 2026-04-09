@@ -33,11 +33,7 @@ interface Finding {
 
 const findings: Finding[] = [];
 
-function add(
-  severity: Severity,
-  file: string,
-  message: string,
-): void {
+function add(severity: Severity, file: string, message: string): void {
   findings.push({ severity, file, message });
 }
 
@@ -130,7 +126,11 @@ function checkBackend(env: Record<string, string>): void {
       continue;
     }
     if (looksLikePlaceholder(k, env[k]!)) {
-      add("error", "backend/.env", `${k} still looks like a placeholder — replace with a real value`);
+      add(
+        "error",
+        "backend/.env",
+        `${k} still looks like a placeholder — replace with a real value`,
+      );
     }
   }
 
@@ -166,13 +166,21 @@ function checkBackend(env: Record<string, string>): void {
     try {
       const u = new URL(db);
       if (!["postgres:", "postgresql:"].includes(u.protocol)) {
-        add("warn", "backend/.env", "DATABASE_URL should use postgres:// or postgresql://");
+        add(
+          "warn",
+          "backend/.env",
+          "DATABASE_URL should use postgres:// or postgresql://",
+        );
       }
     } catch {
       add("error", "backend/.env", "DATABASE_URL is not a valid URL");
     }
   } else {
-    add("warn", "backend/.env", "DATABASE_URL empty — required when running the API (Compose usually injects this)");
+    add(
+      "warn",
+      "backend/.env",
+      "DATABASE_URL empty — required when running the API (Compose usually injects this)",
+    );
   }
 
   const redis = env.REDIS_URL?.trim() ?? "";
@@ -186,7 +194,11 @@ function checkBackend(env: Record<string, string>): void {
       add("error", "backend/.env", "REDIS_URL is not a valid URL");
     }
   } else {
-    add("warn", "backend/.env", "REDIS_URL empty — required when running the API (Compose usually injects this)");
+    add(
+      "warn",
+      "backend/.env",
+      "REDIS_URL empty — required when running the API (Compose usually injects this)",
+    );
   }
 }
 
@@ -217,7 +229,11 @@ function checkFrontend(env: Record<string, string>): void {
 
   const stripe = env.VITE_STRIPE_PUBLISHABLE_KEY ?? "";
   if (stripe && !stripe.startsWith("pk_")) {
-    add("warn", "frontend/.env", "VITE_STRIPE_PUBLISHABLE_KEY should start with pk_");
+    add(
+      "warn",
+      "frontend/.env",
+      "VITE_STRIPE_PUBLISHABLE_KEY should start with pk_",
+    );
   }
 
   const api = env.VITE_API_URL?.trim() ?? "";
@@ -239,7 +255,11 @@ function checkRoot(env: Record<string, string> | null, rel: string): void {
     );
     return;
   }
-  for (const k of ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"] as const) {
+  for (const k of [
+    "POSTGRES_DB",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+  ] as const) {
     if (isBlank(env[k])) {
       add("warn", `${rel}`, `Empty ${k} — set for Docker Postgres`);
     }
@@ -261,9 +281,7 @@ function crossCheck(
   }
 }
 
-async function tryConnect(
-  backendEnv: Record<string, string>,
-): Promise<void> {
+async function tryConnect(backendEnv: Record<string, string>): Promise<void> {
   const dbUrl = backendEnv.DATABASE_URL?.trim();
   const redisUrl = backendEnv.REDIS_URL?.trim();
   if (!dbUrl) {
@@ -271,7 +289,11 @@ async function tryConnect(
   } else {
     try {
       const postgres = (await import("postgres")).default;
-      const sql = postgres(dbUrl, { max: 1, idle_timeout: 2, connect_timeout: 5 });
+      const sql = postgres(dbUrl, {
+        max: 1,
+        idle_timeout: 2,
+        connect_timeout: 5,
+      });
       await sql`select 1`;
       await sql.end({ timeout: 2 });
       console.log("  Postgres: OK (select 1)");
@@ -321,11 +343,19 @@ async function main(): Promise<void> {
   checkRoot(root, ".env");
   if (backend) checkBackend(backend);
   else
-    add("error", "backend/.env", "File missing — copy from backend/.env.example");
+    add(
+      "error",
+      "backend/.env",
+      "File missing — copy from backend/.env.example",
+    );
 
   if (frontend) checkFrontend(frontend);
   else
-    add("error", "frontend/.env", "File missing — copy from frontend/.env.example");
+    add(
+      "error",
+      "frontend/.env",
+      "File missing — copy from frontend/.env.example",
+    );
 
   if (backend && frontend) crossCheck(backend, frontend);
 
@@ -358,9 +388,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   if (warns.length > 0) {
-    console.log(
-      `OK with ${warns.length} warning(s) — fix before production.`,
-    );
+    console.log(`OK with ${warns.length} warning(s) — fix before production.`);
     process.exit(0);
   }
   console.log("All checks passed.");

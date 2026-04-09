@@ -20,7 +20,12 @@ export function useChatSendWithPendingReels(
       if (!sessionId) return;
       setPendingReelIds(reelRefs ?? []);
       try {
-        await sendMessage(content, reelRefs, activeContentId ?? undefined, mediaRefs);
+        await sendMessage(
+          content,
+          reelRefs,
+          activeContentId ?? undefined,
+          mediaRefs
+        );
       } catch (error) {
         debugLog.error("Failed to send message", {
           service: "chat-layout",

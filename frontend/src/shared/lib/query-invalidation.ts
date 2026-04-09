@@ -251,7 +251,9 @@ export async function invalidateAfterChatMessageSent(
 
 // ── Session drafts (studio workspace) ─────────────────────────────────────────
 
-const SESSION_DRAFT_VISIBILITY_RETRY_DELAYS_MS = [0, 150, 300, 600, 1000] as const;
+const SESSION_DRAFT_VISIBILITY_RETRY_DELAYS_MS = [
+  0, 150, 300, 600, 1000,
+] as const;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -365,7 +367,10 @@ export function removeDeletedEditorProjectQuery(
   queryClient: QueryClient,
   projectId: string
 ): void {
-  removeDeletedEntityQueries(queryClient, queryKeys.api.editorProject(projectId));
+  removeDeletedEntityQueries(
+    queryClient,
+    queryKeys.api.editorProject(projectId)
+  );
 }
 
 // ── Media library (customer) ──────────────────────────────────────────────────

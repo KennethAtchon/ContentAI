@@ -38,7 +38,11 @@ export class ProjectsService {
     projectId: string,
     data: { name?: string; description?: string },
   ) {
-    const updated = await this.projectsRepo.updateProject(projectId, userId, data);
+    const updated = await this.projectsRepo.updateProject(
+      projectId,
+      userId,
+      data,
+    );
 
     if (!updated) {
       throw Errors.notFound("Project");

@@ -2,7 +2,7 @@ import type { Typography } from "./types";
 
 export function applyTextTransform(
   text: string,
-  textTransform: Typography["textTransform"],
+  textTransform: Typography["textTransform"]
 ): string {
   switch (textTransform) {
     case "uppercase":

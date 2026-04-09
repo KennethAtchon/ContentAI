@@ -138,7 +138,9 @@ export function InspectorClipVisualPanel({
           <InspectorPropRow label={t("inspector_prop_mute")}>
             <Switch
               checked={isMediaTimelineClip(clip) ? clip.muted : false}
-              onCheckedChange={(checked) => onUpdateClip(clip.id, { muted: checked })}
+              onCheckedChange={(checked) =>
+                onUpdateClip(clip.id, { muted: checked })
+              }
             />
           </InspectorPropRow>
         </InspectorSection>

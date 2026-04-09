@@ -62,7 +62,8 @@ nichesRouter.put(
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const updates: { name?: string; description?: string; isActive?: boolean } = {};
+    const updates: { name?: string; description?: string; isActive?: boolean } =
+      {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.isActive !== undefined) updates.isActive = body.isActive;
@@ -119,7 +120,8 @@ nichesRouter.get(
   zValidator("query", adminNicheReelsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
-    const { page, limit, sortBy, sortOrder, viral, hasVideo } = c.req.valid("query");
+    const { page, limit, sortBy, sortOrder, viral, hasVideo } =
+      c.req.valid("query");
 
     // Verify niche exists
     const niche = await adminService.listNiches();

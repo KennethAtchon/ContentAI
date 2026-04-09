@@ -37,8 +37,7 @@ export function applyOverrides(
     typography: {
       ...preset.typography,
       fontSize: overrides.fontSize ?? preset.typography.fontSize,
-      textTransform:
-        overrides.textTransform ?? preset.typography.textTransform,
+      textTransform: overrides.textTransform ?? preset.typography.textTransform,
     },
     layout: {
       ...preset.layout,
@@ -74,12 +73,15 @@ export class CaptionPresetRepository implements ICaptionPresetRepository {
     const rows = await this.db.select().from(captionPresets);
     if (rows.length > 0) return;
 
-    await this.db.insert(captionPresets).values(
-      presets.map((p) => ({
-        id: p.id,
-        definition: p as unknown as Record<string, unknown>,
-      }))
-    ).onConflictDoNothing();
+    await this.db
+      .insert(captionPresets)
+      .values(
+        presets.map((p) => ({
+          id: p.id,
+          definition: p,
+        })),
+      )
+      .onConflictDoNothing();
 
     // Invalidate list cache so next call re-fetches fresh rows
     this.listCache = null;

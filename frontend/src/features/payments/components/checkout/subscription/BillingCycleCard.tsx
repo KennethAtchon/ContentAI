@@ -21,7 +21,9 @@ export function BillingCycleCard({
     <Card className="border-2">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-base font-medium">{t("account_subscription_billing_cycle")}</span>
+          <span className="text-base font-medium">
+            {t("account_subscription_billing_cycle")}
+          </span>
           <div className="flex items-center gap-2">
             <Button
               variant={billingCycle === "monthly" ? "default" : "outline"}
@@ -37,8 +39,13 @@ export function BillingCycleCard({
             >
               {t("subscription_annual")}
               {savingsPercentage > 0 && (
-                <Badge variant="secondary" className="ml-2 bg-green-500/10 text-green-700">
-                  {t("checkout_save_percentage", { percentage: savingsPercentage })}
+                <Badge
+                  variant="secondary"
+                  className="ml-2 bg-green-500/10 text-green-700"
+                >
+                  {t("checkout_save_percentage", {
+                    percentage: savingsPercentage,
+                  })}
                 </Badge>
               )}
             </Button>
@@ -53,4 +60,3 @@ export function BillingCycleCard({
     </Card>
   );
 }
-

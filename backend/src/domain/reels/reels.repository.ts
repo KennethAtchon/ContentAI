@@ -61,16 +61,13 @@ export interface IReelsRepository {
   findAnalyzedReelIds(reelIds: number[]): Promise<number[]>;
   findReelsByIds(ids: number[]): Promise<Reel[]>;
   findReelById(id: number): Promise<Reel | null>;
-  findAnalysisByReelId(reelId: number): Promise<
-    typeof reelAnalyses.$inferSelect | null
-  >;
+  findAnalysisByReelId(
+    reelId: number,
+  ): Promise<typeof reelAnalyses.$inferSelect | null>;
   findVideoR2UrlForReel(
     id: number,
   ): Promise<{ videoR2Url: string | null } | null>;
-  findViralReelsForNiche(
-    nicheId: number,
-    minViews: number,
-  ): Promise<Reel[]>;
+  findViralReelsForNiche(nicheId: number, minViews: number): Promise<Reel[]>;
   findAnalysesForReelIds(
     reelIds: number[],
   ): Promise<(typeof reelAnalyses.$inferSelect)[]>;
@@ -147,15 +144,8 @@ export class ReelsRepository implements IReelsRepository {
     sort: ReelSort;
     search?: string;
   }): Promise<{ rows: ReelListRow[]; total: number }> {
-    const {
-      nicheId,
-      nicheNameSearch,
-      limit,
-      offset,
-      minViews,
-      sort,
-      search,
-    } = input;
+    const { nicheId, nicheNameSearch, limit, offset, minViews, sort, search } =
+      input;
 
     const nicheIdParam = nicheId ? String(nicheId) : undefined;
     const isTrending =
@@ -189,8 +179,7 @@ export class ReelsRepository implements IReelsRepository {
       if (matchedId !== null) conditions.push(eq(reels.nicheId, matchedId));
     }
 
-    const whereClause =
-      conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const listBase = this.db
       .select({
@@ -219,7 +208,10 @@ export class ReelsRepository implements IReelsRepository {
             .orderBy(...orderBy)
             .limit(limit)
             .offset(offset)
-        : listBase.orderBy(...orderBy).limit(limit).offset(offset),
+        : listBase
+            .orderBy(...orderBy)
+            .limit(limit)
+            .offset(offset),
       whereClause
         ? this.db
             .select({ total: sql<number>`count(*)::int` })

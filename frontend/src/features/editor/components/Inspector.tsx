@@ -39,29 +39,38 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
   const selectedClip = selectedClipCtx ?? undefined;
 
   const isTextClip = selectedTrack?.type === "text";
-  const selectedMediaClip = selectedClip && isMediaClip(selectedClip) ? selectedClip : null;
-  const selectedCaptionClip = selectedClip && isCaptionClip(selectedClip) ? selectedClip : null;
+  const selectedMediaClip =
+    selectedClip && isMediaClip(selectedClip) ? selectedClip : null;
+  const selectedCaptionClip =
+    selectedClip && isCaptionClip(selectedClip) ? selectedClip : null;
   const isMediaTrack = !isTextClip;
   const { data: captionPresets = [] } = useCaptionPresets();
-  const { data: captionDoc } = useCaptionDoc(selectedCaptionClip?.captionDocId ?? null);
+  const { data: captionDoc } = useCaptionDoc(
+    selectedCaptionClip?.captionDocId ?? null
+  );
   const updateCaptionDocMutation = useUpdateCaptionDoc();
   const transcriptionMutation = useTranscription();
   const [captionSyncStatus, setCaptionSyncStatus] = useState<
     Record<string, "idle" | "transcribing" | "ready" | "failed" | "stale">
   >({});
-  const [captionSyncErrors, setCaptionSyncErrors] = useState<Record<string, string>>({});
+  const [captionSyncErrors, setCaptionSyncErrors] = useState<
+    Record<string, string>
+  >({});
   const textTrackId = tracks.find((track) => track.type === "text")?.id ?? null;
   const defaultCaptionPresetId = captionPresets[0]?.id ?? null;
-  const selectedAudioClip = selectedMediaClip && selectedTrack?.type === "audio"
-    ? selectedMediaClip
-    : null;
+  const selectedAudioClip =
+    selectedMediaClip && selectedTrack?.type === "audio"
+      ? selectedMediaClip
+      : null;
   const linkedCaptionClip = useMemo(
     () =>
       selectedAudioClip
-        ? tracks
+        ? (tracks
             .flatMap((track) => track.clips)
             .filter(isCaptionClip)
-            .find((clip) => clip.originVoiceoverClipId === selectedAudioClip.id) ?? null
+            .find(
+              (clip) => clip.originVoiceoverClipId === selectedAudioClip.id
+            ) ?? null)
         : null,
     [tracks, selectedAudioClip]
   );
@@ -73,19 +82,22 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
       linkedCaptionClip.sourceStartMs !== selectedAudioClip.trimStartMs ||
       linkedCaptionClip.sourceEndMs !==
         selectedAudioClip.trimStartMs +
-          Math.round(selectedAudioClip.durationMs * (selectedAudioClip.speed || 1)) ||
+          Math.round(
+            selectedAudioClip.durationMs * (selectedAudioClip.speed || 1)
+          ) ||
       !selectedAudioClip.assetId);
 
   const captionActionStatus = selectedAudioClip
-    ? captionSyncStatus[selectedAudioClip.id] ??
-      (captionClipIsStale ? "stale" : linkedCaptionClip ? "ready" : "idle")
+    ? (captionSyncStatus[selectedAudioClip.id] ??
+      (captionClipIsStale ? "stale" : linkedCaptionClip ? "ready" : "idle"))
     : "idle";
   const captionActionError = selectedAudioClip
-    ? captionSyncErrors[selectedAudioClip.id] ?? ""
+    ? (captionSyncErrors[selectedAudioClip.id] ?? "")
     : "";
 
   const handleCaptionSync = async () => {
-    if (!selectedAudioClip?.assetId || !textTrackId || !defaultCaptionPresetId) return;
+    if (!selectedAudioClip?.assetId || !textTrackId || !defaultCaptionPresetId)
+      return;
 
     setCaptionSyncStatus((current) => ({
       ...current,
@@ -105,7 +117,9 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
       const sourceStartMs = selectedAudioClip.trimStartMs;
       const sourceEndMs =
         selectedAudioClip.trimStartMs +
-        Math.round(selectedAudioClip.durationMs * (selectedAudioClip.speed || 1));
+        Math.round(
+          selectedAudioClip.durationMs * (selectedAudioClip.speed || 1)
+        );
 
       if (linkedCaptionClip) {
         onUpdateClip(linkedCaptionClip.id, {
@@ -140,7 +154,9 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
       setCaptionSyncErrors((current) => ({
         ...current,
         [selectedAudioClip.id]:
-          error instanceof Error ? error.message : t("editor_caption_error_default"),
+          error instanceof Error
+            ? error.message
+            : t("editor_caption_error_default"),
       }));
     }
   };
@@ -184,12 +200,16 @@ export function Inspector({ onEffectPreview, selectedTransition }: Props) {
                             helperText:
                               captionActionStatus === "failed"
                                 ? t("editor_caption_retry_hint", {
-                                    error: captionActionError || t("editor_caption_error_default"),
+                                    error:
+                                      captionActionError ||
+                                      t("editor_caption_error_default"),
                                   })
                                 : linkedCaptionClip
                                   ? t("editor_caption_refresh_hint")
                                   : t("editor_caption_create_hint"),
-                            status: t(`editor_caption_status_${captionActionStatus}`),
+                            status: t(
+                              `editor_caption_status_${captionActionStatus}`
+                            ),
                             disabled:
                               !selectedAudioClip.assetId ||
                               !textTrackId ||

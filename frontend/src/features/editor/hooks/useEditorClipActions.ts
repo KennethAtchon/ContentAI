@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import type {
-  Clip,
-  TrackType,
-  Transition,
-  ClipPatch,
-} from "../types/editor";
+import type { Clip, TrackType, Transition, ClipPatch } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { hasCollision } from "../utils/clip-constraints";
 import type { TabKey } from "../components/MediaPanel";
@@ -45,7 +40,10 @@ export function useEditorClipActions({
     [store]
   );
 
-  const handleRemoveClip = useCallback((clipId: string) => store.removeClip(clipId), [store]);
+  const handleRemoveClip = useCallback(
+    (clipId: string) => store.removeClip(clipId),
+    [store]
+  );
 
   const handleDeleteAllClipsInTrack = useCallback(
     (trackId: string) => {
@@ -60,8 +58,14 @@ export function useEditorClipActions({
     (clipId: string) => store.splitClip(clipId, store.state.currentTimeMs),
     [store]
   );
-  const handleClipDuplicate = useCallback((clipId: string) => store.duplicateClip(clipId), [store]);
-  const handleClipCopy = useCallback((clipId: string) => store.copyClip(clipId), [store]);
+  const handleClipDuplicate = useCallback(
+    (clipId: string) => store.duplicateClip(clipId),
+    [store]
+  );
+  const handleClipCopy = useCallback(
+    (clipId: string) => store.copyClip(clipId),
+    [store]
+  );
   const handleClipPaste = useCallback(
     (trackId: string, startMs: number) => store.pasteClip(trackId, startMs),
     [store]
@@ -82,7 +86,9 @@ export function useEditorClipActions({
   const handleFocusMediaForTrack = useCallback(
     (trackType: TrackType, trackId: string, startMs: number) => {
       setPendingAdd({ trackId, startMs });
-      setMediaActiveTab(trackType === "audio" || trackType === "music" ? "audio" : "media");
+      setMediaActiveTab(
+        trackType === "audio" || trackType === "music" ? "audio" : "media"
+      );
     },
     [setPendingAdd, setMediaActiveTab]
   );
@@ -101,7 +107,8 @@ export function useEditorClipActions({
     const track = store.state.tracks.find((item) => item.id === trackId);
     return (
       (track?.transitions ?? []).find(
-        (transition) => transition.clipAId === clipAId && transition.clipBId === clipBId
+        (transition) =>
+          transition.clipAId === clipAId && transition.clipBId === clipBId
       ) ?? null
     );
   }, [selectedTransitionKey, store.state.tracks]);
@@ -127,4 +134,3 @@ export function useEditorClipActions({
     selectedTransition,
   };
 }
-

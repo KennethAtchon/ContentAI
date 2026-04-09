@@ -103,7 +103,8 @@ function main(): void {
     const relFile = path.relative(ROOT, file);
 
     const constStringArrays = new Map<string, string[]>();
-    const constArrayRegex = /const\s+([A-Za-z_][A-Za-z0-9_]*)[^=]*=\s*\[((?:.|\n)*?)\]\s*(?:as\s+const)?\s*;/g;
+    const constArrayRegex =
+      /const\s+([A-Za-z_][A-Za-z0-9_]*)[^=]*=\s*\[((?:.|\n)*?)\]\s*(?:as\s+const)?\s*;/g;
     let arrayMatch: RegExpExecArray | null;
     while ((arrayMatch = constArrayRegex.exec(content)) !== null) {
       const name = arrayMatch[1];
@@ -114,7 +115,8 @@ function main(): void {
     }
 
     const iteratorVarValues = new Map<string, string[]>();
-    const mapRegex = /([A-Za-z_][A-Za-z0-9_]*)\.map\(\s*\(?\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*,[^)]*)?\s*\)?\s*=>/g;
+    const mapRegex =
+      /([A-Za-z_][A-Za-z0-9_]*)\.map\(\s*\(?\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*,[^)]*)?\s*\)?\s*=>/g;
     let mapMatch: RegExpExecArray | null;
     while ((mapMatch = mapRegex.exec(content)) !== null) {
       const arrayName = mapMatch[1];
@@ -239,7 +241,9 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log("\nResult: PASS (all detected translation keys resolve to en.json)\n");
+  console.log(
+    "\nResult: PASS (all detected translation keys resolve to en.json)\n"
+  );
 }
 
 main();

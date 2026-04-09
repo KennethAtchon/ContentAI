@@ -38,11 +38,8 @@ export function useStreamingContentSideEffects(
 
     for (const contentId of newContentIds) {
       void invalidateQueueQueries(queryClient);
-      void ensureSessionDraftVisible(
-        queryClient,
-        sessionId,
-        contentId,
-        () => chatService.getSessionDrafts(sessionId)
+      void ensureSessionDraftVisible(queryClient, sessionId, contentId, () =>
+        chatService.getSessionDrafts(sessionId)
       ).catch((err) => {
         debugLog.error("Failed to refresh session drafts after streaming", {
           service: "chat-layout",

@@ -215,7 +215,10 @@ export interface IAdminRepository {
   deleteMusicTrack(id: string): Promise<boolean>;
 
   // Niches management
-  listNiches(search?: string, activeOnly?: boolean): Promise<
+  listNiches(
+    search?: string,
+    activeOnly?: boolean,
+  ): Promise<
     {
       id: number;
       name: string;
@@ -247,10 +250,7 @@ export interface IAdminRepository {
     | undefined
   >;
 
-  createNiche(data: {
-    name: string;
-    description?: string;
-  }): Promise<{
+  createNiche(data: { name: string; description?: string }): Promise<{
     id: number;
     name: string;
     description: string | null;
@@ -680,9 +680,7 @@ export class AdminRepository implements IAdminRepository {
         .orderBy(desc(featureUsages.createdAt))
         .limit(params.limit)
         .offset(params.skip),
-      this.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(featureUsages),
+      this.db.select({ total: sql<number>`count(*)::int` }).from(featureUsages),
     ]);
     return { rows, total };
   }
@@ -757,10 +755,7 @@ export class AdminRepository implements IAdminRepository {
       })
       .from(aiCostLedger)
       .where(
-        and(
-          gte(aiCostLedger.createdAt, periodStart),
-          sql`user_id is not null`,
-        ),
+        and(gte(aiCostLedger.createdAt, periodStart), sql`user_id is not null`),
       )
       .groupBy(aiCostLedger.userId)
       .orderBy(sql`sum(total_cost) desc`)
@@ -993,7 +988,10 @@ export class AdminRepository implements IAdminRepository {
   }
 
   async deleteNiche(id: number): Promise<boolean> {
-    const result = await this.db.delete(niches).where(eq(niches.id, id)).returning();
+    const result = await this.db
+      .delete(niches)
+      .where(eq(niches.id, id))
+      .returning();
     return result.length > 0;
   }
 
@@ -1031,9 +1029,17 @@ export class AdminRepository implements IAdminRepository {
     const where = and(...whereConditions);
 
     const [reelRows, [{ total }]] = await Promise.all([
-      this.db.select().from(reels).where(where).orderBy(order)
-        .limit(options.limit).offset(offset),
-      this.db.select({ total: sql<number>`count(*)::int` }).from(reels).where(where),
+      this.db
+        .select()
+        .from(reels)
+        .where(where)
+        .orderBy(order)
+        .limit(options.limit)
+        .offset(offset),
+      this.db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(reels)
+        .where(where),
     ]);
 
     // Get analysis status
@@ -1050,7 +1056,10 @@ export class AdminRepository implements IAdminRepository {
     const analyzedIds = new Set(analysisRows.map((a) => a.reelId));
 
     return {
-      reels: reelRows.map((r) => ({ ...r, hasAnalysis: analyzedIds.has(r.id) })),
+      reels: reelRows.map((r) => ({
+        ...r,
+        hasAnalysis: analyzedIds.has(r.id),
+      })),
       total,
       page: options.page,
       limit: options.limit,
@@ -1092,7 +1101,11 @@ export class AdminRepository implements IAdminRepository {
         .limit(limit)
         .offset(offset);
     }
-    return this.db.select().from(table as never).limit(limit).offset(offset);
+    return this.db
+      .select()
+      .from(table as never)
+      .limit(limit)
+      .offset(offset);
   }
 
   async countDynamicTableRows(table: PgTable, whereClause: SQL | undefined) {
@@ -1156,7 +1169,9 @@ export class AdminRepository implements IAdminRepository {
     return niche ?? null;
   }
 
-  async listActiveNichesForDailyScan(): Promise<{ id: number; name: string }[]> {
+  async listActiveNichesForDailyScan(): Promise<
+    { id: number; name: string }[]
+  > {
     return this.db
       .select({ id: niches.id, name: niches.name })
       .from(niches)

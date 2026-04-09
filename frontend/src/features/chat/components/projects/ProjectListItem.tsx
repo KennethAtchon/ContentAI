@@ -62,7 +62,9 @@ export function ProjectListItem({
     <div>
       <div
         className={`group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors ${
-          selectedProjectId === project.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+          selectedProjectId === project.id
+            ? "bg-primary/10 text-primary"
+            : "hover:bg-muted"
         }`}
         onClick={() => onProjectSelect(project)}
       >
@@ -113,7 +115,9 @@ export function ProjectListItem({
             <>
               <p className="text-base font-medium truncate">{project.name}</p>
               {project.description && (
-                <p className="text-sm text-muted-foreground truncate mt-0.5">{project.description}</p>
+                <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  {project.description}
+                </p>
               )}
             </>
           )}

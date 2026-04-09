@@ -52,4 +52,3 @@ describe("splitClip", () => {
     expect(b.trimStartMs + b.durationMs + b.trimEndMs).toBe(sourceDuration);
   });
 });
-

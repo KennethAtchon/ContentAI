@@ -148,10 +148,7 @@ export class CustomerService {
       }
     | undefined
   > {
-    return this.customerRepo.getOrderByStripeSessionId(
-      userId,
-      stripeSessionId,
-    );
+    return this.customerRepo.getOrderByStripeSessionId(userId, stripeSessionId);
   }
 
   async createOrderFromCheckout(

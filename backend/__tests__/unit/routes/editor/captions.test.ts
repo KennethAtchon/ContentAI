@@ -39,7 +39,11 @@ function buildApp() {
   app.post(
     "/api/captions/manual",
     zValidator("json", manualCaptionDocSchema, zodValidationErrorHook),
-    async (c) => c.json(await captionsService.createManual("user-1", c.req.valid("json")), 201),
+    async (c) =>
+      c.json(
+        await captionsService.createManual("user-1", c.req.valid("json")),
+        201,
+      ),
   );
 
   app.patch(

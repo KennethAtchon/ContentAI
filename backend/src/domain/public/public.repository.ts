@@ -72,9 +72,7 @@ export class PublicRepository implements IPublicRepository {
             .orderBy(desc(contactMessages.createdAt))
             .limit(limit)
             .offset(offset),
-      whereClause
-        ? countBase.where(whereClause)
-        : countBase,
+      whereClause ? countBase.where(whereClause) : countBase,
     ]);
 
     const total = countRows[0]?.total ?? 0;

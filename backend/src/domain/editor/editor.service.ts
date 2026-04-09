@@ -51,12 +51,15 @@ export class EditorService {
             referencedElsewhere.add(captionDocId);
           }
         } catch (error) {
-          debugLog.warn("Skipping caption cleanup scan for invalid project tracks", {
-            service: "editor-service",
-            operation: "cleanupCaptionDocsIfUnreferenced",
-            projectId: project.id,
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
+          debugLog.warn(
+            "Skipping caption cleanup scan for invalid project tracks",
+            {
+              service: "editor-service",
+              operation: "cleanupCaptionDocsIfUnreferenced",
+              projectId: project.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          );
         }
       }
 
@@ -98,15 +101,14 @@ export class EditorService {
         generatedContentId,
         userId,
       );
-      const existingId =
-        await this.editor.findRootProjectIdInContentChain(userId, chainIds);
+      const existingId = await this.editor.findRootProjectIdInContentChain(
+        userId,
+        chainIds,
+      );
       if (existingId) {
-        throw new AppError(
-          "project_exists",
-          "PROJECT_EXISTS",
-          409,
-          { existingProjectId: existingId },
-        );
+        throw new AppError("project_exists", "PROJECT_EXISTS", 409, {
+          existingProjectId: existingId,
+        });
       }
     }
 
@@ -116,7 +118,10 @@ export class EditorService {
       // SyncService.deriveTimeline is the single source of truth for building
       // editor tracks from content assets — used here for initial project creation
       // and by syncLinkedProjects for all subsequent re-syncs.
-      const result = await this.syncService.deriveTimeline(userId, generatedContentId);
+      const result = await this.syncService.deriveTimeline(
+        userId,
+        generatedContentId,
+      );
       tracks = result.tracks;
       durationMs = result.durationMs;
     }
@@ -152,15 +157,14 @@ export class EditorService {
           generatedContentId,
           userId,
         );
-        const existingId =
-          await this.editor.findRootProjectIdInContentChain(userId, chainIds);
+        const existingId = await this.editor.findRootProjectIdInContentChain(
+          userId,
+          chainIds,
+        );
         if (existingId) {
-          throw new AppError(
-            "project_exists",
-            "PROJECT_EXISTS",
-            409,
-            { existingProjectId: existingId },
-          );
+          throw new AppError("project_exists", "PROJECT_EXISTS", 409, {
+            existingProjectId: existingId,
+          });
         }
       }
       throw error;
@@ -183,11 +187,7 @@ export class EditorService {
     if (!existing) throw Errors.notFound("Edit project");
 
     if (existing.status === "published") {
-      throw new AppError(
-        "Published projects are read-only",
-        "READ_ONLY",
-        403,
-      );
+      throw new AppError("Published projects are read-only", "READ_ONLY", 403);
     }
 
     const updateData: Record<string, unknown> = { userHasEdited: true };
@@ -248,8 +248,7 @@ export class EditorService {
       throw new AppError("Already published", "ALREADY_PUBLISHED", 409);
     }
 
-    const hasExport =
-      await this.editor.hasCompletedExportForProject(projectId);
+    const hasExport = await this.editor.hasCompletedExportForProject(projectId);
     if (!hasExport) {
       throw new AppError(
         "Export your reel before publishing",
@@ -258,10 +257,7 @@ export class EditorService {
       );
     }
 
-    const updated = await this.editor.markPublishedForUser(
-      projectId,
-      userId,
-    );
+    const updated = await this.editor.markPublishedForUser(projectId, userId);
     if (!updated) throw Errors.notFound("Edit project");
 
     if (updated.generatedContentId) {
@@ -279,10 +275,7 @@ export class EditorService {
   }
 
   async createNewDraftFromPublished(userId: string, sourceProjectId: string) {
-    const source = await this.editor.findByIdAndUserId(
-      sourceProjectId,
-      userId,
-    );
+    const source = await this.editor.findByIdAndUserId(sourceProjectId, userId);
     if (!source) throw Errors.notFound("Edit project");
 
     if (source.status !== "published") {
@@ -325,11 +318,7 @@ export class EditorService {
     const r2Key = `thumbnails/editor/${userId}/${projectId}.${ext}`;
     const thumbnailUrl = await uploadFile(file, r2Key, file.type);
 
-    await this.editor.setThumbnailUrlForUser(
-      projectId,
-      userId,
-      thumbnailUrl,
-    );
+    await this.editor.setThumbnailUrlForUser(projectId, userId, thumbnailUrl);
 
     return { thumbnailUrl };
   }

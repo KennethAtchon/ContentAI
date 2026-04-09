@@ -10,12 +10,15 @@ export function SecurityCard({ t }: { t: (key: string) => string }) {
             <Shield className="h-6 w-6 text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="font-semibold">{t("checkout_secure_payment_processing")}</p>
-            <p className="text-base text-muted-foreground">{t("checkout_payment_processed_securely")}</p>
+            <p className="font-semibold">
+              {t("checkout_secure_payment_processing")}
+            </p>
+            <p className="text-base text-muted-foreground">
+              {t("checkout_payment_processed_securely")}
+            </p>
           </div>
         </div>
       </CardContent>
     </Card>
   );
 }
-

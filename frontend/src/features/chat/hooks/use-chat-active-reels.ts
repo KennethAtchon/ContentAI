@@ -14,7 +14,8 @@ export function useChatActiveReels(options: {
   pendingReelIds: number[];
   reelIdFromSearch?: string;
 }): Reel[] {
-  const { sessionData, isStreaming, pendingReelIds, reelIdFromSearch } = options;
+  const { sessionData, isStreaming, pendingReelIds, reelIdFromSearch } =
+    options;
   const [activeReelRefs, setActiveReelRefs] = useState<Reel[]>([]);
 
   const lastReelRefs = useMemo(() => {
@@ -35,7 +36,8 @@ export function useChatActiveReels(options: {
           if (!cancelled) setActiveReelRefs(data.reels);
         } else if (reelIdFromSearch && sessionData) {
           const data = await reelsService.getReel(Number(reelIdFromSearch));
-          if (!cancelled && data.reel) setActiveReelRefs([data.reel as unknown as Reel]);
+          if (!cancelled && data.reel)
+            setActiveReelRefs([data.reel as unknown as Reel]);
         } else if (!cancelled) {
           setActiveReelRefs([]);
         }

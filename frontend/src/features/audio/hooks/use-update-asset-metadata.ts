@@ -7,10 +7,18 @@ export function useUpdateAssetMetadata(generatedContentId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ assetId, metadata }: { assetId: string; metadata: Record<string, unknown> }) =>
-      audioService.updateAssetMetadata(assetId, metadata),
+    mutationFn: ({
+      assetId,
+      metadata,
+    }: {
+      assetId: string;
+      metadata: Record<string, unknown>;
+    }) => audioService.updateAssetMetadata(assetId, metadata),
     onSuccess: () => {
-      void invalidateContentAssetsForGeneration(queryClient, generatedContentId);
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        generatedContentId
+      );
     },
     onError: () => {
       toast.error("Failed to update audio settings");

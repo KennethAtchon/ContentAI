@@ -24,7 +24,7 @@ function endOfVideoTrack(clips: TimelineVideoItem[]): number {
 export function reorderVideoItems(
   timeline: Timeline,
   fromIndex: number,
-  toIndex: number,
+  toIndex: number
 ): Timeline {
   const video = [...timeline.tracks.video];
   const [moved] = video.splice(fromIndex, 1);
@@ -41,7 +41,7 @@ export function reorderVideoItems(
 export function setVideoItemDurationById(
   timeline: Timeline,
   id: string,
-  newDurationMs: number,
+  newDurationMs: number
 ): Timeline {
   const idx = timeline.tracks.video.findIndex((c) => c.id === id);
   if (idx === -1) return timeline;
@@ -110,7 +110,7 @@ export function insertVideoItemAt(
     insertAtIndex: number;
     assetId: string;
     durationMs: number;
-  },
+  }
 ): Timeline {
   const { insertAtIndex, assetId, durationMs } = params;
   const dur = Math.max(1, durationMs);

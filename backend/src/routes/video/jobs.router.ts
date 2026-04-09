@@ -9,10 +9,7 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { videoJobService } from "../../services/video-generation/job.service";
 import { AppError } from "../../utils/errors/app-error";
-import {
-  enqueue,
-  getRetryRunner,
-} from "../../domain/video/reel-job-runner";
+import { enqueue, getRetryRunner } from "../../domain/video/reel-job-runner";
 import { videoJobIdParamSchema } from "../../domain/video/video.schemas";
 
 const jobsRouter = new Hono<HonoEnv>();

@@ -57,8 +57,10 @@ function GeneratePage() {
 
 export const Route = createFileRoute("/studio/_layout/generate")({
   validateSearch: (search: Record<string, unknown>) => ({
-    sessionId: typeof search.sessionId === "string" ? search.sessionId : undefined,
-    projectId: typeof search.projectId === "string" ? search.projectId : undefined,
+    sessionId:
+      typeof search.sessionId === "string" ? search.sessionId : undefined,
+    projectId:
+      typeof search.projectId === "string" ? search.projectId : undefined,
     reelId: typeof search.reelId === "string" ? search.reelId : undefined,
   }),
   component: GeneratePage,

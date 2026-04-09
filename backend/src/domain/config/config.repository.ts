@@ -49,7 +49,9 @@ export interface IConfigRepository {
 export class ConfigRepository implements IConfigRepository {
   constructor(private readonly database: AppDb) {}
 
-  async insertSystemConfigSeedIfMissing(row: SystemConfigSeedRow): Promise<void> {
+  async insertSystemConfigSeedIfMissing(
+    row: SystemConfigSeedRow,
+  ): Promise<void> {
     await this.database
       .insert(systemConfig)
       .values({
@@ -61,7 +63,9 @@ export class ConfigRepository implements IConfigRepository {
         isSecret: row.isSecret ?? false,
         description: row.description ?? null,
       })
-      .onConflictDoNothing({ target: [systemConfig.category, systemConfig.key] });
+      .onConflictDoNothing({
+        target: [systemConfig.category, systemConfig.key],
+      });
   }
 
   async listSystemConfigByCategoryActive(

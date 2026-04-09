@@ -14,13 +14,19 @@ import { useEditorAssetMap } from "./useEditorAssetMap";
 import { useEditorClipActions } from "./useEditorClipActions";
 import { useEditorTransport } from "./useEditorTransport";
 
-export function useEditorLayoutRuntime(project: EditProject, onBack: () => void) {
+export function useEditorLayoutRuntime(
+  project: EditProject,
+  onBack: () => void
+) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const store = useEditorReducer();
   const [showExport, setShowExport] = useState(false);
-  const [effectPreview, setEffectPreview] = useState<{ clipId: string; patch: Partial<Clip> } | null>(null);
+  const [effectPreview, setEffectPreview] = useState<{
+    clipId: string;
+    patch: Partial<Clip>;
+  } | null>(null);
   const [selectedTransitionKey, setSelectedTransitionKey] = useState<
     [string, string, string] | null
   >(null);
@@ -28,7 +34,10 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [mediaActiveTab, setMediaActiveTab] = useState<TabKey>("media");
-  const [pendingAdd, setPendingAdd] = useState<{ trackId: string; startMs: number } | null>(null);
+  const [pendingAdd, setPendingAdd] = useState<{
+    trackId: string;
+    startMs: number;
+  } | null>(null);
 
   const {
     scriptResetPending,
@@ -36,13 +45,14 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
     confirmScriptIteration,
   } = useEditorProjectPoll({ project, store });
 
-  const { assetUrlMap, isCapturingThumbnail, captureThumbnail } = useEditorAssetMap({
-    projectId: project.id,
-    generatedContentId: project.generatedContentId,
-    projectThumbnailUrl: project.thumbnailUrl,
-    tracks: store.state.tracks,
-    currentTimeMs: store.state.currentTimeMs,
-  });
+  const { assetUrlMap, isCapturingThumbnail, captureThumbnail } =
+    useEditorAssetMap({
+      projectId: project.id,
+      generatedContentId: project.generatedContentId,
+      projectThumbnailUrl: project.thumbnailUrl,
+      tracks: store.state.tracks,
+      currentTimeMs: store.state.currentTimeMs,
+    });
 
   const {
     lastSavedAt,
@@ -61,21 +71,20 @@ export function useEditorLayoutRuntime(project: EditProject, onBack: () => void)
     fps: store.state.fps,
   });
 
-  const {
-    runPublish,
-    isPublishing,
-    createNewDraft,
-    isCreatingDraft,
-  } = useEditorLayoutMutations({
-    project,
-    store,
-    queryClient,
-    authenticatedFetchJson,
-    onBack,
-    flushSave,
-  });
+  const { runPublish, isPublishing, createNewDraft, isCreatingDraft } =
+    useEditorLayoutMutations({
+      project,
+      store,
+      queryClient,
+      authenticatedFetchJson,
+      onBack,
+      flushSave,
+    });
 
-  const onTick = useCallback((ms: number) => store.setCurrentTime(ms), [store.setCurrentTime]);
+  const onTick = useCallback(
+    (ms: number) => store.setCurrentTime(ms),
+    [store.setCurrentTime]
+  );
   const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
   usePlayback({
     isPlaying: store.state.isPlaying,

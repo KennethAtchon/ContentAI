@@ -8,7 +8,7 @@ await db
     SEEDED_CAPTION_PRESETS.map((p) => ({
       id: p.id,
       definition: p as unknown as Record<string, unknown>,
-    }))
+    })),
   )
   .onConflictDoNothing();
 

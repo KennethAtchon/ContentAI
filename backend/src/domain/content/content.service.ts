@@ -1,5 +1,8 @@
 import { Errors } from "../../utils/errors/app-error";
-import type { IAssetsRepository, NewAssetRow } from "../assets/assets.repository";
+import type {
+  IAssetsRepository,
+  NewAssetRow,
+} from "../assets/assets.repository";
 import type { IContentRepository } from "./content.repository";
 import {
   generateContentFromSourceReel,
@@ -25,22 +28,20 @@ export class ContentService {
     return this.content.fetchOwnedContentForVideo(userId, generatedContentId);
   }
 
-  updatePhase4Metadata(
-    input: {
-      generatedContentId: number;
-      existingGeneratedMetadata: Record<string, unknown> | null;
-      jobId: string;
-      status: "queued" | "running" | "completed" | "failed";
-      shots?: Array<{
-        shotIndex: number;
-        description: string;
-        durationMs: number;
-        assetId: string;
-        useClipAudio: boolean;
-      }>;
-      provider?: string;
-    },
-  ) {
+  updatePhase4Metadata(input: {
+    generatedContentId: number;
+    existingGeneratedMetadata: Record<string, unknown> | null;
+    jobId: string;
+    status: "queued" | "running" | "completed" | "failed";
+    shots?: Array<{
+      shotIndex: number;
+      description: string;
+      durationMs: number;
+      assetId: string;
+      useClipAudio: boolean;
+    }>;
+    provider?: string;
+  }) {
     return this.content.updatePhase4Metadata(input);
   }
 
@@ -75,7 +76,11 @@ export class ContentService {
     generatedContentId: number,
     options: { typeFilter?: string },
   ) {
-    return this.content.listContentAssetsForUser(userId, generatedContentId, options);
+    return this.content.listContentAssetsForUser(
+      userId,
+      generatedContentId,
+      options,
+    );
   }
 
   // Chat content operations
@@ -137,10 +142,7 @@ export class ContentService {
     return this.content.replaceGeneratedVideoClipForShot(params);
   }
 
-  listVideoClipAssetsForAiAssembly(
-    userId: string,
-    generatedContentId: number,
-  ) {
+  listVideoClipAssetsForAiAssembly(userId: string, generatedContentId: number) {
     return this.content.listVideoClipAssetsForAiAssembly(
       userId,
       generatedContentId,

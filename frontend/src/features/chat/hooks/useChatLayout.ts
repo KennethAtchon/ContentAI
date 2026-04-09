@@ -163,7 +163,8 @@ export function useChatLayout(projects: Project[]) {
   }, [sessionId, sessionData?.session]);
 
   useEffect(() => {
-    const persistedActiveContentId = sessionData?.session?.activeContentId ?? null;
+    const persistedActiveContentId =
+      sessionData?.session?.activeContentId ?? null;
     if (persistedActiveContentId == null) return;
 
     setActiveContentId((current) => current ?? persistedActiveContentId);
@@ -198,8 +199,9 @@ export function useChatLayout(projects: Project[]) {
     sessionId,
   });
   const activeDraftIndex =
-    sessionDraftsData?.drafts.findIndex((draft) => draft.id === activeContentId) ??
-    -1;
+    sessionDraftsData?.drafts.findIndex(
+      (draft) => draft.id === activeContentId
+    ) ?? -1;
   const activeDraft =
     activeDraftIndex >= 0 ? sessionDraftsData?.drafts[activeDraftIndex] : null;
   const activeDraftLabel =

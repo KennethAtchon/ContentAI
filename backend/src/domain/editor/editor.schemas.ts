@@ -145,28 +145,30 @@ const transitionSchema = z.object({
   clipBId: z.string().min(1),
 });
 
-export const editorTrackDataSchema = z.object({
-  id: z.string().min(1),
-  type: z.enum(["video", "audio", "music", "text"]),
-  name: z.string().min(1),
-  muted: z.boolean(),
-  locked: z.boolean(),
-  clips: z.array(timelineClipSchema),
-  transitions: z.array(transitionSchema).default([]),
-}).superRefine((track, ctx) => {
-  const sorted = [...track.clips].sort((a, b) => a.startMs - b.startMs);
-  for (let i = 1; i < sorted.length; i++) {
-    const previous = sorted[i - 1]!;
-    const current = sorted[i]!;
-    if (previous.startMs + previous.durationMs > current.startMs) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Clip "${current.id}" overlaps with "${previous.id}" on track "${track.id}"`,
-        path: ["clips", i],
-      });
+export const editorTrackDataSchema = z
+  .object({
+    id: z.string().min(1),
+    type: z.enum(["video", "audio", "music", "text"]),
+    name: z.string().min(1),
+    muted: z.boolean(),
+    locked: z.boolean(),
+    clips: z.array(timelineClipSchema),
+    transitions: z.array(transitionSchema).default([]),
+  })
+  .superRefine((track, ctx) => {
+    const sorted = [...track.clips].sort((a, b) => a.startMs - b.startMs);
+    for (let i = 1; i < sorted.length; i++) {
+      const previous = sorted[i - 1]!;
+      const current = sorted[i]!;
+      if (previous.startMs + previous.durationMs > current.startMs) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Clip "${current.id}" overlaps with "${previous.id}" on track "${track.id}"`,
+          path: ["clips", i],
+        });
+      }
     }
-  }
-});
+  });
 
 export const editorStoredTracksSchema = z.array(editorTrackDataSchema);
 

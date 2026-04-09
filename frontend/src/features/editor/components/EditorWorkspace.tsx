@@ -18,7 +18,9 @@ interface EditorWorkspaceProps {
   mediaActiveTab: TabKey;
   pendingAdd: { trackId: string; startMs: number } | null;
   isReadOnly: boolean;
-  onSetEffectPreview: (value: { clipId: string; patch: Partial<Clip> } | null) => void;
+  onSetEffectPreview: (
+    value: { clipId: string; patch: Partial<Clip> } | null
+  ) => void;
   onSetMediaActiveTab: (tab: TabKey) => void;
   onClearPendingAdd: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
@@ -70,7 +72,9 @@ export function EditorWorkspace({
       <Inspector
         onEffectPreview={(patch) =>
           onSetEffectPreview(
-            patch && state.selectedClipId ? { clipId: state.selectedClipId, patch } : null
+            patch && state.selectedClipId
+              ? { clipId: state.selectedClipId, patch }
+              : null
           )
         }
         selectedTransition={selectedTransition}

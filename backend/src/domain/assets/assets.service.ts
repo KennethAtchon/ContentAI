@@ -19,7 +19,11 @@ export class AssetsService {
     return this.assets.deleteById(id);
   }
 
-  updateMetadata(userId: string, assetId: string, metadata: Record<string, unknown>) {
+  updateMetadata(
+    userId: string,
+    assetId: string,
+    metadata: Record<string, unknown>,
+  ) {
     return this.assets.updateMetadata(assetId, userId, metadata);
   }
 

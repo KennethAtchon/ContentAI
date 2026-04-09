@@ -116,7 +116,8 @@ export class SyncService {
     userId: string,
     contentId: number,
   ): Promise<{ tracks: TimelineTrackJson[]; durationMs: number }> {
-    const assets = await this.content.listAssetsLinkedToGeneratedContent(contentId);
+    const assets =
+      await this.content.listAssetsLinkedToGeneratedContent(contentId);
 
     if (assets.length === 0) {
       return { tracks: this.emptyTracks(), durationMs: 0 };

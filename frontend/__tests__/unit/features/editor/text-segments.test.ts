@@ -24,14 +24,18 @@ describe("splitTextIntoSegments", () => {
   test("time is proportional to word count", () => {
     // "Hello world." = 2 words, "One two three four." = 4 words → 6 total
     // ms per word = 6000 / 6 = 1000
-    const segs = splitTextIntoSegments("Hello world. One two three four.", 6000);
-    expect(segs[0].endMs).toBe(2000);  // 2 words × 1000ms
+    const segs = splitTextIntoSegments(
+      "Hello world. One two three four.",
+      6000
+    );
+    expect(segs[0].endMs).toBe(2000); // 2 words × 1000ms
     expect(segs[1].startMs).toBe(2000);
-    expect(segs[1].endMs).toBe(6000);  // 4 words × 1000ms
+    expect(segs[1].endMs).toBe(6000); // 4 words × 1000ms
   });
 
   test("long sentence splits by clause then chunks", () => {
-    const text = "One two three four five six, seven eight nine ten eleven twelve";
+    const text =
+      "One two three four five six, seven eight nine ten eleven twelve";
     const segs = splitTextIntoSegments(text, 12000);
     // First clause ≤ MAX_WORDS (6 words: "One two three four five six,")
     // Second clause > MAX_WORDS → chunked into groups of 4

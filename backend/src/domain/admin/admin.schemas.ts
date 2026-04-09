@@ -90,7 +90,9 @@ export const adminNichesQuerySchema = z.object({
   search: z.string().trim().min(1).optional(),
   active: z
     .union([z.boolean(), z.enum(["true", "false"])])
-    .transform((value) => (typeof value === "boolean" ? value : value === "true"))
+    .transform((value) =>
+      typeof value === "boolean" ? value : value === "true",
+    )
     .optional()
     .default(false),
 });
@@ -110,7 +112,10 @@ export const adminJobIdParamSchema = z.object({
 export const adminNicheReelsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
-  sortBy: z.enum(["views", "likes", "engagement", "postedAt", "scrapedAt"]).optional().default("views"),
+  sortBy: z
+    .enum(["views", "likes", "engagement", "postedAt", "scrapedAt"])
+    .optional()
+    .default("views"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
   viral: z.enum(["true", "false"]).optional(),
   hasVideo: z.enum(["true"]).optional(),
@@ -177,7 +182,9 @@ export const adminSystemExportQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   includeDeleted: z
     .union([z.boolean(), z.enum(["true", "false"])])
-    .transform((value) => (typeof value === "boolean" ? value : value === "true"))
+    .transform((value) =>
+      typeof value === "boolean" ? value : value === "true",
+    )
     .optional()
     .default(false),
 });

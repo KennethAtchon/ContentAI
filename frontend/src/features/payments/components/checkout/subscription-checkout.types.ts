@@ -10,4 +10,3 @@ export interface SubscriptionSummaryProps {
   onCheckout: () => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
-

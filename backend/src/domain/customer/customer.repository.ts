@@ -111,14 +111,12 @@ export interface ICustomerRepository {
     | undefined
   >;
 
-  createOrder(
-    data: {
-      userId: string;
-      totalAmount: string;
-      status?: string;
-      stripeSessionId?: string;
-    },
-  ): Promise<{
+  createOrder(data: {
+    userId: string;
+    totalAmount: string;
+    status?: string;
+    stripeSessionId?: string;
+  }): Promise<{
     id: string;
     userId: string;
     totalAmount: string;
@@ -222,10 +220,7 @@ export class CustomerRepository implements ICustomerRepository {
     });
   }
 
-  async listOrders(
-    userId: string,
-    options: { skip: number; limit: number },
-  ) {
+  async listOrders(userId: string, options: { skip: number; limit: number }) {
     return this.db
       .select({
         id: orders.id,
@@ -299,14 +294,12 @@ export class CustomerRepository implements ICustomerRepository {
     return order;
   }
 
-  async createOrder(
-    data: {
-      userId: string;
-      totalAmount: string;
-      status?: string;
-      stripeSessionId?: string;
-    },
-  ) {
+  async createOrder(data: {
+    userId: string;
+    totalAmount: string;
+    status?: string;
+    stripeSessionId?: string;
+  }) {
     const [order] = await this.db
       .insert(orders)
       .values({
@@ -338,9 +331,7 @@ export class CustomerRepository implements ICustomerRepository {
     const [result] = await this.db
       .select({ total: sql<string>`sum(total_amount)` })
       .from(orders)
-      .where(
-        and(eq(orders.userId, userId), eq(orders.status, "completed")),
-      );
+      .where(and(eq(orders.userId, userId), eq(orders.status, "completed")));
 
     return result?.total ?? null;
   }

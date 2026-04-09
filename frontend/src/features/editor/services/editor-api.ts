@@ -65,13 +65,13 @@ export async function publishEditorProject(id: string): Promise<{
 
 export async function uploadProjectThumbnail(
   id: string,
-  blob: Blob,
+  blob: Blob
 ): Promise<{ thumbnailUrl: string }> {
   const form = new FormData();
   form.append("file", blob, "thumbnail.jpg");
   return authenticatedFetchJson<{ thumbnailUrl: string }>(
     `/api/editor/${id}/thumbnail`,
-    { method: "POST", body: form },
+    { method: "POST", body: form }
   );
 }
 

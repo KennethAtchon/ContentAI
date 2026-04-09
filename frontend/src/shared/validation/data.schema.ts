@@ -28,7 +28,11 @@ export function safeParseDate(
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return null;
     const year = date.getFullYear();
-    if (year < DATE_VALIDATION_BOUNDS.MIN_YEAR || year > DATE_VALIDATION_BOUNDS.MAX_YEAR) return null;
+    if (
+      year < DATE_VALIDATION_BOUNDS.MIN_YEAR ||
+      year > DATE_VALIDATION_BOUNDS.MAX_YEAR
+    )
+      return null;
     return date;
   } catch {
     return null;
@@ -41,7 +45,8 @@ export function safeFormatTimeWithTimezone(
 ): string {
   if (!dateString) return FALLBACK_MESSAGES.INVALID_TIME;
   try {
-    const utcString = dateString instanceof Date ? dateString.toISOString() : dateString;
+    const utcString =
+      dateString instanceof Date ? dateString.toISOString() : dateString;
     return TimeService.formatWithLabel(
       TimeService.fromUTC(utcString, timezone),
       timezone,
@@ -58,7 +63,8 @@ export function safeFormatDateWithTimezone(
 ): string {
   if (!dateString) return FALLBACK_MESSAGES.INVALID_DATE;
   try {
-    const utcString = dateString instanceof Date ? dateString.toISOString() : dateString;
+    const utcString =
+      dateString instanceof Date ? dateString.toISOString() : dateString;
     return TimeService.formatWithLabel(
       TimeService.fromUTC(utcString, timezone),
       timezone,
@@ -74,25 +80,36 @@ export function safeArray<T>(arr: T[] | null | undefined): T[] {
 }
 
 export function safeFormatPrice(price: unknown): string {
-  if (price === null || price === undefined) return FALLBACK_MESSAGES.DEFAULT_PRICE;
+  if (price === null || price === undefined)
+    return FALLBACK_MESSAGES.DEFAULT_PRICE;
   try {
     const numPrice = parsePrice(price);
     if (isNaN(numPrice)) return FALLBACK_MESSAGES.DEFAULT_PRICE;
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(numPrice);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(numPrice);
   } catch {
     return FALLBACK_MESSAGES.DEFAULT_PRICE;
   }
 }
 
-export function validateApiResponse(response: unknown, expectedFields: string[]): boolean {
-  if (!response || typeof response !== "object" || response === null) return false;
+export function validateApiResponse(
+  response: unknown,
+  expectedFields: string[]
+): boolean {
+  if (!response || typeof response !== "object" || response === null)
+    return false;
   return expectedFields.every((field) => {
     const value = (response as Record<string, unknown>)[field];
     return value !== null && value !== undefined;
   });
 }
 
-export function safeJsonParse<T>(jsonString: string | null | undefined, fallback: T): T {
+export function safeJsonParse<T>(
+  jsonString: string | null | undefined,
+  fallback: T
+): T {
   if (!jsonString || typeof jsonString !== "string") return fallback;
   try {
     return JSON.parse(jsonString) as T;

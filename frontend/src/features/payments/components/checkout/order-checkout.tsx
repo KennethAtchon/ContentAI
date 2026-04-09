@@ -11,7 +11,10 @@ import { useTranslation } from "react-i18next";
 import { ErrorAlert } from "@/shared/components/feedback/error-alert";
 import { useApp } from "@/shared/contexts/app-context";
 import { ORDER_PRODUCTS } from "@/shared/constants/order.constants";
-import { createProductCheckout, CheckoutLineItem } from "@/features/payments/services/stripe-checkout";
+import {
+  createProductCheckout,
+  CheckoutLineItem,
+} from "@/features/payments/services/stripe-checkout";
 import type { OrderItem } from "./order-checkout.types";
 import { QuickAddProducts } from "./order/QuickAddProducts";
 import { OrderItemsCard } from "./order/OrderItemsCard";
@@ -23,7 +26,10 @@ interface OrderCheckoutProps {
   onItemsChange?: (items: OrderItem[]) => void;
 }
 
-export function OrderCheckout({ initialItems, onItemsChange }: OrderCheckoutProps) {
+export function OrderCheckout({
+  initialItems,
+  onItemsChange,
+}: OrderCheckoutProps) {
   const { t } = useTranslation();
   const { user } = useApp();
   const [items, setItems] = useState<OrderItem[]>(initialItems);
@@ -35,7 +41,10 @@ export function OrderCheckout({ initialItems, onItemsChange }: OrderCheckoutProp
     onItemsChange?.(next);
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
   const handleCheckout = async () => {
     if (!user) {
@@ -83,7 +92,9 @@ export function OrderCheckout({ initialItems, onItemsChange }: OrderCheckoutProp
       setError(result.error?.message || t("checkout_error_failed_session"));
       setIsProcessing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("checkout_error_occurred"));
+      setError(
+        err instanceof Error ? err.message : t("checkout_error_occurred")
+      );
       setIsProcessing(false);
     }
   };
@@ -167,4 +178,3 @@ export function OrderCheckout({ initialItems, onItemsChange }: OrderCheckoutProp
     </>
   );
 }
-

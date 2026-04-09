@@ -1,4 +1,7 @@
-import { authenticatedFetch, authenticatedFetchJson } from "@/shared/services/api/authenticated-fetch";
+import {
+  authenticatedFetch,
+  authenticatedFetchJson,
+} from "@/shared/services/api/authenticated-fetch";
 import type { VideoJobResponse } from "@/features/video/types/video.types";
 import type {
   Project,
@@ -129,9 +132,7 @@ export const chatService = {
     }
   },
 
-  async getDeleteSessionPreview(
-    id: string
-  ): Promise<{
+  async getDeleteSessionPreview(id: string): Promise<{
     messages: number;
     generatedContent: number;
     editorProjects: number;
@@ -168,7 +169,9 @@ export const chatService = {
 
   // Session drafts / generated content
   getSessionDrafts(sessionId: string): Promise<{ drafts: SessionDraft[] }> {
-    return authenticatedFetchJson(`${API_BASE}/chat/sessions/${sessionId}/content`);
+    return authenticatedFetchJson(
+      `${API_BASE}/chat/sessions/${sessionId}/content`
+    );
   },
 
   // Queue
@@ -225,6 +228,8 @@ export const chatService = {
 
   // Video jobs (used by chat experience to resume reel generation state)
   getVideoJob(jobId: string): Promise<VideoJobResponse> {
-    return authenticatedFetchJson<VideoJobResponse>(`${API_BASE}/video/jobs/${jobId}`);
+    return authenticatedFetchJson<VideoJobResponse>(
+      `${API_BASE}/video/jobs/${jobId}`
+    );
   },
 };

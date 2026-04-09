@@ -24,10 +24,7 @@ export function slicePeaksForClipTrim(
   if (!Number.isFinite(sourceMax) || sourceMax <= 0) return peaks;
 
   const sourceStartMs = trimStart;
-  const sourceEndMs = Math.min(
-    sourceMax,
-    trimStart + durationMs * speed
-  );
+  const sourceEndMs = Math.min(sourceMax, trimStart + durationMs * speed);
 
   const t0 = sourceStartMs / sourceMax;
   const t1 = sourceEndMs / sourceMax;

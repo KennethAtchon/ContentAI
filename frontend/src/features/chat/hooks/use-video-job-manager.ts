@@ -41,7 +41,9 @@ export function useVideoJobManager({
   const queryClient = useQueryClient();
 
   const [videoJobId, setVideoJobId] = useState<string | null>(null);
-  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(null);
+  const [videoJobContentId, setVideoJobContentId] = useState<number | null>(
+    null
+  );
   const [reelProgressToastHiddenByUser, setReelProgressToastHiddenByUser] =
     useState(false);
 
@@ -170,7 +172,10 @@ export function useVideoJobManager({
       setVideoJobId(null);
       setVideoJobContentId(null);
       if (sessionId) clearPersistedStudioVideoJob(sessionId);
-      void invalidateContentAssetsForGeneration(queryClient, videoJobContentId ?? 0);
+      void invalidateContentAssetsForGeneration(
+        queryClient,
+        videoJobContentId ?? 0
+      );
       if (prev !== "completed") {
         const tid = videoJobToastIdRef.current;
         toast.success(t("workspace_video_ready"), {
@@ -217,7 +222,9 @@ export function useVideoJobManager({
       }
       videoJobToastIdRef.current = toast.loading(
         t("workspace_video_generating"),
-        reelGeneratingToastOpts(t("workspace_video_generating_toast_description"))
+        reelGeneratingToastOpts(
+          t("workspace_video_generating_toast_description")
+        )
       );
     },
     [t, reelGeneratingToastOpts, sessionId]
@@ -236,7 +243,8 @@ export function useVideoJobManager({
 
   const reelJobRunning =
     videoJobId !== null &&
-    (videoJobData?.job.status === "queued" || videoJobData?.job.status === "running");
+    (videoJobData?.job.status === "queued" ||
+      videoJobData?.job.status === "running");
 
   return {
     videoJobId,

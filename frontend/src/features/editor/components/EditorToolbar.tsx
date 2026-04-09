@@ -119,7 +119,11 @@ export function EditorToolbar({
       className="flex items-center gap-0 px-4 border-b border-overlay-sm bg-studio-surface shrink-0"
       style={{ height: 54 }}
     >
-      <button onClick={onBack} title={t("editor_back")} className="transport-btn mr-2">
+      <button
+        onClick={onBack}
+        title={t("editor_back")}
+        className="transport-btn mr-2"
+      >
         <ArrowLeft size={15} />
       </button>
 
@@ -153,23 +157,41 @@ export function EditorToolbar({
       <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
 
       <div className="flex items-center gap-0.5">
-        <button onClick={onJumpToStart} title={t("editor_transport_jump_start")} className="transport-btn">
+        <button
+          onClick={onJumpToStart}
+          title={t("editor_transport_jump_start")}
+          className="transport-btn"
+        >
           <SkipBack size={14} />
         </button>
-        <button onClick={onRewind} title={t("editor_transport_rewind")} className="transport-btn">
+        <button
+          onClick={onRewind}
+          title={t("editor_transport_rewind")}
+          className="transport-btn"
+        >
           <Rewind size={14} />
         </button>
         <button
           onClick={onTogglePlaying}
-          title={isPlaying ? t("editor_transport_pause") : t("editor_transport_play")}
+          title={
+            isPlaying ? t("editor_transport_pause") : t("editor_transport_play")
+          }
           className="transport-btn text-studio-accent"
         >
           {isPlaying ? <Pause size={15} /> : <Play size={15} />}
         </button>
-        <button onClick={onFastForward} title={t("editor_transport_forward")} className="transport-btn">
+        <button
+          onClick={onFastForward}
+          title={t("editor_transport_forward")}
+          className="transport-btn"
+        >
           <FastForward size={14} />
         </button>
-        <button onClick={onJumpToEnd} title={t("editor_transport_jump_end")} className="transport-btn">
+        <button
+          onClick={onJumpToEnd}
+          title={t("editor_transport_jump_end")}
+          className="transport-btn"
+        >
           <SkipForward size={14} />
         </button>
       </div>
@@ -184,7 +206,8 @@ export function EditorToolbar({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const ms = parseTimecode(timecodeInput, fps);
-              if (ms !== null) onSetCurrentTime(Math.max(0, Math.min(durationMs, ms)));
+              if (ms !== null)
+                onSetCurrentTime(Math.max(0, Math.min(durationMs, ms)));
               setTimecodeEditing(false);
             }
             if (e.key === "Escape") setTimecodeEditing(false);
@@ -206,13 +229,21 @@ export function EditorToolbar({
       )}
 
       <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
-      <button onClick={onZoomOut} title={t("editor_transport_zoom_out")} className="transport-btn">
+      <button
+        onClick={onZoomOut}
+        title={t("editor_transport_zoom_out")}
+        className="transport-btn"
+      >
         <ZoomOut size={14} />
       </button>
       <span className="text-xs text-dim-3 min-w-[48px] text-center select-none">
         {Math.round(zoom)}px/s
       </span>
-      <button onClick={onZoomIn} title={t("editor_transport_zoom_in")} className="transport-btn">
+      <button
+        onClick={onZoomIn}
+        title={t("editor_transport_zoom_in")}
+        className="transport-btn"
+      >
         <ZoomIn size={14} />
       </button>
       <button
@@ -238,12 +269,18 @@ export function EditorToolbar({
 
       <select
         value={String(fps)}
-        onChange={(e) => onFpsChange(Number(e.target.value) as 24 | 25 | 30 | 60)}
+        onChange={(e) =>
+          onFpsChange(Number(e.target.value) as 24 | 25 | 30 | 60)
+        }
         className="ml-2 h-8 rounded border border-overlay-md bg-transparent px-2 text-xs text-dim-2 outline-none"
         title="Timeline FPS"
       >
         {[24, 25, 30, 60].map((value) => (
-          <option key={value} value={value} className="bg-studio-surface text-dim-1">
+          <option
+            key={value}
+            value={value}
+            className="bg-studio-surface text-dim-1"
+          >
             {value} fps
           </option>
         ))}
@@ -278,7 +315,9 @@ export function EditorToolbar({
             </span>
           ) : isDirty ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-amber-400">{t("editor_unsaved_changes")}</span>
+              <span className="text-amber-400">
+                {t("editor_unsaved_changes")}
+              </span>
               <button
                 onClick={onSaveNow}
                 className="px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-amber-400 cursor-pointer hover:bg-amber-400/25 transition-colors"
@@ -305,7 +344,9 @@ export function EditorToolbar({
             onClick={onCreateNewDraft}
             disabled={isCreatingDraft}
             title={
-              isCreatingDraft ? "Creating a new draft..." : t("editor_new_draft")
+              isCreatingDraft
+                ? "Creating a new draft..."
+                : t("editor_new_draft")
             }
             className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
           >

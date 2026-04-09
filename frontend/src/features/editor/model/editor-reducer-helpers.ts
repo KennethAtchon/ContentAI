@@ -162,7 +162,7 @@ function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
     Object.fromEntries(
       keys
         .filter((key) => Object.prototype.hasOwnProperty.call(patchRecord, key))
-        .map((key) => [key, patchRecord[key]]),
+        .map((key) => [key, patchRecord[key]])
     ) as ClipPatch;
 
   switch (clip.type) {
@@ -190,7 +190,7 @@ function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
         "isPlaceholder",
         "placeholderShotIndex",
         "placeholderLabel",
-        "placeholderStatus",
+        "placeholderStatus"
       );
     case "audio":
     case "music":
@@ -213,7 +213,7 @@ function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
         "trimEndMs",
         "sourceMaxDurationMs",
         "volume",
-        "muted",
+        "muted"
       );
     case "text":
       return pick(
@@ -232,7 +232,7 @@ function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
         "rotation",
         "textContent",
         "textAutoChunk",
-        "textStyle",
+        "textStyle"
       );
     case "caption":
       return pick(
@@ -245,7 +245,7 @@ function sanitizeClipPatch(clip: Clip, patch: ClipPatch): ClipPatch {
         "sourceEndMs",
         "stylePresetId",
         "styleOverrides",
-        "groupingMs",
+        "groupingMs"
       );
   }
 }
@@ -275,7 +275,10 @@ export function removeClipFromTracks(tracks: Track[], clipId: string): Track[] {
   }));
 }
 
-export function pushPastTracks(state: EditorState, newTracks: Track[]): Pick<EditorState, "past" | "future" | "tracks"> {
+export function pushPastTracks(
+  state: EditorState,
+  newTracks: Track[]
+): Pick<EditorState, "past" | "future" | "tracks"> {
   return {
     past: [...state.past, snapshotEditorState(state)].slice(-50),
     future: [],

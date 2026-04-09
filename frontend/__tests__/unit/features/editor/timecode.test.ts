@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { formatHHMMSSFF, parseTimecode } from "@/features/editor/utils/timecode";
+import {
+  formatHHMMSSFF,
+  parseTimecode,
+} from "@/features/editor/utils/timecode";
 
 describe("parseTimecode", () => {
   test("parses HH:MM:SS as hours:minutes:seconds (not min:sec:frames)", () => {

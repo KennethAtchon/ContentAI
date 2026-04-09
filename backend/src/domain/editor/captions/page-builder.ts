@@ -4,7 +4,10 @@ const DEFAULT_GROUPING_MS = 1400;
 const DEFAULT_GAP_THRESHOLD_MS = 800;
 
 function joinPageText(tokens: Token[]): string {
-  return tokens.map((token) => token.text).join(" ").trim();
+  return tokens
+    .map((token) => token.text)
+    .join(" ")
+    .trim();
 }
 
 function toPage(tokens: Token[]): CaptionPage {

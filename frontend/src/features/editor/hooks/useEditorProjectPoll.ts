@@ -16,9 +16,8 @@ export function useEditorProjectPoll(options: {
 }) {
   const { project, store } = options;
   const [pollIntervalMs, setPollIntervalMs] = useState(2000);
-  const [scriptResetPending, setScriptResetPending] = useState<EditProject | null>(
-    null
-  );
+  const [scriptResetPending, setScriptResetPending] =
+    useState<EditProject | null>(null);
   const lastHandledServerUpdatedAt = useRef(project.updatedAt);
   const storeRef = useRef(store);
   storeRef.current = store;

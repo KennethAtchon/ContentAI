@@ -39,11 +39,15 @@ export function formatHHMMSSd(ms: number): string {
   const totalMin = Math.floor(totalSec / 60);
   const mm = totalMin % 60;
   const hh = Math.floor(totalMin / 60);
-  return [
-    String(hh).padStart(2, "0"),
-    String(mm).padStart(2, "0"),
-    String(ss).padStart(2, "0"),
-  ].join(":") + "." + d;
+  return (
+    [
+      String(hh).padStart(2, "0"),
+      String(mm).padStart(2, "0"),
+      String(ss).padStart(2, "0"),
+    ].join(":") +
+    "." +
+    d
+  );
 }
 
 /** Parse timecode string to milliseconds, or null if invalid. */

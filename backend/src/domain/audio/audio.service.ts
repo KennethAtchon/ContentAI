@@ -80,9 +80,8 @@ export class AudioService {
       throw new AppError("Invalid voiceId", "INVALID_VOICE", 400);
     }
 
-    const existingAsset = await this.audio.findVoiceoverAssetForContent(
-      generatedContentId,
-    );
+    const existingAsset =
+      await this.audio.findVoiceoverAssetForContent(generatedContentId);
     if (existingAsset?.r2Key) {
       await deleteFile(existingAsset.r2Key).catch(() => {});
     }

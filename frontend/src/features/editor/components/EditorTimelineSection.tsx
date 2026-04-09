@@ -9,7 +9,11 @@ interface EditorTimelineSectionProps {
   onSyncTimeline: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
-  onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
+  onSelectTransition: (
+    trackId: string,
+    clipAId: string,
+    clipBId: string
+  ) => void;
   onClipSplit: (clipId: string) => void;
   onClipDuplicate: (clipId: string) => void;
   onClipCopy: (clipId: string) => void;
@@ -18,7 +22,11 @@ interface EditorTimelineSectionProps {
   onClipRippleDelete: (clipId: string) => void;
   onClipDelete: (clipId: string) => void;
   onClipSetSpeed: (clipId: string, speed: number) => void;
-  onFocusMediaForTrack: (trackType: TrackType, trackId: string, startMs: number) => void;
+  onFocusMediaForTrack: (
+    trackType: TrackType,
+    trackId: string,
+    startMs: number
+  ) => void;
   timelineContainerRef: RefObject<HTMLDivElement | null>;
   timelineScrollRef: RefObject<HTMLDivElement | null>;
 }
@@ -50,7 +58,9 @@ export function EditorTimelineSection({
         style={{ height: 32 }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-dim-1">{t("editor_timeline_label")}</span>
+          <span className="text-xs font-bold text-dim-1">
+            {t("editor_timeline_label")}
+          </span>
           <button
             type="button"
             title={t("editor_sync_timeline")}
@@ -61,7 +71,8 @@ export function EditorTimelineSection({
           </button>
         </div>
         <span className="text-xs italic text-dim-3">
-          {Math.round(state.zoom)} px/s · {(state.durationMs / 60000).toFixed(1)} min
+          {Math.round(state.zoom)} px/s ·{" "}
+          {(state.durationMs / 60000).toFixed(1)} min
         </span>
       </div>
 

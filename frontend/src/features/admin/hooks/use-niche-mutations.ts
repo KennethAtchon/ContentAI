@@ -11,8 +11,11 @@ import type { ScrapeConfigOverride } from "../types";
 export function useCreateNiche() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; description?: string; isActive?: boolean }) =>
-      nichesService.create(body),
+    mutationFn: (body: {
+      name: string;
+      description?: string;
+      isActive?: boolean;
+    }) => nichesService.create(body),
     onSuccess: () => {
       void invalidateAdminNichesQueries(queryClient);
     },
@@ -50,8 +53,13 @@ export function useDeleteNiche() {
 export function useScanNiche() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ nicheId, config }: { nicheId: number; config?: ScrapeConfigOverride }) =>
-      nichesService.scan(nicheId, config),
+    mutationFn: ({
+      nicheId,
+      config,
+    }: {
+      nicheId: number;
+      config?: ScrapeConfigOverride;
+    }) => nichesService.scan(nicheId, config),
     onSuccess: (_data, { nicheId }) => {
       void invalidateAdminNicheJobs(queryClient, nicheId);
     },
@@ -71,7 +79,13 @@ export function useDedupeNiche() {
 export function useDeleteAdminReel() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ reelId, nicheId }: { reelId: number; nicheId: number }) => {
+    mutationFn: async ({
+      reelId,
+      nicheId,
+    }: {
+      reelId: number;
+      nicheId: number;
+    }) => {
       await nichesService.deleteReel(reelId);
       return { reelId, nicheId };
     },
@@ -80,4 +94,3 @@ export function useDeleteAdminReel() {
     },
   });
 }
-

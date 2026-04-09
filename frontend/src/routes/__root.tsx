@@ -1,6 +1,10 @@
 import { Suspense } from "react";
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet, HeadContent } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  Outlet,
+  HeadContent,
+} from "@tanstack/react-router";
 import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { useTranslation } from "react-i18next";

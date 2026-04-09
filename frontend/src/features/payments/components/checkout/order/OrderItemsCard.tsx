@@ -1,5 +1,11 @@
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Package, ShoppingCart } from "lucide-react";
@@ -31,14 +37,21 @@ export function OrderItemsCard({
           <ShoppingCart className="h-5 w-5" />
           {t("checkout_order_items")}
         </CardTitle>
-        <CardDescription>{t("common_review_and_adjust_your_order_items")}</CardDescription>
+        <CardDescription>
+          {t("common_review_and_adjust_your_order_items")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {items.map((item, index) => (
-          <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg">
+          <div
+            key={index}
+            className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg"
+          >
             <div className="flex-1 space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor={`item-${index}-name`}>{t("checkout_item_name")}</Label>
+                <Label htmlFor={`item-${index}-name`}>
+                  {t("checkout_item_name")}
+                </Label>
               </div>
               <Input
                 id={`item-${index}-name`}
@@ -62,30 +75,43 @@ export function OrderItemsCard({
               />
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Label htmlFor={`item-${index}-price`}>{t("checkout_price")}</Label>
+                  <Label htmlFor={`item-${index}-price`}>
+                    {t("checkout_price")}
+                  </Label>
                   <Input
                     id={`item-${index}-price`}
                     type="number"
                     step="0.01"
                     min="0"
                     value={item.price.toFixed(2)}
-                    onChange={(e) => onUpdateItemPrice(index, parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      onUpdateItemPrice(index, parseFloat(e.target.value) || 0)
+                    }
                   />
                 </div>
                 <div className="w-24">
-                  <Label htmlFor={`item-${index}-quantity`}>{t("checkout_quantity")}</Label>
+                  <Label htmlFor={`item-${index}-quantity`}>
+                    {t("checkout_quantity")}
+                  </Label>
                   <Input
                     id={`item-${index}-quantity`}
                     type="number"
                     min="1"
                     value={item.quantity}
-                    onChange={(e) => onUpdateItemQuantity(index, parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      onUpdateItemQuantity(index, parseInt(e.target.value) || 1)
+                    }
                   />
                 </div>
               </div>
             </div>
             {items.length > 1 && (
-              <Button variant="ghost" size="sm" onClick={() => onRemoveItem(index)} className="self-start">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemoveItem(index)}
+                className="self-start"
+              >
                 {t("checkout_remove")}
               </Button>
             )}
@@ -100,4 +126,3 @@ export function OrderItemsCard({
     </Card>
   );
 }
-

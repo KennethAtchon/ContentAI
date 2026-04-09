@@ -32,7 +32,9 @@ export function SessionListItem({
   return (
     <div
       className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
-        selectedSessionId === session.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+        selectedSessionId === session.id
+          ? "bg-primary/10 text-primary"
+          : "hover:bg-muted"
       }`}
       onClick={() => onSessionSelect(session)}
     >
@@ -113,4 +115,3 @@ export function SessionListItem({
     </div>
   );
 }
-

@@ -2,10 +2,7 @@ import { callAi, loadPrompt } from "../../lib/aiClient";
 import { debugLog } from "../../utils/debug/debug";
 import type { IContentRepository } from "./content.repository";
 
-export type SourceReelOutputType =
-  | "hook_only"
-  | "caption_only"
-  | "full_script";
+export type SourceReelOutputType = "hook_only" | "caption_only" | "full_script";
 
 interface GenerationResult {
   hook?: string;
@@ -25,7 +22,9 @@ export async function generateContentFromSourceReel(
     userId: string;
     outputType: SourceReelOutputType;
   },
-): ReturnType<IContentRepository["createReelGeneratedDraftWithQueueEnrollment"]> {
+): ReturnType<
+  IContentRepository["createReelGeneratedDraftWithQueueEnrollment"]
+> {
   const { reelId, prompt, userId, outputType } = params;
 
   const row = await content.fetchReelAndAnalysisForGeneration(reelId);

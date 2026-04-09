@@ -96,10 +96,7 @@ function NicheFormModal({
             />
           </div>
           <div className="flex items-center gap-3">
-            <Switch
-              checked={isActive}
-              onCheckedChange={setIsActive}
-            />
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
             <span className="text-base text-dim-1">
               {isActive ? "Active" : "Inactive"}
             </span>

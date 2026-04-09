@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -19,11 +19,7 @@ import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { Playhead } from "./Playhead";
 import { SortableTrackHeader } from "./SortableTrackHeader";
-import type {
-  Clip,
-  TextClip,
-  TrackType,
-} from "../types/editor";
+import type { Clip, TextClip, TrackType } from "../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
 import { useEditorContext } from "../context/EditorContext";
@@ -40,7 +36,11 @@ import { isMediaClip, isVideoClip } from "../utils/clip-types";
 interface Props {
   onAddClip: (trackId: string, clip: Clip) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
-  onSelectTransition: (trackId: string, clipAId: string, clipBId: string) => void;
+  onSelectTransition: (
+    trackId: string,
+    clipAId: string,
+    clipBId: string
+  ) => void;
   onClipSplit: (clipId: string) => void;
   onClipDuplicate: (clipId: string) => void;
   onClipCopy: (clipId: string) => void;
@@ -50,7 +50,11 @@ interface Props {
   onClipDelete: (clipId: string) => void;
   onClipSetSpeed: (clipId: string, speed: number) => void;
   scrollRef: RefObject<HTMLDivElement | null>;
-  onFocusMediaForTrack: (trackType: TrackType, trackId: string, startMs: number) => void;
+  onFocusMediaForTrack: (
+    trackType: TrackType,
+    trackId: string,
+    startMs: number
+  ) => void;
 }
 
 export function Timeline({
@@ -90,7 +94,10 @@ export function Timeline({
   const hasClipboard = !!state.clipboardClip;
   const { t } = useTranslation();
   const [activeSnapMs, setActiveSnapMs] = useState<number | null>(null);
-  const [visibleWindow, setVisibleWindow] = useState({ startMs: 0, endMs: 30_000 });
+  const [visibleWindow, setVisibleWindow] = useState({
+    startMs: 0,
+    endMs: 30_000,
+  });
   const rulerScrollRef = useRef<HTMLDivElement>(null);
   const headersRef = useRef<HTMLDivElement>(null);
 
@@ -178,7 +185,10 @@ export function Timeline({
           collisionDetection={closestCenter}
           onDragEnd={handleTrackDragEnd}
         >
-          <SortableContext items={tracks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            items={tracks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <div
               ref={headersRef}
               className="shrink-0 flex flex-col border-r border-overlay-sm bg-studio-surface z-10 overflow-hidden"
@@ -197,7 +207,11 @@ export function Timeline({
                   onRename={(name) => onRenameTrack(track.id, name)}
                   canRemove={track.type === "video" && videoTracks.length > 1}
                   onRemove={() => onRemoveTrack(track.id)}
-                  onAddVideoTrack={track.type === "video" ? () => onAddVideoTrack(track.id) : undefined}
+                  onAddVideoTrack={
+                    track.type === "video"
+                      ? () => onAddVideoTrack(track.id)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -217,7 +231,11 @@ export function Timeline({
           }}
         >
           <div
-            style={{ width: totalWidthPx, height: tracksContentHeight, position: "relative" }}
+            style={{
+              width: totalWidthPx,
+              height: tracksContentHeight,
+              position: "relative",
+            }}
           >
             {tracks.map((track, trackIndex) => {
               const transitionableVideoClips =
@@ -255,7 +273,11 @@ export function Timeline({
                   return;
                 }
 
-                onFocusMediaForTrack(track.type, track.id, pastePositionRef.current);
+                onFocusMediaForTrack(
+                  track.type,
+                  track.id,
+                  pastePositionRef.current
+                );
               };
 
               return (
@@ -264,7 +286,9 @@ export function Timeline({
                   trackType={track.type}
                   hasClipboard={hasClipboard}
                   onAddClip={handleAddClipAtPosition}
-                  onPaste={() => onClipPaste(track.id, pastePositionRef.current)}
+                  onPaste={() =>
+                    onClipPaste(track.id, pastePositionRef.current)
+                  }
                 >
                   <div
                     className="absolute border-b border-dashed border-overlay-sm transition-colors"
@@ -299,83 +323,101 @@ export function Timeline({
                     {track.clips
                       .filter((clip) => {
                         const clipEnd = clip.startMs + clip.durationMs;
-                        return clip.startMs <= visibleWindow.endMs && clipEnd >= visibleWindow.startMs;
+                        return (
+                          clip.startMs <= visibleWindow.endMs &&
+                          clipEnd >= visibleWindow.startMs
+                        );
                       })
                       .map((clip) => (
-                      <TimelineClip
-                        key={clip.id}
-                        clip={clip}
-                        track={track}
-                        trackType={track.type}
-                        zoom={zoom}
-                        isSelected={selectedClipId === clip.id}
-                        isLocked={track.locked}
-                        tracks={tracks}
-                        playheadMs={currentTimeMs}
-                        hasClipboard={hasClipboard}
-                        onSelect={() => onSelectClip(clip.id)}
-                        onSnapChange={setActiveSnapMs}
-                        onMove={(newStartMs) =>
-                          onUpdateClip(clip.id, { startMs: newStartMs })
-                        }
-                        onTrimStart={(newTrimStartMs, newDurationMs) =>
-                          isMediaClip(clip)
-                            ? onUpdateClip(clip.id, {
-                                trimStartMs: newTrimStartMs,
-                                startMs:
-                                  clip.startMs + (newTrimStartMs - clip.trimStartMs),
-                                durationMs: newDurationMs,
-                              })
-                            : undefined
-                        }
-                        onTrimEnd={(newDurationMs) =>
-                          isMediaClip(clip)
-                            ? onUpdateClip(clip.id, {
-                                durationMs: newDurationMs,
-                                trimEndMs: Math.max(
-                                  0,
-                                  (clip.trimEndMs ?? 0) + clip.durationMs - newDurationMs
-                                ),
-                              })
-                            : undefined
-                        }
-                        onSplit={() => onClipSplit(clip.id)}
-                        onDuplicate={() => onClipDuplicate(clip.id)}
-                        onCopy={() => onClipCopy(clip.id)}
-                        onPaste={() => onClipPaste(track.id, clip.startMs + clip.durationMs)}
-                        onToggleEnabled={() => onClipToggleEnabled(clip.id)}
-                        onRippleDelete={() => onClipRippleDelete(clip.id)}
-                        onDelete={() => onClipDelete(clip.id)}
-                        onSetSpeed={(speed) => onClipSetSpeed(clip.id, speed)}
-                      />
-                    ))}
+                        <TimelineClip
+                          key={clip.id}
+                          clip={clip}
+                          track={track}
+                          trackType={track.type}
+                          zoom={zoom}
+                          isSelected={selectedClipId === clip.id}
+                          isLocked={track.locked}
+                          tracks={tracks}
+                          playheadMs={currentTimeMs}
+                          hasClipboard={hasClipboard}
+                          onSelect={() => onSelectClip(clip.id)}
+                          onSnapChange={setActiveSnapMs}
+                          onMove={(newStartMs) =>
+                            onUpdateClip(clip.id, { startMs: newStartMs })
+                          }
+                          onTrimStart={(newTrimStartMs, newDurationMs) =>
+                            isMediaClip(clip)
+                              ? onUpdateClip(clip.id, {
+                                  trimStartMs: newTrimStartMs,
+                                  startMs:
+                                    clip.startMs +
+                                    (newTrimStartMs - clip.trimStartMs),
+                                  durationMs: newDurationMs,
+                                })
+                              : undefined
+                          }
+                          onTrimEnd={(newDurationMs) =>
+                            isMediaClip(clip)
+                              ? onUpdateClip(clip.id, {
+                                  durationMs: newDurationMs,
+                                  trimEndMs: Math.max(
+                                    0,
+                                    (clip.trimEndMs ?? 0) +
+                                      clip.durationMs -
+                                      newDurationMs
+                                  ),
+                                })
+                              : undefined
+                          }
+                          onSplit={() => onClipSplit(clip.id)}
+                          onDuplicate={() => onClipDuplicate(clip.id)}
+                          onCopy={() => onClipCopy(clip.id)}
+                          onPaste={() =>
+                            onClipPaste(
+                              track.id,
+                              clip.startMs + clip.durationMs
+                            )
+                          }
+                          onToggleEnabled={() => onClipToggleEnabled(clip.id)}
+                          onRippleDelete={() => onClipRippleDelete(clip.id)}
+                          onDelete={() => onClipDelete(clip.id)}
+                          onSetSpeed={(speed) => onClipSetSpeed(clip.id, speed)}
+                        />
+                      ))}
 
                     {track.type === "video" &&
-                      transitionableVideoClips.slice(0, -1).map((clipA, idx) => {
-                        const clipB = transitionableVideoClips[idx + 1];
-                        if (!clipB) return null;
+                      transitionableVideoClips
+                        .slice(0, -1)
+                        .map((clipA, idx) => {
+                          const clipB = transitionableVideoClips[idx + 1];
+                          if (!clipB) return null;
 
-                        const gapMs = clipB.startMs - (clipA.startMs + clipA.durationMs);
-                        if (gapMs > 500) return null;
+                          const gapMs =
+                            clipB.startMs - (clipA.startMs + clipA.durationMs);
+                          if (gapMs > 500) return null;
 
-                        const transition = (track.transitions ?? []).find(
-                          (tr) => tr.clipAId === clipA.id && tr.clipBId === clipB.id
-                        );
+                          const transition = (track.transitions ?? []).find(
+                            (tr) =>
+                              tr.clipAId === clipA.id && tr.clipBId === clipB.id
+                          );
 
-                        return (
-                          <TransitionDiamond
-                            key={`td-${clipA.id}-${clipB.id}`}
-                            clipA={clipA}
-                            clipB={clipB}
-                            transition={transition}
-                            zoom={zoom}
-                            onSelect={() => onSelectTransition(track.id, clipA.id, clipB.id)}
-                            onRemoveTransition={() => {
-                              if (transition) onRemoveTransition(track.id, transition.id);
-                            }}
-                          />
-                        );
-                      })}
+                          return (
+                            <TransitionDiamond
+                              key={`td-${clipA.id}-${clipB.id}`}
+                              clipA={clipA}
+                              clipB={clipB}
+                              transition={transition}
+                              zoom={zoom}
+                              onSelect={() =>
+                                onSelectTransition(track.id, clipA.id, clipB.id)
+                              }
+                              onRemoveTransition={() => {
+                                if (transition)
+                                  onRemoveTransition(track.id, transition.id);
+                              }}
+                            />
+                          );
+                        })}
                   </div>
                 </TrackAreaContextMenu>
               );

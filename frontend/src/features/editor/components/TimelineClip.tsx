@@ -3,11 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
-import type {
-  Clip,
-  Track,
-  TrackType,
-} from "../types/editor";
+import type { Clip, Track, TrackType } from "../types/editor";
 import { useWaveformData } from "../hooks/useWaveformData";
 import { WaveformBars } from "./WaveformBars";
 import { useAssetUrlMap } from "../contexts/asset-url-map-context";
@@ -22,10 +18,7 @@ import {
   clampTrimStart,
 } from "../utils/clip-constraints";
 import { slicePeaksForClipTrim } from "../utils/waveform-trim";
-import {
-  ClipContextMenu,
-  PlaceholderContextMenu,
-} from "./ClipContextMenu";
+import { ClipContextMenu, PlaceholderContextMenu } from "./ClipContextMenu";
 import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
 import { isMediaClip, isVideoClip } from "../utils/clip-types";
 
@@ -147,7 +140,12 @@ function TimelineClipInner({
 
     const onUp = () => {
       onSnapChange?.(null);
-      const finalMs = clampMoveToFreeSpace(track, clip.id, dragCurrentMs.current, clip.durationMs);
+      const finalMs = clampMoveToFreeSpace(
+        track,
+        clip.id,
+        dragCurrentMs.current,
+        clip.durationMs
+      );
       onMove(finalMs);
       if (clipRef.current) {
         clipRef.current.style.left = `${(finalMs / 1000) * zoom}px`;
@@ -253,16 +251,25 @@ function TimelineClipInner({
           className={cn(
             "absolute top-[7px] rounded select-none overflow-hidden flex flex-col justify-center",
             "border-2 border-dashed border-studio-fg/25 bg-studio-bg/80",
-            isSelected ? "ring-2 ring-studio-accent" : "",
+            isSelected ? "ring-2 ring-studio-accent" : ""
           )}
           style={{ left, width, height: 42 }}
-          onClick={(e) => { e.stopPropagation(); onSelect(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
         >
           <div className="flex items-center gap-1 px-1.5 min-w-0">
             {st === "generating" ? (
-              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-dim-3" aria-hidden />
+              <Loader2
+                className="h-3 w-3 shrink-0 animate-spin text-dim-3"
+                aria-hidden
+              />
             ) : st === "failed" ? (
-              <CircleAlert className="h-3 w-3 shrink-0 text-error" aria-hidden />
+              <CircleAlert
+                className="h-3 w-3 shrink-0 text-error"
+                aria-hidden
+              />
             ) : (
               <Clock className="h-3 w-3 shrink-0 text-dim-3" aria-hidden />
             )}
@@ -315,7 +322,10 @@ function TimelineClipInner({
           borderBottom: `1px solid ${color}44`,
         }}
         onMouseDown={handleDragStart}
-        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
       >
         {hasWaveform ? (
           <WaveformBars
@@ -346,7 +356,8 @@ function TimelineClipInner({
           className="text-[10px] font-medium px-1.5 pt-1 truncate pointer-events-none"
           style={{ color }}
         >
-          {isDisabled ? "⊘ " : ""}{clip.type === "caption" ? "Caption" : clip.label}
+          {isDisabled ? "⊘ " : ""}
+          {clip.type === "caption" ? "Caption" : clip.label}
         </span>
 
         <span
@@ -393,5 +404,5 @@ export const TimelineClip = memo(
       isClipActiveAtTimelineTime(
         isMediaClip(next.clip) ? next.clip : { ...next.clip, enabled: true },
         next.playheadMs
-      ),
+      )
 );

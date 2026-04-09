@@ -27,8 +27,7 @@ mediaRouter.get(
 
     const { stream, contentType } = await getObjectWebStream(row.r2Key);
     return c.body(stream, 200, {
-      "Content-Type":
-        contentType ?? row.mimeType ?? "application/octet-stream",
+      "Content-Type": contentType ?? row.mimeType ?? "application/octet-stream",
       "Cache-Control": "private, max-age=120",
     });
   },

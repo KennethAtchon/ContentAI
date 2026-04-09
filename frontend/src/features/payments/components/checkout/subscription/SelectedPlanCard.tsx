@@ -1,5 +1,11 @@
 import { Badge } from "@/shared/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Check, Sparkles } from "lucide-react";
 import type { SubscriptionTierConfig } from "@/shared/constants/subscription.constants";
 import { SUBSCRIPTION_TRIAL_DAYS } from "@/shared/constants/subscription.constants";
@@ -49,9 +55,13 @@ export function SelectedPlanCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-baseline gap-3">
-          <span className="text-6xl font-bold">${tierConfig.price.toFixed(2)}</span>
+          <span className="text-6xl font-bold">
+            ${tierConfig.price.toFixed(2)}
+          </span>
           <span className="text-2xl text-muted-foreground">
-            {billingCycle === "monthly" ? t("checkout_per_month") : t("checkout_per_year")}
+            {billingCycle === "monthly"
+              ? t("checkout_per_month")
+              : t("checkout_per_year")}
           </span>
           {billingCycle === "annual" && (
             <span className="text-base text-muted-foreground">
@@ -83,7 +93,9 @@ export function SelectedPlanCard({
             </FeatureItem>
             <FeatureItem>AI-powered content generation</FeatureItem>
             <FeatureItem>
-              {tierConfig.features.instagramPublishing ? "Instagram publishing" : "Export & save content"}
+              {tierConfig.features.instagramPublishing
+                ? "Instagram publishing"
+                : "Export & save content"}
             </FeatureItem>
             <FeatureItem>
               {t("account_subscription_support_level", {
@@ -96,7 +108,9 @@ export function SelectedPlanCard({
               <FeatureItem>{t("checkout_api_access_included")}</FeatureItem>
             )}
             {tierConfig.features.customBranding && (
-              <FeatureItem>{t("checkout_custom_branding_available")}</FeatureItem>
+              <FeatureItem>
+                {t("checkout_custom_branding_available")}
+              </FeatureItem>
             )}
           </ul>
         </div>
@@ -104,4 +118,3 @@ export function SelectedPlanCard({
     </Card>
   );
 }
-

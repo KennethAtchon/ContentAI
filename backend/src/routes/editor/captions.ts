@@ -20,7 +20,10 @@ import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const app = new Hono<HonoEnv>();
 
-const transcriptionRateLimiter: MiddlewareHandler<HonoEnv> = async (c, next) => {
+const transcriptionRateLimiter: MiddlewareHandler<HonoEnv> = async (
+  c,
+  next,
+) => {
   if (IS_DEVELOPMENT) {
     await next();
     return;
@@ -44,7 +47,10 @@ const transcriptionRateLimiter: MiddlewareHandler<HonoEnv> = async (c, next) => 
     c.res.headers.set("Retry-After", String(retryAfter));
     c.res.headers.set("X-Rate-Limit-Limit", minuteAllowed ? "20" : "2");
     c.res.headers.set("X-Rate-Limit-Remaining", "0");
-    c.res.headers.set("X-Rate-Limit-Reset", String(Date.now() + retryAfter * 1000));
+    c.res.headers.set(
+      "X-Rate-Limit-Reset",
+      String(Date.now() + retryAfter * 1000),
+    );
     return c.json(
       {
         error: "Too many transcription requests",
@@ -108,7 +114,10 @@ app.get(
   async (c) => {
     const auth = c.get("auth");
     const { captionDocId } = c.req.valid("param");
-    const body = await captionsService.getCaptionDoc(auth.user.id, captionDocId);
+    const body = await captionsService.getCaptionDoc(
+      auth.user.id,
+      captionDocId,
+    );
     return c.json(body);
   },
 );

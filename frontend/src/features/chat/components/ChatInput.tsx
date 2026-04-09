@@ -245,7 +245,11 @@ export function ChatInput({
             variant="ghost"
             onClick={() => setPickerOpen(true)}
             disabled={disabled}
-            title={disabled ? "Wait for the current response to finish." : t("studio_chat_attachReel")}
+            title={
+              disabled
+                ? "Wait for the current response to finish."
+                : t("studio_chat_attachReel")
+            }
             aria-label={t("studio_chat_attachReel")}
             className="shrink-0 mb-0.5 text-muted-foreground hover:text-foreground"
           >
@@ -290,7 +294,9 @@ export function ChatInput({
             onBlur={() => setTimeout(() => setSlashMenuOpen(false), 150)}
             placeholder={t("studio_chat_typeMessage")}
             disabled={disabled}
-            title={disabled ? "Wait for the current response to finish." : undefined}
+            title={
+              disabled ? "Wait for the current response to finish." : undefined
+            }
             className="flex-1 min-h-[44px] max-h-[200px] resize-none"
             rows={2}
           />

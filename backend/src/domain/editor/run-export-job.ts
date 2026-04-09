@@ -39,14 +39,13 @@ export type ExportJobDbDeps = {
 function isRenderableMediaClip(
   clip: Track["clips"][number],
 ): clip is VideoClip | AudioClip | MusicClip {
-  return clip.type === "video" || clip.type === "audio" || clip.type === "music";
+  return (
+    clip.type === "video" || clip.type === "audio" || clip.type === "music"
+  );
 }
 
 function escapeSubtitlesFilterPath(filePath: string): string {
-  return filePath
-    .replace(/\\/g, "/")
-    .replace(/:/g, "\\:")
-    .replace(/'/g, "\\'");
+  return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
 async function setJobProgress(
@@ -83,12 +82,8 @@ export async function runExportJob(
       userId: string,
       captionDocId: string,
     ) => Promise<{ id: string; tokens: Token[] } | null>;
-    getCaptionPreset: (
-      presetId: string,
-    ) => Promise<CaptionPresetRecord | null>;
-    insertAssembledVideoAsset: (
-      row: NewAssetRow,
-    ) => Promise<{ id: string }>;
+    getCaptionPreset: (presetId: string) => Promise<CaptionPresetRecord | null>;
+    insertAssembledVideoAsset: (row: NewAssetRow) => Promise<{ id: string }>;
   },
 ) {
   const tmpFiles: string[] = [];
@@ -116,10 +111,7 @@ export async function runExportJob(
 
     let assetsMap: Record<string, { r2Key: string; type: string }> = {};
     if (assetIds.length > 0) {
-      const assetRows = await deps.findManyAssetsByIdsForUser(
-        userId,
-        assetIds,
-      );
+      const assetRows = await deps.findManyAssetsByIdsForUser(userId, assetIds);
       assetsMap = Object.fromEntries(
         assetRows
           .filter((a) => a.r2Key)
@@ -151,16 +143,12 @@ export async function runExportJob(
       if (clip.id) clipTrackIndex.set(clip.id, trackIndex);
     }
     const videoTransitions = videoTracks.flatMap((t) => t.transitions ?? []);
-    const audioClips = (audioTrack?.clips ?? []).filter(
-      (clip): clip is AudioClip => clip.type === "audio",
-    ).filter(
-      (c) => c.assetId && assetsMap[c.assetId],
-    );
-    const musicClips = (musicTrack?.clips ?? []).filter(
-      (clip): clip is MusicClip => clip.type === "music",
-    ).filter(
-      (c) => c.assetId && assetsMap[c.assetId],
-    );
+    const audioClips = (audioTrack?.clips ?? [])
+      .filter((clip): clip is AudioClip => clip.type === "audio")
+      .filter((c) => c.assetId && assetsMap[c.assetId]);
+    const musicClips = (musicTrack?.clips ?? [])
+      .filter((clip): clip is MusicClip => clip.type === "music")
+      .filter((c) => c.assetId && assetsMap[c.assetId]);
     const captionClips = (textTrack?.clips ?? []).filter(
       (clip): clip is CaptionClip => clip.type === "caption",
     );
@@ -175,7 +163,10 @@ export async function runExportJob(
 
     if (captionClips.length > 0) {
       for (const clip of captionClips) {
-        const doc = await deps.findCaptionDocByIdForUser(userId, clip.captionDocId);
+        const doc = await deps.findCaptionDocByIdForUser(
+          userId,
+          clip.captionDocId,
+        );
         if (!doc) {
           throw new Error(
             `Caption doc "${clip.captionDocId}" was not found for clip "${clip.id}"`,
@@ -318,10 +309,15 @@ export async function runExportJob(
       const events = [];
 
       for (const clip of captionClips) {
-        const doc = await deps.findCaptionDocByIdForUser(userId, clip.captionDocId);
+        const doc = await deps.findCaptionDocByIdForUser(
+          userId,
+          clip.captionDocId,
+        );
         const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
         if (!doc || !presetRecord) {
-          throw new Error("Caption validation unexpectedly failed during export rendering");
+          throw new Error(
+            "Caption validation unexpectedly failed during export rendering",
+          );
         }
 
         const slicedTokens = sliceTokensToRange(

@@ -7,7 +7,11 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { editorRepository, contentService, captionsService } from "../../domain/singletons";
+import {
+  editorRepository,
+  contentService,
+  captionsService,
+} from "../../domain/singletons";
 import { buildCaptionClip } from "../../domain/editor/timeline/build-caption-clip";
 import type { CaptionClip } from "../../types/timeline.types";
 import { debugLog } from "../../utils/debug/debug";
@@ -15,10 +19,7 @@ import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
 import { buildAIAssemblyPrompt } from "./services/ai-assembly-prompt";
-import {
-  aiAssemblyResponseSchema,
-  aiAssembleRequestSchema,
-} from "./schemas";
+import { aiAssemblyResponseSchema, aiAssembleRequestSchema } from "./schemas";
 import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import {
@@ -76,10 +77,7 @@ assemblyRouter.post(
       }));
     const voiceR = auxRows.find((r) => r.role === "voiceover");
     const musicR = auxRows.find((r) => r.role === "background_music");
-    const shotSpan = shotAssets.reduce(
-      (s, a) => s + (a.durationMs ?? 5000),
-      0,
-    );
+    const shotSpan = shotAssets.reduce((s, a) => s + (a.durationMs ?? 5000), 0);
     const auxPack = {
       voiceover: voiceR
         ? { id: voiceR.id, durationMs: voiceR.durationMs }
@@ -98,11 +96,20 @@ assemblyRouter.post(
           auth.user.id,
           voiceoverAsset.id,
         );
-        captionClip = buildCaptionClip({ captionDocId, voiceoverAsset, voiceoverClipId: null });
+        captionClip = buildCaptionClip({
+          captionDocId,
+          voiceoverAsset,
+          voiceoverClipId: null,
+        });
       } catch (err) {
         debugLog.warn(
           "Caption transcription failed during ai-assemble; continuing without captions",
-          { service: "editor-route", operation: "aiAssemble", projectId: id, error: err instanceof Error ? err.message : "Unknown error" },
+          {
+            service: "editor-route",
+            operation: "aiAssemble",
+            projectId: id,
+            error: err instanceof Error ? err.message : "Unknown error",
+          },
         );
       }
     }
@@ -166,11 +173,15 @@ assemblyRouter.post(
         },
       );
 
-      const standardTimeline = buildStandardPresetTracks(shotAssets, {
-        voiceover: auxPack.voiceover,
-        music: auxPack.music,
-        musicVolume: 0.22,
-      }, captionClip);
+      const standardTimeline = buildStandardPresetTracks(
+        shotAssets,
+        {
+          voiceover: auxPack.voiceover,
+          music: auxPack.music,
+          musicVolume: 0.22,
+        },
+        captionClip,
+      );
       return c.json({
         timeline: standardTimeline,
         assembledBy: "ai" as const,

@@ -10,7 +10,11 @@ export function useChatLayoutNavigation(selectedProject: Project | undefined) {
     (project: Project) => {
       navigate({
         to: REDIRECT_PATHS.STUDIO_GENERATE,
-        search: { projectId: project.id, sessionId: undefined, reelId: undefined },
+        search: {
+          projectId: project.id,
+          sessionId: undefined,
+          reelId: undefined,
+        },
       });
     },
     [navigate]
@@ -20,7 +24,11 @@ export function useChatLayoutNavigation(selectedProject: Project | undefined) {
     (session: ChatSession) => {
       navigate({
         to: REDIRECT_PATHS.STUDIO_GENERATE,
-        search: { projectId: session.projectId, sessionId: session.id, reelId: undefined },
+        search: {
+          projectId: session.projectId,
+          sessionId: session.id,
+          reelId: undefined,
+        },
       });
     },
     [navigate]
@@ -30,7 +38,11 @@ export function useChatLayoutNavigation(selectedProject: Project | undefined) {
     navigate({
       to: REDIRECT_PATHS.STUDIO_GENERATE,
       search: selectedProject
-        ? { projectId: selectedProject.id, sessionId: undefined, reelId: undefined }
+        ? {
+            projectId: selectedProject.id,
+            sessionId: undefined,
+            reelId: undefined,
+          }
         : { sessionId: undefined, projectId: undefined, reelId: undefined },
     });
   }, [navigate, selectedProject]);

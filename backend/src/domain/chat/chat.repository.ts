@@ -308,7 +308,10 @@ export class ChatRepository implements IChatRepository {
       .from(chatMessages)
       .innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
       .where(
-        and(eq(chatMessages.sessionId, sessionId), eq(chatSessions.userId, userId)),
+        and(
+          eq(chatMessages.sessionId, sessionId),
+          eq(chatSessions.userId, userId),
+        ),
       );
 
     const contentRows = await this.db
@@ -316,9 +319,15 @@ export class ChatRepository implements IChatRepository {
         contentId: chatSessionContent.contentId,
       })
       .from(chatSessionContent)
-      .innerJoin(chatSessions, eq(chatSessionContent.sessionId, chatSessions.id))
+      .innerJoin(
+        chatSessions,
+        eq(chatSessionContent.sessionId, chatSessions.id),
+      )
       .where(
-        and(eq(chatSessionContent.sessionId, sessionId), eq(chatSessions.userId, userId)),
+        and(
+          eq(chatSessionContent.sessionId, sessionId),
+          eq(chatSessions.userId, userId),
+        ),
       );
 
     const contentIds = contentRows.map((row) => row.contentId);
@@ -541,7 +550,10 @@ export class ChatRepository implements IChatRepository {
     };
   }
 
-  async deleteSessionWithCleanup(sessionId: string, userId: string): Promise<void> {
+  async deleteSessionWithCleanup(
+    sessionId: string,
+    userId: string,
+  ): Promise<void> {
     const plan = await this.buildSessionDeletePlan(sessionId, userId);
 
     await this.db.transaction(async (tx) => {
@@ -559,7 +571,9 @@ export class ChatRepository implements IChatRepository {
 
       await tx
         .delete(chatSessions)
-        .where(and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)));
+        .where(
+          and(eq(chatSessions.id, sessionId), eq(chatSessions.userId, userId)),
+        );
     });
   }
 

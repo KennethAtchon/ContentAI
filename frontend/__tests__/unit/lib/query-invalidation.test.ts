@@ -93,9 +93,7 @@ describe("query-invalidation", () => {
       await invalidateAfterChatMessageSent(client, "session-3");
 
       const invalidatedKeys = invalidateSpy.mock.calls.map(([filters]) =>
-        JSON.stringify(
-          (filters as { queryKey?: unknown }).queryKey
-        )
+        JSON.stringify((filters as { queryKey?: unknown }).queryKey)
       );
 
       expect(invalidatedKeys).toContain(

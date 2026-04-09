@@ -26,7 +26,7 @@ export function StatusBadge({
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
         toneClasses[tone],
-        className,
+        className
       )}
     >
       {label}

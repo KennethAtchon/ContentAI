@@ -44,9 +44,17 @@ describe("ass-exporter", () => {
   });
 
   test("generateASS emits plain text for full/static export styles", () => {
-    const preset = SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!;
+    const preset = SEEDED_CAPTION_PRESETS.find(
+      (item) => item.id === "clean-minimal",
+    )!;
 
-    const events = generateASS(samplePages, preset, resolution, 2000, "Cap_clean");
+    const events = generateASS(
+      samplePages,
+      preset,
+      resolution,
+      2000,
+      "Cap_clean",
+    );
 
     expect(events).toEqual([
       {
@@ -59,9 +67,17 @@ describe("ass-exporter", () => {
   });
 
   test("generateASS emits karaoke tags for approximate export styles", () => {
-    const preset = SEEDED_CAPTION_PRESETS.find((item) => item.id === "hormozi")!;
+    const preset = SEEDED_CAPTION_PRESETS.find(
+      (item) => item.id === "hormozi",
+    )!;
 
-    const events = generateASS(samplePages, preset, resolution, 0, "Cap_hormozi");
+    const events = generateASS(
+      samplePages,
+      preset,
+      resolution,
+      0,
+      "Cap_hormozi",
+    );
 
     expect(events[0]?.text).toContain("{\\k30}HELLO");
     expect(events[0]?.text).toContain("{\\k55}WORLD");
@@ -83,7 +99,9 @@ describe("ass-exporter", () => {
   });
 
   test("deriveAssStyleName changes when export-relevant overrides change", () => {
-    const base = SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!;
+    const base = SEEDED_CAPTION_PRESETS.find(
+      (item) => item.id === "clean-minimal",
+    )!;
     const adjusted = {
       ...base,
       typography: {
@@ -96,7 +114,9 @@ describe("ass-exporter", () => {
   });
 
   test("serializeASS deduplicates styles and sorts events", () => {
-    const preset = SEEDED_CAPTION_PRESETS.find((item) => item.id === "clean-minimal")!;
+    const preset = SEEDED_CAPTION_PRESETS.find(
+      (item) => item.id === "clean-minimal",
+    )!;
     const styleName = deriveAssStyleName(preset);
     const ass = serializeASS(
       [

@@ -24,8 +24,7 @@ export const DEFAULT_SETTINGS = {
 /** Returns the live provider priority from DB config, falls back to the static default. */
 export async function getProviderPriorityAsync(): Promise<ProviderId[]> {
   try {
-    const { systemConfigService } =
-      await import("../../domain/singletons");
+    const { systemConfigService } = await import("../../domain/singletons");
     return await systemConfigService.getJson<ProviderId[]>(
       "ai",
       "provider_priority",
@@ -41,8 +40,7 @@ export async function getProviderPriorityAsync(): Promise<ProviderId[]> {
  * in priority order, using DB config with ENV fallback.
  */
 export async function getEnabledProvidersAsync(): Promise<ProviderId[]> {
-  const { systemConfigService } =
-    await import("../../domain/singletons");
+  const { systemConfigService } = await import("../../domain/singletons");
 
   const priority = await getProviderPriorityAsync();
 
@@ -65,8 +63,7 @@ export async function getModelForProviderAsync(
   tier: "analysis" | "generation",
 ): Promise<string> {
   try {
-    const { systemConfigService } =
-      await import("../../domain/singletons");
+    const { systemConfigService } = await import("../../domain/singletons");
     const dbKey = PROVIDER_REGISTRY[providerId].dbModelKeys[tier];
     const dbVal = await systemConfigService.get("ai", dbKey);
     if (dbVal) return dbVal;

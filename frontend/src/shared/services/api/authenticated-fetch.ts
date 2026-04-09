@@ -100,9 +100,7 @@ function formatApiErrorForThrow(
 ): string {
   const trimmed = errorText.trim();
   if (!trimmed) {
-    return statusText
-      ? `HTTP ${status} ${statusText}`
-      : `HTTP ${status}`;
+    return statusText ? `HTTP ${status} ${statusText}` : `HTTP ${status}`;
   }
 
   try {
@@ -124,7 +122,9 @@ function formatApiErrorForThrow(
     return msg
       ? `${msg}\n${JSON.stringify(
           Object.fromEntries(
-            Object.entries(body).filter(([k]) => k !== "error" && k !== "message")
+            Object.entries(body).filter(
+              ([k]) => k !== "error" && k !== "message"
+            )
           ),
           null,
           2

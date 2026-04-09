@@ -1,5 +1,11 @@
 import React from "react";
-import { Outlet, createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  Outlet,
+  createFileRoute,
+  Link,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useApp } from "@/shared/contexts/app-context";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
@@ -30,10 +36,30 @@ import {
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
 const STUDIO_NAV_ITEMS = [
-  { key: "discover", path: "/studio/discover", icon: Telescope, labelKey: "studio_tabs_discover" },
-  { key: "generate", path: "/studio/generate", icon: Sparkles, labelKey: "studio_tabs_generate" },
-  { key: "queue", path: "/studio/queue", icon: LayoutList, labelKey: "studio_tabs_queue" },
-  { key: "editor", path: "/studio/editor", icon: Film, labelKey: "studio_tabs_editor" },
+  {
+    key: "discover",
+    path: "/studio/discover",
+    icon: Telescope,
+    labelKey: "studio_tabs_discover",
+  },
+  {
+    key: "generate",
+    path: "/studio/generate",
+    icon: Sparkles,
+    labelKey: "studio_tabs_generate",
+  },
+  {
+    key: "queue",
+    path: "/studio/queue",
+    icon: LayoutList,
+    labelKey: "studio_tabs_queue",
+  },
+  {
+    key: "editor",
+    path: "/studio/editor",
+    icon: Film,
+    labelKey: "studio_tabs_editor",
+  },
 ] as const;
 
 function isNavActive(path: string, pathname: string): boolean {
@@ -124,7 +150,9 @@ function StudioTopBar({ pathname }: { pathname: string }) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-overlay-xs transition-colors group">
               <div className="w-7 h-7 rounded-lg bg-[hsl(234_89%_74%/0.08)] border border-[hsl(234_89%_74%/0.15)] flex items-center justify-center shrink-0">
-                <span className="text-[11px] font-bold text-[hsl(234_89%_74%)]">{initials}</span>
+                <span className="text-[11px] font-bold text-[hsl(234_89%_74%)]">
+                  {initials}
+                </span>
               </div>
               <span className="hidden md:block text-sm font-medium text-dim-1 max-w-[96px] truncate">
                 {name}
@@ -134,14 +162,20 @@ function StudioTopBar({ pathname }: { pathname: string }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem asChild>
-              <Link to="/account" className="flex items-center gap-2.5 no-underline cursor-pointer">
+              <Link
+                to="/account"
+                className="flex items-center gap-2.5 no-underline cursor-pointer"
+              >
                 <User className="h-4 w-4 shrink-0" />
                 {t("navigation_account")}
               </Link>
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild>
-                <Link to="/admin/dashboard" className="flex items-center gap-2.5 no-underline cursor-pointer">
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-2.5 no-underline cursor-pointer"
+                >
                   <Shield className="h-4 w-4 shrink-0" />
                   {t("navigation_admin")}
                 </Link>

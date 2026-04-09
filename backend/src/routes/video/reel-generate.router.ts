@@ -14,10 +14,7 @@ import {
   getPhase4AssemblyFromMetadata,
   updatePhase4Metadata,
 } from "./phase4-metadata";
-import {
-  enqueue,
-  runReelGeneration,
-} from "../../domain/video/reel-job-runner";
+import { enqueue, runReelGeneration } from "../../domain/video/reel-job-runner";
 
 const reelGenerateRouter = new Hono<HonoEnv>();
 
@@ -42,11 +39,7 @@ reelGenerateRouter.post(
 
     // Require at least a hook or a script before generating video — prevents
     // silent single-shot fallbacks on content that hasn't been written yet.
-    if (
-      !content.generatedHook &&
-      !content.generatedScript &&
-      !payload.prompt
-    ) {
+    if (!content.generatedHook && !content.generatedScript && !payload.prompt) {
       throw new AppError(
         "Content must have a generated hook or script before video generation",
         "PHASE4_CONTENT_NOT_READY",

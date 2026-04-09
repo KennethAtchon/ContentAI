@@ -39,7 +39,9 @@ export function ProjectSidebar({
   return (
     <div className="w-72 h-full border-r bg-background flex flex-col shrink-0">
       <div className="p-4 border-b flex items-center justify-between">
-        <h2 className="text-base font-semibold">{sidebar.t("studio_chat_projects")}</h2>
+        <h2 className="text-base font-semibold">
+          {sidebar.t("studio_chat_projects")}
+        </h2>
         <Button
           size="sm"
           variant="ghost"
@@ -90,7 +92,9 @@ export function ProjectSidebar({
           onDeleteSessionRequest={sidebar.setDeleteSessionId}
           usageLimitReached={sidebar.usageLimitReached}
           createSessionDisabledReason={
-            sidebar.usageLimitReached ? sidebar.t("studio_chat_limit_reached") : undefined
+            sidebar.usageLimitReached
+              ? sidebar.t("studio_chat_limit_reached")
+              : undefined
           }
           t={sidebar.t}
         />

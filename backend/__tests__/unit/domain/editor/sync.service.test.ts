@@ -62,7 +62,11 @@ describe("SyncService.syncLinkedProjects", () => {
       updateProjectForSync: async (
         projectId: string,
         userId: string,
-        data: { tracks: unknown; durationMs: number; generatedContentId: number },
+        data: {
+          tracks: unknown;
+          durationMs: number;
+          generatedContentId: number;
+        },
       ) => {
         updates.push({ projectId, userId, data });
       },

@@ -20,7 +20,6 @@ import {
 
 const publicRoutes = new Hono<HonoEnv>();
 
-
 publicRoutes.get(
   "/contact-messages",
   rateLimiter("admin"),

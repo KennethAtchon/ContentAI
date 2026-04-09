@@ -98,9 +98,10 @@ describe("useChatLayout", () => {
       handleShowReelProgressToast: () => {},
     } as never);
     spyOn(activeReelsHooks, "useChatActiveReels").mockReturnValue([]);
-    spyOn(sideEffectsHooks, "useStreamingContentSideEffects").mockImplementation(
-      () => {}
-    );
+    spyOn(
+      sideEffectsHooks,
+      "useStreamingContentSideEffects"
+    ).mockImplementation(() => {});
     spyOn(navigationHooks, "useChatLayoutNavigation").mockReturnValue({
       handleProjectSelect: () => {},
       handleSessionSelect: () => {},

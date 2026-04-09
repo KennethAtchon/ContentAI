@@ -42,7 +42,13 @@ export function isUnlimited(limit: number | null | undefined): boolean {
 
 // ─── Usage bar ───────────────────────────────────────────────────────────────
 
-export function UsageBar({ value, max }: { value: number; max: number | null }) {
+export function UsageBar({
+  value,
+  max,
+}: {
+  value: number;
+  max: number | null;
+}) {
   const effectiveMax = isUnlimited(max) ? null : max;
   const pct = effectiveMax
     ? Math.min(100, Math.round((value / effectiveMax) * 100))

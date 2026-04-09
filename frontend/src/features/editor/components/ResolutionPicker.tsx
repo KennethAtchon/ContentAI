@@ -20,16 +20,13 @@ const QUALITY_OPTIONS: Record<string, { value: string; labelKey: string }[]> = {
     { value: "1080x1920", labelKey: "editor_resolution_portrait_hd" },
     { value: "2160x3840", labelKey: "editor_resolution_portrait_4k" },
   ],
-  "16:9": [
-    { value: "1920x1080", labelKey: "editor_resolution_landscape" },
-  ],
-  "1:1": [
-    { value: "1080x1080", labelKey: "editor_resolution_square" },
-  ],
+  "16:9": [{ value: "1920x1080", labelKey: "editor_resolution_landscape" }],
+  "1:1": [{ value: "1080x1080", labelKey: "editor_resolution_square" }],
 };
 
 function inferAspectRatio(resolution: string): string {
-  if (["1080x1920", "720x1280", "2160x3840"].includes(resolution)) return "9:16";
+  if (["1080x1920", "720x1280", "2160x3840"].includes(resolution))
+    return "9:16";
   if (resolution === "1920x1080") return "16:9";
   return "1:1";
 }

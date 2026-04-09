@@ -1,14 +1,29 @@
 import { useTranslation } from "react-i18next";
-import { InspectorPropRow, InspectorSection } from "../../components/inspector/InspectorPrimitives";
-import type { BackgroundLayer, FillLayer, StrokeLayer, TextPreset } from "../types";
+import {
+  InspectorPropRow,
+  InspectorSection,
+} from "../../components/inspector/InspectorPrimitives";
+import type {
+  BackgroundLayer,
+  FillLayer,
+  StrokeLayer,
+  TextPreset,
+} from "../types";
 
 function PresetSwatch({ preset }: { preset: TextPreset }) {
   const fill = preset.layers.find((l): l is FillLayer => l.type === "fill");
-  const stroke = preset.layers.find((l): l is StrokeLayer => l.type === "stroke");
-  const bg = preset.layers.find((l): l is BackgroundLayer => l.type === "background" && l.mode === "line");
+  const stroke = preset.layers.find(
+    (l): l is StrokeLayer => l.type === "stroke"
+  );
+  const bg = preset.layers.find(
+    (l): l is BackgroundLayer => l.type === "background" && l.mode === "line"
+  );
 
   const color = fill?.color ?? "#FFFFFF";
-  const fontSize = Math.max(10, Math.min(18, Math.round(preset.typography.fontSize / 4)));
+  const fontSize = Math.max(
+    10,
+    Math.min(18, Math.round(preset.typography.fontSize / 4))
+  );
   const fontWeight = preset.typography.fontWeight;
   const textShadow = stroke
     ? `0 0 ${stroke.width}px ${stroke.color}, 0 0 ${stroke.width}px ${stroke.color}`
@@ -19,14 +34,20 @@ function PresetSwatch({ preset }: { preset: TextPreset }) {
     : {};
 
   return (
-    <div className="rounded px-2 py-1 text-center overflow-hidden bg-black/40" style={{ minHeight: 28 }}>
+    <div
+      className="rounded px-2 py-1 text-center overflow-hidden bg-black/40"
+      style={{ minHeight: 28 }}
+    >
       <span
         style={{
           color,
           fontSize,
           fontWeight,
           textShadow,
-          textTransform: preset.typography.textTransform === "uppercase" ? "uppercase" : undefined,
+          textTransform:
+            preset.typography.textTransform === "uppercase"
+              ? "uppercase"
+              : undefined,
           letterSpacing: preset.typography.letterSpacing,
           ...bgStyle,
         }}
@@ -65,10 +86,14 @@ export function CaptionPresetPicker({ presets, value, onChange }: Props) {
               ].join(" ")}
             >
               <PresetSwatch preset={preset} />
-              <div className="mt-1 text-xs font-medium text-dim-1">{preset.name}</div>
+              <div className="mt-1 text-xs font-medium text-dim-1">
+                {preset.name}
+              </div>
               <div className="text-[10px] text-dim-3">
                 {t(`editor_caption_export_mode_${preset.exportMode}`)},{" "}
-                {t("editor_caption_grouping_value", { groupingMs: preset.groupingMs })}
+                {t("editor_caption_grouping_value", {
+                  groupingMs: preset.groupingMs,
+                })}
               </div>
             </button>
           );

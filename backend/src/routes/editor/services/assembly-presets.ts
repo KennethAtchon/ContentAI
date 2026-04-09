@@ -51,7 +51,9 @@ export function applyCinematicPreset(tracks: PresetTrack[]): PresetTrack[] {
 
     if (track.type === "music") {
       const clips = track.clips.map((clip) =>
-        clip.type === "music" ? ({ ...clip, volume: 0.5 } satisfies MusicClip) : clip,
+        clip.type === "music"
+          ? ({ ...clip, volume: 0.5 } satisfies MusicClip)
+          : clip,
       );
       return { ...track, clips };
     }

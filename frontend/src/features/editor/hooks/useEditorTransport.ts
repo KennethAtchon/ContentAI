@@ -70,15 +70,24 @@ export function useEditorTransport({
   }, [store, state.currentTimeMs]);
 
   const fastForward = useCallback(() => {
-    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
+    store.setCurrentTime(
+      Math.min(state.durationMs, state.currentTimeMs + 5000)
+    );
   }, [store, state.durationMs, state.currentTimeMs]);
 
-  const zoomIn = useCallback(() => store.setZoom(state.zoom * 1.25), [store, state.zoom]);
-  const zoomOut = useCallback(() => store.setZoom(state.zoom / 1.25), [store, state.zoom]);
+  const zoomIn = useCallback(
+    () => store.setZoom(state.zoom * 1.25),
+    [store, state.zoom]
+  );
+  const zoomOut = useCallback(
+    () => store.setZoom(state.zoom / 1.25),
+    [store, state.zoom]
+  );
 
   const zoomFit = useCallback(() => {
     const containerW = timelineContainerRef.current?.clientWidth ?? 800;
-    const nextZoom = state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
+    const nextZoom =
+      state.durationMs > 0 ? (containerW / state.durationMs) * 1000 : 40;
     store.setZoom(nextZoom);
   }, [timelineContainerRef, state.durationMs, store]);
 
@@ -99,7 +108,13 @@ export function useEditorTransport({
     } catch {
       toast.error("Failed to publish project.");
     }
-  }, [setPublishDialogOpen, saveTimerRef, flushSave, editorPublishStateRef, runPublish]);
+  }, [
+    setPublishDialogOpen,
+    saveTimerRef,
+    flushSave,
+    editorPublishStateRef,
+    runPublish,
+  ]);
 
   const handleBack = useCallback(async () => {
     if (!state.isReadOnly && saveTimerRef.current) {
@@ -112,7 +127,13 @@ export function useEditorTransport({
       }
     }
     onBack();
-  }, [state.isReadOnly, saveTimerRef, flushSave, editorPublishStateRef, onBack]);
+  }, [
+    state.isReadOnly,
+    saveTimerRef,
+    flushSave,
+    editorPublishStateRef,
+    onBack,
+  ]);
 
   return {
     jumpToStart,

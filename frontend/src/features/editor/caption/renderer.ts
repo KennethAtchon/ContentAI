@@ -29,7 +29,10 @@ interface LineBox {
   state: TokenVisualState;
 }
 
-function tokenState(token: PositionedToken, relativeMs: number): TokenVisualState {
+function tokenState(
+  token: PositionedToken,
+  relativeMs: number
+): TokenVisualState {
   if (relativeMs < token.startMs) return "upcoming";
   if (relativeMs >= token.endMs) return "past";
   return "active";
@@ -46,7 +49,10 @@ function resolveLayerColor(layer: StyleLayer, state: TokenVisualState): string {
   return layer.color;
 }
 
-function mergeLayerPatch(layer: StyleLayer, patch: LayerOverridePatch | undefined): StyleLayer {
+function mergeLayerPatch(
+  layer: StyleLayer,
+  patch: LayerOverridePatch | undefined
+): StyleLayer {
   if (!patch) return layer;
 
   return {
@@ -66,7 +72,10 @@ function mergeLayerPatch(layer: StyleLayer, patch: LayerOverridePatch | undefine
   } as StyleLayer;
 }
 
-function resolveLayers(preset: TextPreset, state: TokenVisualState): StyleLayer[] {
+function resolveLayers(
+  preset: TextPreset,
+  state: TokenVisualState
+): StyleLayer[] {
   if (state !== "active" || !preset.wordActivation?.layerOverrides?.length) {
     return preset.layers;
   }
@@ -74,12 +83,18 @@ function resolveLayers(preset: TextPreset, state: TokenVisualState): StyleLayer[
   return preset.layers.map((layer) =>
     mergeLayerPatch(
       layer,
-      preset.wordActivation?.layerOverrides?.find((patch) => patch.layerId === layer.id),
-    ),
+      preset.wordActivation?.layerOverrides?.find(
+        (patch) => patch.layerId === layer.id
+      )
+    )
   );
 }
 
-function applyAnimation(transform: ResolvedTransform, animation: AnimationDef, progress: number) {
+function applyAnimation(
+  transform: ResolvedTransform,
+  animation: AnimationDef,
+  progress: number
+) {
   const eased = evaluate(animation.easing, progress);
   const value = lerp(animation.from, animation.to, eased);
 
@@ -111,7 +126,7 @@ function resolveTransform(
   scope: AnimationDef["scope"],
   pageElapsedMs: number,
   pageRemainingMs: number,
-  index = 0,
+  index = 0
 ): ResolvedTransform {
   const transform: ResolvedTransform = {
     opacity: 1,
@@ -128,13 +143,17 @@ function resolveTransform(
     const staggerOffset = (animation.staggerMs ?? 0) * index;
     const progress =
       phase === "entry"
-        ? Math.max(0, Math.min(1, (pageElapsedMs - staggerOffset) / animation.durationMs))
+        ? Math.max(
+            0,
+            Math.min(1, (pageElapsedMs - staggerOffset) / animation.durationMs)
+          )
         : Math.max(
             0,
             Math.min(
               1,
-              (animation.durationMs - pageRemainingMs - staggerOffset) / animation.durationMs,
-            ),
+              (animation.durationMs - pageRemainingMs - staggerOffset) /
+                animation.durationMs
+            )
           );
 
     applyAnimation(transform, animation, progress);
@@ -147,7 +166,7 @@ function resolvePulseScale(
   preset: TextPreset,
   token: PositionedToken,
   state: TokenVisualState,
-  relativeMs: number,
+  relativeMs: number
 ): number {
   const scalePulse = preset.wordActivation?.scalePulse;
   if (state !== "active" || !scalePulse) return 1;
@@ -157,14 +176,17 @@ function resolvePulseScale(
     1,
     evaluate(
       scalePulse.easing,
-      Math.min(1, Math.max(0, (relativeMs - token.startMs) / scalePulse.durationMs)),
-    ),
+      Math.min(
+        1,
+        Math.max(0, (relativeMs - token.startMs) / scalePulse.durationMs)
+      )
+    )
   );
 }
 
 function buildLineBoxes(
   layout: CaptionLayout,
-  relativeMs: number,
+  relativeMs: number
 ): Map<number, LineBox> {
   const byLine = new Map<number, PositionedToken[]>();
 
@@ -181,14 +203,13 @@ function buildLineBoxes(
       const right = Math.max(...tokens.map((token) => token.x + token.width));
       const states = tokens.map((token) => tokenState(token, relativeMs));
       const top = first.y - layout.lineHeightPx * 0.8;
-      const state =
-        states.includes("active")
-          ? "active"
-          : states.every((value) => value === "past")
+      const state = states.includes("active")
+        ? "active"
+        : states.every((value) => value === "past")
+          ? "past"
+          : states.some((value) => value === "past")
             ? "past"
-            : states.some((value) => value === "past")
-              ? "past"
-              : "upcoming";
+            : "upcoming";
 
       return [
         lineIndex,
@@ -201,7 +222,7 @@ function buildLineBoxes(
           state,
         },
       ];
-    }),
+    })
   );
 }
 
@@ -211,7 +232,7 @@ function drawRect(
   y: number,
   width: number,
   height: number,
-  radius: number,
+  radius: number
 ) {
   if (radius > 0 && typeof ctx.roundRect === "function") {
     ctx.beginPath();
@@ -230,11 +251,11 @@ function drawLayer(
   state: TokenVisualState,
   layer: StyleLayer,
   lineBoxes: Map<number, LineBox>,
-  preset: TextPreset,
+  preset: TextPreset
 ) {
   const displayText = applyTextTransform(
     token.text,
-    preset.typography.textTransform,
+    preset.typography.textTransform
   );
 
   if (layer.type === "background") {
@@ -254,7 +275,7 @@ function drawLayer(
         lineBox.y - padding,
         lineBox.width + padding * 2,
         lineBox.height + padding * 2,
-        radius,
+        radius
       );
       return;
     }
@@ -266,7 +287,7 @@ function drawLayer(
       top - padding,
       token.width + padding * 2,
       layout.lineHeightPx + padding * 2,
-      radius,
+      radius
     );
     return;
   }
@@ -311,7 +332,7 @@ function applyTransform(
   ctx: CanvasRenderingContext2D,
   anchorX: number,
   anchorY: number,
-  transform: ResolvedTransform,
+  transform: ResolvedTransform
 ) {
   ctx.globalAlpha *= transform.opacity;
   ctx.translate(anchorX + transform.translateX, anchorY + transform.translateY);
@@ -333,7 +354,7 @@ export function renderFrame(
   ctx: CanvasRenderingContext2D,
   layout: CaptionLayout,
   relativeMs: number,
-  preset: TextPreset,
+  preset: TextPreset
 ): void {
   // Derive rendered font size from layout.lineHeightPx so it stays in sync with measureText in computeLayout.
   const fontPx = layout.lineHeightPx / preset.typography.lineHeight;
@@ -346,14 +367,14 @@ export function renderFrame(
     "entry",
     "page",
     pageElapsedMs,
-    pageRemainingMs,
+    pageRemainingMs
   );
   const exitPageTransform = resolveTransform(
     preset.exitAnimation,
     "exit",
     "page",
     pageElapsedMs,
-    pageRemainingMs,
+    pageRemainingMs
   );
 
   // Per-line boxes and a single visual state per line (for line-mode backgrounds that span the full line).
@@ -375,8 +396,9 @@ export function renderFrame(
       translateX: pageTransform.translateX + exitPageTransform.translateX,
       translateY: pageTransform.translateY + exitPageTransform.translateY,
       rotation: pageTransform.rotation + exitPageTransform.rotation,
-      letterSpacing: pageTransform.letterSpacing + exitPageTransform.letterSpacing,
-    },
+      letterSpacing:
+        pageTransform.letterSpacing + exitPageTransform.letterSpacing,
+    }
   );
 
   for (const token of layout.tokens) {
@@ -391,7 +413,7 @@ export function renderFrame(
       "word",
       pageElapsedMs,
       pageRemainingMs,
-      token.index,
+      token.index
     );
     const wordExitTransform = resolveTransform(
       preset.exitAnimation,
@@ -399,7 +421,7 @@ export function renderFrame(
       "word",
       pageElapsedMs,
       pageRemainingMs,
-      token.index,
+      token.index
     );
     const pulse = resolvePulseScale(preset, token, state, relativeMs);
 
@@ -415,7 +437,8 @@ export function renderFrame(
       translateX: wordEntryTransform.translateX + wordExitTransform.translateX,
       translateY: wordEntryTransform.translateY + wordExitTransform.translateY,
       rotation: wordEntryTransform.rotation + wordExitTransform.rotation,
-      letterSpacing: wordEntryTransform.letterSpacing + wordExitTransform.letterSpacing,
+      letterSpacing:
+        wordEntryTransform.letterSpacing + wordExitTransform.letterSpacing,
     });
     // Layer order is preset-defined: backgrounds first, then shadow/glow, stroke, then fill on top.
     for (const layer of layers) {

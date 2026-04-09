@@ -6,39 +6,45 @@ import { ASSET_TYPE_TO_TRACK } from "../constants/timeline-layout";
 export function useTimelineAssetDrop(options: {
   scrollRef: RefObject<HTMLDivElement | null>;
   zoom: number;
-  onAddClip: (
-    trackId: string,
-    clip: VideoClip | AudioClip | MusicClip
-  ) => void;
+  onAddClip: (trackId: string, clip: VideoClip | AudioClip | MusicClip) => void;
 }) {
   const { scrollRef, zoom, onAddClip } = options;
-  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
-  const [rejectTargetTrackId, setRejectTargetTrackId] = useState<string | null>(null);
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, track: Track) => {
-      if (!e.dataTransfer.types.includes("application/x-contentai-asset")) return;
-      if (track.locked) return;
-
-      const assetType = ["video_clip", "assembled_video", "image", "voiceover", "music"].find(
-        (t) => e.dataTransfer.types.includes(`application/x-contentai-type-${t}`)
-      );
-      const expectedTrack = assetType ? ASSET_TYPE_TO_TRACK[assetType] : undefined;
-      const isValid = !expectedTrack || expectedTrack === track.type;
-
-      if (isValid) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
-        setDropTargetTrackId(track.id);
-        setRejectTargetTrackId(null);
-      } else {
-        e.dataTransfer.dropEffect = "none";
-        setDropTargetTrackId(null);
-        setRejectTargetTrackId(track.id);
-      }
-    },
-    []
+  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(
+    null
   );
+  const [rejectTargetTrackId, setRejectTargetTrackId] = useState<string | null>(
+    null
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent, track: Track) => {
+    if (!e.dataTransfer.types.includes("application/x-contentai-asset")) return;
+    if (track.locked) return;
+
+    const assetType = [
+      "video_clip",
+      "assembled_video",
+      "image",
+      "voiceover",
+      "music",
+    ].find((t) =>
+      e.dataTransfer.types.includes(`application/x-contentai-type-${t}`)
+    );
+    const expectedTrack = assetType
+      ? ASSET_TYPE_TO_TRACK[assetType]
+      : undefined;
+    const isValid = !expectedTrack || expectedTrack === track.type;
+
+    if (isValid) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setDropTargetTrackId(track.id);
+      setRejectTargetTrackId(null);
+    } else {
+      e.dataTransfer.dropEffect = "none";
+      setDropTargetTrackId(null);
+      setRejectTargetTrackId(track.id);
+    }
+  }, []);
 
   const handleDragLeave = useCallback(() => {
     setDropTargetTrackId(null);
@@ -48,7 +54,8 @@ export function useTimelineAssetDrop(options: {
   const handleDrop = useCallback(
     (e: React.DragEvent, track: Track) => {
       setDropTargetTrackId(null);
-      if (!e.dataTransfer.types.includes("application/x-contentai-asset")) return;
+      if (!e.dataTransfer.types.includes("application/x-contentai-asset"))
+        return;
       if (track.locked) return;
       if (track.type === "text") return;
       e.preventDefault();
@@ -64,7 +71,10 @@ export function useTimelineAssetDrop(options: {
 
       const rect = e.currentTarget.getBoundingClientRect();
       const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
-      const startMs = Math.max(0, ((e.clientX - rect.left + scrollLeft) / zoom) * 1000);
+      const startMs = Math.max(
+        0,
+        ((e.clientX - rect.left + scrollLeft) / zoom) * 1000
+      );
 
       const clip: VideoClip | AudioClip | MusicClip = {
         id: crypto.randomUUID(),

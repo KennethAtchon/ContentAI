@@ -27,6 +27,7 @@ function EditorRouteComponent() {
 }
 
 export const Route = createFileRoute("/studio/_layout/editor")({
-  validateSearch: (search: Record<string, unknown>) => parseEditorSearch(search),
+  validateSearch: (search: Record<string, unknown>) =>
+    parseEditorSearch(search),
   component: EditorRouteComponent,
 });

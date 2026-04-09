@@ -31,7 +31,9 @@ export function InspectorTextAndCaptionPanels({
             className="w-full text-xs bg-overlay-sm text-dim-1 px-2 py-1.5 rounded border border-overlay-md resize-none"
             rows={3}
             value={clip.textContent}
-            onChange={(e) => onUpdateClip(clip.id, { textContent: e.target.value })}
+            onChange={(e) =>
+              onUpdateClip(clip.id, { textContent: e.target.value })
+            }
           />
         </InspectorSection>
       )}

@@ -3,10 +3,7 @@ import type { Context } from "hono";
 type ValidationResult = { success: boolean; error?: { issues: unknown[] } };
 
 /** Standard 422 response for `@hono/zod-validator` when parsing fails. */
-export function zodValidationErrorHook(
-  result: ValidationResult,
-  c: Context,
-) {
+export function zodValidationErrorHook(result: ValidationResult, c: Context) {
   if (!result.success) {
     return c.json(
       {

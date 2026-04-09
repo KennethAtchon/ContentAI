@@ -61,8 +61,12 @@ export function EditorDialogs({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("editor_script_iteration_title")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("editor_script_iteration_body")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t("editor_script_iteration_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("editor_script_iteration_body")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
@@ -79,8 +83,12 @@ export function EditorDialogs({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("editor_publish_confirm_title")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("editor_publish_confirm")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t("editor_publish_confirm_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("editor_publish_confirm")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
@@ -96,4 +104,3 @@ export function EditorDialogs({
     </>
   );
 }
-

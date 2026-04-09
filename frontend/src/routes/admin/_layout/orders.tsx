@@ -3,8 +3,7 @@ import { OrdersView } from "@/features/admin/components/orders/orders-view";
 import { prefetchAdminOrdersFirstPage } from "@/shared/lib/route-data-prefetch";
 
 export const Route = createFileRoute("/admin/_layout/orders")({
-  loader: ({ context }) =>
-    prefetchAdminOrdersFirstPage(context.queryClient),
+  loader: ({ context }) => prefetchAdminOrdersFirstPage(context.queryClient),
   component: OrdersPage,
 });
 

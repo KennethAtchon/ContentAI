@@ -35,9 +35,7 @@ verifyRouter.post(
     const { adminCode } = c.req.valid("json");
 
     if (!ADMIN_SPECIAL_CODE_HASH) {
-      throw Errors.notConfigured(
-        "Admin verification not properly configured",
-      );
+      throw Errors.notConfigured("Admin verification not properly configured");
     }
 
     const hashedInput = createHash("sha256").update(adminCode).digest("hex");

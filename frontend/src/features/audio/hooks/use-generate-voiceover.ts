@@ -7,7 +7,8 @@ export function useGenerateVoiceover() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: GenerateVoiceoverRequest) => audioService.generateVoiceover(data),
+    mutationFn: (data: GenerateVoiceoverRequest) =>
+      audioService.generateVoiceover(data),
     onSuccess: (_, variables) => {
       void invalidateContentAssetsForGeneration(
         queryClient,

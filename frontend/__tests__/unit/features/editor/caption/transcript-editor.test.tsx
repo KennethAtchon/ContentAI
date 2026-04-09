@@ -21,14 +21,16 @@ describe("CaptionTranscriptEditor", () => {
           tokens: [{ text: "Hello", startMs: 0, endMs: 400 }],
         }}
         onSave={onSave}
-      />,
+      />
     );
 
     const textarea = screen.getByPlaceholderText(
-      "editor_caption_transcript_placeholder",
+      "editor_caption_transcript_placeholder"
     );
     fireEvent.change(textarea, { target: { value: "Updated transcript" } });
-    fireEvent.click(screen.getByRole("button", { name: "editor_caption_save" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "editor_caption_save" })
+    );
 
     expect(onSave).toHaveBeenCalledWith({
       fullText: "Updated transcript",

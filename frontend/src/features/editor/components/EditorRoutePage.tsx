@@ -47,14 +47,19 @@ function groupByVersion(projects: EditProject[]): ProjectGroup[] {
   const result: ProjectGroup[] = [];
   for (const [rootId, versions] of groups) {
     versions.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
     result.push({ root: byId.get(rootId) ?? versions[0], versions });
   }
 
   result.sort((a, b) => {
-    const latestA = Math.max(...a.versions.map((v) => new Date(v.updatedAt).getTime()));
-    const latestB = Math.max(...b.versions.map((v) => new Date(v.updatedAt).getTime()));
+    const latestA = Math.max(
+      ...a.versions.map((v) => new Date(v.updatedAt).getTime())
+    );
+    const latestB = Math.max(
+      ...b.versions.map((v) => new Date(v.updatedAt).getTime())
+    );
     return latestB - latestA;
   });
 
@@ -189,7 +194,9 @@ function ProjectCard({
         <button
           onClick={onDelete}
           disabled={isDeleting}
-          title={isDeleting ? "Deleting project..." : t("editor_delete_project")}
+          title={
+            isDeleting ? "Deleting project..." : t("editor_delete_project")
+          }
           className="py-1.5 px-2.5 text-xs rounded-lg bg-error/10 text-error border border-error/20 cursor-pointer hover:bg-error/15 transition-colors"
         >
           {isDeleting ? "Deleting..." : t("editor_delete_project")}
@@ -290,27 +297,28 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     },
   });
 
-  const { mutate: createFromContent, isPending: isOpeningContent } = useMutation({
-    mutationFn: (cId: number) =>
-      authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
-        method: "POST",
-        body: JSON.stringify({ generatedContentId: cId }),
-      }),
-    onSuccess: (res) => {
-      void invalidateEditorProjectsQueries(queryClient);
-      setIsProjectMissing(false);
-      setActiveProject(res.project);
-      syncEditorUrl(res.project);
-    },
-    onError: async (err) => {
-      const status = (err as { status?: number }).status;
-      const body = (err as { body?: { existingProjectId?: string } }).body;
-      if (status === 409 && body?.existingProjectId) {
-        await invalidateEditorProjectsQueries(queryClient);
-        void fetchAndOpen(body.existingProjectId);
-      }
-    },
-  });
+  const { mutate: createFromContent, isPending: isOpeningContent } =
+    useMutation({
+      mutationFn: (cId: number) =>
+        authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
+          method: "POST",
+          body: JSON.stringify({ generatedContentId: cId }),
+        }),
+      onSuccess: (res) => {
+        void invalidateEditorProjectsQueries(queryClient);
+        setIsProjectMissing(false);
+        setActiveProject(res.project);
+        syncEditorUrl(res.project);
+      },
+      onError: async (err) => {
+        const status = (err as { status?: number }).status;
+        const body = (err as { body?: { existingProjectId?: string } }).body;
+        if (status === 409 && body?.existingProjectId) {
+          await invalidateEditorProjectsQueries(queryClient);
+          void fetchAndOpen(body.existingProjectId);
+        }
+      },
+    });
 
   useEffect(() => {
     if (!user) return;
@@ -383,10 +391,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     mutationFn: async (proj: EditProject) => {
       let targetContentId = proj.generatedContentId;
       if (!targetContentId) {
-        const res = await authenticatedFetchJson<{ generatedContentId: number }>(
-          `/api/editor/${proj.id}/link-content`,
-          { method: "POST" }
-        );
+        const res = await authenticatedFetchJson<{
+          generatedContentId: number;
+        }>(`/api/editor/${proj.id}/link-content`, { method: "POST" });
         targetContentId = res.generatedContentId;
       }
       return authenticatedFetchJson<{ sessionId: string; projectId: string }>(
@@ -439,7 +446,6 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6">
-
         <div className="overflow-y-auto p-6">
           {isSmallScreen && (
             <div className="max-w-md mx-auto mt-16 text-center">
@@ -450,12 +456,16 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
           {!isSmallScreen && (
             <>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-lg font-semibold text-dim-1">{t("studio_tabs_editor")}</h1>
+                <h1 className="text-lg font-semibold text-dim-1">
+                  {t("studio_tabs_editor")}
+                </h1>
                 <button
                   onClick={() => createProject()}
                   disabled={isCreating}
                   title={
-                    isCreating ? "Creating a new project..." : "Create a new project"
+                    isCreating
+                      ? "Creating a new project..."
+                      : "Create a new project"
                   }
                   className={[
                     "flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple",
@@ -476,12 +486,16 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
               {!isLoading && projects.length === 0 && (
                 <div className="flex flex-col items-center gap-4 mt-24">
                   <span className="text-5xl opacity-20">✂</span>
-                  <p className="text-sm italic text-dim-3">{t("editor_no_projects")}</p>
+                  <p className="text-sm italic text-dim-3">
+                    {t("editor_no_projects")}
+                  </p>
                   <button
                     onClick={() => createProject()}
                     disabled={isCreating}
                     title={
-                      isCreating ? "Creating a new project..." : "Create a new project"
+                      isCreating
+                        ? "Creating a new project..."
+                        : "Create a new project"
                     }
                     className="bg-studio-accent/10 border border-studio-accent/30 text-studio-accent text-sm px-5 py-2 rounded-lg cursor-pointer hover:bg-studio-accent/15 transition-colors"
                   >
@@ -507,7 +521,11 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
                           deleteProjectMutation.variables === proj.id
                         }
                         onDelete={() => {
-                          if (confirm(`Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`)) {
+                          if (
+                            confirm(
+                              `Delete "${proj.generatedHook ?? proj.title ?? t("editor_untitled")}"?`
+                            )
+                          ) {
                             deleteProjectMutation.mutate(proj.id);
                           }
                         }}
@@ -518,7 +536,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
                               if (!old) return old;
                               return {
                                 projects: old.projects.map((p) =>
-                                  p.id === proj.id ? { ...p, thumbnailUrl: url } : p
+                                  p.id === proj.id
+                                    ? { ...p, thumbnailUrl: url }
+                                    : p
                                 ),
                               };
                             }

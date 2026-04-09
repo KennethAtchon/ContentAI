@@ -10,7 +10,10 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { useApp } from "@/shared/contexts/app-context";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/utils/debug";
-import { DataTable, type ColumnDef } from "@/shared/components/data-display/DataTable";
+import {
+  DataTable,
+  type ColumnDef,
+} from "@/shared/components/data-display/DataTable";
 import { queryKeys } from "@/shared/lib/query-keys";
 
 import {
@@ -63,15 +66,21 @@ interface ApiResponse {
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n.charAt(0))
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "??";
+  return (
+    name
+      .split(" ")
+      .map((n) => n.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "??"
+  );
 }
 
-export function CustomersList({ limit, search, selectedUserId }: CustomersListProps) {
+export function CustomersList({
+  limit,
+  search,
+  selectedUserId,
+}: CustomersListProps) {
   const { t } = useTranslation();
   const { user } = useApp();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
@@ -80,26 +89,44 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
   const [editOpen, setEditOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [editForm, setEditForm] = useState<CustomerFormData>({ name: "", email: "", phone: "", address: "", status: "" });
+  const [editForm, setEditForm] = useState<CustomerFormData>({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: "",
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
   const pageLimit = limit ?? 20;
 
   const url = useMemo(() => {
-    const params = new URLSearchParams({ page: String(currentPage), limit: String(pageLimit) });
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(pageLimit),
+    });
     if (search?.trim()) params.set("search", search.trim());
     return `/api/users?${params}`;
   }, [currentPage, pageLimit, search]);
 
   const { data, error, isLoading, refetch } = useQuery({
-    queryKey: queryKeys.api.admin.customers({ page: currentPage, limit: pageLimit, search: search ?? "" }),
+    queryKey: queryKeys.api.admin.customers({
+      page: currentPage,
+      limit: pageLimit,
+      search: search ?? "",
+    }),
     queryFn: () => fetcher(url),
     enabled: !!user,
   });
 
   const customers = data?.users ?? [];
   const pagination = data?.pagination
-    ? { page: data.pagination.page, totalPages: data.pagination.totalPages, total: data.pagination.total, hasMore: data.pagination.hasMore }
+    ? {
+        page: data.pagination.page,
+        totalPages: data.pagination.totalPages,
+        total: data.pagination.total,
+        hasMore: data.pagination.hasMore,
+      }
     : undefined;
 
   // Reset to page 1 on search change
@@ -110,7 +137,13 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
 
   const handleEdit = useCallback((customer: Customer) => {
     setEditCustomer(customer);
-    setEditForm({ name: customer.name, email: customer.email, phone: customer.phone ?? "", address: customer.address ?? "", status: customer.status ?? "active" });
+    setEditForm({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone ?? "",
+      address: customer.address ?? "",
+      status: customer.status ?? "active",
+    });
     setEditOpen(true);
   }, []);
 
@@ -128,13 +161,25 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
       await authenticatedFetchJson("/api/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editCustomer.id, phone: editForm.phone, address: editForm.address }),
+        body: JSON.stringify({
+          id: editCustomer.id,
+          phone: editForm.phone,
+          address: editForm.address,
+        }),
       });
       await refetch();
       setEditOpen(false);
-      debugLog.info("Customer updated", { component: "CustomersList" }, { id: editCustomer.id });
+      debugLog.info(
+        "Customer updated",
+        { component: "CustomersList" },
+        { id: editCustomer.id }
+      );
     } catch (err) {
-      debugLog.error("Failed to update customer", { component: "CustomersList" }, err);
+      debugLog.error(
+        "Failed to update customer",
+        { component: "CustomersList" },
+        err
+      );
       toast.error(t("admin_customers_update_error"));
     } finally {
       setIsSaving(false);
@@ -174,8 +219,16 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
       header: t("admin_customers_col_status"),
       cell: (row) => {
         const s = (row.status ?? "active").toLowerCase();
-        if (s === "active") return <Badge className="bg-success hover:bg-success">{t("common_active")}</Badge>;
-        if (s === "inactive") return <Badge variant="outline">{t("admin_customers_inactive")}</Badge>;
+        if (s === "active")
+          return (
+            <Badge className="bg-success hover:bg-success">
+              {t("common_active")}
+            </Badge>
+          );
+        if (s === "inactive")
+          return (
+            <Badge variant="outline">{t("admin_customers_inactive")}</Badge>
+          );
         return <Badge variant="secondary">{s}</Badge>;
       },
     },
@@ -198,12 +251,18 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">{t("admin_contact_messages_actions")}</span>
+              <span className="sr-only">
+                {t("admin_contact_messages_actions")}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel className="font-bold">{t("admin_contact_messages_actions")}</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => handleEdit(row)}>{t("common_edit")}</DropdownMenuItem>
+            <DropdownMenuLabel className="font-bold">
+              {t("admin_contact_messages_actions")}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => handleEdit(row)}>
+              {t("common_edit")}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>{t("common_view_orders")}</DropdownMenuItem>
           </DropdownMenuContent>
@@ -224,7 +283,11 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
         onPageChange={setCurrentPage}
         emptyIcon={Users}
         emptyMessage={t("common_no_customers_found")}
-        emptyDescription={search ? t("common_no_customers_match_your_search_criteria") : undefined}
+        emptyDescription={
+          search
+            ? t("common_no_customers_match_your_search_criteria")
+            : undefined
+        }
         paginationLabels={{
           previous: t("common_pagination_previous"),
           next: t("common_pagination_next"),
@@ -243,7 +306,9 @@ export function CustomersList({ limit, search, selectedUserId }: CustomersListPr
         open={editOpen}
         onOpenChange={setEditOpen}
         form={editForm}
-        onFormChange={(e) => setEditForm((f) => ({ ...f, [e.target.name]: e.target.value }))}
+        onFormChange={(e) =>
+          setEditForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+        }
         onSave={handleSave}
         isSaving={isSaving}
       />

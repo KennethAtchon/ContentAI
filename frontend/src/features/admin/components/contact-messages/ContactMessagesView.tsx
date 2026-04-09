@@ -12,7 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import { DataTable, type ColumnDef } from "@/shared/components/data-display/DataTable";
+import {
+  DataTable,
+  type ColumnDef,
+} from "@/shared/components/data-display/DataTable";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useApp } from "@/shared/contexts/app-context";
@@ -62,12 +65,18 @@ export function ContactMessagesView() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const url = useMemo(() => {
-    const params = new URLSearchParams({ page: String(currentPage), limit: String(PAGE_LIMIT) });
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(PAGE_LIMIT),
+    });
     return `/api/shared/contact-messages?${params}`;
   }, [currentPage]);
 
   const { data, error, isLoading } = useQuery({
-    queryKey: queryKeys.api.admin.contactMessages({ page: currentPage, limit: PAGE_LIMIT }),
+    queryKey: queryKeys.api.admin.contactMessages({
+      page: currentPage,
+      limit: PAGE_LIMIT,
+    }),
     queryFn: () => fetcher(url),
     enabled: !!user,
   });
@@ -77,7 +86,9 @@ export function ContactMessagesView() {
         page: data.pagination.page,
         totalPages: data.pagination.totalPages,
         total: data.pagination.total,
-        hasMore: data.pagination.hasMore ?? data.pagination.page < data.pagination.totalPages,
+        hasMore:
+          data.pagination.hasMore ??
+          data.pagination.page < data.pagination.totalPages,
       }
     : undefined;
 
@@ -91,7 +102,10 @@ export function ContactMessagesView() {
       key: "email",
       header: t("admin_settings_placeholder_email"),
       cell: (row) => (
-        <a href={`mailto:${row.email}`} className="text-primary hover:underline">
+        <a
+          href={`mailto:${row.email}`}
+          className="text-primary hover:underline"
+        >
           {row.email}
         </a>
       ),
@@ -99,7 +113,8 @@ export function ContactMessagesView() {
     {
       key: "phone",
       header: t("admin_contact_messages_phone"),
-      cell: (row) => row.phone ?? <span className="text-muted-foreground">-</span>,
+      cell: (row) =>
+        row.phone ?? <span className="text-muted-foreground">-</span>,
     },
     {
       key: "subject",
@@ -120,7 +135,9 @@ export function ContactMessagesView() {
       key: "createdAt",
       header: t("admin_contact_messages_received_at"),
       cell: (row) => (
-        <span className="text-sm text-muted-foreground">{formatDate(row.createdAt)}</span>
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </span>
       ),
     },
     {
@@ -132,11 +149,15 @@ export function ContactMessagesView() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">{t("admin_contact_messages_actions")}</span>
+              <span className="sr-only">
+                {t("admin_contact_messages_actions")}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{t("admin_contact_messages_actions")}</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {t("admin_contact_messages_actions")}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled className="text-muted-foreground">
               {t("admin_contact_messages_no_actions_available")}
@@ -151,7 +172,9 @@ export function ContactMessagesView() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">{t("admin_contact_messages_all_messages")}</h1>
+          <h1 className="text-xl font-semibold">
+            {t("admin_contact_messages_all_messages")}
+          </h1>
           <p className="text-muted-foreground mt-1">
             {t("admin_contact_messages_count", {
               count: pagination?.total ?? 0,

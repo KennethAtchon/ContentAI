@@ -20,7 +20,10 @@ export function EditorLayout({ project, onBack }: Props) {
   return (
     <EditorProvider store={store}>
       <AssetUrlMapContext.Provider value={runtime.assetUrlMap}>
-        <div className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full" style={{ height: "100%" }}>
+        <div
+          className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
+          style={{ height: "100%" }}
+        >
           <EditorToolbar
             title={state.title}
             isReadOnly={state.isReadOnly}
@@ -106,7 +109,9 @@ export function EditorLayout({ project, onBack }: Props) {
             fps={state.fps}
             onCloseExport={() => runtime.setShowExport(false)}
             scriptResetPending={runtime.scriptResetPending}
-            onScriptIterationDialogOpenChange={runtime.onScriptIterationDialogOpenChange}
+            onScriptIterationDialogOpenChange={
+              runtime.onScriptIterationDialogOpenChange
+            }
             onConfirmScriptIteration={runtime.confirmScriptIteration}
             publishDialogOpen={runtime.publishDialogOpen}
             onPublishDialogOpenChange={runtime.setPublishDialogOpen}

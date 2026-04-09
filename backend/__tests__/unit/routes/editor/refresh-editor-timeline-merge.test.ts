@@ -103,8 +103,18 @@ describe("mergePlaceholdersWithRealClips", () => {
   test("reconciles empty video track from assets (no placeholders)", () => {
     const tracks = structuredClone(baseTracks);
     const videoClips = [
-      { id: "a1", role: "video_clip", durationMs: 2000, metadata: { shotIndex: 0 } },
-      { id: "a2", role: "video_clip", durationMs: 3000, metadata: { shotIndex: 1 } },
+      {
+        id: "a1",
+        role: "video_clip",
+        durationMs: 2000,
+        metadata: { shotIndex: 0 },
+      },
+      {
+        id: "a2",
+        role: "video_clip",
+        durationMs: 3000,
+        metadata: { shotIndex: 1 },
+      },
     ];
     const out = mergePlaceholdersWithRealClips(
       tracks,
@@ -180,7 +190,14 @@ describe("mergePlaceholdersWithRealClips", () => {
           trimEndMs: 20_000,
         },
       ],
-      [{ id: "a1", role: "video_clip", durationMs: 20_000, metadata: { shotIndex: 0 } }],
+      [
+        {
+          id: "a1",
+          role: "video_clip",
+          durationMs: 20_000,
+          metadata: { shotIndex: 0 },
+        },
+      ],
     );
     expect(out).toHaveLength(1);
     expect(out[0]!.durationMs).toBe(20_000);
@@ -209,8 +226,18 @@ describe("mergePlaceholdersWithRealClips", () => {
         },
       ],
       [
-        { id: "a1", role: "video_clip", durationMs: 3000, metadata: { shotIndex: 0 } },
-        { id: "a2", role: "video_clip", durationMs: 2000, metadata: { shotIndex: 1 } },
+        {
+          id: "a1",
+          role: "video_clip",
+          durationMs: 3000,
+          metadata: { shotIndex: 0 },
+        },
+        {
+          id: "a2",
+          role: "video_clip",
+          durationMs: 2000,
+          metadata: { shotIndex: 1 },
+        },
       ],
     );
 
@@ -247,7 +274,12 @@ describe("mergePlaceholdersWithRealClips", () => {
     const out = mergePlaceholdersWithRealClips(
       tracks,
       [],
-      { id: "voiceover-asset", role: "voiceover", durationMs: 3000, metadata: {} },
+      {
+        id: "voiceover-asset",
+        role: "voiceover",
+        durationMs: 3000,
+        metadata: {},
+      },
       undefined,
     );
     const audio = out.find((track) => track.type === "audio")!;
@@ -282,12 +314,12 @@ describe("mergePlaceholdersWithRealClips", () => {
       },
     ];
 
-    const out = mergePlaceholdersWithRealClips(
-      tracks,
-      [],
-      undefined,
-      { id: "music-asset", role: "background_music", durationMs: 3000, metadata: {} },
-    );
+    const out = mergePlaceholdersWithRealClips(tracks, [], undefined, {
+      id: "music-asset",
+      role: "background_music",
+      durationMs: 3000,
+      metadata: {},
+    });
     const music = out.find((track) => track.type === "music")!;
     expect(music.clips).toHaveLength(2);
     expect(music.clips[0]!.id).toBe("user-music");

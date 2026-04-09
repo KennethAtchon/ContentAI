@@ -46,7 +46,9 @@ describe("computeLayout", () => {
 
     const layout = computeLayout(makeContext(), page, preset, 200, 400);
 
-    expect(new Set(layout.tokens.map((token) => token.lineIndex)).size).toBeGreaterThan(1);
+    expect(
+      new Set(layout.tokens.map((token) => token.lineIndex)).size
+    ).toBeGreaterThan(1);
     expect(layout.blockHeight).toBeGreaterThan(layout.lineHeightPx);
   });
 

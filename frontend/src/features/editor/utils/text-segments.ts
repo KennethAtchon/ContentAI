@@ -22,7 +22,10 @@ const MIN_READING_DURATION_MS = 2000;
 export function estimateReadingDurationMs(text: string): number | undefined {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   if (words === 0) return undefined;
-  return Math.max(MIN_READING_DURATION_MS, Math.ceil(words / WORDS_PER_SECOND) * 1000);
+  return Math.max(
+    MIN_READING_DURATION_MS,
+    Math.ceil(words / WORDS_PER_SECOND) * 1000
+  );
 }
 
 export interface TextSegment {

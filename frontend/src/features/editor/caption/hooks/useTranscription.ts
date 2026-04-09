@@ -20,10 +20,13 @@ export function useTranscription() {
 
   return useMutation({
     mutationFn: async (input: TranscriptionInput) =>
-      authenticatedFetchJson<TranscriptionResponse>("/api/captions/transcribe", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
+      authenticatedFetchJson<TranscriptionResponse>(
+        "/api/captions/transcribe",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        }
+      ),
     onSuccess: (result, input) => {
       void invalidateCaptionQueriesAfterTranscription(
         queryClient,

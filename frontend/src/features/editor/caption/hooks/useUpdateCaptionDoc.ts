@@ -25,7 +25,7 @@ export function useUpdateCaptionDoc() {
             fullText: input.fullText,
             language: input.language ?? "en",
           }),
-        },
+        }
       ),
     onSuccess: (_result, input) => {
       void invalidateCaptionDocQuery(queryClient, input.captionDocId);

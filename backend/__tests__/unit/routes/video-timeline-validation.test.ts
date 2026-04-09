@@ -5,9 +5,7 @@ import {
   validateTimeline,
 } from "../../../src/domain/video/timeline-validation";
 
-function baseTimeline(
-  overrides?: Partial<TimelinePayload>,
-): TimelinePayload {
+function baseTimeline(overrides?: Partial<TimelinePayload>): TimelinePayload {
   return {
     schemaVersion: 1,
     fps: 30,
@@ -47,5 +45,4 @@ describe("video timeline-validation", () => {
     });
     expect(issues.filter((i) => i.severity === "error")).toHaveLength(0);
   });
-
 });

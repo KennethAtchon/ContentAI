@@ -48,7 +48,9 @@ export function ProjectSidebarDeleteDialogs({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("studio_chat_deleteProjectTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("studio_chat_deleteProjectTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("studio_chat_deleteProjectDescription")}
             </AlertDialogDescription>
@@ -74,7 +76,9 @@ export function ProjectSidebarDeleteDialogs({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("studio_chat_deleteSessionTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("studio_chat_deleteSessionTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("studio_chat_deleteSessionDescription")}
             </AlertDialogDescription>
@@ -83,9 +87,18 @@ export function ProjectSidebarDeleteDialogs({
                 <p>Loading delete preview...</p>
               ) : (
                 <>
-                  <p>{deleteSessionPreview?.messages ?? 0} messages will be removed.</p>
-                  <p>{deleteSessionPreview?.generatedContent ?? 0} drafts will be removed.</p>
-                  <p>{deleteSessionPreview?.editorProjects ?? 0} editor projects will be removed.</p>
+                  <p>
+                    {deleteSessionPreview?.messages ?? 0} messages will be
+                    removed.
+                  </p>
+                  <p>
+                    {deleteSessionPreview?.generatedContent ?? 0} drafts will be
+                    removed.
+                  </p>
+                  <p>
+                    {deleteSessionPreview?.editorProjects ?? 0} editor projects
+                    will be removed.
+                  </p>
                 </>
               )}
             </div>

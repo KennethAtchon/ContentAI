@@ -10,7 +10,10 @@ export const reelsListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   minViews: z.coerce.number().int().min(0).optional(),
-  sort: z.enum(["views", "fresh", "engagement", "recent"]).optional().default("views"),
+  sort: z
+    .enum(["views", "fresh", "engagement", "recent"])
+    .optional()
+    .default("views"),
   search: z.string().trim().min(1).optional(),
 });
 

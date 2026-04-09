@@ -250,9 +250,7 @@ export async function validateTimeline(input: {
 
   const captionTracks = input.timeline.tracks.captions ?? [];
   for (const track of captionTracks) {
-    const segments = Array.isArray(
-      (track as Record<string, unknown>).segments,
-    )
+    const segments = Array.isArray((track as Record<string, unknown>).segments)
       ? ((track as Record<string, unknown>).segments as Array<{
           id: string;
           startMs: number;

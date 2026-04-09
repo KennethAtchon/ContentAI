@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import {
-  Film,
-  Loader2,
-  RotateCcw,
-  RefreshCw,
-} from "lucide-react";
+import { Film, Loader2, RotateCcw, RefreshCw } from "lucide-react";
 import { useContentAssets } from "@/features/audio/hooks/use-content-assets";
 import { useUpdateAssetMetadata } from "@/features/audio/hooks/use-update-asset-metadata";
 import { useGenerateReel } from "@/features/video/hooks/use-generate-reel";
@@ -98,8 +93,7 @@ export function VideoWorkspacePanel({
     jobTargetsThisDraft && rawVideoStatus ? rawVideoStatus : null;
   const videoRunning = videoStatus === "queued" || videoStatus === "running";
   const videoFailed = videoStatus === "failed";
-  const jobCompleted =
-    jobTargetsThisDraft && rawVideoStatus === "completed";
+  const jobCompleted = jobTargetsThisDraft && rawVideoStatus === "completed";
   const mutatingStoryboard =
     regenerateShot.isPending ||
     uploadShotAsset.isPending ||

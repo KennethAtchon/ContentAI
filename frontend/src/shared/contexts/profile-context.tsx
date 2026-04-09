@@ -24,7 +24,9 @@ interface ProfileContextValue {
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
-const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
+const ProfileContext = createContext<ProfileContextValue | undefined>(
+  undefined
+);
 
 export function useProfile(): ProfileContextValue {
   const ctx = useContext(ProfileContext);
@@ -46,7 +48,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       if (!user) throw new Error("User not authenticated");
       const token = await user.getIdToken();
-      return authenticatedFetchJson<{ profile: UserProfile; isOAuthUser: boolean }>(
+      return authenticatedFetchJson<{
+        profile: UserProfile;
+        isOAuthUser: boolean;
+      }>(
         "/api/customer/profile",
         addTimezoneHeader({
           headers: {
@@ -65,8 +70,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     retryDelay: (attemptIndex) => Math.min(1000 * attemptIndex, 3000),
   });
 
-  const profile = useMemo(() => profileResponse?.profile ?? null, [profileResponse]);
-  const isOAuthUser = useMemo(() => profileResponse?.isOAuthUser ?? false, [profileResponse]);
+  const profile = useMemo(
+    () => profileResponse?.profile ?? null,
+    [profileResponse]
+  );
+  const isOAuthUser = useMemo(
+    () => profileResponse?.isOAuthUser ?? false,
+    [profileResponse]
+  );
   const isAdmin = useMemo(() => profile?.role === "admin", [profile?.role]);
 
   const profileError = useMemo(
@@ -85,7 +96,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (updates: Partial<UserProfile>) => {
-      if (!user || !profile) throw new Error("User must be authenticated to update profile");
+      if (!user || !profile)
+        throw new Error("User must be authenticated to update profile");
 
       try {
         const response = await authenticatedFetchJson<{
@@ -96,7 +108,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify(updates),
         });
 
-        if (!response.profile) throw new Error("Profile data not found in response");
+        if (!response.profile)
+          throw new Error("Profile data not found in response");
 
         queryClient.setQueryData(queryKeys.api.profile(), {
           profile: response.profile,
@@ -111,7 +124,11 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         debugLog.error(
           "Failed to update user profile",
-          { service: "profile-context", operation: "updateProfile", userId: profile.id },
+          {
+            service: "profile-context",
+            operation: "updateProfile",
+            userId: profile.id,
+          },
           error
         );
         throw error;
@@ -121,9 +138,27 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ profile, profileLoading, profileError, isOAuthUser, isAdmin, refreshProfile, updateProfile }),
-    [profile, profileLoading, profileError, isOAuthUser, isAdmin, refreshProfile, updateProfile]
+    () => ({
+      profile,
+      profileLoading,
+      profileError,
+      isOAuthUser,
+      isAdmin,
+      refreshProfile,
+      updateProfile,
+    }),
+    [
+      profile,
+      profileLoading,
+      profileError,
+      isOAuthUser,
+      isAdmin,
+      refreshProfile,
+      updateProfile,
+    ]
   );
 
-  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
+  return (
+    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+  );
 }

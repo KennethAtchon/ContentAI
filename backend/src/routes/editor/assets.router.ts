@@ -1,9 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import {
-  authMiddleware,
-  rateLimiter,
-} from "../../middleware/protection";
+import { authMiddleware, rateLimiter } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { contentService } from "../../domain/singletons";
 import { editorAssetsQuerySchema } from "../../domain/editor/editor.schemas";

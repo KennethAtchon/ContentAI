@@ -4,13 +4,19 @@ import { buildVoiceoverTextForTts } from "../../../src/domain/audio/voiceover-te
 describe("buildVoiceoverTextForTts", () => {
   it("returns hook only when no clean script", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: "Hook line", voiceoverScript: null }),
+      buildVoiceoverTextForTts({
+        generatedHook: "Hook line",
+        voiceoverScript: null,
+      }),
     ).toBe("Hook line");
   });
 
   it("returns body only when no hook", () => {
     expect(
-      buildVoiceoverTextForTts({ generatedHook: null, voiceoverScript: "Body text here" }),
+      buildVoiceoverTextForTts({
+        generatedHook: null,
+        voiceoverScript: "Body text here",
+      }),
     ).toBe("Body text here");
   });
 

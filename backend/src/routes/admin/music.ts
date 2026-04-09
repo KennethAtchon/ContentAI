@@ -51,13 +51,7 @@ musicAdminRouter.post(
       throw Errors.badRequest("file, name, and mood are required");
     }
 
-    const VALID_MOODS = [
-      "energetic",
-      "calm",
-      "dramatic",
-      "funny",
-      "inspiring",
-    ];
+    const VALID_MOODS = ["energetic", "calm", "dramatic", "funny", "inspiring"];
     if (!VALID_MOODS.includes(mood)) {
       throw Errors.badRequest("Invalid mood value");
     }
@@ -103,11 +97,7 @@ musicAdminRouter.patch(
   csrfMiddleware(),
   authMiddleware("admin"),
   zValidator("param", adminMusicIdParamSchema, zodValidationErrorHook),
-  zValidator(
-    "json",
-    adminPatchMusicTrackBodySchema,
-    zodValidationErrorHook,
-  ),
+  zValidator("json", adminPatchMusicTrackBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id } = c.req.valid("param");
     const updates = c.req.valid("json");

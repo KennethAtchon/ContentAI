@@ -21,17 +21,23 @@ export const audioService = {
     });
   },
 
-  getMusicLibrary(filters: MusicLibraryFilters = {}): Promise<MusicLibraryResponse> {
+  getMusicLibrary(
+    filters: MusicLibraryFilters = {}
+  ): Promise<MusicLibraryResponse> {
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
     if (filters.mood) params.set("mood", filters.mood);
-    if (filters.durationBucket) params.set("durationBucket", filters.durationBucket);
+    if (filters.durationBucket)
+      params.set("durationBucket", filters.durationBucket);
     if (filters.page) params.set("page", String(filters.page));
     if (filters.limit) params.set("limit", String(filters.limit));
     const query = params.toString();
-    return authenticatedFetchJson(`/api/music/library${query ? `?${query}` : ""}`, {
-      headers: timezoneHeader(),
-    });
+    return authenticatedFetchJson(
+      `/api/music/library${query ? `?${query}` : ""}`,
+      {
+        headers: timezoneHeader(),
+      }
+    );
   },
 
   getContentAssets(
@@ -85,7 +91,9 @@ export const audioService = {
     });
   },
 
-  generateVoiceover(data: GenerateVoiceoverRequest): Promise<GenerateVoiceoverResponse> {
+  generateVoiceover(
+    data: GenerateVoiceoverRequest
+  ): Promise<GenerateVoiceoverResponse> {
     return authenticatedFetchJson("/api/audio/tts", {
       method: "POST",
       body: JSON.stringify(data),

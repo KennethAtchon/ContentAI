@@ -7,7 +7,9 @@ import type { AdminMusicTrack } from "../types";
 export const adminMusicService = {
   list(search?: string) {
     const params = search ? `?search=${encodeURIComponent(search)}` : "";
-    return authenticatedFetchJson<{ tracks: AdminMusicTrack[] }>(`/api/admin/music${params}`);
+    return authenticatedFetchJson<{ tracks: AdminMusicTrack[] }>(
+      `/api/admin/music${params}`
+    );
   },
 
   async upload(formData: FormData) {
@@ -23,14 +25,18 @@ export const adminMusicService = {
   },
 
   toggleActive(id: string, isActive: boolean) {
-    return authenticatedFetchJson<{ track: AdminMusicTrack }>(`/api/admin/music/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ isActive }),
-    });
+    return authenticatedFetchJson<{ track: AdminMusicTrack }>(
+      `/api/admin/music/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      }
+    );
   },
 
   remove(id: string) {
-    return authenticatedFetchJson(`/api/admin/music/${id}`, { method: "DELETE" });
+    return authenticatedFetchJson(`/api/admin/music/${id}`, {
+      method: "DELETE",
+    });
   },
 };
-

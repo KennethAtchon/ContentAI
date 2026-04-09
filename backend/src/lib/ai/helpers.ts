@@ -23,8 +23,7 @@ import {
  * Changes made in the admin panel take effect within one cache TTL (~60s).
  */
 export async function getProviderInstanceAsync(providerId: ProviderId) {
-  const { systemConfigService } =
-    await import("../../domain/singletons");
+  const { systemConfigService } = await import("../../domain/singletons");
 
   const def = PROVIDER_REGISTRY[providerId];
   const key = await systemConfigService.getApiKey(

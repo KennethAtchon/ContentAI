@@ -76,8 +76,7 @@ function PaginationControls({
   return (
     <div className="flex items-center justify-between px-6 py-4 border-t">
       <div className="text-sm text-muted-foreground">
-        {labels?.showing ??
-          `Page ${page} of ${totalPages} (${total} total)`}
+        {labels?.showing ?? `Page ${page} of ${totalPages} (${total} total)`}
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -136,7 +135,10 @@ export function DataTable<T extends { id?: string | number }>({
     if (isLoading && data.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={colSpan} className="h-24 text-center text-muted-foreground">
+          <TableCell
+            colSpan={colSpan}
+            className="h-24 text-center text-muted-foreground"
+          >
             Loading…
           </TableCell>
         </TableRow>

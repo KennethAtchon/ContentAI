@@ -30,7 +30,11 @@ crudRouter.get(
   "/config/:category",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("param", adminConfigCategoryParamSchema, adminConfigValidationErrorHook),
+  zValidator(
+    "param",
+    adminConfigCategoryParamSchema,
+    adminConfigValidationErrorHook,
+  ),
   async (c) => {
     const { category } = c.req.valid("param");
     const rows = await systemConfigService.getCategoryPublic(category);
@@ -43,19 +47,22 @@ crudRouter.put(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("param", adminConfigKeyParamSchema, adminConfigValidationErrorHook),
-  zValidator("json", adminConfigUpdateBodySchema, adminConfigValidationErrorHook),
+  zValidator(
+    "param",
+    adminConfigKeyParamSchema,
+    adminConfigValidationErrorHook,
+  ),
+  zValidator(
+    "json",
+    adminConfigUpdateBodySchema,
+    adminConfigValidationErrorHook,
+  ),
   async (c) => {
     const { category, key } = c.req.valid("param");
     const parsed = c.req.valid("json");
 
     const auth = c.get("auth");
-    await systemConfigService.set(
-      category,
-      key,
-      parsed.value,
-      auth.user.email,
-    );
+    await systemConfigService.set(category, key, parsed.value, auth.user.email);
 
     return c.json({ success: true });
   },

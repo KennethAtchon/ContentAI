@@ -58,21 +58,18 @@ describe("editorReducer golden paths", () => {
           }
         : t
     );
-    const s0 = editorReducer(
-      INITIAL_EDITOR_STATE,
-      {
-        type: "LOAD_PROJECT",
-        project: baseProject({ tracks, durationMs: 1000 }),
-      }
-    );
+    const s0 = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject({ tracks, durationMs: 1000 }),
+    });
     expect(s0.durationMs).toBe(10_000);
   });
 
   test("ADD_CLIP then UNDO restores tracks and duration", () => {
-    let s = editorReducer(
-      INITIAL_EDITOR_STATE,
-      { type: "LOAD_PROJECT", project: baseProject() }
-    );
+    let s = editorReducer(INITIAL_EDITOR_STATE, {
+      type: "LOAD_PROJECT",
+      project: baseProject(),
+    });
     const clip: Clip = {
       id: "nc",
       locallyModified: false,
@@ -329,7 +326,7 @@ describe("editorReducer golden paths", () => {
               },
             ],
           }
-        : track,
+        : track
     );
 
     const state = editorReducer(INITIAL_EDITOR_STATE, {
@@ -394,7 +391,7 @@ describe("editorReducer golden paths", () => {
               },
             ],
           }
-        : track,
+        : track
     );
 
     const state = editorReducer(INITIAL_EDITOR_STATE, {
@@ -465,7 +462,7 @@ describe("editorReducer golden paths", () => {
                   },
                 ],
               }
-            : track,
+            : track
         ),
       }),
     });
@@ -514,12 +511,15 @@ describe("editorReducer golden paths", () => {
                   },
                 ],
               }
-            : track,
+            : track
         ),
       }),
     });
 
-    const copied = editorReducer(loaded, { type: "COPY_CLIP", clipId: "text-1" });
+    const copied = editorReducer(loaded, {
+      type: "COPY_CLIP",
+      clipId: "text-1",
+    });
     const pasted = editorReducer(copied, {
       type: "PASTE_CLIP",
       trackId: "text",
@@ -566,7 +566,7 @@ describe("editorReducer golden paths", () => {
                   },
                 ],
               }
-            : track,
+            : track
         ),
       }),
     });
@@ -602,7 +602,7 @@ describe("editorReducer golden paths", () => {
                 },
               ],
             }
-          : track,
+          : track
       ),
     });
 
@@ -651,7 +651,9 @@ describe("editorReducer golden paths", () => {
     }
 
     const videoTrack = state.tracks.find((track) => track.id === "video");
-    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([0, 1000, 2000]);
+    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([
+      0, 1000, 2000,
+    ]);
   });
 
   test("DUPLICATE_CLIP on a non-contiguous track stays non-overlapping", () => {
@@ -709,7 +711,7 @@ describe("editorReducer golden paths", () => {
                   },
                 ],
               }
-            : track,
+            : track
         ),
       }),
     });
@@ -721,7 +723,9 @@ describe("editorReducer golden paths", () => {
 
     const videoTrack = duplicated.tracks.find((track) => track.id === "video");
     expect(videoTrack?.clips).toHaveLength(3);
-    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([0, 3000, 4000]);
+    expect(videoTrack?.clips.map((clip) => clip.startMs)).toEqual([
+      0, 3000, 4000,
+    ]);
   });
 
   test("ADD_CAPTION_CLIP ignores invalid local caption ranges", () => {
@@ -743,7 +747,9 @@ describe("editorReducer golden paths", () => {
     });
 
     expect(updated).toBe(loaded);
-    expect(updated.tracks.find((track) => track.id === "text")?.clips).toHaveLength(0);
+    expect(
+      updated.tracks.find((track) => track.id === "text")?.clips
+    ).toHaveLength(0);
   });
 
   test("UPDATE_CAPTION_STYLE merges overrides and preserves the preset by default", () => {

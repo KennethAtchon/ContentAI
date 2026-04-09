@@ -47,7 +47,12 @@ function applyTextTransform(
   }
 }
 
-function parseCssColor(input: string): { r: number; g: number; b: number; a: number } {
+function parseCssColor(input: string): {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+} {
   const normalized = input.trim().toLowerCase();
   if (normalized === "transparent") {
     return { r: 0, g: 0, b: 0, a: 0 };
@@ -130,9 +135,11 @@ function findLayer<T extends StyleLayer["type"]>(
   layers: StyleLayer[],
   type: T,
 ): Extract<StyleLayer, { type: T }> | undefined {
-  return [...layers].reverse().find(
-    (layer): layer is Extract<StyleLayer, { type: T }> => layer.type === type,
-  );
+  return [...layers]
+    .reverse()
+    .find(
+      (layer): layer is Extract<StyleLayer, { type: T }> => layer.type === type,
+    );
 }
 
 function toAssAlignment(alignment: TextPreset["layout"]["alignment"]): number {

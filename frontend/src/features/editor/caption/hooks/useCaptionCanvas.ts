@@ -52,22 +52,37 @@ export function useCaptionCanvas({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (preset.typography.fontUrl) {
-        await fontLoader.load(preset.typography.fontFamily, preset.typography.fontUrl);
+        await fontLoader.load(
+          preset.typography.fontFamily,
+          preset.typography.fontUrl
+        );
       }
 
-      const tokens = sliceTokensToRange(doc.tokens, clip.sourceStartMs, clip.sourceEndMs);
+      const tokens = sliceTokensToRange(
+        doc.tokens,
+        clip.sourceStartMs,
+        clip.sourceEndMs
+      );
       const pages = buildPages(tokens, clip.groupingMs || preset.groupingMs);
       const relativeMs = currentTimeMs - clip.startMs;
       const page =
-        pages.find((candidate) => relativeMs >= candidate.startMs && relativeMs < candidate.endMs) ??
-        null;
+        pages.find(
+          (candidate) =>
+            relativeMs >= candidate.startMs && relativeMs < candidate.endMs
+        ) ?? null;
       if (!page) return;
 
       const renderKey = `${clip.id}:${page.startMs}:${page.endMs}:${canvas.width}:${canvas.height}:${Math.round(relativeMs)}`;
       if (renderKey === lastRenderedKeyRef.current) return;
       lastRenderedKeyRef.current = renderKey;
 
-      const layout = computeLayout(ctx, page, preset, canvas.width, canvas.height);
+      const layout = computeLayout(
+        ctx,
+        page,
+        preset,
+        canvas.width,
+        canvas.height
+      );
       renderFrame(ctx, layout, relativeMs, preset);
     };
 

@@ -1,13 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  gte,
-  ilike,
-  isNotNull,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
 import {
   assets,
   contentAssets,
@@ -410,7 +401,9 @@ export class ChatToolsRepository {
     search?: string;
     limit: number;
   }) {
-    const conditions: ReturnType<typeof eq>[] = [eq(musicTracks.isActive, true)];
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(musicTracks.isActive, true),
+    ];
     if (params.mood) conditions.push(eq(musicTracks.mood, params.mood));
     if (params.search) {
       conditions.push(
@@ -588,7 +581,9 @@ export class ChatToolsRepository {
   }
 
   async deleteQueueItemById(queueItemId: number) {
-    await this.database.delete(queueItems).where(eq(queueItems.id, queueItemId));
+    await this.database
+      .delete(queueItems)
+      .where(eq(queueItems.id, queueItemId));
   }
 
   async findQueueItemForSchedule(userId: string, contentId: number) {

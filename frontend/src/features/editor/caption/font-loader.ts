@@ -15,7 +15,10 @@ export class FontLoader {
       const documentWithFonts = document as typeof document & {
         fonts?: { add: (face: unknown) => void };
       };
-      if (typeof globalThis.FontFace === "undefined" || !documentWithFonts.fonts) {
+      if (
+        typeof globalThis.FontFace === "undefined" ||
+        !documentWithFonts.fonts
+      ) {
         return;
       }
       try {

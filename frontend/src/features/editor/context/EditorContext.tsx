@@ -15,7 +15,8 @@ const EditorContext = createContext<EditorContextValue | null>(null);
 
 export function useEditorContext(): EditorContextValue {
   const ctx = useContext(EditorContext);
-  if (!ctx) throw new Error("useEditorContext must be used inside EditorProvider");
+  if (!ctx)
+    throw new Error("useEditorContext must be used inside EditorProvider");
   return ctx;
 }
 
@@ -53,5 +54,7 @@ export function EditorProvider({ store, children }: EditorProviderProps) {
     [store, selectedClip, selectedTrack, pixelsPerMs]
   );
 
-  return <EditorContext.Provider value={value}>{children}</EditorContext.Provider>;
+  return (
+    <EditorContext.Provider value={value}>{children}</EditorContext.Provider>
+  );
 }

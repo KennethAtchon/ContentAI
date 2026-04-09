@@ -15,7 +15,12 @@ interface Props {
   onClose: () => void;
 }
 
-export function ExportModal({ projectId, initialResolution, initialFps, onClose }: Props) {
+export function ExportModal({
+  projectId,
+  initialResolution,
+  initialFps,
+  onClose,
+}: Props) {
   const { t } = useTranslation();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const fetcher = useQueryFetcher<ExportJobStatus>();
@@ -39,7 +44,8 @@ export function ExportModal({ projectId, initialResolution, initialFps, onClose 
       setJobId(data.exportJobId);
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : t("editor_export_enqueue_error");
+      const msg =
+        err instanceof Error ? err.message : t("editor_export_enqueue_error");
       setEnqueueError(msg);
     },
   });
@@ -124,7 +130,10 @@ export function ExportModal({ projectId, initialResolution, initialFps, onClose 
                   ).map((r) => (
                     <button
                       key={r.value}
-                      onClick={() => { setResolution(r.value); setEnqueueError(null); }}
+                      onClick={() => {
+                        setResolution(r.value);
+                        setEnqueueError(null);
+                      }}
                       className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
                         resolution === r.value
@@ -146,7 +155,10 @@ export function ExportModal({ projectId, initialResolution, initialFps, onClose 
                   {([24, 30, 60] as const).map((f) => (
                     <button
                       key={f}
-                      onClick={() => { setFps(f); setEnqueueError(null); }}
+                      onClick={() => {
+                        setFps(f);
+                        setEnqueueError(null);
+                      }}
                       className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
                         fps === f

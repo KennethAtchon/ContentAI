@@ -11,7 +11,9 @@ import {
   videoClipNeedsHeavyPreload,
 } from "@/features/editor/utils/editor-composition";
 
-function clip(p: Partial<Clip> & Pick<Clip, "id" | "startMs" | "durationMs">): Clip {
+function clip(
+  p: Partial<Clip> & Pick<Clip, "id" | "startMs" | "durationMs">
+): Clip {
   return {
     type: "video",
     enabled: true,
@@ -43,7 +45,9 @@ describe("editor-composition", () => {
     expect(isClipActiveAtTimelineTime(c, 1000)).toBe(true);
     expect(isClipActiveAtTimelineTime(c, 2999)).toBe(true);
     expect(isClipActiveAtTimelineTime(c, 3000)).toBe(false);
-    expect(isClipActiveAtTimelineTime({ ...c, enabled: false }, 1500)).toBe(false);
+    expect(isClipActiveAtTimelineTime({ ...c, enabled: false }, 1500)).toBe(
+      false
+    );
   });
 
   test("getClipSourceTimeSecondsAtTimelineTime applies speed and trim", () => {
@@ -54,7 +58,10 @@ describe("editor-composition", () => {
       trimStartMs: 500,
       speed: 2,
     });
-    expect(getClipSourceTimeSecondsAtTimelineTime(c, 1000)).toBeCloseTo(2 + 0.5, 5);
+    expect(getClipSourceTimeSecondsAtTimelineTime(c, 1000)).toBeCloseTo(
+      2 + 0.5,
+      5
+    );
   });
 
   test("buildActiveVideoClipIdsByTrackMap groups by track", () => {
@@ -119,12 +126,12 @@ describe("editor-composition", () => {
         durationMs: 1000,
       },
     ];
-    expect(
-      isIncomingDissolveOrWipePrerenderWindow(b, tr, [a, b], 4500)
-    ).toBe(true);
-    expect(
-      isIncomingDissolveOrWipePrerenderWindow(b, tr, [a, b], 3500)
-    ).toBe(false);
+    expect(isIncomingDissolveOrWipePrerenderWindow(b, tr, [a, b], 4500)).toBe(
+      true
+    );
+    expect(isIncomingDissolveOrWipePrerenderWindow(b, tr, [a, b], 3500)).toBe(
+      false
+    );
   });
 
   test("effectiveHtmlMediaPlaybackRate multiplies JKL and clip speed", () => {
@@ -136,8 +143,6 @@ describe("editor-composition", () => {
   test("videoClipNeedsHeavyPreload for active clip", () => {
     const c = clip({ id: "x", startMs: 0, durationMs: 1000 });
     const active = new Set(["x"]);
-    expect(
-      videoClipNeedsHeavyPreload(c, 500, [], [c], active)
-    ).toBe(true);
+    expect(videoClipNeedsHeavyPreload(c, 500, [], [c], active)).toBe(true);
   });
 });

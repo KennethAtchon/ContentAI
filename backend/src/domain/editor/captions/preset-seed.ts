@@ -15,7 +15,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 3, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 3,
+        join: "round",
+      },
       {
         id: "fill-base",
         type: "fill",
@@ -50,7 +56,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 1.5, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 1.5,
+        join: "round",
+      },
       { id: "fill-base", type: "fill", color: "#FFFFFF" },
     ],
     layout: { alignment: "center", maxWidthPercent: 85, positionY: 80 },
@@ -105,7 +117,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 2, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 2,
+        join: "round",
+      },
       {
         id: "fill-base",
         type: "fill",
@@ -140,7 +158,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 5, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 5,
+        join: "round",
+      },
       { id: "fill-base", type: "fill", color: "#FFFFFF" },
     ],
     layout: { alignment: "center", maxWidthPercent: 85, positionY: 80 },
@@ -164,7 +188,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 3, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 3,
+        join: "round",
+      },
       {
         id: "fill-base",
         type: "fill",
@@ -332,7 +362,13 @@ export const SEEDED_CAPTION_PRESETS: readonly TextPreset[] = [
         "https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2",
     },
     layers: [
-      { id: "stroke-base", type: "stroke", color: "#000000", width: 4, join: "round" },
+      {
+        id: "stroke-base",
+        type: "stroke",
+        color: "#000000",
+        width: 4,
+        join: "round",
+      },
       {
         id: "fill-base",
         type: "fill",

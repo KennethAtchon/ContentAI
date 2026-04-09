@@ -43,7 +43,10 @@ function makeTrack(clips: Clip[]): Track {
 
 describe("clip-constraints", () => {
   test("hasCollision detects overlap", () => {
-    const track = makeTrack([makeClip("a", 0, 1000), makeClip("b", 2000, 1000)]);
+    const track = makeTrack([
+      makeClip("a", 0, 1000),
+      makeClip("b", 2000, 1000),
+    ]);
     expect(hasCollision(track, 900, 300)).toBeTrue();
     expect(hasCollision(track, 1000, 1000)).toBeFalse();
   });

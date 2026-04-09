@@ -20,9 +20,7 @@ listRouter.get(
   async (c) => {
     const { page, limit, status, tier, search } = c.req.valid("query");
 
-    const rows = await fetchAllFirestoreSubscriptionsForAdminList(
-      adminService,
-    );
+    const rows = await fetchAllFirestoreSubscriptionsForAdminList(adminService);
     const { subscriptions, total } = filterSortPaginateAdminSubscriptions(
       rows,
       { page, limit, status, tier, search },

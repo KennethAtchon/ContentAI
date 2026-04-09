@@ -453,9 +453,7 @@ export class ScrapingService {
       try {
         // Use INSERT ... ON CONFLICT DO NOTHING to skip existing externalIds.
         // .returning() returns an empty array when the row was skipped.
-        const inserted = await this.scrapeRepo.insertScrapedReelOrSkip(
-          newReel,
-        );
+        const inserted = await this.scrapeRepo.insertScrapedReelOrSkip(newReel);
 
         if (!inserted) {
           duplicate++;

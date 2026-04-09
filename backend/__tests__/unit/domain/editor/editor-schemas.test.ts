@@ -53,9 +53,11 @@ describe("editor.schemas caption validation", () => {
     });
 
     expect(result.success).toBeFalse();
-    expect(result.error?.issues.some((issue) => issue.message === "Tokens must not overlap")).toBe(
-      true,
-    );
+    expect(
+      result.error?.issues.some(
+        (issue) => issue.message === "Tokens must not overlap",
+      ),
+    ).toBe(true);
   });
 
   test("rejects overlapping clips on the same track", () => {

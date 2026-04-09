@@ -7,7 +7,8 @@ const usePolling = ["1", "true", "yes"].includes(
   (process.env.VITE_USE_POLLING ?? "false").toLowerCase()
 );
 const pollingInterval = Number(process.env.VITE_POLLING_INTERVAL ?? "300");
-const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET ?? "http://localhost:3001";
+const devProxyTarget =
+  process.env.VITE_DEV_PROXY_TARGET ?? "http://localhost:3001";
 const devHost = process.env.VITE_DEV_HOST ?? "localhost";
 
 export default defineConfig({

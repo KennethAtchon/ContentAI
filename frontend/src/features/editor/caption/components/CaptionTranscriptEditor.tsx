@@ -16,7 +16,9 @@ interface Props {
 export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
   const { t } = useTranslation();
   const [fullText, setFullText] = useState(doc?.fullText ?? "");
-  const [draftDocId, setDraftDocId] = useState<string | null>(doc?.captionDocId ?? null);
+  const [draftDocId, setDraftDocId] = useState<string | null>(
+    doc?.captionDocId ?? null
+  );
 
   useEffect(() => {
     if (
@@ -25,7 +27,9 @@ export function CaptionTranscriptEditor({ doc, isSaving, onSave }: Props) {
       draftDocId !== doc.captionDocId &&
       fullText !== (doc.fullText ?? "")
     ) {
-      toast.error("Save or discard your transcript edits before switching clips.");
+      toast.error(
+        "Save or discard your transcript edits before switching clips."
+      );
       return;
     }
     setDraftDocId(doc?.captionDocId ?? null);

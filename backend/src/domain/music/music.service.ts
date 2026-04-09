@@ -5,15 +5,13 @@ import type { IMusicRepository } from "./music.repository";
 export class MusicService {
   constructor(private readonly music: IMusicRepository) {}
 
-  async listLibrary(
-    query: {
-      search?: string;
-      mood?: string;
-      durationBucket?: string;
-      page: number;
-      limit: number;
-    },
-  ) {
+  async listLibrary(query: {
+    search?: string;
+    mood?: string;
+    durationBucket?: string;
+    page: number;
+    limit: number;
+  }) {
     const offset = (query.page - 1) * query.limit;
     const { tracks, total } = await this.music.listMusicLibraryPage({
       search: query.search,

@@ -1,13 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  gte,
-  ilike,
-  lte,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import type { AppDb } from "../database.types";
 import {
   assets,
@@ -65,16 +56,15 @@ export interface IMusicRepository {
 export class MusicRepository implements IMusicRepository {
   constructor(private readonly db: AppDb) {}
 
-  private libraryWhereClause(filter: Omit<MusicLibraryListFilter, "limit" | "offset">) {
+  private libraryWhereClause(
+    filter: Omit<MusicLibraryListFilter, "limit" | "offset">,
+  ) {
     const conditions = [eq(musicTracks.isActive, true)];
 
     if (filter.search) {
       const term = `%${filter.search}%`;
       conditions.push(
-        or(
-          ilike(musicTracks.name, term),
-          ilike(musicTracks.artistName, term),
-        )!,
+        or(ilike(musicTracks.name, term), ilike(musicTracks.artistName, term))!,
       );
     }
 
@@ -168,9 +158,7 @@ export class MusicRepository implements IMusicRepository {
       })
       .from(musicTracks)
       .innerJoin(assets, eq(musicTracks.assetId, assets.id))
-      .where(
-        and(eq(musicTracks.id, trackId), eq(musicTracks.isActive, true)),
-      )
+      .where(and(eq(musicTracks.id, trackId), eq(musicTracks.isActive, true)))
       .limit(1);
     return row ?? null;
   }

@@ -53,7 +53,13 @@ export function useEditorAutosave(options: {
     resolution,
     fps,
   });
-  editorPublishStateRef.current = { tracks, durationMs, title, resolution, fps };
+  editorPublishStateRef.current = {
+    tracks,
+    durationMs,
+    title,
+    resolution,
+    fps,
+  };
 
   const {
     mutate: queueSave,

@@ -4,7 +4,7 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import type { CaptionDoc } from "../types";
 
 export function useCaptionDoc(
-  captionDocId: string | null,
+  captionDocId: string | null
 ): UseQueryResult<CaptionDoc | null> {
   const fetcher = useQueryFetcher<CaptionDoc>();
 

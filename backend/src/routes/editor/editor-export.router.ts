@@ -43,8 +43,9 @@ exportRouter.post(
       project.generatedContentId = newContentId;
     }
 
-    const activeJobs =
-      await editorRepository.countRenderingExportJobsByUser(auth.user.id);
+    const activeJobs = await editorRepository.countRenderingExportJobsByUser(
+      auth.user.id,
+    );
 
     if (activeJobs >= 2) {
       throw new AppError(
@@ -56,14 +57,16 @@ exportRouter.post(
 
     const job = await editorRepository.insertQueuedExportJob(id, auth.user.id);
 
-    runExportJob(job.id, project, auth.user.id, parsed).catch((err: unknown) => {
-      debugLog.error("Export job failed", {
-        service: "editor-route",
-        operation: "runExportJob",
-        jobId: job.id,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    });
+    runExportJob(job.id, project, auth.user.id, parsed).catch(
+      (err: unknown) => {
+        debugLog.error("Export job failed", {
+          service: "editor-route",
+          operation: "runExportJob",
+          jobId: job.id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      },
+    );
 
     return c.json({ exportJobId: job.id }, 202);
   },

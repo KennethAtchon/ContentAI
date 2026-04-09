@@ -174,12 +174,9 @@ export function useEditorReducer() {
     ) => dispatch({ type: "UPDATE_CAPTION_STYLE", clipId, ...payload }),
     []
   );
-  const addVideoTrack = useCallback(
-    (afterTrackId: string) => {
-      dispatch({ type: "ADD_VIDEO_TRACK", afterTrackId });
-    },
-    []
-  );
+  const addVideoTrack = useCallback((afterTrackId: string) => {
+    dispatch({ type: "ADD_VIDEO_TRACK", afterTrackId });
+  }, []);
   const removeTrack = useCallback(
     (trackId: string) => dispatch({ type: "REMOVE_TRACK", trackId }),
     []

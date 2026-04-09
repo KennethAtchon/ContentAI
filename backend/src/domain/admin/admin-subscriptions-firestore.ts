@@ -170,9 +170,7 @@ export function computeSubscriptionAnalytics(
   let mrr = 0;
   for (const sub of activeSubscriptions) {
     try {
-      const config = getTierConfig(
-        sub.tier as "basic" | "pro" | "enterprise",
-      );
+      const config = getTierConfig(sub.tier as "basic" | "pro" | "enterprise");
       mrr += config.price / 100;
     } catch {
       /* skip unknown tiers */
@@ -195,9 +193,7 @@ export function computeSubscriptionAnalytics(
     ([tier, count]) => {
       let price = 0;
       try {
-        const config = getTierConfig(
-          tier as "basic" | "pro" | "enterprise",
-        );
+        const config = getTierConfig(tier as "basic" | "pro" | "enterprise");
         price = (config.price / 100) * count;
       } catch {
         /* skip unknown tiers */

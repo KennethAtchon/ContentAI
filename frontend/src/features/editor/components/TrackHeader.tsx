@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { Volume2, VolumeX, Lock, Unlock, Trash2, Plus, MoreHorizontal, GripVertical, Pencil } from "lucide-react";
+import {
+  Volume2,
+  VolumeX,
+  Lock,
+  Unlock,
+  Trash2,
+  Plus,
+  MoreHorizontal,
+  GripVertical,
+  Pencil,
+} from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { TRACK_COLORS } from "../types/editor";
 import type { Track } from "../types/editor";
@@ -70,7 +80,10 @@ export function TrackHeader({
       </span>
 
       {/* Color dot */}
-      <div className="w-2 h-6 rounded-full shrink-0" style={{ backgroundColor: color }} />
+      <div
+        className="w-2 h-6 rounded-full shrink-0"
+        style={{ backgroundColor: color }}
+      />
 
       {/* Track name / rename input */}
       {isRenaming ? (
@@ -98,7 +111,10 @@ export function TrackHeader({
 
       {/* Mute — kept visible since it has active visual state */}
       <button
-        onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleMute();
+        }}
         title={track.muted ? "Unmute" : "Mute"}
         className={cn(
           "w-6 h-6 rounded flex items-center justify-center shrink-0",
@@ -128,7 +144,11 @@ export function TrackHeader({
           <DropdownMenuSeparator />
 
           <DropdownMenuItem onSelect={onToggleLock}>
-            {track.locked ? <Unlock size={13} className="mr-2" /> : <Lock size={13} className="mr-2" />}
+            {track.locked ? (
+              <Unlock size={13} className="mr-2" />
+            ) : (
+              <Lock size={13} className="mr-2" />
+            )}
             {track.locked ? "Unlock" : "Lock"}
           </DropdownMenuItem>
 
@@ -141,13 +161,19 @@ export function TrackHeader({
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem onSelect={onDeleteAllClips} className="text-red-400 focus:text-red-400">
+          <DropdownMenuItem
+            onSelect={onDeleteAllClips}
+            className="text-red-400 focus:text-red-400"
+          >
             <Trash2 size={13} className="mr-2" />
             Clear Clips
           </DropdownMenuItem>
 
           {canRemove && onRemove && (
-            <DropdownMenuItem onSelect={onRemove} className="text-red-400 focus:text-red-400">
+            <DropdownMenuItem
+              onSelect={onRemove}
+              className="text-red-400 focus:text-red-400"
+            >
               <Trash2 size={13} className="mr-2" />
               Remove Track
             </DropdownMenuItem>

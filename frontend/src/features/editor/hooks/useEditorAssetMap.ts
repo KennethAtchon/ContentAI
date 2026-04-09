@@ -97,7 +97,8 @@ export function useEditorAssetMap({
 
   const { data: assetsData } = useQuery({
     queryKey: queryKeys.api.contentAssets(generatedContentId ?? 0),
-    queryFn: () => fetcher(`/api/assets?generatedContentId=${generatedContentId}`),
+    queryFn: () =>
+      fetcher(`/api/assets?generatedContentId=${generatedContentId}`),
     enabled: !!generatedContentId,
   });
   const { data: libraryData } = useMediaLibrary();
@@ -132,7 +133,9 @@ export function useEditorAssetMap({
           (clip): clip is VideoClip =>
             isVideoClip(clip) && !clip.isPlaceholder && Boolean(clip.assetId)
         );
-      const url = activeClip?.assetId ? assetUrlMap.get(activeClip.assetId) : undefined;
+      const url = activeClip?.assetId
+        ? assetUrlMap.get(activeClip.assetId)
+        : undefined;
       if (!url) return;
 
       const seekMs = activeClip
@@ -177,4 +180,3 @@ export function useEditorAssetMap({
     captureThumbnail,
   };
 }
-

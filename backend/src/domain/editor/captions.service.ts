@@ -25,11 +25,7 @@ export class CaptionsService {
   async getCaptionsForAsset(userId: string, assetId: string) {
     const caption = await this.captions.findByAssetAndUser(assetId, userId);
     if (!caption) {
-      throw new AppError(
-        "No captions found for this asset",
-        "NOT_FOUND",
-        404,
-      );
+      throw new AppError("No captions found for this asset", "NOT_FOUND", 404);
     }
     return {
       captionDocId: caption.id,
@@ -42,11 +38,7 @@ export class CaptionsService {
   async getCaptionDoc(userId: string, captionDocId: string) {
     const caption = await this.captions.findByIdAndUser(captionDocId, userId);
     if (!caption) {
-      throw new AppError(
-        "No caption doc found",
-        "NOT_FOUND",
-        404,
-      );
+      throw new AppError("No caption doc found", "NOT_FOUND", 404);
     }
 
     return {
@@ -88,11 +80,15 @@ export class CaptionsService {
       language: "en";
     },
   ) {
-    const updated = await this.captions.updateByIdAndUser(captionDocId, userId, {
-      tokens: input.tokens,
-      fullText: input.fullText,
-      language: input.language,
-    });
+    const updated = await this.captions.updateByIdAndUser(
+      captionDocId,
+      userId,
+      {
+        tokens: input.tokens,
+        fullText: input.fullText,
+        language: input.language,
+      },
+    );
     if (!updated) throw Errors.notFound("Caption doc");
 
     return {

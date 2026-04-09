@@ -83,9 +83,7 @@ export class ReelsService {
 
     const rows = await this.reels.findReelsByIds(uniqueIds);
     const rowById = new Map(rows.map((row) => [row.id, row]));
-    const ordered = uniqueIds
-      .map((id) => rowById.get(id))
-      .filter(Boolean);
+    const ordered = uniqueIds.map((id) => rowById.get(id)).filter(Boolean);
     return { reels: ordered };
   }
 
@@ -167,17 +165,14 @@ export class ReelsService {
     if (nicheIdParam) {
       resolvedNicheId = Number.parseInt(nicheIdParam, 10);
     } else if (nicheNameParam) {
-      resolvedNicheId = await this.reels.findNicheIdByNameIlike(
-        nicheNameParam,
-      );
+      resolvedNicheId = await this.reels.findNicheIdByNameIlike(nicheNameParam);
     }
 
     if (!resolvedNicheId) {
       return { kind: "error", status: 404, message: "No matching niche found" };
     }
 
-    const threshold =
-      minViews !== undefined ? minViews : VIRAL_VIEWS_THRESHOLD;
+    const threshold = minViews !== undefined ? minViews : VIRAL_VIEWS_THRESHOLD;
     const reelRows = await this.reels.findViralReelsForNiche(
       resolvedNicheId,
       threshold,

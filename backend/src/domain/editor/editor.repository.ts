@@ -90,9 +90,10 @@ export interface IEditorRepository {
   findAutosaveMeta(
     projectId: string,
     userId: string,
-  ): Promise<
-    Pick<EditProjectRow, "id" | "status" | "title" | "autoTitle"> | null
-  >;
+  ): Promise<Pick<
+    EditProjectRow,
+    "id" | "status" | "title" | "autoTitle"
+  > | null>;
 
   updateProjectForUser(
     projectId: string,
@@ -338,10 +339,7 @@ export class EditorRepository implements IEditorRepository {
   }
 
   async insertProject(values: NewEditProject): Promise<EditProjectRow> {
-    const [row] = await this.db
-      .insert(editProjects)
-      .values(values)
-      .returning();
+    const [row] = await this.db.insert(editProjects).values(values).returning();
     if (!row) {
       throw new Error("Insert edit project returned no row");
     }
@@ -396,10 +394,7 @@ export class EditorRepository implements IEditorRepository {
       );
   }
 
-  async existsByIdForUser(
-    projectId: string,
-    userId: string,
-  ): Promise<boolean> {
+  async existsByIdForUser(projectId: string, userId: string): Promise<boolean> {
     const [row] = await this.db
       .select({ id: editProjects.id })
       .from(editProjects)
@@ -431,9 +426,7 @@ export class EditorRepository implements IEditorRepository {
       );
   }
 
-  async hasCompletedExportForProject(
-    editProjectId: string,
-  ): Promise<boolean> {
+  async hasCompletedExportForProject(editProjectId: string): Promise<boolean> {
     const [row] = await this.db
       .select({ id: exportJobs.id })
       .from(exportJobs)
@@ -619,12 +612,8 @@ export class EditorRepository implements IEditorRepository {
     validatedRootTracks: unknown;
     validatedSnapshotTracks: unknown;
   }): Promise<void> {
-    const {
-      root,
-      snapshot,
-      validatedRootTracks,
-      validatedSnapshotTracks,
-    } = params;
+    const { root, snapshot, validatedRootTracks, validatedSnapshotTracks } =
+      params;
     await this.db.transaction(async (tx) => {
       await tx.insert(editProjects).values({
         userId: root.userId,
@@ -654,10 +643,7 @@ export class EditorRepository implements IEditorRepository {
       .select({ activeJobs: count() })
       .from(exportJobs)
       .where(
-        and(
-          eq(exportJobs.userId, userId),
-          eq(exportJobs.status, "rendering"),
-        ),
+        and(eq(exportJobs.userId, userId), eq(exportJobs.status, "rendering")),
       );
     return activeJobs;
   }
@@ -709,10 +695,7 @@ export class EditorRepository implements IEditorRepository {
       Object.entries(patch).filter(([, v]) => v !== undefined),
     ) as Partial<typeof exportJobs.$inferInsert>;
     if (Object.keys(data).length === 0) return;
-    await this.db
-      .update(exportJobs)
-      .set(data)
-      .where(eq(exportJobs.id, jobId));
+    await this.db.update(exportJobs).set(data).where(eq(exportJobs.id, jobId));
   }
 
   async resolveContentParentIdChainInTx(

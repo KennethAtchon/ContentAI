@@ -110,8 +110,8 @@ export function reconcileVideoClipsWithoutPlaceholders(
         label:
           typeof existing.label === "string" && existing.label.trim() !== ""
             ? existing.label
-            : genPrompt ??
-              `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
+            : (genPrompt ??
+              `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`),
       });
       result.push(normalized);
       cursor = Math.max(
@@ -124,8 +124,7 @@ export function reconcileVideoClipsWithoutPlaceholders(
         type: "video",
         assetId: asset.id,
         label:
-          genPrompt ??
-          `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
+          genPrompt ?? `Shot ${shotIdx >= 0 ? shotIdx + 1 : result.length + 1}`,
         startMs: cursor,
         speed: 1,
         enabled: true,
@@ -202,7 +201,9 @@ export function mergePlaceholdersWithRealClips(
             !usedVideoAssetIds.has(a.id) && metadataShotIndex(a.metadata) < 0,
         );
         const realAsset =
-          exact ?? unindexed ?? videoPool.find((a) => !usedVideoAssetIds.has(a.id));
+          exact ??
+          unindexed ??
+          videoPool.find((a) => !usedVideoAssetIds.has(a.id));
         if (!realAsset) return clip;
 
         usedVideoAssetIds.add(realAsset.id);

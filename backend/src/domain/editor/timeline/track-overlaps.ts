@@ -1,28 +1,52 @@
-import type { Clip, Track } from "../../../types/timeline.types";
+import type { Track } from "../../../types/timeline.types";
 
-type OverlapClip = Pick<Clip, "id" | "startMs" | "durationMs">;
-type OverlapTrack<TClip extends OverlapClip> = Omit<Track, "clips"> & { clips: TClip[] };
+/** Loose enough for persisted timeline JSON (`TimelineClipJson`) and strict `Clip`. */
+type OverlapClip = {
+  id?: string;
+  startMs?: number;
+  durationMs?: number;
+};
 
-export function sanitizeTrackOverlaps<TClip extends OverlapClip, TTrack extends OverlapTrack<TClip>>(
-  track: TTrack,
-): TTrack {
+const MIN_CLIP_MS = 100;
+
+function overlapStartMs(clip: OverlapClip): number {
+  return Math.max(0, Math.round(Number(clip.startMs ?? 0)));
+}
+
+function overlapDurationMs(clip: OverlapClip): number {
+  return Math.max(
+    MIN_CLIP_MS,
+    Math.round(Number(clip.durationMs ?? MIN_CLIP_MS)),
+  );
+}
+/** Any track-shaped object with a `clips` array (strict `Track` or loose `TimelineTrackJson`). */
+type OverlapTrack<TClip extends OverlapClip> = {
+  clips: TClip[];
+};
+
+export function sanitizeTrackOverlaps<
+  TClip extends OverlapClip,
+  TTrack extends OverlapTrack<TClip>,
+>(track: TTrack): TTrack {
   if (track.clips.length < 2) return track;
 
   const ordered = track.clips
     .map((clip, index) => ({ clip, index }))
     .sort((a, b) => {
-      if (a.clip.startMs !== b.clip.startMs) {
-        return a.clip.startMs - b.clip.startMs;
-      }
+      const sa = overlapStartMs(a.clip);
+      const sb = overlapStartMs(b.clip);
+      if (sa !== sb) return sa - sb;
       return a.index - b.index;
     });
   let cursor = 0;
   let changed = false;
 
   const clips = ordered.map(({ clip }) => {
-    const safeStart = Math.max(cursor, Math.max(0, clip.startMs));
-    cursor = safeStart + clip.durationMs;
-    if (safeStart === clip.startMs) return clip;
+    const rawStart = overlapStartMs(clip);
+    const dur = overlapDurationMs(clip);
+    const safeStart = Math.max(cursor, rawStart);
+    cursor = safeStart + dur;
+    if (safeStart === rawStart) return clip;
     changed = true;
     return { ...clip, startMs: safeStart };
   });

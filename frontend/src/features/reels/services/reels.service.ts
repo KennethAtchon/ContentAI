@@ -20,7 +20,11 @@ export const reelsService = {
     offset?: number;
   }): Promise<{ reels: Reel[]; total: number; niche: string }> {
     const { niche, nicheId, sort = "views", offset = 0 } = params;
-    const search = new URLSearchParams({ limit: "20", offset: String(offset), sort });
+    const search = new URLSearchParams({
+      limit: "20",
+      offset: String(offset),
+      sort,
+    });
     if (nicheId != null) search.set("nicheId", String(nicheId));
     if (niche) search.set("niche", niche);
     return authenticatedFetchJson(`/api/reels?${search}`, {

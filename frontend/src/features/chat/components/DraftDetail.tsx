@@ -40,9 +40,12 @@ export function DraftDetail({
   const { data: assetsData, isError } = useContentAssets(draft.id);
   const assets = assetsData?.assets ?? [];
   const voiceoverAsset =
-    assets.find((a) => a.role === "voiceover" || a.type === "voiceover") ?? null;
+    assets.find((a) => a.role === "voiceover" || a.type === "voiceover") ??
+    null;
   const musicAsset =
-    assets.find((a) => a.role === "background_music" || a.type === "background_music") ?? null;
+    assets.find(
+      (a) => a.role === "background_music" || a.type === "background_music"
+    ) ?? null;
   const hasAudio = Boolean(voiceoverAsset ?? musicAsset);
   const assembledAsset =
     assets.find((a) => a.type === "assembled_video") ?? null;
@@ -85,7 +88,8 @@ export function DraftDetail({
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
         {isError && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            Failed to load draft assets. Audio and video previews may be unavailable.
+            Failed to load draft assets. Audio and video previews may be
+            unavailable.
           </div>
         )}
         {draft.generatedHook && (

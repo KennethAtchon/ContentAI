@@ -22,7 +22,12 @@ describe("parseTimelineAssetDragPayload", () => {
 
   test("defaults duration when null", () => {
     const r = parseTimelineAssetDragPayload(
-      JSON.stringify({ assetId: "x", type: "music", durationMs: null, label: "" })
+      JSON.stringify({
+        assetId: "x",
+        type: "music",
+        durationMs: null,
+        label: "",
+      })
     );
     expect(r?.durationMs).toBe(5000);
   });

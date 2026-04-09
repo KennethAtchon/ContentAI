@@ -175,8 +175,7 @@ process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 // AES-256-GCM requires exactly 32 bytes; a host env may set a non-conforming key.
 {
   const k = process.env.ENCRYPTION_KEY;
-  process.env.ENCRYPTION_KEY =
-    k && k.length === 32 ? k : "a".repeat(32);
+  process.env.ENCRYPTION_KEY = k && k.length === 32 ? k : "a".repeat(32);
 }
 process.env.CSRF_SECRET = process.env.CSRF_SECRET || "0".repeat(64);
 process.env.CORS_ALLOWED_ORIGINS =

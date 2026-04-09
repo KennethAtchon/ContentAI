@@ -12,9 +12,7 @@ function tzHeaders(): Record<string, string> {
  * Runs prefetch only when Firebase has a session; swallows errors so navigation
  * still works while auth is restoring or on transient network failures.
  */
-async function prefetchWhenSignedIn(
-  run: () => Promise<void>
-): Promise<void> {
+async function prefetchWhenSignedIn(run: () => Promise<void>): Promise<void> {
   if (!auth.currentUser) return;
   try {
     await run();
@@ -40,8 +38,7 @@ export async function prefetchAdminCustomersList(
   await prefetchWhenSignedIn(() =>
     queryClient.prefetchQuery({
       queryKey: queryKeys.api.admin.customers({ page, limit, search }),
-      queryFn: () =>
-        authenticatedFetchJson(url, { headers: tzHeaders() }),
+      queryFn: () => authenticatedFetchJson(url, { headers: tzHeaders() }),
     })
   );
 }
@@ -70,14 +67,13 @@ export async function prefetchAdminOrdersFirstPage(
           headers: tzHeaders(),
         });
         const list = raw.orders ?? [];
-        const p =
-          raw.pagination ?? {
-            total: list.length,
-            page: 1,
-            limit,
-            totalPages: 1,
-            hasMore: false,
-          };
+        const p = raw.pagination ?? {
+          total: list.length,
+          page: 1,
+          limit,
+          totalPages: 1,
+          hasMore: false,
+        };
         return {
           data: list,
           pagination: {
@@ -113,18 +109,20 @@ export async function prefetchAdminSubscriptionsFirstPage(
     queryClient.prefetchQuery({
       queryKey: ["api", "paginated", url],
       queryFn: async () => {
-        const raw = await authenticatedFetchJson<SubscriptionsApiResponse>(url, {
-          headers: tzHeaders(),
-        });
+        const raw = await authenticatedFetchJson<SubscriptionsApiResponse>(
+          url,
+          {
+            headers: tzHeaders(),
+          }
+        );
         const list = Array.isArray(raw.subscriptions) ? raw.subscriptions : [];
-        const p =
-          raw.pagination ?? {
-            total: list.length,
-            page: 1,
-            limit,
-            totalPages: 1,
-            hasMore: false,
-          };
+        const p = raw.pagination ?? {
+          total: list.length,
+          page: 1,
+          limit,
+          totalPages: 1,
+          hasMore: false,
+        };
         return {
           data: list,
           pagination: {
@@ -196,15 +194,13 @@ export async function prefetchStudioQueue(
       queryClient.prefetchQuery({
         queryKey: queryKeys.api.queue(QUEUE_LIST_PARAMS),
         queryFn: () =>
-          authenticatedFetchJson<{ items: unknown[]; total: number }>(
-            listUrl,
-            { headers: h }
-          ),
+          authenticatedFetchJson<{ items: unknown[]; total: number }>(listUrl, {
+            headers: h,
+          }),
       }),
       queryClient.prefetchQuery({
         queryKey: queryKeys.api.projects(),
-        queryFn: () =>
-          authenticatedFetchJson("/api/projects", { headers: h }),
+        queryFn: () => authenticatedFetchJson("/api/projects", { headers: h }),
       }),
     ]);
   });

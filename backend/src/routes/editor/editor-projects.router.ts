@@ -14,11 +14,16 @@ import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const projectsRouter = new Hono<HonoEnv>();
 
-projectsRouter.get("/", rateLimiter("customer"), authMiddleware("user"), async (c) => {
-  const auth = c.get("auth");
-  const projects = await editorService.listProjectsForUser(auth.user.id);
-  return c.json({ projects });
-});
+projectsRouter.get(
+  "/",
+  rateLimiter("customer"),
+  authMiddleware("user"),
+  async (c) => {
+    const auth = c.get("auth");
+    const projects = await editorService.listProjectsForUser(auth.user.id);
+    return c.json({ projects });
+  },
+);
 
 projectsRouter.post(
   "/",

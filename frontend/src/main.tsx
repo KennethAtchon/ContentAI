@@ -32,7 +32,10 @@ root.render(
       <HelmetProvider>
         <QueryClientProvider client={appQueryClient}>
           <AppProvider>
-            <RouterProvider router={router} context={{ queryClient: appQueryClient }} />
+            <RouterProvider
+              router={router}
+              context={{ queryClient: appQueryClient }}
+            />
           </AppProvider>
         </QueryClientProvider>
       </HelmetProvider>

@@ -69,7 +69,10 @@ describe("authenticated-fetch", () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(Error);
-      const err = e as Error & { status: number; body?: Record<string, unknown> };
+      const err = e as Error & {
+        status: number;
+        body?: Record<string, unknown>;
+      };
       expect(err.status).toBe(409);
       expect(err.body).toEqual({
         error: "project_exists",

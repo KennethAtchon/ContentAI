@@ -246,7 +246,10 @@ export type EditorAction =
   | {
       type: "MARK_CAPTION_STALE";
       clipId: string;
-      reason: "voiceover-trim-changed" | "voiceover-asset-replaced" | "voiceover-deleted";
+      reason:
+        | "voiceover-trim-changed"
+        | "voiceover-asset-replaced"
+        | "voiceover-deleted";
     };
 
 export const TRACK_COLORS: Record<TrackType, string> = {

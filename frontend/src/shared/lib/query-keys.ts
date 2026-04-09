@@ -31,8 +31,11 @@ export const queryKeys = {
       orders: (params?: { page?: number; limit?: number }) =>
         ["api", "admin", "orders", params] as const,
       users: () => ["api", "admin", "users"] as const,
-      customers: (params?: { page?: number; limit?: number; search?: string }) =>
-        ["api", "admin", "customers", params] as const,
+      customers: (params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+      }) => ["api", "admin", "customers", params] as const,
       dashboard: () => ["api", "admin", "dashboard"] as const,
       customersCount: () => ["api", "users", "customers-count"] as const,
       conversion: () => ["api", "admin", "analytics"] as const,

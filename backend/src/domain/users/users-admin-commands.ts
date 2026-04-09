@@ -50,16 +50,7 @@ export async function adminUpdateUserWithFirebase(
     timezone?: string;
   },
 ) {
-  const {
-    id,
-    phone,
-    address,
-    role,
-    name,
-    email,
-    isActive,
-    timezone,
-  } = input;
+  const { id, phone, address, role, name, email, isActive, timezone } = input;
 
   const existingUser = await usersService.getUserById(id);
 

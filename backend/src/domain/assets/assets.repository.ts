@@ -11,10 +11,7 @@ export interface IAssetsRepository {
 
   insertUploaded(row: NewUploadedAsset): Promise<AssetRow>;
 
-  findUploadedByUserAndId(
-    userId: string,
-    id: string,
-  ): Promise<AssetRow | null>;
+  findUploadedByUserAndId(userId: string, id: string): Promise<AssetRow | null>;
 
   deleteById(id: string): Promise<void>;
 

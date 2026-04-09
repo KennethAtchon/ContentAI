@@ -64,11 +64,7 @@ export async function generateVideoClip(
     }
     const slot = ((shotIndex % 4) + 4) % 4;
     const r2Key = `video-clips/${clipParams.userId ?? "anon"}/dev-mock-slot${slot + 1}-${Date.now()}.mp4`;
-    const r2Url = await storage.uploadFile(
-      fixtureBuffer,
-      r2Key,
-      "video/mp4",
-    );
+    const r2Url = await storage.uploadFile(fixtureBuffer, r2Key, "video/mp4");
     const result: VideoClipResult = {
       r2Key,
       r2Url,

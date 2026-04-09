@@ -16,7 +16,10 @@ export function OneTimePurchaseInfoCard({ t }: { t: (key: string) => string }) {
             </h3>
             <p className="text-base text-blue-700 dark:text-blue-300">
               {t("checkout_one_time_purchase_description")}{" "}
-              <Link to="/pricing" className="underline font-medium hover:text-blue-900">
+              <Link
+                to="/pricing"
+                className="underline font-medium hover:text-blue-900"
+              >
                 {t("checkout_our_pricing_page")}
               </Link>
               .
@@ -27,4 +30,3 @@ export function OneTimePurchaseInfoCard({ t }: { t: (key: string) => string }) {
     </Card>
   );
 }
-

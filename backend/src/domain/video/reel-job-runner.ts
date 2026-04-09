@@ -6,10 +6,7 @@ import {
 } from "../../services/video-generation/job.service";
 import { debugLog } from "../../utils/debug/debug";
 import { DEV_MOCK_EXTERNAL_INTEGRATIONS } from "../../utils/config/envUtil";
-import {
-  contentService,
-  editorRepository,
-} from "../singletons";
+import { contentService, editorRepository } from "../singletons";
 import {
   buildMockDevReelShots,
   durationSecondsToMs,

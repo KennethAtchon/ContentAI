@@ -351,7 +351,8 @@ export function getAllowedCorsOrigins(): string[] {
     }
   };
 
-  const explicitOrigins = CORS_ALLOWED_ORIGINS.map(normalizeOrigin).filter(Boolean);
+  const explicitOrigins =
+    CORS_ALLOWED_ORIGINS.map(normalizeOrigin).filter(Boolean);
   const baseOrigin = (() => {
     if (!BASE_URL) return "";
     try {

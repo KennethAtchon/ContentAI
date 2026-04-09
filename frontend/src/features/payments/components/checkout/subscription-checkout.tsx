@@ -102,19 +102,25 @@ export function SubscriptionCheckout({
 
       const baseUrl = window.location.origin;
       const trialPeriodDays =
-        trialEligible && SUBSCRIPTION_TRIAL_DAYS > 0 ? SUBSCRIPTION_TRIAL_DAYS : undefined;
+        trialEligible && SUBSCRIPTION_TRIAL_DAYS > 0
+          ? SUBSCRIPTION_TRIAL_DAYS
+          : undefined;
 
-      const result = await createSubscriptionCheckout(user.uid, tierConfig.stripePriceId, {
-        success_url: `${baseUrl}/payment/success?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/payment/cancel`,
-        trial_period_days: trialPeriodDays,
-        metadata: {
-          userId: user.uid,
-          tier,
-          billingCycle,
-          userEmail: user.email || "",
-        },
-      });
+      const result = await createSubscriptionCheckout(
+        user.uid,
+        tierConfig.stripePriceId,
+        {
+          success_url: `${baseUrl}/payment/success?type=subscription&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/payment/cancel`,
+          trial_period_days: trialPeriodDays,
+          metadata: {
+            userId: user.uid,
+            tier,
+            billingCycle,
+            userEmail: user.email || "",
+          },
+        }
+      );
 
       if (result.url) {
         window.location.assign(result.url);
@@ -124,7 +130,9 @@ export function SubscriptionCheckout({
       setError(result.error?.message || t("checkout_error_failed_session"));
       setIsProcessing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("checkout_error_occurred"));
+      setError(
+        err instanceof Error ? err.message : t("checkout_error_occurred")
+      );
       setIsProcessing(false);
     }
   };
@@ -167,4 +175,3 @@ export function SubscriptionCheckout({
     </>
   );
 }
-
