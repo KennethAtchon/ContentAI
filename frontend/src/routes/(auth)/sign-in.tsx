@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 import { StudioShell } from "@/shared/components/layout/studio-shell";
 import { cn } from "@/shared/utils/helpers/utils";
+import { AuthRouteBoundary } from "@/shared/components/layout/auth-route-boundary";
 
 const SIGN_UP_PATH = "/sign-up";
 
@@ -108,9 +109,10 @@ function SignInPage() {
   }
 
   return (
-    <StudioShell variant="auth">
-      <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-[calc(100vh-48px)]">
-        <div className="w-full max-w-md space-y-6">
+    <AuthRouteBoundary>
+      <StudioShell variant="auth">
+        <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-[calc(100vh-48px)]">
+          <div className="w-full max-w-md space-y-6">
           {/* Sign In Card */}
           <div className="bg-overlay-xs border border-overlay-sm rounded-[14px] overflow-hidden">
             {/* Header */}
@@ -287,9 +289,10 @@ function SignInPage() {
               <span>{t("common_no_credit_card_required")}</span>
             </div>
           </div>
+          </div>
         </div>
-      </div>
-    </StudioShell>
+      </StudioShell>
+    </AuthRouteBoundary>
   );
 }
 

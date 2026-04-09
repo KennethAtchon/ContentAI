@@ -9,10 +9,10 @@ import { useEditorAutosave } from "./useEditorAutosave";
 import { useEditorKeyboard } from "./useEditorKeyboard";
 import { useEditorProjectPoll } from "./useEditorProjectPoll";
 import { useEditorLayoutMutations } from "./useEditorLayoutMutations";
-import { usePlayback } from "./usePlayback";
 import { useEditorAssetMap } from "./useEditorAssetMap";
 import { useEditorClipActions } from "./useEditorClipActions";
 import { useEditorTransport } from "./useEditorTransport";
+import { usePreviewPlaybackBridge } from "../runtime/usePreviewPlaybackBridge";
 
 export function useEditorLayoutRuntime(
   project: EditProject,
@@ -81,18 +81,14 @@ export function useEditorLayoutRuntime(
       flushSave,
     });
 
-  const onTick = useCallback(
-    (ms: number) => store.setCurrentTime(ms),
-    [store.setCurrentTime]
-  );
   const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
-  usePlayback({
+  const { previewCurrentTimeMs } = usePreviewPlaybackBridge({
     isPlaying: store.state.isPlaying,
     currentTimeMs: store.state.currentTimeMs,
     durationMs: store.state.durationMs,
     playbackRate: store.state.playbackRate,
-    onTick,
-    onEnd,
+    onPublishCurrentTime: store.setCurrentTime,
+    onPlaybackEnd: onEnd,
   });
 
   const clipActions = useEditorClipActions({
@@ -125,6 +121,7 @@ export function useEditorLayoutRuntime(
 
   return {
     state: store.state,
+    previewCurrentTimeMs,
     store,
     queryClient,
     showExport,

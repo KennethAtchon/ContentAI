@@ -1,7 +1,7 @@
 import type { Clip, EditProject, Track, Transition } from "../types/editor";
 import type { TabKey } from "./MediaPanel";
 import { MediaPanel } from "./MediaPanel";
-import { PreviewArea } from "./PreviewArea";
+import { PreviewStageRoot } from "../preview-root/PreviewStageRoot";
 import { Inspector } from "./Inspector";
 import { useEditorContext } from "../context/EditorContext";
 
@@ -9,6 +9,7 @@ interface EditorWorkspaceProps {
   project: EditProject;
   tracks: Track[];
   currentTimeMs: number;
+  previewCurrentTimeMs: number;
   isPlaying: boolean;
   playbackRate: number;
   durationMs: number;
@@ -30,6 +31,7 @@ export function EditorWorkspace({
   project,
   tracks,
   currentTimeMs,
+  previewCurrentTimeMs,
   isPlaying,
   playbackRate,
   durationMs,
@@ -59,9 +61,9 @@ export function EditorWorkspace({
         onClearPendingAdd={onClearPendingAdd}
       />
 
-      <PreviewArea
+      <PreviewStageRoot
         tracks={tracks}
-        currentTimeMs={currentTimeMs}
+        currentTimeMs={previewCurrentTimeMs}
         isPlaying={isPlaying}
         playbackRate={playbackRate}
         durationMs={durationMs}

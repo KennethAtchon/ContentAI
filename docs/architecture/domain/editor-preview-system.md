@@ -23,10 +23,10 @@ graph TB
     end
 
     subgraph "Backend APIs"
-        EditorAPI[/api/editor]
-        AssetsAPI[/api/assets]
-        MediaAPI[/api/media]
-        CaptionsAPI[/api/captions]
+        EditorAPI["/api/editor"]
+        AssetsAPI["/api/assets"]
+        MediaAPI["/api/media"]
+        CaptionsAPI["/api/captions"]
     end
 
     subgraph "Domain and Persistence"
