@@ -1,3 +1,8 @@
+import { scan } from "react-scan";
+if (import.meta.env.DEV) {
+  scan({ enabled: true });
+}
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";

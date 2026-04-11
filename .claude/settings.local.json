@@ -8,7 +8,10 @@
       "Bash(wc:*)",
       "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
       "Bash(grep -n \"ShotOrderPanel\\\\|import.*ShotOrderPanel\" /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/EditorLayout.tsx /c/Users/kenne/Documents/Programs/ContentAI/frontend/src/features/editor/components/*.tsx)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cp /Users/ken/.claude/plugins/cache/caveman/caveman/92f892f2b997/hooks/caveman-activate.js /Users/ken/.claude/hooks/caveman-activate.js)",
+      "Bash(cp /Users/ken/.claude/plugins/cache/caveman/caveman/92f892f2b997/hooks/caveman-mode-tracker.js /Users/ken/.claude/hooks/caveman-mode-tracker.js)",
+      "Read(//Users/ken/.claude/hooks/**)"
     ]
   }
 }

@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
+import million from "million/compiler";
 import path from "path";
 
 const usePolling = ["1", "true", "yes"].includes(
@@ -13,7 +15,13 @@ const devHost = process.env.VITE_DEV_HOST ?? "localhost";
 
 export default defineConfig({
   logLevel: "error",
-  plugins: [react(), TanStackRouterVite()],
+  plugins: [
+    million.vite({ auto: true }),
+    react(),
+    TanStackRouterVite(),
+    process.env.ANALYZE === "true" &&
+      visualizer({ open: true, gzipSize: true, brotliSize: true, filename: "dist/bundle-stats.html" }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
