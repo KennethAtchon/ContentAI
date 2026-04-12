@@ -25,7 +25,7 @@ uploadRouter.post(
       generatedContentId,
       assetType: parsedType,
       shotIndex,
-    } = parseUserAssetUploadForm(form);
+    } = await parseUserAssetUploadForm(form);
 
     const mime = fileEntry.type.toLowerCase();
     const isVideo = parsedType === "video_clip";

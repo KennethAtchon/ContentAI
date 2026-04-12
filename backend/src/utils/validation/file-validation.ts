@@ -41,6 +41,13 @@ const FILE_SIGNATURES: Record<string, Uint8Array[]> = {
   "image/webp": [
     new Uint8Array([0x52, 0x49, 0x46, 0x46]), // RIFF
   ],
+  "video/mp4": [new Uint8Array([0x66, 0x74, 0x79, 0x70])], // ftyp at offset 4
+  "video/quicktime": [new Uint8Array([0x66, 0x74, 0x79, 0x70])], // ftyp at offset 4
+  "audio/mpeg": [new Uint8Array([0x49, 0x44, 0x33])], // ID3
+  "audio/wav": [
+    new Uint8Array([0x52, 0x49, 0x46, 0x46]), // RIFF
+  ],
+  "audio/mp4": [new Uint8Array([0x66, 0x74, 0x79, 0x70])], // ftyp at offset 4
 };
 
 function checkFileSignature(buffer: ArrayBuffer, mimeType: string): boolean {
@@ -66,12 +73,63 @@ function checkFileSignature(buffer: ArrayBuffer, mimeType: string): boolean {
       return webpMatch;
     }
 
+    if (
+      mimeType === "video/mp4" ||
+      mimeType === "video/quicktime" ||
+      mimeType === "audio/mp4"
+    ) {
+      if (bufferLength < 12) return false;
+      return signature.every((byte, index) => fileBytes[4 + index] === byte);
+    }
+
+    if (mimeType === "audio/wav") {
+      if (bufferLength < 12) return false;
+      const riffMatch = signature.every((byte, index) => fileBytes[index] === byte);
+      if (!riffMatch) return false;
+      const waveSignature = new Uint8Array([0x57, 0x41, 0x56, 0x45]); // WAVE
+      return waveSignature.every((byte, index) => fileBytes[8 + index] === byte);
+    }
+
+    if (mimeType === "audio/mpeg") {
+      const hasId3 = signature.every((byte, index) => fileBytes[index] === byte);
+      if (hasId3) return true;
+      if (bufferLength < 2) return false;
+      return fileBytes[0] === 0xff && (fileBytes[1] & 0xe0) === 0xe0;
+    }
+
     // Check if buffer is large enough for signature
     if (bufferLength < signature.length) return false;
 
     // Check if all bytes match
     return signature.every((byte, index) => fileBytes[index] === byte);
   });
+}
+
+export async function validateMediaFileSignature(
+  file: File,
+  allowedMimeTypes: string[],
+): Promise<string[]> {
+  const result = await validateFile(file, {
+    maxSizeBytes: file.size || 1,
+    allowedTypes: allowedMimeTypes.map((mime) => {
+      if (mime === "video/mp4") return ".mp4";
+      if (mime === "video/quicktime") return ".mov";
+      if (mime === "audio/mpeg") return ".mp3";
+      if (mime === "audio/wav") return ".wav";
+      if (mime === "audio/mp4") return ".m4a";
+      if (mime === "image/jpeg") return ".jpg";
+      if (mime === "image/png") return ".png";
+      if (mime === "image/webp") return ".webp";
+      return "";
+    }).filter(Boolean),
+    allowedMimeTypes,
+  });
+
+  return result.errors.filter(
+    (error) =>
+      error.includes("does not match declared MIME type") ||
+      error.includes("Failed to read file content"),
+  );
 }
 
 function sanitizeFilename(filename: string): string {

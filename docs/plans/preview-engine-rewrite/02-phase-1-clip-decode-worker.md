@@ -2,6 +2,8 @@
 
 **Goal:** A Worker can receive an asset URL and a clip descriptor, demux the container with `mp4box.js`, and emit decoded `VideoFrame` objects at correct timestamps. GOP-aware seeking works (no corrupted frames). The worker is not yet wired to visible preview output.
 
+**Architecture note:** Phase 1 is intentionally video-only. Even when a video asset contains muxed audio, that audio will be fetched and scheduled later by `AudioMixer` in Phase 3. This means the same asset may be fetched once by the decode worker for video and again by `AudioMixer` for audio. We accept that duplication so all preview audio behavior lives in one subsystem.
+
 **Done criteria:**
 - `ClipDecodeWorker.ts` handles `LOAD`, `SEEK`, `PLAY`, `PAUSE`, `DESTROY` messages
 - `DecoderPool.ts` creates/destroys workers as clips enter and leave the active window
@@ -30,7 +32,7 @@ Create `frontend/src/features/editor/engine/ClipDecodeWorker.ts`:
 /**
  * ClipDecodeWorker — runs in a Worker thread.
  *
- * Owns a VideoDecoder (and AudioDecoder where available) for exactly one clip.
+ * Owns a VideoDecoder for exactly one clip.
  * Demuxes the asset with mp4box.js, maintains a keyframe index for seeking,
  * and posts decoded frames back to the main thread.
  *
@@ -44,7 +46,6 @@ Create `frontend/src/features/editor/engine/ClipDecodeWorker.ts`:
  * Message protocol (worker → main):
  *   { type: 'READY' }
  *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
- *   { type: 'AUDIO_CHUNK', data: AudioData, clipId: string }   (Chrome/Firefox only)
  *   { type: 'SEEK_DONE', clipId: string }
  *   { type: 'ERROR', message: string, clipId: string }
  */
@@ -74,7 +75,6 @@ interface ClipMeta {
 
 let clipMeta: ClipMeta | null = null;
 let videoDecoder: VideoDecoder | null = null;
-let audioDecoder: ReturnType<typeof maybeCreateAudioDecoder> | null = null;
 let keyframeIndex: KeyframeEntry[] = [];
 let allSamples: MP4Box.MP4Sample[] = [];
 let videoTrackId = -1;
@@ -122,39 +122,6 @@ function getVideoDescription(track: MP4Box.MP4VideoTrack): Uint8Array | undefine
   return sample?.description ? new Uint8Array(sample.description as ArrayBuffer) : undefined;
 }
 
-// ─── AudioDecoder helpers ──────────────────────────────────────────────────────
-
-function maybeCreateAudioDecoder(
-  audioTrack: MP4Box.MP4AudioTrack
-): AudioDecoder | null {
-  if (typeof AudioDecoder === "undefined") return null; // Safari
-
-  const decoder = new AudioDecoder({
-    output(data) {
-      if (!clipMeta) { data.close(); return; }
-      self.postMessage(
-        { type: "AUDIO_CHUNK", data, clipId: clipMeta.clipId },
-        [data as unknown as Transferable]
-      );
-    },
-    error(e) {
-      // Non-fatal — audio falls back to HTMLAudioElement on the main thread.
-      console.warn("[ClipDecodeWorker] AudioDecoder error:", e);
-    },
-  });
-
-  try {
-    decoder.configure({
-      codec: audioTrack.codec,
-      sampleRate: audioTrack.audio.sample_rate,
-      numberOfChannels: audioTrack.audio.channel_count,
-    });
-    return decoder;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Demux + keyframe index ────────────────────────────────────────────────────
 
 async function loadAsset(url: string): Promise<{
@@ -184,11 +151,9 @@ async function loadAsset(url: string): Promise<{
       videoTrackId = videoTrack.id;
       if (audioTrack) audioTrackId = audioTrack.id;
 
-      // Start extracting samples for both tracks.
+      // Start extracting video samples only. The audio track is discovered here,
+      // but audio playback is intentionally owned by AudioMixer in Phase 3.
       mp4boxFile.setExtractionOptions(videoTrackId, null, { nbSamples: Infinity });
-      if (audioTrackId !== -1) {
-        mp4boxFile.setExtractionOptions(audioTrackId, null, { nbSamples: Infinity });
-      }
       mp4boxFile.start();
     };
 
@@ -344,11 +309,8 @@ self.onmessage = async (event: MessageEvent) => {
       playheadSampleIndex = 0;
 
       try {
-        const { videoTrack, audioTrack } = await loadAsset(msg.assetUrl);
+        const { videoTrack } = await loadAsset(msg.assetUrl);
         videoDecoder = createVideoDecoder(videoTrack);
-        if (audioTrack) {
-          audioDecoder = maybeCreateAudioDecoder(audioTrack);
-        }
         self.postMessage({ type: "READY", clipId: msg.clipId });
       } catch (e) {
         self.postMessage({ type: "ERROR", message: String(e), clipId: msg.clipId });
@@ -377,9 +339,7 @@ self.onmessage = async (event: MessageEvent) => {
     case "DESTROY": {
       isPlaying = false;
       videoDecoder?.reset();
-      audioDecoder?.reset();
       videoDecoder = null;
-      audioDecoder = null;
       allSamples = [];
       keyframeIndex = [];
       self.close();
@@ -397,13 +357,13 @@ Create `frontend/src/features/editor/engine/DecoderPool.ts`:
 
 ```ts
 /**
- * DecoderPool — manages one ClipDecodeWorker per active clip.
+ * DecoderPool — manages one video ClipDecodeWorker per active clip.
  *
  * Active clips are those within DECODE_WINDOW_MS of the current playhead position.
  * Workers outside that window are destroyed to release memory and decoder resources.
  *
  * Usage:
- *   const pool = new DecoderPool(onFrame, onAudioChunk);
+ *   const pool = new DecoderPool(onFrame);
  *   pool.update(timeline, assetUrlMap, playheadMs);   // call on every timeline change or seek
  *   pool.seek(clipId, targetSourceMs);
  *   pool.play();
@@ -424,13 +384,7 @@ export interface DecodedFrame {
   clipId: string;
 }
 
-export interface DecodedAudioChunk {
-  data: AudioData;
-  clipId: string;
-}
-
 type FrameCallback = (decoded: DecodedFrame) => void;
-type AudioChunkCallback = (chunk: DecodedAudioChunk) => void;
 
 interface WorkerEntry {
   worker: Worker;
@@ -443,11 +397,9 @@ interface WorkerEntry {
 export class DecoderPool {
   private workers = new Map<string, WorkerEntry>();
   private onFrame: FrameCallback;
-  private onAudioChunk: AudioChunkCallback;
 
-  constructor(onFrame: FrameCallback, onAudioChunk: AudioChunkCallback) {
+  constructor(onFrame: FrameCallback) {
     this.onFrame = onFrame;
-    this.onAudioChunk = onAudioChunk;
   }
 
   /**
@@ -558,9 +510,6 @@ export class DecoderPool {
         case "FRAME":
           this.onFrame({ frame: msg.frame, timestampUs: msg.timestampUs, clipId: msg.clipId });
           break;
-        case "AUDIO_CHUNK":
-          this.onAudioChunk({ data: msg.data, clipId: msg.clipId });
-          break;
         case "SEEK_DONE":
           // No-op at pool level; compositor handles this.
           break;
@@ -622,7 +571,8 @@ console.log("[DecoderPool] constructed");
 
 4. Confirm the log appears when the editor loads.
 5. Remove the test shim.
-6. Run `bun run type-check` — zero errors.
+6. Confirm the worker emits `FRAME` / `SEEK_DONE` messages only; audio remains out of scope for Phase 1.
+7. Run `bun run type-check` — zero errors.
 
 ---
 
@@ -630,7 +580,7 @@ console.log("[DecoderPool] constructed");
 
 - `getVideoDescription()` implementation above is approximate. `mp4box.js` stores the codec init data differently per codec variant — test with a real H.264 asset and verify the description bytes are non-null. If `VideoDecoder.configure()` throws, the `description` field is the likely culprit.
 - Workers fetch asset URLs cross-origin. If R2 signed URLs do not include `Access-Control-Allow-Origin: *`, the fetch will fail. Test this before Phase 2. If blocked, route through `/api/media` (same-origin proxy).
-- Safari: `typeof AudioDecoder === 'undefined'` is true. The worker must not call `AudioDecoder` on Safari at all — the `maybeCreateAudioDecoder` function handles this, but confirm `null` is returned and no error is thrown.
+- Audio remains intentionally out of scope here. In Phase 3, `AudioMixer` will fetch/decode asset audio separately so it owns the clock and fallback behavior.
 
 ---
 

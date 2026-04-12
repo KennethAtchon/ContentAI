@@ -108,9 +108,9 @@ start_frontend_dev() {
     )
 }
 
-# Set MOCK_EXTERNALS=1 before calling. Uses docker-compose.dev-mock.yml when enabled.
+# Uses docker-compose.dev-mock.yml by default. Set MOCK_EXTERNALS=0 to opt out.
 docker_with_mock() {
-    if [ "${MOCK_EXTERNALS:-0}" = 1 ]; then
+    if [ "${MOCK_EXTERNALS:-1}" = 1 ]; then
         docker compose -f docker-compose.yml -f docker-compose.dev-mock.yml "$@"
     else
         docker compose "$@"
@@ -121,21 +121,21 @@ docker_with_mock() {
 case "${1:-help}" in
     "start")
         check_docker
-        MOCK_EXTERNALS=0
+        MOCK_EXTERNALS=1
         START_INFRA=0
         for arg in "${@:2}"; do
             case "$arg" in
                 --infra|infra) START_INFRA=1 ;;
-                --mock-externals) MOCK_EXTERNALS=1 ;;
+                --no-mock-externals) MOCK_EXTERNALS=0 ;;
                 *)
-                    log_error "Unknown start option: $arg (use --infra, --mock-externals)"
+                    log_error "Unknown start option: $arg (use --infra, --no-mock-externals)"
                     exit 1
                     ;;
             esac
         done
         if [ "$START_INFRA" = 1 ]; then
-            if [ "$MOCK_EXTERNALS" = 1 ]; then
-                log_warn "--mock-externals applies to the backend container; infra-only start has no backend. Ignoring --mock-externals."
+            if [ "$MOCK_EXTERNALS" = 0 ]; then
+                log_warn "--no-mock-externals applies to the backend container; infra-only start has no backend. Ignoring --no-mock-externals."
             fi
             log_info "Starting infrastructure (Postgres, Redis) only..."
             start_infra_only
@@ -144,6 +144,8 @@ case "${1:-help}" in
             if check_env; then
                 if [ "$MOCK_EXTERNALS" = 1 ]; then
                     log_info "Backend will use DEV_MOCK_EXTERNAL_INTEGRATIONS=true (see docker-compose.dev-mock.yml)."
+                else
+                    log_info "Backend will use real external integrations."
                 fi
                 docker_with_mock up -d --build
                 log_info "Services started. Frontend: http://localhost:3000, Backend: http://localhost:3001"
@@ -158,7 +160,6 @@ case "${1:-help}" in
         MOCK_EXTERNALS=1
         for arg in "${@:2}"; do
             case "$arg" in
-                --mock-externals) MOCK_EXTERNALS=1 ;;
                 --no-mock-externals) MOCK_EXTERNALS=0 ;;
                 *)
                     log_error "Unknown frontend-dev option: $arg (use --no-mock-externals)"
@@ -282,10 +283,10 @@ case "${1:-help}" in
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
-        echo "  start          - Start all development services"
+        echo "  start          - Start all development services with mocked externals"
         echo "  start --infra  - Start Postgres and Redis only (same as: infra)"
-        echo "  start --mock-externals - Start stack with backend DEV_MOCK_EXTERNAL_INTEGRATIONS=true"
-        echo "    (bundled MP4/MP3 fixtures + mock scrape; see docker-compose.dev-mock.yml)"
+        echo "  start --no-mock-externals - Start stack using real backend externals"
+        echo "    (default uses bundled MP4/MP3 fixtures + mock scrape; see docker-compose.dev-mock.yml)"
         echo "  frontend-dev   - Start Postgres, Redis, backend in Docker with mocked externals; run frontend locally"
         echo "  frontend-dev --no-mock-externals - Same as above, but use real backend externals"
         echo "  infra          - Start Postgres and Redis only"
@@ -310,8 +311,8 @@ case "${1:-help}" in
         echo ""
         echo "Examples:"
         echo "  $0 prepare                  # First-time / fresh pull: env + image build"
-        echo "  $0 start                    # Start development environment"
-        echo "  $0 start --mock-externals   # Docker dev with mocked video/TTS/scrape APIs"
+        echo "  $0 start                    # Start development environment with mocked video/TTS/scrape APIs"
+        echo "  $0 start --no-mock-externals # Docker dev with real external integrations"
         echo "  $0 infra                    # DB + Redis only (run app with bun dev)"
         echo "  $0 migrate                  # Run database migrations"
         echo "  $0 build                    # Build the local development images"

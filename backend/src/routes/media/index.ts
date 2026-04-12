@@ -50,7 +50,7 @@ app.post(
       name,
       mediaType,
       mime,
-    } = parseMediaLibraryUploadForm(form);
+    } = await parseMediaLibraryUploadForm(form);
 
     const ext = fileEntry.name.includes(".")
       ? fileEntry.name.split(".").pop()!.toLowerCase()

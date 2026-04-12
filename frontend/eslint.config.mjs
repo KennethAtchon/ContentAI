@@ -148,6 +148,31 @@ export default [
       "no-restricted-globals": "off",
     },
   },
+  // Worker files: browser WebCodecs + Worker globals, raw fetch (asset URLs), console allowed
+  {
+    files: ["src/features/editor/engine/**/*.ts"],
+    languageOptions: {
+      globals: {
+        self: "readonly",
+        Worker: "readonly",
+        MessageEvent: "readonly",
+        VideoDecoder: "readonly",
+        VideoDecoderConfig: "readonly",
+        VideoFrame: "readonly",
+        AudioDecoder: "readonly",
+        AudioData: "readonly",
+        EncodedVideoChunk: "readonly",
+        EncodedAudioChunk: "readonly",
+        Transferable: "readonly",
+        StructuredSerializeOptions: "readonly",
+        EventTarget: "readonly",
+      },
+    },
+    rules: {
+      "no-console": "off",
+      "no-restricted-globals": "off",
+    },
+  },
   {
     files: ["*.config.ts", "*.config.js", "*.config.mjs"],
     languageOptions: {

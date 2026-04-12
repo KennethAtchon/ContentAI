@@ -2,6 +2,8 @@
 
 **Goal:** `AudioContext.currentTime` drives the preview clock. Audio plays from `AudioBufferSourceNode` objects (Chrome/Firefox) or `HTMLAudioElement` (Safari). The rAF loop reads the audio clock and ticks the compositor — not React state. React sees a time update at ~4 Hz, not 60 Hz. Full play, pause, and seek work.
 
+**Architecture note:** `AudioMixer` owns all preview audio, including the audio track embedded in video assets. `DecoderPool` and `ClipDecodeWorker` remain video-only. That means a video asset may be fetched once by a worker for video decode and again by `AudioMixer` for audio decode. We accept the duplicate fetch in exchange for one subsystem owning the master audio clock, gain/mute rules, Safari fallback, and seek behavior.
+
 **Done criteria:**
 - `AudioMixer.ts` exists with working play/pause/seek/mute
 - `PreviewEngine.ts` wires `AudioMixer`, `DecoderPool`, and compositor together
@@ -24,7 +26,7 @@ Create `frontend/src/features/editor/engine/AudioMixer.ts`:
  * Architecture:
  *   AudioContext (single, created once per engine lifetime)
  *     └─ masterGainNode → destination
- *         └─ trackGainNode (per track: audio, music, video-with-audio)
+ *         └─ trackGainNode (per track: audio, music, video)
  *             └─ AudioBufferSourceNode (per clip, Chrome/Firefox)
  *                 OR HTMLAudioElement via createMediaElementSource (Safari)
  *
@@ -53,6 +55,9 @@ export interface AudioClipDescriptor {
   trackId: string;
   trackMuted: boolean;
 }
+
+// This descriptor is used for standalone audio/music clips and for video clips
+// with muxed audio. AudioMixer is the only subsystem that fetches/decodes audio.
 
 interface ScheduledSource {
   clipId: string;
@@ -346,7 +351,6 @@ export class PreviewEngine {
         this.metrics.decodedFrameCount++;
         callbacks.onFrame(frame, timestampUs, clipId);
       },
-      () => {} // audio chunks handled by AudioMixer, not DecoderPool
     );
   }
 

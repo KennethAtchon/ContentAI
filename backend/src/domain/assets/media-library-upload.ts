@@ -1,4 +1,5 @@
 import { Errors } from "../../utils/errors/app-error";
+import { validateMediaFileSignature } from "../../utils/validation/file-validation";
 
 export const MEDIA_LIBRARY_MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 export const MEDIA_LIBRARY_MAX_AUDIO_BYTES = 50 * 1024 * 1024;
@@ -34,9 +35,9 @@ export type ParsedMediaLibraryUpload = {
 };
 
 /** Parse multipart for POST /api/media/upload; throws `AppError` with `INVALID_INPUT`. */
-export function parseMediaLibraryUploadForm(
+export async function parseMediaLibraryUploadForm(
   form: globalThis.FormData,
-): ParsedMediaLibraryUpload {
+): Promise<ParsedMediaLibraryUpload> {
   const fileEntry = form.get("file");
   if (!(fileEntry instanceof File)) {
     throw Errors.badRequest("file is required", "INVALID_INPUT");
@@ -55,6 +56,20 @@ export function parseMediaLibraryUploadForm(
   if (fileEntry.size > maxBytes) {
     const limitMb = maxBytes / (1024 * 1024);
     throw Errors.badRequest(`File exceeds ${limitMb}MB limit`, "INVALID_INPUT");
+  }
+
+  const allowedMimeTypes =
+    mediaType === "video"
+      ? ["video/mp4", "video/quicktime"]
+      : mediaType === "audio"
+        ? ["audio/mpeg", "audio/wav", "audio/mp4"]
+        : ["image/jpeg", "image/png", "image/webp"];
+  const signatureErrors = await validateMediaFileSignature(
+    fileEntry,
+    allowedMimeTypes,
+  );
+  if (signatureErrors.length > 0) {
+    throw Errors.badRequest(signatureErrors[0] ?? "Uploaded file content is invalid", "INVALID_INPUT");
   }
 
   const nameRaw = form.get("name");

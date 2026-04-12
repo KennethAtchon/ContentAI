@@ -544,7 +544,6 @@ useEffect(() => {
     ({ frame, timestampUs, clipId }) => {
       previewRef.current?.receiveFrame(frame, timestampUs, clipId);
     },
-    () => {} // audio chunks: no-op for now
   );
   // Manually trigger a TICK after 1 second to verify a frame appears.
   setTimeout(() => {

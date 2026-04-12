@@ -1,5 +1,6 @@
 import * as r2 from "./r2";
 import { APP_ENV, R2_PUBLIC_URL } from "@/utils/config/envUtil";
+import { fetchSafeRemoteBuffer } from "@/utils/security/remote-url-guard";
 
 const TESTING_PREFIX = "testing";
 
@@ -32,19 +33,9 @@ class R2Storage implements StorageService {
     key: string,
     fallbackContentType: string,
   ): Promise<string> {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "ContentAI-Scraper/1.0" },
-    });
+    const { buffer, contentType } = await fetchSafeRemoteBuffer(url);
 
-    if (!res.ok) {
-      throw new Error(`Remote fetch failed (${res.status}): ${url}`);
-    }
-
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const contentType =
-      res.headers.get("content-type")?.split(";")[0] ?? fallbackContentType;
-
-    return r2.uploadFile(buffer, key, contentType);
+    return r2.uploadFile(buffer, key, contentType ?? fallbackContentType);
   }
 
   async deleteFile(url: string): Promise<void> {

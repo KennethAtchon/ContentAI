@@ -23,10 +23,10 @@ All paths relative to `frontend/src/features/editor/`.
 ```
 frontend/src/features/editor/
   engine/
-    ClipDecodeWorker.ts      ← Phase 1: VideoDecoder + AudioDecoder in a Worker
-    DecoderPool.ts           ← Phase 1: manages one Worker per active clip
+    ClipDecodeWorker.ts      ← Phase 1: VideoDecoder in a Worker
+    DecoderPool.ts           ← Phase 1: manages one video Worker per active clip
     CompositorWorker.ts      ← Phase 2: OffscreenCanvas, composites frames
-    AudioMixer.ts            ← Phase 3: AudioContext master clock + audio scheduling
+    AudioMixer.ts            ← Phase 3: AudioContext master clock + all audio scheduling
     PreviewEngine.ts         ← Phase 3: top-level class wiring all subsystems
   hooks/
     usePreviewEngine.ts      ← Phase 3: React bridge to PreviewEngine
@@ -60,5 +60,7 @@ frontend/src/features/editor/
 | Demuxer | `mp4box.js` | All current assets are MP4/MOV; battle-tested |
 | Audio fallback for Safari | `HTMLAudioElement` + `createMediaElementSource()` | `AudioDecoder` not available in Safari |
 | Decoder workers | One Worker per active clip (DecoderPool) | Simpler ownership; revisit if dense timelines show resource pressure |
+| Audio ownership | `AudioMixer` owns all preview audio, including muxed audio from video assets | One place owns the clock, gain, mute, and fallback logic |
+| Duplicate asset fetches | Accepted | Video workers may fetch an asset for frames while `AudioMixer` fetches the same asset for audio; simpler than splitting audio ownership across systems |
 | React update Hz during playback | ~4 Hz (every 250ms) | Enough for playhead + timecode; never 60Hz React re-renders |
 | Caption rendering | Serialize layout output to `CaptionFrame` struct, pass in TICK message | Layout engine uses `ctx.measureText` which requires a canvas context — adapt in Phase 4 |

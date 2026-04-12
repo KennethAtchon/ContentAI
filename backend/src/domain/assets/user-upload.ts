@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Errors } from "../../utils/errors/app-error";
+import { validateMediaFileSignature } from "../../utils/validation/file-validation";
 
 export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -27,9 +28,9 @@ export type ParsedUserAssetUpload = {
 };
 
 /** Parse multipart fields for POST /api/assets/upload; throws `Errors.badRequest`. */
-export function parseUserAssetUploadForm(
+export async function parseUserAssetUploadForm(
   form: globalThis.FormData,
-): ParsedUserAssetUpload {
+): Promise<ParsedUserAssetUpload> {
   const fileEntry = form.get("file");
   const generatedContentIdRaw = String(form.get("generatedContentId") ?? "");
   const assetTypeRaw = String(form.get("assetType") ?? "");
@@ -61,6 +62,14 @@ export function parseUserAssetUploadForm(
     (!isVideo && isAllowedImageMime(mime));
   if (!allowed) {
     throw Errors.badRequest("Unsupported file type");
+  }
+
+  const signatureErrors = await validateMediaFileSignature(fileEntry, [
+    ...(isVideo ? ["video/mp4", "video/quicktime"] : []),
+    ...(!isVideo ? ["image/jpeg", "image/png", "image/webp"] : []),
+  ]);
+  if (signatureErrors.length > 0) {
+    throw Errors.badRequest(signatureErrors[0] ?? "Uploaded file content is invalid");
   }
 
   if (isVideo && fileEntry.size > MAX_VIDEO_BYTES) {
