@@ -31,6 +31,14 @@ check_docker() {
     fi
 }
 
+# Check if Bun is available for local frontend development
+check_bun() {
+    if ! command -v bun > /dev/null 2>&1; then
+        log_error "Bun is not installed or not on PATH. Install Bun to use frontend-dev."
+        exit 1
+    fi
+}
+
 # Check if .env files exist in respective directories
 check_env() {
     local missing_env=false
@@ -66,6 +74,38 @@ check_env() {
 start_infra_only() {
     docker compose up -d postgres redis
     log_info "Postgres: localhost:5432, Redis: localhost:6379"
+}
+
+# Backend in Docker + frontend on host via Vite/Bun dev server
+start_frontend_dev() {
+    local mock_externals="${1:-1}"
+
+    check_bun
+
+    if [ "$mock_externals" = 1 ]; then
+        log_info "Starting Postgres, Redis, and backend in Docker with mocked externals..."
+    else
+        log_info "Starting Postgres, Redis, and backend in Docker..."
+    fi
+
+    docker_with_mock up -d --build postgres redis backend
+
+    log_info "Docker-side networking:"
+    log_info "  Backend container -> Postgres: postgres:5432"
+    log_info "  Backend container -> Redis: redis:6379"
+    log_info "Host-side networking for local frontend dev:"
+    log_info "  Browser/Vite -> Backend: http://localhost:3001"
+    log_info "  Browser/Vite -> Frontend dev server: http://localhost:3000"
+    log_info "Starting frontend locally with Bun/Vite..."
+    log_warn "Docker services will keep running after you stop the frontend dev server. Use: ./docker-scripts.sh stop"
+
+    (
+        cd frontend
+        VITE_API_URL=http://localhost:3000 \
+        VITE_DEV_PROXY_TARGET=http://localhost:3001 \
+        VITE_DEV_HOST=localhost \
+        bun run dev
+    )
 }
 
 # Set MOCK_EXTERNALS=1 before calling. Uses docker-compose.dev-mock.yml when enabled.
@@ -110,6 +150,26 @@ case "${1:-help}" in
             else
                 log_error "Please configure .env file first, then run: ./docker-scripts.sh start"
             fi
+        fi
+        ;;
+
+    "frontend-dev")
+        check_docker
+        MOCK_EXTERNALS=1
+        for arg in "${@:2}"; do
+            case "$arg" in
+                --mock-externals) MOCK_EXTERNALS=1 ;;
+                --no-mock-externals) MOCK_EXTERNALS=0 ;;
+                *)
+                    log_error "Unknown frontend-dev option: $arg (use --no-mock-externals)"
+                    exit 1
+                    ;;
+            esac
+        done
+        if check_env; then
+            start_frontend_dev "$MOCK_EXTERNALS"
+        else
+            log_error "Please configure .env file first, then run: ./docker-scripts.sh frontend-dev"
         fi
         ;;
 
@@ -226,6 +286,8 @@ case "${1:-help}" in
         echo "  start --infra  - Start Postgres and Redis only (same as: infra)"
         echo "  start --mock-externals - Start stack with backend DEV_MOCK_EXTERNAL_INTEGRATIONS=true"
         echo "    (bundled MP4/MP3 fixtures + mock scrape; see docker-compose.dev-mock.yml)"
+        echo "  frontend-dev   - Start Postgres, Redis, backend in Docker with mocked externals; run frontend locally"
+        echo "  frontend-dev --no-mock-externals - Same as above, but use real backend externals"
         echo "  infra          - Start Postgres and Redis only"
         echo "  stop           - Stop all services"
         echo "  restart        - Restart all services"

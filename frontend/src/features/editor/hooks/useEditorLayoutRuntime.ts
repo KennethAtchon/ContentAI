@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -12,7 +12,6 @@ import { useEditorLayoutMutations } from "./useEditorLayoutMutations";
 import { useEditorAssetMap } from "./useEditorAssetMap";
 import { useEditorClipActions } from "./useEditorClipActions";
 import { useEditorTransport } from "./useEditorTransport";
-import { usePreviewPlaybackBridge } from "../runtime/usePreviewPlaybackBridge";
 
 export function useEditorLayoutRuntime(
   project: EditProject,
@@ -81,16 +80,6 @@ export function useEditorLayoutRuntime(
       flushSave,
     });
 
-  const onEnd = useCallback(() => store.setPlaying(false), [store.setPlaying]);
-  const { previewCurrentTimeMs } = usePreviewPlaybackBridge({
-    isPlaying: store.state.isPlaying,
-    currentTimeMs: store.state.currentTimeMs,
-    durationMs: store.state.durationMs,
-    playbackRate: store.state.playbackRate,
-    onPublishCurrentTime: store.setCurrentTime,
-    onPlaybackEnd: onEnd,
-  });
-
   const clipActions = useEditorClipActions({
     store,
     t,
@@ -121,7 +110,7 @@ export function useEditorLayoutRuntime(
 
   return {
     state: store.state,
-    previewCurrentTimeMs,
+    previewCurrentTimeMs: store.state.currentTimeMs,
     store,
     queryClient,
     showExport,

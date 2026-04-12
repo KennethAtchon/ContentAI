@@ -1,7 +1,7 @@
 import type { Clip, EditProject, Track, Transition } from "../types/editor";
 import type { TabKey } from "./MediaPanel";
 import { MediaPanel } from "./MediaPanel";
-import { PreviewStageRoot } from "../preview-root/PreviewStageRoot";
+import { PreviewCanvas } from "./PreviewCanvas";
 import { Inspector } from "./Inspector";
 import { useEditorContext } from "../context/EditorContext";
 
@@ -29,15 +29,9 @@ interface EditorWorkspaceProps {
 
 export function EditorWorkspace({
   project,
-  tracks,
   currentTimeMs,
-  previewCurrentTimeMs,
-  isPlaying,
-  playbackRate,
-  durationMs,
   resolution,
   selectedTransition,
-  effectPreview,
   mediaActiveTab,
   pendingAdd,
   isReadOnly,
@@ -61,15 +55,7 @@ export function EditorWorkspace({
         onClearPendingAdd={onClearPendingAdd}
       />
 
-      <PreviewStageRoot
-        tracks={tracks}
-        currentTimeMs={previewCurrentTimeMs}
-        isPlaying={isPlaying}
-        playbackRate={playbackRate}
-        durationMs={durationMs}
-        resolution={resolution}
-        effectPreviewOverride={effectPreview}
-      />
+      <PreviewCanvas resolution={resolution} />
 
       <Inspector
         onEffectPreview={(patch) =>
