@@ -99,7 +99,8 @@ export function useEditorAutosave(options: {
     mutateAsync: flushSaveMutation,
     isPending: isSavingPatch,
   } = useMutation({
-    mutationFn: ({ patch }: SaveRequest) => patchEditorProject(projectId, patch),
+    mutationFn: ({ patch }: SaveRequest) =>
+      patchEditorProject(projectId, patch),
     onSuccess: (_data, request) => {
       // Align UI with server; refresh editor list caches so other surfaces see the new version.
       setLastSavedAt(new Date());
@@ -160,8 +161,7 @@ export function useEditorAutosave(options: {
     (patch: PatchProjectParams, sentFingerprint?: string) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(
-        () =>
-          queueSaveWithFingerprint(patch, sentFingerprint ?? null),
+        () => queueSaveWithFingerprint(patch, sentFingerprint ?? null),
         EDITOR_AUTOSAVE_DEBOUNCE_MS
       );
     },
@@ -204,23 +204,18 @@ export function useEditorAutosave(options: {
     if (nextFp === baselinePersistFingerprintRef.current) return;
     if (!isReadOnly) {
       setIsDirty(true);
-      scheduleSave({
-        tracks: stripLocallyModifiedFromTracks(snap.tracks),
-        durationMs: snap.durationMs,
-        title: snap.title,
-        resolution: snap.resolution,
-        fps: snap.fps,
-      }, nextFp);
+      scheduleSave(
+        {
+          tracks: stripLocallyModifiedFromTracks(snap.tracks),
+          durationMs: snap.durationMs,
+          title: snap.title,
+          resolution: snap.resolution,
+          fps: snap.fps,
+        },
+        nextFp
+      );
     }
-  }, [
-    tracks,
-    durationMs,
-    title,
-    resolution,
-    fps,
-    isReadOnly,
-    scheduleSave,
-  ]);
+  }, [tracks, durationMs, title, resolution, fps, isReadOnly, scheduleSave]);
 
   // While dirty, periodically flush a full snapshot so long-lived sessions don’t stall on debounce-only saves.
   useEffect(() => {

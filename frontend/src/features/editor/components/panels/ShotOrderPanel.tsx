@@ -17,8 +17,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
-import type { CaptionClip, Clip, Track } from "../types/editor";
-import { isMediaClip } from "../utils/clip-types";
+import type { CaptionClip, Clip, Track } from "../../types/editor";
+import { isMediaClip } from "../../utils/clip-types";
 
 interface ShotOrderPanelProps {
   videoTrack: Track;

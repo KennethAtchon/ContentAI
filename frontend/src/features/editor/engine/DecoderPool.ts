@@ -77,9 +77,17 @@ export class DecoderPool {
    * `(re)createWorker` if missing or URL changed; `destroyWorker` for clips
    * outside the window or removed from the computed active set.
    */
-  update(tracks: Track[], assetUrlMap: Map<string, string>, playheadMs: number): void {
+  update(
+    tracks: Track[],
+    assetUrlMap: Map<string, string>,
+    playheadMs: number
+  ): void {
     const activeClipIds = new Set<string>();
-    const candidates: Array<{ clip: VideoClip; assetUrl: string; priority: number }> = [];
+    const candidates: Array<{
+      clip: VideoClip;
+      assetUrl: string;
+      priority: number;
+    }> = [];
     const now = Date.now();
 
     for (const track of tracks) {
@@ -92,7 +100,9 @@ export class DecoderPool {
         if (!inWindow) continue;
 
         activeClipIds.add(clip.id);
-        const assetUrl = clip.assetId ? assetUrlMap.get(clip.assetId) : undefined;
+        const assetUrl = clip.assetId
+          ? assetUrlMap.get(clip.assetId)
+          : undefined;
         if (!assetUrl) continue;
         const blockedUntil = this.assetFailuresUntil.get(assetUrl);
         if (blockedUntil && blockedUntil > now) continue;
@@ -127,7 +137,8 @@ export class DecoderPool {
 
       // New clip or asset URL changed — (re)create worker.
       this.destroyWorker(clip.id);
-      const sourceTimeMs = getClipSourceTimeSecondsAtTimelineTime(clip, playheadMs) * 1000;
+      const sourceTimeMs =
+        getClipSourceTimeSecondsAtTimelineTime(clip, playheadMs) * 1000;
       this.createWorker(clip, assetUrl, sourceTimeMs);
     }
 
@@ -171,7 +182,10 @@ export class DecoderPool {
       if (track.type !== "video") continue;
       for (const clip of track.clips.filter(isVideoClip)) {
         if (!this.workers.has(clip.id)) continue;
-        const sourceTimeSec = getClipSourceTimeSecondsAtTimelineTime(clip, playheadMs);
+        const sourceTimeSec = getClipSourceTimeSecondsAtTimelineTime(
+          clip,
+          playheadMs
+        );
         this.seek(clip.id, sourceTimeSec * 1000);
       }
     }
@@ -222,10 +236,14 @@ export class DecoderPool {
    * flip `ready`, drain `pendingSeek`, and forward `FRAME` /
    * errors, then posts `LOAD` for the clip asset. Entry is stored before load completes.
    */
-  private createWorker(clip: VideoClip, assetUrl: string, initialSourceTimeMs: number): void {
+  private createWorker(
+    clip: VideoClip,
+    assetUrl: string,
+    initialSourceTimeMs: number
+  ): void {
     const worker = new Worker(
       new URL("./ClipDecodeWorker.ts", import.meta.url),
-      { type: "module" },
+      { type: "module" }
     );
 
     const entry: WorkerEntry = {
@@ -262,7 +280,11 @@ export class DecoderPool {
         case "READY":
           entry.ready = true;
           if (entry.pendingSeek !== null) {
-            this.dispatchSeek(entry, entry.pendingSeek.targetMs, entry.pendingSeek.seekToken);
+            this.dispatchSeek(
+              entry,
+              entry.pendingSeek.targetMs,
+              entry.pendingSeek.seekToken
+            );
             break;
           }
           if (this.isPlaying) worker.postMessage({ type: "PLAY" });
@@ -275,18 +297,29 @@ export class DecoderPool {
             msg.frame.close();
             break;
           }
-          if ((entry.seeking || entry.pendingSeek !== null) && (msg.seekToken ?? null) === null) {
+          if (
+            (entry.seeking || entry.pendingSeek !== null) &&
+            (msg.seekToken ?? null) === null
+          ) {
             msg.frame.close();
             break;
           }
-          this.onFrame({ frame: msg.frame, timestampUs: msg.timestampUs, clipId: msg.clipId });
+          this.onFrame({
+            frame: msg.frame,
+            timestampUs: msg.timestampUs,
+            clipId: msg.clipId,
+          });
           break;
         case "SEEK_DONE":
           if ((msg.seekToken ?? null) !== entry.activeSeekToken) {
             break;
           }
           if (entry.pendingSeek !== null) {
-            this.dispatchSeek(entry, entry.pendingSeek.targetMs, entry.pendingSeek.seekToken);
+            this.dispatchSeek(
+              entry,
+              entry.pendingSeek.targetMs,
+              entry.pendingSeek.seekToken
+            );
             break;
           }
           entry.seeking = false;
@@ -301,18 +334,30 @@ export class DecoderPool {
             break;
           }
           if (entry.destroyed) break;
-          this.handleWorkerFailure(entry, `Seek failed for clip ${msg.clipId}:`, msg.message);
+          this.handleWorkerFailure(
+            entry,
+            `Seek failed for clip ${msg.clipId}:`,
+            msg.message
+          );
           break;
         case "ERROR":
           if (entry.destroyed) break;
-          this.handleWorkerFailure(entry, `Worker error for clip ${msg.clipId}:`, msg.message);
+          this.handleWorkerFailure(
+            entry,
+            `Worker error for clip ${msg.clipId}:`,
+            msg.message
+          );
           break;
       }
     };
 
     worker.onerror = (e) => {
       if (entry.destroyed) return;
-      this.handleWorkerFailure(entry, `Worker uncaught error for clip ${clip.id}:`, e);
+      this.handleWorkerFailure(
+        entry,
+        `Worker uncaught error for clip ${clip.id}:`,
+        e
+      );
     };
 
     this.workers.set(clip.id, entry);
@@ -325,15 +370,30 @@ export class DecoderPool {
     });
   }
 
-  private dispatchSeek(entry: WorkerEntry, sourceTimeMs: number, seekToken: number): void {
+  private dispatchSeek(
+    entry: WorkerEntry,
+    sourceTimeMs: number,
+    seekToken: number
+  ): void {
     entry.pendingSeek = null;
     entry.seeking = true;
     entry.activeSeekToken = seekToken;
-    entry.worker.postMessage({ type: "SEEK", targetMs: sourceTimeMs, seekToken });
+    entry.worker.postMessage({
+      type: "SEEK",
+      targetMs: sourceTimeMs,
+      seekToken,
+    });
   }
 
-  private handleWorkerFailure(entry: WorkerEntry, prefix: string, error: unknown): void {
-    this.assetFailuresUntil.set(entry.assetUrl, Date.now() + DECODE_FAILURE_COOLDOWN_MS);
+  private handleWorkerFailure(
+    entry: WorkerEntry,
+    prefix: string,
+    error: unknown
+  ): void {
+    this.assetFailuresUntil.set(
+      entry.assetUrl,
+      Date.now() + DECODE_FAILURE_COOLDOWN_MS
+    );
     console.error(`[DecoderPool] ${prefix}`, error);
     this.destroyWorker(entry.clipId);
   }
@@ -351,7 +411,10 @@ export class DecoderPool {
     }
     entry.worker.postMessage({ type: "DESTROY" });
     // Give the worker a moment to close cleanly before terminating.
-    entry.terminateTimer = window.setTimeout(() => entry.worker.terminate(), 200);
+    entry.terminateTimer = window.setTimeout(
+      () => entry.worker.terminate(),
+      200
+    );
     this.workers.delete(clipId);
   }
 }

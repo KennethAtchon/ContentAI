@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import type { EditProject, Clip } from "../types/editor";
-import type { TabKey } from "../components/MediaPanel";
+import type { TabKey } from "../components/panels/MediaPanel";
 import { useEditorReducer } from "./useEditorStore";
 import { useEditorAutosave } from "./useEditorAutosave";
 import { useEditorKeyboard } from "./useEditorKeyboard";

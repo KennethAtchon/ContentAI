@@ -1,10 +1,6 @@
 import { ScopedErrorBoundary } from "@/shared/components/layout/error-boundary";
 
-export function AuthRouteBoundary({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AuthRouteBoundary({ children }: { children: React.ReactNode }) {
   return (
     <ScopedErrorBoundary
       title="Something went wrong in Auth"

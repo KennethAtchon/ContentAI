@@ -11,7 +11,7 @@ export const DECODE_FAILURE_COOLDOWN_MS = 10_000;
 
 export function getClipDecodePriority(
   clip: Pick<VideoClip, "startMs" | "durationMs">,
-  playheadMs: number,
+  playheadMs: number
 ): number {
   const clipEnd = clip.startMs + clip.durationMs;
   if (playheadMs < clip.startMs) return clip.startMs - playheadMs;
@@ -27,16 +27,18 @@ export function assertSafeVideoTrack(track: Track): void {
   }
   if (width > MAX_VIDEO_DIMENSION || height > MAX_VIDEO_DIMENSION) {
     throw new Error(
-      `Video dimensions exceed decode limit (${MAX_VIDEO_DIMENSION}px max)`,
+      `Video dimensions exceed decode limit (${MAX_VIDEO_DIMENSION}px max)`
     );
   }
 }
 
 export function assertSampleBudget(
   currentSamples: number,
-  incomingSamples: Sample[],
+  incomingSamples: Sample[]
 ): void {
   if (currentSamples + incomingSamples.length > MAX_VIDEO_SAMPLES) {
-    throw new Error(`Video sample count exceeds decode limit (${MAX_VIDEO_SAMPLES})`);
+    throw new Error(
+      `Video sample count exceeds decode limit (${MAX_VIDEO_SAMPLES})`
+    );
   }
 }

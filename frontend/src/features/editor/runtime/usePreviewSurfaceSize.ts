@@ -13,9 +13,10 @@ export function usePreviewSurfaceSize(
   resolution: string
 ) {
   const [resW, resH] = (resolution || "1080x1920").split("x").map(Number);
-  const [previewSize, setPreviewSize] = useState<{ h: number; w: number } | null>(
-    null
-  );
+  const [previewSize, setPreviewSize] = useState<{
+    h: number;
+    w: number;
+  } | null>(null);
 
   useEffect(() => {
     const el = outerRef.current;

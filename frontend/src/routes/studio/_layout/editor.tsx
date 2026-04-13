@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { EditorRoutePage } from "@/features/editor/components/EditorRoutePage";
+import { EditorRoutePage } from "@/features/editor/components/layout/EditorRoutePage";
 
 function parseEditorSearch(search: Record<string, unknown>) {
   const rawPid = search.projectId;

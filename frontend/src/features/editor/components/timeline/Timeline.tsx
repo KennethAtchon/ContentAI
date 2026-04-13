@@ -19,19 +19,19 @@ import { TimelineRuler } from "./TimelineRuler";
 import { TimelineClip } from "./TimelineClip";
 import { Playhead } from "./Playhead";
 import { SortableTrackHeader } from "./SortableTrackHeader";
-import type { Clip, TextClip, TrackType } from "../types/editor";
+import type { Clip, TextClip, TrackType } from "../../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
-import { useEditorContext } from "../context/EditorContext";
+import { useEditorContext } from "../../context/EditorContext";
 import {
   TRACK_HEIGHT,
   RULER_HEIGHT,
   TIMELINE_SCROLL_PADDING_PX,
   TIMELINE_MIN_CONTENT_WIDTH_PX,
-} from "../constants/timeline-layout";
-import { useTimelinePlayheadScroll } from "../hooks/use-timeline-playhead-scroll";
-import { useTimelineAssetDrop } from "../hooks/use-timeline-asset-drop";
-import { isMediaClip, isVideoClip } from "../utils/clip-types";
+} from "../../constants/timeline-layout";
+import { useTimelinePlayheadScroll } from "../../hooks/use-timeline-playhead-scroll";
+import { useTimelineAssetDrop } from "../../hooks/use-timeline-asset-drop";
+import { isMediaClip, isVideoClip } from "../../utils/clip-types";
 
 interface Props {
   onAddClip: (trackId: string, clip: Clip) => void;

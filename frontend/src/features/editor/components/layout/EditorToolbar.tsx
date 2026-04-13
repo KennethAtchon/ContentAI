@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { toast } from "sonner";
-import { ResolutionPicker } from "./ResolutionPicker";
-import { formatHHMMSSFF, parseTimecode } from "../utils/timecode";
+import { ResolutionPicker } from "../dialogs/ResolutionPicker";
+import { formatHHMMSSFF, parseTimecode } from "../../utils/timecode";
 
 const RESOLUTION_LABEL_MAP: Record<string, string> = {
   "720x1280": "9:16 SD (720p)",

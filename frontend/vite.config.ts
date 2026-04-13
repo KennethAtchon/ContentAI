@@ -20,7 +20,12 @@ export default defineConfig({
     react(),
     TanStackRouterVite(),
     process.env.ANALYZE === "true" &&
-      visualizer({ open: true, gzipSize: true, brotliSize: true, filename: "dist/bundle-stats.html" }),
+      visualizer({
+        open: true,
+        gzipSize: true,
+        brotliSize: true,
+        filename: "dist/bundle-stats.html",
+      }),
   ],
   resolve: {
     alias: {

@@ -1,9 +1,9 @@
-import type { Clip, EditProject, Track, Transition } from "../types/editor";
-import type { TabKey } from "./MediaPanel";
-import { MediaPanel } from "./MediaPanel";
-import { PreviewCanvas } from "./PreviewCanvas";
-import { Inspector } from "./Inspector";
-import { useEditorContext } from "../context/EditorContext";
+import type { Clip, EditProject, Track, Transition } from "../../types/editor";
+import type { TabKey } from "../panels/MediaPanel";
+import { MediaPanel } from "../panels/MediaPanel";
+import { PreviewCanvas } from "../preview/PreviewCanvas";
+import { Inspector } from "../inspector/Inspector";
+import { useEditorContext } from "../../context/EditorContext";
 
 interface EditorWorkspaceProps {
   project: EditProject;

@@ -2,25 +2,25 @@ import { memo, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
-import { TRACK_COLORS } from "../types/editor";
-import type { Clip, Track, TrackType } from "../types/editor";
-import { useWaveformData } from "../hooks/useWaveformData";
+import { TRACK_COLORS } from "../../types/editor";
+import type { Clip, Track, TrackType } from "../../types/editor";
+import { useWaveformData } from "../../hooks/useWaveformData";
 import { WaveformBars } from "./WaveformBars";
-import { useAssetUrlMap } from "../contexts/asset-url-map-context";
+import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
 import {
   collectSnapTargets,
   findNearestSnap,
   SNAP_THRESHOLD_PX,
-} from "../utils/snap-targets";
+} from "../../utils/snap-targets";
 import {
   clampMoveToFreeSpace,
   clampTrimEnd,
   clampTrimStart,
-} from "../utils/clip-constraints";
-import { slicePeaksForClipTrim } from "../utils/waveform-trim";
+} from "../../utils/clip-constraints";
+import { slicePeaksForClipTrim } from "../../utils/waveform-trim";
 import { ClipContextMenu, PlaceholderContextMenu } from "./ClipContextMenu";
-import { isClipActiveAtTimelineTime } from "../utils/editor-composition";
-import { isMediaClip, isVideoClip } from "../utils/clip-types";
+import { isClipActiveAtTimelineTime } from "../../utils/editor-composition";
+import { isMediaClip, isVideoClip } from "../../utils/clip-types";
 
 interface Props {
   clip: Clip;

@@ -98,7 +98,10 @@ function createVideoDecoder(videoTrack: Track): VideoDecoder {
 
   const decoder = new VideoDecoder({
     output(frame) {
-      if (!clipMeta) { frame.close(); return; }
+      if (!clipMeta) {
+        frame.close();
+        return;
+      }
       if (seekOutputThresholdUs !== null) {
         if (frame.timestamp < seekOutputThresholdUs) {
           frame.close();
@@ -117,7 +120,11 @@ function createVideoDecoder(videoTrack: Track): VideoDecoder {
       postFrame(frame);
     },
     error(e) {
-      ctx.postMessage({ type: "ERROR", message: String(e), clipId: clipMeta?.clipId });
+      ctx.postMessage({
+        type: "ERROR",
+        message: String(e),
+        clipId: clipMeta?.clipId,
+      });
     },
   });
 
@@ -139,7 +146,7 @@ function postFrame(frame: VideoFrame, seekToken?: number | null): void {
       ...(seekToken !== undefined ? { seekToken } : {}),
     },
     // Transfer the frame — zero-copy. The main thread MUST call frame.close() after use.
-    [frame as unknown as Transferable],
+    [frame as unknown as Transferable]
   );
 }
 
@@ -178,7 +185,9 @@ function closeVideoDecoder(): void {
 function reconfigureVideoDecoder(decoder: VideoDecoder): void {
   if (!videoDecoderConfig) return;
   const description = getVideoDescription();
-  decoder.configure(description ? { ...videoDecoderConfig, description } : videoDecoderConfig);
+  decoder.configure(
+    description ? { ...videoDecoderConfig, description } : videoDecoderConfig
+  );
 }
 
 /**
@@ -238,11 +247,17 @@ async function loadAsset(url: string): Promise<Track> {
       assertSafeVideoTrack(foundVideoTrack);
 
       videoTrackId = foundVideoTrack.id;
-      mp4boxFile.setExtractionOptions(videoTrackId, null, { nbSamples: Infinity });
+      mp4boxFile.setExtractionOptions(videoTrackId, null, {
+        nbSamples: Infinity,
+      });
       mp4boxFile.start();
     };
 
-    mp4boxFile.onSamples = (trackId: number, _user: unknown, samples: Sample[]) => {
+    mp4boxFile.onSamples = (
+      trackId: number,
+      _user: unknown,
+      samples: Sample[]
+    ) => {
       if (trackId !== videoTrackId) return;
       try {
         assertSampleBudget(videoSamples.length, samples);
@@ -275,14 +290,14 @@ async function loadAsset(url: string): Promise<Track> {
         const contentLength = Number(res.headers.get("content-length") ?? "0");
         if (contentLength > MAX_DECODE_FETCH_BYTES) {
           throw new Error(
-            `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`,
+            `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
           );
         }
         if (!res.body) {
           return res.arrayBuffer().then((buffer) => {
             if (buffer.byteLength > MAX_DECODE_FETCH_BYTES) {
               throw new Error(
-                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`,
+                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
               );
             }
             return buffer;
@@ -302,7 +317,7 @@ async function loadAsset(url: string): Promise<Track> {
             if (total > MAX_DECODE_FETCH_BYTES) {
               loadAbortController?.abort();
               throw new Error(
-                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`,
+                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
               );
             }
             chunks.push(value);
@@ -365,7 +380,10 @@ function isAbortError(error: unknown): boolean {
  * first sample with presentation time ≥ target (so references resolve), `flush`, then
  * `SEEK_DONE`. Updates `playheadSampleIndex` for subsequent `feedNextChunk`.
  */
-async function seekTo(targetMs: number, seekToken: number | null): Promise<void> {
+async function seekTo(
+  targetMs: number,
+  seekToken: number | null
+): Promise<void> {
   if (!videoDecoder || !clipMeta) return;
   if (videoSamples.length === 0) {
     throw new Error("No decodable video samples available for seek");
@@ -403,7 +421,7 @@ async function seekTo(targetMs: number, seekToken: number | null): Promise<void>
     decodedSamples++;
     if (decodedSamples > MAX_SEEK_DECODE_SAMPLES) {
       throw new Error(
-        `Seek decode budget exceeded (${MAX_SEEK_DECODE_SAMPLES} samples)`,
+        `Seek decode budget exceeded (${MAX_SEEK_DECODE_SAMPLES} samples)`
       );
     }
     const chunk = new EncodedVideoChunk({
@@ -523,7 +541,11 @@ ctx.onmessage = async (event: MessageEvent) => {
         if (isDestroyed || isAbortError(e)) {
           break;
         }
-        ctx.postMessage({ type: "ERROR", message: String(e), clipId: msg.clipId });
+        ctx.postMessage({
+          type: "ERROR",
+          message: String(e),
+          clipId: msg.clipId,
+        });
       }
       break;
     }
@@ -532,16 +554,20 @@ ctx.onmessage = async (event: MessageEvent) => {
       isPlaying = false;
       stopFeedLoop();
       try {
-        const seekToken = "seekToken" in msg ? msg.seekToken ?? null : null;
+        const seekToken = "seekToken" in msg ? (msg.seekToken ?? null) : null;
         await seekTo(msg.targetMs, seekToken);
         if (clipMeta?.clipId) {
-          ctx.postMessage({ type: "SEEK_DONE", clipId: clipMeta.clipId, seekToken });
+          ctx.postMessage({
+            type: "SEEK_DONE",
+            clipId: clipMeta.clipId,
+            seekToken,
+          });
         }
       } catch (e) {
         if (isDestroyed || isAbortError(e)) {
           break;
         }
-        const seekToken = "seekToken" in msg ? msg.seekToken ?? null : null;
+        const seekToken = "seekToken" in msg ? (msg.seekToken ?? null) : null;
         ctx.postMessage({
           type: "SEEK_FAILED",
           message: String(e),

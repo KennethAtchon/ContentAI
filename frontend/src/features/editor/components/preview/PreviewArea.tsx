@@ -1,14 +1,14 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
-import type { ClipPatch, Track } from "../types/editor";
-import { useAssetUrlMap } from "../contexts/asset-url-map-context";
-import { useCaptionCanvas } from "../caption/hooks/useCaptionCanvas";
-import { useCaptionDoc } from "../caption/hooks/useCaptionDoc";
-import { useCaptionPresets } from "../caption/hooks/useCaptionPresets";
-import { applyCaptionStyleOverrides } from "../caption/apply-style-overrides";
-import { formatHHMMSSd, formatMMSS } from "../utils/timecode";
-import { getTextClipPreviewDisplay } from "../utils/text-segments";
+import type { ClipPatch, Track } from "../../types/editor";
+import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
+import { useCaptionCanvas } from "../../caption/hooks/useCaptionCanvas";
+import { useCaptionDoc } from "../../caption/hooks/useCaptionDoc";
+import { useCaptionPresets } from "../../caption/hooks/useCaptionPresets";
+import { applyCaptionStyleOverrides } from "../../caption/apply-style-overrides";
+import { formatHHMMSSd, formatMMSS } from "../../utils/timecode";
+import { getTextClipPreviewDisplay } from "../../utils/text-segments";
 import {
   audioClipNeedsHeavyPreload,
   buildActiveVideoClipIdsByTrackMap,
@@ -23,13 +23,13 @@ import {
   videoClipNeedsHeavyPreload,
   VIDEO_INCOMING_TRANSITION_SEEK_THRESHOLD_SEC,
   VIDEO_SYNC_SEEK_THRESHOLD_SEC,
-} from "../utils/editor-composition";
+} from "../../utils/editor-composition";
 import {
   isCaptionClip,
   isMediaClip,
   isTextClip,
   isVideoClip,
-} from "../utils/clip-types";
+} from "../../utils/clip-types";
 
 interface Props {
   tracks: Track[];

@@ -9,8 +9,8 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shared/components/ui/context-menu";
-import type { Track, TrackType, Clip, Transition } from "../types/editor";
-import { isCaptionClip } from "../utils/clip-types";
+import type { Track, TrackType, Clip, Transition } from "../../types/editor";
+import { isCaptionClip } from "../../utils/clip-types";
 
 interface ClipContextMenuProps {
   clip: Clip;

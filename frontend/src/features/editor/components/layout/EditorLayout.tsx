@@ -1,12 +1,12 @@
 import { invalidateEditorProjectQuery } from "@/shared/lib/query-invalidation";
-import { EditorProvider } from "../context/EditorContext";
-import { AssetUrlMapContext } from "../contexts/asset-url-map-context";
-import { useEditorLayoutRuntime } from "../hooks/useEditorLayoutRuntime";
-import type { EditProject } from "../types/editor";
+import { EditorProvider } from "../../context/EditorContext";
+import { AssetUrlMapContext } from "../../contexts/asset-url-map-context";
+import { useEditorLayoutRuntime } from "../../hooks/useEditorLayoutRuntime";
+import type { EditProject } from "../../types/editor";
 import { EditorToolbar } from "./EditorToolbar";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { EditorTimelineSection } from "./EditorTimelineSection";
-import { EditorDialogs } from "./EditorDialogs";
+import { EditorDialogs } from "../dialogs/EditorDialogs";
 
 interface Props {
   project: EditProject;

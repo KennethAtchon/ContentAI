@@ -7,7 +7,7 @@ import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
-import type { AudioClip, MusicClip, VideoClip } from "../types/editor";
+import type { AudioClip, MusicClip, VideoClip } from "../../types/editor";
 
 interface Asset {
   id: string;

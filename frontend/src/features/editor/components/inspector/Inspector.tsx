@@ -1,20 +1,20 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ClipPatch, Transition } from "../types/editor";
-import { useEditorContext } from "../context/EditorContext";
-import { isCaptionClip, isMediaClip } from "../utils/clip-types";
-import { useCaptionPresets } from "../caption/hooks/useCaptionPresets";
-import { useCaptionDoc } from "../caption/hooks/useCaptionDoc";
-import { useUpdateCaptionDoc } from "../caption/hooks/useUpdateCaptionDoc";
-import { useTranscription } from "../caption/hooks/useTranscription";
-import { CaptionPresetPicker } from "../caption/components/CaptionPresetPicker";
-import { CaptionStylePanel } from "../caption/components/CaptionStylePanel";
-import { CaptionTranscriptEditor } from "../caption/components/CaptionTranscriptEditor";
-import { CaptionLanguageScopeNotice } from "../caption/components/CaptionLanguageScopeNotice";
-import { InspectorTransitionPanel } from "./inspector/InspectorTransitionPanel";
-import { InspectorClipMetaPanel } from "./inspector/InspectorClipMetaPanel";
-import { InspectorClipVisualPanel } from "./inspector/InspectorClipVisualPanel";
-import { InspectorTextAndCaptionPanels } from "./inspector/InspectorTextAndCaptionPanels";
+import type { ClipPatch, Transition } from "../../types/editor";
+import { useEditorContext } from "../../context/EditorContext";
+import { isCaptionClip, isMediaClip } from "../../utils/clip-types";
+import { useCaptionPresets } from "../../caption/hooks/useCaptionPresets";
+import { useCaptionDoc } from "../../caption/hooks/useCaptionDoc";
+import { useUpdateCaptionDoc } from "../../caption/hooks/useUpdateCaptionDoc";
+import { useTranscription } from "../../caption/hooks/useTranscription";
+import { CaptionPresetPicker } from "../../caption/components/CaptionPresetPicker";
+import { CaptionStylePanel } from "../../caption/components/CaptionStylePanel";
+import { CaptionTranscriptEditor } from "../../caption/components/CaptionTranscriptEditor";
+import { CaptionLanguageScopeNotice } from "../../caption/components/CaptionLanguageScopeNotice";
+import { InspectorTransitionPanel } from "./InspectorTransitionPanel";
+import { InspectorClipMetaPanel } from "./InspectorClipMetaPanel";
+import { InspectorClipVisualPanel } from "./InspectorClipVisualPanel";
+import { InspectorTextAndCaptionPanels } from "./InspectorTextAndCaptionPanels";
 
 interface Props {
   onEffectPreview?: (patch: ClipPatch | null) => void;

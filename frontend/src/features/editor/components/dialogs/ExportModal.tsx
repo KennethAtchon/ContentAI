@@ -6,7 +6,7 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-import type { ExportJobStatus } from "../types/editor";
+import type { ExportJobStatus } from "../../types/editor";
 
 interface Props {
   projectId: string;

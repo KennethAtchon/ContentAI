@@ -1,9 +1,9 @@
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
-import type { Clip, TrackType } from "../types/editor";
-import { Timeline } from "./Timeline";
-import { useEditorContext } from "../context/EditorContext";
+import type { Clip, TrackType } from "../../types/editor";
+import { Timeline } from "../timeline/Timeline";
+import { useEditorContext } from "../../context/EditorContext";
 
 interface EditorTimelineSectionProps {
   onSyncTimeline: () => void;
