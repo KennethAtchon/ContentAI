@@ -110,7 +110,6 @@ export function useEditorLayoutRuntime(
 
   return {
     state: store.state,
-    previewCurrentTimeMs: store.state.currentTimeMs,
     store,
     queryClient,
     showExport,

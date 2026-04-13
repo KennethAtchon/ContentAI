@@ -1,17 +1,19 @@
+import { useRef } from "react";
+import type { PreviewCanvasHandle } from "../preview/PreviewCanvas";
 import type { Clip, EditProject, Track, Transition } from "../../types/editor";
 import type { TabKey } from "../panels/MediaPanel";
 import { MediaPanel } from "../panels/MediaPanel";
 import { PreviewCanvas } from "../preview/PreviewCanvas";
 import { Inspector } from "../inspector/Inspector";
 import { useEditorContext } from "../../context/EditorContext";
+import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
+import { usePreviewEngine } from "../../hooks/usePreviewEngine";
 
 interface EditorWorkspaceProps {
   project: EditProject;
   tracks: Track[];
   currentTimeMs: number;
-  previewCurrentTimeMs: number;
   isPlaying: boolean;
-  playbackRate: number;
   durationMs: number;
   resolution: string;
   selectedTransition: Transition | null;
@@ -29,9 +31,13 @@ interface EditorWorkspaceProps {
 
 export function EditorWorkspace({
   project,
+  tracks,
   currentTimeMs,
+  isPlaying,
+  durationMs,
   resolution,
   selectedTransition,
+  effectPreview,
   mediaActiveTab,
   pendingAdd,
   isReadOnly,
@@ -40,7 +46,21 @@ export function EditorWorkspace({
   onClearPendingAdd,
   onAddClip,
 }: EditorWorkspaceProps) {
-  const { state } = useEditorContext();
+  const { state, setCurrentTime, setPlaying } = useEditorContext();
+  const assetUrlMap = useAssetUrlMap();
+  const previewRef = useRef<PreviewCanvasHandle>(null);
+
+  usePreviewEngine({
+    previewRef,
+    tracks,
+    assetUrlMap,
+    currentTimeMs,
+    isPlaying,
+    durationMs,
+    effectPreview,
+    onTimeUpdate: setCurrentTime,
+    onPlaybackEnd: () => setPlaying(false),
+  });
 
   return (
     <div className="flex flex-1 overflow-hidden min-h-0">
@@ -55,7 +75,12 @@ export function EditorWorkspace({
         onClearPendingAdd={onClearPendingAdd}
       />
 
-      <PreviewCanvas resolution={resolution} />
+      <PreviewCanvas
+        ref={previewRef}
+        resolution={resolution}
+        currentTimeMs={currentTimeMs}
+        durationMs={durationMs}
+      />
 
       <Inspector
         onEffectPreview={(patch) =>

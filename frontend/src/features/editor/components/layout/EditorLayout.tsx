@@ -67,9 +67,7 @@ export function EditorLayout({ project, onBack }: Props) {
             project={project}
             tracks={state.tracks}
             currentTimeMs={state.currentTimeMs}
-            previewCurrentTimeMs={runtime.previewCurrentTimeMs}
             isPlaying={state.isPlaying}
-            playbackRate={state.playbackRate}
             durationMs={state.durationMs}
             resolution={state.resolution}
             selectedTransition={clipActions.selectedTransition}
