@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -37,6 +37,11 @@ export function useEditorLayoutRuntime(
     trackId: string;
     startMs: number;
   } | null>(null);
+  const [playheadMs, setPlayheadMs] = useState(store.state.currentTimeMs);
+
+  useEffect(() => {
+    setPlayheadMs(store.state.currentTimeMs);
+  }, [store.state.currentTimeMs]);
 
   const {
     scriptResetPending,
@@ -124,6 +129,8 @@ export function useEditorLayoutRuntime(
     setPublishDialogOpen,
     mediaActiveTab,
     setMediaActiveTab,
+    playheadMs,
+    setPlayheadMs,
     pendingAdd,
     setPendingAdd,
     scriptResetPending,

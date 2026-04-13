@@ -4,17 +4,31 @@ import {
   type AudioClipDescriptor,
 } from "./AudioMixer";
 import { DecoderPool } from "./DecoderPool";
-import type { CompositorClipDescriptor } from "./CompositorWorker";
-import type { Track, VideoClip } from "../types/editor";
-import { isVideoClip } from "../utils/clip-types";
+import type {
+  CompositorClipDescriptor,
+  SerializedCaptionFrame,
+  SerializedTextObject,
+} from "./CompositorWorker";
+import type { TextClip, Track, VideoClip } from "../types/editor";
+import { isTextClip, isVideoClip } from "../utils/clip-types";
 import {
   buildWarmthFilter,
+  getClipSourceTimeSecondsAtTimelineTime,
   getIncomingTransitionStyle,
   getOutgoingTransitionStyle,
 } from "../utils/editor-composition";
+import { getTextClipPreviewDisplay } from "../utils/text-segments";
 
 const REACT_PUBLISH_INTERVAL_MS = 250;
 const DECODER_RECONCILE_INTERVAL_MS = 500;
+
+export interface PreviewEngineMetrics {
+  seekCount: number;
+  decodedFrameCount: number;
+  droppedFrameCount: number;
+  compositorFrameMs: number;
+  audioClockDriftMs: number;
+}
 
 export interface EffectPreviewPatch {
   clipId: string;
@@ -25,7 +39,12 @@ export interface PreviewEngineCallbacks {
   onTimeUpdate(ms: number): void;
   onPlaybackEnd(): void;
   onFrame(frame: VideoFrame, timestampUs: number, clipId: string): void;
-  onTick(playheadMs: number, clips: CompositorClipDescriptor[]): void;
+  onTick(
+    playheadMs: number,
+    clips: CompositorClipDescriptor[],
+    textObjects: SerializedTextObject[],
+    captionFrame: SerializedCaptionFrame | null
+  ): void;
   onClearFrames(clipIds: string[]): void;
 }
 
@@ -94,7 +113,10 @@ export function buildCompositorClips(
 
       clips.push({
         clipId: clip.id,
-        zIndex: trackIndex,
+        zIndex: videoTracks.length - 1 - trackIndex,
+        sourceTimeUs: Math.round(
+          getClipSourceTimeSecondsAtTimelineTime(clip, timelineMs) * 1_000_000
+        ),
         opacity,
         clipPath:
           typeof incoming?.clipPath === "string" ? incoming.clipPath : null,
@@ -126,10 +148,18 @@ export class PreviewEngine {
   private lastPublishMs = Number.NEGATIVE_INFINITY;
   private lastDecoderReconcileMs = Number.NEGATIVE_INFINITY;
   private playRequestToken = 0;
+  private rafStartWallMs = 0;
+  private rafStartTimelineMs = 0;
+  private lastAudibleTickMs: number | null = null;
+  private didLogMetricsForCurrentSession = false;
+  private canvasWidth: number;
+  private canvasHeight: number;
+  private fps: number;
   private tracks: Track[] = [];
   private assetUrlMap = new Map<string, string>();
   private effectPreview: EffectPreviewPatch | null = null;
-  private metrics = {
+  private captionFrame: SerializedCaptionFrame | null = null;
+  private metrics: PreviewEngineMetrics = {
     seekCount: 0,
     decodedFrameCount: 0,
     droppedFrameCount: 0,
@@ -137,8 +167,14 @@ export class PreviewEngine {
     audioClockDriftMs: 0,
   };
 
-  constructor(callbacks: PreviewEngineCallbacks) {
+  constructor(
+    callbacks: PreviewEngineCallbacks,
+    options: { canvasWidth: number; canvasHeight: number; fps: number }
+  ) {
     this.callbacks = callbacks;
+    this.canvasWidth = options.canvasWidth;
+    this.canvasHeight = options.canvasHeight;
+    this.fps = options.fps;
     this.decoderPool = new DecoderPool(({ frame, timestampUs, clipId }) => {
       this.metrics.decodedFrameCount += 1;
       this.callbacks.onFrame(frame, timestampUs, clipId);
@@ -153,12 +189,18 @@ export class PreviewEngine {
     tracks: Track[],
     assetUrlMap: Map<string, string>,
     durationMs: number,
-    effectPreview: EffectPreviewPatch | null
+    effectPreview: EffectPreviewPatch | null,
+    dimensions?: { canvasWidth: number; canvasHeight: number; fps: number }
   ): void {
     this.tracks = tracks;
     this.assetUrlMap = assetUrlMap;
     this.durationMs = durationMs;
     this.effectPreview = effectPreview;
+    if (dimensions) {
+      this.canvasWidth = dimensions.canvasWidth;
+      this.canvasHeight = dimensions.canvasHeight;
+      this.fps = dimensions.fps;
+    }
 
     for (const track of tracks) {
       if (
@@ -178,6 +220,7 @@ export class PreviewEngine {
     if (this.isPlaying) return;
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
+    this.resetSessionMetrics();
     this.isPlaying = true;
     await this.audioMixer.play(this.currentTimeMs, this.buildAudioClipDescriptors());
     if (!this.isPlaying || requestToken !== this.playRequestToken) return;
@@ -203,6 +246,7 @@ export class PreviewEngine {
     this.isPlaying = false;
     this.tickCompositor(this.currentTimeMs);
     this.callbacks.onTimeUpdate(this.currentTimeMs);
+    this.logMetricsIfDevelopment();
   }
 
   async seek(ms: number): Promise<void> {
@@ -250,7 +294,18 @@ export class PreviewEngine {
     this.currentTimeMs = this.clampTime(ms);
   }
 
-  getMetrics() {
+  setCaptionFrame(captionFrame: SerializedCaptionFrame | null): void {
+    if (this.captionFrame && this.captionFrame !== captionFrame) {
+      this.captionFrame.bitmap.close();
+    }
+    this.captionFrame = captionFrame;
+  }
+
+  renderCurrentFrame(): void {
+    this.tickCompositor(this.currentTimeMs);
+  }
+
+  getMetrics(): PreviewEngineMetrics {
     return { ...this.metrics };
   }
 
@@ -258,6 +313,10 @@ export class PreviewEngine {
     this.stopRafLoop();
     this.decoderPool.destroy();
     this.audioMixer.destroy();
+    if (this.captionFrame) {
+      this.captionFrame.bitmap.close();
+      this.captionFrame = null;
+    }
   }
 
   private buildAudioClipDescriptors(): AudioClipDescriptor[] {
@@ -271,16 +330,78 @@ export class PreviewEngine {
       playheadMs,
       this.effectPreview
     );
-    this.callbacks.onTick(playheadMs, clips);
+    const captionFrame = this.captionFrame;
+    this.captionFrame = null;
+    this.callbacks.onTick(
+      playheadMs,
+      clips,
+      this.buildTextObjects(playheadMs),
+      captionFrame
+    );
     this.metrics.compositorFrameMs = performance.now() - frameStart;
+  }
+
+  private buildTextObjects(timelineMs: number): SerializedTextObject[] {
+    const textTrack = this.tracks.find((track) => track.type === "text");
+    if (!textTrack) return [];
+
+    return textTrack.clips
+      .filter(isTextClip)
+      .filter(
+        (clip) =>
+          timelineMs >= clip.startMs && timelineMs < clip.startMs + clip.durationMs
+      )
+      .map((clip) => this.serializeTextClip(clip, timelineMs));
+  }
+
+  private serializeTextClip(
+    clip: TextClip,
+    timelineMs: number
+  ): SerializedTextObject {
+    const elapsedMs = timelineMs - clip.startMs;
+    return {
+      text: getTextClipPreviewDisplay(
+        clip.textContent,
+        clip.durationMs,
+        elapsedMs,
+        clip.textAutoChunk
+      ),
+      x: this.canvasWidth / 2 + (clip.positionX ?? 0),
+      y: this.canvasHeight / 2 + (clip.positionY ?? 0),
+      fontSize: clip.textStyle?.fontSize ?? 32,
+      fontWeight: clip.textStyle?.fontWeight ?? "normal",
+      color: clip.textStyle?.color ?? "#fff",
+      align: clip.textStyle?.align ?? "center",
+      opacity: clip.enabled === false ? 0 : (clip.opacity ?? 1),
+      maxWidth: this.canvasWidth * 0.8,
+      lineHeight: Math.max(1, (clip.textStyle?.fontSize ?? 32) * 1.2),
+    };
   }
 
   private startRafLoop(): void {
     if (this.rafHandle != null) return;
+    this.rafStartWallMs = performance.now();
+    this.rafStartTimelineMs = this.currentTimeMs;
+    this.lastAudibleTickMs = null;
 
     const tick = () => {
       const audibleMs = this.clampTime(this.audioMixer.getAudibleTimeMs());
       this.currentTimeMs = audibleMs;
+      const wallElapsedMs = performance.now() - this.rafStartWallMs;
+      const audioElapsedMs = audibleMs - this.rafStartTimelineMs;
+      this.metrics.audioClockDriftMs = audioElapsedMs - wallElapsedMs;
+
+      const frameBudgetMs = 1000 / Math.max(1, this.fps || 30);
+      if (this.lastAudibleTickMs != null) {
+        const audioDeltaMs = audibleMs - this.lastAudibleTickMs;
+        if (audioDeltaMs > frameBudgetMs * 1.5) {
+          this.metrics.droppedFrameCount += Math.max(
+            0,
+            Math.round(audioDeltaMs / frameBudgetMs) - 1
+          );
+        }
+      }
+      this.lastAudibleTickMs = audibleMs;
 
       if (
         audibleMs - this.lastDecoderReconcileMs >=
@@ -305,6 +426,7 @@ export class PreviewEngine {
         this.currentTimeMs = this.durationMs;
         this.tickCompositor(this.durationMs);
         this.callbacks.onTimeUpdate(this.durationMs);
+        this.logMetricsIfDevelopment();
         this.callbacks.onPlaybackEnd();
         return;
       }
@@ -324,5 +446,24 @@ export class PreviewEngine {
   private clampTime(ms: number): number {
     if (!Number.isFinite(ms)) return 0;
     return Math.max(0, Math.min(this.durationMs, ms));
+  }
+
+  private resetSessionMetrics(): void {
+    this.metrics = {
+      seekCount: 0,
+      decodedFrameCount: 0,
+      droppedFrameCount: 0,
+      compositorFrameMs: 0,
+      audioClockDriftMs: 0,
+    };
+    this.didLogMetricsForCurrentSession = false;
+  }
+
+  private logMetricsIfDevelopment(): void {
+    if (this.didLogMetricsForCurrentSession) return;
+    if (typeof process === "undefined") return;
+    if (process.env.NODE_ENV !== "development") return;
+    this.didLogMetricsForCurrentSession = true;
+    console.table(this.getMetrics());
   }
 }

@@ -35,12 +35,12 @@ export interface PreviewCanvasHandle {
 
 interface PreviewCanvasProps {
   resolution: string;
-  currentTimeMs: number;
+  playheadMs: number;
   durationMs: number;
 }
 
 export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>(
-  function PreviewCanvas({ resolution, currentTimeMs, durationMs }, ref) {
+  function PreviewCanvas({ resolution, playheadMs, durationMs }, ref) {
     const { t } = useTranslation();
     const outerRef = useRef<HTMLDivElement>(null);
     const visibleCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,7 +50,7 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
     const { previewSize, resolutionWidth, resolutionHeight } =
       usePreviewSurfaceSize(outerRef, resolution);
 
-    // Spin up the compositor worker and transfer the OffscreenCanvas.
+    // Spin up compositor worker once and transfer visible canvas ownership.
     useEffect(() => {
       const canvas = visibleCanvasRef.current;
       if (!canvas) return;
@@ -64,27 +64,17 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
         const msg = event.data;
         if (msg.type === "READY") {
           compositorReadyRef.current = true;
-        } else if (msg.type === "BITMAP") {
-          // Paint received bitmap to the visible canvas.
-          const bitmapCanvas = visibleCanvasRef.current;
-          if (!bitmapCanvas) { msg.bitmap.close(); return; }
-          const bitmapCtx = bitmapCanvas.getContext("bitmaprenderer");
-          if (bitmapCtx) {
-            bitmapCtx.transferFromImageBitmap(msg.bitmap);
-          } else {
-            // Fallback for browsers without ImageBitmapRenderingContext.
-            const ctx2d = bitmapCanvas.getContext("2d");
-            ctx2d?.drawImage(msg.bitmap, 0, 0);
-            msg.bitmap.close();
-          }
         }
       };
 
-      // Transfer the canvas to the worker. After this call, `canvas` is no longer
-      // usable from the main thread — all drawing goes through the worker.
       const offscreen = canvas.transferControlToOffscreen();
       worker.postMessage(
-        { type: "INIT", canvas: offscreen, width: resolutionWidth, height: resolutionHeight },
+        {
+          type: "INIT",
+          canvas: offscreen,
+          width: resolutionWidth,
+          height: resolutionHeight,
+        },
         [offscreen]
       );
 
@@ -96,7 +86,18 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
         setTimeout(() => worker.terminate(), 200);
         compositorWorkerRef.current = null;
       };
-    }, [resolutionWidth, resolutionHeight]);
+    }, []);
+
+    useEffect(() => {
+      const worker = compositorWorkerRef.current;
+      if (!worker) return;
+
+      worker.postMessage({
+        type: "RESIZE",
+        width: resolutionWidth,
+        height: resolutionHeight,
+      });
+    }, [resolutionHeight, resolutionWidth]);
 
     const tick = useCallback(
       (
@@ -108,11 +109,13 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
         const worker = compositorWorkerRef.current;
         if (!worker || !compositorReadyRef.current) return;
 
-        // Send overlay data only when it has changed (caller is responsible for diffing).
-        if (textObjects.length > 0 || captionFrame) {
-          const transferables: Transferable[] = captionFrame ? [captionFrame.bitmap] : [];
-          worker.postMessage({ type: "OVERLAY", textObjects, captionFrame }, transferables);
-        }
+        const transferables: Transferable[] = captionFrame
+          ? [captionFrame.bitmap]
+          : [];
+        worker.postMessage(
+          { type: "OVERLAY", textObjects, captionFrame },
+          transferables
+        );
 
         worker.postMessage({ type: "TICK", playheadMs, clips });
       },
@@ -161,11 +164,6 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
             height: previewSize?.h ?? 0,
           }}
         >
-          {/*
-            The canvas uses `bitmaprenderer` context — this is the fastest path
-            for displaying ImageBitmaps from a Worker. The OffscreenCanvas is
-            transferred to the compositor worker on mount.
-          */}
           <canvas
             ref={visibleCanvasRef}
             width={resolutionWidth}
@@ -176,8 +174,8 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
         </div>
 
         <div className="mt-1 flex w-full justify-between px-3">
-          <span className="text-xs text-dim-3">
-            {formatMMSS(currentTimeMs)} / {formatMMSS(durationMs)}
+          <span className="font-mono text-xs text-dim-3">
+            {formatMMSS(playheadMs)} / {formatMMSS(durationMs)}
           </span>
           <span className="text-xs text-dim-3">
             {resolutionWidth} × {resolutionHeight}

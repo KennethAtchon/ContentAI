@@ -13,8 +13,15 @@ interface UsePreviewEngineOptions {
   currentTimeMs: number;
   isPlaying: boolean;
   durationMs: number;
+  fps: number;
+  canvasWidth: number;
+  canvasHeight: number;
   effectPreview: { clipId: string; patch: Partial<Clip> } | null;
+  captionBitmapRef: RefObject<ImageBitmap | null>;
+  captionBitmapVersion: number;
   onTimeUpdate: (ms: number) => void;
+  onPlayheadUpdate?: (ms: number) => void;
+  onRenderPlayheadUpdate?: (ms: number) => void;
   onPlaybackEnd: () => void;
 }
 
@@ -35,33 +42,56 @@ export function usePreviewEngine({
   currentTimeMs,
   isPlaying,
   durationMs,
+  fps,
+  canvasWidth,
+  canvasHeight,
   effectPreview,
+  captionBitmapRef,
+  captionBitmapVersion,
   onTimeUpdate,
+  onPlayheadUpdate,
+  onRenderPlayheadUpdate,
   onPlaybackEnd,
 }: UsePreviewEngineOptions): void {
   const engineRef = useRef<PreviewEngine | null>(null);
   const skipNextSeekRef = useRef(false);
   const lastExternalTimeRef = useRef<number | null>(null);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onPlayheadUpdateRef = useRef(onPlayheadUpdate);
+  const onRenderPlayheadUpdateRef = useRef(onRenderPlayheadUpdate);
+  const onPlaybackEndRef = useRef(onPlaybackEnd);
 
   useEffect(() => {
-    const engine = new PreviewEngine({
-      onTimeUpdate(ms) {
-        skipNextSeekRef.current = true;
-        onTimeUpdate(ms);
+    onTimeUpdateRef.current = onTimeUpdate;
+    onPlayheadUpdateRef.current = onPlayheadUpdate;
+    onRenderPlayheadUpdateRef.current = onRenderPlayheadUpdate;
+    onPlaybackEndRef.current = onPlaybackEnd;
+  }, [onPlaybackEnd, onPlayheadUpdate, onRenderPlayheadUpdate, onTimeUpdate]);
+
+  useEffect(() => {
+    const engine = new PreviewEngine(
+      {
+        onTimeUpdate(ms) {
+          skipNextSeekRef.current = true;
+          onPlayheadUpdateRef.current?.(ms);
+          onTimeUpdateRef.current(ms);
+        },
+        onPlaybackEnd() {
+          onPlaybackEndRef.current();
+        },
+        onFrame(frame, timestampUs, clipId) {
+          previewRef.current?.receiveFrame(frame, timestampUs, clipId);
+        },
+        onTick(playheadMs, clips, textObjects, captionFrame) {
+          onRenderPlayheadUpdateRef.current?.(playheadMs);
+          previewRef.current?.tick(playheadMs, clips, textObjects, captionFrame);
+        },
+        onClearFrames(clipIds) {
+          previewRef.current?.clearFrames(clipIds);
+        },
       },
-      onPlaybackEnd() {
-        onPlaybackEnd();
-      },
-      onFrame(frame, timestampUs, clipId) {
-        previewRef.current?.receiveFrame(frame, timestampUs, clipId);
-      },
-      onTick(playheadMs, clips) {
-        previewRef.current?.tick(playheadMs, clips, [], null);
-      },
-      onClearFrames(clipIds) {
-        previewRef.current?.clearFrames(clipIds);
-      },
-    });
+      { canvasWidth, canvasHeight, fps }
+    );
 
     engineRef.current = engine;
 
@@ -78,7 +108,7 @@ export function usePreviewEngine({
       engine.destroy();
       engineRef.current = null;
     };
-  }, [onPlaybackEnd, onTimeUpdate, previewRef]);
+  }, [canvasHeight, canvasWidth, fps, previewRef]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -88,9 +118,38 @@ export function usePreviewEngine({
       tracks,
       assetUrlMap,
       durationMs,
-      asVideoEffectPreview(effectPreview)
+      asVideoEffectPreview(effectPreview),
+      { canvasWidth, canvasHeight, fps }
     );
-  }, [tracks, assetUrlMap, durationMs, effectPreview]);
+  }, [
+    tracks,
+    assetUrlMap,
+    durationMs,
+    effectPreview,
+    canvasWidth,
+    canvasHeight,
+    fps,
+  ]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    const bitmap = captionBitmapRef.current;
+    if (!bitmap) {
+      engine.setCaptionFrame(null);
+      if (!isPlaying) {
+        engine.renderCurrentFrame();
+      }
+      return;
+    }
+
+    captionBitmapRef.current = null;
+    engine.setCaptionFrame({ bitmap });
+    if (!isPlaying) {
+      engine.renderCurrentFrame();
+    }
+  }, [captionBitmapRef, captionBitmapVersion, isPlaying]);
 
   useEffect(() => {
     const engine = engineRef.current;

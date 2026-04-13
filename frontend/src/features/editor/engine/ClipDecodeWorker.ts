@@ -215,6 +215,8 @@ function getVideoDescription(): Uint8Array | undefined {
  * **Tracks:** Only `videoTracks[0]` and `audioTracks[0]`; extras are ignored.
  * **Audio:** The worker does not decode muxed audio yet; preview audio still
  * comes from the main-thread media element path.
+ * **Speed:** The worker always seeks in source-media time. Timeline speed math
+ * is resolved on the main thread before targetMs reaches this worker.
  */
 async function loadAsset(url: string): Promise<Track> {
   return new Promise((resolve, reject) => {

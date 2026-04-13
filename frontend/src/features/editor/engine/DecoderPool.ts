@@ -94,6 +94,8 @@ export class DecoderPool {
       if (track.type !== "video") continue;
       for (const clip of track.clips.filter(isVideoClip)) {
         const clipEnd = clip.startMs + clip.durationMs;
+        // DECODE_WINDOW_MS intentionally spans transition overlaps, so both the
+        // outgoing and incoming clip stay warm in the same transition window.
         const inWindow =
           playheadMs >= clip.startMs - DECODE_WINDOW_MS &&
           playheadMs <= clipEnd + DECODE_WINDOW_MS;

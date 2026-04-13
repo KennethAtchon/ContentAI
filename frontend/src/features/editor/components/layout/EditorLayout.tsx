@@ -67,14 +67,17 @@ export function EditorLayout({ project, onBack }: Props) {
             project={project}
             tracks={state.tracks}
             currentTimeMs={state.currentTimeMs}
+            playheadMs={runtime.playheadMs}
             isPlaying={state.isPlaying}
             durationMs={state.durationMs}
+            fps={state.fps}
             resolution={state.resolution}
             selectedTransition={clipActions.selectedTransition}
             effectPreview={runtime.effectPreview}
             mediaActiveTab={runtime.mediaActiveTab}
             pendingAdd={runtime.pendingAdd}
             isReadOnly={state.isReadOnly}
+            onPlayheadChange={runtime.setPlayheadMs}
             onSetEffectPreview={runtime.setEffectPreview}
             onSetMediaActiveTab={runtime.setMediaActiveTab}
             onClearPendingAdd={() => runtime.setPendingAdd(null)}
@@ -97,6 +100,7 @@ export function EditorLayout({ project, onBack }: Props) {
             onClipDelete={clipActions.handleRemoveClip}
             onClipSetSpeed={clipActions.handleClipSetSpeed}
             onFocusMediaForTrack={clipActions.handleFocusMediaForTrack}
+            playheadMs={runtime.playheadMs}
             timelineContainerRef={runtime.timelineContainerRef}
             timelineScrollRef={runtime.timelineScrollRef}
           />

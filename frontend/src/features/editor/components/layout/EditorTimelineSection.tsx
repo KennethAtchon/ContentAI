@@ -27,6 +27,7 @@ interface EditorTimelineSectionProps {
     trackId: string,
     startMs: number
   ) => void;
+  playheadMs: number;
   timelineContainerRef: RefObject<HTMLDivElement | null>;
   timelineScrollRef: RefObject<HTMLDivElement | null>;
 }
@@ -45,6 +46,7 @@ export function EditorTimelineSection({
   onClipDelete,
   onClipSetSpeed,
   onFocusMediaForTrack,
+  playheadMs,
   timelineContainerRef,
   timelineScrollRef,
 }: EditorTimelineSectionProps) {
@@ -91,6 +93,7 @@ export function EditorTimelineSection({
           onClipSetSpeed={onClipSetSpeed}
           scrollRef={timelineScrollRef}
           onFocusMediaForTrack={onFocusMediaForTrack}
+          playheadMs={playheadMs}
         />
       </div>
     </div>

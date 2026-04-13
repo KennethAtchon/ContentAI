@@ -55,6 +55,7 @@ interface Props {
     trackId: string,
     startMs: number
   ) => void;
+  playheadMs: number;
 }
 
 export function Timeline({
@@ -71,6 +72,7 @@ export function Timeline({
   onClipSetSpeed,
   scrollRef,
   onFocusMediaForTrack,
+  playheadMs,
 }: Props) {
   const {
     state,
@@ -88,7 +90,6 @@ export function Timeline({
 
   const tracks = state.tracks;
   const durationMs = state.durationMs;
-  const currentTimeMs = state.currentTimeMs;
   const zoom = state.zoom;
   const selectedClipId = state.selectedClipId;
   const hasClipboard = !!state.clipboardClip;
@@ -147,7 +148,7 @@ export function Timeline({
     return () => node.removeEventListener("scroll", updateVisibleWindow);
   }, [scrollRef, zoom]);
 
-  useTimelinePlayheadScroll(scrollRef, currentTimeMs, zoom);
+  useTimelinePlayheadScroll(scrollRef, playheadMs, zoom);
 
   const pastePositionRef = useRef<number>(0);
 
@@ -338,7 +339,7 @@ export function Timeline({
                           isSelected={selectedClipId === clip.id}
                           isLocked={track.locked}
                           tracks={tracks}
-                          playheadMs={currentTimeMs}
+                          playheadMs={playheadMs}
                           hasClipboard={hasClipboard}
                           onSelect={() => onSelectClip(clip.id)}
                           onSnapChange={setActiveSnapMs}
@@ -431,7 +432,7 @@ export function Timeline({
             )}
 
             <Playhead
-              currentTimeMs={currentTimeMs}
+              currentTimeMs={playheadMs}
               zoom={zoom}
               height={tracksContentHeight}
               onSeek={onSeek}

@@ -42,6 +42,7 @@ interface ScheduledSource {
   mediaElement?: HTMLAudioElement;
   mediaElementSource?: MediaElementAudioSourceNode;
   startTimerId?: number;
+  endTimerId?: number;
 }
 
 export function buildAudioClipDescriptors(
@@ -239,8 +240,15 @@ export class AudioMixer {
       })
       .then((arrayBuffer) => this.audioContext!.decodeAudioData(arrayBuffer));
 
-    this.decodedBufferCache.set(assetUrl, pending);
-    return pending;
+    const recoverablePending = pending.catch((error) => {
+      if (this.decodedBufferCache.get(assetUrl) === recoverablePending) {
+        this.decodedBufferCache.delete(assetUrl);
+      }
+      throw error;
+    });
+
+    this.decodedBufferCache.set(assetUrl, recoverablePending);
+    return recoverablePending;
   }
 
   private getSourceOffsetSeconds(
@@ -356,9 +364,14 @@ export class AudioMixer {
     }
 
     let startTimerId: number | undefined;
+    let endTimerId: number | undefined;
     const startPlayback = () => {
       if (!this.isPlaying || generation !== this.scheduleGeneration) return;
       void audio.play().catch(() => {});
+    };
+    const stopPlayback = () => {
+      if (generation !== this.scheduleGeneration) return;
+      audio.pause();
     };
 
     if (clip.startMs <= timelineMs) {
@@ -370,12 +383,20 @@ export class AudioMixer {
       );
     }
 
+    const remainingTimelineMs =
+      Math.max(0, clip.startMs - timelineMs) +
+      Math.max(0, clip.durationMs - Math.max(0, timelineMs - clip.startMs));
+    if (remainingTimelineMs > 0) {
+      endTimerId = window.setTimeout(stopPlayback, remainingTimelineMs);
+    }
+
     this.scheduledSources.set(clip.clipId, {
       clipId: clip.clipId,
       mediaElement: audio,
       mediaElementSource: source,
       gainNode,
       startTimerId,
+      endTimerId,
     });
   }
 
@@ -386,6 +407,9 @@ export class AudioMixer {
       try {
         if (source.startTimerId != null) {
           clearTimeout(source.startTimerId);
+        }
+        if (source.endTimerId != null) {
+          clearTimeout(source.endTimerId);
         }
         source.bufferSource?.stop();
         source.bufferSource?.disconnect();

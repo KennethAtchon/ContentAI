@@ -3,11 +3,11 @@
  *
  * Owns an OffscreenCanvas. Receives VideoFrame objects from the DecoderPool,
  * sorts them into per-clip queues, and on TICK composites the correct frames
- * for the given playhead time onto the canvas. Posts an ImageBitmap to the
- * main thread for display.
+ * for the given playhead time directly onto the transferred preview canvas.
  *
  * Message protocol (main → worker):
  *   { type: 'INIT', canvas: OffscreenCanvas, width: number, height: number }
+ *   { type: 'RESIZE', width: number, height: number }
  *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
  *   { type: 'TICK', playheadMs: number, clips: CompositorClipDescriptor[] }
  *   { type: 'OVERLAY', textObjects: SerializedTextObject[], captionFrame: SerializedCaptionFrame | null }
@@ -15,7 +15,6 @@
  *   { type: 'DESTROY' }
  *
  * Message protocol (worker → main):
- *   { type: 'BITMAP', bitmap: ImageBitmap }
  *   { type: 'READY' }
  */
 
@@ -29,6 +28,8 @@ export interface CompositorClipDescriptor {
   clipId: string;
   /** Canvas z-index: 0 = bottom track, higher = on top. */
   zIndex: number;
+  /** Source-media timestamp to display for this clip on the current tick. */
+  sourceTimeUs: number;
   /** Computed opacity (0–1), already accounting for transitions and enabled state. */
   opacity: number;
   /** CSS clip-path string for wipe transitions, or null. */
@@ -50,6 +51,8 @@ export interface SerializedTextObject {
   color: string;
   align: CanvasTextAlign;
   opacity: number;
+  maxWidth: number;
+  lineHeight: number;
 }
 
 export interface SerializedCaptionFrame {
@@ -104,13 +107,13 @@ function pruneQueue(clipId: string): void {
  * Find the best frame for the given playhead time.
  * Returns the frame with the largest timestamp ≤ playheadUs, or the earliest frame if all are ahead.
  */
-function pickFrame(clipId: string, playheadUs: number): VideoFrame | null {
+function pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
   const queue = frameQueues.get(clipId);
   if (!queue || queue.length === 0) return null;
 
   let best: VideoFrame | null = null;
   for (const frame of queue) {
-    if (frame.timestamp <= playheadUs) best = frame;
+    if (frame.timestamp <= sourceTimeUs) best = frame;
     else break;
   }
   return best ?? queue[0];
@@ -159,14 +162,11 @@ function applyTransform(
 // ─── Composite a single tick ───────────────────────────────────────────────────
 
 function composite(
-  playheadMs: number,
   clips: CompositorClipDescriptor[],
   textObjects: SerializedTextObject[],
   captionFrame: SerializedCaptionFrame | null
 ): void {
   if (!renderCtx || !offscreenCanvas) return;
-
-  const playheadUs = playheadMs * 1000;
 
   // Clear canvas.
   renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -179,7 +179,7 @@ function composite(
   for (const clip of sorted) {
     if (!clip.enabled || clip.opacity === 0) continue;
 
-    const frame = pickFrame(clip.clipId, playheadUs);
+    const frame = pickFrame(clip.clipId, clip.sourceTimeUs);
     if (!frame) continue;
 
     renderCtx.save();
@@ -220,9 +220,20 @@ function composite(
     renderCtx.font = `${text.fontWeight} ${text.fontSize}px sans-serif`;
     renderCtx.fillStyle = text.color;
     renderCtx.textAlign = text.align;
+    renderCtx.textBaseline = "middle";
     renderCtx.shadowColor = "rgba(0,0,0,0.8)";
     renderCtx.shadowBlur = 8;
-    renderCtx.fillText(text.text, text.x, text.y);
+    const lines = text.text.split("\n");
+    const blockHeight = Math.max(text.lineHeight, 1) * lines.length;
+    const firstLineY = text.y - blockHeight / 2 + text.lineHeight / 2;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      renderCtx.fillText(
+        lines[lineIndex] ?? "",
+        text.x,
+        firstLineY + lineIndex * text.lineHeight,
+        text.maxWidth
+      );
+    }
     renderCtx.restore();
   }
 
@@ -232,15 +243,12 @@ function composite(
     captionFrame.bitmap.close();
   }
 
-  // Transfer the composited frame to the main thread.
-  const bitmap = offscreenCanvas.transferToImageBitmap();
-  ctx.postMessage({ type: "BITMAP", bitmap }, [bitmap as unknown as Transferable]);
 }
 
 /**
- * Convert a CSS inset() clip-path to a canvas clipping region.
- * Handles only inset() for Phase 2/4 wipe transitions.
- * Extend this function in Phase 4 for polygon() and other shapes.
+ * Convert CSS clip-path strings to a canvas clipping region.
+ * Handles the inset() wipes we use today and a minimal polygon() subset so
+ * transition descriptors stay future-safe if slide/wipe variants emit polygons.
  */
 function applyClipPath(
   drawCtx: OffscreenCanvasRenderingContext2D,
@@ -251,13 +259,44 @@ function applyClipPath(
   const insetMatch = clipPath.match(
     /inset\(\s*([\d.]+)%?\s+([\d.]+)%?\s+([\d.]+)%?\s+([\d.]+)%?\s*\)/
   );
-  if (!insetMatch) return;
-  const top = (parseFloat(insetMatch[1]) / 100) * h;
-  const right = (parseFloat(insetMatch[2]) / 100) * w;
-  const bottom = (parseFloat(insetMatch[3]) / 100) * h;
-  const left = (parseFloat(insetMatch[4]) / 100) * w;
+  if (insetMatch) {
+    const top = (parseFloat(insetMatch[1]) / 100) * h;
+    const right = (parseFloat(insetMatch[2]) / 100) * w;
+    const bottom = (parseFloat(insetMatch[3]) / 100) * h;
+    const left = (parseFloat(insetMatch[4]) / 100) * w;
+    drawCtx.beginPath();
+    drawCtx.rect(left, top, w - left - right, h - top - bottom);
+    drawCtx.clip();
+    return;
+  }
+
+  const polygonMatch = clipPath.match(/^polygon\((.+)\)$/);
+  if (!polygonMatch) return;
+
+  const points = polygonMatch[1]
+    .split(",")
+    .map((part) => part.trim())
+    .map((part) => part.split(/\s+/))
+    .filter((coords) => coords.length >= 2)
+    .map(([xToken, yToken]) => {
+      const parseCoord = (token: string | undefined, size: number) => {
+        if (!token) return 0;
+        if (token.endsWith("%")) return (parseFloat(token) / 100) * size;
+        return parseFloat(token);
+      };
+      return {
+        x: parseCoord(xToken, w),
+        y: parseCoord(yToken, h),
+      };
+    });
+
+  if (points.length < 3) return;
   drawCtx.beginPath();
-  drawCtx.rect(left, top, w - left - right, h - top - bottom);
+  drawCtx.moveTo(points[0]!.x, points[0]!.y);
+  for (let index = 1; index < points.length; index += 1) {
+    drawCtx.lineTo(points[index]!.x, points[index]!.y);
+  }
+  drawCtx.closePath();
   drawCtx.clip();
 }
 
@@ -271,6 +310,7 @@ ctx.onmessage = (event: MessageEvent) => {
 
   const msg = event.data as
     | { type: "INIT"; canvas: OffscreenCanvas; width: number; height: number }
+    | { type: "RESIZE"; width: number; height: number }
     | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
     | { type: "OVERLAY"; textObjects: SerializedTextObject[]; captionFrame: SerializedCaptionFrame | null }
     | { type: "TICK"; playheadMs: number; clips: CompositorClipDescriptor[] }
@@ -286,6 +326,16 @@ ctx.onmessage = (event: MessageEvent) => {
       offscreenCanvas.height = canvasHeight;
       renderCtx = offscreenCanvas.getContext("2d", { alpha: false }) as OffscreenCanvasRenderingContext2D;
       ctx.postMessage({ type: "READY" });
+      break;
+    }
+
+    case "RESIZE": {
+      canvasWidth = msg.width;
+      canvasHeight = msg.height;
+      if (offscreenCanvas) {
+        offscreenCanvas.width = canvasWidth;
+        offscreenCanvas.height = canvasHeight;
+      }
       break;
     }
 
@@ -305,7 +355,7 @@ ctx.onmessage = (event: MessageEvent) => {
     }
 
     case "TICK": {
-      composite(msg.playheadMs, msg.clips, pendingTextObjects, pendingCaptionFrame);
+      composite(msg.clips, pendingTextObjects, pendingCaptionFrame);
       // Caption bitmap is consumed; clear so we don't redraw stale data.
       pendingCaptionFrame = null;
       break;
