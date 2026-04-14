@@ -98,8 +98,8 @@ function enqueueFrame(clipId: string, frame: VideoFrame): void {
     return;
   }
 
-  if (queue.length <= 8) return;
-  const toClose = queue.splice(0, queue.length - 8);
+  if (queue.length <= 16) return;
+  const toClose = queue.splice(0, queue.length - 16);
   for (const queuedFrame of toClose) queuedFrame.close();
 }
 
@@ -118,7 +118,9 @@ function pruneQueue(clipId: string, sourceTimeUs: number): void {
 
   const anchorIndex = latestBeforeIndex >= 0 ? latestBeforeIndex : 0;
   const keepStart = Math.max(0, anchorIndex - 1);
-  const keepEnd = Math.min(queue.length, keepStart + 4);
+  // Keep 16 frames ahead — hardware decoders can burst-output many frames at
+  // once, and a 4-frame window was discarding frames needed ~133ms ahead.
+  const keepEnd = Math.min(queue.length, keepStart + 16);
   const overflow = queue.length - (keepEnd - keepStart);
   if (overflow <= 0) return;
 

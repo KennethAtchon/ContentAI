@@ -66,6 +66,7 @@ let videoDecoderConfig: VideoDecoderConfig | null = null;
 let keyframeIndex: KeyframeEntry[] = [];
 let videoSamples: Sample[] = [];
 let videoTrackId = -1;
+let videoTimescale = 1; // track timescale (e.g. 90000 for 90 kHz)
 let isPlaying = false;
 let playheadSampleIndex = 0;
 let loadAbortController: AbortController | null = null;
@@ -75,6 +76,13 @@ let seekOutputThresholdUs: number | null = null;
 let didEmitFrameForActiveSeek = false;
 let activeSeekToken: number | null = null;
 let bufferedFramesAfterSeek: VideoFrame[] = [];
+/**
+ * True after configure/reset; cleared on first key-chunk decode.
+ * Some browsers clear the decoder's reference-frame state after flush(),
+ * requiring a new key frame at the start of every feedNextChunk run.
+ * We track this so feedNextChunk can rewind to the GOP start if needed.
+ */
+let decoderNeedsKeyFrame = true;
 
 // ─── VideoDecoder helpers ──────────────────────────────────────────────────────
 
@@ -136,6 +144,7 @@ function createVideoDecoder(videoTrack: Track): VideoDecoder {
   });
 
   decoder.configure(configWithDescription);
+  decoderNeedsKeyFrame = true;
   return decoder;
 }
 
@@ -195,6 +204,7 @@ function reconfigureVideoDecoder(decoder: VideoDecoder): void {
   decoder.configure(
     description ? { ...videoDecoderConfig, description } : videoDecoderConfig
   );
+  decoderNeedsKeyFrame = true;
 }
 
 /**
@@ -278,6 +288,7 @@ async function loadAsset(url: string): Promise<Track> {
       assertSafeVideoTrack(foundVideoTrack);
 
       videoTrackId = foundVideoTrack.id;
+      videoTimescale = foundVideoTrack.timescale ?? 1;
       mp4boxFile.setExtractionOptions(videoTrackId, null, {
         nbSamples: Infinity,
       });
@@ -300,11 +311,12 @@ async function loadAsset(url: string): Promise<Track> {
       const baseIndex = videoSamples.length;
       videoSamples.push(...samples);
 
-      // Build keyframe index from I-frames.
+      // Build keyframe index from I-frames. Store dts in µs so seekTo can compare
+      // directly against targetUs without a per-entry timescale conversion.
       for (let i = 0; i < samples.length; i++) {
         if (samples[i].is_sync) {
           keyframeIndex.push({
-            dts: samples[i].dts,
+            dts: Math.round((samples[i].dts * 1_000_000) / videoTimescale),
             offset: samples[i].offset,
             sampleIndex: baseIndex + i,
           });
@@ -392,8 +404,15 @@ async function loadAsset(url: string): Promise<Track> {
 
 // ─── Seek logic ────────────────────────────────────────────────────────────────
 
-function getSamplePresentationTimestamp(sample: Sample): number {
-  return (sample as Sample & { cts?: number }).cts ?? sample.dts;
+/**
+ * Returns the presentation timestamp of a sample in **microseconds**.
+ * mp4box stores DTS/CTS in the track's native timescale units (e.g. 90000 for
+ * 90 kHz). WebCodecs EncodedVideoChunk.timestamp and the compositor sourceTimeUs
+ * are both in µs, so we convert here before any comparison or decode call.
+ */
+function getSampleTimestampUs(sample: Sample): number {
+  const ticks = (sample as Sample & { cts?: number }).cts ?? sample.dts;
+  return Math.round((ticks * 1_000_000) / videoTimescale);
 }
 
 function isAbortError(error: unknown): boolean {
@@ -455,14 +474,16 @@ async function seekTo(
         `Seek decode budget exceeded (${MAX_SEEK_DECODE_SAMPLES} samples)`
       );
     }
+    const isKey = sample.is_sync;
     const chunk = new EncodedVideoChunk({
-      type: sample.is_sync ? "key" : "delta",
-      timestamp: getSamplePresentationTimestamp(sample),
+      type: isKey ? "key" : "delta",
+      timestamp: getSampleTimestampUs(sample),
       duration: sample.duration,
       data: sample.data,
     });
     videoDecoder.decode(chunk);
-    if (getSamplePresentationTimestamp(sample) >= targetUs) {
+    if (isKey) decoderNeedsKeyFrame = false;
+    if (getSampleTimestampUs(sample) >= targetUs) {
       crossedTarget = true;
     }
     if (crossedTarget) {
@@ -507,15 +528,29 @@ function feedNextChunk(): void {
     return;
   }
 
+  // Guard: if decoder needs a key frame (post-configure or post-flush on some
+  // browsers) but the next sample is a delta, rewind playheadSampleIndex to the
+  // start of the current GOP so we re-feed the keyframe first.
+  if (decoderNeedsKeyFrame && !videoSamples[playheadSampleIndex]?.is_sync) {
+    let gopStart = 0;
+    for (const entry of keyframeIndex) {
+      if (entry.sampleIndex <= playheadSampleIndex) gopStart = entry.sampleIndex;
+      else break;
+    }
+    playheadSampleIndex = gopStart;
+  }
+
   const sample = videoSamples[playheadSampleIndex++];
   if (sample.data) {
+    const isKey = sample.is_sync;
     const chunk = new EncodedVideoChunk({
-      type: sample.is_sync ? "key" : "delta",
-      timestamp: getSamplePresentationTimestamp(sample),
+      type: isKey ? "key" : "delta",
+      timestamp: getSampleTimestampUs(sample),
       duration: sample.duration,
       data: sample.data,
     });
     videoDecoder.decode(chunk);
+    if (isKey) decoderNeedsKeyFrame = false;
   }
   feedTimer = setTimeout(feedNextChunk, 0);
 }
@@ -561,7 +596,9 @@ ctx.onmessage = async (event: MessageEvent) => {
       keyframeIndex = [];
       videoSamples = [];
       videoTrackId = -1;
+      videoTimescale = 1;
       playheadSampleIndex = 0;
+      decoderNeedsKeyFrame = true;
 
       try {
         const videoTrack = await loadAsset(msg.assetUrl);
