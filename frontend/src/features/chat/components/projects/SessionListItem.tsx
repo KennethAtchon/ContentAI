@@ -31,7 +31,7 @@ export function SessionListItem({
 }: SessionListItemProps) {
   return (
     <div
-      className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+      className={`group flex min-w-0 items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
         selectedSessionId === session.id
           ? "bg-primary/10 text-primary"
           : "hover:bg-muted"
@@ -40,7 +40,7 @@ export function SessionListItem({
     >
       <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
       {editingSessionId === session.id ? (
-        <div className="flex-1 flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
           <input
             type="text"
             value={editingSessionTitle}
@@ -54,7 +54,7 @@ export function SessionListItem({
                 onCancelEditingSession();
               }
             }}
-            className="flex-1 text-sm bg-transparent border-b border-primary outline-none"
+            className="min-w-0 flex-1 text-sm bg-transparent border-b border-primary outline-none"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />

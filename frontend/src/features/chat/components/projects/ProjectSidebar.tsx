@@ -64,7 +64,7 @@ export function ProjectSidebar({
         isCreating={sidebar.isCreatingProject}
       />
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="min-w-0 flex-1 overflow-y-auto py-2">
         <ProjectTree
           projects={sidebar.projects}
           projectsLoading={sidebar.projectsLoading}

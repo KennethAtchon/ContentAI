@@ -96,7 +96,7 @@ export function ProjectTree({
   }
 
   return (
-    <div className="space-y-1 px-2">
+    <div className="min-w-0 space-y-1 px-2">
       {projects.map((project) => (
         <ProjectListItem
           key={project.id}
