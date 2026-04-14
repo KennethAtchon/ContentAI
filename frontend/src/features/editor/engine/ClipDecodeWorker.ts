@@ -20,8 +20,8 @@
  *   { type: 'ERROR', message: string, clipId: string }
  */
 
-import { createFile } from "mp4box";
-import type { Movie, Sample, Track } from "mp4box";
+import { createFile, MultiBufferStream } from "mp4box";
+import type { Movie, Sample, Track, VisualSampleEntry } from "mp4box";
 import {
   MAX_DECODE_FETCH_BYTES,
   MAX_SEEK_DECODE_SAMPLES,
@@ -96,6 +96,13 @@ function createVideoDecoder(videoTrack: Track): VideoDecoder {
   };
   videoDecoderConfig = config;
 
+  // Apply codec description immediately if samples are already available
+  // (true when called after loadAsset resolves). Reconfigures will also apply it.
+  const description = getVideoDescription();
+  const configWithDescription = description
+    ? { ...config, description }
+    : config;
+
   const decoder = new VideoDecoder({
     output(frame) {
       if (!clipMeta) {
@@ -128,7 +135,7 @@ function createVideoDecoder(videoTrack: Track): VideoDecoder {
     },
   });
 
-  decoder.configure(config);
+  decoder.configure(configWithDescription);
   return decoder;
 }
 
@@ -191,14 +198,36 @@ function reconfigureVideoDecoder(decoder: VideoDecoder): void {
 }
 
 /**
- * Intended to return codec init bytes (avcC/hvcC) for `VideoDecoder` config.
- * mp4box exposes structured `sample.description` boxes, not a ready `Uint8Array`;
- * walking that tree is Phase 2. **Now:** always `undefined` — many H.264 assets
- * still decode from the codec string alone.
+ * Extracts codec init bytes (avcC/hvcC) from the first sample's description box.
+ * These bytes are required by WebCodecs VideoDecoder for H.264 and H.265 streams
+ * contained in MP4 (AVCC/HVCC byte-stream format). Without them the decoder
+ * throws "EncodingError: The given encoding is not supported".
+ *
+ * The box layout written by DataStream.write() is:
+ *   [4 bytes size][4 bytes fourcc][N bytes DecoderConfigurationRecord]
+ * We skip the 8-byte box header and return only the record bytes.
  */
 function getVideoDescription(): Uint8Array | undefined {
-  // TODO Phase 2: walk sample.description box tree to extract avcC/hvcC raw bytes.
-  return undefined;
+  if (videoSamples.length === 0) return undefined;
+  const sample = videoSamples[0];
+  if (!sample?.description) return undefined;
+
+  const entry = sample.description as VisualSampleEntry;
+  const configBox = entry.avcC ?? entry.hvcC;
+  if (!configBox) return undefined;
+
+  try {
+    // MultiBufferStream extends DataStream — use it because write() is typed to require it.
+    const stream = new MultiBufferStream();
+    configBox.write(stream);
+    // stream.byteLength is the actual written length (may be less than buffer.byteLength).
+    // Box layout: [4 bytes size][4 bytes fourcc][N bytes DecoderConfigurationRecord]
+    const recordLength = stream.byteLength - 8;
+    if (recordLength <= 0) return undefined;
+    return new Uint8Array(stream.buffer as ArrayBuffer, 8, recordLength);
+  } catch {
+    return undefined;
+  }
 }
 
 // ─── Demux + keyframe index ────────────────────────────────────────────────────

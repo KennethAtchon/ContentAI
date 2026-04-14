@@ -67,7 +67,9 @@ export function EditorWorkspace({
   const { state, setCurrentTime, setPlaying } = useEditorContext();
   const assetUrlMap = useAssetUrlMap();
   const previewRef = useRef<PreviewCanvasHandle>(null);
-  const captionBitmapRef = useRef<ImageBitmap | null>(null);
+  const currentTimeMsRef = useRef(currentTimeMs);
+  const captionBitmapQueueRef = useRef<Array<ImageBitmap | null>>([]);
+  const pendingCaptionRenderTimeRef = useRef<number | null>(null);
   const activeCaptionClipIdRef = useRef<string | null>(null);
   const [captionBitmapVersion, setCaptionBitmapVersion] = useState(0);
   const [canvasWidth, canvasHeight] = useMemo(
@@ -110,11 +112,13 @@ export function EditorWorkspace({
     if (!preset || !activeCaptionClip) return null;
     return applyCaptionStyleOverrides(preset, activeCaptionClip.styleOverrides);
   }, [captionPresets, activeCaptionClip]);
+
+  useEffect(() => {
+    currentTimeMsRef.current = currentTimeMs;
+  }, [currentTimeMs]);
+
   const handleCaptionBitmapReady = useCallback((bitmap: ImageBitmap | null) => {
-    if (captionBitmapRef.current) {
-      captionBitmapRef.current.close();
-    }
-    captionBitmapRef.current = bitmap;
+    captionBitmapQueueRef.current.push(bitmap);
     setCaptionBitmapVersion((version) => version + 1);
   }, []);
   const { canvasRef: captionCanvasRef, renderAtTime: renderCaptionAtTime } =
@@ -131,17 +135,11 @@ export function EditorWorkspace({
     activeCaptionClipIdRef.current = activeCaptionClipId;
   }, [activeCaptionClipId]);
 
-  useEffect(() => {
-    const nextClipId = getActiveCaptionClipAt(playheadMs)?.id ?? null;
-    activeCaptionClipIdRef.current = nextClipId;
-    setActiveCaptionClipId(nextClipId);
-    renderCaptionAtTime(playheadMs);
-  }, [getActiveCaptionClipAt, playheadMs, renderCaptionAtTime]);
-
-  const handleRenderPlayheadUpdate = useCallback(
+  const syncCaptionPlaybackState = useCallback(
     (timelineMs: number) => {
       const nextClipId = getActiveCaptionClipAt(timelineMs)?.id ?? null;
       if (nextClipId !== activeCaptionClipIdRef.current) {
+        pendingCaptionRenderTimeRef.current = timelineMs;
         activeCaptionClipIdRef.current = nextClipId;
         setActiveCaptionClipId(nextClipId);
         return;
@@ -152,12 +150,33 @@ export function EditorWorkspace({
     [getActiveCaptionClipAt, renderCaptionAtTime]
   );
 
+  useEffect(() => {
+    syncCaptionPlaybackState(playheadMs);
+  }, [playheadMs, syncCaptionPlaybackState]);
+
+  useEffect(() => {
+    const pendingRenderTime = pendingCaptionRenderTimeRef.current;
+    if (pendingRenderTime == null) return;
+
+    pendingCaptionRenderTimeRef.current = null;
+    renderCaptionAtTime(pendingRenderTime);
+  }, [activeCaptionClipId, renderCaptionAtTime]);
+
+  const handleRenderPlayheadUpdate = useCallback(
+    (timelineMs: number) => {
+      syncCaptionPlaybackState(timelineMs);
+    },
+    [syncCaptionPlaybackState]
+  );
+
+  const getCurrentTimeMs = useCallback(() => currentTimeMsRef.current, []);
+
   useEffect(
     () => () => {
-      if (captionBitmapRef.current) {
-        captionBitmapRef.current.close();
-        captionBitmapRef.current = null;
+      for (const bitmap of captionBitmapQueueRef.current) {
+        bitmap?.close();
       }
+      captionBitmapQueueRef.current = [];
     },
     []
   );
@@ -173,7 +192,7 @@ export function EditorWorkspace({
     canvasWidth: Math.max(1, Math.round(canvasWidth || 1080)),
     canvasHeight: Math.max(1, Math.round(canvasHeight || 1920)),
     effectPreview,
-    captionBitmapRef,
+    captionBitmapQueueRef,
     captionBitmapVersion,
     onTimeUpdate: setCurrentTime,
     onPlayheadUpdate: onPlayheadChange,
@@ -185,7 +204,7 @@ export function EditorWorkspace({
     <div className="flex flex-1 overflow-hidden min-h-0">
       <MediaPanel
         generatedContentId={project.generatedContentId}
-        currentTimeMs={currentTimeMs}
+        getCurrentTimeMs={getCurrentTimeMs}
         onAddClip={onAddClip}
         readOnly={isReadOnly}
         activeTab={mediaActiveTab}

@@ -17,7 +17,7 @@ interface UsePreviewEngineOptions {
   canvasWidth: number;
   canvasHeight: number;
   effectPreview: { clipId: string; patch: Partial<Clip> } | null;
-  captionBitmapRef: RefObject<ImageBitmap | null>;
+  captionBitmapQueueRef: RefObject<Array<ImageBitmap | null>>;
   captionBitmapVersion: number;
   onTimeUpdate: (ms: number) => void;
   onPlayheadUpdate?: (ms: number) => void;
@@ -46,7 +46,7 @@ export function usePreviewEngine({
   canvasWidth,
   canvasHeight,
   effectPreview,
-  captionBitmapRef,
+  captionBitmapQueueRef,
   captionBitmapVersion,
   onTimeUpdate,
   onPlayheadUpdate,
@@ -83,8 +83,19 @@ export function usePreviewEngine({
           previewRef.current?.receiveFrame(frame, timestampUs, clipId);
         },
         onTick(playheadMs, clips, textObjects, captionFrame) {
+          previewRef.current?.tick(
+            playheadMs,
+            clips,
+            textObjects,
+            captionFrame
+          );
+        },
+        onRenderTick(playheadMs) {
+          // Caption renders are driven exclusively from the RAF loop via this
+          // callback. Keeping it out of onTick prevents the re-entrant loop:
+          // renderCurrentFrame → onTick → onRenderPlayheadUpdate →
+          // renderCaptionAtTime → setCaptionBitmapVersion → renderCurrentFrame
           onRenderPlayheadUpdateRef.current?.(playheadMs);
-          previewRef.current?.tick(playheadMs, clips, textObjects, captionFrame);
         },
         onClearFrames(clipIds) {
           previewRef.current?.clearFrames(clipIds);
@@ -135,8 +146,18 @@ export function usePreviewEngine({
     const engine = engineRef.current;
     if (!engine) return;
 
-    const bitmap = captionBitmapRef.current;
-    if (!bitmap) {
+    const queuedBitmaps = captionBitmapQueueRef.current;
+    if (!queuedBitmaps || queuedBitmaps.length === 0) {
+      return;
+    }
+
+    const pendingUpdates = queuedBitmaps.splice(0, queuedBitmaps.length);
+    const nextBitmap = pendingUpdates[pendingUpdates.length - 1] ?? null;
+    for (const bitmap of pendingUpdates.slice(0, -1)) {
+      bitmap?.close();
+    }
+
+    if (!nextBitmap) {
       engine.setCaptionFrame(null);
       if (!isPlaying) {
         engine.renderCurrentFrame();
@@ -144,12 +165,11 @@ export function usePreviewEngine({
       return;
     }
 
-    captionBitmapRef.current = null;
-    engine.setCaptionFrame({ bitmap });
+    engine.setCaptionFrame({ bitmap: nextBitmap });
     if (!isPlaying) {
       engine.renderCurrentFrame();
     }
-  }, [captionBitmapRef, captionBitmapVersion, isPlaying]);
+  }, [captionBitmapQueueRef, captionBitmapVersion, isPlaying]);
 
   useEffect(() => {
     const engine = engineRef.current;

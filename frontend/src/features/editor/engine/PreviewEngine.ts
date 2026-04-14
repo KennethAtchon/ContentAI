@@ -43,9 +43,20 @@ export interface PreviewEngineCallbacks {
     playheadMs: number,
     clips: CompositorClipDescriptor[],
     textObjects: SerializedTextObject[],
-    captionFrame: SerializedCaptionFrame | null
+    /**
+     * `SerializedCaptionFrame` — new bitmap to transfer to the compositor.
+     * `null`                   — explicit clear (seek, clip change).
+     * `undefined`              — no change; compositor keeps its current caption.
+     */
+    captionFrame?: SerializedCaptionFrame | null
   ): void;
   onClearFrames(clipIds: string[]): void;
+  /**
+   * Called once per RAF tick, before the compositor tick.
+   * Use this to drive caption re-renders at the audio-clock time.
+   * NOT called from `renderCurrentFrame()` — only from the live RAF loop.
+   */
+  onRenderTick?(playheadMs: number): void;
 }
 
 export function buildCompositorClips(
@@ -158,7 +169,8 @@ export class PreviewEngine {
   private tracks: Track[] = [];
   private assetUrlMap = new Map<string, string>();
   private effectPreview: EffectPreviewPatch | null = null;
-  private captionFrame: SerializedCaptionFrame | null = null;
+  private pendingCaptionFrame: SerializedCaptionFrame | null | undefined =
+    undefined;
   private metrics: PreviewEngineMetrics = {
     seekCount: 0,
     decodedFrameCount: 0,
@@ -222,7 +234,10 @@ export class PreviewEngine {
     this.playRequestToken = requestToken;
     this.resetSessionMetrics();
     this.isPlaying = true;
-    await this.audioMixer.play(this.currentTimeMs, this.buildAudioClipDescriptors());
+    await this.audioMixer.play(
+      this.currentTimeMs,
+      this.buildAudioClipDescriptors()
+    );
     if (!this.isPlaying || requestToken !== this.playRequestToken) return;
     this.decoderPool.update(this.tracks, this.assetUrlMap, this.currentTimeMs);
     this.decoderPool.seekAll(this.tracks, this.currentTimeMs);
@@ -273,10 +288,7 @@ export class PreviewEngine {
 
     if (wasPlaying) {
       await this.audioMixer.play(targetMs, this.buildAudioClipDescriptors());
-      if (
-        !this.isPlaying ||
-        requestToken !== this.playRequestToken
-      ) {
+      if (!this.isPlaying || requestToken !== this.playRequestToken) {
         return;
       }
       this.decoderPool.play();
@@ -295,10 +307,10 @@ export class PreviewEngine {
   }
 
   setCaptionFrame(captionFrame: SerializedCaptionFrame | null): void {
-    if (this.captionFrame && this.captionFrame !== captionFrame) {
-      this.captionFrame.bitmap.close();
+    if (this.pendingCaptionFrame && this.pendingCaptionFrame !== captionFrame) {
+      this.pendingCaptionFrame.bitmap.close();
     }
-    this.captionFrame = captionFrame;
+    this.pendingCaptionFrame = captionFrame;
   }
 
   renderCurrentFrame(): void {
@@ -313,9 +325,9 @@ export class PreviewEngine {
     this.stopRafLoop();
     this.decoderPool.destroy();
     this.audioMixer.destroy();
-    if (this.captionFrame) {
-      this.captionFrame.bitmap.close();
-      this.captionFrame = null;
+    if (this.pendingCaptionFrame) {
+      this.pendingCaptionFrame.bitmap.close();
+      this.pendingCaptionFrame = undefined;
     }
   }
 
@@ -330,8 +342,8 @@ export class PreviewEngine {
       playheadMs,
       this.effectPreview
     );
-    const captionFrame = this.captionFrame;
-    this.captionFrame = null;
+    const captionFrame = this.pendingCaptionFrame;
+    this.pendingCaptionFrame = undefined;
     this.callbacks.onTick(
       playheadMs,
       clips,
@@ -349,7 +361,8 @@ export class PreviewEngine {
       .filter(isTextClip)
       .filter(
         (clip) =>
-          timelineMs >= clip.startMs && timelineMs < clip.startMs + clip.durationMs
+          timelineMs >= clip.startMs &&
+          timelineMs < clip.startMs + clip.durationMs
       )
       .map((clip) => this.serializeTextClip(clip, timelineMs));
   }
@@ -411,6 +424,10 @@ export class PreviewEngine {
         this.decoderPool.update(this.tracks, this.assetUrlMap, audibleMs);
       }
 
+      // Notify React-side subscribers (e.g. caption renderer) at the audio-clock
+      // time. Called only from the RAF loop — NOT from renderCurrentFrame() —
+      // to avoid re-entrant setState → renderCurrentFrame loops.
+      this.callbacks.onRenderTick?.(audibleMs);
       this.tickCompositor(audibleMs);
 
       if (audibleMs - this.lastPublishMs >= REACT_PUBLISH_INTERVAL_MS) {

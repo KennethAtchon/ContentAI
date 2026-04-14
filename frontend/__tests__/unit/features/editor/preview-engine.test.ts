@@ -7,7 +7,11 @@ import {
   buildCompositorClips,
   PreviewEngine,
 } from "@/features/editor/engine/PreviewEngine";
-import type { Track, VideoClip, TextClip } from "@/features/editor/types/editor";
+import type {
+  Track,
+  VideoClip,
+  TextClip,
+} from "@/features/editor/types/editor";
 
 class MockGainNode {
   gain = {
@@ -25,7 +29,7 @@ class MockAudioContext {
   currentTime = 0;
   baseLatency = 0;
   destination = {};
-  decodeAudioData = mock(async () => ({ duration: 1 } as AudioBuffer));
+  decodeAudioData = mock(async () => ({ duration: 1 }) as AudioBuffer);
 
   createGain(): GainNode {
     return new MockGainNode() as unknown as GainNode;
@@ -102,13 +106,17 @@ describe("AudioMixer", () => {
     const mixer = new AudioMixer();
 
     await expect(
-      (mixer as unknown as { getDecodedBuffer(assetUrl: string): Promise<AudioBuffer> }).getDecodedBuffer(
-        "https://cdn.test/audio.mp3"
-      )
+      (
+        mixer as unknown as {
+          getDecodedBuffer(assetUrl: string): Promise<AudioBuffer>;
+        }
+      ).getDecodedBuffer("https://cdn.test/audio.mp3")
     ).rejects.toThrow("network down");
 
     const buffer = await (
-      mixer as unknown as { getDecodedBuffer(assetUrl: string): Promise<AudioBuffer> }
+      mixer as unknown as {
+        getDecodedBuffer(assetUrl: string): Promise<AudioBuffer>;
+      }
     ).getDecodedBuffer("https://cdn.test/audio.mp3");
 
     expect(buffer).toEqual(expect.objectContaining({ duration: 1 }));
@@ -382,7 +390,12 @@ describe("PreviewEngine text overlays", () => {
 
     let payload:
       | {
-          textObjects: Array<{ text: string; x: number; y: number; opacity: number }>;
+          textObjects: Array<{
+            text: string;
+            x: number;
+            y: number;
+            opacity: number;
+          }>;
         }
       | undefined;
 
@@ -417,5 +430,66 @@ describe("PreviewEngine text overlays", () => {
     ]);
 
     engine.destroy();
+  });
+
+  test("emits caption bitmap updates once and then keeps rendering without resending", () => {
+    const captionBitmap = {
+      close: mock(() => {}),
+    } as unknown as ImageBitmap;
+    const captionFrames: Array<unknown> = [];
+
+    const engine = new PreviewEngine(
+      {
+        onTimeUpdate() {},
+        onPlaybackEnd() {},
+        onFrame(frame) {
+          frame.close();
+        },
+        onTick(_playheadMs, _clips, _textObjects, captionFrame) {
+          captionFrames.push(captionFrame);
+        },
+        onClearFrames() {},
+      },
+      { canvasWidth: 1080, canvasHeight: 1920, fps: 30 }
+    );
+
+    engine.setCaptionFrame({ bitmap: captionBitmap });
+    engine.renderCurrentFrame();
+    engine.renderCurrentFrame();
+
+    expect(captionFrames).toEqual([{ bitmap: captionBitmap }, undefined]);
+
+    engine.destroy();
+  });
+
+  test("closes superseded caption bitmap updates before they are emitted", () => {
+    const captionBitmapA = {
+      close: mock(() => {}),
+    } as unknown as ImageBitmap;
+    const captionBitmapB = {
+      close: mock(() => {}),
+    } as unknown as ImageBitmap;
+
+    const engine = new PreviewEngine(
+      {
+        onTimeUpdate() {},
+        onPlaybackEnd() {},
+        onFrame(frame) {
+          frame.close();
+        },
+        onTick() {},
+        onClearFrames() {},
+      },
+      { canvasWidth: 1080, canvasHeight: 1920, fps: 30 }
+    );
+
+    engine.setCaptionFrame({ bitmap: captionBitmapA });
+    engine.setCaptionFrame({ bitmap: captionBitmapB });
+
+    expect(captionBitmapA.close).toHaveBeenCalledTimes(1);
+    expect(captionBitmapB.close).toHaveBeenCalledTimes(0);
+
+    engine.destroy();
+    expect(captionBitmapB.close).toHaveBeenCalledTimes(1);
   });
 });

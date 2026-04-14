@@ -10,7 +10,7 @@
  *   { type: 'RESIZE', width: number, height: number }
  *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
  *   { type: 'TICK', playheadMs: number, clips: CompositorClipDescriptor[] }
- *   { type: 'OVERLAY', textObjects: SerializedTextObject[], captionFrame: SerializedCaptionFrame | null }
+ *   { type: 'OVERLAY', textObjects: SerializedTextObject[], captionFrame?: SerializedCaptionFrame | null }
  *   { type: 'CLEAR_CLIP', clipId: string }
  *   { type: 'DESTROY' }
  *
@@ -56,7 +56,7 @@ export interface SerializedTextObject {
 }
 
 export interface SerializedCaptionFrame {
-  /** Pre-rendered caption pixels as an ImageBitmap. Transfer semantics: compositor closes it after drawing. */
+  /** Pre-rendered caption pixels as an ImageBitmap. Transfer semantics: compositor owns and closes it when replaced or destroyed. */
   bitmap: ImageBitmap;
 }
 
@@ -83,24 +83,51 @@ const frameQueues = new Map<string, VideoFrame[]>();
 
 // ─── Frame management ─────────────────────────────────────────────────────────
 
+const lastRequestedSourceTimeUs = new Map<string, number>();
+
 function enqueueFrame(clipId: string, frame: VideoFrame): void {
   if (!frameQueues.has(clipId)) frameQueues.set(clipId, []);
   const queue = frameQueues.get(clipId)!;
   queue.push(frame);
   // Keep queue sorted by timestamp (frames usually arrive in order, but guard against out-of-order delivery).
   queue.sort((a, b) => a.timestamp - b.timestamp);
-  // Prune queue: keep only the most recent frame before playhead + a small lookahead.
-  // This prevents unbounded memory growth during long decode-ahead runs.
-  pruneQueue(clipId);
+
+  const sourceTimeUs = lastRequestedSourceTimeUs.get(clipId);
+  if (typeof sourceTimeUs === "number") {
+    pruneQueue(clipId, sourceTimeUs);
+    return;
+  }
+
+  if (queue.length <= 8) return;
+  const toClose = queue.splice(0, queue.length - 8);
+  for (const queuedFrame of toClose) queuedFrame.close();
 }
 
-function pruneQueue(clipId: string): void {
+function pruneQueue(clipId: string, sourceTimeUs: number): void {
   const queue = frameQueues.get(clipId);
   if (!queue || queue.length <= 4) return;
-  // Close and remove all frames except the last 4. We keep a small buffer to handle
-  // minor timing jitter between the decode and tick cadence.
-  const toClose = queue.splice(0, queue.length - 4);
-  for (const frame of toClose) frame.close();
+
+  let latestBeforeIndex = -1;
+  for (let index = 0; index < queue.length; index += 1) {
+    if (queue[index]!.timestamp <= sourceTimeUs) {
+      latestBeforeIndex = index;
+      continue;
+    }
+    break;
+  }
+
+  const anchorIndex = latestBeforeIndex >= 0 ? latestBeforeIndex : 0;
+  const keepStart = Math.max(0, anchorIndex - 1);
+  const keepEnd = Math.min(queue.length, keepStart + 4);
+  const overflow = queue.length - (keepEnd - keepStart);
+  if (overflow <= 0) return;
+
+  const retained = queue.slice(keepStart, keepEnd);
+  for (let index = 0; index < queue.length; index += 1) {
+    if (index >= keepStart && index < keepEnd) continue;
+    queue[index]!.close();
+  }
+  frameQueues.set(clipId, retained);
 }
 
 /**
@@ -110,13 +137,15 @@ function pruneQueue(clipId: string): void {
 function pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
   const queue = frameQueues.get(clipId);
   if (!queue || queue.length === 0) return null;
+  lastRequestedSourceTimeUs.set(clipId, sourceTimeUs);
+  pruneQueue(clipId, sourceTimeUs);
 
   let best: VideoFrame | null = null;
-  for (const frame of queue) {
+  for (const frame of frameQueues.get(clipId) ?? []) {
     if (frame.timestamp <= sourceTimeUs) best = frame;
     else break;
   }
-  return best ?? queue[0];
+  return best ?? frameQueues.get(clipId)?.[0] ?? null;
 }
 
 function clearClipFrames(clipId: string): void {
@@ -124,6 +153,7 @@ function clearClipFrames(clipId: string): void {
   if (!queue) return;
   for (const frame of queue) frame.close();
   frameQueues.delete(clipId);
+  lastRequestedSourceTimeUs.delete(clipId);
 }
 
 // ─── Canvas transform helpers ─────────────────────────────────────────────────
@@ -139,15 +169,27 @@ function applyTransform(
 ): void {
   if (!transform) return;
   const scaleMatch = transform.match(/scale\(([\d.+-]+)\)/);
-  const translateMatch = transform.match(/translate\(([\d.+-]+)px,\s*([\d.+-]+)px\)/);
+  const translateMatch = transform.match(
+    /translate\(([\d.+-]+)px,\s*([\d.+-]+)px\)/
+  );
   const rotateMatch = transform.match(/rotate\(([\d.+-]+)deg\)/);
 
   if (scaleMatch) {
     const s = parseFloat(scaleMatch[1]);
-    drawCtx.transform(s, 0, 0, s, (canvasWidth / 2) * (1 - s), (canvasHeight / 2) * (1 - s));
+    drawCtx.transform(
+      s,
+      0,
+      0,
+      s,
+      (canvasWidth / 2) * (1 - s),
+      (canvasHeight / 2) * (1 - s)
+    );
   }
   if (translateMatch) {
-    drawCtx.translate(parseFloat(translateMatch[1]), parseFloat(translateMatch[2]));
+    drawCtx.translate(
+      parseFloat(translateMatch[1]),
+      parseFloat(translateMatch[2])
+    );
   }
   if (rotateMatch) {
     const cx = canvasWidth / 2;
@@ -200,7 +242,10 @@ function composite(
     // Draw the frame scaled to fill the canvas (object-contain semantics).
     const frameAspect = frame.displayWidth / frame.displayHeight;
     const canvasAspect = canvasWidth / canvasHeight;
-    let dx = 0, dy = 0, dw = canvasWidth, dh = canvasHeight;
+    let dx = 0,
+      dy = 0,
+      dw = canvasWidth,
+      dh = canvasHeight;
     if (frameAspect > canvasAspect) {
       dh = canvasWidth / frameAspect;
       dy = (canvasHeight - dh) / 2;
@@ -240,9 +285,7 @@ function composite(
   // Draw pre-rendered caption bitmap (if any).
   if (captionFrame) {
     renderCtx.drawImage(captionFrame.bitmap, 0, 0, canvasWidth, canvasHeight);
-    captionFrame.bitmap.close();
   }
-
 }
 
 /**
@@ -312,7 +355,11 @@ ctx.onmessage = (event: MessageEvent) => {
     | { type: "INIT"; canvas: OffscreenCanvas; width: number; height: number }
     | { type: "RESIZE"; width: number; height: number }
     | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
-    | { type: "OVERLAY"; textObjects: SerializedTextObject[]; captionFrame: SerializedCaptionFrame | null }
+    | {
+        type: "OVERLAY";
+        textObjects: SerializedTextObject[];
+        captionFrame?: SerializedCaptionFrame | null;
+      }
     | { type: "TICK"; playheadMs: number; clips: CompositorClipDescriptor[] }
     | { type: "CLEAR_CLIP"; clipId: string }
     | { type: "DESTROY" };
@@ -324,7 +371,9 @@ ctx.onmessage = (event: MessageEvent) => {
       canvasHeight = msg.height;
       offscreenCanvas.width = canvasWidth;
       offscreenCanvas.height = canvasHeight;
-      renderCtx = offscreenCanvas.getContext("2d", { alpha: false }) as OffscreenCanvasRenderingContext2D;
+      renderCtx = offscreenCanvas.getContext("2d", {
+        alpha: false,
+      }) as OffscreenCanvasRenderingContext2D;
       ctx.postMessage({ type: "READY" });
       break;
     }
@@ -348,16 +397,15 @@ ctx.onmessage = (event: MessageEvent) => {
     case "OVERLAY": {
       // Update text/caption overlay data (sent on every timeline change, not every tick).
       pendingTextObjects = msg.textObjects ?? [];
-      // captionFrame carries an ImageBitmap; consume it on next TICK.
-      if (pendingCaptionFrame) pendingCaptionFrame.bitmap.close();
-      pendingCaptionFrame = msg.captionFrame ?? null;
+      if ("captionFrame" in msg) {
+        if (pendingCaptionFrame) pendingCaptionFrame.bitmap.close();
+        pendingCaptionFrame = msg.captionFrame ?? null;
+      }
       break;
     }
 
     case "TICK": {
       composite(msg.clips, pendingTextObjects, pendingCaptionFrame);
-      // Caption bitmap is consumed; clear so we don't redraw stale data.
-      pendingCaptionFrame = null;
       break;
     }
 

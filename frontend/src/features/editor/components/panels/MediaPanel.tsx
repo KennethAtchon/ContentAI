@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Music, Mic } from "lucide-react";
@@ -21,7 +21,7 @@ interface Asset {
 
 interface Props {
   generatedContentId: number | null;
-  currentTimeMs: number;
+  getCurrentTimeMs: () => number;
   onAddClip: (trackId: string, clip: VideoClip | AudioClip | MusicClip) => void;
   readOnly?: boolean;
   activeTab: TabKey;
@@ -87,9 +87,9 @@ function makeAudioClip(
   };
 }
 
-export function MediaPanel({
+export const MediaPanel = memo(function MediaPanel({
   generatedContentId,
-  currentTimeMs,
+  getCurrentTimeMs,
   onAddClip,
   readOnly: _readOnly,
   activeTab,
@@ -131,7 +131,7 @@ export function MediaPanel({
     const clip = makeVideoClip({
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
-      startMs: pendingAdd?.startMs ?? currentTimeMs,
+      startMs: pendingAdd?.startMs ?? getCurrentTimeMs(),
       durationMs: asset.durationMs ?? 5000,
       sourceMaxDurationMs: asset.durationMs ?? undefined,
     });
@@ -144,7 +144,7 @@ export function MediaPanel({
     const clip = makeAudioClip(defaultTrackId, {
       assetId: asset.id,
       label: String(asset.metadata?.originalName ?? asset.type),
-      startMs: pendingAdd?.startMs ?? currentTimeMs,
+      startMs: pendingAdd?.startMs ?? getCurrentTimeMs(),
       durationMs: asset.durationMs ?? 30000,
       sourceMaxDurationMs: asset.durationMs ?? undefined,
     });
@@ -419,4 +419,6 @@ export function MediaPanel({
       </div>
     </div>
   );
-}
+});
+
+MediaPanel.displayName = "MediaPanel";

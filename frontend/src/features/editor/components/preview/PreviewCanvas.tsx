@@ -23,7 +23,7 @@ export interface PreviewCanvasHandle {
     playheadMs: number,
     clips: CompositorClipDescriptor[],
     textObjects: SerializedTextObject[],
-    captionFrame: SerializedCaptionFrame | null
+    captionFrame?: SerializedCaptionFrame | null
   ): void;
   /**
    * Notify the compositor of a decoded VideoFrame from the DecoderPool.
@@ -39,23 +39,33 @@ interface PreviewCanvasProps {
   durationMs: number;
 }
 
-export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>(
-  function PreviewCanvas({ resolution, playheadMs, durationMs }, ref) {
-    const { t } = useTranslation();
-    const outerRef = useRef<HTMLDivElement>(null);
-    const visibleCanvasRef = useRef<HTMLCanvasElement>(null);
-    const compositorWorkerRef = useRef<Worker | null>(null);
-    const compositorReadyRef = useRef(false);
+export const PreviewCanvas = forwardRef<
+  PreviewCanvasHandle,
+  PreviewCanvasProps
+>(function PreviewCanvas({ resolution, playheadMs, durationMs }, ref) {
+  const { t } = useTranslation();
+  const outerRef = useRef<HTMLDivElement>(null);
+  const visibleCanvasRef = useRef<HTMLCanvasElement>(null);
+  const compositorWorkerRef = useRef<Worker | null>(null);
+  const compositorReadyRef = useRef(false);
+  const pendingDestroyTimerRef = useRef<number | null>(null);
 
-    const { previewSize, resolutionWidth, resolutionHeight } =
-      usePreviewSurfaceSize(outerRef, resolution);
+  const { previewSize, resolutionWidth, resolutionHeight } =
+    usePreviewSurfaceSize(outerRef, resolution);
 
-    // Spin up compositor worker once and transfer visible canvas ownership.
-    useEffect(() => {
-      const canvas = visibleCanvasRef.current;
-      if (!canvas) return;
+  // Spin up compositor worker once and transfer visible canvas ownership.
+  useEffect(() => {
+    const canvas = visibleCanvasRef.current;
+    if (!canvas) return;
 
-      const worker = new Worker(
+    if (pendingDestroyTimerRef.current != null) {
+      window.clearTimeout(pendingDestroyTimerRef.current);
+      pendingDestroyTimerRef.current = null;
+    }
+
+    let worker = compositorWorkerRef.current;
+    if (!worker) {
+      worker = new Worker(
         new URL("../../engine/CompositorWorker.ts", import.meta.url),
         { type: "module" }
       );
@@ -79,109 +89,120 @@ export const PreviewCanvas = forwardRef<PreviewCanvasHandle, PreviewCanvasProps>
       );
 
       compositorWorkerRef.current = worker;
+    }
 
-      return () => {
-        compositorReadyRef.current = false;
-        worker.postMessage({ type: "DESTROY" });
-        setTimeout(() => worker.terminate(), 200);
-        compositorWorkerRef.current = null;
-      };
-    }, []);
+    return () => {
+      compositorReadyRef.current = false;
+      const activeWorker = compositorWorkerRef.current;
+      if (!activeWorker) return;
+      pendingDestroyTimerRef.current = window.setTimeout(() => {
+        activeWorker.postMessage({ type: "DESTROY" });
+        window.setTimeout(() => activeWorker.terminate(), 200);
+        if (compositorWorkerRef.current === activeWorker) {
+          compositorWorkerRef.current = null;
+        }
+        pendingDestroyTimerRef.current = null;
+      }, 0);
+    };
+  }, []);
 
-    useEffect(() => {
+  useEffect(() => {
+    const worker = compositorWorkerRef.current;
+    if (!worker) return;
+
+    worker.postMessage({
+      type: "RESIZE",
+      width: resolutionWidth,
+      height: resolutionHeight,
+    });
+  }, [resolutionHeight, resolutionWidth]);
+
+  const tick = useCallback(
+    (
+      playheadMs: number,
+      clips: CompositorClipDescriptor[],
+      textObjects: SerializedTextObject[],
+      captionFrame?: SerializedCaptionFrame | null
+    ) => {
       const worker = compositorWorkerRef.current;
-      if (!worker) return;
+      if (!worker || !compositorReadyRef.current) return;
 
-      worker.postMessage({
-        type: "RESIZE",
-        width: resolutionWidth,
-        height: resolutionHeight,
-      });
-    }, [resolutionHeight, resolutionWidth]);
+      const transferables: Transferable[] = captionFrame
+        ? [captionFrame.bitmap]
+        : [];
+      worker.postMessage(
+        captionFrame === undefined
+          ? { type: "OVERLAY", textObjects }
+          : { type: "OVERLAY", textObjects, captionFrame },
+        transferables
+      );
 
-    const tick = useCallback(
-      (
-        playheadMs: number,
-        clips: CompositorClipDescriptor[],
-        textObjects: SerializedTextObject[],
-        captionFrame: SerializedCaptionFrame | null
-      ) => {
-        const worker = compositorWorkerRef.current;
-        if (!worker || !compositorReadyRef.current) return;
+      worker.postMessage({ type: "TICK", playheadMs, clips });
+    },
+    []
+  );
 
-        const transferables: Transferable[] = captionFrame
-          ? [captionFrame.bitmap]
-          : [];
-        worker.postMessage(
-          { type: "OVERLAY", textObjects, captionFrame },
-          transferables
-        );
-
-        worker.postMessage({ type: "TICK", playheadMs, clips });
-      },
-      []
-    );
-
-    const receiveFrame = useCallback(
-      (frame: VideoFrame, timestampUs: number, clipId: string) => {
-        const worker = compositorWorkerRef.current;
-        if (!worker) { frame.close(); return; }
-        worker.postMessage(
-          { type: "FRAME", frame, timestampUs, clipId },
-          [frame as unknown as Transferable]
-        );
-      },
-      []
-    );
-
-    const clearFrames = useCallback((clipIds: string[]) => {
+  const receiveFrame = useCallback(
+    (frame: VideoFrame, timestampUs: number, clipId: string) => {
       const worker = compositorWorkerRef.current;
-      if (!worker) return;
-      for (const clipId of clipIds) {
-        worker.postMessage({ type: "CLEAR_CLIP", clipId });
+      if (!worker) {
+        frame.close();
+        return;
       }
-    }, []);
+      worker.postMessage({ type: "FRAME", frame, timestampUs, clipId }, [
+        frame as unknown as Transferable,
+      ]);
+    },
+    []
+  );
 
-    useImperativeHandle(
-      ref,
-      () => ({ tick, receiveFrame, clearFrames }),
-      [tick, receiveFrame, clearFrames]
-    );
+  const clearFrames = useCallback((clipIds: string[]) => {
+    const worker = compositorWorkerRef.current;
+    if (!worker) return;
+    for (const clipId of clipIds) {
+      worker.postMessage({ type: "CLEAR_CLIP", clipId });
+    }
+  }, []);
 
-    return (
+  useImperativeHandle(ref, () => ({ tick, receiveFrame, clearFrames }), [
+    tick,
+    receiveFrame,
+    clearFrames,
+  ]);
+
+  return (
+    <div
+      ref={outerRef}
+      className="flex flex-1 flex-col items-center justify-center overflow-hidden bg-studio-bg px-2 py-2 min-w-0"
+    >
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-dim-3">
+        {t("editor_preview_label")}
+      </p>
+
       <div
-        ref={outerRef}
-        className="flex flex-1 flex-col items-center justify-center overflow-hidden bg-studio-bg px-2 py-2 min-w-0"
+        className="relative bg-black"
+        style={{
+          width: previewSize?.w ?? 0,
+          height: previewSize?.h ?? 0,
+        }}
       >
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-dim-3">
-          {t("editor_preview_label")}
-        </p>
-
-        <div
-          className="relative bg-black"
-          style={{
-            width: previewSize?.w ?? 0,
-            height: previewSize?.h ?? 0,
-          }}
-        >
-          <canvas
-            ref={visibleCanvasRef}
-            width={resolutionWidth}
-            height={resolutionHeight}
-            className="absolute inset-0 h-full w-full"
-            aria-label={t("editor_preview_label")}
-          />
-        </div>
-
-        <div className="mt-1 flex w-full justify-between px-3">
-          <span className="font-mono text-xs text-dim-3">
-            {formatMMSS(playheadMs)} / {formatMMSS(durationMs)}
-          </span>
-          <span className="text-xs text-dim-3">
-            {resolutionWidth} × {resolutionHeight}
-          </span>
-        </div>
+        <canvas
+          ref={visibleCanvasRef}
+          width={resolutionWidth}
+          height={resolutionHeight}
+          className="absolute inset-0 h-full w-full"
+          aria-label={t("editor_preview_label")}
+        />
       </div>
-    );
-  }
-);
+
+      <div className="mt-1 flex w-full justify-between px-3">
+        <span className="font-mono text-xs text-dim-3">
+          {formatMMSS(playheadMs)} / {formatMMSS(durationMs)}
+        </span>
+        <span className="text-xs text-dim-3">
+          {resolutionWidth} × {resolutionHeight}
+        </span>
+      </div>
+    </div>
+  );
+});
