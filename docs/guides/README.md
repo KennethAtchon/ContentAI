@@ -11,3 +11,4 @@
 |------|---------|
 | [`editor-preview-engine-crash-course.md`](./editor-preview-engine-crash-course.md) | Beginner-first explanation of the preview engine rewrite plan, starting from basic web and browser concepts |
 | [`frontend-optimization-tools.md`](./frontend-optimization-tools.md) | How to run react-scan, bundle visualizer, Million.js compiler, and eslint-plugin-react-hooks |
+| [`webpack-single-spa-fundamentals.md`](./webpack-single-spa-fundamentals.md) | In-depth guide to Webpack core concepts and how they map to a `single-spa` microfrontend architecture |
