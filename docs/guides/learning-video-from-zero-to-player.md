@@ -287,6 +287,127 @@ If you can build Phase 7–9, editor internals become a tractable engineering pr
 
 ---
 
+## Editor track — Concrete milestones (build an editor, not a toy)
+
+This section turns “an editor is a player plus…” into a buildable sequence. Each milestone is intentionally scoped so you can ship something working before adding complexity.
+
+### Milestone E0 — Project + timeline model (1–3 days)
+
+Define a *timeline* that references source media instead of duplicating it.
+
+- `MediaAsset`: path, streams, duration, metadata (from `ffprobe`/`avformat`).
+- `Clip`: asset reference + `in`/`out` in **timeline time**.
+- `Track`: ordered list of clips, no overlap (at first).
+- `Timeline`: tracks + global frame rate policy (don’t assume CFR; store time as rational).
+
+**Done when**
+
+- You can serialize/deserialize a “project” file (JSON is fine initially).
+- You can load a project and list clips with computed timeline ranges.
+
+### Milestone E1 — Cut-only editor with real playback (1–2 weeks)
+
+Make a UI however you like (CLI, minimal GUI, web). The key is correctness of the media pipeline:
+
+- Display the timeline playhead time.
+- Play/pause and show current frame from the composed timeline.
+- For now: **single video track, hard cuts only**, no transitions, no scaling.
+
+Implementation tip: reuse your player’s demux/decode, but instead of “play file t”, you need “play timeline t”:
+
+- Map timeline time → (clip, local clip time) → (asset timestamp).
+- Seek asset to that timestamp, decode to the right frame, present it.
+
+**Done when**
+
+- You can assemble 3 clips from the same asset and play through the edits.
+- Pausing is stable (no runaway decode loop).
+
+### Milestone E2 — Scrub/seek that feels instant (2–4 weeks)
+
+Scrubbing is where many editors live or die.
+
+- Clicking on the timeline jumps to that time and shows the correct frame.
+- Dragging the playhead updates frames continuously (degrade quality if needed).
+
+Techniques you’ll likely need:
+
+- Decode-to-target (seek to nearest keyframe, then decode forward).
+- A small frame cache around the playhead.
+- Background decode jobs so the UI thread never blocks.
+
+**Done when**
+
+- Scrubbing a 1080p H.264 file shows a frame within ~100–200ms on your machine (rough target; adjust to your hardware).
+
+### Milestone E3 — Export (mux/encode) with correct trims (1–3 weeks)
+
+Export means: given a timeline, produce a new file.
+
+Start with the simplest case:
+
+- One video track, hard cuts, no transitions.
+- Re-encode everything (simpler than stream-copy at first).
+
+Then add optimizations:
+
+- Stream copy when the cut points land on keyframes.
+- Otherwise: partial re-encode around cuts (harder; optional).
+
+**Done when**
+
+- Exported output plays in `ffplay` with correct duration and cut points.
+- Audio (if present) stays in sync for typical content (60–120 seconds).
+
+### Milestone E4 — Audio track + waveforms (optional, 2–6 weeks)
+
+- Decode audio to PCM; resample to your output format.
+- Build audio peak data for waveforms (store it in a cache file).
+- Use audio as the master clock during playback (common approach).
+
+**Done when**
+
+- Timeline playback remains in sync and waveforms match audible content.
+
+### Milestone E5 — Transitions + simple effects (optional, 3–8 weeks)
+
+Choose one path first:
+
+- CPU path: FFmpeg filtergraph concepts (blend, fade, scale) to learn the math and timing.
+- GPU path: render pipeline (textures, shaders), then map timeline → render graph.
+
+Start with:
+
+- Fade-in/out
+- Crossfade (two clips overlapping for a duration)
+- Scale-to-fit + letterbox/pillarbox
+
+**Done when**
+
+- Preview and export match visually for the same timeline section.
+
+### Milestone E6 — Proxies, thumbnails, and robustness (ongoing)
+
+This is the “make it usable on real projects” layer:
+
+- Proxy generation (lower-res mezzanine) + relinking.
+- Thumbnail generation and caching.
+- Color management and pixel format handling (at least avoid obvious wrong colors).
+- Weird files: VFR, missing timestamps, odd time bases, rotation metadata.
+
+**Done when**
+
+- Your editor stays responsive on longer clips and a handful of different camera/phone sources.
+
+### Editor reality checks (things that bite everyone)
+
+- **Time math**: always keep timestamps as rationals (numerator/denominator) until the last moment.
+- **B-frames**: decode order != display order; trust PTS for presentation.
+- **Keyframes**: seeking and cut accuracy depend on them.
+- **A/V sync**: pick a master clock and be consistent.
+
+---
+
 ## Suggested weekly cadence (example)
 
 - **Week 1**: Phase 1–3 (codec/container), basic H.264 + MP4.
@@ -322,4 +443,4 @@ When stuck, answer these in writing:
 
 - Generate a starter C project skeleton for Phase 6 (`firstframe`) using modern FFmpeg APIs.
 - Add the Phase 7 SDL2 player skeleton (decode → queue → display with PTS timing).
-
+- Extend that into an “E1 cut-only editor” skeleton (timeline model + playhead mapping + export via re-encode).
