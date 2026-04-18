@@ -1353,5 +1353,19 @@
   "editor_effect_vignette": "Vignette",
   "editor_clip_default_label": "Clip",
   "editor_audio_empty": "No audio assets",
-  "inspector_section_captions": "Captions"
+  "inspector_section_captions": "Captions",
+  "editor_inspector_tab_adjust": "Adjust",
+  "editor_inspector_tab_animate": "Animate",
+  "editor_inspector_tab_effects": "Effects",
+  "editor_inspector_tab_project": "Project",
+  "editor_inspector_coming_soon": "Coming soon",
+  "editor_status_clips": "clips",
+  "editor_status_unsaved": "Unsaved",
+  "editor_project_section_info": "Info",
+  "editor_project_section_settings": "Settings",
+  "editor_project_section_thumbnail": "Thumbnail",
+  "editor_project_duration": "Duration",
+  "editor_project_clips": "Clips",
+  "editor_project_resolution": "Resolution",
+  "editor_project_fps": "FPS"
 }

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import type { Clip, TrackType, Transition, ClipPatch } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { hasCollision } from "../utils/clip-constraints";
-import type { TabKey } from "../components/panels/MediaPanel";
+import type { TabKey } from "../components/panels/LeftPanel";
 
 interface UseEditorClipActionsParams {
   store: EditorStore;

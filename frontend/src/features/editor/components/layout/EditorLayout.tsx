@@ -3,9 +3,10 @@ import { EditorProvider } from "../../context/EditorContext";
 import { AssetUrlMapContext } from "../../contexts/asset-url-map-context";
 import { useEditorLayoutRuntime } from "../../hooks/useEditorLayoutRuntime";
 import type { EditProject } from "../../types/editor";
-import { EditorToolbar } from "./EditorToolbar";
+import { EditorHeader } from "./EditorHeader";
 import { EditorWorkspace } from "./EditorWorkspace";
-import { EditorTimelineSection } from "./EditorTimelineSection";
+import { EditorStatusBar } from "./EditorStatusBar";
+import { TimelineSection } from "../timeline/TimelineSection";
 import { EditorDialogs } from "../dialogs/EditorDialogs";
 
 interface Props {
@@ -24,39 +25,20 @@ export function EditorLayout({ project, onBack }: Props) {
           className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
           style={{ height: "100%" }}
         >
-          <EditorToolbar
+          <EditorHeader
             title={state.title}
             isReadOnly={state.isReadOnly}
             pastLength={state.past.length}
             futureLength={state.future.length}
-            isPlaying={state.isPlaying}
-            currentTimeMs={state.currentTimeMs}
-            durationMs={state.durationMs}
-            fps={state.fps}
-            zoom={state.zoom}
-            resolution={state.resolution}
             isDirty={runtime.isDirty}
             isSavingPatch={runtime.isSavingPatch}
             lastSavedAt={runtime.lastSavedAt}
             isPublishing={runtime.isPublishing}
             isCreatingDraft={runtime.isCreatingDraft}
-            isCapturingThumbnail={runtime.isCapturingThumbnail}
             onBack={() => void transport.handleBack()}
             onTitleChange={store.setTitle}
             onUndo={store.undo}
             onRedo={store.redo}
-            onJumpToStart={transport.jumpToStart}
-            onRewind={transport.rewind}
-            onTogglePlaying={() => store.setPlaying(!state.isPlaying)}
-            onFastForward={transport.fastForward}
-            onJumpToEnd={transport.jumpToEnd}
-            onSetCurrentTime={store.setCurrentTime}
-            onZoomIn={transport.zoomIn}
-            onZoomOut={transport.zoomOut}
-            onZoomFit={transport.zoomFit}
-            onResolutionChange={store.setResolution}
-            onFpsChange={store.setFps}
-            onCaptureThumbnail={() => void runtime.captureThumbnail()}
             onOpenExport={() => runtime.setShowExport(true)}
             onOpenPublishDialog={() => runtime.setPublishDialogOpen(true)}
             onCreateNewDraft={() => runtime.createNewDraft()}
@@ -77,14 +59,24 @@ export function EditorLayout({ project, onBack }: Props) {
             mediaActiveTab={runtime.mediaActiveTab}
             pendingAdd={runtime.pendingAdd}
             isReadOnly={state.isReadOnly}
+            isCapturingThumbnail={runtime.isCapturingThumbnail}
             onPlayheadChange={runtime.setPlayheadMs}
             onSetEffectPreview={runtime.setEffectPreview}
             onSetMediaActiveTab={runtime.setMediaActiveTab}
             onClearPendingAdd={() => runtime.setPendingAdd(null)}
             onAddClip={clipActions.handleAddClip}
+            onFpsChange={store.setFps}
+            onResolutionChange={store.setResolution}
+            onCaptureThumbnail={() => void runtime.captureThumbnail()}
+            onJumpToStart={transport.jumpToStart}
+            onRewind={transport.rewind}
+            onTogglePlaying={() => store.setPlaying(!state.isPlaying)}
+            onFastForward={transport.fastForward}
+            onJumpToEnd={transport.jumpToEnd}
+            onSetCurrentTime={store.setCurrentTime}
           />
 
-          <EditorTimelineSection
+          <TimelineSection
             onSyncTimeline={() =>
               void invalidateEditorProjectQuery(runtime.queryClient, project.id)
             }
@@ -100,9 +92,18 @@ export function EditorLayout({ project, onBack }: Props) {
             onClipDelete={clipActions.handleRemoveClip}
             onClipSetSpeed={clipActions.handleClipSetSpeed}
             onFocusMediaForTrack={clipActions.handleFocusMediaForTrack}
+            onZoomIn={transport.zoomIn}
+            onZoomOut={transport.zoomOut}
+            onZoomFit={transport.zoomFit}
             playheadMs={runtime.playheadMs}
             timelineContainerRef={runtime.timelineContainerRef}
             timelineScrollRef={runtime.timelineScrollRef}
+          />
+
+          <EditorStatusBar
+            isDirty={runtime.isDirty}
+            isSavingPatch={runtime.isSavingPatch}
+            lastSavedAt={runtime.lastSavedAt}
           />
 
           <EditorDialogs
@@ -112,9 +113,7 @@ export function EditorLayout({ project, onBack }: Props) {
             fps={state.fps}
             onCloseExport={() => runtime.setShowExport(false)}
             scriptResetPending={runtime.scriptResetPending}
-            onScriptIterationDialogOpenChange={
-              runtime.onScriptIterationDialogOpenChange
-            }
+            onScriptIterationDialogOpenChange={runtime.onScriptIterationDialogOpenChange}
             onConfirmScriptIteration={runtime.confirmScriptIteration}
             publishDialogOpen={runtime.publishDialogOpen}
             onPublishDialogOpenChange={runtime.setPublishDialogOpen}

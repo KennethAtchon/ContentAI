@@ -1,11 +1,10 @@
+import { useState } from "react";
 import type { RefObject } from "react";
-import { useTranslation } from "react-i18next";
-import { RefreshCw } from "lucide-react";
 import type { Clip, TrackType } from "../../types/editor";
-import { Timeline } from "../timeline/Timeline";
-import { useEditorContext } from "../../context/EditorContext";
+import { Timeline } from "./Timeline";
+import { TimelineToolstrip } from "./TimelineToolstrip";
 
-interface EditorTimelineSectionProps {
+interface TimelineSectionProps {
   onSyncTimeline: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
   onDeleteAllClipsInTrack: (trackId: string) => void;
@@ -27,12 +26,15 @@ interface EditorTimelineSectionProps {
     trackId: string,
     startMs: number
   ) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomFit: () => void;
   playheadMs: number;
   timelineContainerRef: RefObject<HTMLDivElement | null>;
   timelineScrollRef: RefObject<HTMLDivElement | null>;
 }
 
-export function EditorTimelineSection({
+export function TimelineSection({
   onSyncTimeline,
   onAddClip,
   onDeleteAllClipsInTrack,
@@ -46,38 +48,25 @@ export function EditorTimelineSection({
   onClipDelete,
   onClipSetSpeed,
   onFocusMediaForTrack,
+  onZoomIn,
+  onZoomOut,
+  onZoomFit,
   playheadMs,
   timelineContainerRef,
   timelineScrollRef,
-}: EditorTimelineSectionProps) {
-  const { t } = useTranslation();
-  const { state } = useEditorContext();
+}: TimelineSectionProps) {
+  const [snap, setSnap] = useState(true);
 
   return (
-    <div style={{ height: 296 }} className="flex flex-col shrink-0">
-      <div
-        className="flex items-center justify-between px-3 py-1 border-t border-overlay-sm bg-studio-surface shrink-0"
-        style={{ height: 32 }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-dim-1">
-            {t("editor_timeline_label")}
-          </span>
-          <button
-            type="button"
-            title={t("editor_sync_timeline")}
-            onClick={onSyncTimeline}
-            className="p-1 rounded hover:bg-overlay-sm text-dim-3 hover:text-dim-1"
-          >
-            <RefreshCw size={12} />
-          </button>
-        </div>
-        <span className="text-xs italic text-dim-3">
-          {Math.round(state.zoom)} px/s ·{" "}
-          {(state.durationMs / 60000).toFixed(1)} min
-        </span>
-      </div>
-
+    <div style={{ height: 340 }} className="flex flex-col shrink-0">
+      <TimelineToolstrip
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        onZoomFit={onZoomFit}
+        onSyncTimeline={onSyncTimeline}
+        snap={snap}
+        onSnapChange={setSnap}
+      />
       <div ref={timelineContainerRef} className="flex-1 overflow-hidden">
         <Timeline
           onAddClip={onAddClip}

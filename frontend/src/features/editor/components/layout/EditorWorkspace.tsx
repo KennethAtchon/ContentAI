@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreviewCanvasHandle } from "../preview/PreviewCanvas";
-import type {
-  CaptionClip,
-  Clip,
-  EditProject,
-  Track,
-  Transition,
-} from "../../types/editor";
-import type { TabKey } from "../panels/MediaPanel";
-import { MediaPanel } from "../panels/MediaPanel";
-import { PreviewCanvas } from "../preview/PreviewCanvas";
+import type { Clip, EditProject, Track, Transition } from "../../types/editor";
+import type { TabKey } from "../panels/LeftPanel";
+import { LeftPanel } from "../panels/LeftPanel";
+import { PreviewArea } from "../preview/PreviewArea";
 import { Inspector } from "../inspector/Inspector";
 import { useEditorContext } from "../../context/EditorContext";
 import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
@@ -20,6 +14,7 @@ import { useCaptionPresets } from "../../caption/hooks/useCaptionPresets";
 import { applyCaptionStyleOverrides } from "../../caption/apply-style-overrides";
 import { isCaptionClip } from "../../utils/clip-types";
 import { isClipActiveAtTimelineTime } from "../../utils/editor-composition";
+import type { CaptionClip } from "../../types/editor";
 
 interface EditorWorkspaceProps {
   project: EditProject;
@@ -35,13 +30,22 @@ interface EditorWorkspaceProps {
   mediaActiveTab: TabKey;
   pendingAdd: { trackId: string; startMs: number } | null;
   isReadOnly: boolean;
+  isCapturingThumbnail: boolean;
   onPlayheadChange: (ms: number) => void;
-  onSetEffectPreview: (
-    value: { clipId: string; patch: Partial<Clip> } | null
-  ) => void;
+  onSetEffectPreview: (value: { clipId: string; patch: Partial<Clip> } | null) => void;
   onSetMediaActiveTab: (tab: TabKey) => void;
   onClearPendingAdd: () => void;
   onAddClip: (trackId: string, clip: Clip) => void;
+  onFpsChange: (fps: 24 | 25 | 30 | 60) => void;
+  onResolutionChange: (resolution: string) => void;
+  onCaptureThumbnail: () => void;
+  // PlaybackBar transport
+  onJumpToStart: () => void;
+  onRewind: () => void;
+  onTogglePlaying: () => void;
+  onFastForward: () => void;
+  onJumpToEnd: () => void;
+  onSetCurrentTime: (ms: number) => void;
 }
 
 export function EditorWorkspace({
@@ -58,11 +62,21 @@ export function EditorWorkspace({
   mediaActiveTab,
   pendingAdd,
   isReadOnly,
+  isCapturingThumbnail,
   onPlayheadChange,
   onSetEffectPreview,
   onSetMediaActiveTab,
   onClearPendingAdd,
   onAddClip,
+  onFpsChange,
+  onResolutionChange,
+  onCaptureThumbnail,
+  onJumpToStart,
+  onRewind,
+  onTogglePlaying,
+  onFastForward,
+  onJumpToEnd,
+  onSetCurrentTime,
 }: EditorWorkspaceProps) {
   const { state, setCurrentTime, setPlaying } = useEditorContext();
   const assetUrlMap = useAssetUrlMap();
@@ -76,9 +90,7 @@ export function EditorWorkspace({
     () => (resolution || "1080x1920").split("x").map(Number),
     [resolution]
   );
-  const [activeCaptionClipId, setActiveCaptionClipId] = useState<string | null>(
-    null
-  );
+  const [activeCaptionClipId, setActiveCaptionClipId] = useState<string | null>(null);
 
   const textTrack = useMemo(
     () => tracks.find((track) => track.type === "text"),
@@ -102,13 +114,9 @@ export function EditorWorkspace({
     [activeCaptionClipId, captionClips]
   );
   const { data: captionPresets } = useCaptionPresets();
-  const { data: activeCaptionDoc } = useCaptionDoc(
-    activeCaptionClip?.captionDocId ?? null
-  );
+  const { data: activeCaptionDoc } = useCaptionDoc(activeCaptionClip?.captionDocId ?? null);
   const activeCaptionPreset = useMemo(() => {
-    const preset = captionPresets?.find(
-      (item) => item.id === activeCaptionClip?.stylePresetId
-    );
+    const preset = captionPresets?.find((item) => item.id === activeCaptionClip?.stylePresetId);
     if (!preset || !activeCaptionClip) return null;
     return applyCaptionStyleOverrides(preset, activeCaptionClip.styleOverrides);
   }, [captionPresets, activeCaptionClip]);
@@ -119,17 +127,17 @@ export function EditorWorkspace({
 
   const handleCaptionBitmapReady = useCallback((bitmap: ImageBitmap | null) => {
     captionBitmapQueueRef.current.push(bitmap);
-    setCaptionBitmapVersion((version) => version + 1);
+    setCaptionBitmapVersion((v) => v + 1);
   }, []);
-  const { canvasRef: captionCanvasRef, renderAtTime: renderCaptionAtTime } =
-    useCaptionCanvas({
-      clip: activeCaptionClip,
-      doc: activeCaptionDoc ?? null,
-      preset: activeCaptionPreset,
-      canvasW: Math.max(1, Math.round(canvasWidth || 1080)),
-      canvasH: Math.max(1, Math.round(canvasHeight || 1920)),
-      onBitmapReady: handleCaptionBitmapReady,
-    });
+
+  const { canvasRef: captionCanvasRef, renderAtTime: renderCaptionAtTime } = useCaptionCanvas({
+    clip: activeCaptionClip,
+    doc: activeCaptionDoc ?? null,
+    preset: activeCaptionPreset,
+    canvasW: Math.max(1, Math.round(canvasWidth || 1080)),
+    canvasH: Math.max(1, Math.round(canvasHeight || 1920)),
+    onBitmapReady: handleCaptionBitmapReady,
+  });
 
   useEffect(() => {
     activeCaptionClipIdRef.current = activeCaptionClipId;
@@ -144,7 +152,6 @@ export function EditorWorkspace({
         setActiveCaptionClipId(nextClipId);
         return;
       }
-
       renderCaptionAtTime(timelineMs);
     },
     [getActiveCaptionClipAt, renderCaptionAtTime]
@@ -157,7 +164,6 @@ export function EditorWorkspace({
   useEffect(() => {
     const pendingRenderTime = pendingCaptionRenderTimeRef.current;
     if (pendingRenderTime == null) return;
-
     pendingCaptionRenderTimeRef.current = null;
     renderCaptionAtTime(pendingRenderTime);
   }, [activeCaptionClipId, renderCaptionAtTime]);
@@ -202,7 +208,7 @@ export function EditorWorkspace({
 
   return (
     <div className="flex flex-1 overflow-hidden min-h-0">
-      <MediaPanel
+      <LeftPanel
         generatedContentId={project.generatedContentId}
         getCurrentTimeMs={getCurrentTimeMs}
         onAddClip={onAddClip}
@@ -213,12 +219,23 @@ export function EditorWorkspace({
         onClearPendingAdd={onClearPendingAdd}
       />
 
-      <PreviewCanvas
-        ref={previewRef}
+      <PreviewArea
         resolution={resolution}
         playheadMs={playheadMs}
         durationMs={durationMs}
+        previewRef={previewRef}
+        isPlaying={isPlaying}
+        currentTimeMs={currentTimeMs}
+        fps={fps}
+        onJumpToStart={onJumpToStart}
+        onRewind={onRewind}
+        onTogglePlaying={onTogglePlaying}
+        onFastForward={onFastForward}
+        onJumpToEnd={onJumpToEnd}
+        onSetCurrentTime={onSetCurrentTime}
       />
+
+      {/* Hidden caption offscreen canvas */}
       <canvas
         ref={captionCanvasRef}
         width={Math.max(1, Math.round(canvasWidth || 1080))}
@@ -236,6 +253,10 @@ export function EditorWorkspace({
           )
         }
         selectedTransition={selectedTransition}
+        onFpsChange={onFpsChange}
+        onResolutionChange={onResolutionChange}
+        isCapturingThumbnail={isCapturingThumbnail}
+        onCaptureThumbnail={onCaptureThumbnail}
       />
     </div>
   );
