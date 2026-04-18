@@ -36,6 +36,7 @@ Secondary stories:
 ## 3. Scope
 
 **In scope:**
+
 - Introduce a dedicated `EditorRuntime` layer that owns live playback clock and transport lifecycle.
 - Remove frame-accurate playback dependency on React reducer state (`currentTimeMs` no longer hot-loop state).
 - Introduce runtime command/query boundary: UI sends commands, runtime emits snapshots/events.
@@ -46,6 +47,7 @@ Secondary stories:
 - Maintain existing project model and autosave/export behavior compatibility.
 
 **Out of scope:**
+
 - Full timeline canvas rewrite.
 - Advanced color grading/keyframes/effect graph redesign.
 - Native desktop migration.
@@ -73,18 +75,21 @@ Editor Layout
 ```
 
 **Key behavior changes:**
+
 - Toolbar timecode display subscribes directly to runtime playhead stream (not reducer re-renders at frame cadence).
 - Timeline playhead animation uses runtime event channel and direct position updates where needed.
 - React reducer receives coarse synchronization snapshots only (for persistence and non-live interactions).
 
 **Element inventory (modified controls):**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|--------------------|
-| Play/Pause | Button | Existing icons | Enabled when project loaded | Sends `TRANSPORT_PLAY` / `TRANSPORT_PAUSE` command to runtime |
-| Rewind/Fast-forward | Button | Existing icons | Enabled when project loaded | Sends `TRANSPORT_SEEK_RELATIVE` command |
-| Timecode readout | Display | `HH:MM:SS:FF` | Always visible | Subscribes to runtime playhead stream |
-| Timeline playhead | Visual indicator | Vertical line | Runtime-synced | Updated from runtime tick stream |
+
+| Element             | Type             | Label / Content | State                       | Action on Interact                                            |
+| ------------------- | ---------------- | --------------- | --------------------------- | ------------------------------------------------------------- |
+| Play/Pause          | Button           | Existing icons  | Enabled when project loaded | Sends `TRANSPORT_PLAY` / `TRANSPORT_PAUSE` command to runtime |
+| Rewind/Fast-forward | Button           | Existing icons  | Enabled when project loaded | Sends `TRANSPORT_SEEK_RELATIVE` command                       |
+| Timecode readout    | Display          | `HH:MM:SS:FF`   | Always visible              | Subscribes to runtime playhead stream                         |
+| Timeline playhead   | Visual indicator | Vertical line   | Runtime-synced              | Updated from runtime tick stream                              |
+
 
 ---
 
@@ -96,11 +101,13 @@ Editor Layout
 
 **States:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Hidden | Runtime healthy | No banner |
+
+| State    | Condition               | What the User Sees                               |
+| -------- | ----------------------- | ------------------------------------------------ |
+| Hidden   | Runtime healthy         | No banner                                        |
 | Degraded | Runtime fallback active | Inline warning: "Playback in compatibility mode" |
-| Critical | Runtime failure | Blocking error panel with retry + reload actions |
+| Critical | Runtime failure         | Blocking error panel with retry + reload actions |
+
 
 ---
 
@@ -124,7 +131,10 @@ flowchart TD
   H --> I[Runtime stops clock and emits final snapshot]
 ```
 
+
+
 Happy path:
+
 1. User triggers play.
 2. React command adapter sends `TRANSPORT_PLAY` to runtime.
 3. Runtime starts audio-clock-backed session and worker schedule.
@@ -132,6 +142,7 @@ Happy path:
 5. On pause, runtime freezes at audible time and publishes final stable snapshot.
 
 Deviations:
+
 - If runtime initialization fails, UI shows critical runtime error panel and disables transport until retry.
 - If browser lacks required capability, runtime enters compatibility mode and exposes reduced performance warning.
 
@@ -152,7 +163,10 @@ flowchart TD
   E --> F[UI updates stable state]
 ```
 
+
+
 Rules:
+
 1. Runtime is authoritative on final committed seek target.
 2. UI preview follows runtime output, not optimistic reducer interpolation.
 3. During drag-scrub, runtime may throttle expensive decode while maintaining responsive cursor movement.
@@ -164,21 +178,24 @@ Rules:
 ### 6.1 Runtime ownership
 
 1. Runtime owns:
+
 - Playback clock
 - Live playhead position
 - Transport session state (`idle`, `playing`, `paused`, `seeking`, `degraded`, `error`)
 - Decode/compositor scheduling coordination
 
-2. React owns:
+1. React owns:
+
 - Project document model edits (track/clip changes)
 - Panels, forms, dialogs, metadata
 - Coarse persisted editor state
 
-3. React must not be required to re-render per frame for playback to remain smooth.
+1. React must not be required to re-render per frame for playback to remain smooth.
 
 ### 6.2 Command bus contract
 
 UI-to-runtime commands:
+
 - `TRANSPORT_PLAY`
 - `TRANSPORT_PAUSE`
 - `TRANSPORT_TOGGLE`
@@ -189,6 +206,7 @@ UI-to-runtime commands:
 - `RUNTIME_APPLY_TIMELINE_PATCH(patch)`
 
 Runtime-to-UI events:
+
 - `PLAYHEAD_TICK(ms, frame, fps, sourceClock)`
 - `TRANSPORT_STATE_CHANGED(state)`
 - `SEEK_COMMITTED(ms)`
@@ -207,21 +225,23 @@ Runtime-to-UI events:
 ### 6.4 Sync model
 
 1. Runtime emits:
+
 - High-frequency ticks for visual sync.
 - Low-frequency snapshot commits for React state sync and persistence.
 
-2. React reducer `SET_CURRENT_TIME` is no longer used for per-frame updates.
-3. Autosave/export read committed timeline state, not transient frame ticks.
+1. React reducer `SET_CURRENT_TIME` is no longer used for per-frame updates.
+2. Autosave/export read committed timeline state, not transient frame ticks.
 
 ### 6.5 Capability gating
 
 1. On editor load, runtime runs capability checks for required APIs and codec path.
 2. Runtime selects one of:
+
 - `full` mode (preferred path)
 - `compatibility` mode (degraded)
 - `unsupported` mode (editor blocked with actionable message)
 
-3. Mode decision is logged to runtime telemetry.
+1. Mode decision is logged to runtime telemetry.
 
 ---
 
@@ -229,20 +249,24 @@ Runtime-to-UI events:
 
 ### 7.1 Runtime state entity
 
-| UI Label / Element | Runtime Field | Type | Required | Validation Rules | Notes |
-|-------------------|---------------|------|----------|------------------|-------|
-| Transport state badge | `transport.state` | enum | Yes | Must be valid enum | Source of truth for play/pause UI |
-| Toolbar timecode | `playhead.ms` + `fps` | number + number | Yes | `0 <= ms <= durationMs` | Formatted as timecode |
-| Runtime mode banner | `runtime.mode` | enum | Yes | `full|compatibility|unsupported` | Controls warning/error UI |
-| Playback warnings list | `runtime.warnings[]` | array | No | max 50 retained | For non-blocking issues |
+
+| UI Label / Element     | Runtime Field         | Type            | Required | Validation Rules        | Notes                             |
+| ---------------------- | --------------------- | --------------- | -------- | ----------------------- | --------------------------------- |
+| Transport state badge  | `transport.state`     | enum            | Yes      | Must be valid enum      | Source of truth for play/pause UI |
+| Toolbar timecode       | `playhead.ms` + `fps` | number + number | Yes      | `0 <= ms <= durationMs` | Formatted as timecode             |
+| Runtime mode banner    | `runtime.mode`        | enum            | Yes      | `full                   | compatibility                     |
+| Playback warnings list | `runtime.warnings[]`  | array           | No       | max 50 retained         | For non-blocking issues           |
+
 
 ### 7.2 Document-model mapping rules
 
-| Document event | Runtime action | Expected result |
-|---------------|----------------|-----------------|
+
+| Document event          | Runtime action                 | Expected result                                          |
+| ----------------------- | ------------------------------ | -------------------------------------------------------- |
 | Clip trim/position edit | `RUNTIME_APPLY_TIMELINE_PATCH` | Runtime graph updates without full restart when possible |
-| Track mute/lock toggle | `RUNTIME_APPLY_TIMELINE_PATCH` | Affects subsequent playback ticks |
-| Project reload | `RUNTIME_RELOAD_PROJECT` | Runtime resets and rehydrates |
+| Track mute/lock toggle  | `RUNTIME_APPLY_TIMELINE_PATCH` | Affects subsequent playback ticks                        |
+| Project reload          | `RUNTIME_RELOAD_PROJECT`       | Runtime resets and rehydrates                            |
+
 
 ---
 
@@ -295,13 +319,16 @@ Runtime-to-UI events:
 
 ## 9. Permissions & Access Control
 
-| User Type / Role | Can Open Editor | Can Play/Scrub | Can Save | Can Export | Notes |
-|------------------|-----------------|----------------|----------|-----------|-------|
-| Owner/Editor | Yes | Yes | Yes | Yes | Full runtime features |
-| Read-only viewer | Yes (if existing role allows) | Yes | No | No | Transport allowed, mutations disabled |
-| Unauthenticated | No | No | No | No | Redirect to auth |
+
+| User Type / Role | Can Open Editor               | Can Play/Scrub | Can Save | Can Export | Notes                                 |
+| ---------------- | ----------------------------- | -------------- | -------- | ---------- | ------------------------------------- |
+| Owner/Editor     | Yes                           | Yes            | Yes      | Yes        | Full runtime features                 |
+| Read-only viewer | Yes (if existing role allows) | Yes            | No       | No         | Transport allowed, mutations disabled |
+| Unauthenticated  | No                            | No             | No       | No         | Redirect to auth                      |
+
 
 Rules:
+
 - Runtime mode visibility (`full/compatibility`) is visible to all users with editor access.
 - Metrics payload must avoid PII and include only technical telemetry.
 
@@ -309,24 +336,28 @@ Rules:
 
 ## 10. Error States & Edge Cases
 
-| Scenario | Trigger | What the User Sees | What the System Does |
-|----------|---------|-------------------|----------------------|
-| Runtime init failure | Worker/decoder boot failure | Blocking runtime error panel + Retry | Runtime enters `error`; no transport commands accepted |
-| Capability unsupported | Browser lacks required API path | Unsupported message with browser guidance | Runtime mode set to `unsupported`; editing may remain read-only |
-| Playback drift detected | Audio/playhead drift above threshold | Non-blocking warning badge | Runtime attempts resync and logs warning |
-| Seek timeout | Decoder seek exceeds timeout budget | Toast: "Seek took longer than expected" | Runtime recovers to nearest stable frame |
-| Runtime crash mid-session | Worker terminated unexpectedly | "Playback engine restarted" banner | Auto-restart once; if repeated, hard error |
+
+| Scenario                  | Trigger                              | What the User Sees                        | What the System Does                                            |
+| ------------------------- | ------------------------------------ | ----------------------------------------- | --------------------------------------------------------------- |
+| Runtime init failure      | Worker/decoder boot failure          | Blocking runtime error panel + Retry      | Runtime enters `error`; no transport commands accepted          |
+| Capability unsupported    | Browser lacks required API path      | Unsupported message with browser guidance | Runtime mode set to `unsupported`; editing may remain read-only |
+| Playback drift detected   | Audio/playhead drift above threshold | Non-blocking warning badge                | Runtime attempts resync and logs warning                        |
+| Seek timeout              | Decoder seek exceeds timeout budget  | Toast: "Seek took longer than expected"   | Runtime recovers to nearest stable frame                        |
+| Runtime crash mid-session | Worker terminated unexpectedly       | "Playback engine restarted" banner        | Auto-restart once; if repeated, hard error                      |
+
 
 ---
 
 ## 11. Copy & Labels
 
-| Location | String | Notes |
-|----------|--------|-------|
-| Runtime degraded banner | "Playback running in compatibility mode" | Warning severity |
-| Runtime unsupported banner | "This browser cannot run the high-performance editor runtime" | Blocking severity |
-| Runtime retry button | "Restart Playback Engine" | Triggers runtime re-init |
-| Seek warning toast | "Seek took longer than expected" | Auto-dismiss |
+
+| Location                   | String                                                        | Notes                    |
+| -------------------------- | ------------------------------------------------------------- | ------------------------ |
+| Runtime degraded banner    | "Playback running in compatibility mode"                      | Warning severity         |
+| Runtime unsupported banner | "This browser cannot run the high-performance editor runtime" | Blocking severity        |
+| Runtime retry button       | "Restart Playback Engine"                                     | Triggers runtime re-init |
+| Seek warning toast         | "Seek took longer than expected"                              | Auto-dismiss             |
+
 
 ---
 
@@ -335,19 +366,23 @@ Rules:
 Performance budgets on supported hardware/browser matrix:
 
 1. Playback smoothness
+
 - Dropped frame rate under continuous play: `< 2%` p95
 - Tick publish cadence for UI consumers: `>= 30Hz` p95
 
-2. Interaction latency
+1. Interaction latency
+
 - Play command to first visible frame: `< 150ms` p95
 - Seek command to settled preview frame: `< 220ms` p95
 - Pause command to stable frame: `< 80ms` p95
 
-3. Stability
+1. Stability
+
 - Runtime fatal error rate: `< 0.5%` sessions
 - Auto-recovery success after non-fatal runtime interruption: `> 95%`
 
-4. Memory
+1. Memory
+
 - No unbounded growth in frame buffers across 20-minute continuous editing session.
 
 ---
@@ -380,18 +415,22 @@ Performance budgets on supported hardware/browser matrix:
 ## 14. Milestones
 
 1. M1: Runtime boundary and command bus
+
 - Implement `EditorRuntime` shell, command/events, feature flag.
 - Playback still partially mirrored to existing path for safety.
 
-2. M2: Timer/playhead decoupling
+1. M2: Timer/playhead decoupling
+
 - Toolbar and timeline playhead consume runtime stream.
 - Remove user-visible timer bounce and playhead jump artifacts.
 
-3. M3: Full transport ownership
+1. M3: Full transport ownership
+
 - Runtime owns play/pause/seek/rate and lifecycle.
 - React reducer receives coarse state snapshots only.
 
-4. M4: Hardening and telemetry
+1. M4: Hardening and telemetry
+
 - Metrics endpoint live.
 - Browser matrix validated.
 - Rollout gates defined and monitored.
@@ -433,31 +472,39 @@ Performance budgets on supported hardware/browser matrix:
 The following sources are approved inspiration for architecture and implementation decisions in this spec:
 
 1. CapCut Web case study (high-performance browser editing with modern web media APIs)
-- https://web.dev/case-studies/capcut
 
-2. Figma engineering architecture patterns (real-time runtime separation from UI app state)
-- https://www.figma.com/blog/how-figmas-multiplayer-technology-works/
-- https://www.figma.com/blog/how-figma-draws-inspiration-from-the-gaming-world/
-- https://www.figma.com/blog/introducing-browserview-for-electron/
+- [https://web.dev/case-studies/capcut](https://web.dev/case-studies/capcut)
 
-3. Rive runtime model (core rendering runtime with framework wrappers)
-- https://rive.app/docs/runtimes/web
-- https://rive.app/docs/runtimes/web/canvas-vs-webgl
-- https://rive.app/docs/runtimes/features-support
+1. Figma engineering architecture patterns (real-time runtime separation from UI app state)
 
-4. Web platform APIs this runtime should be designed around
-- WebCodecs API: https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API
-- OffscreenCanvas: https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas
-- requestVideoFrameCallback: https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback
-- WebCodecs specification: https://www.w3.org/TR/webcodecs/
+- [https://www.figma.com/blog/how-figmas-multiplayer-technology-works/](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/)
+- [https://www.figma.com/blog/how-figma-draws-inspiration-from-the-gaming-world/](https://www.figma.com/blog/how-figma-draws-inspiration-from-the-gaming-world/)
+- [https://www.figma.com/blog/introducing-browserview-for-electron/](https://www.figma.com/blog/introducing-browserview-for-electron/)
 
-5. Managed video infrastructure references for backend render/transcode strategy
-- Cloudflare Stream docs: https://developers.cloudflare.com/stream/
+1. Rive runtime model (core rendering runtime with framework wrappers)
 
-6. Code-driven video tooling references for cloud render and preview workflow ideas
-- Remotion docs: https://www.remotion.dev/
+- [https://rive.app/docs/runtimes/web](https://rive.app/docs/runtimes/web)
+- [https://rive.app/docs/runtimes/web/canvas-vs-webgl](https://rive.app/docs/runtimes/web/canvas-vs-webgl)
+- [https://rive.app/docs/runtimes/features-support](https://rive.app/docs/runtimes/features-support)
+
+1. Web platform APIs this runtime should be designed around
+
+- WebCodecs API: [https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)
+- OffscreenCanvas: [https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas)
+- requestVideoFrameCallback: [https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback)
+- WebCodecs specification: [https://www.w3.org/TR/webcodecs/](https://www.w3.org/TR/webcodecs/)
+
+1. Managed video infrastructure references for backend render/transcode strategy
+
+- Cloudflare Stream docs: [https://developers.cloudflare.com/stream/](https://developers.cloudflare.com/stream/)
+
+1. Code-driven video tooling references for cloud render and preview workflow ideas
+
+- Remotion docs: [https://www.remotion.dev/](https://www.remotion.dev/)
 
 Reference usage rules:
+
 - These links are architectural inspiration, not direct feature parity targets.
 - Product behavior in this spec remains source-of-truth over third-party examples.
 - Any borrowed behavior must pass our compatibility, performance, and UX acceptance criteria.
+
