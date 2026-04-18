@@ -1,3 +1,8 @@
+import { EditorDocumentState } from './editor-document';
+import { EditorPlaybackState } from './editor-playback';
+import { EditorUIState } from './editor-ui';
+
+
 export interface TextStyle {
   fontSize: number;
   fontWeight: "normal" | "bold";
@@ -156,26 +161,28 @@ export type EditorHistorySnapshot = {
   playbackRate: number;
 };
 
-export interface EditorState {
-  editProjectId: string | null;
-  title: string;
-  durationMs: number;
-  fps: number;
-  resolution: string;
-  currentTimeMs: number;
-  isPlaying: boolean;
-  playbackRate: number;
-  zoom: number;
-  tracks: Track[];
-  selectedClipId: string | null;
-  clipboardClip: Clip | null;
-  clipboardSourceTrackId: string | null;
-  past: EditorHistorySnapshot[];
-  future: EditorHistorySnapshot[];
-  exportJobId: string | null;
-  exportStatus: ExportJobStatus | null;
-  isReadOnly: boolean;
-}
+export type EditorState = EditorDocumentState & EditorPlaybackState & EditorUIState;
+
+// export interface EditorState {
+//   editProjectId: string | null;
+//   title: string;
+//   durationMs: number;
+//   fps: number;
+//   resolution: string;
+//   currentTimeMs: number;
+//   isPlaying: boolean;
+//   playbackRate: number;
+//   zoom: number;
+//   tracks: Track[];
+//   selectedClipId: string | null;
+//   clipboardClip: Clip | null;
+//   clipboardSourceTrackId: string | null;
+//   past: EditorHistorySnapshot[];
+//   future: EditorHistorySnapshot[];
+//   exportJobId: string | null;
+//   exportStatus: ExportJobStatus | null;
+//   isReadOnly: boolean;
+// }
 
 export type EditorAction =
   | { type: "LOAD_PROJECT"; project: EditProject }
