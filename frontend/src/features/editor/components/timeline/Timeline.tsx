@@ -22,7 +22,9 @@ import { SortableTrackHeader } from "./SortableTrackHeader";
 import type { Clip, TextClip, TrackType } from "../../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
+import { useEditorSelection } from "../../context/EditorSelectionContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import {
   TRACK_HEIGHT,
@@ -75,12 +77,9 @@ export function Timeline({
   onFocusMediaForTrack,
   playheadMs,
 }: Props) {
+  const { tracks, durationMs, clipboardClip } = useEditorDocumentState();
+  const { selectedClipId, selectClip: onSelectClip } = useEditorSelection();
   const {
-    tracks,
-    durationMs,
-    selectedClipId,
-    clipboardClip,
-    selectClip: onSelectClip,
     updateClip: onUpdateClip,
     toggleTrackMute: onToggleMute,
     toggleTrackLock: onToggleLock,
@@ -89,7 +88,7 @@ export function Timeline({
     removeTrack: onRemoveTrack,
     renameTrack: onRenameTrack,
     reorderTracks: onReorderTracks,
-  } = useEditorDocumentContext();
+  } = useEditorDocumentActions();
   const { zoom, setCurrentTime: onSeek } = useEditorPlaybackContext();
 
   const hasClipboard = !!clipboardClip;

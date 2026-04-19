@@ -1,14 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Undo2, Redo2, Upload, Lock, FilePlus, Check, Loader2 } from "lucide-react";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorPersistContext } from "../../context/EditorPersistContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
 
 export function EditorHeader() {
   const { t } = useTranslation();
-  const { title, isReadOnly, past, future, setTitle, undo, redo } =
-    useEditorDocumentContext();
+  const { title, isReadOnly, past, future } = useEditorDocumentState();
+  const { setTitle, undo, redo } = useEditorDocumentActions();
   const { handleBack, saveNow } = useEditorPlaybackContext();
   const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
   const {

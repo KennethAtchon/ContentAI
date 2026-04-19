@@ -6,7 +6,7 @@ import { applyCaptionStyleOverrides } from "../../caption/apply-style-overrides"
 import { isCaptionClip } from "../../utils/clip-types";
 import { isClipActiveAtTimelineTime } from "../../utils/editor-composition";
 import type { CaptionClip } from "../../types/editor";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 
 export interface CaptionLayerHandle {
@@ -19,7 +19,7 @@ interface CaptionLayerProps {
 
 export const CaptionLayer = forwardRef<CaptionLayerHandle, CaptionLayerProps>(
   function CaptionLayer({ onBitmapReady }, ref) {
-    const { tracks, resolution } = useEditorDocumentContext();
+    const { tracks, resolution } = useEditorDocumentState();
     const { playheadMs } = useEditorPlaybackContext();
 
     const [canvasWidth, canvasHeight] = useMemo(

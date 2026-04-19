@@ -10,15 +10,16 @@ import { useEditorLayoutMutations } from "../../hooks/useEditorLayoutMutations";
 import { useEditorAssetMap } from "../../hooks/useEditorAssetMap";
 import { useEditorClipActions } from "../../hooks/useEditorClipActions";
 import { useEditorTransport } from "../../hooks/useEditorTransport";
-import { stripLocallyModifiedFromTracks } from "../../utils/strip-local-editor-fields";
 import { AssetUrlMapContext } from "../../contexts/asset-url-map-context";
-import { EditorDocumentContext } from "../../context/EditorDocumentContext";
+import { EditorDocumentStateContext } from "../../context/EditorDocumentStateContext";
+import { EditorDocumentActionsContext } from "../../context/EditorDocumentActionsContext";
+import { EditorSelectionContext } from "../../context/EditorSelectionContext";
+import { EditorClipCommandsContext } from "../../context/EditorClipCommandsContext";
 import { EditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { EditorUIContext } from "../../context/EditorUIContext";
 import { EditorPersistContext } from "../../context/EditorPersistContext";
 import type { EditProject, Clip } from "../../types/editor";
 import type { TabKey } from "../panels/LeftPanel";
-import type { SaveService } from "../../services/save-service";
 
 interface EditorProvidersProps {
   project: EditProject;
@@ -59,9 +60,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     lastSavedAt,
     isDirty,
     isSavingPatch,
-    flushSave,
-    saveTimerRef,
-    editorPublishStateRef,
+    saveService,
   } = useEditorAutosave({
     projectId: project.id,
     isReadOnly: store.state.isReadOnly,
@@ -71,30 +70,6 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     resolution: store.state.resolution,
     fps: store.state.fps,
   });
-
-  // Stable SaveService created from autosave refs (refs never change identity)
-  const saveService = useMemo<SaveService>(
-    () => ({
-      flushNow: async () => {
-        const snap = editorPublishStateRef.current;
-        await flushSave({
-          tracks: stripLocallyModifiedFromTracks(snap.tracks),
-          durationMs: snap.durationMs,
-          title: snap.title,
-          resolution: snap.resolution,
-          fps: snap.fps,
-        });
-      },
-      cancelPending: () => {
-        if (saveTimerRef.current) {
-          clearTimeout(saveTimerRef.current);
-          saveTimerRef.current = null;
-        }
-      },
-    }),
-    // flushSave is stable (useCallback); refs are always the same object
-    [flushSave, saveTimerRef, editorPublishStateRef]
-  );
 
   const {
     scriptResetPending,
@@ -165,7 +140,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     [store.state.selectedClipId, store.state.tracks]
   );
 
-  // EditorDocumentContext — only changes on document/UI state changes, not playback ticks
+  // EditorDocumentStateContext changes on document edits, not playback ticks.
   const {
     editProjectId,
     title,
@@ -178,12 +153,9 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     past,
     future,
     isReadOnly,
-    selectedClipId,
-    exportJobId,
-    exportStatus,
   } = store.state;
 
-  const documentValue = useMemo(
+  const documentStateValue = useMemo(
     () => ({
       editProjectId,
       title,
@@ -196,11 +168,15 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       past,
       future,
       isReadOnly,
-      selectedClipId,
-      exportJobId,
-      exportStatus,
-      selectedClip,
-      selectedTrack,
+    }),
+    [
+      editProjectId, title, durationMs, fps, resolution, tracks,
+      clipboardClip, clipboardSourceTrackId, past, future, isReadOnly,
+    ]
+  );
+
+  const documentActionsValue = useMemo(
+    () => ({
       dispatch: store.dispatch,
       loadProject: store.loadProject,
       setTitle: store.setTitle,
@@ -233,19 +209,58 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       removeTrack: store.removeTrack,
       renameTrack: store.renameTrack,
       reorderTracks: store.reorderTracks,
-      ...clipActions,
-      queryClient,
     }),
-    // Deliberately excludes playback state (currentTimeMs, isPlaying, zoom, playbackRate)
-    // so Timeline and other document subscribers don't re-render at 60fps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      editProjectId, title, durationMs, fps, resolution, tracks,
-      clipboardClip, clipboardSourceTrackId, past, future, isReadOnly,
-      selectedClipId, exportJobId, exportStatus,
-      selectedClip, selectedTrack,
-      clipActions, queryClient,
+      store.dispatch, store.loadProject, store.setTitle, store.setResolution,
+      store.setFps, store.addClip, store.updateClip, store.removeClip,
+      store.rippleDeleteClip, store.toggleClipEnabled, store.copyClip,
+      store.pasteClip, store.splitClip, store.duplicateClip, store.moveClip,
+      store.toggleTrackMute, store.toggleTrackLock, store.undo, store.redo,
+      store.setExportJob, store.setExportStatus, store.setTransition,
+      store.removeTransition, store.reorderShots, store.addClipAutoPromote,
+      store.addCaptionClip, store.updateCaptionStyle, store.addVideoTrack,
+      store.removeTrack, store.renameTrack, store.reorderTracks,
     ]
+  );
+
+  const selectionValue = useMemo(
+    () => ({
+      selectedClipId: store.state.selectedClipId,
+      selectedClip,
+      selectedTrack,
+      selectedTransition: clipActions.selectedTransition,
+      selectedTransitionKey,
+      selectClip: store.selectClip,
+      setSelectedTransitionKey,
+      handleSelectTransition: clipActions.handleSelectTransition,
+    }),
+    [
+      store.state.selectedClipId,
+      selectedClip,
+      selectedTrack,
+      clipActions.selectedTransition,
+      clipActions.handleSelectTransition,
+      selectedTransitionKey,
+      store.selectClip,
+    ]
+  );
+
+  const clipCommandsValue = useMemo(
+    () => ({
+      handleAddClip: clipActions.handleAddClip,
+      handleUpdateClip: clipActions.handleUpdateClip,
+      handleRemoveClip: clipActions.handleRemoveClip,
+      handleDeleteAllClipsInTrack: clipActions.handleDeleteAllClipsInTrack,
+      handleClipSplit: clipActions.handleClipSplit,
+      handleClipDuplicate: clipActions.handleClipDuplicate,
+      handleClipCopy: clipActions.handleClipCopy,
+      handleClipPaste: clipActions.handleClipPaste,
+      handleClipToggleEnabled: clipActions.handleClipToggleEnabled,
+      handleClipRippleDelete: clipActions.handleClipRippleDelete,
+      handleClipSetSpeed: clipActions.handleClipSetSpeed,
+      handleFocusMediaForTrack: clipActions.handleFocusMediaForTrack,
+    }),
+    [clipActions]
   );
 
   const pixelsPerMs = useMemo(
@@ -317,16 +332,22 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
   );
 
   return (
-    <EditorDocumentContext.Provider value={documentValue}>
-      <EditorPlaybackContext.Provider value={playbackValue}>
-        <EditorUIContext.Provider value={uiValue}>
-          <EditorPersistContext.Provider value={persistValue}>
-            <AssetUrlMapContext.Provider value={assetUrlMap}>
-              {children}
-            </AssetUrlMapContext.Provider>
-          </EditorPersistContext.Provider>
-        </EditorUIContext.Provider>
-      </EditorPlaybackContext.Provider>
-    </EditorDocumentContext.Provider>
+    <EditorDocumentStateContext.Provider value={documentStateValue}>
+      <EditorDocumentActionsContext.Provider value={documentActionsValue}>
+        <EditorSelectionContext.Provider value={selectionValue}>
+          <EditorClipCommandsContext.Provider value={clipCommandsValue}>
+            <EditorPlaybackContext.Provider value={playbackValue}>
+              <EditorUIContext.Provider value={uiValue}>
+                <EditorPersistContext.Provider value={persistValue}>
+                  <AssetUrlMapContext.Provider value={assetUrlMap}>
+                    {children}
+                  </AssetUrlMapContext.Provider>
+                </EditorPersistContext.Provider>
+              </EditorUIContext.Provider>
+            </EditorPlaybackContext.Provider>
+          </EditorClipCommandsContext.Provider>
+        </EditorSelectionContext.Provider>
+      </EditorDocumentActionsContext.Provider>
+    </EditorDocumentStateContext.Provider>
   );
 }

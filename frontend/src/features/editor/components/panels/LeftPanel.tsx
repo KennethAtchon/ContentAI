@@ -32,7 +32,8 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
 import type { AudioClip, CaptionClip, Clip, MusicClip, VideoClip } from "../../types/editor";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
 import { isMediaClip } from "../../utils/clip-types";
 
 interface Asset {
@@ -172,7 +173,8 @@ export const LeftPanel = memo(function LeftPanel({
   onClearPendingAdd,
 }: LeftPanelProps) {
   const { t } = useTranslation();
-  const { tracks, reorderShots } = useEditorDocumentContext();
+  const { tracks } = useEditorDocumentState();
+  const { reorderShots } = useEditorDocumentActions();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [search, setSearch] = useState("");
   const [showShotOrder, setShowShotOrder] = useState(false);

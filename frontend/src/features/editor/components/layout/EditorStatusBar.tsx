@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { useEditorPersistContext } from "../../context/EditorPersistContext";
 
 export function EditorStatusBar() {
   const { t } = useTranslation();
-  const { tracks, resolution, fps } = useEditorDocumentContext();
+  const { tracks, resolution, fps } = useEditorDocumentState();
   const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
 
   const clipCount = tracks.reduce((n, tr) => n + tr.clips.length, 0);

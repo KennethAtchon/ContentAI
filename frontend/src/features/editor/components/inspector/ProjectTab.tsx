@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { InspectorSection } from "./InspectorSection";
 import { InspectorPropRow, InspectorValuePill } from "./InspectorPropRow";
 import { ResolutionPicker } from "../dialogs/ResolutionPicker";
@@ -28,7 +28,7 @@ export function ProjectTab({
   onCaptureThumbnail,
 }: ProjectTabProps) {
   const { t } = useTranslation();
-  const { durationMs, tracks, resolution, fps } = useEditorDocumentContext();
+  const { durationMs, tracks, resolution, fps } = useEditorDocumentState();
 
   return (
     <div className="p-3">

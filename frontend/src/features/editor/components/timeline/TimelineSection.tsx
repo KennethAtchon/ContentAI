@@ -1,18 +1,23 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Timeline } from "./Timeline";
 import { TimelineToolstrip } from "./TimelineToolstrip";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
+import { useEditorSelection } from "../../context/EditorSelectionContext";
+import { useEditorClipCommands } from "../../context/EditorClipCommandsContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { invalidateEditorProjectQuery } from "@/shared/lib/query-invalidation";
 
 export function TimelineSection() {
   const [snap, setSnap] = useState(true);
+  const queryClient = useQueryClient();
+  const { editProjectId } = useEditorDocumentState();
+  const { removeClip } = useEditorDocumentActions();
+  const { handleSelectTransition } = useEditorSelection();
   const {
-    editProjectId,
-    queryClient,
     handleAddClip,
     handleDeleteAllClipsInTrack,
-    handleSelectTransition,
     handleClipSplit,
     handleClipDuplicate,
     handleClipCopy,
@@ -21,8 +26,7 @@ export function TimelineSection() {
     handleClipRippleDelete,
     handleClipSetSpeed,
     handleFocusMediaForTrack,
-    removeClip,
-  } = useEditorDocumentContext();
+  } = useEditorClipCommands();
   const {
     playheadMs,
     zoomIn,
@@ -38,9 +42,11 @@ export function TimelineSection() {
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onZoomFit={zoomFit}
-        onSyncTimeline={() =>
-          void invalidateEditorProjectQuery(queryClient, editProjectId ?? "")
-        }
+        onSyncTimeline={() => {
+          if (editProjectId) {
+            void invalidateEditorProjectQuery(queryClient, editProjectId);
+          }
+        }}
         snap={snap}
         onSnapChange={setSnap}
       />

@@ -1,7 +1,7 @@
 # ReelStudio Editor — Unified Architecture Plan
 
 > **Date:** 2026-04-18
-> **Status:** Draft
+> **Status:** React refactor phases implemented; Rust/WASM engine phases remain planned
 > **Scope:** React state layer + Rust/WASM engine layer
 
 ---
@@ -399,6 +399,8 @@ Each phase leaves the editor in a fully working state. No phase breaks existing 
 
 ### Phase 1 — Type split (0.5 days)
 
+**Status:** Implemented. Type files now follow an ordered domain stack: `editor-domain.ts` → state slices → `editor.ts` barrel/action composition.
+
 Split `EditorState` into three intersecting types without touching reducer logic or hook wiring.
 
 **Deliverables:**
@@ -412,6 +414,8 @@ Split `EditorState` into three intersecting types without touching reducer logic
 ---
 
 ### Phase 2 — Domain contexts + SaveService (2 days)
+
+**Status:** Implemented with narrower context boundaries than originally drafted. `SaveService` is created inside `useEditorAutosave`; autosave refs stay private to that hook.
 
 Create all four domain contexts and `SaveService`. Wire into `EditorLayout` alongside the existing `EditorContext`. Both old and new wiring coexist — no component migrations yet.
 
@@ -431,6 +435,8 @@ Create all four domain contexts and `SaveService`. Wire into `EditorLayout` alon
 ---
 
 ### Phase 3 — Migrate components to domain contexts (1.5 days)
+
+**Status:** Implemented. Components now consume focused document-state, document-action, selection, clip-command, playback, UI, persist, and asset-map contexts.
 
 Delete prop drilling. `useEditorLayoutRuntime` deleted. Migration order: leaf-first.
 
@@ -456,6 +462,8 @@ Delete prop drilling. `useEditorLayoutRuntime` deleted. Migration order: leaf-fi
 
 ### Phase 4 — CaptionLayer extraction (1 day)
 
+**Status:** Implemented. Caption rendering lives in `components/caption/CaptionLayer.tsx`, with preview timing driven by the engine RAF callback.
+
 Remove caption orchestration from `EditorWorkspace`.
 
 **Deliverables:**
@@ -469,6 +477,8 @@ Remove caption orchestration from `EditorWorkspace`.
 
 ### Phase 5 — Split EditorRoutePage (0.5 days)
 
+**Status:** Implemented. Project list UI lives in `EditorProjectList.tsx`; `EditorRoutePage.tsx` is substantially thinner.
+
 **Deliverables:**
 
 - `EditorProjectList.tsx` — all project list UI, `ProjectCard`, `groupByVersion`, create/delete/link mutations
@@ -478,6 +488,8 @@ Remove caption orchestration from `EditorWorkspace`.
 ---
 
 ### Phase 6 — Rust crate setup + timeline model (2 days)
+
+**Status:** Planned. Do this after the React runtime boundaries remain stable under another editor change.
 
 Set up `editor-core` Rust crate. Validate the wasm-pack build pipeline. Implement timeline resolution in Rust and wire it into `PreviewEngine`.
 
@@ -520,6 +532,8 @@ lto = true
 
 ### Phase 7 — Rust compositor + WebGL2 (3 days)
 
+**Status:** Planned.
+
 Replace `CompositorWorker`'s Canvas 2D render path with a Rust/wgpu compositor targeting WebGL2. The worker message protocol is unchanged — only the internal render path changes.
 
 **Deliverables:**
@@ -537,6 +551,8 @@ Replace `CompositorWorker`'s Canvas 2D render path with a Rust/wgpu compositor t
 ---
 
 ### Phase 8 — Client-side export (2 days)
+
+**Status:** Planned.
 
 Add client-side export for timelines ≤5 minutes. Server-side export stays as fallback.
 
@@ -609,5 +625,4 @@ Add client-side export for timelines ≤5 minutes. Server-side export stays as f
 | 2   | Does `useEditorProjectPoll` live inside `EditorDocumentContext` (natural home) or stay a standalone hook mounted in `EditorLayout`?                                                      | Phase 2 start      |
 | 3   | wgpu vs raw WebGL2 bindings via `web-sys`: wgpu is higher-level and safer but adds ~50KB to WASM binary. Raw WebGL2 is smaller but more code.                                            | Phase 7 start      |
 | 4   | Client export audio: `AudioMixer` runs Web Audio API, not raw PCM. Client export needs audio muxing. Use `mp4-muxer` with `AudioEncoder` (WebCodecs)? Or skip audio in client export v1? | Phase 8 start      |
-
 

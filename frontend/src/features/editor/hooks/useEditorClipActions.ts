@@ -117,20 +117,38 @@ export function useEditorClipActions({
     if (store.state.selectedClipId) setSelectedTransitionKey(null);
   }, [store.state.selectedClipId, setSelectedTransitionKey]);
 
-  return {
-    handleAddClip,
-    handleUpdateClip,
-    handleRemoveClip,
-    handleDeleteAllClipsInTrack,
-    handleClipSplit,
-    handleClipDuplicate,
-    handleClipCopy,
-    handleClipPaste,
-    handleClipToggleEnabled,
-    handleClipRippleDelete,
-    handleClipSetSpeed,
-    handleFocusMediaForTrack,
-    handleSelectTransition,
-    selectedTransition,
-  };
+  return useMemo(
+    () => ({
+      handleAddClip,
+      handleUpdateClip,
+      handleRemoveClip,
+      handleDeleteAllClipsInTrack,
+      handleClipSplit,
+      handleClipDuplicate,
+      handleClipCopy,
+      handleClipPaste,
+      handleClipToggleEnabled,
+      handleClipRippleDelete,
+      handleClipSetSpeed,
+      handleFocusMediaForTrack,
+      handleSelectTransition,
+      selectedTransition,
+    }),
+    [
+      handleAddClip,
+      handleUpdateClip,
+      handleRemoveClip,
+      handleDeleteAllClipsInTrack,
+      handleClipSplit,
+      handleClipDuplicate,
+      handleClipCopy,
+      handleClipPaste,
+      handleClipToggleEnabled,
+      handleClipRippleDelete,
+      handleClipSetSpeed,
+      handleFocusMediaForTrack,
+      handleSelectTransition,
+      selectedTransition,
+    ]
+  );
 }

@@ -10,14 +10,17 @@ import {
   Volume2,
   Scissors,
 } from "lucide-react";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
+import { useEditorSelection } from "../../context/EditorSelectionContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { formatHHMMSSFF, parseTimecode } from "../../utils/timecode";
 
 export function PlaybackBar() {
   const { t } = useTranslation();
-  const { selectedClipId, durationMs, fps, splitClip } =
-    useEditorDocumentContext();
+  const { durationMs, fps } = useEditorDocumentState();
+  const { splitClip } = useEditorDocumentActions();
+  const { selectedClipId } = useEditorSelection();
   const {
     isPlaying,
     currentTimeMs,

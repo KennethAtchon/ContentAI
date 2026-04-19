@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { formatHHMMSSFF } from "../../utils/timecode";
 
 interface TimelineToolstripProps {
@@ -33,7 +33,7 @@ export function TimelineToolstrip({
 }: TimelineToolstripProps) {
   const { t } = useTranslation();
   const { zoom, setZoom, currentTimeMs } = useEditorPlaybackContext();
-  const { fps } = useEditorDocumentContext();
+  const { fps } = useEditorDocumentState();
   const [activeTool, setActiveTool] = useState<"select" | "blade">("select");
 
   return (

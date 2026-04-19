@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import type { ClipPatch } from "../../types/editor";
+import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
+import { useEditorSelection } from "../../context/EditorSelectionContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
 import { InspectorHeader } from "./InspectorHeader";
 import type { InspectorTab } from "./InspectorHeader";
@@ -15,9 +17,8 @@ export function Inspector() {
     selectedClip,
     selectedTrack,
     selectedTransition,
-    setFps,
-    setResolution,
-  } = useEditorDocumentContext();
+  } = useEditorSelection();
+  const { setFps, setResolution } = useEditorDocumentActions();
   const {
     effectPreview,
     setEffectPreview,
@@ -28,7 +29,7 @@ export function Inspector() {
 
   const hasSelection = !!selectedClip || !!selectedTransition;
 
-  const handleEffectPreview = (patch: import("../../types/editor").ClipPatch | null) => {
+  const handleEffectPreview = (patch: ClipPatch | null) => {
     setEffectPreview(
       patch && selectedClip ? { clipId: selectedClip.id, patch } : null
     );

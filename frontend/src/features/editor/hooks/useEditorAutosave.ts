@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Track } from "../types/editor";
@@ -10,6 +10,7 @@ import {
   patchEditorProject,
   type PatchProjectParams,
 } from "../services/editor-api";
+import type { SaveService } from "../services/save-service";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
 import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 
@@ -156,6 +157,28 @@ export function useEditorAutosave(options: {
     [flushSaveMutation]
   );
 
+  const saveService = useMemo<SaveService>(
+    () => ({
+      flushNow: async () => {
+        const snap = editorPublishStateRef.current;
+        await flushSave({
+          tracks: stripLocallyModifiedFromTracks(snap.tracks),
+          durationMs: snap.durationMs,
+          title: snap.title,
+          resolution: snap.resolution,
+          fps: snap.fps,
+        });
+      },
+      cancelPending: () => {
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+      },
+    }),
+    [flushSave]
+  );
+
   /** Reset debounce timer and PATCH after `EDITOR_AUTOSAVE_DEBOUNCE_MS`. */
   const scheduleSave = useCallback(
     (patch: PatchProjectParams, sentFingerprint?: string) => {
@@ -286,9 +309,7 @@ export function useEditorAutosave(options: {
     scheduleSave,
     /** Immediate full-snapshot save (awaitable). */
     flushSave,
-    /** Exposed so the host can cancel pending debounce on explicit save if needed. */
-    saveTimerRef,
-    /** Exposed so publish/export can read the latest tracks + metadata without extra state. */
-    editorPublishStateRef,
+    /** Stable autosave boundary for transport, keyboard, publish, and navigation. */
+    saveService,
   };
 }

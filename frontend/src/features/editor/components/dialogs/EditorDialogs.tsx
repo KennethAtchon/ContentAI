@@ -10,14 +10,14 @@ import {
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { ExportModal } from "./ExportModal";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
 import { useEditorPersistContext } from "../../context/EditorPersistContext";
 
 export function EditorDialogs() {
   const { t } = useTranslation();
-  const { editProjectId, resolution, fps } = useEditorDocumentContext();
+  const { editProjectId, resolution, fps } = useEditorDocumentState();
   const { handleConfirmPublish } = useEditorPlaybackContext();
   const {
     showExport,

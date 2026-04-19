@@ -2,29 +2,25 @@
 
 > Date: 2026-04-18
 > Scope: `docs/plans/editor-unified-architecture.md` plus the current React editor refactor
-> Status: Review notes and follow-up work
+> Status: Follow-up fixes implemented; engine work remains future scope
 
 ## Executive Summary
 
-The refactor moved the editor in the right direction. The old `useEditorLayoutRuntime` and `EditorContext` are gone, `EditorLayout` is now a thin shell, the project list and caption orchestration were extracted, and editor unit tests still pass. That is real progress: the editor is already easier to scan than the prior prop-drilled runtime.
+The refactor now matches the intended React architecture more closely. The old `useEditorLayoutRuntime`, `EditorContext`, and oversized `EditorDocumentContext` are gone. Editor state is split across focused document-state, document-action, selection, clip-command, playback, UI, persist, and asset-map contexts. `EditorLayout` remains a thin shell, the project list and caption orchestration are extracted, and the editor test suite still passes.
 
-The main long-term risk is that the split-context pattern has not fully held. The old god hook has mostly turned into `EditorProviders`, and `EditorDocumentContext` is already carrying document state, UI state, store commands, clip workflow commands, and a `QueryClient`. This compiles, but it weakens the core design goal: make ownership obvious and keep re-render/debug surfaces small.
+The main remaining architectural risk is the engine layer, not the React delivery layer. `PreviewEngine` and `CompositorWorker` still use TypeScript-generated CSS transform/filter strings and Canvas 2D compositing. That should stay as future Rust/WASM or matrix-compositor work after the React runtime settles.
 
 ## Verification
 
 Commands run from `frontend/`:
 
 - `bun run type-check` passed.
-- `bun test __tests__/unit/features/editor` passed: 83 tests.
-- `bun run lint` failed with four errors and one warning.
+- `bun run lint` passed.
+- `bun test __tests__/unit/features/editor` passed: 84 tests.
 
-Current lint failures:
+Added coverage:
 
-- `frontend/src/features/editor/components/layout/EditorWorkspace.tsx:24` has an unused `playheadMs` binding.
-- `frontend/src/features/editor/context/EditorDocumentContext.tsx:7` has unused `EditProject`.
-- `frontend/src/features/editor/context/EditorDocumentContext.tsx:10` has unused `ClipPatch`.
-- `frontend/src/features/editor/context/EditorDocumentContext.tsx:11` has unused `CaptionStyleOverrides`.
-- `frontend/src/features/editor/components/layout/EditorProviders.tsx:241` has an unused `eslint-disable` directive.
+- `frontend/__tests__/unit/features/editor/editor-autosave.test.tsx` verifies `SaveService.flushNow()` persists the latest snapshot and strips local-only clip fields before calling the editor API.
 
 ## What Went Right
 
@@ -62,54 +58,44 @@ The reducer, composition, preview engine, captions, timecode, trim, and constrai
 
 ## What Needs Work
 
-### 1. Fix Lint Before Continuing
+### 1. Lint Cleanup
 
-The code type-checks, but lint is red. This should be cleaned up before additional architecture work, because lint failures hide migration debris and lower confidence in future diffs.
+Status: fixed.
 
-Fixes are small:
-
-- Remove `playheadMs` from the `useEditorPlaybackContext()` destructure in `EditorWorkspace`.
-- Remove unused imports from `EditorDocumentContext`.
-- Remove the unused `eslint-disable` in `EditorProviders`.
+The unused `playheadMs` binding, stale `EditorDocumentContext` imports, and unused hook-dependency disable were removed. `bun run lint` now passes.
 
 ### 2. Prevent `EditorDocumentContext` From Becoming The New God Context
 
-`EditorDocumentContext` currently contains:
+Status: fixed.
 
-- Document state: tracks, title, duration, fps, resolution.
-- UI state: `selectedClipId`, `exportJobId`, `exportStatus`.
-- Derived state: `selectedClip`, `selectedTrack`, `selectedTransition`.
-- Low-level store actions: dispatch, setTitle, addClip, updateClip, undo, redo, etc.
-- Higher-level workflow actions: split, duplicate, paste, focus media, select transition.
-- Infrastructure: `queryClient`.
+The single document context was replaced by focused contexts:
 
-That is too much surface for a context whose name says "document." It makes subscribers hard to reason about, and it invites every editor component to depend on the largest possible bag of editor capabilities.
+- `EditorDocumentStateContext`: persisted document fields.
+- `EditorDocumentActionsContext`: reducer-backed edit commands.
+- `EditorSelectionContext`: selected clip/track/transition state and selection commands.
+- `EditorClipCommandsContext`: workflow-level clip commands.
 
-Recommended split:
-
-- `EditorDocumentStateContext`: persisted document fields only.
-- `EditorDocumentActionsContext`: reducer commands for document edits.
-- `EditorSelectionContext`: selected clip, selected track, selected transition, selection setters.
-- `EditorClipCommandsContext`: workflow commands such as split, duplicate, paste, focus media.
-- Keep `QueryClient` out of editor domain context; localize cache invalidation to the component or command that needs it.
-
-This does not need to be an over-engineered provider forest. A small set of focused contexts is enough. The key rule: a context name should accurately describe every value in it.
+`QueryClient` is no longer carried through document context; timeline sync gets it locally via `useQueryClient()`.
 
 ### 3. Split `EditorProviders` Before It Becomes Permanent Runtime Glue
 
+Status: improved.
+
 `EditorProviders` is now the only place that knows about reducer state, autosave, polling, asset maps, mutations, clip actions, keyboard shortcuts, transport, refs, and all context values. That is an improvement over prop drilling, but it is still a central orchestration object.
 
-Recommended next step:
+Completed:
 
-- Move autosave service creation into `useEditorAutosave`.
-- Move provider value construction into focused hooks, for example `useEditorDocumentProviderValue`, `useEditorPlaybackProviderValue`, and `useEditorUIProviderValue`.
-- Keep `EditorProviders` as a composition layer only.
+- Autosave service creation moved into `useEditorAutosave`.
+- Provider values are separated by domain context.
+- Clip action return values are memoized so command context identity is more stable.
 
-The goal is not fewer lines for its own sake. The goal is debuggability: when publish breaks, the save/publish path should be isolated; when selection breaks, the selection path should be isolated.
+`EditorProviders` still owns runtime composition, but the values it provides now have narrower meanings and clearer debug paths.
 
 ### 4. Finish The SaveService Encapsulation
 
-The plan said only autosave should touch `saveTimerRef` and `editorPublishStateRef`. The current implementation still destructures those refs from `useEditorAutosave` in `EditorProviders` and builds `saveService` there.
+Status: fixed.
+
+Only `useEditorAutosave` touches `saveTimerRef` and `editorPublishStateRef`. Callers receive:
 
 Better shape:
 
@@ -117,7 +103,7 @@ Better shape:
 const { lastSavedAt, isDirty, isSavingPatch, saveService } = useEditorAutosave(...)
 ```
 
-Then `useEditorAutosave` owns:
+`useEditorAutosave` owns:
 
 - latest publish snapshot
 - timer cancellation
@@ -125,31 +111,30 @@ Then `useEditorAutosave` owns:
 - flush payload construction
 - in-flight save policy
 
-That makes `SaveService` a real boundary instead of a convenience wrapper.
+That makes `SaveService` a real boundary instead of a convenience wrapper. The autosave test verifies this behavior.
 
 ### 5. Remove The Type-Level Circular Dependency
 
-`editor.ts` imports `EditorDocumentState`, `EditorPlaybackState`, and `EditorUIState`, while `editor-document.ts` imports `EditorHistorySnapshot`, `Track`, and `Clip` from `editor.ts`. The same cycle exists with `editor-ui.ts` and `ExportJobStatus`.
+Status: fixed.
 
-It currently passes TypeScript, but it is not a good long-term module shape. These files are intended to clarify domains, but the cycle makes the domain split harder to trust.
+The editor type files were reordered into a one-way dependency stack:
 
-Recommended fix:
-
-- Move base domain types (`Clip`, `Track`, `Transition`, `ExportJobStatus`, `EditorHistorySnapshot`) to a file that does not import state slices, such as `editor-domain.ts`.
-- Let `editor.ts` re-export and compose the final `EditorState`.
-- Use `import type` for type-only imports.
+- `editor-domain.ts`: base clip, track, project, export, history, and color types/constants.
+- `editor-document.ts`, `editor-playback.ts`, `editor-ui.ts`: state slices importing from the domain layer only.
+- `editor.ts`: public barrel plus `EditorState` and `EditorAction` composition.
 
 ### 6. Add Context-Level Tests
 
-The current editor tests protect reducer and engine behavior well, but there is no test coverage for the new provider contracts.
+Status: partially fixed.
 
-Add focused tests for:
+The new autosave test covers the highest-risk new boundary: `SaveService.flushNow()` builds a correct persisted payload without exposing autosave internals.
+
+Still useful future coverage:
 
 - `EditorProviders` exposes document values without playback tick churn.
-- `SaveService.flushNow()` sends stripped tracks, `durationMs`, title, resolution, and fps.
 - Publish calls `cancelPending()` before `flushNow()` before `runPublish()`.
 - Caption playback sync does not re-enter `renderCurrentFrame`.
-- `TimelineSection` sync invalidates the project query only when an edit project id exists.
+- `TimelineSection` sync invalidates the project query only when an edit project id exists. The production code now has this guard.
 
 These tests would make future provider splits much less scary.
 
@@ -176,14 +161,12 @@ The code already has `PreviewEngineMetrics`; the missing piece is making those m
 
 ## Recommended Next Steps
 
-1. Clean up the lint errors.
-2. Move `saveService` construction inside `useEditorAutosave`.
-3. Split `EditorDocumentContext` into state, actions, selection, and clip-command contexts.
-4. Add provider-level tests for save/publish/context behavior.
-5. Update `editor-unified-architecture.md` to mark phases 1 through 5 as implemented-with-follow-ups, and keep Rust/WASM phases as future work.
+1. Add the remaining provider-level tests listed above when the editor gets its next behavior change.
+2. Keep Rust/WASM compositor work behind `PreviewEngine` and the existing worker protocol.
+3. Add a small development-only editor debug surface for save lifecycle and preview metrics.
 
 ## Current Verdict
 
-The refactor is directionally correct and already pays off in readability. It should work for the near term, and the passing editor test suite gives a decent safety net.
+The React refactor is now in good shape. The ownership boundaries are explicit, autosave internals are hidden, type files have a clean order, lint is green, and the editor unit suite passes.
 
-For the long term, the pattern needs one more tightening pass. Without it, the project will drift from "split domain contexts" into "one huge provider with nicer component call sites." The next pass should make ownership explicit, hide autosave internals, and add tests around the new runtime boundaries before the Rust compositor work begins.
+The long-term work is now concentrated where the original architecture plan expected it: replacing fragile compositor string math with a real matrix/GPU path and adding a development debug surface for preview and save lifecycle issues.

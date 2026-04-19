@@ -3,7 +3,7 @@ import type { PreviewCanvasHandle } from "./PreviewCanvas";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { PreviewTopStrip } from "./PreviewTopStrip";
 import { PlaybackBar } from "./PlaybackBar";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 
 interface PreviewAreaProps {
@@ -11,7 +11,7 @@ interface PreviewAreaProps {
 }
 
 export function PreviewArea({ previewRef }: PreviewAreaProps) {
-  const { resolution, durationMs } = useEditorDocumentContext();
+  const { resolution, durationMs } = useEditorDocumentState();
   const { playheadMs } = useEditorPlaybackContext();
 
   return (

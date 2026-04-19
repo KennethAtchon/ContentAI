@@ -8,7 +8,8 @@ import { CaptionLayer } from "../caption/CaptionLayer";
 import type { CaptionLayerHandle } from "../caption/CaptionLayer";
 import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
 import { usePreviewEngine } from "../../hooks/usePreviewEngine";
-import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { useEditorClipCommands } from "../../context/EditorClipCommandsContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
 
@@ -17,11 +18,11 @@ interface EditorWorkspaceProps {
 }
 
 export function EditorWorkspace({ project }: EditorWorkspaceProps) {
-  const { tracks, isReadOnly, handleAddClip, resolution, durationMs, fps } =
-    useEditorDocumentContext();
+  const { tracks, isReadOnly, resolution, durationMs, fps } =
+    useEditorDocumentState();
+  const { handleAddClip } = useEditorClipCommands();
   const {
     currentTimeMs,
-    playheadMs,
     isPlaying,
     setCurrentTime,
     setPlaying,
