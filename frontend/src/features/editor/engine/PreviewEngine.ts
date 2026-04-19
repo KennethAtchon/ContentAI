@@ -4,6 +4,10 @@ import {
   type AudioClipDescriptor,
 } from "./AudioMixer";
 import { DecoderPool, type DecoderPoolMetrics } from "./DecoderPool";
+import {
+  buildCompositorDescriptorsWithRustFallback,
+  preloadEditorCoreWasm,
+} from "./editor-core-wasm";
 import type {
   CompositorClipDescriptor,
   CompositorClipPath,
@@ -293,6 +297,7 @@ export class PreviewEngine {
       this.markFirstDecodedFrameAfterSeek(clipId, timestampUs);
       this.callbacks.onFrame(frame, timestampUs, clipId);
     });
+    void preloadEditorCoreWasm();
     this.unregisterDebugProvider = systemPerformance.registerSnapshotProvider(
       "previewEngine",
       () => this.getDebugSnapshot()
@@ -455,10 +460,11 @@ export class PreviewEngine {
     const timerId = systemPerformance.start("editor.compositorTick", {
       playheadMs,
     });
-    const clips = buildCompositorClips(
+    const clips = buildCompositorDescriptorsWithRustFallback(
       this.tracks,
       playheadMs,
-      this.effectPreview
+      this.effectPreview,
+      () => buildCompositorClips(this.tracks, playheadMs, this.effectPreview)
     );
     const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;

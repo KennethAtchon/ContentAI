@@ -1,24 +1,36 @@
 /**
- * ClipDecodeWorker — runs in a Worker thread.
+ * ClipDecodeWorker - runs in a Worker thread.
  *
- * Owns a VideoDecoder for exactly one clip.
- * Demuxes the asset with mp4box.js, maintains a keyframe index for seeking,
- * and posts decoded frames back to the main thread.
+ * Owns one VideoDecoder for one clip. It loads an MP4 asset with mp4box.js,
+ * builds the seek/index metadata, and transfers decoded VideoFrame objects back
+ * to the main thread.
  *
- * Message protocol (main → worker):
- *   { type: 'LOAD', assetUrl: string, clipId: string, metadata?: CachedDemuxMetadata }
- *   { type: 'SEEK', targetMs: number }
- *   { type: 'PLAY' }
- *   { type: 'PAUSE' }
- *   { type: 'DESTROY' }
+ * Message protocol (main -> worker):
+ *   { type: "LOAD", assetUrl: string, clipId: string, metadata?: CachedDemuxMetadata }
+ *   { type: "SEEK", targetMs: number, seekToken?: number | null }
+ *   { type: "PLAY" }
+ *   { type: "PAUSE" }
+ *   { type: "DESTROY" }
  *
- * Message protocol (worker → main):
- *   { type: 'READY', clipId: string }
- *   { type: 'METADATA_READY', clipId: string, assetUrl: string, metadata: CachedDemuxMetadata }
- *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
- *   { type: 'SEEK_DONE', clipId: string }
- *   { type: 'SEEK_FAILED', message: string, clipId: string }
- *   { type: 'ERROR', message: string, clipId: string }
+ * Message protocol (worker -> main):
+ *   { type: "READY", clipId: string }
+ *   { type: "METADATA_READY", clipId: string, assetUrl: string, metadata: CachedDemuxMetadata }
+ *   { type: "FRAME", frame: VideoFrame, timestampUs: number, clipId: string, seekToken?: number | null }
+ *   { type: "SEEK_DONE", clipId: string, seekToken?: number | null }
+ *   { type: "SEEK_FAILED", message: string, clipId?: string, seekToken?: number | null }
+ *   { type: "ERROR", message: string, clipId?: string }
+ *
+ * High-level flow:
+ *   1. LOAD fetches/demuxes MP4 samples, or applies cached demux metadata.
+ *   2. The worker creates one WebCodecs VideoDecoder for the clip.
+ *   3. SEEK resets the decoder, feeds from the nearest keyframe, and transfers
+ *      the first frame at or after the target time.
+ *   4. PLAY runs a small pump that feeds encoded samples into VideoDecoder.
+ *   5. VideoDecoder output transfers VideoFrames back to DecoderPool/main thread.
+ *
+ * Unit convention: mp4box sample timestamps are in track ticks. WebCodecs and
+ * the compositor expect microseconds, so all decode timestamps/durations are
+ * converted before creating EncodedVideoChunk objects.
  */
 
 import { createFile, MultiBufferStream } from "mp4box";
@@ -30,17 +42,15 @@ import {
   assertSampleBudget,
 } from "./decode-guard";
 
-// mp4box v2.3 exposes a single `Track` type for both audio and video.
+// mp4box v2.3 exposes a single Track type for both audio and video.
 // Audio tracks have `track.audio` populated; video tracks have `track.video`.
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface KeyframeEntry {
-  /** Decode timestamp in microseconds (as stored in the container). */
+  /** Decode timestamp in microseconds. */
   dts: number;
   /** Byte offset in the file. */
   offset: number;
-  /** Sample index (0-based) into the video-only sample list. */
+  /** Sample index in the video-only sample list. */
   sampleIndex: number;
 }
 
@@ -73,409 +83,778 @@ export interface CachedDemuxMetadata {
   decoderDescription?: Uint8Array;
 }
 
-// Bun's lib doesn't include DedicatedWorkerGlobalScope. Define the minimal
-// surface we need so all postMessage calls use the browser Transferable signature.
+type WorkerMessage =
+  | {
+      type: "LOAD";
+      assetUrl: string;
+      clipId: string;
+      metadata?: CachedDemuxMetadata;
+    }
+  | { type: "SEEK"; targetMs: number; seekToken?: number | null }
+  | { type: "PLAY" }
+  | { type: "PAUSE" }
+  | { type: "DESTROY" };
+
+// Bun's lib does not include DedicatedWorkerGlobalScope. Define the minimal
+// surface we need so postMessage uses the browser Transferable signature.
 interface WorkerCtx extends EventTarget {
   postMessage(message: unknown, transfer: Transferable[]): void;
   postMessage(message: unknown, options?: StructuredSerializeOptions): void;
   close(): void;
   onmessage: ((ev: MessageEvent) => unknown) | null;
 }
+
 const ctx = self as unknown as WorkerCtx;
 
-// ─── Worker state ─────────────────────────────────────────────────────────────
+class ClipDecodeWorker {
+  /** Current clip identity; null means output frames should be closed. */
+  private clipMeta: ClipMeta | null = null;
+  private videoDecoder: VideoDecoder | null = null;
+  /** Baseline config reused after VideoDecoder.reset(). */
+  private videoDecoderConfig: VideoDecoderConfig | null = null;
+  /** Keyframes in microseconds, used to choose a GOP start for seeking. */
+  private keyframeIndex: KeyframeEntry[] = [];
+  /** Demuxed video samples; sample.data is the encoded payload for WebCodecs. */
+  private videoSamples: DecodableVideoSample[] = [];
+  private videoTrackId = -1;
+  private videoTimescale = 1;
+  private cachedDecoderDescription: Uint8Array | undefined;
+  private isPlaying = false;
+  private playheadSampleIndex = 0;
+  private loadAbortController: AbortController | null = null;
+  private isDestroyed = false;
+  private feedTimer: ReturnType<typeof setTimeout> | null = null;
+  /** During seek, discard decoder output before this presentation timestamp. */
+  private seekOutputThresholdUs: number | null = null;
+  private didEmitFrameForActiveSeek = false;
+  private activeSeekToken: number | null = null;
+  private bufferedFramesAfterSeek: VideoFrame[] = [];
+  /** Guards async LOAD work so stale fetch/demux results cannot publish READY. */
+  private loadGeneration = 0;
 
-let clipMeta: ClipMeta | null = null;
-let videoDecoder: VideoDecoder | null = null;
-let videoDecoderConfig: VideoDecoderConfig | null = null;
-let keyframeIndex: KeyframeEntry[] = [];
-let videoSamples: DecodableVideoSample[] = [];
-let videoTrackId = -1;
-let videoTimescale = 1; // track timescale (e.g. 90000 for 90 kHz)
-let cachedDecoderDescription: Uint8Array | undefined;
-let isPlaying = false;
-let playheadSampleIndex = 0;
-let loadAbortController: AbortController | null = null;
-let isDestroyed = false;
-let feedTimer: ReturnType<typeof setTimeout> | null = null;
-let seekOutputThresholdUs: number | null = null;
-let didEmitFrameForActiveSeek = false;
-let activeSeekToken: number | null = null;
-let bufferedFramesAfterSeek: VideoFrame[] = [];
-/**
- * True after configure/reset; cleared on first key-chunk decode.
- * Some browsers clear the decoder's reference-frame state after flush(),
- * requiring a new key frame at the start of every feedNextChunk run.
- * We track this so feedNextChunk can rewind to the GOP start if needed.
- */
-let decoderNeedsKeyFrame = true;
+  /**
+   * True after configure/reset; cleared on the first key-chunk decode.
+   * Some browsers clear decoder reference frames after flush(), so playback may
+   * need to rewind to a GOP start before feeding the next delta frame.
+   */
+  private decoderNeedsKeyFrame = true;
 
-// ─── VideoDecoder helpers ──────────────────────────────────────────────────────
+  constructor(private readonly worker: WorkerCtx) {
+    this.worker.onmessage = (event: MessageEvent) => {
+      void this.handleMessage(event.data as WorkerMessage);
+    };
+  }
 
-/**
- * Builds a `VideoDecoder` for this clip: stores baseline `VideoDecoderConfig`,
- * configures hardware decode, and wires `output` to **transfer** each
- * `VideoFrame` to the main thread (`FRAME` message). Errors become `ERROR`
- * posts. Codec `description` is left unset here; see `reconfigureVideoDecoder`.
- */
-function createVideoDecoder(videoTrack: VideoTrackMetadata): VideoDecoder {
-  const config: VideoDecoderConfig = {
-    codec: videoTrack.codec,
-    codedWidth: videoTrack.width,
-    codedHeight: videoTrack.height,
-    hardwareAcceleration: "prefer-hardware",
-    // description is intentionally omitted here — derived from the first
-    // sample after demux completes. See getVideoDescription() and the note
-    // in 02-phase-1-clip-decode-worker.md § Known edge cases.
-  };
-  videoDecoderConfig = config;
+  // ---------------------------------------------------------------------------
+  // Message lifecycle
+  // ---------------------------------------------------------------------------
 
-  // Apply codec description immediately if samples are already available
-  // (true when called after loadAsset resolves). Reconfigures will also apply it.
-  const description = getVideoDescription();
-  const configWithDescription = description
-    ? { ...config, description }
-    : config;
+  private async handleMessage(message: WorkerMessage): Promise<void> {
+    switch (message.type) {
+      case "LOAD":
+        await this.load(message);
+        break;
+      case "SEEK":
+        await this.seek(message);
+        break;
+      case "PLAY":
+        this.play();
+        break;
+      case "PAUSE":
+        this.pause();
+        break;
+      case "DESTROY":
+        this.destroy();
+        break;
+    }
+  }
 
-  const decoder = new VideoDecoder({
-    output(frame) {
-      if (!clipMeta) {
-        frame.close();
-        return;
+  /**
+   * Entry point for a clip. This is intentionally first in the class because it
+   * resets old state, demuxes or applies metadata, creates the decoder, and posts
+   * READY. Everything else hangs off this setup.
+   */
+  private async load(message: Extract<WorkerMessage, { type: "LOAD" }>) {
+    const generation = this.startNewLoad(message.assetUrl, message.clipId);
+
+    try {
+      let videoTrack: VideoTrackMetadata;
+
+      if (message.metadata) {
+        // Fast path used when DecoderPool already cached demux results for asset.
+        videoTrack = this.applyCachedMetadata(message.metadata);
+      } else {
+        const loadedTrack = await this.loadAsset(message.assetUrl);
+        if (!this.isActiveGeneration(generation)) return;
+
+        const metadata = this.buildCachedMetadata(
+          message.assetUrl,
+          loadedTrack
+        );
+        this.postMetadataReady(message.assetUrl, message.clipId, metadata);
+        videoTrack = metadata.videoTrack;
       }
-      if (seekOutputThresholdUs !== null) {
-        if (frame.timestamp < seekOutputThresholdUs) {
-          frame.close();
+
+      if (!this.isActiveGeneration(generation)) return;
+
+      this.videoDecoder = this.createVideoDecoder(videoTrack);
+      this.worker.postMessage({ type: "READY", clipId: message.clipId });
+    } catch (error) {
+      if (!this.shouldReportError(error, generation)) return;
+      this.postError(error, message.clipId);
+    }
+  }
+
+  private async seek(message: Extract<WorkerMessage, { type: "SEEK" }>) {
+    this.isPlaying = false;
+    this.stopFeedLoop();
+
+    const seekToken =
+      "seekToken" in message ? (message.seekToken ?? null) : null;
+
+    try {
+      await this.seekTo(message.targetMs, seekToken);
+      if (!this.clipMeta?.clipId) return;
+      this.worker.postMessage({
+        type: "SEEK_DONE",
+        clipId: this.clipMeta.clipId,
+        seekToken,
+      });
+    } catch (error) {
+      if (this.isDestroyed || isAbortError(error)) return;
+      this.worker.postMessage({
+        type: "SEEK_FAILED",
+        message: formatError(error),
+        clipId: this.clipMeta?.clipId,
+        seekToken,
+      });
+    }
+  }
+
+  private play(): void {
+    this.isPlaying = true;
+    this.ensureFeedLoop();
+  }
+
+  private pause(): void {
+    this.isPlaying = false;
+    this.stopFeedLoop();
+    // Do not flush: pause/resume should keep the decoder's current position.
+  }
+
+  private destroy(): void {
+    this.loadGeneration++;
+    this.isDestroyed = true;
+    this.isPlaying = false;
+    this.stopFeedLoop();
+    this.abortLoad();
+    this.clearBufferedFrames();
+    this.resetSeekState();
+    this.closeVideoDecoder();
+    this.videoSamples = [];
+    this.keyframeIndex = [];
+    this.cachedDecoderDescription = undefined;
+    this.worker.close();
+  }
+
+  private startNewLoad(assetUrl: string, clipId: string): number {
+    const generation = ++this.loadGeneration;
+
+    this.abortLoad();
+    this.isDestroyed = false;
+    this.isPlaying = false;
+    this.stopFeedLoop();
+    this.clearBufferedFrames();
+    this.closeVideoDecoder();
+    this.clipMeta = { assetUrl, clipId };
+    this.resetSeekState();
+    this.keyframeIndex = [];
+    this.videoSamples = [];
+    this.videoTrackId = -1;
+    this.videoTimescale = 1;
+    this.cachedDecoderDescription = undefined;
+    this.playheadSampleIndex = 0;
+    this.decoderNeedsKeyFrame = true;
+
+    return generation;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Asset loading and metadata
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Fetches the MP4, feeds it into mp4box, and fills this instance's samples and
+   * keyframe index.
+   *
+   * Order: fetch -> appendBuffer/flush -> onReady finds the video track ->
+   * setExtractionOptions/start -> onSamples stores video samples.
+   *
+   * This worker only decodes video. Muxed audio is still handled by the preview
+   * engine's audio path.
+   */
+  private async loadAsset(url: string): Promise<Track> {
+    return new Promise((resolve, reject) => {
+      const mp4boxFile = createFile();
+      const abortController = new AbortController();
+      let foundVideoTrack: Track | null = null;
+      let fileOffset = 0;
+      let settled = false;
+
+      this.loadAbortController = abortController;
+
+      const rejectOnce = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
+
+      const resolveOnce = (videoTrack: Track) => {
+        if (settled) return;
+        settled = true;
+        resolve(videoTrack);
+      };
+
+      mp4boxFile.onError = rejectOnce;
+      mp4boxFile.onReady = (info: Movie) => {
+        foundVideoTrack = info.videoTracks[0] ?? null;
+
+        if (!foundVideoTrack) {
+          rejectOnce(new Error("No video track found in asset"));
           return;
         }
-        if (!didEmitFrameForActiveSeek) {
-          didEmitFrameForActiveSeek = true;
-          postFrame(frame, activeSeekToken);
+
+        assertSafeVideoTrack(foundVideoTrack);
+
+        this.videoTrackId = foundVideoTrack.id;
+        this.videoTimescale = foundVideoTrack.timescale ?? 1;
+        mp4boxFile.setExtractionOptions(this.videoTrackId, null, {
+          nbSamples: Infinity,
+        });
+        mp4boxFile.start();
+      };
+
+      mp4boxFile.onSamples = (
+        trackId: number,
+        _user: unknown,
+        samples: Sample[]
+      ) => {
+        if (trackId !== this.videoTrackId) return;
+
+        try {
+          assertSampleBudget(this.videoSamples.length, samples);
+        } catch (error) {
+          rejectOnce(error);
           return;
         }
-        // Keep any future frames decoded during seek so playback can resume
-        // without dropping frames that were needed to surface the target frame.
-        bufferedFramesAfterSeek.push(frame);
-        return;
+
+        const baseIndex = this.videoSamples.length;
+        this.videoSamples.push(...samples);
+        // Build once during demux so seeks can jump straight to the GOP start.
+        this.addKeyframes(samples, baseIndex);
+      };
+
+      this.fetchAssetBuffer(url, abortController)
+        .then((buffer) => {
+          const mp4Buffer = buffer as ArrayBuffer & { fileStart: number };
+          mp4Buffer.fileStart = fileOffset;
+          fileOffset += buffer.byteLength;
+
+          mp4boxFile.appendBuffer(mp4Buffer);
+          mp4boxFile.flush();
+          this.clearLoadController(abortController);
+
+          if (foundVideoTrack) {
+            resolveOnce(foundVideoTrack);
+          } else {
+            rejectOnce(new Error("mp4box did not produce track info"));
+          }
+        })
+        .catch((error) => {
+          this.clearLoadController(abortController);
+          if (isAbortError(error) && this.isDestroyed) return;
+          rejectOnce(error);
+        });
+    });
+  }
+
+  private async fetchAssetBuffer(
+    url: string,
+    abortController: AbortController
+  ): Promise<ArrayBuffer> {
+    const response = await fetch(url, {
+      signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Asset fetch failed: ${response.status}`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (contentLength > MAX_DECODE_FETCH_BYTES) {
+      throw new Error(formatFetchLimitError());
+    }
+
+    if (!response.body) {
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > MAX_DECODE_FETCH_BYTES) {
+        throw new Error(formatFetchLimitError());
       }
-      postFrame(frame);
-    },
-    error(e) {
-      ctx.postMessage({
-        type: "ERROR",
-        message: String(e),
-        clipId: clipMeta?.clipId,
+      return buffer;
+    }
+
+    return this.readLimitedStream(response.body, abortController);
+  }
+
+  private async readLimitedStream(
+    body: ReadableStream<Uint8Array>,
+    abortController: AbortController
+  ): Promise<ArrayBuffer> {
+    const reader = body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      total += value.byteLength;
+      if (total > MAX_DECODE_FETCH_BYTES) {
+        abortController.abort();
+        throw new Error(formatFetchLimitError());
+      }
+      chunks.push(value);
+    }
+
+    const combined = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return combined.buffer;
+  }
+
+  private addKeyframes(samples: Sample[], baseIndex: number): void {
+    for (let index = 0; index < samples.length; index++) {
+      const sample = samples[index];
+      if (!sample.is_sync) continue;
+
+      this.keyframeIndex.push({
+        dts: this.ticksToUs(sample.dts),
+        offset: sample.offset,
+        sampleIndex: baseIndex + index,
       });
-    },
-  });
-
-  decoder.configure(configWithDescription);
-  decoderNeedsKeyFrame = true;
-  return decoder;
-}
-
-function postFrame(frame: VideoFrame, seekToken?: number | null): void {
-  if (!clipMeta) {
-    frame.close();
-    return;
+    }
   }
-  ctx.postMessage(
-    {
-      type: "FRAME",
-      frame,
-      timestampUs: frame.timestamp,
-      clipId: clipMeta.clipId,
-      ...(seekToken !== undefined ? { seekToken } : {}),
-    },
-    // Transfer the frame — zero-copy. The main thread MUST call frame.close() after use.
-    [frame as unknown as Transferable]
-  );
-}
 
-function clearBufferedFrames(): void {
-  for (const frame of bufferedFramesAfterSeek) {
-    frame.close();
+  private applyCachedMetadata(
+    metadata: CachedDemuxMetadata
+  ): VideoTrackMetadata {
+    this.videoTrackId = metadata.videoTrack.id;
+    this.videoTimescale = metadata.videoTrack.timescale;
+    this.keyframeIndex = metadata.keyframeIndex.map((entry) => ({ ...entry }));
+    this.videoSamples = metadata.videoSamples.map((sample) => ({ ...sample }));
+    this.cachedDecoderDescription = metadata.decoderDescription;
+    return metadata.videoTrack;
   }
-  bufferedFramesAfterSeek = [];
-}
 
-function drainBufferedFrames(): void {
-  if (bufferedFramesAfterSeek.length === 0) return;
-  const frames = bufferedFramesAfterSeek;
-  bufferedFramesAfterSeek = [];
-  for (const frame of frames) {
-    postFrame(frame);
-  }
-}
-
-function closeVideoDecoder(): void {
-  if (!videoDecoder) return;
-  try {
-    videoDecoder.close();
-  } catch {
-    // Ignore close failures during teardown/reload.
-  }
-  videoDecoder = null;
-}
-
-/**
- * After `VideoDecoder.reset()`, re-`configure` with the same dimensions/codec
- * plus optional `description` from `getVideoDescription()` (Phase 2: avcC/hvcC
- * bytes). Today `getVideoDescription` is a stub, so this mostly re-applies the
- * baseline config so decode can resume cleanly post-seek.
- */
-function reconfigureVideoDecoder(decoder: VideoDecoder): void {
-  if (!videoDecoderConfig) return;
-  const description = getVideoDescription();
-  decoder.configure(
-    description ? { ...videoDecoderConfig, description } : videoDecoderConfig
-  );
-  decoderNeedsKeyFrame = true;
-}
-
-/**
- * Extracts codec init bytes (avcC/hvcC) from the first sample's description box.
- * These bytes are required by WebCodecs VideoDecoder for H.264 and H.265 streams
- * contained in MP4 (AVCC/HVCC byte-stream format). Without them the decoder
- * throws "EncodingError: The given encoding is not supported".
- *
- * The box layout written by DataStream.write() is:
- *   [4 bytes size][4 bytes fourcc][N bytes DecoderConfigurationRecord]
- * We skip the 8-byte box header and return only the record bytes.
- */
-function getVideoDescription(): Uint8Array | undefined {
-  if (cachedDecoderDescription) return cachedDecoderDescription;
-  if (videoSamples.length === 0) return undefined;
-  const sample = videoSamples[0] as Sample | undefined;
-  if (!sample?.description) return undefined;
-
-  const entry = sample.description as VisualSampleEntry;
-  const configBox = entry.avcC ?? entry.hvcC;
-  if (!configBox) return undefined;
-
-  try {
-    // MultiBufferStream extends DataStream — use it because write() is typed to require it.
-    const stream = new MultiBufferStream();
-    configBox.write(stream);
-    // stream.byteLength is the actual written length (may be less than buffer.byteLength).
-    // Box layout: [4 bytes size][4 bytes fourcc][N bytes DecoderConfigurationRecord]
-    const recordLength = stream.byteLength - 8;
-    if (recordLength <= 0) return undefined;
-    return new Uint8Array(stream.buffer as ArrayBuffer, 8, recordLength);
-  } catch {
-    return undefined;
-  }
-}
-
-// ─── Demux + keyframe index ────────────────────────────────────────────────────
-
-/**
- * Fetches the MP4, feeds it into mp4box, and fills module state for manual decode.
- *
- * **Order:** `fetch` → `appendBuffer`/`flush` → parse drives `onReady` (mp4box
- * `Movie` summary: tracks, codecs) → `setExtractionOptions` + `start()` →
- * `onSamples` batches append video samples and sync-sample rows to `keyframeIndex`.
- * The promise resolves after that first buffer is appended; Phase 1 assumes one
- * full file so `onReady` has already run and track[0] video/audio are enough.
- *
- * **Tracks:** Only `videoTracks[0]` and `audioTracks[0]`; extras are ignored.
- * **Audio:** The worker does not decode muxed audio yet; preview audio still
- * comes from the main-thread media element path.
- * **Speed:** The worker always seeks in source-media time. Timeline speed math
- * is resolved on the main thread before targetMs reaches this worker.
- */
-async function loadAsset(url: string): Promise<Track> {
-  return new Promise((resolve, reject) => {
-    const mp4boxFile = createFile();
-    let foundVideoTrack: Track | null = null;
-    let fileOffset = 0;
-    let settled = false;
-
-    const rejectOnce = (error: unknown) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
+  private buildCachedMetadata(
+    assetUrl: string,
+    videoTrack: Track
+  ): CachedDemuxMetadata {
+    return {
+      assetUrl,
+      videoTrack: {
+        id: videoTrack.id,
+        timescale: videoTrack.timescale ?? 1,
+        codec: videoTrack.codec,
+        width: videoTrack.video?.width ?? 0,
+        height: videoTrack.video?.height ?? 0,
+      },
+      keyframeIndex: this.keyframeIndex.map((entry) => ({ ...entry })),
+      videoSamples: this.videoSamples.map((sample) => ({
+        dts: sample.dts,
+        cts: sample.cts,
+        duration: sample.duration,
+        is_sync: sample.is_sync,
+        data: sample.data,
+      })),
+      decoderDescription: this.getVideoDescription(),
     };
-    const resolveOnce = (videoTrack: Track) => {
-      if (settled) return;
-      settled = true;
-      resolve(videoTrack);
+  }
+
+  private postMetadataReady(
+    assetUrl: string,
+    clipId: string,
+    metadata: CachedDemuxMetadata
+  ): void {
+    this.worker.postMessage({
+      type: "METADATA_READY",
+      clipId,
+      assetUrl,
+      metadata,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Decoder setup and frame output
+  // ---------------------------------------------------------------------------
+
+  private createVideoDecoder(videoTrack: VideoTrackMetadata): VideoDecoder {
+    const config: VideoDecoderConfig = {
+      codec: videoTrack.codec,
+      codedWidth: videoTrack.width,
+      codedHeight: videoTrack.height,
+      hardwareAcceleration: "prefer-hardware",
     };
+    this.videoDecoderConfig = config;
 
-    mp4boxFile.onError = rejectOnce;
+    const decoder = new VideoDecoder({
+      output: (frame) => this.handleDecodedFrame(frame),
+      error: (error) => this.postError(error, this.clipMeta?.clipId),
+    });
 
-    mp4boxFile.onReady = (info: Movie) => {
-      foundVideoTrack = info.videoTracks[0] ?? null;
+    decoder.configure(this.withDecoderDescription(config));
+    this.decoderNeedsKeyFrame = true;
+    return decoder;
+  }
 
-      if (!foundVideoTrack) {
-        rejectOnce(new Error("No video track found in asset"));
-        return;
-      }
+  private handleDecodedFrame(frame: VideoFrame): void {
+    if (!this.clipMeta) {
+      frame.close();
+      return;
+    }
 
-      assertSafeVideoTrack(foundVideoTrack);
+    if (this.seekOutputThresholdUs === null) {
+      this.postFrame(frame);
+      return;
+    }
 
-      videoTrackId = foundVideoTrack.id;
-      videoTimescale = foundVideoTrack.timescale ?? 1;
-      mp4boxFile.setExtractionOptions(videoTrackId, null, {
-        nbSamples: Infinity,
-      });
-      mp4boxFile.start();
-    };
+    if (frame.timestamp < this.seekOutputThresholdUs) {
+      frame.close();
+      return;
+    }
 
-    mp4boxFile.onSamples = (
-      trackId: number,
-      _user: unknown,
-      samples: Sample[]
-    ) => {
-      if (trackId !== videoTrackId) return;
-      try {
-        assertSampleBudget(videoSamples.length, samples);
-      } catch (error) {
-        rejectOnce(error);
-        return;
-      }
+    if (!this.didEmitFrameForActiveSeek) {
+      this.didEmitFrameForActiveSeek = true;
+      this.postFrame(frame, this.activeSeekToken);
+      return;
+    }
 
-      const baseIndex = videoSamples.length;
-      videoSamples.push(...samples);
+    // Keep future frames decoded during seek so resumed playback can use them.
+    this.bufferedFramesAfterSeek.push(frame);
+  }
 
-      // Build keyframe index from I-frames. Store dts in µs so seekTo can compare
-      // directly against targetUs without a per-entry timescale conversion.
-      for (let i = 0; i < samples.length; i++) {
-        if (samples[i].is_sync) {
-          keyframeIndex.push({
-            dts: Math.round((samples[i].dts * 1_000_000) / videoTimescale),
-            offset: samples[i].offset,
-            sampleIndex: baseIndex + i,
-          });
-        }
-      }
-    };
+  private postFrame(frame: VideoFrame, seekToken?: number | null): void {
+    if (!this.clipMeta) {
+      frame.close();
+      return;
+    }
 
-    // Fetch the full asset. For large files this should be range-request based;
-    // for Phase 1 a full fetch is acceptable as the asset is already in the browser cache.
-    loadAbortController = new AbortController();
-    fetch(url, { signal: loadAbortController.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Asset fetch failed: ${res.status}`);
-        const contentLength = Number(res.headers.get("content-length") ?? "0");
-        if (contentLength > MAX_DECODE_FETCH_BYTES) {
+    this.worker.postMessage(
+      {
+        type: "FRAME",
+        frame,
+        timestampUs: frame.timestamp,
+        clipId: this.clipMeta.clipId,
+        ...(seekToken !== undefined ? { seekToken } : {}),
+      },
+      [frame as unknown as Transferable]
+    );
+  }
+
+  private reconfigureVideoDecoder(decoder: VideoDecoder): void {
+    if (!this.videoDecoderConfig) return;
+    decoder.configure(this.withDecoderDescription(this.videoDecoderConfig));
+    this.decoderNeedsKeyFrame = true;
+  }
+
+  private withDecoderDescription(
+    config: VideoDecoderConfig
+  ): VideoDecoderConfig {
+    const description = this.getVideoDescription();
+    return description ? { ...config, description } : config;
+  }
+
+  /**
+   * Extracts codec init bytes (avcC/hvcC) from the first sample's description
+   * box. WebCodecs needs these bytes for H.264/H.265 streams inside MP4.
+   */
+  private getVideoDescription(): Uint8Array | undefined {
+    if (this.cachedDecoderDescription) return this.cachedDecoderDescription;
+
+    const sample = this.videoSamples[0] as Sample | undefined;
+    if (!sample?.description) return undefined;
+
+    const entry = sample.description as VisualSampleEntry;
+    const configBox = entry.avcC ?? entry.hvcC;
+    if (!configBox) return undefined;
+
+    try {
+      const stream = new MultiBufferStream();
+      configBox.write(stream);
+
+      // Box layout: [4 bytes size][4 bytes fourcc][N bytes config record].
+      const recordLength = stream.byteLength - 8;
+      if (recordLength <= 0) return undefined;
+
+      this.cachedDecoderDescription = new Uint8Array(
+        stream.buffer as ArrayBuffer,
+        8,
+        recordLength
+      );
+      return this.cachedDecoderDescription;
+    } catch {
+      return undefined;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Seeking
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Seeks in source time. It picks the last keyframe at or before the target,
+   * resets the decoder, decodes from that GOP through the target frame, then
+   * lets the output callback transfer the first eligible frame.
+   */
+  private async seekTo(
+    targetMs: number,
+    seekToken: number | null
+  ): Promise<void> {
+    if (!this.videoDecoder || !this.clipMeta) return;
+    if (this.videoSamples.length === 0) {
+      throw new Error("No decodable video samples available for seek");
+    }
+
+    const targetUs = targetMs * 1000;
+    const gopEntry = this.findSeekKeyframe(targetUs);
+
+    // Decoder reference state is no longer valid after reset, so the seek feed
+    // must start on a keyframe and run forward until the target frame appears.
+    this.clearBufferedFrames();
+    this.videoDecoder.reset();
+    this.reconfigureVideoDecoder(this.videoDecoder);
+    this.seekOutputThresholdUs = targetUs;
+    this.didEmitFrameForActiveSeek = false;
+    this.activeSeekToken = seekToken;
+    this.playheadSampleIndex = this.videoSamples.length;
+
+    let decodedSamples = 0;
+    let crossedTarget = false;
+
+    try {
+      for (
+        let index = gopEntry.sampleIndex;
+        index < this.videoSamples.length;
+        index++
+      ) {
+        const sample = this.videoSamples[index];
+        if (!sample.data) continue;
+
+        decodedSamples++;
+        if (decodedSamples > MAX_SEEK_DECODE_SAMPLES) {
           throw new Error(
-            `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
+            `Seek decode budget exceeded (${MAX_SEEK_DECODE_SAMPLES} samples)`
           );
         }
-        if (!res.body) {
-          return res.arrayBuffer().then((buffer) => {
-            if (buffer.byteLength > MAX_DECODE_FETCH_BYTES) {
-              throw new Error(
-                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
-              );
-            }
-            return buffer;
-          });
+
+        this.decodeSample(sample);
+
+        if (this.getSampleTimestampUs(sample) >= targetUs) {
+          crossedTarget = true;
         }
 
-        const reader = res.body.getReader();
-        const chunks: Uint8Array[] = [];
-        let total = 0;
+        if (!crossedTarget) continue;
 
-        const pump = async (): Promise<ArrayBuffer> => {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (!value) continue;
-            total += value.byteLength;
-            if (total > MAX_DECODE_FETCH_BYTES) {
-              loadAbortController?.abort();
-              throw new Error(
-                `Asset exceeds decode size limit (${Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024))}MB)`
-              );
-            }
-            chunks.push(value);
-          }
-
-          const combined = new Uint8Array(total);
-          let offset = 0;
-          for (const chunk of chunks) {
-            combined.set(chunk, offset);
-            offset += chunk.byteLength;
-          }
-          return combined.buffer;
-        };
-
-        return pump();
-      })
-      .then((buffer) => {
-        // mp4box expects an ArrayBuffer with a fileStart property.
-        const ab = buffer as ArrayBuffer & { fileStart: number };
-        ab.fileStart = fileOffset;
-        fileOffset += buffer.byteLength;
-        mp4boxFile.appendBuffer(ab);
-        mp4boxFile.flush();
-        loadAbortController = null;
-
-        if (foundVideoTrack) {
-          resolveOnce(foundVideoTrack);
-        } else {
-          rejectOnce(new Error("mp4box did not produce track info"));
+        await this.videoDecoder.flush();
+        if (this.didEmitFrameForActiveSeek) {
+          this.playheadSampleIndex = index + 1;
+          return;
         }
-      })
-      .catch((error) => {
-        loadAbortController = null;
-        if (isAbortError(error)) {
-          if (isDestroyed) return;
-        }
-        rejectOnce(error);
-      });
-  });
-}
+      }
 
-function applyCachedMetadata(metadata: CachedDemuxMetadata): VideoTrackMetadata {
-  videoTrackId = metadata.videoTrack.id;
-  videoTimescale = metadata.videoTrack.timescale;
-  keyframeIndex = metadata.keyframeIndex;
-  videoSamples = metadata.videoSamples;
-  cachedDecoderDescription = metadata.decoderDescription;
-  return metadata.videoTrack;
-}
+      if (crossedTarget) {
+        throw new Error(
+          `Failed to decode a frame for seek target ${targetMs}ms`
+        );
+      }
+    } finally {
+      this.resetSeekState();
+    }
+  }
 
-function buildCachedMetadata(
-  assetUrl: string,
-  videoTrack: Track
-): CachedDemuxMetadata {
-  const width = videoTrack.video?.width ?? 0;
-  const height = videoTrack.video?.height ?? 0;
-  return {
-    assetUrl,
-    videoTrack: {
-      id: videoTrack.id,
-      timescale: videoTrack.timescale ?? 1,
-      codec: videoTrack.codec,
-      width,
-      height,
-    },
-    keyframeIndex: keyframeIndex.map((entry) => ({ ...entry })),
-    videoSamples: videoSamples.map((sample) => ({
-      dts: sample.dts,
-      cts: sample.cts,
-      duration: sample.duration,
-      is_sync: sample.is_sync,
-      data: sample.data,
-    })),
-    decoderDescription: getVideoDescription(),
+  private findSeekKeyframe(targetUs: number): KeyframeEntry {
+    let gopEntry = this.keyframeIndex[0];
+    if (!gopEntry) {
+      throw new Error("No keyframes available for seek");
+    }
+
+    for (const entry of this.keyframeIndex) {
+      if (entry.dts <= targetUs) {
+        gopEntry = entry;
+      } else {
+        break;
+      }
+    }
+
+    return gopEntry;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Continuous decode loop
+  // ---------------------------------------------------------------------------
+
+  private ensureFeedLoop(): void {
+    if (this.feedTimer !== null) return;
+    this.drainBufferedFrames();
+    this.feedTimer = setTimeout(this.feedNextChunk, 0);
+  }
+
+  private readonly feedNextChunk = (): void => {
+    this.feedTimer = null;
+    if (!this.isPlaying || !this.videoDecoder) return;
+
+    if (this.videoDecoder.decodeQueueSize > 8) {
+      // Back-pressure: let VideoDecoder drain before adding more chunks.
+      this.feedTimer = setTimeout(this.feedNextChunk, 16);
+      return;
+    }
+
+    if (this.playheadSampleIndex >= this.videoSamples.length) {
+      this.isPlaying = false;
+      return;
+    }
+
+    this.rewindToKeyframeIfNeeded();
+
+    const sample = this.videoSamples[this.playheadSampleIndex++];
+    if (sample?.data) {
+      this.decodeSample(sample);
+    }
+
+    this.feedTimer = setTimeout(this.feedNextChunk, 0);
   };
-}
 
-// ─── Seek logic ────────────────────────────────────────────────────────────────
+  private rewindToKeyframeIfNeeded(): void {
+    const nextSample = this.videoSamples[this.playheadSampleIndex];
+    if (!this.decoderNeedsKeyFrame || nextSample?.is_sync) return;
 
-/**
- * Returns the presentation timestamp of a sample in **microseconds**.
- * mp4box stores DTS/CTS in the track's native timescale units (e.g. 90000 for
- * 90 kHz). WebCodecs EncodedVideoChunk.timestamp and the compositor sourceTimeUs
- * are both in µs, so we convert here before any comparison or decode call.
- */
-function getSampleTimestampUs(sample: DecodableVideoSample): number {
-  const ticks = sample.cts ?? sample.dts;
-  return Math.round((ticks * 1_000_000) / videoTimescale);
+    let gopStart = 0;
+    for (const entry of this.keyframeIndex) {
+      if (entry.sampleIndex <= this.playheadSampleIndex) {
+        gopStart = entry.sampleIndex;
+      } else {
+        break;
+      }
+    }
+
+    this.playheadSampleIndex = gopStart;
+  }
+
+  private decodeSample(sample: DecodableVideoSample): void {
+    if (!this.videoDecoder || !sample.data) return;
+
+    const isKey = sample.is_sync;
+    const chunk = new EncodedVideoChunk({
+      type: isKey ? "key" : "delta",
+      timestamp: this.getSampleTimestampUs(sample),
+      duration: this.getSampleDurationUs(sample),
+      data: sample.data,
+    });
+
+    this.videoDecoder.decode(chunk);
+    if (isKey) {
+      this.decoderNeedsKeyFrame = false;
+    }
+  }
+
+  private stopFeedLoop(): void {
+    if (this.feedTimer === null) return;
+    clearTimeout(this.feedTimer);
+    this.feedTimer = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cleanup and small helpers
+  // ---------------------------------------------------------------------------
+
+  private drainBufferedFrames(): void {
+    if (this.bufferedFramesAfterSeek.length === 0) return;
+
+    const frames = this.bufferedFramesAfterSeek;
+    this.bufferedFramesAfterSeek = [];
+    for (const frame of frames) {
+      this.postFrame(frame);
+    }
+  }
+
+  private clearBufferedFrames(): void {
+    for (const frame of this.bufferedFramesAfterSeek) {
+      frame.close();
+    }
+    this.bufferedFramesAfterSeek = [];
+  }
+
+  private closeVideoDecoder(): void {
+    if (!this.videoDecoder) return;
+
+    try {
+      this.videoDecoder.close();
+    } catch {
+      // Ignore close failures during teardown/reload.
+    }
+
+    this.videoDecoder = null;
+  }
+
+  private abortLoad(): void {
+    this.loadAbortController?.abort();
+    this.loadAbortController = null;
+  }
+
+  private clearLoadController(abortController: AbortController): void {
+    if (this.loadAbortController === abortController) {
+      this.loadAbortController = null;
+    }
+  }
+
+  private resetSeekState(): void {
+    this.seekOutputThresholdUs = null;
+    this.didEmitFrameForActiveSeek = false;
+    this.activeSeekToken = null;
+  }
+
+  private isActiveGeneration(generation: number): boolean {
+    return !this.isDestroyed && generation === this.loadGeneration;
+  }
+
+  private shouldReportError(error: unknown, generation: number): boolean {
+    return this.isActiveGeneration(generation) && !isAbortError(error);
+  }
+
+  private postError(error: unknown, clipId?: string): void {
+    this.worker.postMessage({
+      type: "ERROR",
+      message: formatError(error),
+      clipId,
+    });
+  }
+
+  private getSampleTimestampUs(sample: DecodableVideoSample): number {
+    const ticks = sample.cts ?? sample.dts;
+    return this.ticksToUs(ticks);
+  }
+
+  private getSampleDurationUs(sample: DecodableVideoSample): number {
+    return this.ticksToUs(sample.duration);
+  }
+
+  private ticksToUs(ticks: number): number {
+    return Math.round((ticks * 1_000_000) / this.videoTimescale);
+  }
 }
 
 function isAbortError(error: unknown): boolean {
@@ -487,274 +866,13 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-/**
- * Seeks in **source** time (`targetMs`): picks the last keyframe ≤ target from
- * `keyframeIndex`, `reset`s the decoder, decodes from that GOP through the
- * first sample with presentation time ≥ target (so references resolve), `flush`, then
- * `SEEK_DONE`. Updates `playheadSampleIndex` for subsequent `feedNextChunk`.
- */
-async function seekTo(
-  targetMs: number,
-  seekToken: number | null
-): Promise<void> {
-  if (!videoDecoder || !clipMeta) return;
-  if (videoSamples.length === 0) {
-    throw new Error("No decodable video samples available for seek");
-  }
-
-  const targetUs = targetMs * 1000;
-
-  // Find the last keyframe at or before targetUs.
-  let gopEntry = keyframeIndex[0];
-  if (!gopEntry) {
-    throw new Error("No keyframes available for seek");
-  }
-  for (const entry of keyframeIndex) {
-    if (entry.dts <= targetUs) gopEntry = entry;
-    else break;
-  }
-
-  // Reset and reconfigure to flush internal decoder state.
-  clearBufferedFrames();
-  videoDecoder.reset();
-  reconfigureVideoDecoder(videoDecoder);
-  seekOutputThresholdUs = targetUs;
-  didEmitFrameForActiveSeek = false;
-  activeSeekToken = seekToken;
-
-  // Default to EOF if the target lies beyond the last decodable frame.
-  playheadSampleIndex = videoSamples.length;
-
-  // Feed samples from GOP keyframe up to (and including) the target frame.
-  let decodedSamples = 0;
-  let crossedTarget = false;
-  for (let i = gopEntry.sampleIndex; i < videoSamples.length; i++) {
-    const sample = videoSamples[i];
-    if (!sample.data) continue;
-    decodedSamples++;
-    if (decodedSamples > MAX_SEEK_DECODE_SAMPLES) {
-      throw new Error(
-        `Seek decode budget exceeded (${MAX_SEEK_DECODE_SAMPLES} samples)`
-      );
-    }
-    const isKey = sample.is_sync;
-    const chunk = new EncodedVideoChunk({
-      type: isKey ? "key" : "delta",
-      timestamp: getSampleTimestampUs(sample),
-      duration: sample.duration,
-      data: sample.data,
-    });
-    videoDecoder.decode(chunk);
-    if (isKey) decoderNeedsKeyFrame = false;
-    if (getSampleTimestampUs(sample) >= targetUs) {
-      crossedTarget = true;
-    }
-    if (crossedTarget) {
-      await videoDecoder.flush();
-      if (didEmitFrameForActiveSeek) {
-        playheadSampleIndex = i + 1;
-        break;
-      }
-    }
-  }
-
-  try {
-    if (!didEmitFrameForActiveSeek && crossedTarget) {
-      throw new Error(`Failed to decode a frame for seek target ${targetMs}ms`);
-    }
-  } finally {
-    seekOutputThresholdUs = null;
-    didEmitFrameForActiveSeek = false;
-    activeSeekToken = null;
-  }
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
-// ─── Continuous decode loop ────────────────────────────────────────────────────
-
-/**
- * Playback pump while `isPlaying`: one sample → `EncodedVideoChunk` →
- * `decode`, then reschedules itself (`setTimeout(0)`). If `decodeQueueSize` > 8,
- * backs off 16ms to avoid flooding the decoder. Stops at EOF (clears playing).
- * Relies on `playheadSampleIndex` already aligned (e.g. after `seekTo`).
- */
-function feedNextChunk(): void {
-  feedTimer = null;
-  if (!isPlaying || !videoDecoder) return;
-  if (videoDecoder.decodeQueueSize > 8) {
-    // Back-pressure: decoder queue is full. Retry after a short delay.
-    feedTimer = setTimeout(feedNextChunk, 16);
-    return;
-  }
-
-  if (playheadSampleIndex >= videoSamples.length) {
-    isPlaying = false;
-    return;
-  }
-
-  // Guard: if decoder needs a key frame (post-configure or post-flush on some
-  // browsers) but the next sample is a delta, rewind playheadSampleIndex to the
-  // start of the current GOP so we re-feed the keyframe first.
-  if (decoderNeedsKeyFrame && !videoSamples[playheadSampleIndex]?.is_sync) {
-    let gopStart = 0;
-    for (const entry of keyframeIndex) {
-      if (entry.sampleIndex <= playheadSampleIndex) gopStart = entry.sampleIndex;
-      else break;
-    }
-    playheadSampleIndex = gopStart;
-  }
-
-  const sample = videoSamples[playheadSampleIndex++];
-  if (sample.data) {
-    const isKey = sample.is_sync;
-    const chunk = new EncodedVideoChunk({
-      type: isKey ? "key" : "delta",
-      timestamp: getSampleTimestampUs(sample),
-      duration: sample.duration,
-      data: sample.data,
-    });
-    videoDecoder.decode(chunk);
-    if (isKey) decoderNeedsKeyFrame = false;
-  }
-  feedTimer = setTimeout(feedNextChunk, 0);
+function formatFetchLimitError(): string {
+  const limitMb = Math.floor(MAX_DECODE_FETCH_BYTES / (1024 * 1024));
+  return `Asset exceeds decode size limit (${limitMb}MB)`;
 }
 
-function ensureFeedLoop(): void {
-  if (feedTimer !== null) return;
-  drainBufferedFrames();
-  feedTimer = setTimeout(feedNextChunk, 0);
-}
-
-function stopFeedLoop(): void {
-  if (feedTimer === null) return;
-  clearTimeout(feedTimer);
-  feedTimer = null;
-}
-
-// ─── Message handler ───────────────────────────────────────────────────────────
-
-/**
- * Main-thread protocol entry: `LOAD` demuxes + builds decoders and sends `READY`
- * or `ERROR`; `SEEK` runs GOP seek; `PLAY`/`PAUSE` toggle `isPlaying` and the
- * feed loop; `DESTROY` tears down decoders, clears buffers, `close()`s the worker.
- */
-ctx.onmessage = async (event: MessageEvent) => {
-  const msg = event.data as
-    | {
-        type: "LOAD";
-        assetUrl: string;
-        clipId: string;
-        metadata?: CachedDemuxMetadata;
-      }
-    | { type: "SEEK"; targetMs: number; seekToken?: number | null }
-    | { type: "PLAY" }
-    | { type: "PAUSE" }
-    | { type: "DESTROY" };
-
-  switch (msg.type) {
-    case "LOAD": {
-      loadAbortController?.abort();
-      isDestroyed = false;
-      stopFeedLoop();
-      clearBufferedFrames();
-      closeVideoDecoder();
-      clipMeta = { assetUrl: msg.assetUrl, clipId: msg.clipId };
-      seekOutputThresholdUs = null;
-      didEmitFrameForActiveSeek = false;
-      activeSeekToken = null;
-      keyframeIndex = [];
-      videoSamples = [];
-      videoTrackId = -1;
-      videoTimescale = 1;
-      cachedDecoderDescription = undefined;
-      playheadSampleIndex = 0;
-      decoderNeedsKeyFrame = true;
-
-      try {
-        const videoTrack = msg.metadata
-          ? applyCachedMetadata(msg.metadata)
-          : await loadAsset(msg.assetUrl).then((loadedTrack) => {
-              const metadata = buildCachedMetadata(msg.assetUrl, loadedTrack);
-              ctx.postMessage({
-                type: "METADATA_READY",
-                clipId: msg.clipId,
-                assetUrl: msg.assetUrl,
-                metadata,
-              });
-              return metadata.videoTrack;
-            });
-        if (isDestroyed) break;
-        videoDecoder = createVideoDecoder(videoTrack);
-        ctx.postMessage({ type: "READY", clipId: msg.clipId });
-      } catch (e) {
-        if (isDestroyed || isAbortError(e)) {
-          break;
-        }
-        ctx.postMessage({
-          type: "ERROR",
-          message: String(e),
-          clipId: msg.clipId,
-        });
-      }
-      break;
-    }
-
-    case "SEEK": {
-      isPlaying = false;
-      stopFeedLoop();
-      try {
-        const seekToken = "seekToken" in msg ? (msg.seekToken ?? null) : null;
-        await seekTo(msg.targetMs, seekToken);
-        if (clipMeta?.clipId) {
-          ctx.postMessage({
-            type: "SEEK_DONE",
-            clipId: clipMeta.clipId,
-            seekToken,
-          });
-        }
-      } catch (e) {
-        if (isDestroyed || isAbortError(e)) {
-          break;
-        }
-        const seekToken = "seekToken" in msg ? (msg.seekToken ?? null) : null;
-        ctx.postMessage({
-          type: "SEEK_FAILED",
-          message: String(e),
-          clipId: clipMeta?.clipId,
-          seekToken,
-        });
-      }
-      break;
-    }
-
-    case "PLAY": {
-      isPlaying = true;
-      ensureFeedLoop();
-      break;
-    }
-
-    case "PAUSE": {
-      isPlaying = false;
-      stopFeedLoop();
-      // Do NOT flush — we want to resume from the same position.
-      break;
-    }
-
-    case "DESTROY": {
-      isDestroyed = true;
-      isPlaying = false;
-      stopFeedLoop();
-      loadAbortController?.abort();
-      loadAbortController = null;
-      clearBufferedFrames();
-      seekOutputThresholdUs = null;
-      didEmitFrameForActiveSeek = false;
-      activeSeekToken = null;
-      closeVideoDecoder();
-      videoSamples = [];
-      keyframeIndex = [];
-      cachedDecoderDescription = undefined;
-      ctx.close();
-      break;
-    }
-  }
-};
+new ClipDecodeWorker(ctx);

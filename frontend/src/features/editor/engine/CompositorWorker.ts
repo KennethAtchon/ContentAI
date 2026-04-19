@@ -1,37 +1,42 @@
 /**
- * CompositorWorker — runs in a Worker thread.
+ * CompositorWorker - runs in a Worker thread.
  *
  * Owns an OffscreenCanvas. Receives VideoFrame objects from the DecoderPool,
- * sorts them into per-clip queues, and on TICK composites the correct frames
- * for the given playhead time directly onto the transferred preview canvas.
+ * stores them in per-clip queues, and composites the best frame for each clip
+ * onto the transferred preview canvas on every TICK.
  *
- * Message protocol (main → worker):
- *   { type: 'INIT', canvas: OffscreenCanvas, width: number, height: number }
- *   { type: 'RESIZE', width: number, height: number }
- *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
- *   { type: 'TICK', playheadMs: number, clips: CompositorClipDescriptor[] }
- *   { type: 'OVERLAY', textObjects: SerializedTextObject[], captionFrame?: SerializedCaptionFrame | null }
- *   { type: 'CLEAR_CLIP', clipId: string }
- *   { type: 'DESTROY' }
+ * Message protocol (main -> worker):
+ *   { type: "INIT", canvas: OffscreenCanvas, width: number, height: number }
+ *   { type: "RESIZE", width: number, height: number }
+ *   { type: "FRAME", frame: VideoFrame, timestampUs: number, clipId: string }
+ *   { type: "TICK", playheadMs: number, clips: CompositorClipDescriptor[] }
+ *   { type: "OVERLAY", textObjects: SerializedTextObject[], captionFrame?: SerializedCaptionFrame | null }
+ *   { type: "CLEAR_CLIP", clipId: string }
+ *   { type: "DESTROY" }
  *
- * Message protocol (worker → main):
- *   { type: 'READY' }
- *   { type: 'PERFORMANCE', metrics: CompositorWorkerPerformanceMetrics }
+ * Message protocol (worker -> main):
+ *   { type: "READY" }
+ *   { type: "PERFORMANCE", metrics: CompositorWorkerPerformanceMetrics }
+ *
+ * High-level flow:
+ *   1. INIT receives the OffscreenCanvas transferred from PreviewCanvas.
+ *   2. FRAME receives transferred VideoFrames and stores them by clip id.
+ *   3. OVERLAY updates text/caption data that should draw over video.
+ *   4. TICK chooses the best frame for each timeline clip and draws the whole
+ *      preview frame: background -> video layers -> text -> caption bitmap.
+ *   5. CLEAR_CLIP/DESTROY close owned VideoFrames and ImageBitmaps.
+ *
+ * Ownership rule: once a VideoFrame/ImageBitmap is transferred into this worker,
+ * this worker is responsible for eventually drawing or closing it.
  */
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/**
- * Minimal descriptor for a clip that the compositor needs to draw.
- * Sent with every TICK. The main thread derives these from the timeline state.
- */
 export interface CompositorClipDescriptor {
   clipId: string;
   /** Canvas z-index: 0 = bottom track, higher = on top. */
   zIndex: number;
   /** Source-media timestamp to display for this clip on the current tick. */
   sourceTimeUs: number;
-  /** Computed opacity (0–1), already accounting for transitions and enabled state. */
+  /** Computed opacity (0-1), already accounting for transitions and enabled state. */
   opacity: number;
   /** Typed clip region for wipe transitions, or null. Values are percentages. */
   clipPath: CompositorClipPath | null;
@@ -84,7 +89,7 @@ export interface SerializedTextObject {
 }
 
 export interface SerializedCaptionFrame {
-  /** Pre-rendered caption pixels as an ImageBitmap. Transfer semantics: compositor owns and closes it when replaced or destroyed. */
+  /** Pre-rendered caption pixels. The compositor owns and closes this bitmap. */
   bitmap: ImageBitmap;
 }
 
@@ -102,413 +107,563 @@ export interface CompositorWorkerPerformanceMetrics {
   canvasHeight: number;
 }
 
-// Bun's lib doesn't include DedicatedWorkerGlobalScope. Define the minimal
-// surface we need so all postMessage calls use the browser Transferable signature.
+type CompositorWorkerMessage =
+  | {
+      type: "INIT";
+      canvas: OffscreenCanvas;
+      width: number;
+      height: number;
+      debugEnabled?: boolean;
+    }
+  | { type: "RESIZE"; width: number; height: number }
+  | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
+  | {
+      type: "OVERLAY";
+      textObjects: SerializedTextObject[];
+      captionFrame?: SerializedCaptionFrame | null;
+    }
+  | { type: "TICK"; playheadMs: number; clips: CompositorClipDescriptor[] }
+  | { type: "CLEAR_CLIP"; clipId: string }
+  | { type: "DESTROY" };
+
+interface DrawRect {
+  dx: number;
+  dy: number;
+  dw: number;
+  dh: number;
+}
+
+// Bun's lib does not include DedicatedWorkerGlobalScope. Define the minimal
+// surface we need so postMessage uses the browser Transferable signature.
 interface WorkerCtx extends EventTarget {
   postMessage(message: unknown, transfer: Transferable[]): void;
   postMessage(message: unknown, options?: StructuredSerializeOptions): void;
   close(): void;
   onmessage: ((ev: MessageEvent) => unknown) | null;
 }
+
 const ctx = self as unknown as WorkerCtx;
 
-// ─── Worker state ─────────────────────────────────────────────────────────────
+class CompositorWorker {
+  /** Canvas transferred from the visible <canvas>; drawing here updates preview. */
+  private offscreenCanvas: OffscreenCanvas | null = null;
+  private renderCtx: OffscreenCanvasRenderingContext2D | null = null;
+  private canvasWidth = 0;
+  private canvasHeight = 0;
+  private isDestroyed = false;
+  private debugEnabled = false;
+  private textObjects: SerializedTextObject[] = [];
+  /** Latest caption bitmap, replaced only when OVERLAY includes captionFrame. */
+  private captionFrame: SerializedCaptionFrame | null = null;
 
-let offscreenCanvas: OffscreenCanvas | null = null;
-let renderCtx: OffscreenCanvasRenderingContext2D | null = null;
-let canvasWidth = 0;
-let canvasHeight = 0;
-let isDestroyed = false;
-let debugEnabled = false;
+  /**
+   * Per-clip queues of decoded VideoFrame objects, sorted by timestamp.
+   * Frames stay queued because decoder output and compositor ticks are decoupled.
+   */
+  private readonly frameQueues = new Map<string, VideoFrame[]>();
+  /** Last source time requested by TICK, used to prune queues around playhead. */
+  private readonly lastRequestedSourceTimeUs = new Map<string, number>();
+  private closedFrameCount = 0;
+  private queueEvictedFrameCount = 0;
 
-/** Per-clip queues of decoded VideoFrame objects, sorted by timestamp ascending. */
-const frameQueues = new Map<string, VideoFrame[]>();
-let closedFrameCount = 0;
-let queueEvictedFrameCount = 0;
-
-// ─── Frame management ─────────────────────────────────────────────────────────
-
-const lastRequestedSourceTimeUs = new Map<string, number>();
-
-function enqueueFrame(clipId: string, frame: VideoFrame): void {
-  if (!frameQueues.has(clipId)) frameQueues.set(clipId, []);
-  const queue = frameQueues.get(clipId)!;
-  queue.push(frame);
-  // Keep queue sorted by timestamp (frames usually arrive in order, but guard against out-of-order delivery).
-  queue.sort((a, b) => a.timestamp - b.timestamp);
-
-  const sourceTimeUs = lastRequestedSourceTimeUs.get(clipId);
-  if (typeof sourceTimeUs === "number") {
-    pruneQueue(clipId, sourceTimeUs);
-    return;
+  constructor(private readonly worker: WorkerCtx) {
+    this.worker.onmessage = (event: MessageEvent) => {
+      this.handleMessage(event.data as CompositorWorkerMessage);
+    };
   }
 
-  if (queue.length <= 16) return;
-  const toClose = queue.splice(0, queue.length - 16);
-  closeQueuedFrames(toClose, true);
-}
+  // ---------------------------------------------------------------------------
+  // Message lifecycle
+  // ---------------------------------------------------------------------------
 
-function closeQueuedFrames(frames: VideoFrame[], evicted: boolean): void {
-  for (const frame of frames) {
-    frame.close();
-    closedFrameCount += 1;
-    if (evicted) queueEvictedFrameCount += 1;
-  }
-}
-
-function pruneQueue(clipId: string, sourceTimeUs: number): void {
-  const queue = frameQueues.get(clipId);
-  if (!queue || queue.length <= 4) return;
-
-  let latestBeforeIndex = -1;
-  for (let index = 0; index < queue.length; index += 1) {
-    if (queue[index]!.timestamp <= sourceTimeUs) {
-      latestBeforeIndex = index;
-      continue;
+  private handleMessage(message: CompositorWorkerMessage): void {
+    if (this.isDestroyed && message.type !== "DESTROY") {
+      this.closeFrameFromIgnoredMessage(message);
+      return;
     }
-    break;
+
+    switch (message.type) {
+      case "INIT":
+        this.init(message);
+        break;
+      case "RESIZE":
+        this.resize(message.width, message.height);
+        break;
+      case "FRAME":
+        this.receiveFrame(message.clipId, message.frame);
+        break;
+      case "OVERLAY":
+        this.updateOverlay(message);
+        break;
+      case "TICK":
+        this.tick(message.playheadMs, message.clips);
+        break;
+      case "CLEAR_CLIP":
+        this.clearClipFrames(message.clipId);
+        break;
+      case "DESTROY":
+        this.destroy();
+        break;
+    }
   }
 
-  const anchorIndex = latestBeforeIndex >= 0 ? latestBeforeIndex : 0;
-  const keepStart = Math.max(0, anchorIndex - 1);
-  // Keep 16 frames ahead — hardware decoders can burst-output many frames at
-  // once, and a 4-frame window was discarding frames needed ~133ms ahead.
-  const keepEnd = Math.min(queue.length, keepStart + 16);
-  const overflow = queue.length - (keepEnd - keepStart);
-  if (overflow <= 0) return;
-
-  const retained = queue.slice(keepStart, keepEnd);
-  const framesToClose: VideoFrame[] = [];
-  for (let index = 0; index < queue.length; index += 1) {
-    if (index >= keepStart && index < keepEnd) continue;
-    framesToClose.push(queue[index]!);
+  /**
+   * Entry point from PreviewCanvas. This receives ownership of the visible
+   * canvas as an OffscreenCanvas and prepares the 2D render context.
+   */
+  private init(message: Extract<CompositorWorkerMessage, { type: "INIT" }>) {
+    this.offscreenCanvas = message.canvas;
+    this.canvasWidth = message.width;
+    this.canvasHeight = message.height;
+    this.debugEnabled = message.debugEnabled === true;
+    this.applyCanvasSize();
+    this.renderCtx = this.offscreenCanvas.getContext("2d", {
+      alpha: false,
+    }) as OffscreenCanvasRenderingContext2D;
+    this.worker.postMessage({ type: "READY" });
   }
-  closeQueuedFrames(framesToClose, true);
-  frameQueues.set(clipId, retained);
-}
 
-/**
- * Find the best frame for the given playhead time.
- * Returns the frame with the largest timestamp ≤ playheadUs, or the earliest frame if all are ahead.
- */
-function pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
-  const queue = frameQueues.get(clipId);
-  if (!queue || queue.length === 0) return null;
-  lastRequestedSourceTimeUs.set(clipId, sourceTimeUs);
-  pruneQueue(clipId, sourceTimeUs);
-
-  let best: VideoFrame | null = null;
-  for (const frame of frameQueues.get(clipId) ?? []) {
-    if (frame.timestamp <= sourceTimeUs) best = frame;
-    else break;
+  private resize(width: number, height: number): void {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.applyCanvasSize();
   }
-  return best ?? frameQueues.get(clipId)?.[0] ?? null;
-}
 
-function clearClipFrames(clipId: string): void {
-  const queue = frameQueues.get(clipId);
-  if (!queue) return;
-  closeQueuedFrames(queue, false);
-  frameQueues.delete(clipId);
-  lastRequestedSourceTimeUs.delete(clipId);
-}
-
-function getFrameQueueSizes(): Record<string, number> {
-  const sizes: Record<string, number> = {};
-  for (const [clipId, queue] of frameQueues) {
-    sizes[clipId] = queue.length;
+  private receiveFrame(clipId: string, frame: VideoFrame): void {
+    this.enqueueFrame(clipId, frame);
   }
-  return sizes;
-}
 
-// ─── Canvas transform helpers ─────────────────────────────────────────────────
+  private updateOverlay(
+    message: Extract<CompositorWorkerMessage, { type: "OVERLAY" }>
+  ): void {
+    this.textObjects = message.textObjects ?? [];
 
-function applyTransform(
-  drawCtx: OffscreenCanvasRenderingContext2D,
-  transform: CompositorClipTransform
-): void {
-  const scale =
-    Number.isFinite(transform.scale) && transform.scale > 0
-      ? transform.scale
-      : 1;
-  if (scale !== 1) {
-    drawCtx.transform(
-      scale,
-      0,
-      0,
-      scale,
-      (canvasWidth / 2) * (1 - scale),
-      (canvasHeight / 2) * (1 - scale)
+    if (!("captionFrame" in message)) return;
+
+    // undefined means "keep existing caption"; null means "clear caption".
+    this.closeCaptionFrame();
+    this.captionFrame = message.captionFrame ?? null;
+  }
+
+  private tick(playheadMs: number, clips: CompositorClipDescriptor[]): void {
+    const frameStart = performance.now();
+    this.composite(clips);
+
+    if (this.debugEnabled) {
+      this.postPerformanceMetrics(playheadMs, clips, frameStart);
+    }
+  }
+
+  private destroy(): void {
+    if (this.isDestroyed) return;
+
+    this.isDestroyed = true;
+    this.clearAllFrames();
+    this.closeCaptionFrame();
+    this.textObjects = [];
+    this.offscreenCanvas = null;
+    this.renderCtx = null;
+    this.worker.close();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Frame queues
+  // ---------------------------------------------------------------------------
+
+  private enqueueFrame(clipId: string, frame: VideoFrame): void {
+    const queue = this.getOrCreateFrameQueue(clipId);
+    queue.push(frame);
+    queue.sort((a, b) => a.timestamp - b.timestamp);
+
+    const sourceTimeUs = this.lastRequestedSourceTimeUs.get(clipId);
+    if (typeof sourceTimeUs === "number") {
+      // Once the playhead has visited this clip, keep the queue centered near it.
+      this.pruneQueue(clipId, sourceTimeUs);
+      return;
+    }
+
+    if (queue.length <= 16) return;
+
+    const evicted = queue.splice(0, queue.length - 16);
+    this.closeFrames(evicted, true);
+  }
+
+  private pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
+    const queue = this.frameQueues.get(clipId);
+    if (!queue || queue.length === 0) return null;
+
+    this.lastRequestedSourceTimeUs.set(clipId, sourceTimeUs);
+    this.pruneQueue(clipId, sourceTimeUs);
+
+    const prunedQueue = this.frameQueues.get(clipId) ?? [];
+    let best: VideoFrame | null = null;
+    for (const frame of prunedQueue) {
+      if (frame.timestamp <= sourceTimeUs) {
+        best = frame;
+      } else {
+        break;
+      }
+    }
+
+    return best ?? prunedQueue[0] ?? null;
+  }
+
+  private pruneQueue(clipId: string, sourceTimeUs: number): void {
+    const queue = this.frameQueues.get(clipId);
+    if (!queue || queue.length <= 4) return;
+
+    const keepStart = this.findQueueKeepStart(queue, sourceTimeUs);
+    // Keep one frame before the chosen frame plus a small lookahead window.
+    const keepEnd = Math.min(queue.length, keepStart + 16);
+    const overflow = queue.length - (keepEnd - keepStart);
+    if (overflow <= 0) return;
+
+    const retained = queue.slice(keepStart, keepEnd);
+    const framesToClose = queue.filter(
+      (_frame, index) => index < keepStart || index >= keepEnd
     );
+
+    this.closeFrames(framesToClose, true);
+    this.frameQueues.set(clipId, retained);
   }
 
-  const translateX =
-    transform.translateX + (transform.translateXPercent / 100) * canvasWidth;
-  const translateY =
-    transform.translateY + (transform.translateYPercent / 100) * canvasHeight;
-  if (translateX !== 0 || translateY !== 0) {
-    drawCtx.translate(translateX, translateY);
+  private findQueueKeepStart(
+    queue: VideoFrame[],
+    sourceTimeUs: number
+  ): number {
+    let latestBeforeIndex = -1;
+    for (let index = 0; index < queue.length; index += 1) {
+      if (queue[index]!.timestamp <= sourceTimeUs) {
+        latestBeforeIndex = index;
+      } else {
+        break;
+      }
+    }
+
+    const anchorIndex = latestBeforeIndex >= 0 ? latestBeforeIndex : 0;
+    return Math.max(0, anchorIndex - 1);
   }
 
-  if (transform.rotationDeg !== 0) {
-    const cx = canvasWidth / 2;
-    const cy = canvasHeight / 2;
-    const rad = (transform.rotationDeg * Math.PI) / 180;
-    drawCtx.translate(cx, cy);
-    drawCtx.rotate(rad);
-    drawCtx.translate(-cx, -cy);
+  private clearClipFrames(clipId: string): void {
+    const queue = this.frameQueues.get(clipId);
+    if (!queue) return;
+
+    this.closeFrames(queue, false);
+    this.frameQueues.delete(clipId);
+    this.lastRequestedSourceTimeUs.delete(clipId);
   }
-}
 
-function buildCanvasFilter(effects: CompositorClipEffects): string {
-  const filterParts: string[] = [];
-  if (effects.contrast !== 0) {
-    filterParts.push(`contrast(${1 + effects.contrast / 100})`);
+  private clearAllFrames(): void {
+    for (const clipId of Array.from(this.frameQueues.keys())) {
+      this.clearClipFrames(clipId);
+    }
   }
-  if (effects.warmth !== 0) {
-    filterParts.push(
-      `hue-rotate(${-effects.warmth * 0.3}deg)`,
-      `saturate(${1 + effects.warmth * 0.005})`
-    );
+
+  private closeFrames(frames: VideoFrame[], evicted: boolean): void {
+    for (const frame of frames) {
+      frame.close();
+      this.closedFrameCount += 1;
+      if (evicted) {
+        this.queueEvictedFrameCount += 1;
+      }
+    }
   }
-  return filterParts.join(" ") || "none";
-}
 
-// ─── Composite a single tick ───────────────────────────────────────────────────
+  private getOrCreateFrameQueue(clipId: string): VideoFrame[] {
+    let queue = this.frameQueues.get(clipId);
+    if (!queue) {
+      queue = [];
+      this.frameQueues.set(clipId, queue);
+    }
+    return queue;
+  }
 
-function composite(
-  clips: CompositorClipDescriptor[],
-  textObjects: SerializedTextObject[],
-  captionFrame: SerializedCaptionFrame | null
-): void {
-  if (!renderCtx || !offscreenCanvas) return;
+  private getFrameQueueSizes(): Record<string, number> {
+    const sizes: Record<string, number> = {};
+    for (const [clipId, queue] of this.frameQueues) {
+      sizes[clipId] = queue.length;
+    }
+    return sizes;
+  }
 
-  // Clear canvas.
-  renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-  renderCtx.fillStyle = "#000";
-  renderCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // ---------------------------------------------------------------------------
+  // Compositing
+  // ---------------------------------------------------------------------------
 
-  // Sort clips by z-index ascending (lowest drawn first).
-  const sorted = [...clips].sort((a, b) => a.zIndex - b.zIndex);
+  private composite(clips: CompositorClipDescriptor[]): void {
+    if (!this.renderCtx || !this.offscreenCanvas) return;
 
-  for (const clip of sorted) {
-    if (!clip.enabled || clip.opacity === 0) continue;
+    this.clearCanvas();
 
-    const frame = pickFrame(clip.clipId, clip.sourceTimeUs);
-    if (!frame) continue;
+    // Clips are descriptors from PreviewEngine; the worker owns only rendering.
+    for (const clip of this.getDrawableClips(clips)) {
+      const frame = this.pickFrame(clip.clipId, clip.sourceTimeUs);
+      if (!frame) continue;
+      this.drawClipFrame(clip, frame);
+    }
 
-    renderCtx.save();
-    renderCtx.globalAlpha = clip.opacity;
+    this.drawTextObjects();
+    this.drawCaptionFrame();
+  }
 
-    renderCtx.filter = buildCanvasFilter(clip.effects);
+  private clearCanvas(): void {
+    if (!this.renderCtx) return;
+
+    this.renderCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    this.renderCtx.fillStyle = "#000";
+    this.renderCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+  }
+
+  private getDrawableClips(
+    clips: CompositorClipDescriptor[]
+  ): CompositorClipDescriptor[] {
+    return [...clips]
+      .filter((clip) => clip.enabled && clip.opacity > 0)
+      .sort((a, b) => a.zIndex - b.zIndex);
+  }
+
+  private drawClipFrame(
+    clip: CompositorClipDescriptor,
+    frame: VideoFrame
+  ): void {
+    if (!this.renderCtx) return;
+
+    const drawRect = this.getObjectContainRect(frame);
+
+    this.renderCtx.save();
+    this.renderCtx.globalAlpha = clip.opacity;
+    this.renderCtx.filter = this.buildCanvasFilter(clip.effects);
 
     if (clip.clipPath) {
-      applyClipPath(renderCtx, clip.clipPath, canvasWidth, canvasHeight);
+      // Clip path is applied before transform, matching the old canvas behavior.
+      this.applyClipPath(clip.clipPath);
     }
 
-    applyTransform(renderCtx, clip.transform);
-
-    // Draw the frame scaled to fill the canvas (object-contain semantics).
-    const frameAspect = frame.displayWidth / frame.displayHeight;
-    const canvasAspect = canvasWidth / canvasHeight;
-    let dx = 0,
-      dy = 0,
-      dw = canvasWidth,
-      dh = canvasHeight;
-    if (frameAspect > canvasAspect) {
-      dh = canvasWidth / frameAspect;
-      dy = (canvasHeight - dh) / 2;
-    } else {
-      dw = canvasHeight * frameAspect;
-      dx = (canvasWidth - dw) / 2;
-    }
-    renderCtx.drawImage(frame, dx, dy, dw, dh);
-
-    renderCtx.restore();
+    this.applyTransform(clip.transform);
+    this.renderCtx.drawImage(
+      frame,
+      drawRect.dx,
+      drawRect.dy,
+      drawRect.dw,
+      drawRect.dh
+    );
+    this.renderCtx.restore();
   }
 
-  // Draw text overlays.
-  for (const text of textObjects) {
-    renderCtx.save();
-    renderCtx.globalAlpha = text.opacity;
-    renderCtx.font = `${text.fontWeight} ${text.fontSize}px sans-serif`;
-    renderCtx.fillStyle = text.color;
-    renderCtx.textAlign = text.align;
-    renderCtx.textBaseline = "middle";
-    renderCtx.shadowColor = "rgba(0,0,0,0.8)";
-    renderCtx.shadowBlur = 8;
+  private getObjectContainRect(frame: VideoFrame): DrawRect {
+    const frameAspect = frame.displayWidth / frame.displayHeight;
+    const canvasAspect = this.canvasWidth / this.canvasHeight;
+
+    let dx = 0;
+    let dy = 0;
+    let dw = this.canvasWidth;
+    let dh = this.canvasHeight;
+
+    if (frameAspect > canvasAspect) {
+      dh = this.canvasWidth / frameAspect;
+      dy = (this.canvasHeight - dh) / 2;
+    } else {
+      dw = this.canvasHeight * frameAspect;
+      dx = (this.canvasWidth - dw) / 2;
+    }
+
+    return { dx, dy, dw, dh };
+  }
+
+  private drawTextObjects(): void {
+    if (!this.renderCtx) return;
+
+    for (const text of this.textObjects) {
+      this.drawTextObject(text);
+    }
+  }
+
+  private drawTextObject(text: SerializedTextObject): void {
+    if (!this.renderCtx) return;
+
+    this.renderCtx.save();
+    this.renderCtx.globalAlpha = text.opacity;
+    this.renderCtx.font = `${text.fontWeight} ${text.fontSize}px sans-serif`;
+    this.renderCtx.fillStyle = text.color;
+    this.renderCtx.textAlign = text.align;
+    this.renderCtx.textBaseline = "middle";
+    this.renderCtx.shadowColor = "rgba(0,0,0,0.8)";
+    this.renderCtx.shadowBlur = 8;
+
     const lines = text.text.split("\n");
     const blockHeight = Math.max(text.lineHeight, 1) * lines.length;
     const firstLineY = text.y - blockHeight / 2 + text.lineHeight / 2;
+
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      renderCtx.fillText(
+      this.renderCtx.fillText(
         lines[lineIndex] ?? "",
         text.x,
         firstLineY + lineIndex * text.lineHeight,
         text.maxWidth
       );
     }
-    renderCtx.restore();
+
+    this.renderCtx.restore();
   }
 
-  // Draw pre-rendered caption bitmap (if any).
-  if (captionFrame) {
-    renderCtx.drawImage(captionFrame.bitmap, 0, 0, canvasWidth, canvasHeight);
+  private drawCaptionFrame(): void {
+    if (!this.renderCtx || !this.captionFrame) return;
+
+    this.renderCtx.drawImage(
+      this.captionFrame.bitmap,
+      0,
+      0,
+      this.canvasWidth,
+      this.canvasHeight
+    );
+  }
+
+  private applyTransform(transform: CompositorClipTransform): void {
+    if (!this.renderCtx) return;
+
+    const scale =
+      Number.isFinite(transform.scale) && transform.scale > 0
+        ? transform.scale
+        : 1;
+
+    if (scale !== 1) {
+      this.renderCtx.transform(
+        scale,
+        0,
+        0,
+        scale,
+        (this.canvasWidth / 2) * (1 - scale),
+        (this.canvasHeight / 2) * (1 - scale)
+      );
+    }
+
+    const translateX =
+      transform.translateX +
+      (transform.translateXPercent / 100) * this.canvasWidth;
+    const translateY =
+      transform.translateY +
+      (transform.translateYPercent / 100) * this.canvasHeight;
+
+    if (translateX !== 0 || translateY !== 0) {
+      this.renderCtx.translate(translateX, translateY);
+    }
+
+    if (transform.rotationDeg === 0) return;
+
+    const centerX = this.canvasWidth / 2;
+    const centerY = this.canvasHeight / 2;
+    const radians = (transform.rotationDeg * Math.PI) / 180;
+    this.renderCtx.translate(centerX, centerY);
+    this.renderCtx.rotate(radians);
+    this.renderCtx.translate(-centerX, -centerY);
+  }
+
+  private applyClipPath(clipPath: CompositorClipPath): void {
+    if (!this.renderCtx) return;
+
+    if (clipPath.type === "inset") {
+      const top = (clipPath.top / 100) * this.canvasHeight;
+      const right = (clipPath.right / 100) * this.canvasWidth;
+      const bottom = (clipPath.bottom / 100) * this.canvasHeight;
+      const left = (clipPath.left / 100) * this.canvasWidth;
+
+      this.renderCtx.beginPath();
+      this.renderCtx.rect(
+        left,
+        top,
+        this.canvasWidth - left - right,
+        this.canvasHeight - top - bottom
+      );
+      this.renderCtx.clip();
+      return;
+    }
+
+    const points = clipPath.points.map((point) => ({
+      x: (point.x / 100) * this.canvasWidth,
+      y: (point.y / 100) * this.canvasHeight,
+    }));
+
+    if (points.length < 3) return;
+
+    this.renderCtx.beginPath();
+    this.renderCtx.moveTo(points[0]!.x, points[0]!.y);
+    for (let index = 1; index < points.length; index += 1) {
+      this.renderCtx.lineTo(points[index]!.x, points[index]!.y);
+    }
+    this.renderCtx.closePath();
+    this.renderCtx.clip();
+  }
+
+  private buildCanvasFilter(effects: CompositorClipEffects): string {
+    const filterParts: string[] = [];
+
+    if (effects.contrast !== 0) {
+      filterParts.push(`contrast(${1 + effects.contrast / 100})`);
+    }
+
+    if (effects.warmth !== 0) {
+      filterParts.push(
+        `hue-rotate(${-effects.warmth * 0.3}deg)`,
+        `saturate(${1 + effects.warmth * 0.005})`
+      );
+    }
+
+    return filterParts.join(" ") || "none";
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metrics and cleanup helpers
+  // ---------------------------------------------------------------------------
+
+  private postPerformanceMetrics(
+    playheadMs: number,
+    clips: CompositorClipDescriptor[],
+    frameStart: number
+  ): void {
+    const frameQueueSizes = this.getFrameQueueSizes();
+    this.worker.postMessage(
+      {
+        type: "PERFORMANCE",
+        metrics: {
+          playheadMs,
+          compositorFrameMs: performance.now() - frameStart,
+          clipCount: clips.length,
+          textObjectCount: this.textObjects.length,
+          captionFramePresent: this.captionFrame !== null,
+          frameQueueSizes,
+          frameQueueTotal: Object.values(frameQueueSizes).reduce(
+            (total, size) => total + size,
+            0
+          ),
+          closedFrameCount: this.closedFrameCount,
+          queueEvictedFrameCount: this.queueEvictedFrameCount,
+          canvasWidth: this.canvasWidth,
+          canvasHeight: this.canvasHeight,
+        },
+      },
+      []
+    );
+  }
+
+  private applyCanvasSize(): void {
+    if (!this.offscreenCanvas) return;
+
+    this.offscreenCanvas.width = this.canvasWidth;
+    this.offscreenCanvas.height = this.canvasHeight;
+  }
+
+  private closeCaptionFrame(): void {
+    if (!this.captionFrame) return;
+
+    this.captionFrame.bitmap.close();
+    this.captionFrame = null;
+  }
+
+  private closeFrameFromIgnoredMessage(message: CompositorWorkerMessage): void {
+    if (message.type === "FRAME") {
+      message.frame.close();
+    }
   }
 }
 
-/**
- * Convert typed clip descriptors to a canvas clipping region.
- * Handles the inset wipes we use today and a minimal polygon subset so
- * transition descriptors stay future-safe if slide/wipe variants emit polygons.
- */
-function applyClipPath(
-  drawCtx: OffscreenCanvasRenderingContext2D,
-  clipPath: CompositorClipPath,
-  w: number,
-  h: number
-): void {
-  if (clipPath.type === "inset") {
-    const top = (clipPath.top / 100) * h;
-    const right = (clipPath.right / 100) * w;
-    const bottom = (clipPath.bottom / 100) * h;
-    const left = (clipPath.left / 100) * w;
-    drawCtx.beginPath();
-    drawCtx.rect(left, top, w - left - right, h - top - bottom);
-    drawCtx.clip();
-    return;
-  }
-
-  const points = clipPath.points.map((point) => ({
-    x: (point.x / 100) * w,
-    y: (point.y / 100) * h,
-  }));
-
-  if (points.length < 3) return;
-  drawCtx.beginPath();
-  drawCtx.moveTo(points[0]!.x, points[0]!.y);
-  for (let index = 1; index < points.length; index += 1) {
-    drawCtx.lineTo(points[index]!.x, points[index]!.y);
-  }
-  drawCtx.closePath();
-  drawCtx.clip();
-}
-
-// ─── Message handler ───────────────────────────────────────────────────────────
-
-let pendingTextObjects: SerializedTextObject[] = [];
-let pendingCaptionFrame: SerializedCaptionFrame | null = null;
-
-ctx.onmessage = (event: MessageEvent) => {
-  if (isDestroyed) return;
-
-  const msg = event.data as
-    | {
-        type: "INIT";
-        canvas: OffscreenCanvas;
-        width: number;
-        height: number;
-        debugEnabled?: boolean;
-      }
-    | { type: "RESIZE"; width: number; height: number }
-    | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
-    | {
-        type: "OVERLAY";
-        textObjects: SerializedTextObject[];
-        captionFrame?: SerializedCaptionFrame | null;
-      }
-    | { type: "TICK"; playheadMs: number; clips: CompositorClipDescriptor[] }
-    | { type: "CLEAR_CLIP"; clipId: string }
-    | { type: "DESTROY" };
-
-  switch (msg.type) {
-    case "INIT": {
-      offscreenCanvas = msg.canvas;
-      canvasWidth = msg.width;
-      canvasHeight = msg.height;
-      debugEnabled = msg.debugEnabled === true;
-      offscreenCanvas.width = canvasWidth;
-      offscreenCanvas.height = canvasHeight;
-      renderCtx = offscreenCanvas.getContext("2d", {
-        alpha: false,
-      }) as OffscreenCanvasRenderingContext2D;
-      ctx.postMessage({ type: "READY" });
-      break;
-    }
-
-    case "RESIZE": {
-      canvasWidth = msg.width;
-      canvasHeight = msg.height;
-      if (offscreenCanvas) {
-        offscreenCanvas.width = canvasWidth;
-        offscreenCanvas.height = canvasHeight;
-      }
-      break;
-    }
-
-    case "FRAME": {
-      // Frame transferred from DecoderPool via main thread relay.
-      enqueueFrame(msg.clipId, msg.frame);
-      break;
-    }
-
-    case "OVERLAY": {
-      // Update text/caption overlay data (sent on every timeline change, not every tick).
-      pendingTextObjects = msg.textObjects ?? [];
-      if ("captionFrame" in msg) {
-        if (pendingCaptionFrame) pendingCaptionFrame.bitmap.close();
-        pendingCaptionFrame = msg.captionFrame ?? null;
-      }
-      break;
-    }
-
-    case "TICK": {
-      const frameStart = performance.now();
-      composite(msg.clips, pendingTextObjects, pendingCaptionFrame);
-      if (debugEnabled) {
-        const frameQueueSizes = getFrameQueueSizes();
-        ctx.postMessage(
-          {
-            type: "PERFORMANCE",
-            metrics: {
-              playheadMs: msg.playheadMs,
-              compositorFrameMs: performance.now() - frameStart,
-              clipCount: msg.clips.length,
-              textObjectCount: pendingTextObjects.length,
-              captionFramePresent: pendingCaptionFrame !== null,
-              frameQueueSizes,
-              frameQueueTotal: Object.values(frameQueueSizes).reduce(
-                (total, size) => total + size,
-                0
-              ),
-              closedFrameCount,
-              queueEvictedFrameCount,
-              canvasWidth,
-              canvasHeight,
-            },
-          },
-          []
-        );
-      }
-      break;
-    }
-
-    case "CLEAR_CLIP": {
-      clearClipFrames(msg.clipId);
-      break;
-    }
-
-    case "DESTROY": {
-      isDestroyed = true;
-      for (const clipId of frameQueues.keys()) clearClipFrames(clipId);
-      if (pendingCaptionFrame) {
-        pendingCaptionFrame.bitmap.close();
-        pendingCaptionFrame = null;
-      }
-      offscreenCanvas = null;
-      renderCtx = null;
-      ctx.close();
-      break;
-    }
-  }
-};
+new CompositorWorker(ctx);

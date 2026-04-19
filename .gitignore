@@ -9,3 +9,7 @@ ui-debug.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated Rust/WASM editor core
+editor-core/target/
+frontend/src/features/editor/wasm/
