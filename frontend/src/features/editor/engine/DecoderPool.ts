@@ -30,9 +30,11 @@ import {
   MAX_WORKERS_PER_ASSET_URL,
   getClipDecodePriority,
 } from "./decode-guard";
+import type { CachedDemuxMetadata } from "./ClipDecodeWorker";
 
 /** How far ahead/behind the playhead we keep decoders warm. */
 const DECODE_WINDOW_MS = 5_000;
+const MAX_DEMUX_METADATA_CACHE_ENTRIES = 3;
 
 export interface DecodedFrame {
   frame: VideoFrame;
@@ -42,11 +44,26 @@ export interface DecodedFrame {
 
 export interface DecoderPoolMetrics {
   activeDecoderCount: number;
+  maxActiveDecoderCount: number;
   readyDecoderCount: number;
   seekingDecoderCount: number;
   pendingSeekCount: number;
   assetWorkerCounts: Record<string, number>;
+  maxWorkersPerAssetUrl: number;
+  metadataCache: {
+    entryCount: number;
+    assetUrls: string[];
+  };
+  clipSeekMetrics: Record<string, ClipSeekMetrics>;
   clipIds: string[];
+}
+
+export interface ClipSeekMetrics {
+  lastRequestedAtMs: number | null;
+  lastTargetMs: number | null;
+  lastFirstAcceptedFrameMs: number | null;
+  staleFrameDropCount: number;
+  acceptedFrameCount: number;
 }
 
 type FrameCallback = (decoded: DecodedFrame) => void;
@@ -63,12 +80,22 @@ interface WorkerEntry {
   terminateTimer: number | null;
   latestRequestedSeekToken: number;
   activeSeekToken: number | null;
+  metadataLoader: boolean;
+  seekMetrics: ClipSeekMetrics;
+}
+
+interface MetadataCacheEntry {
+  metadata: CachedDemuxMetadata;
+  lastUsedAtMs: number;
 }
 
 /** Parallel **video** decode only; see file header for how other track types are handled. */
 export class DecoderPool {
   private workers = new Map<string, WorkerEntry>();
   private assetFailuresUntil = new Map<string, number>();
+  private metadataCache = new Map<string, MetadataCacheEntry>();
+  private metadataWaiters = new Map<string, Set<WorkerEntry>>();
+  private metadataLoadsInFlight = new Set<string>();
   private isPlaying = false;
   private onFrame: FrameCallback;
 
@@ -256,10 +283,22 @@ export class DecoderPool {
 
     return {
       activeDecoderCount: this.workers.size,
+      maxActiveDecoderCount: MAX_ACTIVE_VIDEO_WORKERS,
       readyDecoderCount,
       seekingDecoderCount,
       pendingSeekCount,
       assetWorkerCounts,
+      maxWorkersPerAssetUrl: MAX_WORKERS_PER_ASSET_URL,
+      metadataCache: {
+        entryCount: this.metadataCache.size,
+        assetUrls: [...this.metadataCache.keys()],
+      },
+      clipSeekMetrics: Object.fromEntries(
+        [...this.workers.values()].map((entry) => [
+          entry.clipId,
+          { ...entry.seekMetrics },
+        ])
+      ),
       clipIds: [...this.workers.keys()],
     };
   }
@@ -293,6 +332,14 @@ export class DecoderPool {
       terminateTimer: null,
       latestRequestedSeekToken: 1,
       activeSeekToken: null,
+      metadataLoader: false,
+      seekMetrics: {
+        lastRequestedAtMs: null,
+        lastTargetMs: null,
+        lastFirstAcceptedFrameMs: null,
+        staleFrameDropCount: 0,
+        acceptedFrameCount: 0,
+      },
     };
 
     worker.onmessage = (event: MessageEvent) => {
@@ -312,6 +359,14 @@ export class DecoderPool {
         return;
       }
       switch (msg.type) {
+        case "METADATA_READY":
+          if (msg.assetUrl === entry.assetUrl) {
+            entry.metadataLoader = false;
+            this.metadataLoadsInFlight.delete(entry.assetUrl);
+            this.rememberMetadata(entry.assetUrl, msg.metadata);
+            this.releaseMetadataWaiters(entry.assetUrl, msg.metadata);
+          }
+          break;
         case "READY":
           entry.ready = true;
           if (entry.pendingSeek !== null) {
@@ -329,6 +384,7 @@ export class DecoderPool {
             (msg.seekToken ?? null) !== null &&
             msg.seekToken !== entry.latestRequestedSeekToken
           ) {
+            entry.seekMetrics.staleFrameDropCount += 1;
             msg.frame.close();
             break;
           }
@@ -336,8 +392,17 @@ export class DecoderPool {
             (entry.seeking || entry.pendingSeek !== null) &&
             (msg.seekToken ?? null) === null
           ) {
+            entry.seekMetrics.staleFrameDropCount += 1;
             msg.frame.close();
             break;
+          }
+          entry.seekMetrics.acceptedFrameCount += 1;
+          if (
+            entry.seekMetrics.lastRequestedAtMs !== null &&
+            entry.seekMetrics.lastFirstAcceptedFrameMs === null
+          ) {
+            entry.seekMetrics.lastFirstAcceptedFrameMs =
+              performance.now() - entry.seekMetrics.lastRequestedAtMs;
           }
           this.onFrame({
             frame: msg.frame,
@@ -397,11 +462,35 @@ export class DecoderPool {
 
     this.workers.set(clip.id, entry);
 
-    // Start loading.
-    worker.postMessage({
+    this.startWorkerLoad(entry);
+  }
+
+  private startWorkerLoad(entry: WorkerEntry): void {
+    const cachedMetadata = this.getCachedMetadata(entry.assetUrl);
+    if (cachedMetadata) {
+      entry.worker.postMessage({
+        type: "LOAD",
+        assetUrl: entry.assetUrl,
+        clipId: entry.clipId,
+        metadata: cachedMetadata,
+      });
+      return;
+    }
+
+    if (this.metadataLoadsInFlight.has(entry.assetUrl)) {
+      const waiters =
+        this.metadataWaiters.get(entry.assetUrl) ?? new Set<WorkerEntry>();
+      waiters.add(entry);
+      this.metadataWaiters.set(entry.assetUrl, waiters);
+      return;
+    }
+
+    this.metadataLoadsInFlight.add(entry.assetUrl);
+    entry.metadataLoader = true;
+    entry.worker.postMessage({
       type: "LOAD",
-      assetUrl,
-      clipId: clip.id,
+      assetUrl: entry.assetUrl,
+      clipId: entry.clipId,
     });
   }
 
@@ -413,6 +502,9 @@ export class DecoderPool {
     entry.pendingSeek = null;
     entry.seeking = true;
     entry.activeSeekToken = seekToken;
+    entry.seekMetrics.lastRequestedAtMs = performance.now();
+    entry.seekMetrics.lastTargetMs = sourceTimeMs;
+    entry.seekMetrics.lastFirstAcceptedFrameMs = null;
     entry.worker.postMessage({
       type: "SEEK",
       targetMs: sourceTimeMs,
@@ -429,8 +521,94 @@ export class DecoderPool {
       entry.assetUrl,
       Date.now() + DECODE_FAILURE_COOLDOWN_MS
     );
+    if (entry.metadataLoader) {
+      entry.metadataLoader = false;
+      this.metadataLoadsInFlight.delete(entry.assetUrl);
+      this.destroyMetadataWaiters(entry.assetUrl);
+    }
     console.error(`[DecoderPool] ${prefix}`, error);
     this.destroyWorker(entry.clipId);
+  }
+
+  private getCachedMetadata(assetUrl: string): CachedDemuxMetadata | null {
+    const entry = this.metadataCache.get(assetUrl);
+    if (!entry) return null;
+    entry.lastUsedAtMs = performance.now();
+    return entry.metadata;
+  }
+
+  private rememberMetadata(
+    assetUrl: string,
+    metadata: CachedDemuxMetadata
+  ): void {
+    this.metadataCache.set(assetUrl, {
+      metadata,
+      lastUsedAtMs: performance.now(),
+    });
+    if (this.metadataCache.size <= MAX_DEMUX_METADATA_CACHE_ENTRIES) return;
+
+    let oldestAssetUrl: string | null = null;
+    let oldestUsedAtMs = Number.POSITIVE_INFINITY;
+    for (const [candidateAssetUrl, entry] of this.metadataCache) {
+      if (entry.lastUsedAtMs >= oldestUsedAtMs) continue;
+      oldestAssetUrl = candidateAssetUrl;
+      oldestUsedAtMs = entry.lastUsedAtMs;
+    }
+    if (oldestAssetUrl) {
+      this.metadataCache.delete(oldestAssetUrl);
+    }
+  }
+
+  private releaseMetadataWaiters(
+    assetUrl: string,
+    metadata: CachedDemuxMetadata | null
+  ): void {
+    const waiters = this.metadataWaiters.get(assetUrl);
+    if (!waiters) return;
+    this.metadataWaiters.delete(assetUrl);
+
+    for (const waiter of waiters) {
+      if (waiter.destroyed || !this.workers.has(waiter.clipId)) continue;
+      waiter.worker.postMessage({
+        type: "LOAD",
+        assetUrl: waiter.assetUrl,
+        clipId: waiter.clipId,
+        ...(metadata ? { metadata } : {}),
+      });
+      if (!metadata) {
+        this.metadataLoadsInFlight.add(waiter.assetUrl);
+        waiter.metadataLoader = true;
+        const remainingWaiters = new Set(
+          [...waiters].filter(
+            (candidate) =>
+              candidate !== waiter &&
+              !candidate.destroyed &&
+              this.workers.has(candidate.clipId)
+          )
+        );
+        if (remainingWaiters.size > 0) {
+          this.metadataWaiters.set(assetUrl, remainingWaiters);
+        }
+        break;
+      }
+    }
+  }
+
+  private destroyMetadataWaiters(assetUrl: string): void {
+    const waiters = this.metadataWaiters.get(assetUrl);
+    if (!waiters) return;
+    this.metadataWaiters.delete(assetUrl);
+
+    for (const waiter of waiters) {
+      if (waiter.destroyed) continue;
+      waiter.destroyed = true;
+      waiter.worker.postMessage({ type: "DESTROY" });
+      waiter.terminateTimer = window.setTimeout(
+        () => waiter.worker.terminate(),
+        200
+      );
+      this.workers.delete(waiter.clipId);
+    }
   }
 
   /**
@@ -443,6 +621,18 @@ export class DecoderPool {
     entry.destroyed = true;
     if (entry.terminateTimer !== null) {
       clearTimeout(entry.terminateTimer);
+    }
+    if (entry.metadataLoader) {
+      entry.metadataLoader = false;
+      this.metadataLoadsInFlight.delete(entry.assetUrl);
+      this.releaseMetadataWaiters(entry.assetUrl, null);
+    }
+    const waiters = this.metadataWaiters.get(entry.assetUrl);
+    if (waiters) {
+      waiters.delete(entry);
+      if (waiters.size === 0) {
+        this.metadataWaiters.delete(entry.assetUrl);
+      }
     }
     entry.worker.postMessage({ type: "DESTROY" });
     // Give the worker a moment to close cleanly before terminating.

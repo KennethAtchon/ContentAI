@@ -158,6 +158,13 @@ describe("PreviewEngine performance metrics", () => {
       | undefined;
 
     expect(metrics.decoderPool.activeDecoderCount).toBe(0);
+    expect(metrics.decoderPool.maxActiveDecoderCount).toBeGreaterThan(0);
+    expect(metrics.decoderPool.maxWorkersPerAssetUrl).toBeGreaterThan(0);
+    expect(metrics.decoderPool.metadataCache).toEqual({
+      entryCount: 0,
+      assetUrls: [],
+    });
+    expect(metrics.decoderPool.clipSeekMetrics).toEqual({});
     expect(metrics.lastSeekLatency).toEqual(
       expect.objectContaining({
         targetMs: 500,
@@ -334,6 +341,18 @@ describe("buildCompositorClips", () => {
       expect.objectContaining({
         clipId: "clip-a",
         opacity: 0.4,
+        effects: {
+          contrast: 0,
+          warmth: 0,
+        },
+        transform: {
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          translateXPercent: 0,
+          translateYPercent: 0,
+          rotationDeg: 0,
+        },
       })
     );
     expect(clips[1]).toEqual(
@@ -341,10 +360,161 @@ describe("buildCompositorClips", () => {
         clipId: "clip-b",
         sourceTimeUs: 0,
         opacity: 0.6,
-        filter: expect.stringContaining("contrast(1.2)"),
+        effects: {
+          contrast: 20,
+          warmth: 20,
+        },
         clipPath: null,
+        transform: {
+          scale: 1.1,
+          translateX: 12,
+          translateY: -8,
+          translateXPercent: 0,
+          translateYPercent: 0,
+          rotationDeg: 4,
+        },
       })
     );
+  });
+
+  test("emits golden typed dissolve, transform, and wipe descriptors", () => {
+    const clipA: VideoClip = {
+      id: "clip-a",
+      type: "video",
+      label: "A",
+      enabled: true,
+      locallyModified: false,
+      startMs: 0,
+      durationMs: 1000,
+      trimStartMs: 0,
+      trimEndMs: 0,
+      assetId: "asset-a",
+      volume: 1,
+      muted: false,
+      speed: 1,
+      opacity: 1,
+      warmth: 0,
+      contrast: 0,
+      positionX: 5,
+      positionY: 10,
+      scale: 1.25,
+      rotation: 15,
+    };
+    const clipB: VideoClip = {
+      ...clipA,
+      id: "clip-b",
+      startMs: 1000,
+      durationMs: 1000,
+      positionX: 0,
+      positionY: 0,
+      scale: 1,
+      rotation: 0,
+    };
+
+    const dissolveTrack: Track = {
+      id: "video-track",
+      type: "video",
+      name: "Video",
+      muted: false,
+      locked: false,
+      clips: [clipA, clipB],
+      transitions: [
+        {
+          id: "transition-dissolve",
+          type: "dissolve",
+          durationMs: 250,
+          clipAId: "clip-a",
+          clipBId: "clip-b",
+        },
+      ],
+    };
+
+    expect(buildCompositorClips([dissolveTrack], 875, null)).toEqual([
+      {
+        clipId: "clip-a",
+        zIndex: 0,
+        sourceTimeUs: 875_000,
+        opacity: 0.5,
+        clipPath: null,
+        effects: { contrast: 0, warmth: 0 },
+        transform: {
+          scale: 1.25,
+          translateX: 5,
+          translateY: 10,
+          translateXPercent: 0,
+          translateYPercent: 0,
+          rotationDeg: 15,
+        },
+        enabled: true,
+      },
+      {
+        clipId: "clip-b",
+        zIndex: 0,
+        sourceTimeUs: 0,
+        opacity: 0.5,
+        clipPath: null,
+        effects: { contrast: 0, warmth: 0 },
+        transform: {
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          translateXPercent: 0,
+          translateYPercent: 0,
+          rotationDeg: 0,
+        },
+        enabled: true,
+      },
+    ]);
+
+    const wipeTrack: Track = {
+      ...dissolveTrack,
+      transitions: [
+        {
+          id: "transition-wipe",
+          type: "wipe-right",
+          durationMs: 250,
+          clipAId: "clip-a",
+          clipBId: "clip-b",
+        },
+      ],
+    };
+    const [, wipeIncoming] = buildCompositorClips([wipeTrack], 875, null);
+
+    expect(wipeIncoming).toEqual(
+      expect.objectContaining({
+        opacity: 1,
+        clipPath: {
+          type: "inset",
+          top: 0,
+          right: 50,
+          bottom: 0,
+          left: 0,
+        },
+      })
+    );
+
+    const slideTrack: Track = {
+      ...dissolveTrack,
+      transitions: [
+        {
+          id: "transition-slide",
+          type: "slide-left",
+          durationMs: 250,
+          clipAId: "clip-a",
+          clipBId: "clip-b",
+        },
+      ],
+    };
+    const [slideOutgoing] = buildCompositorClips([slideTrack], 875, null);
+
+    expect(slideOutgoing?.transform).toEqual({
+      scale: 1.25,
+      translateX: 5,
+      translateY: 10,
+      translateXPercent: -50,
+      translateYPercent: 0,
+      rotationDeg: 15,
+    });
   });
 
   test("uses source-media time for trimmed and speed-adjusted clips", () => {

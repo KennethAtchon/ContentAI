@@ -6,6 +6,8 @@ import {
 import { DecoderPool, type DecoderPoolMetrics } from "./DecoderPool";
 import type {
   CompositorClipDescriptor,
+  CompositorClipPath,
+  CompositorClipTransform,
   SerializedCaptionFrame,
   SerializedTextObject,
 } from "./CompositorWorker";
@@ -14,12 +16,10 @@ import { systemPerformance } from "@/shared/utils/system/performance";
 import type { TextClip, Track, VideoClip } from "../types/editor";
 import { isTextClip, isVideoClip } from "../utils/clip-types";
 import {
-  buildWarmthFilter,
   getClipSourceTimeSecondsAtTimelineTime,
-  getIncomingTransitionStyle,
-  getOutgoingTransitionStyle,
 } from "../utils/editor-composition";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
+import type { Transition } from "../types/editor";
 
 const REACT_PUBLISH_INTERVAL_MS = 250;
 const DECODER_RECONCILE_INTERVAL_MS = 500;
@@ -75,6 +75,94 @@ export interface PreviewEngineCallbacks {
   onRenderTick?(playheadMs: number): void;
 }
 
+const DEFAULT_COMPOSITOR_TRANSFORM: CompositorClipTransform = {
+  scale: 1,
+  translateX: 0,
+  translateY: 0,
+  translateXPercent: 0,
+  translateYPercent: 0,
+  rotationDeg: 0,
+};
+
+function buildBaseTransform(
+  clip: VideoClip,
+  previewPatch: Partial<VideoClip> | null
+): CompositorClipTransform {
+  return {
+    scale: previewPatch?.scale ?? clip.scale ?? 1,
+    translateX: previewPatch?.positionX ?? clip.positionX ?? 0,
+    translateY: previewPatch?.positionY ?? clip.positionY ?? 0,
+    translateXPercent: 0,
+    translateYPercent: 0,
+    rotationDeg: previewPatch?.rotation ?? clip.rotation ?? 0,
+  };
+}
+
+function getOutgoingTransitionDescriptor(
+  clip: VideoClip,
+  transitions: Transition[],
+  timelineMs: number
+): { opacity?: number; transform?: Partial<CompositorClipTransform> } {
+  const transition = transitions.find((item) => item.clipAId === clip.id);
+  if (!transition || transition.type === "none") return {};
+
+  const clipEnd = clip.startMs + clip.durationMs;
+  const windowStart = clipEnd - transition.durationMs;
+  if (timelineMs < windowStart || timelineMs > clipEnd) return {};
+
+  const progress = (timelineMs - windowStart) / transition.durationMs;
+
+  switch (transition.type) {
+    case "fade":
+    case "dissolve":
+      return { opacity: 1 - progress };
+    case "slide-left":
+      return { transform: { translateXPercent: -progress * 100 } };
+    case "slide-up":
+      return { transform: { translateYPercent: -progress * 100 } };
+    default:
+      return {};
+  }
+}
+
+function getIncomingTransitionDescriptor(
+  clip: VideoClip,
+  transitions: Transition[],
+  allClips: VideoClip[],
+  timelineMs: number
+): { opacity?: number; clipPath?: CompositorClipPath } | null {
+  const transition = transitions.find((item) => item.clipBId === clip.id);
+  if (
+    !transition ||
+    (transition.type !== "dissolve" && transition.type !== "wipe-right")
+  ) {
+    return null;
+  }
+
+  const clipA = allClips.find((item) => item.id === transition.clipAId);
+  if (!clipA) return null;
+
+  const clipAEnd = clipA.startMs + clipA.durationMs;
+  const windowStart = clipAEnd - transition.durationMs;
+  if (timelineMs < windowStart || timelineMs > clipAEnd) return null;
+
+  const progress = (timelineMs - windowStart) / transition.durationMs;
+
+  if (transition.type === "dissolve") {
+    return { opacity: progress };
+  }
+  return {
+    clipPath: {
+      type: "inset",
+      top: 0,
+      right: (1 - progress) * 100,
+      bottom: 0,
+      left: 0,
+    },
+    opacity: 1,
+  };
+}
+
 export function buildCompositorClips(
   tracks: Track[],
   timelineMs: number,
@@ -94,17 +182,13 @@ export function buildCompositorClips(
       const contrast = previewPatch?.contrast ?? clip.contrast;
       const warmth = previewPatch?.warmth ?? clip.warmth;
       const baseOpacity = previewPatch?.opacity ?? clip.opacity ?? 1;
-      const effectiveScale = previewPatch?.scale ?? clip.scale ?? 1;
-      const effectivePositionX = previewPatch?.positionX ?? clip.positionX ?? 0;
-      const effectivePositionY = previewPatch?.positionY ?? clip.positionY ?? 0;
-      const effectiveRotation = previewPatch?.rotation ?? clip.rotation ?? 0;
 
-      const outgoing = getOutgoingTransitionStyle(
+      const outgoing = getOutgoingTransitionDescriptor(
         clip,
         trackTransitions,
         timelineMs
       );
-      const incoming = getIncomingTransitionStyle(
+      const incoming = getIncomingTransitionDescriptor(
         clip,
         trackTransitions,
         videoClips,
@@ -126,17 +210,11 @@ export function buildCompositorClips(
         opacity = isActive ? baseOpacity : 0;
       }
 
-      const filterParts: string[] = [];
-      if (contrast && contrast !== 0) {
-        filterParts.push(`contrast(${1 + contrast / 100})`);
-      }
-      if (warmth && warmth !== 0) {
-        filterParts.push(buildWarmthFilter(warmth));
-      }
-
-      const transitionTransform =
-        typeof outgoing.transform === "string" ? outgoing.transform : null;
-      const baseTransform = `scale(${effectiveScale}) translate(${effectivePositionX}px, ${effectivePositionY}px) rotate(${effectiveRotation}deg)`;
+      const transform = {
+        ...DEFAULT_COMPOSITOR_TRANSFORM,
+        ...buildBaseTransform(clip, previewPatch),
+        ...(outgoing.transform ?? {}),
+      };
 
       clips.push({
         clipId: clip.id,
@@ -145,10 +223,12 @@ export function buildCompositorClips(
           getClipSourceTimeSecondsAtTimelineTime(clip, timelineMs) * 1_000_000
         ),
         opacity,
-        clipPath:
-          typeof incoming?.clipPath === "string" ? incoming.clipPath : null,
-        filter: filterParts.join(" ") || null,
-        transform: transitionTransform ?? baseTransform,
+        clipPath: incoming?.clipPath ?? null,
+        effects: {
+          contrast: contrast ?? 0,
+          warmth: warmth ?? 0,
+        },
+        transform,
         enabled: clip.enabled !== false,
       });
     }

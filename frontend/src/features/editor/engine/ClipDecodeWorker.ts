@@ -6,7 +6,7 @@
  * and posts decoded frames back to the main thread.
  *
  * Message protocol (main → worker):
- *   { type: 'LOAD', assetUrl: string, clipId: string }
+ *   { type: 'LOAD', assetUrl: string, clipId: string, metadata?: CachedDemuxMetadata }
  *   { type: 'SEEK', targetMs: number }
  *   { type: 'PLAY' }
  *   { type: 'PAUSE' }
@@ -14,6 +14,7 @@
  *
  * Message protocol (worker → main):
  *   { type: 'READY', clipId: string }
+ *   { type: 'METADATA_READY', clipId: string, assetUrl: string, metadata: CachedDemuxMetadata }
  *   { type: 'FRAME', frame: VideoFrame, timestampUs: number, clipId: string }
  *   { type: 'SEEK_DONE', clipId: string }
  *   { type: 'SEEK_FAILED', message: string, clipId: string }
@@ -48,6 +49,30 @@ interface ClipMeta {
   clipId: string;
 }
 
+interface VideoTrackMetadata {
+  id: number;
+  timescale: number;
+  codec: string;
+  width: number;
+  height: number;
+}
+
+interface DecodableVideoSample {
+  dts: number;
+  cts?: number;
+  duration: number;
+  is_sync: boolean;
+  data?: Uint8Array;
+}
+
+export interface CachedDemuxMetadata {
+  assetUrl: string;
+  videoTrack: VideoTrackMetadata;
+  keyframeIndex: KeyframeEntry[];
+  videoSamples: DecodableVideoSample[];
+  decoderDescription?: Uint8Array;
+}
+
 // Bun's lib doesn't include DedicatedWorkerGlobalScope. Define the minimal
 // surface we need so all postMessage calls use the browser Transferable signature.
 interface WorkerCtx extends EventTarget {
@@ -64,9 +89,10 @@ let clipMeta: ClipMeta | null = null;
 let videoDecoder: VideoDecoder | null = null;
 let videoDecoderConfig: VideoDecoderConfig | null = null;
 let keyframeIndex: KeyframeEntry[] = [];
-let videoSamples: Sample[] = [];
+let videoSamples: DecodableVideoSample[] = [];
 let videoTrackId = -1;
 let videoTimescale = 1; // track timescale (e.g. 90000 for 90 kHz)
+let cachedDecoderDescription: Uint8Array | undefined;
 let isPlaying = false;
 let playheadSampleIndex = 0;
 let loadAbortController: AbortController | null = null;
@@ -92,11 +118,11 @@ let decoderNeedsKeyFrame = true;
  * `VideoFrame` to the main thread (`FRAME` message). Errors become `ERROR`
  * posts. Codec `description` is left unset here; see `reconfigureVideoDecoder`.
  */
-function createVideoDecoder(videoTrack: Track): VideoDecoder {
+function createVideoDecoder(videoTrack: VideoTrackMetadata): VideoDecoder {
   const config: VideoDecoderConfig = {
     codec: videoTrack.codec,
-    codedWidth: videoTrack.video?.width ?? 0,
-    codedHeight: videoTrack.video?.height ?? 0,
+    codedWidth: videoTrack.width,
+    codedHeight: videoTrack.height,
     hardwareAcceleration: "prefer-hardware",
     // description is intentionally omitted here — derived from the first
     // sample after demux completes. See getVideoDescription() and the note
@@ -218,8 +244,9 @@ function reconfigureVideoDecoder(decoder: VideoDecoder): void {
  * We skip the 8-byte box header and return only the record bytes.
  */
 function getVideoDescription(): Uint8Array | undefined {
+  if (cachedDecoderDescription) return cachedDecoderDescription;
   if (videoSamples.length === 0) return undefined;
-  const sample = videoSamples[0];
+  const sample = videoSamples[0] as Sample | undefined;
   if (!sample?.description) return undefined;
 
   const entry = sample.description as VisualSampleEntry;
@@ -402,6 +429,42 @@ async function loadAsset(url: string): Promise<Track> {
   });
 }
 
+function applyCachedMetadata(metadata: CachedDemuxMetadata): VideoTrackMetadata {
+  videoTrackId = metadata.videoTrack.id;
+  videoTimescale = metadata.videoTrack.timescale;
+  keyframeIndex = metadata.keyframeIndex;
+  videoSamples = metadata.videoSamples;
+  cachedDecoderDescription = metadata.decoderDescription;
+  return metadata.videoTrack;
+}
+
+function buildCachedMetadata(
+  assetUrl: string,
+  videoTrack: Track
+): CachedDemuxMetadata {
+  const width = videoTrack.video?.width ?? 0;
+  const height = videoTrack.video?.height ?? 0;
+  return {
+    assetUrl,
+    videoTrack: {
+      id: videoTrack.id,
+      timescale: videoTrack.timescale ?? 1,
+      codec: videoTrack.codec,
+      width,
+      height,
+    },
+    keyframeIndex: keyframeIndex.map((entry) => ({ ...entry })),
+    videoSamples: videoSamples.map((sample) => ({
+      dts: sample.dts,
+      cts: sample.cts,
+      duration: sample.duration,
+      is_sync: sample.is_sync,
+      data: sample.data,
+    })),
+    decoderDescription: getVideoDescription(),
+  };
+}
+
 // ─── Seek logic ────────────────────────────────────────────────────────────────
 
 /**
@@ -410,8 +473,8 @@ async function loadAsset(url: string): Promise<Track> {
  * 90 kHz). WebCodecs EncodedVideoChunk.timestamp and the compositor sourceTimeUs
  * are both in µs, so we convert here before any comparison or decode call.
  */
-function getSampleTimestampUs(sample: Sample): number {
-  const ticks = (sample as Sample & { cts?: number }).cts ?? sample.dts;
+function getSampleTimestampUs(sample: DecodableVideoSample): number {
+  const ticks = sample.cts ?? sample.dts;
   return Math.round((ticks * 1_000_000) / videoTimescale);
 }
 
@@ -576,7 +639,12 @@ function stopFeedLoop(): void {
  */
 ctx.onmessage = async (event: MessageEvent) => {
   const msg = event.data as
-    | { type: "LOAD"; assetUrl: string; clipId: string }
+    | {
+        type: "LOAD";
+        assetUrl: string;
+        clipId: string;
+        metadata?: CachedDemuxMetadata;
+      }
     | { type: "SEEK"; targetMs: number; seekToken?: number | null }
     | { type: "PLAY" }
     | { type: "PAUSE" }
@@ -597,11 +665,23 @@ ctx.onmessage = async (event: MessageEvent) => {
       videoSamples = [];
       videoTrackId = -1;
       videoTimescale = 1;
+      cachedDecoderDescription = undefined;
       playheadSampleIndex = 0;
       decoderNeedsKeyFrame = true;
 
       try {
-        const videoTrack = await loadAsset(msg.assetUrl);
+        const videoTrack = msg.metadata
+          ? applyCachedMetadata(msg.metadata)
+          : await loadAsset(msg.assetUrl).then((loadedTrack) => {
+              const metadata = buildCachedMetadata(msg.assetUrl, loadedTrack);
+              ctx.postMessage({
+                type: "METADATA_READY",
+                clipId: msg.clipId,
+                assetUrl: msg.assetUrl,
+                metadata,
+              });
+              return metadata.videoTrack;
+            });
         if (isDestroyed) break;
         videoDecoder = createVideoDecoder(videoTrack);
         ctx.postMessage({ type: "READY", clipId: msg.clipId });
@@ -672,6 +752,7 @@ ctx.onmessage = async (event: MessageEvent) => {
       closeVideoDecoder();
       videoSamples = [];
       keyframeIndex = [];
+      cachedDecoderDescription = undefined;
       ctx.close();
       break;
     }

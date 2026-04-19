@@ -33,15 +33,42 @@ export interface CompositorClipDescriptor {
   sourceTimeUs: number;
   /** Computed opacity (0–1), already accounting for transitions and enabled state. */
   opacity: number;
-  /** CSS clip-path string for wipe transitions, or null. */
-  clipPath: string | null;
-  /** CSS filter string (e.g. "contrast(1.2) sepia(0.3)"), or null. */
-  filter: string | null;
-  /** CSS transform string (e.g. "scale(1.2) translate(20px, -10px)"), or null for default. */
-  transform: string | null;
+  /** Typed clip region for wipe transitions, or null. Values are percentages. */
+  clipPath: CompositorClipPath | null;
+  /** Numeric effect values. Contrast/warmth match editor slider units. */
+  effects: CompositorClipEffects;
+  /** Numeric transform descriptor applied by the worker without string parsing. */
+  transform: CompositorClipTransform;
   /** If false, skip this clip entirely. */
   enabled: boolean;
 }
+
+export interface CompositorClipTransform {
+  scale: number;
+  translateX: number;
+  translateY: number;
+  translateXPercent: number;
+  translateYPercent: number;
+  rotationDeg: number;
+}
+
+export interface CompositorClipEffects {
+  contrast: number;
+  warmth: number;
+}
+
+export type CompositorClipPath =
+  | {
+      type: "inset";
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    }
+  | {
+      type: "polygon";
+      points: Array<{ x: number; y: number }>;
+    };
 
 export interface SerializedTextObject {
   text: string;
@@ -69,6 +96,8 @@ export interface CompositorWorkerPerformanceMetrics {
   captionFramePresent: boolean;
   frameQueueSizes: Record<string, number>;
   frameQueueTotal: number;
+  closedFrameCount: number;
+  queueEvictedFrameCount: number;
   canvasWidth: number;
   canvasHeight: number;
 }
@@ -94,6 +123,8 @@ let debugEnabled = false;
 
 /** Per-clip queues of decoded VideoFrame objects, sorted by timestamp ascending. */
 const frameQueues = new Map<string, VideoFrame[]>();
+let closedFrameCount = 0;
+let queueEvictedFrameCount = 0;
 
 // ─── Frame management ─────────────────────────────────────────────────────────
 
@@ -114,7 +145,15 @@ function enqueueFrame(clipId: string, frame: VideoFrame): void {
 
   if (queue.length <= 16) return;
   const toClose = queue.splice(0, queue.length - 16);
-  for (const queuedFrame of toClose) queuedFrame.close();
+  closeQueuedFrames(toClose, true);
+}
+
+function closeQueuedFrames(frames: VideoFrame[], evicted: boolean): void {
+  for (const frame of frames) {
+    frame.close();
+    closedFrameCount += 1;
+    if (evicted) queueEvictedFrameCount += 1;
+  }
 }
 
 function pruneQueue(clipId: string, sourceTimeUs: number): void {
@@ -139,10 +178,12 @@ function pruneQueue(clipId: string, sourceTimeUs: number): void {
   if (overflow <= 0) return;
 
   const retained = queue.slice(keepStart, keepEnd);
+  const framesToClose: VideoFrame[] = [];
   for (let index = 0; index < queue.length; index += 1) {
     if (index >= keepStart && index < keepEnd) continue;
-    queue[index]!.close();
+    framesToClose.push(queue[index]!);
   }
+  closeQueuedFrames(framesToClose, true);
   frameQueues.set(clipId, retained);
 }
 
@@ -167,7 +208,7 @@ function pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
 function clearClipFrames(clipId: string): void {
   const queue = frameQueues.get(clipId);
   if (!queue) return;
-  for (const frame of queue) frame.close();
+  closeQueuedFrames(queue, false);
   frameQueues.delete(clipId);
   lastRequestedSourceTimeUs.delete(clipId);
 }
@@ -182,47 +223,55 @@ function getFrameQueueSizes(): Record<string, number> {
 
 // ─── Canvas transform helpers ─────────────────────────────────────────────────
 
-/**
- * Parse a CSS transform string into canvas operations.
- * Supports: scale(n), translate(xpx, ypx), rotate(ndeg).
- * For production, replace with a proper CSS-to-canvas matrix converter.
- */
 function applyTransform(
   drawCtx: OffscreenCanvasRenderingContext2D,
-  transform: string | null
+  transform: CompositorClipTransform
 ): void {
-  if (!transform) return;
-  const scaleMatch = transform.match(/scale\(([\d.+-]+)\)/);
-  const translateMatch = transform.match(
-    /translate\(([\d.+-]+)px,\s*([\d.+-]+)px\)/
-  );
-  const rotateMatch = transform.match(/rotate\(([\d.+-]+)deg\)/);
-
-  if (scaleMatch) {
-    const s = parseFloat(scaleMatch[1]);
+  const scale =
+    Number.isFinite(transform.scale) && transform.scale > 0
+      ? transform.scale
+      : 1;
+  if (scale !== 1) {
     drawCtx.transform(
-      s,
+      scale,
       0,
       0,
-      s,
-      (canvasWidth / 2) * (1 - s),
-      (canvasHeight / 2) * (1 - s)
+      scale,
+      (canvasWidth / 2) * (1 - scale),
+      (canvasHeight / 2) * (1 - scale)
     );
   }
-  if (translateMatch) {
-    drawCtx.translate(
-      parseFloat(translateMatch[1]),
-      parseFloat(translateMatch[2])
-    );
+
+  const translateX =
+    transform.translateX + (transform.translateXPercent / 100) * canvasWidth;
+  const translateY =
+    transform.translateY + (transform.translateYPercent / 100) * canvasHeight;
+  if (translateX !== 0 || translateY !== 0) {
+    drawCtx.translate(translateX, translateY);
   }
-  if (rotateMatch) {
+
+  if (transform.rotationDeg !== 0) {
     const cx = canvasWidth / 2;
     const cy = canvasHeight / 2;
-    const rad = (parseFloat(rotateMatch[1]) * Math.PI) / 180;
+    const rad = (transform.rotationDeg * Math.PI) / 180;
     drawCtx.translate(cx, cy);
     drawCtx.rotate(rad);
     drawCtx.translate(-cx, -cy);
   }
+}
+
+function buildCanvasFilter(effects: CompositorClipEffects): string {
+  const filterParts: string[] = [];
+  if (effects.contrast !== 0) {
+    filterParts.push(`contrast(${1 + effects.contrast / 100})`);
+  }
+  if (effects.warmth !== 0) {
+    filterParts.push(
+      `hue-rotate(${-effects.warmth * 0.3}deg)`,
+      `saturate(${1 + effects.warmth * 0.005})`
+    );
+  }
+  return filterParts.join(" ") || "none";
 }
 
 // ─── Composite a single tick ───────────────────────────────────────────────────
@@ -251,13 +300,9 @@ function composite(
     renderCtx.save();
     renderCtx.globalAlpha = clip.opacity;
 
-    if (clip.filter) {
-      renderCtx.filter = clip.filter;
-    }
+    renderCtx.filter = buildCanvasFilter(clip.effects);
 
     if (clip.clipPath) {
-      // clipPath is a CSS clip-path polygon string, e.g. "inset(0 50% 0 0)".
-      // Canvas 2D does not support CSS clip-path natively — convert to a Path2D.
       applyClipPath(renderCtx, clip.clipPath, canvasWidth, canvasHeight);
     }
 
@@ -313,49 +358,31 @@ function composite(
 }
 
 /**
- * Convert CSS clip-path strings to a canvas clipping region.
- * Handles the inset() wipes we use today and a minimal polygon() subset so
+ * Convert typed clip descriptors to a canvas clipping region.
+ * Handles the inset wipes we use today and a minimal polygon subset so
  * transition descriptors stay future-safe if slide/wipe variants emit polygons.
  */
 function applyClipPath(
   drawCtx: OffscreenCanvasRenderingContext2D,
-  clipPath: string,
+  clipPath: CompositorClipPath,
   w: number,
   h: number
 ): void {
-  const insetMatch = clipPath.match(
-    /inset\(\s*([\d.]+)%?\s+([\d.]+)%?\s+([\d.]+)%?\s+([\d.]+)%?\s*\)/
-  );
-  if (insetMatch) {
-    const top = (parseFloat(insetMatch[1]) / 100) * h;
-    const right = (parseFloat(insetMatch[2]) / 100) * w;
-    const bottom = (parseFloat(insetMatch[3]) / 100) * h;
-    const left = (parseFloat(insetMatch[4]) / 100) * w;
+  if (clipPath.type === "inset") {
+    const top = (clipPath.top / 100) * h;
+    const right = (clipPath.right / 100) * w;
+    const bottom = (clipPath.bottom / 100) * h;
+    const left = (clipPath.left / 100) * w;
     drawCtx.beginPath();
     drawCtx.rect(left, top, w - left - right, h - top - bottom);
     drawCtx.clip();
     return;
   }
 
-  const polygonMatch = clipPath.match(/^polygon\((.+)\)$/);
-  if (!polygonMatch) return;
-
-  const points = polygonMatch[1]
-    .split(",")
-    .map((part) => part.trim())
-    .map((part) => part.split(/\s+/))
-    .filter((coords) => coords.length >= 2)
-    .map(([xToken, yToken]) => {
-      const parseCoord = (token: string | undefined, size: number) => {
-        if (!token) return 0;
-        if (token.endsWith("%")) return (parseFloat(token) / 100) * size;
-        return parseFloat(token);
-      };
-      return {
-        x: parseCoord(xToken, w),
-        y: parseCoord(yToken, h),
-      };
-    });
+  const points = clipPath.points.map((point) => ({
+    x: (point.x / 100) * w,
+    y: (point.y / 100) * h,
+  }));
 
   if (points.length < 3) return;
   drawCtx.beginPath();
@@ -454,6 +481,8 @@ ctx.onmessage = (event: MessageEvent) => {
                 (total, size) => total + size,
                 0
               ),
+              closedFrameCount,
+              queueEvictedFrameCount,
               canvasWidth,
               canvasHeight,
             },
