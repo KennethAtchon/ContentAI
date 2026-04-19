@@ -1,22 +1,14 @@
 import { useTranslation } from "react-i18next";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorPersistContext } from "../../context/EditorPersistContext";
 
-interface EditorStatusBarProps {
-  isDirty: boolean;
-  isSavingPatch: boolean;
-  lastSavedAt: Date | null | unknown;
-}
-
-export function EditorStatusBar({
-  isDirty,
-  isSavingPatch,
-  lastSavedAt,
-}: EditorStatusBarProps) {
+export function EditorStatusBar() {
   const { t } = useTranslation();
-  const { state } = useEditorContext();
+  const { tracks, resolution, fps } = useEditorDocumentContext();
+  const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
 
-  const clipCount = state.tracks.reduce((n, tr) => n + tr.clips.length, 0);
-  const trackCount = state.tracks.length;
+  const clipCount = tracks.reduce((n, tr) => n + tr.clips.length, 0);
+  const trackCount = tracks.length;
 
   const saveLabel = isSavingPatch
     ? t("editor_saving")
@@ -38,7 +30,7 @@ export function EditorStatusBar({
       {saveLabel && <span>{saveLabel}</span>}
       <div className="w-px h-3 bg-overlay-md shrink-0" />
       <span>
-        {state.resolution} · {state.fps} fps
+        {resolution} · {fps} fps
       </span>
       <div className="w-px h-3 bg-overlay-md shrink-0" />
       <span className="flex items-center gap-1">

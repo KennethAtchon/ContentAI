@@ -1,55 +1,36 @@
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Undo2, Redo2, Upload, Lock, FilePlus, Check, Loader2 } from "lucide-react";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { useEditorPersistContext } from "../../context/EditorPersistContext";
+import { useEditorUIContext } from "../../context/EditorUIContext";
 
-interface EditorHeaderProps {
-  title: string;
-  isReadOnly: boolean;
-  pastLength: number;
-  futureLength: number;
-  isDirty: boolean;
-  isSavingPatch: boolean;
-  lastSavedAt: unknown;
-  isPublishing: boolean;
-  isCreatingDraft: boolean;
-  onBack: () => void;
-  onTitleChange: (title: string) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onOpenExport: () => void;
-  onOpenPublishDialog: () => void;
-  onCreateNewDraft: () => void;
-  onSaveNow: () => void;
-}
-
-export function EditorHeader({
-  title,
-  isReadOnly,
-  pastLength,
-  futureLength,
-  isDirty,
-  isSavingPatch,
-  lastSavedAt,
-  isPublishing,
-  isCreatingDraft,
-  onBack,
-  onTitleChange,
-  onUndo,
-  onRedo,
-  onOpenExport,
-  onOpenPublishDialog,
-  onCreateNewDraft,
-  onSaveNow,
-}: EditorHeaderProps) {
+export function EditorHeader() {
   const { t } = useTranslation();
+  const { title, isReadOnly, past, future, setTitle, undo, redo } =
+    useEditorDocumentContext();
+  const { handleBack, saveNow } = useEditorPlaybackContext();
+  const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
+  const {
+    showExport,
+    setShowExport,
+    publishDialogOpen,
+    setPublishDialogOpen,
+    isPublishing,
+    isCreatingDraft,
+    createNewDraft,
+  } = useEditorUIContext();
+
+  void showExport;
+  void publishDialogOpen;
 
   return (
     <div
       className="flex items-center gap-0 px-3 border-b border-overlay-sm bg-studio-topbar shrink-0"
       style={{ height: 48 }}
     >
-      {/* Left: back + title + save state */}
       <button
-        onClick={onBack}
+        onClick={() => void handleBack()}
         title={t("editor_back")}
         className="transport-btn mr-1"
       >
@@ -61,7 +42,7 @@ export function EditorHeader({
       <input
         type="text"
         value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
+        onChange={(e) => setTitle(e.target.value)}
         readOnly={isReadOnly}
         className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] max-w-[260px] outline-none focus:border-studio-accent transition-colors px-1 read-only:border-transparent read-only:cursor-default"
       />
@@ -74,7 +55,7 @@ export function EditorHeader({
           </span>
         ) : isDirty ? (
           <button
-            onClick={onSaveNow}
+            onClick={saveNow}
             className="px-2 py-0.5 text-xs rounded bg-amber-400/15 border border-amber-400/30 text-amber-400 cursor-pointer hover:bg-amber-400/25 transition-colors"
           >
             {t("editor_save_now")}
@@ -89,18 +70,17 @@ export function EditorHeader({
 
       <div className="flex-1" />
 
-      {/* Center: undo / redo */}
       <button
-        onClick={onUndo}
-        disabled={pastLength === 0}
+        onClick={undo}
+        disabled={past.length === 0}
         title={t("editor_transport_undo")}
         className="transport-btn disabled:opacity-30"
       >
         <Undo2 size={14} />
       </button>
       <button
-        onClick={onRedo}
-        disabled={futureLength === 0}
+        onClick={redo}
+        disabled={future.length === 0}
         title={t("editor_transport_redo")}
         className="transport-btn disabled:opacity-30"
       >
@@ -109,7 +89,6 @@ export function EditorHeader({
 
       <div className="w-px h-5 bg-overlay-md mx-3 shrink-0" />
 
-      {/* Right: export / publish */}
       {isReadOnly ? (
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-green-500/15 text-green-400 uppercase tracking-wide">
@@ -117,7 +96,7 @@ export function EditorHeader({
             {t("editor_status_published")}
           </span>
           <button
-            onClick={onCreateNewDraft}
+            onClick={createNewDraft}
             disabled={isCreatingDraft}
             className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
           >
@@ -128,7 +107,7 @@ export function EditorHeader({
       ) : (
         <div className="flex items-center gap-2">
           <button
-            onClick={onOpenExport}
+            onClick={() => setShowExport(true)}
             className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors"
           >
             <Upload size={14} />
@@ -136,7 +115,7 @@ export function EditorHeader({
           </button>
           <button
             type="button"
-            onClick={onOpenPublishDialog}
+            onClick={() => setPublishDialogOpen(true)}
             disabled={isPublishing || isSavingPatch}
             title={
               isPublishing

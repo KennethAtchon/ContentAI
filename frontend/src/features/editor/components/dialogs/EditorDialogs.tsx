@@ -10,39 +10,26 @@ import {
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { ExportModal } from "./ExportModal";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { useEditorUIContext } from "../../context/EditorUIContext";
+import { useEditorPersistContext } from "../../context/EditorPersistContext";
 
-interface EditorDialogsProps {
-  showExport: boolean;
-  editProjectId: string | null;
-  resolution: string;
-  fps: number;
-  onCloseExport: () => void;
-  scriptResetPending: unknown;
-  onScriptIterationDialogOpenChange: (open: boolean) => void;
-  onConfirmScriptIteration: () => void;
-  publishDialogOpen: boolean;
-  onPublishDialogOpenChange: (open: boolean) => void;
-  isPublishing: boolean;
-  isSavingPatch: boolean;
-  onConfirmPublish: () => void;
-}
-
-export function EditorDialogs({
-  showExport,
-  editProjectId,
-  resolution,
-  fps,
-  onCloseExport,
-  scriptResetPending,
-  onScriptIterationDialogOpenChange,
-  onConfirmScriptIteration,
-  publishDialogOpen,
-  onPublishDialogOpenChange,
-  isPublishing,
-  isSavingPatch,
-  onConfirmPublish,
-}: EditorDialogsProps) {
+export function EditorDialogs() {
   const { t } = useTranslation();
+  const { editProjectId, resolution, fps } = useEditorDocumentContext();
+  const { handleConfirmPublish } = useEditorPlaybackContext();
+  const {
+    showExport,
+    setShowExport,
+    publishDialogOpen,
+    setPublishDialogOpen,
+    scriptResetPending,
+    onScriptIterationDialogOpenChange,
+    confirmScriptIteration,
+    isPublishing,
+  } = useEditorUIContext();
+  const { isSavingPatch } = useEditorPersistContext();
 
   return (
     <>
@@ -51,7 +38,7 @@ export function EditorDialogs({
           projectId={editProjectId}
           initialResolution={resolution}
           initialFps={fps as 24 | 30 | 60}
-          onClose={onCloseExport}
+          onClose={() => setShowExport(false)}
         />
       )}
 
@@ -70,7 +57,7 @@ export function EditorDialogs({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmScriptIteration}>
+            <AlertDialogAction onClick={confirmScriptIteration}>
               {t("editor_script_iteration_confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -79,7 +66,7 @@ export function EditorDialogs({
 
       <AlertDialog
         open={publishDialogOpen}
-        onOpenChange={onPublishDialogOpenChange}
+        onOpenChange={setPublishDialogOpen}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -94,7 +81,7 @@ export function EditorDialogs({
             <AlertDialogCancel>{t("common_cancel")}</AlertDialogCancel>
             <AlertDialogAction
               disabled={isPublishing || isSavingPatch}
-              onClick={onConfirmPublish}
+              onClick={() => void handleConfirmPublish()}
             >
               {t("editor_publish_confirm_action")}
             </AlertDialogAction>

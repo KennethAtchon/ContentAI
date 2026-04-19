@@ -1,191 +1,61 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreviewCanvasHandle } from "../preview/PreviewCanvas";
-import type { Clip, EditProject, Track, Transition } from "../../types/editor";
-import type { TabKey } from "../panels/LeftPanel";
+import type { EditProject } from "../../types/editor";
 import { LeftPanel } from "../panels/LeftPanel";
 import { PreviewArea } from "../preview/PreviewArea";
 import { Inspector } from "../inspector/Inspector";
-import { useEditorContext } from "../../context/EditorContext";
+import { CaptionLayer } from "../caption/CaptionLayer";
+import type { CaptionLayerHandle } from "../caption/CaptionLayer";
 import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
 import { usePreviewEngine } from "../../hooks/usePreviewEngine";
-import { useCaptionCanvas } from "../../caption/hooks/useCaptionCanvas";
-import { useCaptionDoc } from "../../caption/hooks/useCaptionDoc";
-import { useCaptionPresets } from "../../caption/hooks/useCaptionPresets";
-import { applyCaptionStyleOverrides } from "../../caption/apply-style-overrides";
-import { isCaptionClip } from "../../utils/clip-types";
-import { isClipActiveAtTimelineTime } from "../../utils/editor-composition";
-import type { CaptionClip } from "../../types/editor";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { useEditorUIContext } from "../../context/EditorUIContext";
 
 interface EditorWorkspaceProps {
   project: EditProject;
-  tracks: Track[];
-  currentTimeMs: number;
-  playheadMs: number;
-  isPlaying: boolean;
-  durationMs: number;
-  fps: number;
-  resolution: string;
-  selectedTransition: Transition | null;
-  effectPreview: { clipId: string; patch: Partial<Clip> } | null;
-  mediaActiveTab: TabKey;
-  pendingAdd: { trackId: string; startMs: number } | null;
-  isReadOnly: boolean;
-  isCapturingThumbnail: boolean;
-  onPlayheadChange: (ms: number) => void;
-  onSetEffectPreview: (value: { clipId: string; patch: Partial<Clip> } | null) => void;
-  onSetMediaActiveTab: (tab: TabKey) => void;
-  onClearPendingAdd: () => void;
-  onAddClip: (trackId: string, clip: Clip) => void;
-  onFpsChange: (fps: 24 | 25 | 30 | 60) => void;
-  onResolutionChange: (resolution: string) => void;
-  onCaptureThumbnail: () => void;
-  // PlaybackBar transport
-  onJumpToStart: () => void;
-  onRewind: () => void;
-  onTogglePlaying: () => void;
-  onFastForward: () => void;
-  onJumpToEnd: () => void;
-  onSetCurrentTime: (ms: number) => void;
 }
 
-export function EditorWorkspace({
-  project,
-  tracks,
-  currentTimeMs,
-  playheadMs,
-  isPlaying,
-  durationMs,
-  fps,
-  resolution,
-  selectedTransition,
-  effectPreview,
-  mediaActiveTab,
-  pendingAdd,
-  isReadOnly,
-  isCapturingThumbnail,
-  onPlayheadChange,
-  onSetEffectPreview,
-  onSetMediaActiveTab,
-  onClearPendingAdd,
-  onAddClip,
-  onFpsChange,
-  onResolutionChange,
-  onCaptureThumbnail,
-  onJumpToStart,
-  onRewind,
-  onTogglePlaying,
-  onFastForward,
-  onJumpToEnd,
-  onSetCurrentTime,
-}: EditorWorkspaceProps) {
-  const { state, setCurrentTime, setPlaying } = useEditorContext();
-  const assetUrlMap = useAssetUrlMap();
+export function EditorWorkspace({ project }: EditorWorkspaceProps) {
+  const { tracks, isReadOnly, handleAddClip, resolution, durationMs, fps } =
+    useEditorDocumentContext();
+  const {
+    currentTimeMs,
+    playheadMs,
+    isPlaying,
+    setCurrentTime,
+    setPlaying,
+    setPlayheadMs,
+  } = useEditorPlaybackContext();
+  const { effectPreview, mediaActiveTab, setMediaActiveTab, pendingAdd, setPendingAdd } =
+    useEditorUIContext();
+
   const previewRef = useRef<PreviewCanvasHandle>(null);
-  const currentTimeMsRef = useRef(currentTimeMs);
+  const captionLayerRef = useRef<CaptionLayerHandle>(null);
   const captionBitmapQueueRef = useRef<Array<ImageBitmap | null>>([]);
-  const pendingCaptionRenderTimeRef = useRef<number | null>(null);
-  const activeCaptionClipIdRef = useRef<string | null>(null);
   const [captionBitmapVersion, setCaptionBitmapVersion] = useState(0);
+  const currentTimeMsRef = useRef(currentTimeMs);
+  const assetUrlMap = useAssetUrlMap();
+
   const [canvasWidth, canvasHeight] = useMemo(
     () => (resolution || "1080x1920").split("x").map(Number),
     [resolution]
   );
-  const [activeCaptionClipId, setActiveCaptionClipId] = useState<string | null>(null);
-
-  const textTrack = useMemo(
-    () => tracks.find((track) => track.type === "text"),
-    [tracks]
-  );
-  const captionClips = useMemo(
-    () => (textTrack?.clips ?? []).filter(isCaptionClip),
-    [textTrack?.clips]
-  );
-  const getActiveCaptionClipAt = useCallback(
-    (timelineMs: number): CaptionClip | null => {
-      const activeClips = captionClips.filter((clip) =>
-        isClipActiveAtTimelineTime(clip, timelineMs)
-      );
-      return activeClips[activeClips.length - 1] ?? null;
-    },
-    [captionClips]
-  );
-  const activeCaptionClip = useMemo(
-    () => captionClips.find((clip) => clip.id === activeCaptionClipId) ?? null,
-    [activeCaptionClipId, captionClips]
-  );
-  const { data: captionPresets } = useCaptionPresets();
-  const { data: activeCaptionDoc } = useCaptionDoc(activeCaptionClip?.captionDocId ?? null);
-  const activeCaptionPreset = useMemo(() => {
-    const preset = captionPresets?.find((item) => item.id === activeCaptionClip?.stylePresetId);
-    if (!preset || !activeCaptionClip) return null;
-    return applyCaptionStyleOverrides(preset, activeCaptionClip.styleOverrides);
-  }, [captionPresets, activeCaptionClip]);
 
   useEffect(() => {
     currentTimeMsRef.current = currentTimeMs;
   }, [currentTimeMs]);
+
+  const getCurrentTimeMs = useCallback(() => currentTimeMsRef.current, []);
 
   const handleCaptionBitmapReady = useCallback((bitmap: ImageBitmap | null) => {
     captionBitmapQueueRef.current.push(bitmap);
     setCaptionBitmapVersion((v) => v + 1);
   }, []);
 
-  const { canvasRef: captionCanvasRef, renderAtTime: renderCaptionAtTime } = useCaptionCanvas({
-    clip: activeCaptionClip,
-    doc: activeCaptionDoc ?? null,
-    preset: activeCaptionPreset,
-    canvasW: Math.max(1, Math.round(canvasWidth || 1080)),
-    canvasH: Math.max(1, Math.round(canvasHeight || 1920)),
-    onBitmapReady: handleCaptionBitmapReady,
-  });
-
-  useEffect(() => {
-    activeCaptionClipIdRef.current = activeCaptionClipId;
-  }, [activeCaptionClipId]);
-
-  const syncCaptionPlaybackState = useCallback(
-    (timelineMs: number) => {
-      const nextClipId = getActiveCaptionClipAt(timelineMs)?.id ?? null;
-      if (nextClipId !== activeCaptionClipIdRef.current) {
-        pendingCaptionRenderTimeRef.current = timelineMs;
-        activeCaptionClipIdRef.current = nextClipId;
-        setActiveCaptionClipId(nextClipId);
-        return;
-      }
-      renderCaptionAtTime(timelineMs);
-    },
-    [getActiveCaptionClipAt, renderCaptionAtTime]
-  );
-
-  useEffect(() => {
-    syncCaptionPlaybackState(playheadMs);
-  }, [playheadMs, syncCaptionPlaybackState]);
-
-  useEffect(() => {
-    const pendingRenderTime = pendingCaptionRenderTimeRef.current;
-    if (pendingRenderTime == null) return;
-    pendingCaptionRenderTimeRef.current = null;
-    renderCaptionAtTime(pendingRenderTime);
-  }, [activeCaptionClipId, renderCaptionAtTime]);
-
-  const handleRenderPlayheadUpdate = useCallback(
-    (timelineMs: number) => {
-      syncCaptionPlaybackState(timelineMs);
-    },
-    [syncCaptionPlaybackState]
-  );
-
-  const getCurrentTimeMs = useCallback(() => currentTimeMsRef.current, []);
-
-  useEffect(
-    () => () => {
-      for (const bitmap of captionBitmapQueueRef.current) {
-        bitmap?.close();
-      }
-      captionBitmapQueueRef.current = [];
-    },
-    []
-  );
+  const handleRenderPlayheadUpdate = useCallback((ms: number) => {
+    captionLayerRef.current?.syncPlayback(ms);
+  }, []);
 
   usePreviewEngine({
     previewRef,
@@ -201,63 +71,36 @@ export function EditorWorkspace({
     captionBitmapQueueRef,
     captionBitmapVersion,
     onTimeUpdate: setCurrentTime,
-    onPlayheadUpdate: onPlayheadChange,
+    onPlayheadUpdate: setPlayheadMs,
     onRenderPlayheadUpdate: handleRenderPlayheadUpdate,
     onPlaybackEnd: () => setPlaying(false),
   });
+
+  useEffect(
+    () => () => {
+      for (const bitmap of captionBitmapQueueRef.current) {
+        bitmap?.close();
+      }
+      captionBitmapQueueRef.current = [];
+    },
+    []
+  );
 
   return (
     <div className="flex flex-1 overflow-hidden min-h-0">
       <LeftPanel
         generatedContentId={project.generatedContentId}
         getCurrentTimeMs={getCurrentTimeMs}
-        onAddClip={onAddClip}
+        onAddClip={handleAddClip}
         readOnly={isReadOnly}
         activeTab={mediaActiveTab}
-        onTabChange={onSetMediaActiveTab}
+        onTabChange={setMediaActiveTab}
         pendingAdd={pendingAdd}
-        onClearPendingAdd={onClearPendingAdd}
+        onClearPendingAdd={() => setPendingAdd(null)}
       />
-
-      <PreviewArea
-        resolution={resolution}
-        playheadMs={playheadMs}
-        durationMs={durationMs}
-        previewRef={previewRef}
-        isPlaying={isPlaying}
-        currentTimeMs={currentTimeMs}
-        fps={fps}
-        onJumpToStart={onJumpToStart}
-        onRewind={onRewind}
-        onTogglePlaying={onTogglePlaying}
-        onFastForward={onFastForward}
-        onJumpToEnd={onJumpToEnd}
-        onSetCurrentTime={onSetCurrentTime}
-      />
-
-      {/* Hidden caption offscreen canvas */}
-      <canvas
-        ref={captionCanvasRef}
-        width={Math.max(1, Math.round(canvasWidth || 1080))}
-        height={Math.max(1, Math.round(canvasHeight || 1920))}
-        className="hidden"
-        aria-hidden="true"
-      />
-
-      <Inspector
-        onEffectPreview={(patch) =>
-          onSetEffectPreview(
-            patch && state.selectedClipId
-              ? { clipId: state.selectedClipId, patch }
-              : null
-          )
-        }
-        selectedTransition={selectedTransition}
-        onFpsChange={onFpsChange}
-        onResolutionChange={onResolutionChange}
-        isCapturingThumbnail={isCapturingThumbnail}
-        onCaptureThumbnail={onCaptureThumbnail}
-      />
+      <PreviewArea previewRef={previewRef} />
+      <CaptionLayer ref={captionLayerRef} onBitmapReady={handleCaptionBitmapReady} />
+      <Inspector />
     </div>
   );
 }

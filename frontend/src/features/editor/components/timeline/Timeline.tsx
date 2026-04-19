@@ -22,7 +22,8 @@ import { SortableTrackHeader } from "./SortableTrackHeader";
 import type { Clip, TextClip, TrackType } from "../../types/editor";
 import { TransitionDiamond } from "./TransitionDiamond";
 import { TrackAreaContextMenu } from "./ClipContextMenu";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import {
   TRACK_HEIGHT,
   RULER_HEIGHT,
@@ -75,8 +76,10 @@ export function Timeline({
   playheadMs,
 }: Props) {
   const {
-    state,
-    setCurrentTime: onSeek,
+    tracks,
+    durationMs,
+    selectedClipId,
+    clipboardClip,
     selectClip: onSelectClip,
     updateClip: onUpdateClip,
     toggleTrackMute: onToggleMute,
@@ -86,13 +89,10 @@ export function Timeline({
     removeTrack: onRemoveTrack,
     renameTrack: onRenameTrack,
     reorderTracks: onReorderTracks,
-  } = useEditorContext();
+  } = useEditorDocumentContext();
+  const { zoom, setCurrentTime: onSeek } = useEditorPlaybackContext();
 
-  const tracks = state.tracks;
-  const durationMs = state.durationMs;
-  const zoom = state.zoom;
-  const selectedClipId = state.selectedClipId;
-  const hasClipboard = !!state.clipboardClip;
+  const hasClipboard = !!clipboardClip;
   const { t } = useTranslation();
   const [activeSnapMs, setActiveSnapMs] = useState<number | null>(null);
   const [visibleWindow, setVisibleWindow] = useState({

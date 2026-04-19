@@ -2,13 +2,10 @@ import { useMutation, type QueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { invalidateEditorProjectsQueries } from "@/shared/lib/query-invalidation";
-import {
-  publishEditorProject,
-  type PatchProjectParams,
-} from "../services/editor-api";
-import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
+import { publishEditorProject } from "../services/editor-api";
 import type { EditProject } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
+import type { SaveService } from "../services/save-service";
 
 type AuthenticatedFetchJson = <T>(
   url: string,
@@ -21,7 +18,7 @@ export function useEditorLayoutMutations(options: {
   queryClient: QueryClient;
   authenticatedFetchJson: AuthenticatedFetchJson;
   onBack: () => void;
-  flushSave: (patch: PatchProjectParams) => Promise<unknown>;
+  saveService: SaveService;
 }) {
   const { t } = useTranslation();
   const {
@@ -30,7 +27,6 @@ export function useEditorLayoutMutations(options: {
     queryClient,
     authenticatedFetchJson,
     onBack,
-    flushSave,
   } = options;
 
   const { mutateAsync: runPublish, isPending: isPublishing } = useMutation({
@@ -50,9 +46,7 @@ export function useEditorLayoutMutations(options: {
     mutationFn: () =>
       authenticatedFetchJson<{ project: EditProject }>(
         `/api/editor/${project.id}/new-draft`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       ),
     onSuccess: (res) => {
       void invalidateEditorProjectsQueries(queryClient);
@@ -74,24 +68,10 @@ export function useEditorLayoutMutations(options: {
         method: "POST",
         body: JSON.stringify({ platform }),
       }),
-    onSuccess: async (res) => {
+    onSuccess: (res) => {
       const merged: EditProject = { ...project, tracks: res.timeline };
       store.loadProject(merged);
-      let durationMs = 0;
-      for (const tr of res.timeline) {
-        for (const c of tr.clips) {
-          durationMs = Math.max(durationMs, c.startMs + c.durationMs);
-        }
-      }
-      try {
-        await flushSave({
-          tracks: stripLocallyModifiedFromTracks(res.timeline),
-          durationMs,
-          title: merged.title ?? undefined,
-        });
-      } catch {
-        // Autosave will retry on next edit; user may also use sync.
-      }
+      // Autosave detects the track change and schedules a save automatically
     },
     onError: (err: unknown) => {
       const msg =

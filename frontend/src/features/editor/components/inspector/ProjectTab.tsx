@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
 import { InspectorSection } from "./InspectorSection";
 import { InspectorPropRow, InspectorValuePill } from "./InspectorPropRow";
 import { ResolutionPicker } from "../dialogs/ResolutionPicker";
@@ -28,17 +28,17 @@ export function ProjectTab({
   onCaptureThumbnail,
 }: ProjectTabProps) {
   const { t } = useTranslation();
-  const { state } = useEditorContext();
+  const { durationMs, tracks, resolution, fps } = useEditorDocumentContext();
 
   return (
     <div className="p-3">
       <InspectorSection title={t("editor_project_section_info")}>
         <InspectorPropRow label={t("editor_project_duration")}>
-          <InspectorValuePill value={`${(state.durationMs / 1000).toFixed(1)}s`} />
+          <InspectorValuePill value={`${(durationMs / 1000).toFixed(1)}s`} />
         </InspectorPropRow>
         <InspectorPropRow label={t("editor_project_clips")}>
           <InspectorValuePill
-            value={state.tracks.reduce((n, tr) => n + tr.clips.length, 0)}
+            value={tracks.reduce((n, tr) => n + tr.clips.length, 0)}
           />
         </InspectorPropRow>
       </InspectorSection>
@@ -46,7 +46,7 @@ export function ProjectTab({
       <InspectorSection title={t("editor_project_section_settings")}>
         <InspectorPropRow label={t("editor_project_resolution")}>
           <ResolutionPicker
-            resolution={state.resolution}
+            resolution={resolution}
             onChange={(res) => {
               onResolutionChange(res);
               const label = RESOLUTION_LABEL_MAP[res] ?? res;
@@ -56,7 +56,7 @@ export function ProjectTab({
         </InspectorPropRow>
         <InspectorPropRow label={t("editor_project_fps")}>
           <select
-            value={String(state.fps)}
+            value={String(fps)}
             onChange={(e) => onFpsChange(Number(e.target.value) as 24 | 25 | 30 | 60)}
             className="h-6 rounded border border-overlay-md bg-transparent px-2 text-xs text-dim-2 outline-none"
           >

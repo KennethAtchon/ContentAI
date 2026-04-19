@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ClipPatch, Transition } from "../../types/editor";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
+import { useEditorUIContext } from "../../context/EditorUIContext";
 import { InspectorHeader } from "./InspectorHeader";
 import type { InspectorTab } from "./InspectorHeader";
 import { AdjustTab } from "./AdjustTab";
@@ -9,28 +9,32 @@ import { AnimateTab } from "./AnimateTab";
 import { EffectsTab } from "./EffectsTab";
 import { ProjectTab } from "./ProjectTab";
 
-interface Props {
-  onEffectPreview?: (patch: ClipPatch | null) => void;
-  selectedTransition: Transition | null;
-  onFpsChange: (fps: 24 | 25 | 30 | 60) => void;
-  onResolutionChange: (resolution: string) => void;
-  isCapturingThumbnail: boolean;
-  onCaptureThumbnail: () => void;
-}
-
-export function Inspector({
-  onEffectPreview,
-  selectedTransition,
-  onFpsChange,
-  onResolutionChange,
-  isCapturingThumbnail,
-  onCaptureThumbnail,
-}: Props) {
+export function Inspector() {
   const { t } = useTranslation();
-  const { selectedClip, selectedTrack } = useEditorContext();
+  const {
+    selectedClip,
+    selectedTrack,
+    selectedTransition,
+    setFps,
+    setResolution,
+  } = useEditorDocumentContext();
+  const {
+    effectPreview,
+    setEffectPreview,
+    isCapturingThumbnail,
+    captureThumbnail,
+  } = useEditorUIContext();
   const [activeTab, setActiveTab] = useState<InspectorTab>("adjust");
 
   const hasSelection = !!selectedClip || !!selectedTransition;
+
+  const handleEffectPreview = (patch: import("../../types/editor").ClipPatch | null) => {
+    setEffectPreview(
+      patch && selectedClip ? { clipId: selectedClip.id, patch } : null
+    );
+  };
+
+  void effectPreview;
 
   return (
     <div
@@ -39,7 +43,11 @@ export function Inspector({
     >
       <InspectorHeader
         selectedTrack={selectedTrack}
-        selectedClipLabel={"label" in (selectedClip ?? {}) ? (selectedClip as { label: string }).label : null}
+        selectedClipLabel={
+          "label" in (selectedClip ?? {})
+            ? (selectedClip as { label: string }).label
+            : null
+        }
         selectedTransition={selectedTransition}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -58,7 +66,7 @@ export function Inspector({
             ) : (
               <AdjustTab
                 selectedTransition={selectedTransition}
-                onEffectPreview={onEffectPreview}
+                onEffectPreview={handleEffectPreview}
               />
             )}
           </>
@@ -69,10 +77,10 @@ export function Inspector({
 
         {activeTab === "project" && (
           <ProjectTab
-            onFpsChange={onFpsChange}
-            onResolutionChange={onResolutionChange}
+            onFpsChange={setFps}
+            onResolutionChange={setResolution}
             isCapturingThumbnail={isCapturingThumbnail}
-            onCaptureThumbnail={onCaptureThumbnail}
+            onCaptureThumbnail={() => void captureThumbnail()}
           />
         )}
       </div>

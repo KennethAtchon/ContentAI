@@ -12,7 +12,7 @@ import {
 } from "@/shared/components/ui/select";
 import { Trash2 } from "lucide-react";
 import type { ClipPatch, Transition } from "../../types/editor";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
 import {
   isCaptionClip,
   isMediaClip as isMediaTimelineClip,
@@ -38,7 +38,7 @@ interface AdjustTabProps {
 export function AdjustTab({ selectedTransition, onEffectPreview }: AdjustTabProps) {
   const { t } = useTranslation();
   const {
-    state,
+    tracks,
     selectedClip,
     selectedTrack,
     updateClip: onUpdateClip,
@@ -47,9 +47,7 @@ export function AdjustTab({ selectedTransition, onEffectPreview }: AdjustTabProp
     updateCaptionStyle,
     addCaptionClip,
     selectClip,
-  } = useEditorContext();
-
-  const tracks = state.tracks;
+  } = useEditorDocumentContext();
   const isTextTrack = selectedTrack?.type === "text";
   const isMediaTrack = !isTextTrack;
 

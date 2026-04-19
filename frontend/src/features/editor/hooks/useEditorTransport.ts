@@ -1,55 +1,22 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
 import type { EditorStore } from "./useEditorStore";
-
-interface SaveSnapshot {
-  tracks: ReturnType<typeof stripLocallyModifiedFromTracks>;
-  durationMs: number;
-  title: string;
-  resolution: string;
-}
-
-interface PublishStateRef {
-  current: {
-    tracks: Parameters<typeof stripLocallyModifiedFromTracks>[0];
-    durationMs: number;
-    title: string;
-    resolution: string;
-  };
-}
-
-interface TimerRef {
-  current: ReturnType<typeof setTimeout> | null;
-}
+import type { SaveService } from "../services/save-service";
 
 interface UseEditorTransportParams {
   store: EditorStore;
   timelineContainerRef: React.RefObject<HTMLDivElement | null>;
-  flushSave: (payload: SaveSnapshot) => Promise<unknown>;
+  saveService: SaveService;
   runPublish: () => Promise<unknown>;
-  saveTimerRef: TimerRef;
-  editorPublishStateRef: PublishStateRef;
   setPublishDialogOpen: (open: boolean) => void;
   onBack: () => void;
-}
-
-function makeSnapshot(ref: PublishStateRef["current"]) {
-  return {
-    tracks: stripLocallyModifiedFromTracks(ref.tracks),
-    durationMs: ref.durationMs,
-    title: ref.title,
-    resolution: ref.resolution,
-  };
 }
 
 export function useEditorTransport({
   store,
   timelineContainerRef,
-  flushSave,
+  saveService,
   runPublish,
-  saveTimerRef,
-  editorPublishStateRef,
   setPublishDialogOpen,
   onBack,
 }: UseEditorTransportParams) {
@@ -70,9 +37,7 @@ export function useEditorTransport({
   }, [store, state.currentTimeMs]);
 
   const fastForward = useCallback(() => {
-    store.setCurrentTime(
-      Math.min(state.durationMs, state.currentTimeMs + 5000)
-    );
+    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
   }, [store, state.durationMs, state.currentTimeMs]);
 
   const zoomIn = useCallback(
@@ -92,48 +57,31 @@ export function useEditorTransport({
   }, [timelineContainerRef, state.durationMs, store]);
 
   const saveNow = useCallback(() => {
-    const snap = editorPublishStateRef.current;
-    void flushSave(makeSnapshot(snap));
-  }, [editorPublishStateRef, flushSave]);
+    void saveService.flushNow();
+  }, [saveService]);
 
   const handleConfirmPublish = useCallback(async () => {
     setPublishDialogOpen(false);
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
+    saveService.cancelPending();
     try {
-      await flushSave(makeSnapshot(editorPublishStateRef.current));
+      await saveService.flushNow();
       await runPublish();
     } catch {
       toast.error("Failed to publish project.");
     }
-  }, [
-    setPublishDialogOpen,
-    saveTimerRef,
-    flushSave,
-    editorPublishStateRef,
-    runPublish,
-  ]);
+  }, [setPublishDialogOpen, saveService, runPublish]);
 
   const handleBack = useCallback(async () => {
-    if (!state.isReadOnly && saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
+    if (!state.isReadOnly) {
+      saveService.cancelPending();
       try {
-        await flushSave(makeSnapshot(editorPublishStateRef.current));
+        await saveService.flushNow();
       } catch {
         // allow navigation even if save fails
       }
     }
     onBack();
-  }, [
-    state.isReadOnly,
-    saveTimerRef,
-    flushSave,
-    editorPublishStateRef,
-    onBack,
-  ]);
+  }, [state.isReadOnly, saveService, onBack]);
 
   return {
     jumpToStart,

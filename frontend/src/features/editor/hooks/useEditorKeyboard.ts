@@ -1,24 +1,15 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useRef } from "react";
 import type { EditorStore } from "./useEditorStore";
-import type { PatchProjectParams } from "../services/editor-api";
-import { stripLocallyModifiedFromTracks } from "../utils/strip-local-editor-fields";
-import type { EditorPublishSnapshot } from "./useEditorAutosave";
+import type { SaveService } from "../services/save-service";
 import { isMediaClip } from "../utils/clip-types";
 
 export function useEditorKeyboard(options: {
   store: EditorStore;
-  flushSave: (patch: PatchProjectParams) => Promise<unknown>;
-  editorPublishStateRef: MutableRefObject<EditorPublishSnapshot>;
+  saveService: SaveService;
   removeClip: (clipId: string) => void;
   rippleDeleteClip: (clipId: string) => void;
 }): void {
-  const {
-    store,
-    flushSave,
-    editorPublishStateRef,
-    removeClip,
-    rippleDeleteClip,
-  } = options;
+  const { store, saveService, removeClip, rippleDeleteClip } = options;
 
   const kbStateRef = useRef(store.state);
   kbStateRef.current = store.state;
@@ -28,10 +19,8 @@ export function useEditorKeyboard(options: {
   kbRemoveClipRef.current = removeClip;
   const kbRippleDeleteRef = useRef(rippleDeleteClip);
   kbRippleDeleteRef.current = rippleDeleteClip;
-  const kbFlushSaveRef = useRef(flushSave);
-  kbFlushSaveRef.current = flushSave;
-  const kbPublishRef = useRef(editorPublishStateRef);
-  kbPublishRef.current = editorPublishStateRef;
+  const kbSaveServiceRef = useRef(saveService);
+  kbSaveServiceRef.current = saveService;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,9 +41,7 @@ export function useEditorKeyboard(options: {
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
-        st.setCurrentTime(
-          Math.min(s.durationMs, s.currentTimeMs + 1000 / s.fps)
-        );
+        st.setCurrentTime(Math.min(s.durationMs, s.currentTimeMs + 1000 / s.fps));
       }
 
       if (e.code === "KeyJ" && !e.metaKey && !e.ctrlKey) {
@@ -125,13 +112,7 @@ export function useEditorKeyboard(options: {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         if (!s.isReadOnly) {
-          const snap = kbPublishRef.current.current;
-          void kbFlushSaveRef.current({
-            tracks: stripLocallyModifiedFromTracks(snap.tracks),
-            durationMs: snap.durationMs,
-            title: snap.title,
-            resolution: snap.resolution,
-          });
+          void kbSaveServiceRef.current.flushNow();
         }
       }
 
@@ -148,7 +129,8 @@ export function useEditorKeyboard(options: {
           const ownerTrack = s.tracks.find((t) =>
             t.clips.some((c) => c.id === s.clipboardClip?.id)
           );
-          const trackId = s.clipboardSourceTrackId ?? ownerTrack?.id ?? "video";
+          const trackId =
+            s.clipboardSourceTrackId ?? ownerTrack?.id ?? "video";
           st.pasteClip(trackId, s.currentTimeMs);
         }
       }

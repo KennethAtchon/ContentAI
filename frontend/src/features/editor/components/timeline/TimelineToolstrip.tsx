@@ -10,7 +10,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
 import { formatHHMMSSFF } from "../../utils/timecode";
 
 interface TimelineToolstripProps {
@@ -31,7 +32,8 @@ export function TimelineToolstrip({
   onSnapChange,
 }: TimelineToolstripProps) {
   const { t } = useTranslation();
-  const { state, setZoom } = useEditorContext();
+  const { zoom, setZoom, currentTimeMs } = useEditorPlaybackContext();
+  const { fps } = useEditorDocumentContext();
   const [activeTool, setActiveTool] = useState<"select" | "blade">("select");
 
   return (
@@ -103,7 +105,7 @@ export function TimelineToolstrip({
 
       {/* Current timecode */}
       <span className="font-mono text-[10px] text-dim-3 mr-3 tabular-nums">
-        {formatHHMMSSFF(state.currentTimeMs, state.fps)}
+        {formatHHMMSSFF(currentTimeMs, fps)}
       </span>
 
       <div className="w-px h-5 bg-overlay-md mx-1 shrink-0" />
@@ -121,10 +123,10 @@ export function TimelineToolstrip({
         min={6}
         max={200}
         step={1}
-        value={Math.round(state.zoom)}
+        value={Math.round(zoom)}
         onChange={(e) => setZoom(Number(e.target.value))}
         className="w-20 h-1 accent-studio-accent mx-1"
-        title={`${Math.round(state.zoom)} px/s`}
+        title={`${Math.round(zoom)} px/s`}
       />
       <button
         onClick={onZoomIn}
@@ -134,7 +136,7 @@ export function TimelineToolstrip({
         <ZoomIn size={13} />
       </button>
       <span className="text-[9px] text-dim-3 ml-1 w-14 tabular-nums">
-        {Math.round(state.zoom)}px/s
+        {Math.round(zoom)}px/s
       </span>
       <button
         onClick={onZoomFit}

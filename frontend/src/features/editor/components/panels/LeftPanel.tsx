@@ -32,7 +32,7 @@ import { queryKeys } from "@/shared/lib/query-keys";
 import { useMediaLibrary } from "@/features/media/hooks/use-media-library";
 import { MediaUploadZone } from "@/features/media/components/MediaUploadZone";
 import type { AudioClip, CaptionClip, Clip, MusicClip, VideoClip } from "../../types/editor";
-import { useEditorContext } from "../../context/EditorContext";
+import { useEditorDocumentContext } from "../../context/EditorDocumentContext";
 import { isMediaClip } from "../../utils/clip-types";
 
 interface Asset {
@@ -172,7 +172,7 @@ export const LeftPanel = memo(function LeftPanel({
   onClearPendingAdd,
 }: LeftPanelProps) {
   const { t } = useTranslation();
-  const { state, reorderShots } = useEditorContext();
+  const { tracks, reorderShots } = useEditorDocumentContext();
   const fetcher = useQueryFetcher<{ assets: Asset[] }>();
   const [search, setSearch] = useState("");
   const [showShotOrder, setShowShotOrder] = useState(false);
@@ -189,7 +189,7 @@ export const LeftPanel = memo(function LeftPanel({
   const audioAssets = allAssets.filter((a) => a.type === "voiceover" || a.type === "music");
   const libraryVideoItems = (libraryData?.items ?? []).filter((item) => item.type === "video");
 
-  const videoTrack = state.tracks.find((tr) => tr.type === "video");
+  const videoTrack = tracks.find((tr) => tr.type === "video");
   const sortedClips = videoTrack
     ? [...videoTrack.clips].filter(isMediaClip).sort((a, b) => a.startMs - b.startMs)
     : [];

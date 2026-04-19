@@ -3,7 +3,7 @@
 > **Date:** 2026-04-18
 > **Status:** Draft
 > **Scope:** React state layer + Rust/WASM engine layer
- 
+
 ---
 
 ## 1. Problem Statement
@@ -57,6 +57,7 @@ Engine Layer (already worker-based — keep this pattern):
 ```
 
 **What is already correct and must not be rewritten:**
+
 - Worker-per-clip decode pattern (`DecoderPool` + `ClipDecodeWorker`) — this is sound architecture
 - `AudioMixer` using Web Audio API — correct, browser-handled
 - `OffscreenCanvas` in `CompositorWorker` — correct thread model
@@ -183,14 +184,16 @@ interface EditorUIState {
 
 **Context → State mapping:**
 
-| Context | Reads from | Update frequency |
-|---------|-----------|-----------------|
-| `EditorDocumentContext` | `EditorDocumentState` | On user edits (clip add/remove/move/trim) |
-| `EditorPlaybackContext` | `EditorPlaybackState` + engine `onTimeUpdate` | Throttled 250ms during playback; immediate on seek |
-| `EditorUIContext` | `EditorUIState` + local `useState` | On user interaction |
-| `EditorPersistContext` | `useEditorAutosave` | On save events |
 
-**`SaveService` interface — breaks autosave ref coupling:**
+| Context                 | Reads from                                    | Update frequency                                   |
+| ----------------------- | --------------------------------------------- | -------------------------------------------------- |
+| `EditorDocumentContext` | `EditorDocumentState`                         | On user edits (clip add/remove/move/trim)          |
+| `EditorPlaybackContext` | `EditorPlaybackState` + engine `onTimeUpdate` | Throttled 250ms during playback; immediate on seek |
+| `EditorUIContext`       | `EditorUIState` + local `useState`            | On user interaction                                |
+| `EditorPersistContext`  | `useEditorAutosave`                           | On save events                                     |
+
+
+`**SaveService` interface — breaks autosave ref coupling:**
 
 ```typescript
 // services/SaveService.ts
@@ -199,6 +202,7 @@ interface SaveService {
   cancelPending(): void;       // called before navigation
 }
 ```
+
 Only `useEditorAutosave` implements this. No other hook touches `saveTimerRef` or `editorPublishStateRef`.
 
 ---
@@ -207,14 +211,16 @@ Only `useEditorAutosave` implements this. No other hook touches `saveTimerRef` o
 
 The Rust crate replaces specific TypeScript functions. These are the exact callsites:
 
-| TypeScript (current) | Rust replacement | Location |
-|---------------------|-----------------|---------|
-| `buildCompositorClips()` in `PreviewEngine.ts:62` | `timeline::build_compositor_clips()` | Called in `PreviewEngine.tickCompositor()` |
-| `buildWarmthFilter()` in `editor-composition.ts` | `effects::warmth_matrix()` | Moved into Rust compositor, not sent as CSS string |
-| CSS transform string in `CompositorWorker` | `compositor::apply_transform(matrix)` | GPU uniform, not string parse |
-| `sanitizeTracksNoOverlap()` in `editor-reducer-helpers.ts` | `timeline::sanitize_no_overlap()` | Called in `finalizeEditorState()` |
-| `computeDuration()` in `editor-reducer-helpers.ts` | `timeline::compute_duration()` | Called in reducer |
-| Transition opacity/transform math in `editor-composition.ts` | `timeline::transition_opacity()` + `transition_transform()` | Called from Rust `build_compositor_clips()` |
+
+| TypeScript (current)                                         | Rust replacement                                            | Location                                           |
+| ------------------------------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------- |
+| `buildCompositorClips()` in `PreviewEngine.ts:62`            | `timeline::build_compositor_clips()`                        | Called in `PreviewEngine.tickCompositor()`         |
+| `buildWarmthFilter()` in `editor-composition.ts`             | `effects::warmth_matrix()`                                  | Moved into Rust compositor, not sent as CSS string |
+| CSS transform string in `CompositorWorker`                   | `compositor::apply_transform(matrix)`                       | GPU uniform, not string parse                      |
+| `sanitizeTracksNoOverlap()` in `editor-reducer-helpers.ts`   | `timeline::sanitize_no_overlap()`                           | Called in `finalizeEditorState()`                  |
+| `computeDuration()` in `editor-reducer-helpers.ts`           | `timeline::compute_duration()`                              | Called in reducer                                  |
+| Transition opacity/transform math in `editor-composition.ts` | `timeline::transition_opacity()` + `transition_transform()` | Called from Rust `build_compositor_clips()`        |
+
 
 The React layer never calls Rust directly. `PreviewEngine.ts` (TypeScript) is the only entry point to the Rust WASM module. The WASM module is loaded once in `PreviewEngine` constructor.
 
@@ -247,6 +253,7 @@ export class PreviewEngine {
 The `CompositorWorker` worker message protocol stays identical. Only the internal render path changes.
 
 **Current (fragile):**
+
 ```typescript
 // CompositorWorker.ts — regex CSS parsing, Canvas 2D
 function applyTransform(ctx, transform: string | null) {
@@ -257,6 +264,7 @@ renderCtx.drawImage(frame, dx, dy, dw, dh); // Canvas 2D
 ```
 
 **Target (Rust/WebGL2 via wgpu compiled to WASM):**
+
 ```typescript
 // CompositorWorker.ts — after migration
 import init, { Compositor } from '../wasm/editor_core';
@@ -394,11 +402,12 @@ Each phase leaves the editor in a fully working state. No phase breaks existing 
 Split `EditorState` into three intersecting types without touching reducer logic or hook wiring.
 
 **Deliverables:**
-- [ ] `types/editor-document.ts` with `EditorDocumentState`
-- [ ] `types/editor-playback.ts` with `EditorPlaybackState`
-- [ ] `types/editor-ui.ts` with `EditorUIState`
-- [ ] `EditorState = EditorDocumentState & EditorPlaybackState & EditorUIState` (same shape)
-- [ ] `bun run type-check` passes
+
+- `types/editor-document.ts` with `EditorDocumentState`
+- `types/editor-playback.ts` with `EditorPlaybackState`
+- `types/editor-ui.ts` with `EditorUIState`
+- `EditorState = EditorDocumentState & EditorPlaybackState & EditorUIState` (same shape)
+- `bun run type-check` passes
 
 ---
 
@@ -407,16 +416,17 @@ Split `EditorState` into three intersecting types without touching reducer logic
 Create all four domain contexts and `SaveService`. Wire into `EditorLayout` alongside the existing `EditorContext`. Both old and new wiring coexist — no component migrations yet.
 
 **Deliverables:**
-- [ ] `context/EditorDocumentContext.tsx` — document slice + dispatch
-- [ ] `context/EditorPlaybackContext.tsx` — playback slice + setters
-- [ ] `context/EditorUIContext.tsx` — UI state + setters (all `useState` from `useEditorLayoutRuntime` moves here)
-- [ ] `context/EditorPersistContext.tsx` — `{ isDirty, isSavingPatch, lastSavedAt, saveService }`
-- [ ] `services/SaveService.ts` — `flushNow()` + `cancelPending()` wrapping autosave refs
-- [ ] `components/layout/EditorProviders.tsx` — nests all providers
-- [ ] `useEditorTransport.ts` updated to take `SaveService` not refs
-- [ ] `useEditorKeyboard.ts` updated to take `SaveService` not refs
-- [ ] `useEditorLayoutMutations.ts` updated to take `SaveService` not refs
-- [ ] `bun run type-check` + `bun test` pass
+
+- `context/EditorDocumentContext.tsx` — document slice + dispatch
+- `context/EditorPlaybackContext.tsx` — playback slice + setters
+- `context/EditorUIContext.tsx` — UI state + setters (all `useState` from `useEditorLayoutRuntime` moves here)
+- `context/EditorPersistContext.tsx` — `{ isDirty, isSavingPatch, lastSavedAt, saveService }`
+- `services/SaveService.ts` — `flushNow()` + `cancelPending()` wrapping autosave refs
+- `components/layout/EditorProviders.tsx` — nests all providers
+- `useEditorTransport.ts` updated to take `SaveService` not refs
+- `useEditorKeyboard.ts` updated to take `SaveService` not refs
+- `useEditorLayoutMutations.ts` updated to take `SaveService` not refs
+- `bun run type-check` + `bun test` pass
 
 ---
 
@@ -425,6 +435,7 @@ Create all four domain contexts and `SaveService`. Wire into `EditorLayout` alon
 Delete prop drilling. `useEditorLayoutRuntime` deleted. Migration order: leaf-first.
 
 **Migration order:**
+
 1. `EditorStatusBar` → `EditorPersistContext`
 2. `EditorDialogs` → `EditorUIContext` + `EditorPersistContext`
 3. `Inspector` → already uses `EditorContext`; add `EditorUIContext` for `effectPreview`
@@ -435,10 +446,11 @@ Delete prop drilling. `useEditorLayoutRuntime` deleted. Migration order: leaf-fi
 8. `EditorWorkspace` → stripped to layout shell
 
 **Deliverables:**
-- [ ] `useEditorLayoutRuntime.ts` deleted
-- [ ] `EditorContext.tsx` deleted (replaced)
-- [ ] All components read from domain context, zero drilled props
-- [ ] `bun run type-check` + `bun test` pass
+
+- `useEditorLayoutRuntime.ts` deleted
+- `EditorContext.tsx` deleted (replaced)
+- All components read from domain context, zero drilled props
+- `bun run type-check` + `bun test` pass
 
 ---
 
@@ -447,19 +459,21 @@ Delete prop drilling. `useEditorLayoutRuntime` deleted. Migration order: leaf-fi
 Remove caption orchestration from `EditorWorkspace`.
 
 **Deliverables:**
-- [ ] `components/preview/CaptionLayer.tsx` owns `captionBitmapQueueRef`, `activeCaptionClipId`, `pendingCaptionRenderTimeRef`, `useCaptionCanvas`, `useCaptionDoc`, `useCaptionPresets`, hidden `<canvas>`
-- [ ] `EditorWorkspace` renders `<CaptionLayer previewRef={previewRef} />`, all caption state gone
-- [ ] `EditorWorkspace.tsx` ≤ 100 lines
-- [ ] `bun run type-check` + `bun test` pass
+
+- `components/preview/CaptionLayer.tsx` owns `captionBitmapQueueRef`, `activeCaptionClipId`, `pendingCaptionRenderTimeRef`, `useCaptionCanvas`, `useCaptionDoc`, `useCaptionPresets`, hidden `<canvas>`
+- `EditorWorkspace` renders `<CaptionLayer previewRef={previewRef} />`, all caption state gone
+- `EditorWorkspace.tsx` ≤ 100 lines
+- `bun run type-check` + `bun test` pass
 
 ---
 
 ### Phase 5 — Split EditorRoutePage (0.5 days)
 
 **Deliverables:**
-- [ ] `EditorProjectList.tsx` — all project list UI, `ProjectCard`, `groupByVersion`, create/delete/link mutations
-- [ ] `EditorRoutePage.tsx` ≤ 50 lines — thin router only
-- [ ] `bun run type-check` + `bun test` pass
+
+- `EditorProjectList.tsx` — all project list UI, `ProjectCard`, `groupByVersion`, create/delete/link mutations
+- `EditorRoutePage.tsx` ≤ 50 lines — thin router only
+- `bun run type-check` + `bun test` pass
 
 ---
 
@@ -468,17 +482,19 @@ Remove caption orchestration from `EditorWorkspace`.
 Set up `editor-core` Rust crate. Validate the wasm-pack build pipeline. Implement timeline resolution in Rust and wire it into `PreviewEngine`.
 
 **Deliverables:**
-- [ ] `editor-core/` crate: `wasm-pack build --target web --out-dir ../frontend/src/features/editor/wasm`
-- [ ] `vite.config.ts` updated with `vite-plugin-wasm` + `vite-plugin-top-level-await`
-- [ ] `PreviewEngine` uses `static async create()` to load WASM once before any instance is created
-- [ ] `timeline::build_compositor_clips(tracks: JsValue, playhead_ms: f64, effect_preview: JsValue) -> JsValue` — Rust equivalent of `buildCompositorClips()` in `PreviewEngine.ts:62`
-- [ ] `timeline::sanitize_no_overlap(tracks: JsValue) -> JsValue` — Rust equivalent of `sanitizeTracksNoOverlap()` in `editor-reducer-helpers.ts:124`
-- [ ] `timeline::compute_duration(tracks: JsValue) -> f64`
-- [ ] Transition math (opacity interpolation, transform strings) moved into Rust `transitions.rs`
-- [ ] `buildCompositorClips()`, `sanitizeTracksNoOverlap()`, `computeDuration()` TypeScript functions deleted from the codebase
-- [ ] `bun run type-check` + dev server plays video correctly
+
+- `editor-core/` crate: `wasm-pack build --target web --out-dir ../frontend/src/features/editor/wasm`
+- `vite.config.ts` updated with `vite-plugin-wasm` + `vite-plugin-top-level-await`
+- `PreviewEngine` uses `static async create()` to load WASM once before any instance is created
+- `timeline::build_compositor_clips(tracks: JsValue, playhead_ms: f64, effect_preview: JsValue) -> JsValue` — Rust equivalent of `buildCompositorClips()` in `PreviewEngine.ts:62`
+- `timeline::sanitize_no_overlap(tracks: JsValue) -> JsValue` — Rust equivalent of `sanitizeTracksNoOverlap()` in `editor-reducer-helpers.ts:124`
+- `timeline::compute_duration(tracks: JsValue) -> f64`
+- Transition math (opacity interpolation, transform strings) moved into Rust `transitions.rs`
+- `buildCompositorClips()`, `sanitizeTracksNoOverlap()`, `computeDuration()` TypeScript functions deleted from the codebase
+- `bun run type-check` + dev server plays video correctly
 
 **Rust Cargo.toml:**
+
 ```toml
 [package]
 name = "editor-core"
@@ -507,13 +523,14 @@ lto = true
 Replace `CompositorWorker`'s Canvas 2D render path with a Rust/wgpu compositor targeting WebGL2. The worker message protocol is unchanged — only the internal render path changes.
 
 **Deliverables:**
-- [ ] `compositor::Compositor::new(canvas: OffscreenCanvas, width: u32, height: u32)` — acquires WebGL2 context via `web-sys`
-- [ ] `Compositor::tick(clips: &[ClipDescriptor])` — renders one frame via WebGL2 shaders
-- [ ] WGSL shader `composite.wgsl` handles: per-clip opacity, affine transform (scale/translate/rotate as uniform matrices, not CSS strings), warmth (5×4 color matrix uniform), contrast, clip-path wipes as stencil operations
-- [ ] `CompositorWorker.ts` INIT message calls `Compositor::new()` — all `applyTransform()`, `applyClipPath()`, Canvas 2D draw code deleted
-- [ ] Text overlays stay Canvas 2D on a separate overlay layer (2D context drawn on top of WebGL surface, or ImageBitmap composited)
-- [ ] Caption bitmap composited via `Compositor::set_caption_frame(bitmap)`
-- [ ] Dev server: scrubbing, playback, transitions, effects all work correctly
+
+- `compositor::Compositor::new(canvas: OffscreenCanvas, width: u32, height: u32)` — acquires WebGL2 context via `web-sys`
+- `Compositor::tick(clips: &[ClipDescriptor])` — renders one frame via WebGL2 shaders
+- WGSL shader `composite.wgsl` handles: per-clip opacity, affine transform (scale/translate/rotate as uniform matrices, not CSS strings), warmth (5×4 color matrix uniform), contrast, clip-path wipes as stencil operations
+- `CompositorWorker.ts` INIT message calls `Compositor::new()` — all `applyTransform()`, `applyClipPath()`, Canvas 2D draw code deleted
+- Text overlays stay Canvas 2D on a separate overlay layer (2D context drawn on top of WebGL surface, or ImageBitmap composited)
+- Caption bitmap composited via `Compositor::set_caption_frame(bitmap)`
+- Dev server: scrubbing, playback, transitions, effects all work correctly
 
 **wgpu target:** compile with `wgpu` feature flags for WebGL2 backend (not WebGPU — WebGL2 has broader support). Target: Chrome 94+, Firefox 130+, Safari 16.4+.
 
@@ -524,45 +541,50 @@ Replace `CompositorWorker`'s Canvas 2D render path with a Rust/wgpu compositor t
 Add client-side export for timelines ≤5 minutes. Server-side export stays as fallback.
 
 **Deliverables:**
-- [ ] `export::ExportPipeline::new(tracks, fps, duration_ms)` — frame iterator that returns `FrameRequest { clip_id, source_time_ms }` in chronological order
-- [ ] `ExportPipeline::next_frame()` → `Option<FrameRequest>`
-- [ ] Frontend `useClientExport` hook: drives `ExportPipeline` → `DecoderPool` (seek mode, no playback) → `VideoFrame` → `VideoEncoder` → `mp4-muxer` → download
-- [ ] `ExportModal` shows progress bar driven by `ExportPipeline::progress()` (frames_done / total_frames)
-- [ ] Client export gated on: timeline ≤5 min AND `VideoEncoder` available (`'VideoEncoder' in window`)
-- [ ] Server export fallback if client export unavailable or fails
-- [ ] `mp4-muxer` added to `package.json`
-- [ ] Export produces MP4 that plays correctly at the right duration
+
+- `export::ExportPipeline::new(tracks, fps, duration_ms)` — frame iterator that returns `FrameRequest { clip_id, source_time_ms }` in chronological order
+- `ExportPipeline::next_frame()` → `Option<FrameRequest>`
+- Frontend `useClientExport` hook: drives `ExportPipeline` → `DecoderPool` (seek mode, no playback) → `VideoFrame` → `VideoEncoder` → `mp4-muxer` → download
+- `ExportModal` shows progress bar driven by `ExportPipeline::progress()` (frames_done / total_frames)
+- Client export gated on: timeline ≤5 min AND `VideoEncoder` available (`'VideoEncoder' in window`)
+- Server export fallback if client export unavailable or fails
+- `mp4-muxer` added to `package.json`
+- Export produces MP4 that plays correctly at the right duration
 
 ---
 
 ## 9. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Context provider order bug (playback reads stale `durationMs` from document) | Medium | High | `EditorDocumentContext` wraps `EditorPlaybackContext`; unit test with known duration before Phase 3 |
-| 2 | `SaveService.flushNow()` races in-flight PATCH mutation | Low | Medium | `SaveService` checks `isSavingPatchRef` before firing; mutation is idempotent |
-| 3 | Phase 3 component migration misses a prop path | Medium | Low | TypeScript catches missing props; run `type-check` after each component |
-| 4 | wasm-pack build not integrating with Vite + Bun | Medium | High | Validate Phase 6 setup before writing Rust logic; `vite-plugin-wasm` is well-documented |
-| 5 | wgpu WebGL2 backend missing canvas 2D parity for text/caption | Medium | Medium | Keep text overlays on a Canvas 2D layer on top; only video compositing moves to WebGL2 |
-| 6 | WebGL2 not available in test environment (jsdom) | High | Low | Mock WASM/WebGL in unit tests; integration test in real browser |
-| 7 | `ExportPipeline` frame iterator too slow (seek latency × N frames) | Medium | Medium | Batch decode: seek to keyframe, decode forward N frames before next seek |
-| 8 | `CaptionLayer` previewRef timing — caption renders before engine frame | Low | Low | Keep `pendingCaptionRenderTimeRef` guard unchanged from current code |
+
+| #   | Risk                                                                         | Likelihood | Impact | Mitigation                                                                                          |
+| --- | ---------------------------------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------------- |
+| 1   | Context provider order bug (playback reads stale `durationMs` from document) | Medium     | High   | `EditorDocumentContext` wraps `EditorPlaybackContext`; unit test with known duration before Phase 3 |
+| 2   | `SaveService.flushNow()` races in-flight PATCH mutation                      | Low        | Medium | `SaveService` checks `isSavingPatchRef` before firing; mutation is idempotent                       |
+| 3   | Phase 3 component migration misses a prop path                               | Medium     | Low    | TypeScript catches missing props; run `type-check` after each component                             |
+| 4   | wasm-pack build not integrating with Vite + Bun                              | Medium     | High   | Validate Phase 6 setup before writing Rust logic; `vite-plugin-wasm` is well-documented             |
+| 5   | wgpu WebGL2 backend missing canvas 2D parity for text/caption                | Medium     | Medium | Keep text overlays on a Canvas 2D layer on top; only video compositing moves to WebGL2              |
+| 6   | WebGL2 not available in test environment (jsdom)                             | High       | Low    | Mock WASM/WebGL in unit tests; integration test in real browser                                     |
+| 7   | `ExportPipeline` frame iterator too slow (seek latency × N frames)           | Medium     | Medium | Batch decode: seek to keyframe, decode forward N frames before next seek                            |
+| 8   | `CaptionLayer` previewRef timing — caption renders before engine frame       | Low        | Low    | Keep `pendingCaptionRenderTimeRef` guard unchanged from current code                                |
+
 
 ---
 
 ## 10. Success Metrics
 
-| Metric | Baseline | Target |
-|--------|----------|--------|
-| `useEditorLayoutRuntime.ts` exists | Yes (152 lines) | No (deleted) |
-| Max props on any component | ~30 (`EditorWorkspace`) | ≤5 |
-| Inspector re-renders during playback | ~60/sec (context tick) | 0/sec |
-| Files importing `saveTimerRef` | 4 | 1 (`SaveService` only) |
-| `EditorWorkspace.tsx` line count | 263 | ≤100 |
-| `EditorRoutePage.tsx` line count | 559 | ≤50 |
-| `CompositorWorker` regex CSS parse | Yes | No (Rust math) |
-| Client-side export | No | Yes (≤5 min) |
-| Export blocked on server | Always | Only >5 min |
+
+| Metric                               | Baseline                | Target                 |
+| ------------------------------------ | ----------------------- | ---------------------- |
+| `useEditorLayoutRuntime.ts` exists   | Yes (152 lines)         | No (deleted)           |
+| Max props on any component           | ~30 (`EditorWorkspace`) | ≤5                     |
+| Inspector re-renders during playback | ~60/sec (context tick)  | 0/sec                  |
+| Files importing `saveTimerRef`       | 4                       | 1 (`SaveService` only) |
+| `EditorWorkspace.tsx` line count     | 263                     | ≤100                   |
+| `EditorRoutePage.tsx` line count     | 559                     | ≤50                    |
+| `CompositorWorker` regex CSS parse   | Yes                     | No (Rust math)         |
+| Client-side export                   | No                      | Yes (≤5 min)           |
+| Export blocked on server             | Always                  | Only >5 min            |
+
 
 ---
 
@@ -580,9 +602,12 @@ Add client-side export for timelines ≤5 minutes. Server-side export stays as f
 
 ## 12. Open Questions (Resolve Before Starting Phase 2)
 
-| # | Question | Decision Needed By |
-|---|----------|--------------------|
-| 1 | `playheadMs` vs `currentTimeMs`: two values exist today (one smoothed for scrubbing, one from store). Should `EditorPlaybackContext` own both, or collapse to one? | Phase 2 start |
-| 2 | Does `useEditorProjectPoll` live inside `EditorDocumentContext` (natural home) or stay a standalone hook mounted in `EditorLayout`? | Phase 2 start |
-| 3 | wgpu vs raw WebGL2 bindings via `web-sys`: wgpu is higher-level and safer but adds ~50KB to WASM binary. Raw WebGL2 is smaller but more code. | Phase 7 start |
-| 4 | Client export audio: `AudioMixer` runs Web Audio API, not raw PCM. Client export needs audio muxing. Use `mp4-muxer` with `AudioEncoder` (WebCodecs)? Or skip audio in client export v1? | Phase 8 start |
+
+| #   | Question                                                                                                                                                                                 | Decision Needed By |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 1   | `playheadMs` vs `currentTimeMs`: two values exist today (one smoothed for scrubbing, one from store). Should `EditorPlaybackContext` own both, or collapse to one?                       | Phase 2 start      |
+| 2   | Does `useEditorProjectPoll` live inside `EditorDocumentContext` (natural home) or stay a standalone hook mounted in `EditorLayout`?                                                      | Phase 2 start      |
+| 3   | wgpu vs raw WebGL2 bindings via `web-sys`: wgpu is higher-level and safer but adds ~50KB to WASM binary. Raw WebGL2 is smaller but more code.                                            | Phase 7 start      |
+| 4   | Client export audio: `AudioMixer` runs Web Audio API, not raw PCM. Client export needs audio muxing. Use `mp4-muxer` with `AudioEncoder` (WebCodecs)? Or skip audio in client export v1? | Phase 8 start      |
+
+
