@@ -7,6 +7,7 @@ import {
   buildCompositorClips,
   PreviewEngine,
 } from "@/features/editor/engine/PreviewEngine";
+import { systemPerformance } from "@/shared/utils/system/performance";
 import type {
   Track,
   VideoClip,
@@ -123,6 +124,50 @@ describe("AudioMixer", () => {
     expect(attempts).toBe(2);
 
     mixer.destroy();
+  });
+});
+
+describe("PreviewEngine performance metrics", () => {
+  test("exposes decoder metrics and seek compositor latency in the debug snapshot", async () => {
+    systemPerformance.clear();
+
+    const engine = new PreviewEngine(
+      {
+        onTimeUpdate() {},
+        onPlaybackEnd() {},
+        onFrame(frame) {
+          frame.close();
+        },
+        onTick() {},
+        onClearFrames() {},
+      },
+      { canvasWidth: 1080, canvasHeight: 1920, fps: 30 }
+    );
+
+    engine.update([], new Map(), 2000, null, {
+      canvasWidth: 1080,
+      canvasHeight: 1920,
+      fps: 30,
+    });
+    await engine.seek(500);
+
+    const metrics = engine.getMetrics();
+    const snapshot = window.__REEL_EDITOR_DEBUG__?.snapshot();
+    const previewDebug = snapshot?.debug.previewEngine as
+      | { metrics?: ReturnType<PreviewEngine["getMetrics"]> }
+      | undefined;
+
+    expect(metrics.decoderPool.activeDecoderCount).toBe(0);
+    expect(metrics.lastSeekLatency).toEqual(
+      expect.objectContaining({
+        targetMs: 500,
+        firstCompositorTickMs: expect.any(Number),
+      })
+    );
+    expect(previewDebug?.metrics?.decoderPool.activeDecoderCount).toBe(0);
+
+    engine.destroy();
+    systemPerformance.clear();
   });
 });
 

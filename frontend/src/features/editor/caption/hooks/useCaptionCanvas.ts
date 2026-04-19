@@ -7,6 +7,7 @@ import { computeLayout } from "../layout-engine";
 import { renderFrame } from "../renderer";
 import { FontLoader } from "../font-loader";
 import type { CaptionDoc, TextPreset } from "../types";
+import { systemPerformance } from "@/shared/utils/system/performance";
 
 interface UseCaptionCanvasParams {
   clip: CaptionClip | null;
@@ -62,58 +63,99 @@ export function useCaptionCanvas({
       }
 
       const run = async () => {
+        const detail = {
+          clipId: clip.id,
+          currentTimeMs,
+          canvasW,
+          canvasH,
+        };
+        const timerId = systemPerformance.start(
+          "editor.captionBitmapRender",
+          detail
+        );
+        systemPerformance.mark("editor.captionBitmapRender.start", detail);
+        let outcome = "rendered";
+
         canvas.width = canvasW;
         canvas.height = canvasH;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (preset.typography.fontUrl) {
-          await fontLoader.load(
-            preset.typography.fontFamily,
-            preset.typography.fontUrl
-          );
-          if (isStale()) return;
-        }
-
-        const tokens = sliceTokensToRange(
-          doc.tokens,
-          clip.sourceStartMs,
-          clip.sourceEndMs
-        );
-        const pages = buildPages(tokens, clip.groupingMs || preset.groupingMs);
-        const relativeMs = currentTimeMs - clip.startMs;
-        const page =
-          pages.find(
-            (candidate) =>
-              relativeMs >= candidate.startMs && relativeMs < candidate.endMs
-          ) ?? null;
-        if (!page) {
-          if (!isStale()) {
-            onBitmapReady?.(null);
-          }
-          return;
-        }
-
-        const renderKey = `${clip.id}:${page.startMs}:${page.endMs}:${canvas.width}:${canvas.height}:${Math.round(relativeMs)}`;
-        if (renderKey === lastRenderedKeyRef.current) return;
-        lastRenderedKeyRef.current = renderKey;
-
-        const layout = computeLayout(
-          ctx,
-          page,
-          preset,
-          canvas.width,
-          canvas.height
-        );
-        renderFrame(ctx, layout, relativeMs, preset);
-        if (onBitmapReady) {
-          const bitmap = await window.createImageBitmap(canvas);
-          if (isStale()) {
-            bitmap.close();
+        try {
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            outcome = "missing-context";
             return;
           }
-          onBitmapReady(bitmap);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          if (preset.typography.fontUrl) {
+            await fontLoader.load(
+              preset.typography.fontFamily,
+              preset.typography.fontUrl
+            );
+            if (isStale()) {
+              outcome = "stale-font";
+              return;
+            }
+          }
+
+          const tokens = sliceTokensToRange(
+            doc.tokens,
+            clip.sourceStartMs,
+            clip.sourceEndMs
+          );
+          const pages = buildPages(
+            tokens,
+            clip.groupingMs || preset.groupingMs
+          );
+          const relativeMs = currentTimeMs - clip.startMs;
+          const page =
+            pages.find(
+              (candidate) =>
+                relativeMs >= candidate.startMs && relativeMs < candidate.endMs
+            ) ?? null;
+          if (!page) {
+            outcome = "no-active-page";
+            if (!isStale()) {
+              onBitmapReady?.(null);
+            }
+            return;
+          }
+
+          const renderKey = `${clip.id}:${page.startMs}:${page.endMs}:${canvas.width}:${canvas.height}:${Math.round(relativeMs)}`;
+          if (renderKey === lastRenderedKeyRef.current) {
+            outcome = "cache-hit";
+            return;
+          }
+          lastRenderedKeyRef.current = renderKey;
+
+          const layout = computeLayout(
+            ctx,
+            page,
+            preset,
+            canvas.width,
+            canvas.height
+          );
+          renderFrame(ctx, layout, relativeMs, preset);
+          if (onBitmapReady) {
+            const bitmap = await window.createImageBitmap(canvas);
+            if (isStale()) {
+              outcome = "stale-bitmap";
+              bitmap.close();
+              return;
+            }
+            onBitmapReady(bitmap);
+          }
+        } finally {
+          const finalDetail = { ...detail, outcome, stale: isStale() };
+          systemPerformance.mark("editor.captionBitmapRender.end", finalDetail);
+          systemPerformance.measure(
+            "editor.captionBitmapRender.total",
+            "editor.captionBitmapRender.start",
+            "editor.captionBitmapRender.end",
+            finalDetail
+          );
+          if (timerId) {
+            systemPerformance.stop(timerId, finalDetail);
+          }
         }
       };
 

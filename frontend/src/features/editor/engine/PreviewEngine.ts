@@ -3,12 +3,14 @@ import {
   buildAudioClipDescriptors,
   type AudioClipDescriptor,
 } from "./AudioMixer";
-import { DecoderPool } from "./DecoderPool";
+import { DecoderPool, type DecoderPoolMetrics } from "./DecoderPool";
 import type {
   CompositorClipDescriptor,
   SerializedCaptionFrame,
   SerializedTextObject,
 } from "./CompositorWorker";
+import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
+import { systemPerformance } from "@/shared/utils/system/performance";
 import type { TextClip, Track, VideoClip } from "../types/editor";
 import { isTextClip, isVideoClip } from "../utils/clip-types";
 import {
@@ -22,13 +24,27 @@ import { getTextClipPreviewDisplay } from "../utils/text-segments";
 const REACT_PUBLISH_INTERVAL_MS = 250;
 const DECODER_RECONCILE_INTERVAL_MS = 500;
 
+export interface SeekLatencyMetrics {
+  seekId: number;
+  targetMs: number;
+  requestedAtMs: number;
+  firstDecodedFrameMs: number | null;
+  firstCompositorTickMs: number | null;
+  reactPublishMs: number | null;
+}
+
 export interface PreviewEngineMetrics {
   seekCount: number;
   decodedFrameCount: number;
   droppedFrameCount: number;
   compositorFrameMs: number;
+  reactPublishMs: number;
   audioClockDriftMs: number;
+  lastSeekLatency: SeekLatencyMetrics | null;
+  decoderPool: DecoderPoolMetrics;
 }
+
+type PreviewEngineMetricState = Omit<PreviewEngineMetrics, "decoderPool">;
 
 export interface EffectPreviewPatch {
   clipId: string;
@@ -163,6 +179,9 @@ export class PreviewEngine {
   private rafStartTimelineMs = 0;
   private lastAudibleTickMs: number | null = null;
   private didLogMetricsForCurrentSession = false;
+  private seekSequence = 0;
+  private activeSeekLatency: SeekLatencyMetrics | null = null;
+  private unregisterDebugProvider: (() => void) | null = null;
   private canvasWidth: number;
   private canvasHeight: number;
   private fps: number;
@@ -171,12 +190,14 @@ export class PreviewEngine {
   private effectPreview: EffectPreviewPatch | null = null;
   private pendingCaptionFrame: SerializedCaptionFrame | null | undefined =
     undefined;
-  private metrics: PreviewEngineMetrics = {
+  private metrics: PreviewEngineMetricState = {
     seekCount: 0,
     decodedFrameCount: 0,
     droppedFrameCount: 0,
     compositorFrameMs: 0,
+    reactPublishMs: 0,
     audioClockDriftMs: 0,
+    lastSeekLatency: null,
   };
 
   constructor(
@@ -189,8 +210,13 @@ export class PreviewEngine {
     this.fps = options.fps;
     this.decoderPool = new DecoderPool(({ frame, timestampUs, clipId }) => {
       this.metrics.decodedFrameCount += 1;
+      this.markFirstDecodedFrameAfterSeek(clipId, timestampUs);
       this.callbacks.onFrame(frame, timestampUs, clipId);
     });
+    this.unregisterDebugProvider = systemPerformance.registerSnapshotProvider(
+      "previewEngine",
+      () => this.getDebugSnapshot()
+    );
   }
 
   async primeAudioContext(): Promise<void> {
@@ -260,7 +286,7 @@ export class PreviewEngine {
     this.currentTimeMs = this.clampTime(this.audioMixer.getAudibleTimeMs());
     this.isPlaying = false;
     this.tickCompositor(this.currentTimeMs);
-    this.callbacks.onTimeUpdate(this.currentTimeMs);
+    this.publishTimeUpdate(this.currentTimeMs, "pause");
     this.logMetricsIfDevelopment();
   }
 
@@ -269,6 +295,7 @@ export class PreviewEngine {
     const wasPlaying = this.isPlaying;
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
+    this.startSeekLatency(targetMs);
 
     this.stopRafLoop();
     this.decoderPool.pause();
@@ -318,13 +345,21 @@ export class PreviewEngine {
   }
 
   getMetrics(): PreviewEngineMetrics {
-    return { ...this.metrics };
+    return {
+      ...this.metrics,
+      lastSeekLatency: this.metrics.lastSeekLatency
+        ? { ...this.metrics.lastSeekLatency }
+        : null,
+      decoderPool: this.decoderPool.getMetrics(),
+    };
   }
 
   destroy(): void {
     this.stopRafLoop();
     this.decoderPool.destroy();
     this.audioMixer.destroy();
+    this.unregisterDebugProvider?.();
+    this.unregisterDebugProvider = null;
     if (this.pendingCaptionFrame) {
       this.pendingCaptionFrame.bitmap.close();
       this.pendingCaptionFrame = undefined;
@@ -337,20 +372,28 @@ export class PreviewEngine {
 
   private tickCompositor(playheadMs: number): void {
     const frameStart = performance.now();
+    const timerId = systemPerformance.start("editor.compositorTick", {
+      playheadMs,
+    });
     const clips = buildCompositorClips(
       this.tracks,
       playheadMs,
       this.effectPreview
     );
+    const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;
     this.pendingCaptionFrame = undefined;
-    this.callbacks.onTick(
-      playheadMs,
-      clips,
-      this.buildTextObjects(playheadMs),
-      captionFrame
-    );
-    this.metrics.compositorFrameMs = performance.now() - frameStart;
+    this.callbacks.onTick(playheadMs, clips, textObjects, captionFrame);
+    const measured = timerId
+      ? systemPerformance.stop(timerId, {
+          clipCount: clips.length,
+          textObjectCount: textObjects.length,
+          hasCaptionFrame: captionFrame !== undefined,
+        })
+      : null;
+    this.metrics.compositorFrameMs =
+      measured?.durationMs ?? performance.now() - frameStart;
+    this.markFirstCompositorTickAfterSeek(playheadMs);
   }
 
   private buildTextObjects(timelineMs: number): SerializedTextObject[] {
@@ -432,7 +475,7 @@ export class PreviewEngine {
 
       if (audibleMs - this.lastPublishMs >= REACT_PUBLISH_INTERVAL_MS) {
         this.lastPublishMs = audibleMs;
-        this.callbacks.onTimeUpdate(audibleMs);
+        this.publishTimeUpdate(audibleMs, "raf");
       }
 
       if (audibleMs >= this.durationMs) {
@@ -442,7 +485,7 @@ export class PreviewEngine {
         this.isPlaying = false;
         this.currentTimeMs = this.durationMs;
         this.tickCompositor(this.durationMs);
-        this.callbacks.onTimeUpdate(this.durationMs);
+        this.publishTimeUpdate(this.durationMs, "playback-end");
         this.logMetricsIfDevelopment();
         this.callbacks.onPlaybackEnd();
         return;
@@ -471,16 +514,115 @@ export class PreviewEngine {
       decodedFrameCount: 0,
       droppedFrameCount: 0,
       compositorFrameMs: 0,
+      reactPublishMs: 0,
       audioClockDriftMs: 0,
+      lastSeekLatency: null,
     };
+    this.activeSeekLatency = null;
     this.didLogMetricsForCurrentSession = false;
   }
 
   private logMetricsIfDevelopment(): void {
     if (this.didLogMetricsForCurrentSession) return;
-    if (typeof process === "undefined") return;
-    if (process.env.NODE_ENV !== "development") return;
+    if (!IS_DEVELOPMENT) return;
     this.didLogMetricsForCurrentSession = true;
     console.table(this.getMetrics());
+  }
+
+  private publishTimeUpdate(
+    playheadMs: number,
+    reason: "raf" | "pause" | "playback-end"
+  ): void {
+    const timerId = systemPerformance.start("editor.reactPublish", {
+      playheadMs,
+      reason,
+    });
+    systemPerformance.mark("editor.reactPublish", { playheadMs, reason });
+    this.markReactPublishAfterSeek(playheadMs, reason);
+    this.callbacks.onTimeUpdate(playheadMs);
+
+    const measured = timerId
+      ? systemPerformance.stop(timerId, { playheadMs, reason })
+      : null;
+    this.metrics.reactPublishMs = measured?.durationMs ?? 0;
+  }
+
+  private startSeekLatency(targetMs: number): void {
+    this.seekSequence += 1;
+    this.activeSeekLatency = {
+      seekId: this.seekSequence,
+      targetMs,
+      requestedAtMs: performance.now(),
+      firstDecodedFrameMs: null,
+      firstCompositorTickMs: null,
+      reactPublishMs: null,
+    };
+    this.metrics.lastSeekLatency = this.activeSeekLatency;
+    systemPerformance.mark("editor.seek.request", {
+      seekId: this.seekSequence,
+      targetMs,
+    });
+  }
+
+  private markFirstDecodedFrameAfterSeek(
+    clipId: string,
+    timestampUs: number
+  ): void {
+    const seek = this.activeSeekLatency;
+    if (!seek || seek.firstDecodedFrameMs !== null) return;
+
+    const detail = { seekId: seek.seekId, clipId, timestampUs };
+    systemPerformance.mark("editor.seek.firstDecodedFrame", detail);
+    const record = systemPerformance.measure(
+      "editor.seek.latency.firstDecodedFrame",
+      "editor.seek.request",
+      "editor.seek.firstDecodedFrame",
+      detail
+    );
+    seek.firstDecodedFrameMs = record?.durationMs ?? null;
+  }
+
+  private markFirstCompositorTickAfterSeek(playheadMs: number): void {
+    const seek = this.activeSeekLatency;
+    if (!seek || seek.firstCompositorTickMs !== null) return;
+
+    const detail = { seekId: seek.seekId, playheadMs };
+    systemPerformance.mark("editor.seek.firstCompositorTick", detail);
+    const record = systemPerformance.measure(
+      "editor.seek.latency.firstCompositorTick",
+      "editor.seek.request",
+      "editor.seek.firstCompositorTick",
+      detail
+    );
+    seek.firstCompositorTickMs = record?.durationMs ?? null;
+  }
+
+  private markReactPublishAfterSeek(
+    playheadMs: number,
+    reason: "raf" | "pause" | "playback-end"
+  ): void {
+    const seek = this.activeSeekLatency;
+    if (!seek || seek.reactPublishMs !== null) return;
+
+    const detail = { seekId: seek.seekId, playheadMs, reason };
+    const record = systemPerformance.measure(
+      "editor.seek.latency.reactPublish",
+      "editor.seek.request",
+      "editor.reactPublish",
+      detail
+    );
+    seek.reactPublishMs = record?.durationMs ?? null;
+  }
+
+  private getDebugSnapshot(): Record<string, unknown> {
+    return {
+      isPlaying: this.isPlaying,
+      currentTimeMs: this.currentTimeMs,
+      durationMs: this.durationMs,
+      fps: this.fps,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      metrics: this.getMetrics(),
+    };
   }
 }

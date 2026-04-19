@@ -9,10 +9,12 @@ import { useTranslation } from "react-i18next";
 import { usePreviewSurfaceSize } from "../../runtime/usePreviewSurfaceSize";
 import { formatMMSS } from "../../utils/timecode";
 import type {
+  CompositorWorkerPerformanceMetrics,
   CompositorClipDescriptor,
   SerializedTextObject,
   SerializedCaptionFrame,
 } from "../../engine/CompositorWorker";
+import { systemPerformance } from "@/shared/utils/system/performance";
 
 export interface PreviewCanvasHandle {
   /**
@@ -74,6 +76,25 @@ export const PreviewCanvas = forwardRef<
         const msg = event.data;
         if (msg.type === "READY") {
           compositorReadyRef.current = true;
+          systemPerformance.setDebugValue("compositorWorker", {
+            ready: true,
+            resolutionWidth,
+            resolutionHeight,
+          });
+          return;
+        }
+
+        if (msg.type === "PERFORMANCE") {
+          const metrics = msg.metrics as CompositorWorkerPerformanceMetrics;
+          systemPerformance.record(
+            "editor.compositorWorker.tick",
+            metrics.compositorFrameMs,
+            metrics as unknown as Record<string, unknown>
+          );
+          systemPerformance.setDebugValue("compositorWorker", {
+            ready: true,
+            ...metrics,
+          });
         }
       };
 
@@ -84,6 +105,7 @@ export const PreviewCanvas = forwardRef<
           canvas: offscreen,
           width: resolutionWidth,
           height: resolutionHeight,
+          debugEnabled: systemPerformance.isEnabled,
         },
         [offscreen]
       );
@@ -101,6 +123,7 @@ export const PreviewCanvas = forwardRef<
         if (compositorWorkerRef.current === activeWorker) {
           compositorWorkerRef.current = null;
         }
+        systemPerformance.clearDebugValue("compositorWorker");
         pendingDestroyTimerRef.current = null;
       }, 0);
     };

@@ -16,6 +16,7 @@
  *
  * Message protocol (worker → main):
  *   { type: 'READY' }
+ *   { type: 'PERFORMANCE', metrics: CompositorWorkerPerformanceMetrics }
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,18 @@ export interface SerializedCaptionFrame {
   bitmap: ImageBitmap;
 }
 
+export interface CompositorWorkerPerformanceMetrics {
+  playheadMs: number;
+  compositorFrameMs: number;
+  clipCount: number;
+  textObjectCount: number;
+  captionFramePresent: boolean;
+  frameQueueSizes: Record<string, number>;
+  frameQueueTotal: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
 // Bun's lib doesn't include DedicatedWorkerGlobalScope. Define the minimal
 // surface we need so all postMessage calls use the browser Transferable signature.
 interface WorkerCtx extends EventTarget {
@@ -77,6 +90,7 @@ let renderCtx: OffscreenCanvasRenderingContext2D | null = null;
 let canvasWidth = 0;
 let canvasHeight = 0;
 let isDestroyed = false;
+let debugEnabled = false;
 
 /** Per-clip queues of decoded VideoFrame objects, sorted by timestamp ascending. */
 const frameQueues = new Map<string, VideoFrame[]>();
@@ -156,6 +170,14 @@ function clearClipFrames(clipId: string): void {
   for (const frame of queue) frame.close();
   frameQueues.delete(clipId);
   lastRequestedSourceTimeUs.delete(clipId);
+}
+
+function getFrameQueueSizes(): Record<string, number> {
+  const sizes: Record<string, number> = {};
+  for (const [clipId, queue] of frameQueues) {
+    sizes[clipId] = queue.length;
+  }
+  return sizes;
 }
 
 // ─── Canvas transform helpers ─────────────────────────────────────────────────
@@ -354,7 +376,13 @@ ctx.onmessage = (event: MessageEvent) => {
   if (isDestroyed) return;
 
   const msg = event.data as
-    | { type: "INIT"; canvas: OffscreenCanvas; width: number; height: number }
+    | {
+        type: "INIT";
+        canvas: OffscreenCanvas;
+        width: number;
+        height: number;
+        debugEnabled?: boolean;
+      }
     | { type: "RESIZE"; width: number; height: number }
     | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
     | {
@@ -371,6 +399,7 @@ ctx.onmessage = (event: MessageEvent) => {
       offscreenCanvas = msg.canvas;
       canvasWidth = msg.width;
       canvasHeight = msg.height;
+      debugEnabled = msg.debugEnabled === true;
       offscreenCanvas.width = canvasWidth;
       offscreenCanvas.height = canvasHeight;
       renderCtx = offscreenCanvas.getContext("2d", {
@@ -407,7 +436,31 @@ ctx.onmessage = (event: MessageEvent) => {
     }
 
     case "TICK": {
+      const frameStart = performance.now();
       composite(msg.clips, pendingTextObjects, pendingCaptionFrame);
+      if (debugEnabled) {
+        const frameQueueSizes = getFrameQueueSizes();
+        ctx.postMessage(
+          {
+            type: "PERFORMANCE",
+            metrics: {
+              playheadMs: msg.playheadMs,
+              compositorFrameMs: performance.now() - frameStart,
+              clipCount: msg.clips.length,
+              textObjectCount: pendingTextObjects.length,
+              captionFramePresent: pendingCaptionFrame !== null,
+              frameQueueSizes,
+              frameQueueTotal: Object.values(frameQueueSizes).reduce(
+                (total, size) => total + size,
+                0
+              ),
+              canvasWidth,
+              canvasHeight,
+            },
+          },
+          []
+        );
+      }
       break;
     }
 

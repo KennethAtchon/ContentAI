@@ -40,6 +40,15 @@ export interface DecodedFrame {
   clipId: string;
 }
 
+export interface DecoderPoolMetrics {
+  activeDecoderCount: number;
+  readyDecoderCount: number;
+  seekingDecoderCount: number;
+  pendingSeekCount: number;
+  assetWorkerCounts: Record<string, number>;
+  clipIds: string[];
+}
+
 type FrameCallback = (decoded: DecodedFrame) => void;
 
 interface WorkerEntry {
@@ -229,6 +238,30 @@ export class DecoderPool {
       this.destroyWorker(clipId);
     }
     this.workers.clear();
+  }
+
+  getMetrics(): DecoderPoolMetrics {
+    const assetWorkerCounts: Record<string, number> = {};
+    let readyDecoderCount = 0;
+    let seekingDecoderCount = 0;
+    let pendingSeekCount = 0;
+
+    for (const entry of this.workers.values()) {
+      assetWorkerCounts[entry.assetUrl] =
+        (assetWorkerCounts[entry.assetUrl] ?? 0) + 1;
+      if (entry.ready) readyDecoderCount += 1;
+      if (entry.seeking) seekingDecoderCount += 1;
+      if (entry.pendingSeek !== null) pendingSeekCount += 1;
+    }
+
+    return {
+      activeDecoderCount: this.workers.size,
+      readyDecoderCount,
+      seekingDecoderCount,
+      pendingSeekCount,
+      assetWorkerCounts,
+      clipIds: [...this.workers.keys()],
+    };
   }
 
   // ─── Private ────────────────────────────────────────────────────────────────
