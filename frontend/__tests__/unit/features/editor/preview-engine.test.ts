@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   AudioMixer,
   buildAudioClipDescriptors,
@@ -13,6 +14,19 @@ import type {
   VideoClip,
   TextClip,
 } from "@/features/editor/types/editor";
+
+const phase3GoldenFixture = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../editor-core/fixtures/phase3-timeline-golden.json",
+      import.meta.url
+    ),
+    "utf8"
+  )
+) as {
+  tracks: Track[];
+  compositorAt875: unknown;
+};
 
 class MockGainNode {
   gain = {
@@ -131,7 +145,7 @@ describe("PreviewEngine performance metrics", () => {
   test("exposes decoder metrics and seek compositor latency in the debug snapshot", async () => {
     systemPerformance.clear();
 
-    const engine = new PreviewEngine(
+    const engine = await PreviewEngine.create(
       {
         onTimeUpdate() {},
         onPlaybackEnd() {},
@@ -517,6 +531,12 @@ describe("buildCompositorClips", () => {
     });
   });
 
+  test("matches the shared Phase 3 Rust golden fixture", () => {
+    expect(buildCompositorClips(phase3GoldenFixture.tracks, 875, null)).toEqual(
+      phase3GoldenFixture.compositorAt875
+    );
+  });
+
   test("uses source-media time for trimmed and speed-adjusted clips", () => {
     const tracks: Track[] = [
       {
@@ -565,7 +585,7 @@ describe("buildCompositorClips", () => {
 });
 
 describe("PreviewEngine text overlays", () => {
-  test("serializes active text clips using preview chunking rules", () => {
+  test("serializes active text clips using preview chunking rules", async () => {
     const textClip: TextClip = {
       id: "text-1",
       type: "text",
@@ -614,7 +634,7 @@ describe("PreviewEngine text overlays", () => {
         }
       | undefined;
 
-    const engine = new PreviewEngine(
+    const engine = await PreviewEngine.create(
       {
         onTimeUpdate() {},
         onPlaybackEnd() {},
@@ -647,13 +667,13 @@ describe("PreviewEngine text overlays", () => {
     engine.destroy();
   });
 
-  test("emits caption bitmap updates once and then keeps rendering without resending", () => {
+  test("emits caption bitmap updates once and then keeps rendering without resending", async () => {
     const captionBitmap = {
       close: mock(() => {}),
     } as unknown as ImageBitmap;
     const captionFrames: Array<unknown> = [];
 
-    const engine = new PreviewEngine(
+    const engine = await PreviewEngine.create(
       {
         onTimeUpdate() {},
         onPlaybackEnd() {},
@@ -677,7 +697,7 @@ describe("PreviewEngine text overlays", () => {
     engine.destroy();
   });
 
-  test("closes superseded caption bitmap updates before they are emitted", () => {
+  test("closes superseded caption bitmap updates before they are emitted", async () => {
     const captionBitmapA = {
       close: mock(() => {}),
     } as unknown as ImageBitmap;
@@ -685,7 +705,7 @@ describe("PreviewEngine text overlays", () => {
       close: mock(() => {}),
     } as unknown as ImageBitmap;
 
-    const engine = new PreviewEngine(
+    const engine = await PreviewEngine.create(
       {
         onTimeUpdate() {},
         onPlaybackEnd() {},

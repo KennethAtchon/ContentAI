@@ -60,6 +60,15 @@ export function usePreviewEngine({
   const onPlayheadUpdateRef = useRef(onPlayheadUpdate);
   const onRenderPlayheadUpdateRef = useRef(onRenderPlayheadUpdate);
   const onPlaybackEndRef = useRef(onPlaybackEnd);
+  const latestUpdateRef = useRef({
+    tracks,
+    assetUrlMap,
+    durationMs,
+    effectPreview,
+    canvasWidth,
+    canvasHeight,
+    fps,
+  });
 
   useEffect(() => {
     onTimeUpdateRef.current = onTimeUpdate;
@@ -69,7 +78,30 @@ export function usePreviewEngine({
   }, [onPlaybackEnd, onPlayheadUpdate, onRenderPlayheadUpdate, onTimeUpdate]);
 
   useEffect(() => {
-    const engine = new PreviewEngine(
+    latestUpdateRef.current = {
+      tracks,
+      assetUrlMap,
+      durationMs,
+      effectPreview,
+      canvasWidth,
+      canvasHeight,
+      fps,
+    };
+  }, [
+    tracks,
+    assetUrlMap,
+    durationMs,
+    effectPreview,
+    canvasWidth,
+    canvasHeight,
+    fps,
+  ]);
+
+  useEffect(() => {
+    let disposed = false;
+    let engine: PreviewEngine | null = null;
+
+    void PreviewEngine.create(
       {
         onTimeUpdate(ms) {
           skipNextSeekRef.current = true;
@@ -93,8 +125,8 @@ export function usePreviewEngine({
         onRenderTick(playheadMs) {
           // Caption renders are driven exclusively from the RAF loop via this
           // callback. Keeping it out of onTick prevents the re-entrant loop:
-          // renderCurrentFrame → onTick → onRenderPlayheadUpdate →
-          // renderCaptionAtTime → setCaptionBitmapVersion → renderCurrentFrame
+          // renderCurrentFrame -> onTick -> onRenderPlayheadUpdate ->
+          // renderCaptionAtTime -> setCaptionBitmapVersion -> renderCurrentFrame
           onRenderPlayheadUpdateRef.current?.(playheadMs);
         },
         onClearFrames(clipIds) {
@@ -102,21 +134,44 @@ export function usePreviewEngine({
         },
       },
       { canvasWidth, canvasHeight, fps }
-    );
-
-    engineRef.current = engine;
+    )
+      .then((createdEngine) => {
+        if (disposed) {
+          createdEngine.destroy();
+          return;
+        }
+        engine = createdEngine;
+        engineRef.current = createdEngine;
+        const latest = latestUpdateRef.current;
+        createdEngine.update(
+          latest.tracks,
+          latest.assetUrlMap,
+          latest.durationMs,
+          asVideoEffectPreview(latest.effectPreview),
+          {
+            canvasWidth: latest.canvasWidth,
+            canvasHeight: latest.canvasHeight,
+            fps: latest.fps,
+          }
+        );
+      })
+      .catch((error: unknown) => {
+        if (disposed) return;
+        console.error("Failed to initialize preview engine.", error);
+      });
 
     const unlockAudio = () => {
-      void engine.primeAudioContext();
+      void engineRef.current?.primeAudioContext();
     };
 
     window.addEventListener("pointerdown", unlockAudio, { passive: true });
     window.addEventListener("keydown", unlockAudio);
 
     return () => {
+      disposed = true;
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
-      engine.destroy();
+      engine?.destroy();
       engineRef.current = null;
     };
   }, [canvasHeight, canvasWidth, fps, previewRef]);

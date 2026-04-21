@@ -370,7 +370,7 @@ frontend/src/features/editor/
     editor_core_bg.wasm
     editor_core.d.ts
 
-editor-core/                   — Rust crate (sibling to frontend/)
+frontend/editor-core/          — Rust crate colocated with the frontend Docker context
   Cargo.toml
   src/
     lib.rs
@@ -495,7 +495,7 @@ Set up `editor-core` Rust crate. Validate the wasm-pack build pipeline. Implemen
 
 **Deliverables:**
 
-- `editor-core/` crate: `wasm-pack build --target web --out-dir ../frontend/src/features/editor/wasm`
+- `frontend/editor-core/` crate: `wasm-pack build --target web --out-dir ../src/features/editor/wasm`
 - `vite.config.ts` updated with `vite-plugin-wasm` + `vite-plugin-top-level-await`
 - `PreviewEngine` uses `static async create()` to load WASM once before any instance is created
 - `timeline::build_compositor_clips(tracks: JsValue, playhead_ms: f64, effect_preview: JsValue) -> JsValue` — Rust equivalent of `buildCompositorClips()` in `PreviewEngine.ts:62`
@@ -625,4 +625,3 @@ Add client-side export for timelines ≤5 minutes. Server-side export stays as f
 | 2   | Does `useEditorProjectPoll` live inside `EditorDocumentContext` (natural home) or stay a standalone hook mounted in `EditorLayout`?                                                      | Phase 2 start      |
 | 3   | wgpu vs raw WebGL2 bindings via `web-sys`: wgpu is higher-level and safer but adds ~50KB to WASM binary. Raw WebGL2 is smaller but more code.                                            | Phase 7 start      |
 | 4   | Client export audio: `AudioMixer` runs Web Audio API, not raw PCM. Client export needs audio muxing. Use `mp4-muxer` with `AudioEncoder` (WebCodecs)? Or skip audio in client export v1? | Phase 8 start      |
-

@@ -8,6 +8,12 @@ docker-compose.override.yml
 # Docker directories
 docker/
 
+# Dependency/build outputs
+**/node_modules
+**/dist
+**/coverage
+**/editor-core/target
+
 # Docker scripts
 docker-scripts.sh
 

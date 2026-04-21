@@ -13,20 +13,20 @@ The Rust input and output shapes intentionally use the existing TypeScript edito
 
 ## Local Checks
 
-From `editor-core/`:
+From `frontend/editor-core/`:
 
 ```bash
 cargo fmt --check
 cargo test
 ```
 
-To build the browser artifact, install `wasm-pack` and the `wasm32-unknown-unknown` Rust target, then run:
+To build the browser artifact, install `wasm-pack` and the `wasm32-unknown-unknown` Rust target, then run from `frontend/`:
 
 ```bash
-wasm-pack build --target web --out-dir ../frontend/src/features/editor/wasm
+bun run editor-core:build
 ```
 
-The generated `frontend/src/features/editor/wasm/` directory is ignored by git. The frontend loader will use it when present and fall back to the TypeScript descriptor builder when absent.
+The generated `frontend/src/features/editor/wasm/` directory is ignored by git. The frontend build and dev scripts rebuild it before Vite starts. Keeping this crate inside `frontend/` lets frontend-only Docker builds include Rust/WASM without needing the repository root as build context.
 
 ## Frontend Usage
 
@@ -42,7 +42,7 @@ frontend/src/features/editor/engine/editor-core-wasm.ts
 buildCompositorDescriptorsWithRustFallback(...)
 ```
 
-That wrapper attempts Rust first and falls back to `buildCompositorClips()` if the generated WASM module is missing or throws. The debug runtime exposes `editorCoreWasm` so a developer can confirm whether Rust or fallback is active:
+That wrapper loads Rust before `PreviewEngine` is created. Missing WASM is a startup/build error rather than a silent preview fallback. The debug runtime exposes `editorCoreWasm` so a developer can confirm Rust is active:
 
 ```js
 window.__REEL_EDITOR_DEBUG__.snapshot().debug.editorCoreWasm
@@ -54,7 +54,7 @@ When changing timeline math:
 
 1. Update the Rust implementation in `lib.rs`.
 2. Add or update a Rust golden test in `#[cfg(test)]`.
-3. Keep the TypeScript fallback behavior equivalent until Rust is proven active in browser fixtures.
-4. Run `cargo test`, `bunx tsc --noEmit`, and the editor unit tests.
+3. Keep the shared Phase 3 JSON fixture in sync with both Rust and TypeScript tests.
+4. Run `cargo test`, `bun run editor-core:build`, `bunx tsc --noEmit`, and the editor unit tests.
 
 Avoid adding browser APIs here. This crate should stay deterministic timeline math plus serde/wasm-bindgen boundaries; decode, WebCodecs, and rendering stay in TypeScript workers for now.

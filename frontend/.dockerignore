@@ -5,6 +5,8 @@ dist
 .env.*
 !.env.example
 coverage
+editor-core/target
+src/features/editor/wasm
 *.log
 .DS_Store
 __tests__

@@ -69,7 +69,7 @@ struct Transition {
     clip_b_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct FrameRequest {
     clip_id: String,
@@ -443,75 +443,43 @@ fn json_number(value: f64) -> Value {
 mod tests {
     use super::*;
 
+    fn golden_fixture() -> Value {
+        serde_json::from_str(include_str!("../fixtures/phase3-timeline-golden.json")).unwrap()
+    }
+
+    fn normalize_numbers(value: Value) -> Value {
+        match value {
+            Value::Array(items) => Value::Array(items.into_iter().map(normalize_numbers).collect()),
+            Value::Object(map) => Value::Object(
+                map.into_iter()
+                    .map(|(key, value)| (key, normalize_numbers(value)))
+                    .collect(),
+            ),
+            Value::Number(number) => number
+                .as_f64()
+                .map(json_number)
+                .unwrap_or(Value::Number(number)),
+            other => other,
+        }
+    }
+
     fn fixture_tracks() -> Vec<Track> {
-        serde_json::from_value(json!([
-            {
-                "id": "video-track",
-                "type": "video",
-                "clips": [
-                    {
-                        "id": "clip-a",
-                        "type": "video",
-                        "startMs": 0,
-                        "durationMs": 1000,
-                        "trimStartMs": 0,
-                        "assetId": "asset-a",
-                        "enabled": true,
-                        "speed": 1,
-                        "opacity": 1,
-                        "warmth": 0,
-                        "contrast": 0,
-                        "positionX": 5,
-                        "positionY": 10,
-                        "scale": 1.25,
-                        "rotation": 15
-                    },
-                    {
-                        "id": "clip-b",
-                        "type": "video",
-                        "startMs": 1000,
-                        "durationMs": 1000,
-                        "trimStartMs": 0,
-                        "assetId": "asset-b",
-                        "enabled": true,
-                        "speed": 1,
-                        "opacity": 1,
-                        "warmth": 0,
-                        "contrast": 0,
-                        "positionX": 0,
-                        "positionY": 0,
-                        "scale": 1,
-                        "rotation": 0
-                    }
-                ],
-                "transitions": [
-                    {
-                        "id": "transition-dissolve",
-                        "type": "dissolve",
-                        "durationMs": 250,
-                        "clipAId": "clip-a",
-                        "clipBId": "clip-b"
-                    }
-                ]
-            }
-        ]))
-        .unwrap()
+        serde_json::from_value(golden_fixture()["tracks"].clone()).unwrap()
     }
 
     #[test]
     fn computes_duration() {
-        assert_eq!(compute_duration_core(&fixture_tracks()), 2000.0);
+        assert_eq!(
+            compute_duration_core(&fixture_tracks()),
+            golden_fixture()["durationMs"].as_f64().unwrap()
+        );
     }
 
     #[test]
     fn resolves_top_video_frame() {
         assert_eq!(
             resolve_frame_core(&fixture_tracks(), 875.0),
-            Some(FrameRequest {
-                clip_id: "clip-a".to_string(),
-                asset_id: Some(json!("asset-a")),
-                source_time_ms: 875.0,
-            })
+            serde_json::from_value(golden_fixture()["resolveFrameAt875"].clone()).unwrap()
         );
     }
 
@@ -519,80 +487,18 @@ mod tests {
     fn builds_golden_compositor_descriptors() {
         let descriptors = build_compositor_descriptors_core(&fixture_tracks(), 875.0, None);
         assert_eq!(
-            descriptors,
-            json!([
-                {
-                    "clipId": "clip-a",
-                    "zIndex": 0,
-                    "sourceTimeUs": 875000.0,
-                    "opacity": 0.5,
-                    "clipPath": null,
-                    "effects": { "contrast": 0.0, "warmth": 0.0 },
-                    "transform": {
-                        "scale": 1.25,
-                        "translateX": 5.0,
-                        "translateY": 10.0,
-                        "translateXPercent": 0.0,
-                        "translateYPercent": 0.0,
-                        "rotationDeg": 15.0
-                    },
-                    "enabled": true
-                },
-                {
-                    "clipId": "clip-b",
-                    "zIndex": 0,
-                    "sourceTimeUs": 0.0,
-                    "opacity": 0.5,
-                    "clipPath": null,
-                    "effects": { "contrast": 0.0, "warmth": 0.0 },
-                    "transform": {
-                        "scale": 1.0,
-                        "translateX": 0.0,
-                        "translateY": 0.0,
-                        "translateXPercent": 0.0,
-                        "translateYPercent": 0.0,
-                        "rotationDeg": 0.0
-                    },
-                    "enabled": true
-                }
-            ])
+            normalize_numbers(descriptors),
+            normalize_numbers(golden_fixture()["compositorAt875"].clone())
         );
     }
 
     #[test]
     fn sanitizes_overlaps_and_trim_invariant() {
-        let tracks = sanitize_no_overlap_value(json!([
-            {
-                "id": "video-track",
-                "type": "video",
-                "clips": [
-                    {
-                        "id": "clip-a",
-                        "type": "video",
-                        "startMs": 0,
-                        "durationMs": 1000,
-                        "trimStartMs": 0,
-                        "trimEndMs": 0,
-                        "assetId": "asset-a",
-                        "sourceMaxDurationMs": 1200,
-                        "speed": 1
-                    },
-                    {
-                        "id": "clip-b",
-                        "type": "video",
-                        "startMs": 500,
-                        "durationMs": 1000,
-                        "trimStartMs": 0,
-                        "trimEndMs": 0,
-                        "assetId": "asset-b",
-                        "sourceMaxDurationMs": 600,
-                        "speed": 1
-                    }
-                ],
-                "transitions": []
-            }
-        ]));
-        assert_eq!(tracks[0]["clips"][1]["startMs"], json!(1000.0));
-        assert_eq!(tracks[0]["clips"][1]["durationMs"], json!(600.0));
+        let fixture = golden_fixture();
+        let tracks = sanitize_no_overlap_value(fixture["sanitizeInput"].clone());
+        assert_eq!(
+            normalize_numbers(tracks),
+            normalize_numbers(fixture["sanitizeOutput"].clone())
+        );
     }
 }

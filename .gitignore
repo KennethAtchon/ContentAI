@@ -11,5 +11,5 @@ ui-debug.log
 Thumbs.db
 
 # Generated Rust/WASM editor core
-editor-core/target/
+**/editor-core/target/
 frontend/src/features/editor/wasm/

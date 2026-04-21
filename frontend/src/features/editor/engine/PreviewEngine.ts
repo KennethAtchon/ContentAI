@@ -5,7 +5,7 @@ import {
 } from "./AudioMixer";
 import { DecoderPool, type DecoderPoolMetrics } from "./DecoderPool";
 import {
-  buildCompositorDescriptorsWithRustFallback,
+  buildCompositorDescriptorsWithRust,
   preloadEditorCoreWasm,
 } from "./editor-core-wasm";
 import type {
@@ -284,6 +284,14 @@ export class PreviewEngine {
     lastSeekLatency: null,
   };
 
+  static async create(
+    callbacks: PreviewEngineCallbacks,
+    options: { canvasWidth: number; canvasHeight: number; fps: number }
+  ): Promise<PreviewEngine> {
+    await preloadEditorCoreWasm();
+    return new PreviewEngine(callbacks, options);
+  }
+
   constructor(
     callbacks: PreviewEngineCallbacks,
     options: { canvasWidth: number; canvasHeight: number; fps: number }
@@ -297,7 +305,6 @@ export class PreviewEngine {
       this.markFirstDecodedFrameAfterSeek(clipId, timestampUs);
       this.callbacks.onFrame(frame, timestampUs, clipId);
     });
-    void preloadEditorCoreWasm();
     this.unregisterDebugProvider = systemPerformance.registerSnapshotProvider(
       "previewEngine",
       () => this.getDebugSnapshot()
@@ -460,11 +467,10 @@ export class PreviewEngine {
     const timerId = systemPerformance.start("editor.compositorTick", {
       playheadMs,
     });
-    const clips = buildCompositorDescriptorsWithRustFallback(
+    const clips = buildCompositorDescriptorsWithRust(
       this.tracks,
       playheadMs,
-      this.effectPreview,
-      () => buildCompositorClips(this.tracks, playheadMs, this.effectPreview)
+      this.effectPreview
     );
     const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;

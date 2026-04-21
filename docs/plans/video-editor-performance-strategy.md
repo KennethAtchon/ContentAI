@@ -290,7 +290,7 @@ Goal: move deterministic timeline math out of JavaScript and make frame descript
 
 Deliverables:
 
-- Create `editor-core/` Rust crate with `wasm-bindgen` and serde bindings.
+- Create `frontend/editor-core/` Rust crate with `wasm-bindgen` and serde bindings.
 - Implement `compute_duration`, `sanitize_no_overlap`, `resolve_frame`, and `build_compositor_descriptors`.
 - Keep `PreviewEngine` as the only WASM entry point in the React app.
 - Add Rust golden tests using serialized timeline fixtures from current TypeScript tests.
