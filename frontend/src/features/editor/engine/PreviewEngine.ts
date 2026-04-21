@@ -12,6 +12,7 @@ import type {
   CompositorClipDescriptor,
   CompositorClipPath,
   CompositorClipTransform,
+  CompositorPreviewQuality,
   SerializedCaptionFrame,
   SerializedTextObject,
 } from "./CompositorWorker";
@@ -19,14 +20,44 @@ import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
 import { systemPerformance } from "@/shared/utils/system/performance";
 import type { TextClip, Track, VideoClip } from "../types/editor";
 import { isTextClip, isVideoClip } from "../utils/clip-types";
-import {
-  getClipSourceTimeSecondsAtTimelineTime,
-} from "../utils/editor-composition";
+import { getClipSourceTimeSecondsAtTimelineTime } from "../utils/editor-composition";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
 import type { Transition } from "../types/editor";
 
 const REACT_PUBLISH_INTERVAL_MS = 250;
 const DECODER_RECONCILE_INTERVAL_MS = 500;
+const SCRUB_QUALITY_IDLE_RESTORE_MS = 220;
+const DROPPED_FRAME_DEGRADE_THRESHOLD = 3;
+const STABLE_FRAME_RECOVERY_THRESHOLD = 90;
+
+export type PreviewQualityLevel = "full" | "half" | "low";
+type PreviewQualityReason = "steady" | "scrubbing" | "dropped-frames";
+
+export interface PreviewQualityState extends CompositorPreviewQuality {
+  disableEffects: boolean;
+  reason: PreviewQualityReason;
+}
+
+const PREVIEW_QUALITY: Record<PreviewQualityLevel, PreviewQualityState> = {
+  full: {
+    level: "full",
+    scale: 1,
+    disableEffects: false,
+    reason: "steady",
+  },
+  half: {
+    level: "half",
+    scale: 0.5,
+    disableEffects: false,
+    reason: "scrubbing",
+  },
+  low: {
+    level: "low",
+    scale: 0.35,
+    disableEffects: true,
+    reason: "dropped-frames",
+  },
+};
 
 export interface SeekLatencyMetrics {
   seekId: number;
@@ -44,6 +75,7 @@ export interface PreviewEngineMetrics {
   compositorFrameMs: number;
   reactPublishMs: number;
   audioClockDriftMs: number;
+  previewQuality: PreviewQualityState;
   lastSeekLatency: SeekLatencyMetrics | null;
   decoderPool: DecoderPoolMetrics;
 }
@@ -63,6 +95,7 @@ export interface PreviewEngineCallbacks {
     playheadMs: number,
     clips: CompositorClipDescriptor[],
     textObjects: SerializedTextObject[],
+    quality: CompositorPreviewQuality,
     /**
      * `SerializedCaptionFrame` — new bitmap to transfer to the compositor.
      * `null`                   — explicit clear (seek, clip change).
@@ -274,6 +307,10 @@ export class PreviewEngine {
   private effectPreview: EffectPreviewPatch | null = null;
   private pendingCaptionFrame: SerializedCaptionFrame | null | undefined =
     undefined;
+  private previewQuality: PreviewQualityState = PREVIEW_QUALITY.full;
+  private scrubQualityRestoreTimer: number | null = null;
+  private droppedFramePressureCount = 0;
+  private stableFrameCount = 0;
   private metrics: PreviewEngineMetricState = {
     seekCount: 0,
     decodedFrameCount: 0,
@@ -281,6 +318,7 @@ export class PreviewEngine {
     compositorFrameMs: 0,
     reactPublishMs: 0,
     audioClockDriftMs: 0,
+    previewQuality: PREVIEW_QUALITY.full,
     lastSeekLatency: null,
   };
 
@@ -351,6 +389,7 @@ export class PreviewEngine {
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
     this.resetSessionMetrics();
+    this.setPreviewQuality("full", "steady");
     this.isPlaying = true;
     await this.audioMixer.play(
       this.currentTimeMs,
@@ -388,6 +427,8 @@ export class PreviewEngine {
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
     this.startSeekLatency(targetMs);
+    this.setPreviewQuality("half", "scrubbing");
+    this.scheduleScrubQualityRestore();
 
     this.stopRafLoop();
     this.decoderPool.pause();
@@ -439,6 +480,7 @@ export class PreviewEngine {
   getMetrics(): PreviewEngineMetrics {
     return {
       ...this.metrics,
+      previewQuality: { ...this.metrics.previewQuality },
       lastSeekLatency: this.metrics.lastSeekLatency
         ? { ...this.metrics.lastSeekLatency }
         : null,
@@ -448,6 +490,7 @@ export class PreviewEngine {
 
   destroy(): void {
     this.stopRafLoop();
+    this.clearScrubQualityRestoreTimer();
     this.decoderPool.destroy();
     this.audioMixer.destroy();
     this.unregisterDebugProvider?.();
@@ -472,20 +515,106 @@ export class PreviewEngine {
       playheadMs,
       this.effectPreview
     );
+    const previewClips = this.applyPreviewQualityToClips(clips);
     const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;
     this.pendingCaptionFrame = undefined;
-    this.callbacks.onTick(playheadMs, clips, textObjects, captionFrame);
+    this.callbacks.onTick(
+      playheadMs,
+      previewClips,
+      textObjects,
+      this.toCompositorQuality(),
+      captionFrame
+    );
     const measured = timerId
       ? systemPerformance.stop(timerId, {
-          clipCount: clips.length,
+          clipCount: previewClips.length,
           textObjectCount: textObjects.length,
           hasCaptionFrame: captionFrame !== undefined,
+          previewQuality: this.previewQuality.level,
+          previewQualityReason: this.previewQuality.reason,
         })
       : null;
     this.metrics.compositorFrameMs =
       measured?.durationMs ?? performance.now() - frameStart;
     this.markFirstCompositorTickAfterSeek(playheadMs);
+  }
+
+  private applyPreviewQualityToClips(
+    clips: CompositorClipDescriptor[]
+  ): CompositorClipDescriptor[] {
+    if (!this.previewQuality.disableEffects) return clips;
+
+    return clips.map((clip) => ({
+      ...clip,
+      effects: {
+        contrast: 0,
+        warmth: 0,
+      },
+    }));
+  }
+
+  private toCompositorQuality(): CompositorPreviewQuality {
+    return {
+      level: this.previewQuality.level,
+      scale: this.previewQuality.scale,
+    };
+  }
+
+  private setPreviewQuality(
+    level: PreviewQualityLevel,
+    reason: PreviewQualityReason
+  ): void {
+    const next = { ...PREVIEW_QUALITY[level], reason };
+    if (
+      this.previewQuality.level === next.level &&
+      this.previewQuality.reason === next.reason
+    ) {
+      return;
+    }
+
+    this.previewQuality = next;
+    this.metrics.previewQuality = next;
+    systemPerformance.setDebugValue("editorPreviewQuality", next);
+  }
+
+  private scheduleScrubQualityRestore(): void {
+    this.clearScrubQualityRestoreTimer();
+    this.scrubQualityRestoreTimer = window.setTimeout(() => {
+      this.scrubQualityRestoreTimer = null;
+      if (this.previewQuality.reason !== "scrubbing") return;
+      this.setPreviewQuality("full", "steady");
+      if (!this.isPlaying) {
+        this.tickCompositor(this.currentTimeMs);
+      }
+    }, SCRUB_QUALITY_IDLE_RESTORE_MS);
+  }
+
+  private clearScrubQualityRestoreTimer(): void {
+    if (this.scrubQualityRestoreTimer == null) return;
+
+    window.clearTimeout(this.scrubQualityRestoreTimer);
+    this.scrubQualityRestoreTimer = null;
+  }
+
+  private observeFramePressure(droppedFrames: number): void {
+    if (droppedFrames > 0) {
+      this.stableFrameCount = 0;
+      this.droppedFramePressureCount += 1;
+      if (this.droppedFramePressureCount >= DROPPED_FRAME_DEGRADE_THRESHOLD) {
+        this.setPreviewQuality("low", "dropped-frames");
+      }
+      return;
+    }
+
+    this.droppedFramePressureCount = 0;
+    if (this.previewQuality.reason !== "dropped-frames") return;
+
+    this.stableFrameCount += 1;
+    if (this.stableFrameCount >= STABLE_FRAME_RECOVERY_THRESHOLD) {
+      this.stableFrameCount = 0;
+      this.setPreviewQuality("full", "steady");
+    }
   }
 
   private buildTextObjects(timelineMs: number): SerializedTextObject[] {
@@ -543,10 +672,14 @@ export class PreviewEngine {
       if (this.lastAudibleTickMs != null) {
         const audioDeltaMs = audibleMs - this.lastAudibleTickMs;
         if (audioDeltaMs > frameBudgetMs * 1.5) {
-          this.metrics.droppedFrameCount += Math.max(
+          const droppedFrames = Math.max(
             0,
             Math.round(audioDeltaMs / frameBudgetMs) - 1
           );
+          this.metrics.droppedFrameCount += droppedFrames;
+          this.observeFramePressure(droppedFrames);
+        } else {
+          this.observeFramePressure(0);
         }
       }
       this.lastAudibleTickMs = audibleMs;
@@ -601,6 +734,8 @@ export class PreviewEngine {
   }
 
   private resetSessionMetrics(): void {
+    this.droppedFramePressureCount = 0;
+    this.stableFrameCount = 0;
     this.metrics = {
       seekCount: 0,
       decodedFrameCount: 0,
@@ -608,6 +743,7 @@ export class PreviewEngine {
       compositorFrameMs: 0,
       reactPublishMs: 0,
       audioClockDriftMs: 0,
+      previewQuality: this.previewQuality,
       lastSeekLatency: null,
     };
     this.activeSeekLatency = null;
@@ -714,6 +850,7 @@ export class PreviewEngine {
       fps: this.fps,
       canvasWidth: this.canvasWidth,
       canvasHeight: this.canvasHeight,
+      previewQuality: this.previewQuality,
       metrics: this.getMetrics(),
     };
   }

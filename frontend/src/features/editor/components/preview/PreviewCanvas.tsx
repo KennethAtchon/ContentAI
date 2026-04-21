@@ -11,10 +11,12 @@ import { formatMMSS } from "../../utils/timecode";
 import type {
   CompositorWorkerPerformanceMetrics,
   CompositorClipDescriptor,
+  CompositorPreviewQuality,
   SerializedTextObject,
   SerializedCaptionFrame,
 } from "../../engine/CompositorWorker";
 import { systemPerformance } from "@/shared/utils/system/performance";
+import { EDITOR_COMPOSITOR_RENDERER } from "@/shared/utils/config/envUtil";
 
 export interface PreviewCanvasHandle {
   /**
@@ -25,7 +27,8 @@ export interface PreviewCanvasHandle {
     playheadMs: number,
     clips: CompositorClipDescriptor[],
     textObjects: SerializedTextObject[],
-    captionFrame?: SerializedCaptionFrame | null
+    captionFrame?: SerializedCaptionFrame | null,
+    quality?: CompositorPreviewQuality
   ): void;
   /**
    * Notify the compositor of a decoded VideoFrame from the DecoderPool.
@@ -106,6 +109,7 @@ export const PreviewCanvas = forwardRef<
           width: resolutionWidth,
           height: resolutionHeight,
           debugEnabled: systemPerformance.isEnabled,
+          rendererPreference: EDITOR_COMPOSITOR_RENDERER,
         },
         [offscreen]
       );
@@ -145,7 +149,8 @@ export const PreviewCanvas = forwardRef<
       playheadMs: number,
       clips: CompositorClipDescriptor[],
       textObjects: SerializedTextObject[],
-      captionFrame?: SerializedCaptionFrame | null
+      captionFrame?: SerializedCaptionFrame | null,
+      quality?: CompositorPreviewQuality
     ) => {
       const worker = compositorWorkerRef.current;
       if (!worker || !compositorReadyRef.current) return;
@@ -160,7 +165,7 @@ export const PreviewCanvas = forwardRef<
         transferables
       );
 
-      worker.postMessage({ type: "TICK", playheadMs, clips });
+      worker.postMessage({ type: "TICK", playheadMs, clips, quality });
     },
     []
   );

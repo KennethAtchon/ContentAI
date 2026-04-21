@@ -114,12 +114,13 @@ export function usePreviewEngine({
         onFrame(frame, timestampUs, clipId) {
           previewRef.current?.receiveFrame(frame, timestampUs, clipId);
         },
-        onTick(playheadMs, clips, textObjects, captionFrame) {
+        onTick(playheadMs, clips, textObjects, quality, captionFrame) {
           previewRef.current?.tick(
             playheadMs,
             clips,
             textObjects,
-            captionFrame
+            captionFrame,
+            quality
           );
         },
         onRenderTick(playheadMs) {
@@ -157,6 +158,7 @@ export function usePreviewEngine({
       })
       .catch((error: unknown) => {
         if (disposed) return;
+        // eslint-disable-next-line no-console -- initialization failures need a visible local signal
         console.error("Failed to initialize preview engine.", error);
       });
 

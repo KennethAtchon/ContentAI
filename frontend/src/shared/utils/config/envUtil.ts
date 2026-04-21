@@ -81,6 +81,10 @@ export const APP_NAME = getEnvVar("VITE_APP_NAME", "App");
 // Debug & Logging
 // ============================================================================
 export const DEBUG_ENABLED = getEnvVarAsBoolean("VITE_DEBUG", false);
+export const EDITOR_COMPOSITOR_RENDERER = getEnvVar(
+  "VITE_EDITOR_COMPOSITOR_RENDERER",
+  "auto"
+) as "auto" | "webgl2" | "canvas2d";
 export const LOG_LEVEL = getEnvVar("VITE_LOG_LEVEL", "warn") as
   | "debug"
   | "info"

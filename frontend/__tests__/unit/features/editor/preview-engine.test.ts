@@ -179,6 +179,13 @@ describe("PreviewEngine performance metrics", () => {
       assetUrls: [],
     });
     expect(metrics.decoderPool.clipSeekMetrics).toEqual({});
+    expect(metrics.previewQuality).toEqual(
+      expect.objectContaining({
+        level: "half",
+        scale: 0.5,
+        reason: "scrubbing",
+      })
+    );
     expect(metrics.lastSeekLatency).toEqual(
       expect.objectContaining({
         targetMs: 500,
@@ -189,6 +196,47 @@ describe("PreviewEngine performance metrics", () => {
 
     engine.destroy();
     systemPerformance.clear();
+  });
+
+  test("drops preview quality while scrubbing and restores it after idle", async () => {
+    const qualityLevels: string[] = [];
+
+    const engine = await PreviewEngine.create(
+      {
+        onTimeUpdate() {},
+        onPlaybackEnd() {},
+        onFrame(frame) {
+          frame.close();
+        },
+        onTick(_playheadMs, _clips, _textObjects, quality) {
+          qualityLevels.push(quality.level);
+        },
+        onClearFrames() {},
+      },
+      { canvasWidth: 1080, canvasHeight: 1920, fps: 30 }
+    );
+
+    engine.update([], new Map(), 2000, null, {
+      canvasWidth: 1080,
+      canvasHeight: 1920,
+      fps: 30,
+    });
+    await engine.seek(500);
+
+    expect(qualityLevels).toContain("half");
+
+    await new Promise((resolve) => window.setTimeout(resolve, 260));
+
+    expect(qualityLevels.at(-1)).toBe("full");
+    expect(engine.getMetrics().previewQuality).toEqual(
+      expect.objectContaining({
+        level: "full",
+        scale: 1,
+        reason: "steady",
+      })
+    );
+
+    engine.destroy();
   });
 });
 
@@ -680,7 +728,7 @@ describe("PreviewEngine text overlays", () => {
         onFrame(frame) {
           frame.close();
         },
-        onTick(_playheadMs, _clips, _textObjects, captionFrame) {
+        onTick(_playheadMs, _clips, _textObjects, _quality, captionFrame) {
           captionFrames.push(captionFrame);
         },
         onClearFrames() {},

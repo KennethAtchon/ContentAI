@@ -1,101 +1,38 @@
 /**
  * CompositorWorker - runs in a Worker thread.
  *
- * Owns an OffscreenCanvas. Receives VideoFrame objects from the DecoderPool,
- * stores them in per-clip queues, and composites the best frame for each clip
- * onto the transferred preview canvas on every TICK.
- *
- * Message protocol (main -> worker):
- *   { type: "INIT", canvas: OffscreenCanvas, width: number, height: number }
- *   { type: "RESIZE", width: number, height: number }
- *   { type: "FRAME", frame: VideoFrame, timestampUs: number, clipId: string }
- *   { type: "TICK", playheadMs: number, clips: CompositorClipDescriptor[] }
- *   { type: "OVERLAY", textObjects: SerializedTextObject[], captionFrame?: SerializedCaptionFrame | null }
- *   { type: "CLEAR_CLIP", clipId: string }
- *   { type: "DESTROY" }
- *
- * Message protocol (worker -> main):
- *   { type: "READY" }
- *   { type: "PERFORMANCE", metrics: CompositorWorkerPerformanceMetrics }
- *
- * High-level flow:
- *   1. INIT receives the OffscreenCanvas transferred from PreviewCanvas.
- *   2. FRAME receives transferred VideoFrames and stores them by clip id.
- *   3. OVERLAY updates text/caption data that should draw over video.
- *   4. TICK chooses the best frame for each timeline clip and draws the whole
- *      preview frame: background -> video layers -> text -> caption bitmap.
- *   5. CLEAR_CLIP/DESTROY close owned VideoFrames and ImageBitmaps.
- *
- * Ownership rule: once a VideoFrame/ImageBitmap is transferred into this worker,
- * this worker is responsible for eventually drawing or closing it.
+ * Owns the worker protocol and VideoFrame queues. Actual pixel rendering lives
+ * in `engine/compositor/*` so Canvas 2D and WebGL2 stay easy to inspect and
+ * switch independently.
  */
 
-export interface CompositorClipDescriptor {
-  clipId: string;
-  /** Canvas z-index: 0 = bottom track, higher = on top. */
-  zIndex: number;
-  /** Source-media timestamp to display for this clip on the current tick. */
-  sourceTimeUs: number;
-  /** Computed opacity (0-1), already accounting for transitions and enabled state. */
-  opacity: number;
-  /** Typed clip region for wipe transitions, or null. Values are percentages. */
-  clipPath: CompositorClipPath | null;
-  /** Numeric effect values. Contrast/warmth match editor slider units. */
-  effects: CompositorClipEffects;
-  /** Numeric transform descriptor applied by the worker without string parsing. */
-  transform: CompositorClipTransform;
-  /** If false, skip this clip entirely. */
-  enabled: boolean;
-}
+import {
+  createCompositorRenderer,
+  type CompositorClipDescriptor,
+  type CompositorPreviewQuality,
+  type CompositorRenderer,
+  type CompositorRendererMode,
+  type CompositorRendererPreference,
+  type SerializedCaptionFrame,
+  type SerializedTextObject,
+} from "./compositor";
 
-export interface CompositorClipTransform {
-  scale: number;
-  translateX: number;
-  translateY: number;
-  translateXPercent: number;
-  translateYPercent: number;
-  rotationDeg: number;
-}
-
-export interface CompositorClipEffects {
-  contrast: number;
-  warmth: number;
-}
-
-export type CompositorClipPath =
-  | {
-      type: "inset";
-      top: number;
-      right: number;
-      bottom: number;
-      left: number;
-    }
-  | {
-      type: "polygon";
-      points: Array<{ x: number; y: number }>;
-    };
-
-export interface SerializedTextObject {
-  text: string;
-  x: number;
-  y: number;
-  fontSize: number;
-  fontWeight: string;
-  color: string;
-  align: CanvasTextAlign;
-  opacity: number;
-  maxWidth: number;
-  lineHeight: number;
-}
-
-export interface SerializedCaptionFrame {
-  /** Pre-rendered caption pixels. The compositor owns and closes this bitmap. */
-  bitmap: ImageBitmap;
-}
+export type {
+  CompositorClipDescriptor,
+  CompositorClipEffects,
+  CompositorClipPath,
+  CompositorClipTransform,
+  CompositorPreviewQuality,
+  CompositorRendererMode,
+  CompositorRendererPreference,
+  SerializedCaptionFrame,
+  SerializedTextObject,
+} from "./compositor";
 
 export interface CompositorWorkerPerformanceMetrics {
   playheadMs: number;
   compositorFrameMs: number;
+  renderer: CompositorRendererMode;
   clipCount: number;
   textObjectCount: number;
   captionFramePresent: boolean;
@@ -105,6 +42,7 @@ export interface CompositorWorkerPerformanceMetrics {
   queueEvictedFrameCount: number;
   canvasWidth: number;
   canvasHeight: number;
+  previewQuality: CompositorPreviewQuality;
 }
 
 type CompositorWorkerMessage =
@@ -114,6 +52,7 @@ type CompositorWorkerMessage =
       width: number;
       height: number;
       debugEnabled?: boolean;
+      rendererPreference?: CompositorRendererPreference;
     }
   | { type: "RESIZE"; width: number; height: number }
   | { type: "FRAME"; frame: VideoFrame; timestampUs: number; clipId: string }
@@ -122,16 +61,14 @@ type CompositorWorkerMessage =
       textObjects: SerializedTextObject[];
       captionFrame?: SerializedCaptionFrame | null;
     }
-  | { type: "TICK"; playheadMs: number; clips: CompositorClipDescriptor[] }
+  | {
+      type: "TICK";
+      playheadMs: number;
+      clips: CompositorClipDescriptor[];
+      quality?: CompositorPreviewQuality;
+    }
   | { type: "CLEAR_CLIP"; clipId: string }
   | { type: "DESTROY" };
-
-interface DrawRect {
-  dx: number;
-  dy: number;
-  dw: number;
-  dh: number;
-}
 
 // Bun's lib does not include DedicatedWorkerGlobalScope. Define the minimal
 // surface we need so postMessage uses the browser Transferable signature.
@@ -143,15 +80,15 @@ interface WorkerCtx extends EventTarget {
 }
 
 const ctx = self as unknown as WorkerCtx;
+const FULL_QUALITY: CompositorPreviewQuality = { level: "full", scale: 1 };
 
 class CompositorWorker {
-  /** Canvas transferred from the visible <canvas>; drawing here updates preview. */
-  private offscreenCanvas: OffscreenCanvas | null = null;
-  private renderCtx: OffscreenCanvasRenderingContext2D | null = null;
+  private renderer: CompositorRenderer | null = null;
   private canvasWidth = 0;
   private canvasHeight = 0;
   private isDestroyed = false;
   private debugEnabled = false;
+  private quality: CompositorPreviewQuality = FULL_QUALITY;
   private textObjects: SerializedTextObject[] = [];
   /** Latest caption bitmap, replaced only when OVERLAY includes captionFrame. */
   private captionFrame: SerializedCaptionFrame | null = null;
@@ -196,7 +133,7 @@ class CompositorWorker {
         this.updateOverlay(message);
         break;
       case "TICK":
-        this.tick(message.playheadMs, message.clips);
+        this.tick(message.playheadMs, message.clips, message.quality);
         break;
       case "CLEAR_CLIP":
         this.clearClipFrames(message.clipId);
@@ -207,26 +144,24 @@ class CompositorWorker {
     }
   }
 
-  /**
-   * Entry point from PreviewCanvas. This receives ownership of the visible
-   * canvas as an OffscreenCanvas and prepares the 2D render context.
-   */
   private init(message: Extract<CompositorWorkerMessage, { type: "INIT" }>) {
-    this.offscreenCanvas = message.canvas;
     this.canvasWidth = message.width;
     this.canvasHeight = message.height;
     this.debugEnabled = message.debugEnabled === true;
-    this.applyCanvasSize();
-    this.renderCtx = this.offscreenCanvas.getContext("2d", {
-      alpha: false,
-    }) as OffscreenCanvasRenderingContext2D;
+    this.renderer = createCompositorRenderer({
+      canvas: message.canvas,
+      width: message.width,
+      height: message.height,
+      preference: message.rendererPreference ?? "auto",
+      quality: this.quality,
+    });
     this.worker.postMessage({ type: "READY" });
   }
 
   private resize(width: number, height: number): void {
     this.canvasWidth = width;
     this.canvasHeight = height;
-    this.applyCanvasSize();
+    this.renderer?.resize(width, height, this.quality);
   }
 
   private receiveFrame(clipId: string, frame: VideoFrame): void {
@@ -245,13 +180,36 @@ class CompositorWorker {
     this.captionFrame = message.captionFrame ?? null;
   }
 
-  private tick(playheadMs: number, clips: CompositorClipDescriptor[]): void {
+  private tick(
+    playheadMs: number,
+    clips: CompositorClipDescriptor[],
+    quality: CompositorPreviewQuality | undefined
+  ): void {
     const frameStart = performance.now();
-    this.composite(clips);
+    this.applyQuality(quality);
+    this.renderer?.render({
+      clips,
+      textObjects: this.textObjects,
+      captionFrame: this.captionFrame,
+      pickFrame: (clipId, sourceTimeUs) => this.pickFrame(clipId, sourceTimeUs),
+    });
 
     if (this.debugEnabled) {
       this.postPerformanceMetrics(playheadMs, clips, frameStart);
     }
+  }
+
+  private applyQuality(quality: CompositorPreviewQuality | undefined): void {
+    if (!quality) return;
+    if (
+      this.quality.level === quality.level &&
+      this.quality.scale === quality.scale
+    ) {
+      return;
+    }
+
+    this.quality = quality;
+    this.renderer?.resize(this.canvasWidth, this.canvasHeight, this.quality);
   }
 
   private destroy(): void {
@@ -261,8 +219,8 @@ class CompositorWorker {
     this.clearAllFrames();
     this.closeCaptionFrame();
     this.textObjects = [];
-    this.offscreenCanvas = null;
-    this.renderCtx = null;
+    this.renderer?.destroy();
+    this.renderer = null;
     this.worker.close();
   }
 
@@ -361,6 +319,7 @@ class CompositorWorker {
 
   private closeFrames(frames: VideoFrame[], evicted: boolean): void {
     for (const frame of frames) {
+      this.renderer?.releaseFrame(frame);
       frame.close();
       this.closedFrameCount += 1;
       if (evicted) {
@@ -387,231 +346,6 @@ class CompositorWorker {
   }
 
   // ---------------------------------------------------------------------------
-  // Compositing
-  // ---------------------------------------------------------------------------
-
-  private composite(clips: CompositorClipDescriptor[]): void {
-    if (!this.renderCtx || !this.offscreenCanvas) return;
-
-    this.clearCanvas();
-
-    // Clips are descriptors from PreviewEngine; the worker owns only rendering.
-    for (const clip of this.getDrawableClips(clips)) {
-      const frame = this.pickFrame(clip.clipId, clip.sourceTimeUs);
-      if (!frame) continue;
-      this.drawClipFrame(clip, frame);
-    }
-
-    this.drawTextObjects();
-    this.drawCaptionFrame();
-  }
-
-  private clearCanvas(): void {
-    if (!this.renderCtx) return;
-
-    this.renderCtx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-    this.renderCtx.fillStyle = "#000";
-    this.renderCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-  }
-
-  private getDrawableClips(
-    clips: CompositorClipDescriptor[]
-  ): CompositorClipDescriptor[] {
-    return [...clips]
-      .filter((clip) => clip.enabled && clip.opacity > 0)
-      .sort((a, b) => a.zIndex - b.zIndex);
-  }
-
-  private drawClipFrame(
-    clip: CompositorClipDescriptor,
-    frame: VideoFrame
-  ): void {
-    if (!this.renderCtx) return;
-
-    const drawRect = this.getObjectContainRect(frame);
-
-    this.renderCtx.save();
-    this.renderCtx.globalAlpha = clip.opacity;
-    this.renderCtx.filter = this.buildCanvasFilter(clip.effects);
-
-    if (clip.clipPath) {
-      // Clip path is applied before transform, matching the old canvas behavior.
-      this.applyClipPath(clip.clipPath);
-    }
-
-    this.applyTransform(clip.transform);
-    this.renderCtx.drawImage(
-      frame,
-      drawRect.dx,
-      drawRect.dy,
-      drawRect.dw,
-      drawRect.dh
-    );
-    this.renderCtx.restore();
-  }
-
-  private getObjectContainRect(frame: VideoFrame): DrawRect {
-    const frameAspect = frame.displayWidth / frame.displayHeight;
-    const canvasAspect = this.canvasWidth / this.canvasHeight;
-
-    let dx = 0;
-    let dy = 0;
-    let dw = this.canvasWidth;
-    let dh = this.canvasHeight;
-
-    if (frameAspect > canvasAspect) {
-      dh = this.canvasWidth / frameAspect;
-      dy = (this.canvasHeight - dh) / 2;
-    } else {
-      dw = this.canvasHeight * frameAspect;
-      dx = (this.canvasWidth - dw) / 2;
-    }
-
-    return { dx, dy, dw, dh };
-  }
-
-  private drawTextObjects(): void {
-    if (!this.renderCtx) return;
-
-    for (const text of this.textObjects) {
-      this.drawTextObject(text);
-    }
-  }
-
-  private drawTextObject(text: SerializedTextObject): void {
-    if (!this.renderCtx) return;
-
-    this.renderCtx.save();
-    this.renderCtx.globalAlpha = text.opacity;
-    this.renderCtx.font = `${text.fontWeight} ${text.fontSize}px sans-serif`;
-    this.renderCtx.fillStyle = text.color;
-    this.renderCtx.textAlign = text.align;
-    this.renderCtx.textBaseline = "middle";
-    this.renderCtx.shadowColor = "rgba(0,0,0,0.8)";
-    this.renderCtx.shadowBlur = 8;
-
-    const lines = text.text.split("\n");
-    const blockHeight = Math.max(text.lineHeight, 1) * lines.length;
-    const firstLineY = text.y - blockHeight / 2 + text.lineHeight / 2;
-
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      this.renderCtx.fillText(
-        lines[lineIndex] ?? "",
-        text.x,
-        firstLineY + lineIndex * text.lineHeight,
-        text.maxWidth
-      );
-    }
-
-    this.renderCtx.restore();
-  }
-
-  private drawCaptionFrame(): void {
-    if (!this.renderCtx || !this.captionFrame) return;
-
-    this.renderCtx.drawImage(
-      this.captionFrame.bitmap,
-      0,
-      0,
-      this.canvasWidth,
-      this.canvasHeight
-    );
-  }
-
-  private applyTransform(transform: CompositorClipTransform): void {
-    if (!this.renderCtx) return;
-
-    const scale =
-      Number.isFinite(transform.scale) && transform.scale > 0
-        ? transform.scale
-        : 1;
-
-    if (scale !== 1) {
-      this.renderCtx.transform(
-        scale,
-        0,
-        0,
-        scale,
-        (this.canvasWidth / 2) * (1 - scale),
-        (this.canvasHeight / 2) * (1 - scale)
-      );
-    }
-
-    const translateX =
-      transform.translateX +
-      (transform.translateXPercent / 100) * this.canvasWidth;
-    const translateY =
-      transform.translateY +
-      (transform.translateYPercent / 100) * this.canvasHeight;
-
-    if (translateX !== 0 || translateY !== 0) {
-      this.renderCtx.translate(translateX, translateY);
-    }
-
-    if (transform.rotationDeg === 0) return;
-
-    const centerX = this.canvasWidth / 2;
-    const centerY = this.canvasHeight / 2;
-    const radians = (transform.rotationDeg * Math.PI) / 180;
-    this.renderCtx.translate(centerX, centerY);
-    this.renderCtx.rotate(radians);
-    this.renderCtx.translate(-centerX, -centerY);
-  }
-
-  private applyClipPath(clipPath: CompositorClipPath): void {
-    if (!this.renderCtx) return;
-
-    if (clipPath.type === "inset") {
-      const top = (clipPath.top / 100) * this.canvasHeight;
-      const right = (clipPath.right / 100) * this.canvasWidth;
-      const bottom = (clipPath.bottom / 100) * this.canvasHeight;
-      const left = (clipPath.left / 100) * this.canvasWidth;
-
-      this.renderCtx.beginPath();
-      this.renderCtx.rect(
-        left,
-        top,
-        this.canvasWidth - left - right,
-        this.canvasHeight - top - bottom
-      );
-      this.renderCtx.clip();
-      return;
-    }
-
-    const points = clipPath.points.map((point) => ({
-      x: (point.x / 100) * this.canvasWidth,
-      y: (point.y / 100) * this.canvasHeight,
-    }));
-
-    if (points.length < 3) return;
-
-    this.renderCtx.beginPath();
-    this.renderCtx.moveTo(points[0]!.x, points[0]!.y);
-    for (let index = 1; index < points.length; index += 1) {
-      this.renderCtx.lineTo(points[index]!.x, points[index]!.y);
-    }
-    this.renderCtx.closePath();
-    this.renderCtx.clip();
-  }
-
-  private buildCanvasFilter(effects: CompositorClipEffects): string {
-    const filterParts: string[] = [];
-
-    if (effects.contrast !== 0) {
-      filterParts.push(`contrast(${1 + effects.contrast / 100})`);
-    }
-
-    if (effects.warmth !== 0) {
-      filterParts.push(
-        `hue-rotate(${-effects.warmth * 0.3}deg)`,
-        `saturate(${1 + effects.warmth * 0.005})`
-      );
-    }
-
-    return filterParts.join(" ") || "none";
-  }
-
-  // ---------------------------------------------------------------------------
   // Metrics and cleanup helpers
   // ---------------------------------------------------------------------------
 
@@ -627,6 +361,8 @@ class CompositorWorker {
         metrics: {
           playheadMs,
           compositorFrameMs: performance.now() - frameStart,
+          renderer: this.renderer?.mode ?? "canvas2d",
+          previewQuality: this.quality,
           clipCount: clips.length,
           textObjectCount: this.textObjects.length,
           captionFramePresent: this.captionFrame !== null,
@@ -643,13 +379,6 @@ class CompositorWorker {
       },
       []
     );
-  }
-
-  private applyCanvasSize(): void {
-    if (!this.offscreenCanvas) return;
-
-    this.offscreenCanvas.width = this.canvasWidth;
-    this.offscreenCanvas.height = this.canvasHeight;
   }
 
   private closeCaptionFrame(): void {

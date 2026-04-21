@@ -19,24 +19,28 @@ The forcing function is straightforward: if we add more tracks, effects, transit
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Smooth preview playback | 1080x1920 timelines with 2 video tracks, captions, and text maintain p95 compositor time under 8ms and p95 frame interval under 40ms at 30fps on a normal laptop. |
-| 2 | Fast scrubbing | Seek-to-visible-frame p95 under 200ms for cached/nearby clips and under 600ms for cold clips. |
-| 3 | Bounded memory | VideoFrame queues are bounded, old frames are closed, and active decode workers stay within a fixed budget. |
-| 4 | Debuggable runtime | A developer can inspect dropped frames, decode queue, compositor time, active workers, seek latency, and audio drift without adding ad hoc logs. |
-| 5 | Incremental delivery | Each phase ships independently and leaves the editor usable. |
-| 6 | Client export path | Standard timelines up to 5 minutes can export in browser when WebCodecs support exists; server export remains fallback. |
+
+| #   | Goal                    | Success Looks Like                                                                                                                                                |
+| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Smooth preview playback | 1080x1920 timelines with 2 video tracks, captions, and text maintain p95 compositor time under 8ms and p95 frame interval under 40ms at 30fps on a normal laptop. |
+| 2   | Fast scrubbing          | Seek-to-visible-frame p95 under 200ms for cached/nearby clips and under 600ms for cold clips.                                                                     |
+| 3   | Bounded memory          | VideoFrame queues are bounded, old frames are closed, and active decode workers stay within a fixed budget.                                                       |
+| 4   | Debuggable runtime      | A developer can inspect dropped frames, decode queue, compositor time, active workers, seek latency, and audio drift without adding ad hoc logs.                  |
+| 5   | Incremental delivery    | Each phase ships independently and leaves the editor usable.                                                                                                      |
+| 6   | Client export path      | Standard timelines up to 5 minutes can export in browser when WebCodecs support exists; server export remains fallback.                                           |
+
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Rewriting the React editor UI | The recent React refactor addressed state ownership; performance work should not reopen that surface. |
-| 2 | Building our own codec implementation | Browser-native WebCodecs should handle decode/encode where available. |
-| 3 | Removing server-side export | Long timelines, unsupported browsers, and failure recovery still need server fallback. |
-| 4 | Supporting every container/codec in v1 | Start with the formats ReelStudio already creates and uploads most often. |
-| 5 | Shipping all Rust/WebGL/export work in one branch | The risk is too high; every phase needs measurable rollback. |
+
+| #   | Non-Goal                                          | Reason                                                                                                |
+| --- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Rewriting the React editor UI                     | The recent React refactor addressed state ownership; performance work should not reopen that surface. |
+| 2   | Building our own codec implementation             | Browser-native WebCodecs should handle decode/encode where available.                                 |
+| 3   | Removing server-side export                       | Long timelines, unsupported browsers, and failure recovery still need server fallback.                |
+| 4   | Supporting every container/codec in v1            | Start with the formats ReelStudio already creates and uploads most often.                             |
+| 5   | Shipping all Rust/WebGL/export work in one branch | The risk is too high; every phase needs measurable rollback.                                          |
+
 
 ---
 
@@ -111,15 +115,17 @@ Sources: [mp4-muxer deprecation notice](https://vanilagy.github.io/mp4-muxer/), 
 
 Keep the current TypeScript descriptor math, worker decode pool, Canvas 2D compositor, and server export. Add minor queue-size tweaks and more logs.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low. No architecture change. |
-| Performance | Limited. It may smooth small timelines but cannot remove regex transform parsing, Canvas 2D effect cost, or main-thread descriptor work. |
-| Reliability | Moderate. Few changes, but existing fragile paths remain. |
-| Cost | Low engineering cost now, higher debugging cost later. |
-| Reversibility | Easy. |
-| Stack fit | Fits current code because it changes almost nothing. |
-| Team readiness | High. |
+
+| Dimension      | Assessment                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Complexity     | Low. No architecture change.                                                                                                             |
+| Performance    | Limited. It may smooth small timelines but cannot remove regex transform parsing, Canvas 2D effect cost, or main-thread descriptor work. |
+| Reliability    | Moderate. Few changes, but existing fragile paths remain.                                                                                |
+| Cost           | Low engineering cost now, higher debugging cost later.                                                                                   |
+| Reversibility  | Easy.                                                                                                                                    |
+| Stack fit      | Fits current code because it changes almost nothing.                                                                                     |
+| Team readiness | High.                                                                                                                                    |
+
 
 Risks: hides real bottlenecks until more editor features arrive; normalizes ad hoc performance work; keeps export server-bound.
 
@@ -129,15 +135,17 @@ Open questions: none. This is the easiest path and the least useful long term.
 
 Replace CSS strings with typed matrices and numeric effect descriptors, then update `CompositorWorker` to apply Canvas 2D transforms from numbers. Keep decode and export mostly unchanged.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium. Descriptor protocol changes but no Rust build chain. |
-| Performance | Better than status quo, especially by removing regex/string parsing. Still limited by Canvas 2D effects and CPU compositing. |
-| Reliability | Good intermediate step because typed descriptors are testable. |
-| Cost | Moderate. |
-| Reversibility | Good. The descriptor protocol can feed future WebGL/Rust work. |
-| Stack fit | Strong. Pure TypeScript and existing worker protocol. |
-| Team readiness | High. |
+
+| Dimension      | Assessment                                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Complexity     | Medium. Descriptor protocol changes but no Rust build chain.                                                                 |
+| Performance    | Better than status quo, especially by removing regex/string parsing. Still limited by Canvas 2D effects and CPU compositing. |
+| Reliability    | Good intermediate step because typed descriptors are testable.                                                               |
+| Cost           | Moderate.                                                                                                                    |
+| Reversibility  | Good. The descriptor protocol can feed future WebGL/Rust work.                                                               |
+| Stack fit      | Strong. Pure TypeScript and existing worker protocol.                                                                        |
+| Team readiness | High.                                                                                                                        |
+
 
 Risks: can become a plateau if treated as the final compositor; Canvas 2D filter support and clipping remain uneven performance surfaces.
 
@@ -147,15 +155,17 @@ Open questions: how much preview improvement do typed descriptors alone deliver 
 
 Move timeline resolution, transition interpolation, effect math, and matrix generation into Rust/WASM, but implement the GPU compositor in TypeScript using WebGL2 in `CompositorWorker`.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium-high. Adds Rust/WASM but keeps WebGL integration easier to debug in browser devtools. |
-| Performance | Strong. Removes per-frame JS math/string churn and moves blend/transform/effects to GPU. |
-| Reliability | Good if the Rust output is covered by golden tests and the worker protocol remains stable. |
-| Cost | Higher initial setup, lower long-term complexity for timeline math. |
-| Reversibility | Moderate. Descriptor protocol can fall back to TS builders during rollout. |
-| Stack fit | Good. React stays UI-only; engine remains behind `PreviewEngine`. |
-| Team readiness | Medium. Requires Rust/WASM comfort, but avoids `wgpu` complexity at first. |
+
+| Dimension      | Assessment                                                                                   |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| Complexity     | Medium-high. Adds Rust/WASM but keeps WebGL integration easier to debug in browser devtools. |
+| Performance    | Strong. Removes per-frame JS math/string churn and moves blend/transform/effects to GPU.     |
+| Reliability    | Good if the Rust output is covered by golden tests and the worker protocol remains stable.   |
+| Cost           | Higher initial setup, lower long-term complexity for timeline math.                          |
+| Reversibility  | Moderate. Descriptor protocol can fall back to TS builders during rollout.                   |
+| Stack fit      | Good. React stays UI-only; engine remains behind `PreviewEngine`.                            |
+| Team readiness | Medium. Requires Rust/WASM comfort, but avoids `wgpu` complexity at first.                   |
+
 
 Risks: WASM load failures, type conversion overhead if JS/Rust data crossing is too chatty, WebGL shader bugs.
 
@@ -165,15 +175,17 @@ Open questions: whether raw WebGL2 implementation is simpler than `wgpu` for the
 
 Move both timeline math and compositor implementation into Rust/WASM, potentially using `wgpu` or raw WebGL bindings through `web-sys`.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | High. Harder build pipeline, harder browser debugging, larger WASM surface. |
-| Performance | Potentially strongest if implemented well. |
-| Reliability | Depends heavily on tooling and browser coverage. |
-| Cost | Highest. |
-| Reversibility | Lower. More code moves across the JS/Rust boundary. |
-| Stack fit | Conceptually aligned with the long-term architecture, but may be too much for the first performance pass. |
-| Team readiness | Medium-low until a small spike proves the toolchain. |
+
+| Dimension      | Assessment                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| Complexity     | High. Harder build pipeline, harder browser debugging, larger WASM surface.                               |
+| Performance    | Potentially strongest if implemented well.                                                                |
+| Reliability    | Depends heavily on tooling and browser coverage.                                                          |
+| Cost           | Highest.                                                                                                  |
+| Reversibility  | Lower. More code moves across the JS/Rust boundary.                                                       |
+| Stack fit      | Conceptually aligned with the long-term architecture, but may be too much for the first performance pass. |
+| Team readiness | Medium-low until a small spike proves the toolchain.                                                      |
+
 
 Risks: build-tool churn, browser-specific GPU behavior, larger WASM payload, test environment mocking complexity.
 
@@ -183,15 +195,17 @@ Open questions: whether `wgpu` WebGL2 backend is worth the weight versus raw Web
 
 Move preview rendering to the backend and stream frames/video to the browser.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Very high. Requires low-latency render infrastructure. |
-| Performance | Could be strong on powerful servers but poor for interactive latency. |
-| Reliability | Network-dependent; every scrub depends on server availability. |
-| Cost | High ongoing infrastructure cost. |
-| Reversibility | Poor. |
-| Stack fit | Weak for a local-first editor. |
-| Team readiness | Low. |
+
+| Dimension      | Assessment                                                            |
+| -------------- | --------------------------------------------------------------------- |
+| Complexity     | Very high. Requires low-latency render infrastructure.                |
+| Performance    | Could be strong on powerful servers but poor for interactive latency. |
+| Reliability    | Network-dependent; every scrub depends on server availability.        |
+| Cost           | High ongoing infrastructure cost.                                     |
+| Reversibility  | Poor.                                                                 |
+| Stack fit      | Weak for a local-first editor.                                        |
+| Team readiness | Low.                                                                  |
+
 
 Risks: makes scrubbing network-bound, increases server load, introduces new queue/streaming failure modes.
 
@@ -375,52 +389,60 @@ Rollback:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|------------|--------|------------|
-| 1 | WebCodecs unavailable or codec config unsupported | Medium | High | Capability checks, server export fallback, simple-preview fallback where possible. |
-| 2 | WebGL2 compositor has browser-specific bugs | Medium | High | Canvas 2D fallback, visual fixtures, feature flag rollout. |
-| 3 | WASM boundary overhead eats Rust gains | Medium | Medium | Pass compact typed descriptors, avoid per-clip chatty calls, benchmark before migration. |
-| 4 | VideoFrame leaks cause GPU memory blowups | Medium | High | Centralize frame ownership rules, assert close paths in worker tests, expose queue sizes. |
-| 5 | Audio export drifts from video export | Medium | High | Use frame-indexed export timeline and `OfflineAudioContext`; test known duration fixtures. |
-| 6 | Adaptive preview hides real export output | Low | Medium | Make adaptive quality preview-only and visible in debug UI. |
-| 7 | Adding a muxing library increases bundle cost | Medium | Medium | Evaluate tree-shaking and lazy-load export code only when modal starts export. |
+
+| #   | Risk                                              | Likelihood | Impact | Mitigation                                                                                 |
+| --- | ------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------ |
+| 1   | WebCodecs unavailable or codec config unsupported | Medium     | High   | Capability checks, server export fallback, simple-preview fallback where possible.         |
+| 2   | WebGL2 compositor has browser-specific bugs       | Medium     | High   | Canvas 2D fallback, visual fixtures, feature flag rollout.                                 |
+| 3   | WASM boundary overhead eats Rust gains            | Medium     | Medium | Pass compact typed descriptors, avoid per-clip chatty calls, benchmark before migration.   |
+| 4   | VideoFrame leaks cause GPU memory blowups         | Medium     | High   | Centralize frame ownership rules, assert close paths in worker tests, expose queue sizes.  |
+| 5   | Audio export drifts from video export             | Medium     | High   | Use frame-indexed export timeline and `OfflineAudioContext`; test known duration fixtures. |
+| 6   | Adaptive preview hides real export output         | Low        | Medium | Make adaptive quality preview-only and visible in debug UI.                                |
+| 7   | Adding a muxing library increases bundle cost     | Medium     | Medium | Evaluate tree-shaking and lazy-load export code only when modal starts export.             |
+
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Smooth playback | p95 compositor frame time | TBD Phase 0 | <8ms at 1080x1920, 30fps | `PreviewEngineMetrics` + worker measures |
-| Smooth playback | dropped frames per 60s playback | TBD Phase 0 | <30 on benchmark timeline | audio-clock frame-budget counter |
-| Fast scrubbing | seek-to-visible p95 | TBD Phase 0 | <200ms warm, <600ms cold | seek marks |
-| Bounded memory | active VideoFrame queue size | TBD Phase 0 | <=16 per active clip, explicit close on eviction | worker debug snapshot |
-| Worker budget | active decode workers | Current guarded by constants | within configured limit, no accidental duplicates per asset | `DecoderPool` debug metrics |
-| Export | 5-minute client export | no client export | succeeds when capabilities pass | export integration fixture |
+
+| Goal            | Metric                          | Baseline                     | Target                                                      | How Measured                             |
+| --------------- | ------------------------------- | ---------------------------- | ----------------------------------------------------------- | ---------------------------------------- |
+| Smooth playback | p95 compositor frame time       | TBD Phase 0                  | <8ms at 1080x1920, 30fps                                    | `PreviewEngineMetrics` + worker measures |
+| Smooth playback | dropped frames per 60s playback | TBD Phase 0                  | <30 on benchmark timeline                                   | audio-clock frame-budget counter         |
+| Fast scrubbing  | seek-to-visible p95             | TBD Phase 0                  | <200ms warm, <600ms cold                                    | seek marks                               |
+| Bounded memory  | active VideoFrame queue size    | TBD Phase 0                  | <=16 per active clip, explicit close on eviction            | worker debug snapshot                    |
+| Worker budget   | active decode workers           | Current guarded by constants | within configured limit, no accidental duplicates per asset | `DecoderPool` debug metrics              |
+| Export          | 5-minute client export          | no client export             | succeeds when capabilities pass                             | export integration fixture               |
+
 
 ---
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Which browser/device matrix is the minimum target for client export? | Engineering/Product | Phase 6 | Open |
-| 2 | Do we choose raw WebGL2 or `wgpu` after the WebGL2 spike? | Engineering | Phase 4 | Open |
-| 3 | Should export V1 include audio, or should silent video export ship first behind a flag? | Engineering/Product | Phase 6 | Open |
-| 4 | What benchmark media set represents real ReelStudio projects? | Engineering | Phase 0 | Open |
-| 5 | Should uploads/transcodes normalize source codec/resolution server-side to reduce browser decode variance? | Engineering | Phase 2 | Open |
+
+| #   | Question                                                                                                   | Owner               | Needed By | Status |
+| --- | ---------------------------------------------------------------------------------------------------------- | ------------------- | --------- | ------ |
+| 1   | Which browser/device matrix is the minimum target for client export?                                       | Engineering/Product | Phase 6   | Open   |
+| 2   | Do we choose raw WebGL2 or `wgpu` after the WebGL2 spike?                                                  | Engineering         | Phase 4   | Open   |
+| 3   | Should export V1 include audio, or should silent video export ship first behind a flag?                    | Engineering/Product | Phase 6   | Open   |
+| 4   | What benchmark media set represents real ReelStudio projects?                                              | Engineering         | Phase 0   | Open   |
+| 5   | Should uploads/transcodes normalize source codec/resolution server-side to reduce browser decode variance? | Engineering         | Phase 2   | Open   |
+
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|--------------|
-| Status quo only | Leaves the string-parsing compositor and server-only export path in place. |
-| Full Rust compositor first | Too much build/tooling/debugging risk before proving typed descriptors and WebGL2 parity. |
-| Server-rendered interactive preview | Makes scrubbing network-bound and increases infrastructure cost. |
-| `ffmpeg.wasm` as the default path | Large payload and slower startup; better as an edge-case fallback than the primary architecture. |
-| Deprecated `mp4-muxer` as the default new dependency | It is superseded by Mediabunny, so new export work should evaluate Mediabunny first. |
+
+| Option                                               | Why Rejected                                                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Status quo only                                      | Leaves the string-parsing compositor and server-only export path in place.                       |
+| Full Rust compositor first                           | Too much build/tooling/debugging risk before proving typed descriptors and WebGL2 parity.        |
+| Server-rendered interactive preview                  | Makes scrubbing network-bound and increases infrastructure cost.                                 |
+| `ffmpeg.wasm` as the default path                    | Large payload and slower startup; better as an edge-case fallback than the primary architecture. |
+| Deprecated `mp4-muxer` as the default new dependency | It is superseded by Mediabunny, so new export work should evaluate Mediabunny first.             |
+
 
 ---
 
