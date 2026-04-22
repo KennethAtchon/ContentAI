@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import { usePlayheadClock } from "../context/PlayheadClockContext";
 import type { Clip, TrackType, Transition, ClipPatch } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { hasCollision } from "../utils/clip-constraints";
@@ -22,6 +23,7 @@ export function useEditorClipActions({
   setPendingAdd,
   setMediaActiveTab,
 }: UseEditorClipActionsParams) {
+  const clock = usePlayheadClock();
   const handleAddClip = useCallback(
     (trackId: string, clip: Clip) => {
       const track = store.state.tracks.find((item) => item.id === trackId);
@@ -55,8 +57,8 @@ export function useEditorClipActions({
   );
 
   const handleClipSplit = useCallback(
-    (clipId: string) => store.splitClip(clipId, store.state.currentTimeMs),
-    [store]
+    (clipId: string) => store.splitClip(clipId, clock.getTime()),
+    [store, clock]
   );
   const handleClipDuplicate = useCallback(
     (clipId: string) => store.duplicateClip(clipId),

@@ -7,7 +7,7 @@ import { isCaptionClip } from "../../utils/clip-types";
 import { isClipActiveAtTimelineTime } from "../../utils/editor-composition";
 import type { CaptionClip } from "../../types/editor";
 import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
-import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { usePlayheadClock } from "../../context/PlayheadClockContext";
 
 export interface CaptionLayerHandle {
   syncPlayback(timelineMs: number): void;
@@ -20,7 +20,7 @@ interface CaptionLayerProps {
 export const CaptionLayer = forwardRef<CaptionLayerHandle, CaptionLayerProps>(
   function CaptionLayer({ onBitmapReady }, ref) {
     const { tracks, resolution } = useEditorDocumentState();
-    const { playheadMs } = useEditorPlaybackContext();
+    const clock = usePlayheadClock();
 
     const [canvasWidth, canvasHeight] = useMemo(
       () => (resolution || "1080x1920").split("x").map(Number),
@@ -91,8 +91,8 @@ export const CaptionLayer = forwardRef<CaptionLayerHandle, CaptionLayerProps>(
     );
 
     useEffect(() => {
-      syncPlayback(playheadMs);
-    }, [playheadMs, syncPlayback]);
+      return clock.subscribe(syncPlayback);
+    }, [clock, syncPlayback]);
 
     useEffect(() => {
       const pendingRenderTime = pendingCaptionRenderTimeRef.current;

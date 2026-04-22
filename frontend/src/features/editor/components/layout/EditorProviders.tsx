@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
+import { useRef, useState, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
@@ -18,6 +18,7 @@ import { EditorClipCommandsContext } from "../../context/EditorClipCommandsConte
 import { EditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { EditorUIContext } from "../../context/EditorUIContext";
 import { EditorPersistContext } from "../../context/EditorPersistContext";
+import { PlayheadClockContext, PlayheadClock } from "../../context/PlayheadClockContext";
 import type { EditProject, Clip } from "../../types/editor";
 import type { TabKey } from "../panels/LeftPanel";
 
@@ -47,14 +48,10 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     trackId: string;
     startMs: number;
   } | null>(null);
-  const [playheadMs, setPlayheadMs] = useState(store.state.currentTimeMs);
 
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setPlayheadMs(store.state.currentTimeMs);
-  }, [store.state.currentTimeMs]);
+  const clockRef = useRef(new PlayheadClock());
 
   const {
     lastSavedAt,
@@ -274,13 +271,11 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       isPlaying: store.state.isPlaying,
       playbackRate: store.state.playbackRate,
       zoom: store.state.zoom,
-      playheadMs,
       pixelsPerMs,
       setCurrentTime: store.setCurrentTime,
       setPlaying: store.setPlaying,
       setPlaybackRate: store.setPlaybackRate,
       setZoom: store.setZoom,
-      setPlayheadMs,
       ...transport,
       timelineContainerRef,
       timelineScrollRef,
@@ -288,7 +283,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     [
       store.state.currentTimeMs, store.state.isPlaying,
       store.state.playbackRate, store.state.zoom,
-      playheadMs, pixelsPerMs, transport,
+      pixelsPerMs, transport,
       store.setCurrentTime, store.setPlaying,
       store.setPlaybackRate, store.setZoom,
     ]
@@ -332,22 +327,24 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
   );
 
   return (
-    <EditorDocumentStateContext.Provider value={documentStateValue}>
-      <EditorDocumentActionsContext.Provider value={documentActionsValue}>
-        <EditorSelectionContext.Provider value={selectionValue}>
-          <EditorClipCommandsContext.Provider value={clipCommandsValue}>
-            <EditorPlaybackContext.Provider value={playbackValue}>
-              <EditorUIContext.Provider value={uiValue}>
-                <EditorPersistContext.Provider value={persistValue}>
-                  <AssetUrlMapContext.Provider value={assetUrlMap}>
-                    {children}
-                  </AssetUrlMapContext.Provider>
-                </EditorPersistContext.Provider>
-              </EditorUIContext.Provider>
-            </EditorPlaybackContext.Provider>
-          </EditorClipCommandsContext.Provider>
-        </EditorSelectionContext.Provider>
-      </EditorDocumentActionsContext.Provider>
-    </EditorDocumentStateContext.Provider>
+    <PlayheadClockContext.Provider value={clockRef.current}>
+      <EditorDocumentStateContext.Provider value={documentStateValue}>
+        <EditorDocumentActionsContext.Provider value={documentActionsValue}>
+          <EditorSelectionContext.Provider value={selectionValue}>
+            <EditorClipCommandsContext.Provider value={clipCommandsValue}>
+              <EditorPlaybackContext.Provider value={playbackValue}>
+                <EditorUIContext.Provider value={uiValue}>
+                  <EditorPersistContext.Provider value={persistValue}>
+                    <AssetUrlMapContext.Provider value={assetUrlMap}>
+                      {children}
+                    </AssetUrlMapContext.Provider>
+                  </EditorPersistContext.Provider>
+                </EditorUIContext.Provider>
+              </EditorPlaybackContext.Provider>
+            </EditorClipCommandsContext.Provider>
+          </EditorSelectionContext.Provider>
+        </EditorDocumentActionsContext.Provider>
+      </EditorDocumentStateContext.Provider>
+    </PlayheadClockContext.Provider>
   );
 }

@@ -28,7 +28,6 @@ export function TimelineSection() {
     handleFocusMediaForTrack,
   } = useEditorClipCommands();
   const {
-    playheadMs,
     zoomIn,
     zoomOut,
     zoomFit,
@@ -65,7 +64,6 @@ export function TimelineSection() {
           onClipSetSpeed={handleClipSetSpeed}
           scrollRef={timelineScrollRef}
           onFocusMediaForTrack={handleFocusMediaForTrack}
-          playheadMs={playheadMs}
         />
       </div>
     </div>

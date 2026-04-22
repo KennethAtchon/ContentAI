@@ -1,4 +1,5 @@
 import { memo, useMemo, useRef } from "react";
+import { usePlayheadClock } from "../../context/PlayheadClockContext";
 import { useTranslation } from "react-i18next";
 import { Loader2, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
@@ -30,7 +31,6 @@ interface Props {
   isSelected: boolean;
   isLocked: boolean;
   tracks: Track[];
-  playheadMs: number;
   hasClipboard: boolean;
   onSelect: () => void;
   onMove: (newStartMs: number) => void;
@@ -55,7 +55,6 @@ function TimelineClipInner({
   isSelected,
   isLocked,
   tracks,
-  playheadMs,
   hasClipboard,
   onSelect,
   onMove,
@@ -71,6 +70,7 @@ function TimelineClipInner({
   onSetSpeed,
   onSnapChange,
 }: Props) {
+  const clock = usePlayheadClock();
   const { t } = useTranslation();
   const left = (clip.startMs / 1000) * zoom;
   const width = Math.max((clip.durationMs / 1000) * zoom, 4);
@@ -83,9 +83,13 @@ function TimelineClipInner({
   const isAudioTrack = trackType === "audio" || trackType === "music";
   const hasWaveform = !!mediaClip && (isAudioTrack || trackType === "video");
   const isDisabled = mediaClip?.enabled === false;
+  // Read current time from clock at render time. Clips don't re-render during
+  // playback, so this only updates when the component actually re-renders (e.g.
+  // after pause, on edit). That's acceptable — live highlight adds no value.
+  const currentMs = clock.getTime();
   const playheadInsideClip = mediaClip
-    ? isClipActiveAtTimelineTime(mediaClip, playheadMs)
-    : playheadMs >= clip.startMs && playheadMs < clip.startMs + clip.durationMs;
+    ? isClipActiveAtTimelineTime(mediaClip, currentMs)
+    : currentMs >= clip.startMs && currentMs < clip.startMs + clip.durationMs;
 
   const waveformUrl = hasWaveform
     ? (assetUrlMap.get(mediaClip?.assetId ?? "") ?? undefined)
@@ -114,7 +118,7 @@ function TimelineClipInner({
     const dragStartMs = clip.startMs;
     dragCurrentMs.current = dragStartMs;
 
-    const snapTargets = collectSnapTargets(tracks, clip.id, playheadMs);
+    const snapTargets = collectSnapTargets(tracks, clip.id, clock.getTime());
 
     const onMove_ = (ev: MouseEvent) => {
       const dx = ev.clientX - dragStartX;
@@ -396,13 +400,5 @@ export const TimelineClip = memo(
     prev.isSelected === next.isSelected &&
     prev.isLocked === next.isLocked &&
     prev.hasClipboard === next.hasClipboard &&
-    prev.tracks === next.tracks &&
-    isClipActiveAtTimelineTime(
-      isMediaClip(prev.clip) ? prev.clip : { ...prev.clip, enabled: true },
-      prev.playheadMs
-    ) ===
-      isClipActiveAtTimelineTime(
-        isMediaClip(next.clip) ? next.clip : { ...next.clip, enabled: true },
-        next.playheadMs
-      )
+    prev.tracks === next.tracks
 );

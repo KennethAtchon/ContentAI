@@ -5,6 +5,7 @@ import {
   PreviewEngine,
   type EffectPreviewPatch,
 } from "../engine/PreviewEngine";
+import { usePlayheadClock } from "../context/PlayheadClockContext";
 
 interface UsePreviewEngineOptions {
   previewRef: RefObject<PreviewCanvasHandle | null>;
@@ -20,7 +21,6 @@ interface UsePreviewEngineOptions {
   captionBitmapQueueRef: RefObject<Array<ImageBitmap | null>>;
   captionBitmapVersion: number;
   onTimeUpdate: (ms: number) => void;
-  onPlayheadUpdate?: (ms: number) => void;
   onRenderPlayheadUpdate?: (ms: number) => void;
   onPlaybackEnd: () => void;
 }
@@ -49,15 +49,14 @@ export function usePreviewEngine({
   captionBitmapQueueRef,
   captionBitmapVersion,
   onTimeUpdate,
-  onPlayheadUpdate,
   onRenderPlayheadUpdate,
   onPlaybackEnd,
 }: UsePreviewEngineOptions): void {
+  const clock = usePlayheadClock();
   const engineRef = useRef<PreviewEngine | null>(null);
   const skipNextSeekRef = useRef(false);
   const lastExternalTimeRef = useRef<number | null>(null);
   const onTimeUpdateRef = useRef(onTimeUpdate);
-  const onPlayheadUpdateRef = useRef(onPlayheadUpdate);
   const onRenderPlayheadUpdateRef = useRef(onRenderPlayheadUpdate);
   const onPlaybackEndRef = useRef(onPlaybackEnd);
   const latestUpdateRef = useRef({
@@ -72,10 +71,9 @@ export function usePreviewEngine({
 
   useEffect(() => {
     onTimeUpdateRef.current = onTimeUpdate;
-    onPlayheadUpdateRef.current = onPlayheadUpdate;
     onRenderPlayheadUpdateRef.current = onRenderPlayheadUpdate;
     onPlaybackEndRef.current = onPlaybackEnd;
-  }, [onPlaybackEnd, onPlayheadUpdate, onRenderPlayheadUpdate, onTimeUpdate]);
+  }, [onPlaybackEnd, onRenderPlayheadUpdate, onTimeUpdate]);
 
   useEffect(() => {
     latestUpdateRef.current = {
@@ -103,10 +101,17 @@ export function usePreviewEngine({
 
     void PreviewEngine.create(
       {
-        onTimeUpdate(ms) {
-          skipNextSeekRef.current = true;
-          onPlayheadUpdateRef.current?.(ms);
-          onTimeUpdateRef.current(ms);
+        onTimeUpdate(ms, reason) {
+          // Always push the live time to the imperative clock (used by Playhead,
+          // timecodes, auto-scroll etc without any React re-renders).
+          clock.update(ms);
+
+          // React state only updates on meaningful stops — not every RAF tick.
+          // This is what eliminates the ~100 re-renders/sec during playback.
+          if (reason !== "raf") {
+            skipNextSeekRef.current = true;
+            onTimeUpdateRef.current(ms);
+          }
         },
         onPlaybackEnd() {
           onPlaybackEndRef.current();
@@ -124,10 +129,6 @@ export function usePreviewEngine({
           );
         },
         onRenderTick(playheadMs) {
-          // Caption renders are driven exclusively from the RAF loop via this
-          // callback. Keeping it out of onTick prevents the re-entrant loop:
-          // renderCurrentFrame -> onTick -> onRenderPlayheadUpdate ->
-          // renderCaptionAtTime -> setCaptionBitmapVersion -> renderCurrentFrame
           onRenderPlayheadUpdateRef.current?.(playheadMs);
         },
         onClearFrames(clipIds) {
@@ -176,7 +177,7 @@ export function usePreviewEngine({
       engine?.destroy();
       engineRef.current = null;
     };
-  }, [canvasHeight, canvasWidth, fps, previewRef]);
+  }, [canvasHeight, canvasWidth, clock, fps, previewRef]);
 
   useEffect(() => {
     const engine = engineRef.current;

@@ -99,7 +99,7 @@ export interface EffectPreviewPatch {
 }
 
 export interface PreviewEngineCallbacks {
-  onTimeUpdate(ms: number): void;
+  onTimeUpdate(ms: number, reason: "raf" | "pause" | "playback-end"): void;
   onPlaybackEnd(): void;
   onFrame(frame: VideoFrame, timestampUs: number, clipId: string): void;
   onTick(
@@ -817,7 +817,7 @@ export class PreviewEngine {
     });
     systemPerformance.mark("editor.reactPublish", { playheadMs, reason });
     this.markReactPublishAfterSeek(playheadMs, reason);
-    this.callbacks.onTimeUpdate(playheadMs);
+    this.callbacks.onTimeUpdate(playheadMs, reason);
 
     const measured = timerId
       ? systemPerformance.stop(timerId, { playheadMs, reason })

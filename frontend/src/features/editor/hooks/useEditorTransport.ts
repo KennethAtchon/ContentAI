@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import type { EditorStore } from "./useEditorStore";
 import type { SaveService } from "../services/save-service";
+import { usePlayheadClock } from "../context/PlayheadClockContext";
 
 interface UseEditorTransportParams {
   store: EditorStore;
@@ -21,6 +22,7 @@ export function useEditorTransport({
   onBack,
 }: UseEditorTransportParams) {
   const { state } = store;
+  const clock = usePlayheadClock();
 
   const jumpToStart = useCallback(() => {
     store.setCurrentTime(0);
@@ -32,13 +34,14 @@ export function useEditorTransport({
     store.setPlaying(false);
   }, [store, state.durationMs]);
 
+  // Read live time from clock so these don't re-create on every playhead tick.
   const rewind = useCallback(() => {
-    store.setCurrentTime(Math.max(0, state.currentTimeMs - 5000));
-  }, [store, state.currentTimeMs]);
+    store.setCurrentTime(Math.max(0, clock.getTime() - 5000));
+  }, [store, clock]);
 
   const fastForward = useCallback(() => {
-    store.setCurrentTime(Math.min(state.durationMs, state.currentTimeMs + 5000));
-  }, [store, state.durationMs, state.currentTimeMs]);
+    store.setCurrentTime(Math.min(state.durationMs, clock.getTime() + 5000));
+  }, [store, state.durationMs, clock]);
 
   const zoomIn = useCallback(
     () => store.setZoom(state.zoom * 1.25),

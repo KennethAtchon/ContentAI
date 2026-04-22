@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePlayheadClock } from "../../context/PlayheadClockContext";
 import type { PreviewCanvasHandle } from "../preview/PreviewCanvas";
 import type { EditProject } from "../../types/editor";
 import { LeftPanel } from "../panels/LeftPanel";
@@ -28,7 +29,6 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
     isPlaying,
     setCurrentTime,
     setPlaying,
-    setPlayheadMs,
   } = useEditorPlaybackContext();
   const {
     effectPreview,
@@ -44,7 +44,7 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
   const [captionBitmapVersion, setCaptionBitmapVersion] = useState(0);
   const [rendererPreference, setRendererPreference] =
     useState<CompositorRendererPreference>(EDITOR_COMPOSITOR_RENDERER);
-  const currentTimeMsRef = useRef(currentTimeMs);
+  const clock = usePlayheadClock();
   const assetUrlMap = useAssetUrlMap();
 
   const [canvasWidth, canvasHeight] = useMemo(
@@ -52,11 +52,7 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
     [resolution]
   );
 
-  useEffect(() => {
-    currentTimeMsRef.current = currentTimeMs;
-  }, [currentTimeMs]);
-
-  const getCurrentTimeMs = useCallback(() => currentTimeMsRef.current, []);
+  const getCurrentTimeMs = useCallback(() => clock.getTime(), [clock]);
 
   const handleCaptionBitmapReady = useCallback((bitmap: ImageBitmap | null) => {
     captionBitmapQueueRef.current.push(bitmap);
@@ -81,7 +77,6 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
     captionBitmapQueueRef,
     captionBitmapVersion,
     onTimeUpdate: setCurrentTime,
-    onPlayheadUpdate: setPlayheadMs,
     onRenderPlayheadUpdate: handleRenderPlayheadUpdate,
     onPlaybackEnd: () => setPlaying(false),
   });

@@ -6,13 +6,11 @@ export interface EditorPlaybackContextValue {
   isPlaying: boolean;
   playbackRate: number;
   zoom: number;
-  playheadMs: number;
   pixelsPerMs: number;
   setCurrentTime: (ms: number) => void;
   setPlaying: (playing: boolean) => void;
   setPlaybackRate: (rate: number) => void;
   setZoom: (zoom: number) => void;
-  setPlayheadMs: (ms: number) => void;
   jumpToStart: () => void;
   jumpToEnd: () => void;
   rewind: () => void;

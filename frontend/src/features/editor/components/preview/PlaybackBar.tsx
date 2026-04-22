@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   SkipBack,
@@ -14,6 +14,7 @@ import { useEditorDocumentState } from "../../context/EditorDocumentStateContext
 import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
 import { useEditorSelection } from "../../context/EditorSelectionContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
+import { usePlayheadClock } from "../../context/PlayheadClockContext";
 import { formatHHMMSSFF, parseTimecode } from "../../utils/timecode";
 
 export function PlaybackBar() {
@@ -23,8 +24,6 @@ export function PlaybackBar() {
   const { selectedClipId } = useEditorSelection();
   const {
     isPlaying,
-    currentTimeMs,
-    playheadMs,
     setCurrentTime,
     setPlaying,
     jumpToStart,
@@ -32,17 +31,28 @@ export function PlaybackBar() {
     fastForward,
     jumpToEnd,
   } = useEditorPlaybackContext();
+  const clock = usePlayheadClock();
+  const timecodeRef = useRef<HTMLButtonElement>(null);
+  const fpsRef = useRef(fps);
+  fpsRef.current = fps;
   const [volume, setVolume] = useState(1);
   const [timecodeEditing, setTimecodeEditing] = useState(false);
   const [timecodeInput, setTimecodeInput] = useState("");
 
-  const timecode = formatHHMMSSFF(playheadMs, fps);
   const duration = formatHHMMSSFF(durationMs, fps);
-  void currentTimeMs;
+
+  useEffect(() => {
+    return clock.subscribe((ms) => {
+      if (timecodeRef.current && !timecodeEditing) {
+        timecodeRef.current.textContent =
+          `${formatHHMMSSFF(ms, fpsRef.current)} / ${formatHHMMSSFF(durationMs, fpsRef.current)}`;
+      }
+    });
+  }, [clock, timecodeEditing, durationMs]);
 
   const handleSplit = () => {
     if (selectedClipId) {
-      splitClip(selectedClipId, playheadMs);
+      splitClip(selectedClipId, clock.getTime());
     }
   };
 
@@ -111,14 +121,15 @@ export function PlaybackBar() {
         />
       ) : (
         <button
+          ref={timecodeRef}
           onClick={() => {
-            setTimecodeInput(timecode);
+            setTimecodeInput(formatHHMMSSFF(clock.getTime(), fps));
             setTimecodeEditing(true);
           }}
           title={t("editor_transport_timecode_hint")}
           className="font-mono text-xs text-dim-2 tabular-nums bg-transparent border-0 cursor-text hover:bg-overlay-sm rounded px-2 py-1 transition-colors select-none"
         >
-          {timecode}{" "}
+          {formatHHMMSSFF(clock.getTime(), fps)}{" "}
           <span className="text-dim-3">/</span>{" "}
           {duration}
         </button>

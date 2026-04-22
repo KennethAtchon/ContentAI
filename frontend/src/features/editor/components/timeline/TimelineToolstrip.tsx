@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MousePointer2,
@@ -12,6 +12,7 @@ import {
 import { cn } from "@/shared/utils/helpers/utils";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { usePlayheadClock } from "../../context/PlayheadClockContext";
 import { formatHHMMSSFF } from "../../utils/timecode";
 
 interface TimelineToolstripProps {
@@ -32,9 +33,21 @@ export function TimelineToolstrip({
   onSnapChange,
 }: TimelineToolstripProps) {
   const { t } = useTranslation();
-  const { zoom, setZoom, currentTimeMs } = useEditorPlaybackContext();
+  const { zoom, setZoom } = useEditorPlaybackContext();
   const { fps } = useEditorDocumentState();
+  const clock = usePlayheadClock();
+  const timecodeRef = useRef<HTMLSpanElement>(null);
+  const fpsRef = useRef(fps);
+  fpsRef.current = fps;
   const [activeTool, setActiveTool] = useState<"select" | "blade">("select");
+
+  useEffect(() => {
+    return clock.subscribe((ms) => {
+      if (timecodeRef.current) {
+        timecodeRef.current.textContent = formatHHMMSSFF(ms, fpsRef.current);
+      }
+    });
+  }, [clock]);
 
   return (
     <div
@@ -103,9 +116,9 @@ export function TimelineToolstrip({
 
       <div className="flex-1" />
 
-      {/* Current timecode */}
-      <span className="font-mono text-[10px] text-dim-3 mr-3 tabular-nums">
-        {formatHHMMSSFF(currentTimeMs, fps)}
+      {/* Current timecode — updated imperatively via clock subscription */}
+      <span ref={timecodeRef} className="font-mono text-[10px] text-dim-3 mr-3 tabular-nums">
+        {formatHHMMSSFF(clock.getTime(), fps)}
       </span>
 
       <div className="w-px h-5 bg-overlay-md mx-1 shrink-0" />
