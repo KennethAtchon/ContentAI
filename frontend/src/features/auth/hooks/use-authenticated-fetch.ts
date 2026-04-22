@@ -15,23 +15,31 @@ export function useAuthenticatedFetch() {
   const { user } = useApp();
 
   const authenticatedFetch = useCallback(
-    async (url: string, options: RequestInit = {}): Promise<Response> => {
+    async (
+      url: string,
+      options: RequestInit = {},
+      timeout?: number
+    ): Promise<Response> => {
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      return authFetch(url, addTimezoneHeader(options));
+      return authFetch(url, addTimezoneHeader(options), timeout);
     },
     [user]
   );
 
   const authenticatedFetchJson = useCallback(
-    async <T = any>(url: string, options: RequestInit = {}): Promise<T> => {
+    async <T = any>(
+      url: string,
+      options: RequestInit = {},
+      timeout?: number
+    ): Promise<T> => {
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      return authFetchJson<T>(url, addTimezoneHeader(options));
+      return authFetchJson<T>(url, addTimezoneHeader(options), timeout);
     },
     [user]
   );

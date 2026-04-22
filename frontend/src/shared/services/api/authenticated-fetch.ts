@@ -365,6 +365,9 @@ export async function authenticatedFetch(
     timeout: timeout !== undefined ? timeout : DEFAULT_TIMEOUT,
     retryAttempts: 2,
     retryOn: (error: Error) => {
+      if (mergedRequestInit.signal?.aborted) {
+        return false;
+      }
       if (
         error.message.includes("not authenticated") ||
         error.message.includes("CSRF token")
@@ -404,9 +407,10 @@ export async function authenticatedFetch(
  */
 export async function authenticatedFetchJson<T = unknown>(
   url: string,
-  requestInit: RequestInit = {}
+  requestInit: RequestInit = {},
+  timeout?: number
 ): Promise<T> {
-  const response = await authenticatedFetch(url, requestInit);
+  const response = await authenticatedFetch(url, requestInit, timeout);
 
   if (!response.ok) {
     const errorText = await response.text();

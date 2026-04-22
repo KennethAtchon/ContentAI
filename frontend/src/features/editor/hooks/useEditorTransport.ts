@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import type { EditorStore } from "./useEditorStore";
 import type { SaveService } from "../services/save-service";
-import { usePlayheadClock } from "../context/PlayheadClockContext";
+import type { PlayheadClock } from "../context/PlayheadClockContext";
 
 interface UseEditorTransportParams {
   store: EditorStore;
@@ -11,6 +11,7 @@ interface UseEditorTransportParams {
   runPublish: () => Promise<unknown>;
   setPublishDialogOpen: (open: boolean) => void;
   onBack: () => void;
+  clock: PlayheadClock;
 }
 
 export function useEditorTransport({
@@ -20,9 +21,9 @@ export function useEditorTransport({
   runPublish,
   setPublishDialogOpen,
   onBack,
+  clock,
 }: UseEditorTransportParams) {
   const { state } = store;
-  const clock = usePlayheadClock();
 
   const jumpToStart = useCallback(() => {
     store.setCurrentTime(0);

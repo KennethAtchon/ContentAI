@@ -18,7 +18,10 @@ import { EditorClipCommandsContext } from "../../context/EditorClipCommandsConte
 import { EditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { EditorUIContext } from "../../context/EditorUIContext";
 import { EditorPersistContext } from "../../context/EditorPersistContext";
-import { PlayheadClockContext, PlayheadClock } from "../../context/PlayheadClockContext";
+import {
+  PlayheadClockContext,
+  PlayheadClock,
+} from "../../context/PlayheadClockContext";
 import type { EditProject, Clip } from "../../types/editor";
 import type { TabKey } from "../panels/LeftPanel";
 
@@ -28,7 +31,11 @@ interface EditorProvidersProps {
   children: ReactNode;
 }
 
-export function EditorProviders({ project, onBack, children }: EditorProvidersProps) {
+export function EditorProviders({
+  project,
+  onBack,
+  children,
+}: EditorProvidersProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
@@ -52,21 +59,18 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const clockRef = useRef(new PlayheadClock());
+  const playheadClock = clockRef.current;
 
-  const {
-    lastSavedAt,
-    isDirty,
-    isSavingPatch,
-    saveService,
-  } = useEditorAutosave({
-    projectId: project.id,
-    isReadOnly: store.state.isReadOnly,
-    tracks: store.state.tracks,
-    durationMs: store.state.durationMs,
-    title: store.state.title,
-    resolution: store.state.resolution,
-    fps: store.state.fps,
-  });
+  const { lastSavedAt, isDirty, isSavingPatch, saveService } =
+    useEditorAutosave({
+      projectId: project.id,
+      isReadOnly: store.state.isReadOnly,
+      tracks: store.state.tracks,
+      durationMs: store.state.durationMs,
+      title: store.state.title,
+      resolution: store.state.resolution,
+      fps: store.state.fps,
+    });
 
   const {
     scriptResetPending,
@@ -100,6 +104,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     setSelectedTransitionKey,
     setPendingAdd,
     setMediaActiveTab,
+    clock: playheadClock,
   });
 
   useEditorKeyboard({
@@ -116,6 +121,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
     runPublish,
     setPublishDialogOpen,
     onBack,
+    clock: playheadClock,
   });
 
   const selectedClip = useMemo((): Clip | null => {
@@ -167,8 +173,17 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       isReadOnly,
     }),
     [
-      editProjectId, title, durationMs, fps, resolution, tracks,
-      clipboardClip, clipboardSourceTrackId, past, future, isReadOnly,
+      editProjectId,
+      title,
+      durationMs,
+      fps,
+      resolution,
+      tracks,
+      clipboardClip,
+      clipboardSourceTrackId,
+      past,
+      future,
+      isReadOnly,
     ]
   );
 
@@ -208,15 +223,37 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       reorderTracks: store.reorderTracks,
     }),
     [
-      store.dispatch, store.loadProject, store.setTitle, store.setResolution,
-      store.setFps, store.addClip, store.updateClip, store.removeClip,
-      store.rippleDeleteClip, store.toggleClipEnabled, store.copyClip,
-      store.pasteClip, store.splitClip, store.duplicateClip, store.moveClip,
-      store.toggleTrackMute, store.toggleTrackLock, store.undo, store.redo,
-      store.setExportJob, store.setExportStatus, store.setTransition,
-      store.removeTransition, store.reorderShots, store.addClipAutoPromote,
-      store.addCaptionClip, store.updateCaptionStyle, store.addVideoTrack,
-      store.removeTrack, store.renameTrack, store.reorderTracks,
+      store.dispatch,
+      store.loadProject,
+      store.setTitle,
+      store.setResolution,
+      store.setFps,
+      store.addClip,
+      store.updateClip,
+      store.removeClip,
+      store.rippleDeleteClip,
+      store.toggleClipEnabled,
+      store.copyClip,
+      store.pasteClip,
+      store.splitClip,
+      store.duplicateClip,
+      store.moveClip,
+      store.toggleTrackMute,
+      store.toggleTrackLock,
+      store.undo,
+      store.redo,
+      store.setExportJob,
+      store.setExportStatus,
+      store.setTransition,
+      store.removeTransition,
+      store.reorderShots,
+      store.addClipAutoPromote,
+      store.addCaptionClip,
+      store.updateCaptionStyle,
+      store.addVideoTrack,
+      store.removeTrack,
+      store.renameTrack,
+      store.reorderTracks,
     ]
   );
 
@@ -281,11 +318,16 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       timelineScrollRef,
     }),
     [
-      store.state.currentTimeMs, store.state.isPlaying,
-      store.state.playbackRate, store.state.zoom,
-      pixelsPerMs, transport,
-      store.setCurrentTime, store.setPlaying,
-      store.setPlaybackRate, store.setZoom,
+      store.state.currentTimeMs,
+      store.state.isPlaying,
+      store.state.playbackRate,
+      store.state.zoom,
+      pixelsPerMs,
+      transport,
+      store.setCurrentTime,
+      store.setPlaying,
+      store.setPlaybackRate,
+      store.setZoom,
     ]
   );
 
@@ -313,11 +355,20 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
       createNewDraft,
     }),
     [
-      effectPreview, showExport, publishDialogOpen, mediaActiveTab,
-      pendingAdd, selectedTransitionKey,
-      scriptResetPending, onScriptIterationDialogOpenChange, confirmScriptIteration,
-      isCapturingThumbnail, captureThumbnail,
-      isPublishing, isCreatingDraft, createNewDraft,
+      effectPreview,
+      showExport,
+      publishDialogOpen,
+      mediaActiveTab,
+      pendingAdd,
+      selectedTransitionKey,
+      scriptResetPending,
+      onScriptIterationDialogOpenChange,
+      confirmScriptIteration,
+      isCapturingThumbnail,
+      captureThumbnail,
+      isPublishing,
+      isCreatingDraft,
+      createNewDraft,
     ]
   );
 
@@ -327,7 +378,7 @@ export function EditorProviders({ project, onBack, children }: EditorProvidersPr
   );
 
   return (
-    <PlayheadClockContext.Provider value={clockRef.current}>
+    <PlayheadClockContext.Provider value={playheadClock}>
       <EditorDocumentStateContext.Provider value={documentStateValue}>
         <EditorDocumentActionsContext.Provider value={documentActionsValue}>
           <EditorSelectionContext.Provider value={selectionValue}>

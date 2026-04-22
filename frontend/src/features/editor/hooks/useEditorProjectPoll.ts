@@ -6,6 +6,8 @@ import type { EditProject, Track } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { isVideoClip } from "../utils/clip-types";
 
+const EDITOR_PROJECT_POLL_TIMEOUT_MS = 15_000;
+
 /**
  * Polls the canonical editor project while placeholders exist, merges non-conflicting
  * server updates, and surfaces script-iteration conflicts (server placeholders vs local real clips).
@@ -34,7 +36,11 @@ export function useEditorProjectPoll(options: {
   const projectFetcher = useQueryFetcher<{ project: EditProject }>();
   const { data: polledPayload } = useQuery({
     queryKey: queryKeys.api.editorProject(project.id),
-    queryFn: () => projectFetcher(`/api/editor/${project.id}`),
+    queryFn: () =>
+      projectFetcher(
+        `/api/editor/${project.id}`,
+        EDITOR_PROJECT_POLL_TIMEOUT_MS
+      ),
     enabled: !!project.id,
     refetchInterval: hasPlaceholders ? pollIntervalMs : 15_000,
   });

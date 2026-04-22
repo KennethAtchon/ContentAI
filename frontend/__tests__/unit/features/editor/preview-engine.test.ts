@@ -40,11 +40,17 @@ class MockGainNode {
 }
 
 class MockAudioContext {
+  static constructed = 0;
+
   state: AudioContextState = "running";
   currentTime = 0;
   baseLatency = 0;
   destination = {};
   decodeAudioData = mock(async () => ({ duration: 1 }) as AudioBuffer);
+
+  constructor() {
+    MockAudioContext.constructed += 1;
+  }
 
   createGain(): GainNode {
     return new MockGainNode() as unknown as GainNode;
@@ -89,6 +95,7 @@ describe("AudioMixer", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    MockAudioContext.constructed = 0;
     (globalThis as { window?: typeof window }).window = {
       ...(originalWindow ?? {}),
       AudioContext: MockAudioContext as unknown as typeof AudioContext,
@@ -102,6 +109,18 @@ describe("AudioMixer", () => {
       delete (globalThis as { window?: typeof window }).window;
     }
     globalThis.fetch = originalFetch;
+  });
+
+  test("does not create AudioContext until audio is primed or decoded", async () => {
+    const mixer = new AudioMixer();
+
+    expect(MockAudioContext.constructed).toBe(0);
+
+    await mixer.prime();
+
+    expect(MockAudioContext.constructed).toBe(1);
+
+    mixer.destroy();
   });
 
   test("drops rejected decode promises so a later attempt can retry", async () => {

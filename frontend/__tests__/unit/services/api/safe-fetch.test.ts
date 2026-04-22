@@ -72,6 +72,48 @@ describe("safe-fetch", () => {
       ).rejects.toThrow();
     });
 
+    test("timeout 0 disables timeout aborts", async () => {
+      let observedSignal: AbortSignal | undefined;
+      globalThis.fetch = (_url, init) => {
+        observedSignal = init?.signal;
+        return Promise.resolve(new Response("ok", { status: 200 })) as any;
+      };
+
+      const res = await safeFetch("https://api.example.com/", {
+        timeout: 0,
+        retryAttempts: 0,
+        logRequests: false,
+      });
+
+      expect(res.status).toBe(200);
+      expect(observedSignal).toBeUndefined();
+    });
+
+    test("does not retry caller-aborted requests", async () => {
+      let attempts = 0;
+      const controller = new AbortController();
+      controller.abort();
+      globalThis.fetch = () => {
+        attempts++;
+        return Promise.reject(
+          Object.assign(new Error("The operation was aborted."), {
+            name: "AbortError",
+          })
+        );
+      };
+
+      await expect(
+        safeFetch("https://api.example.com/", {
+          signal: controller.signal,
+          retryAttempts: 2,
+          retryDelay: 10,
+          logRequests: false,
+          retryOn: () => true,
+        })
+      ).rejects.toThrow();
+      expect(attempts).toBe(1);
+    });
+
     test("validateResponse can reject response", async () => {
       globalThis.fetch = () =>
         Promise.resolve(new Response("bad", { status: 500 })) as any;

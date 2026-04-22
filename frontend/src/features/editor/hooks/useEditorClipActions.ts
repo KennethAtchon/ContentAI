@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { usePlayheadClock } from "../context/PlayheadClockContext";
+import type { PlayheadClock } from "../context/PlayheadClockContext";
 import type { Clip, TrackType, Transition, ClipPatch } from "../types/editor";
 import type { EditorStore } from "./useEditorStore";
 import { hasCollision } from "../utils/clip-constraints";
@@ -13,6 +13,7 @@ interface UseEditorClipActionsParams {
   setSelectedTransitionKey: (key: [string, string, string] | null) => void;
   setPendingAdd: (value: { trackId: string; startMs: number } | null) => void;
   setMediaActiveTab: (tab: TabKey) => void;
+  clock: PlayheadClock;
 }
 
 export function useEditorClipActions({
@@ -22,8 +23,8 @@ export function useEditorClipActions({
   setSelectedTransitionKey,
   setPendingAdd,
   setMediaActiveTab,
+  clock,
 }: UseEditorClipActionsParams) {
-  const clock = usePlayheadClock();
   const handleAddClip = useCallback(
     (trackId: string, clip: Clip) => {
       const track = store.state.tracks.find((item) => item.id === trackId);

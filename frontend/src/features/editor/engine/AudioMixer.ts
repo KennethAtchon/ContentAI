@@ -91,8 +91,8 @@ export class AudioMixer {
    * AudioContext is nullable because tests/server-like environments may not have
    * browser audio APIs. The mixer still tracks playhead state in that case.
    */
-  private readonly audioContext: AudioContext | null;
-  private readonly masterGain: GainNode | null;
+  private audioContext: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private readonly isSafari = detectSafari();
   /** One gain node per timeline track, all connected into masterGain. */
   private readonly trackGains = new Map<string, GainNode>();
@@ -105,21 +105,13 @@ export class AudioMixer {
   private playStartContextTime = 0;
   /** Timeline position that corresponds to playStartContextTime. */
   private playStartTimelineMs = 0;
+  private masterVolume = 1;
   private isPlaying = false;
   /**
    * Incremented whenever a schedule is invalidated. Async decode/timer callbacks
    * compare their captured generation to avoid starting stale audio after seek.
    */
   private scheduleGeneration = 0;
-
-  constructor() {
-    const AudioContextCtor = getAudioContextCtor();
-    this.audioContext = AudioContextCtor ? new AudioContextCtor() : null;
-    this.masterGain = this.audioContext?.createGain() ?? null;
-    if (this.audioContext && this.masterGain) {
-      this.masterGain.connect(this.audioContext.destination);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Public playback lifecycle
@@ -145,7 +137,7 @@ export class AudioMixer {
   async play(timelineMs: number, clips: AudioClipDescriptor[]): Promise<void> {
     this.preparePlaybackStart(timelineMs);
 
-    if (!this.audioContext) {
+    if (!this.ensureAudioContext()) {
       this.isPlaying = true;
       return;
     }
@@ -184,6 +176,7 @@ export class AudioMixer {
   }
 
   setMasterVolume(volume: number): void {
+    this.masterVolume = volume;
     if (!this.audioContext || !this.masterGain) return;
     this.masterGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
   }
@@ -196,6 +189,8 @@ export class AudioMixer {
     if (this.audioContext && this.audioContext.state !== "closed") {
       void this.audioContext.close().catch(() => {});
     }
+    this.audioContext = null;
+    this.masterGain = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -389,7 +384,7 @@ export class AudioMixer {
   }
 
   private async getDecodedBuffer(assetUrl: string): Promise<AudioBuffer> {
-    if (!this.audioContext) {
+    if (!this.ensureAudioContext()) {
       throw new Error("Cannot decode audio without AudioContext");
     }
 
@@ -492,8 +487,24 @@ export class AudioMixer {
   }
 
   private async resumeAudioContext(): Promise<void> {
+    if (!this.ensureAudioContext()) return;
     if (!this.audioContext || this.audioContext.state !== "suspended") return;
     await this.audioContext.resume().catch(() => {});
+  }
+
+  private ensureAudioContext(): boolean {
+    if (this.audioContext && this.audioContext.state !== "closed") {
+      return true;
+    }
+
+    const AudioContextCtor = getAudioContextCtor();
+    if (!AudioContextCtor) return false;
+
+    this.audioContext = new AudioContextCtor();
+    this.masterGain = this.audioContext.createGain();
+    this.masterGain.gain.value = this.masterVolume;
+    this.masterGain.connect(this.audioContext.destination);
+    return true;
   }
 
   private isCurrentSchedule(generation: number): boolean {

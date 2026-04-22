@@ -20,7 +20,8 @@ interface TextureRecord {
 interface ShaderLocations {
   position: number;
   texCoord: number;
-  resolution: WebGLUniformLocation;
+  positionResolution: WebGLUniformLocation;
+  canvasSize: WebGLUniformLocation;
   opacity: WebGLUniformLocation;
   contrast: WebGLUniformLocation;
   warmth: WebGLUniformLocation;
@@ -222,11 +223,11 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       `#version 300 es
       in vec2 a_position;
       in vec2 a_texCoord;
-      uniform vec2 u_resolution;
+      uniform vec2 u_positionResolution;
       out vec2 v_texCoord;
 
       void main() {
-        vec2 zeroToOne = a_position / u_resolution;
+        vec2 zeroToOne = a_position / u_positionResolution;
         vec2 clipSpace = zeroToOne * 2.0 - 1.0;
         gl_Position = vec4(clipSpace * vec2(1.0, -1.0), 0.0, 1.0);
         v_texCoord = a_texCoord;
@@ -239,7 +240,7 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       precision mediump float;
 
       uniform sampler2D u_sampler;
-      uniform vec2 u_resolution;
+      uniform vec2 u_canvasSize;
       uniform float u_opacity;
       uniform float u_contrast;
       uniform float u_warmth;
@@ -280,14 +281,14 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       void main() {
         vec2 canvasPoint = vec2(
           gl_FragCoord.x / u_renderScale,
-          u_resolution.y - (gl_FragCoord.y / u_renderScale)
+          u_canvasSize.y - (gl_FragCoord.y / u_renderScale)
         );
         if (u_clipMode == 1) {
           if (
             canvasPoint.x < u_clipInset.w ||
-            canvasPoint.x > u_resolution.x - u_clipInset.y ||
+            canvasPoint.x > u_canvasSize.x - u_clipInset.y ||
             canvasPoint.y < u_clipInset.x ||
-            canvasPoint.y > u_resolution.y - u_clipInset.z
+            canvasPoint.y > u_canvasSize.y - u_clipInset.z
           ) {
             discard;
           }
@@ -346,7 +347,11 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
   ): ShaderLocations | null {
     const position = gl.getAttribLocation(program, "a_position");
     const texCoord = gl.getAttribLocation(program, "a_texCoord");
-    const resolution = gl.getUniformLocation(program, "u_resolution");
+    const positionResolution = gl.getUniformLocation(
+      program,
+      "u_positionResolution"
+    );
+    const canvasSize = gl.getUniformLocation(program, "u_canvasSize");
     const opacity = gl.getUniformLocation(program, "u_opacity");
     const contrast = gl.getUniformLocation(program, "u_contrast");
     const warmth = gl.getUniformLocation(program, "u_warmth");
@@ -363,7 +368,8 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     if (
       position < 0 ||
       texCoord < 0 ||
-      !resolution ||
+      !positionResolution ||
+      !canvasSize ||
       !opacity ||
       !contrast ||
       !warmth ||
@@ -380,7 +386,8 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     return {
       position,
       texCoord,
-      resolution,
+      positionResolution,
+      canvasSize,
       opacity,
       contrast,
       warmth,
@@ -532,7 +539,12 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(locations.sampler, 0);
-    gl.uniform2f(locations.resolution, this.canvasWidth, this.canvasHeight);
+    gl.uniform2f(
+      locations.positionResolution,
+      this.canvasWidth,
+      this.canvasHeight
+    );
+    gl.uniform2f(locations.canvasSize, this.canvasWidth, this.canvasHeight);
     gl.uniform1f(locations.opacity, this.clamp(opacity, 0, 1));
     gl.uniform1f(locations.contrast, Math.max(0, 1 + effects.contrast / 100));
     gl.uniform1f(locations.warmth, this.clamp(effects.warmth / 100, -1, 1));

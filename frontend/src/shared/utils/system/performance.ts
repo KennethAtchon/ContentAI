@@ -251,7 +251,7 @@ class PerformanceSingleton {
 
   private installEditorDebugRuntime(): void {
     if (!this.enabled || typeof window === "undefined") return;
-    if (window.__REEL_EDITOR_DEBUG__) return;
+    if (window.__REEL_EDITOR_DEBUG__ && window.reelEditorDebug) return;
 
     const runtime: ReelEditorDebugRuntime = {
       snapshot: () => this.snapshot(),
@@ -268,6 +268,7 @@ class PerformanceSingleton {
     };
 
     window.__REEL_EDITOR_DEBUG__ = runtime;
+    window.reelEditorDebug = runtime;
   }
 
   private now(): number {
@@ -280,5 +281,6 @@ export const systemPerformance = PerformanceSingleton.getInstance();
 declare global {
   interface Window {
     __REEL_EDITOR_DEBUG__?: ReelEditorDebugRuntime;
+    reelEditorDebug?: ReelEditorDebugRuntime;
   }
 }

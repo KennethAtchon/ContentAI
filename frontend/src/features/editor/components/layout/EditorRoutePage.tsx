@@ -11,6 +11,8 @@ import { useResolvedParam } from "@/shared/hooks/use-resolved-param";
 import { EditorLayout } from "./EditorLayout";
 import { EditorProjectList } from "./EditorProjectList";
 
+const EDITOR_PROJECT_OPEN_TIMEOUT_MS = 15_000;
+
 export interface EditorRouteSearch {
   projectId?: string;
   contentId?: number;
@@ -49,9 +51,13 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
       fetchAndOpenRef.current = controller;
       setIsLoadingProject(true);
       try {
-        const res = await authenticatedFetchJson<{ project: EditProject }>(`/api/editor/${id}`, {
-          signal: controller.signal,
-        });
+        const res = await authenticatedFetchJson<{ project: EditProject }>(
+          `/api/editor/${id}`,
+          {
+            signal: controller.signal,
+          },
+          EDITOR_PROJECT_OPEN_TIMEOUT_MS
+        );
         if (controller.signal.aborted) return;
         setIsProjectMissing(false);
         setActiveProject(res.project);
@@ -73,33 +79,31 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     [authenticatedFetchJson, syncEditorUrl]
   );
 
-  const { mutate: createFromContent, isPending: isOpeningContent } = useMutation({
-    mutationFn: (cId: number) =>
-      authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
-        method: "POST",
-        body: JSON.stringify({ generatedContentId: cId }),
-      }),
-    onSuccess: (res) => {
-      setIsProjectMissing(false);
-      setActiveProject(res.project);
-      syncEditorUrl(res.project);
-    },
-    onError: async (err) => {
-      const status = (err as { status?: number }).status;
-      const body = (err as { body?: { existingProjectId?: string } }).body;
-      if (status === 409 && body?.existingProjectId) {
-        void fetchAndOpen(body.existingProjectId);
-      }
-    },
-  });
+  const { mutate: createFromContent, isPending: isOpeningContent } =
+    useMutation({
+      mutationFn: (cId: number) =>
+        authenticatedFetchJson<{ project: EditProject }>("/api/editor", {
+          method: "POST",
+          body: JSON.stringify({ generatedContentId: cId }),
+        }),
+      onSuccess: (res) => {
+        setIsProjectMissing(false);
+        setActiveProject(res.project);
+        syncEditorUrl(res.project);
+      },
+      onError: async (err) => {
+        const status = (err as { status?: number }).status;
+        const body = (err as { body?: { existingProjectId?: string } }).body;
+        if (status === 409 && body?.existingProjectId) {
+          void fetchAndOpen(body.existingProjectId);
+        }
+      },
+    });
 
   useResolvedParam({
     paramValue: projectIdFromUrl,
     isLoading: isLoadingProject,
-    isMissing:
-      Boolean(projectIdFromUrl) &&
-      !activeProject &&
-      isProjectMissing,
+    isMissing: Boolean(projectIdFromUrl) && !activeProject && isProjectMissing,
     notFoundMessage: "Project not found",
     onMissing: () => {
       setActiveProject(null);
@@ -115,7 +119,8 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   useEffect(() => {
     if (!user || isLoadingProject || isOpeningContent) return;
     if (projectIdFromUrl) {
-      if (activeProject?.id !== projectIdFromUrl) void fetchAndOpen(projectIdFromUrl);
+      if (activeProject?.id !== projectIdFromUrl)
+        void fetchAndOpen(projectIdFromUrl);
       return;
     }
     if (activeProject || contentId === undefined) return;

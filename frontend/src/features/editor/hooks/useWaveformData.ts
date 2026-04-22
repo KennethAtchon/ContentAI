@@ -4,23 +4,32 @@ import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-f
 /** Number of amplitude samples stored per asset. */
 const PEAK_COUNT = 200;
 
-type DecodedAudio = Awaited<
-  ReturnType<InstanceType<typeof globalThis.AudioContext>["decodeAudioData"]>
->;
-
 const peakCache = new Map<string, Float32Array>();
 
 const pendingDecodes = new Map<string, Promise<Float32Array>>();
 const MAX_CONCURRENT_DECODES = 2;
 let activeDecodeCount = 0;
 const decodeQueue: Array<() => void> = [];
-let sharedAudioContext: AudioContext | null = null;
+type AudioDecodeContext = Pick<BaseAudioContext, "decodeAudioData">;
+let sharedDecodeContext: AudioDecodeContext | null = null;
 
-function getSharedAudioContext(): AudioContext {
-  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
-    sharedAudioContext = new globalThis.AudioContext();
+function getSharedDecodeContext(): AudioDecodeContext {
+  if (!sharedDecodeContext) {
+    const OfflineAudioContextCtor =
+      globalThis.OfflineAudioContext ??
+      (
+        globalThis as typeof globalThis & {
+          webkitOfflineAudioContext?: typeof OfflineAudioContext;
+        }
+      ).webkitOfflineAudioContext;
+
+    if (OfflineAudioContextCtor) {
+      sharedDecodeContext = new OfflineAudioContextCtor(1, 1, 44_100);
+    } else {
+      sharedDecodeContext = new globalThis.AudioContext();
+    }
   }
-  return sharedAudioContext;
+  return sharedDecodeContext;
 }
 
 async function withDecodeSlot<T>(task: () => Promise<T>): Promise<T> {
@@ -41,8 +50,8 @@ async function withDecodeSlot<T>(task: () => Promise<T>): Promise<T> {
 async function decodePeaksFromArrayBuffer(
   arrayBuffer: ArrayBuffer
 ): Promise<Float32Array> {
-  const decoded: DecodedAudio = await withDecodeSlot(() =>
-    getSharedAudioContext().decodeAudioData(arrayBuffer.slice(0))
+  const decoded = await withDecodeSlot(() =>
+    getSharedDecodeContext().decodeAudioData(arrayBuffer.slice(0))
   );
 
   const channelData = decoded.getChannelData(0);

@@ -77,21 +77,25 @@ export async function safeFetch(
 
   while (attempt <= retryAttempts) {
     try {
-      // Create abort controller for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      // timeout=0 intentionally disables the timeout for streaming/large media.
+      const timeoutController = timeout > 0 ? new AbortController() : null;
+      const timeoutId = timeoutController
+        ? setTimeout(() => timeoutController.abort(), timeout)
+        : null;
 
       // Combine signals if one was already provided
-      const signal = requestInit.signal
-        ? combineAbortSignals([requestInit.signal, controller.signal])
-        : controller.signal;
+      const signals = [requestInit.signal, timeoutController?.signal].filter(
+        (signal): signal is AbortSignal => Boolean(signal)
+      );
+      const signal =
+        signals.length > 1 ? combineAbortSignals(signals) : signals[0];
 
       debugLog.debug("Request Logging", {
         service: "safe-fetch",
         operation: "request-logging",
         url,
         method: requestInit.method || "GET",
-        signal: signal.aborted,
+        signal: signal?.aborted ?? false,
         timeout: timeout,
         retryAttempts: retryAttempts,
         retryDelay: retryDelay,
@@ -107,7 +111,7 @@ export async function safeFetch(
           signal,
         });
 
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
 
         // Validate response
         if (!validateResponse(response)) {
@@ -152,20 +156,22 @@ export async function safeFetch(
 
         return response;
       } catch (fetchError) {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         throw fetchError;
       }
     } catch (error) {
       attempt++;
       const err = error instanceof Error ? error : new Error(String(error));
       lastError = err;
+      const callerAborted = requestInit.signal?.aborted === true;
 
       const isTimeout =
         err.name === "AbortError" || err.message.includes("timeout");
-      const shouldRetry = attempt < retryAttempts + 1 && retryOn(err);
+      const shouldRetry =
+        !callerAborted && attempt < retryAttempts + 1 && retryOn(err);
 
       // Log attempt failure
-      if (logRequests) {
+      if (logRequests && !callerAborted) {
         debugLog.warn(
           "External API request attempt failed",
           {
@@ -202,6 +208,25 @@ export async function safeFetch(
   const duration = Date.now() - startTime;
   const finalError =
     lastError || new Error("All fetch attempts failed with unknown errors");
+
+  if (requestInit.signal?.aborted) {
+    debugLog.debug(
+      "External API request aborted by caller",
+      {
+        service: "safe-fetch",
+        operation: "request-aborted",
+      },
+      {
+        requestId,
+        url: sanitizeUrl(url),
+        method: requestInit.method || "GET",
+        attempts: attempt,
+        duration,
+        error: finalError.message,
+      }
+    );
+    throw finalError;
+  }
 
   const structuredError = reportError(finalError, {
     additionalData: {

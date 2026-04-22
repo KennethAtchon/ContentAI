@@ -25,10 +25,10 @@ describe("useQueryFetcher", () => {
     expect(typeof result.current).toBe("function");
   });
 
-  it("returned fetcher accepts a string URL", () => {
+  it("returned fetcher accepts a string URL and optional timeout", () => {
     const { result } = renderHook(() => useQueryFetcher<{ id: string }>());
     const fetcher = result.current;
-    expect(fetcher.length).toBe(1);
+    expect(fetcher.length).toBe(2);
   });
 
   it("fetcher invokes callback and returns promise from authenticatedFetchJson", async () => {

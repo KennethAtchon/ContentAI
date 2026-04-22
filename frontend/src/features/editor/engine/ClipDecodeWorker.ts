@@ -670,6 +670,7 @@ class ClipDecodeWorker {
         if (!crossedTarget) continue;
 
         await this.videoDecoder.flush();
+        this.decoderNeedsKeyFrame = true;
         if (this.didEmitFrameForActiveSeek) {
           this.playheadSampleIndex = index + 1;
           return;

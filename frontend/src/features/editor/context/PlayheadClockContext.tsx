@@ -31,6 +31,8 @@ export const PlayheadClockContext = createContext<PlayheadClock | null>(null);
 
 export function usePlayheadClock(): PlayheadClock {
   const clock = useContext(PlayheadClockContext);
-  if (!clock) throw new Error("usePlayheadClock must be used inside EditorProviders");
+  if (!clock) {
+    throw new Error("usePlayheadClock must be used inside EditorProviders");
+  }
   return clock;
 }
