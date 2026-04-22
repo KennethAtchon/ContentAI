@@ -99,7 +99,7 @@ export interface CompositorRenderer {
     height: number,
     quality: CompositorPreviewQuality
   ): void;
-  render(request: CompositorRenderRequest): void;
+  render(request: CompositorRenderRequest): boolean;
   releaseFrame(frame: VideoFrame): void;
   destroy(): void;
 }

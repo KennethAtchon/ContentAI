@@ -92,10 +92,16 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     }
   }
 
-  render(request: CompositorRenderRequest): void {
-    if (!this.webgl || this.contextLost) return;
+  render(request: CompositorRenderRequest): boolean {
+    if (!this.webgl || this.contextLost) return false;
 
     const { gl } = this.webgl;
+    if (gl.isContextLost()) {
+      this.contextLost = true;
+      this.webgl = null;
+      return false;
+    }
+
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -112,6 +118,7 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     }
 
     this.drawOverlay(request);
+    return true;
   }
 
   releaseFrame(frame: VideoFrame): void {
@@ -187,7 +194,9 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     });
     this.canvas.addEventListener("webglcontextrestored", () => {
       this.contextLost = false;
-      this.initializeWebgl();
+      if (!this.initializeWebgl()) {
+        this.contextLost = true;
+      }
     });
   }
 

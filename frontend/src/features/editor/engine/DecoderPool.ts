@@ -31,7 +31,7 @@ import {
 import type { CachedDemuxMetadata } from "./ClipDecodeWorker";
 
 /** How far ahead/behind the playhead we keep decoders warm. */
-const DECODE_WINDOW_MS = 5_000;
+const DEFAULT_DECODE_WINDOW_MS = 5_000;
 const MAX_DEMUX_METADATA_CACHE_ENTRIES = 3;
 
 export interface DecodedFrame {
@@ -43,6 +43,7 @@ export interface DecodedFrame {
 export interface DecoderPoolMetrics {
   activeDecoderCount: number;
   maxActiveDecoderCount: number;
+  decodeWindowMs: number;
   readyDecoderCount: number;
   seekingDecoderCount: number;
   pendingSeekCount: number;
@@ -140,6 +141,8 @@ export class DecoderPool {
   private readonly metadataLoadsInFlight = new Set<string>();
 
   private isPlaying = false;
+  private decodeWindowMs = DEFAULT_DECODE_WINDOW_MS;
+  private maxActiveDecoderCount = MAX_ACTIVE_VIDEO_WORKERS;
 
   constructor(private readonly onFrame: FrameCallback) {}
 
@@ -219,6 +222,20 @@ export class DecoderPool {
     }
   }
 
+  setResourceBudget(budget: {
+    decodeWindowMs: number;
+    maxActiveDecoderCount: number;
+  }): void {
+    this.decodeWindowMs = Math.max(500, Math.round(budget.decodeWindowMs));
+    this.maxActiveDecoderCount = Math.max(
+      1,
+      Math.min(
+        MAX_ACTIVE_VIDEO_WORKERS,
+        Math.round(budget.maxActiveDecoderCount)
+      )
+    );
+  }
+
   destroy(): void {
     for (const clipId of Array.from(this.workers.keys())) {
       this.destroyWorker(clipId);
@@ -244,7 +261,8 @@ export class DecoderPool {
 
     return {
       activeDecoderCount: this.workers.size,
-      maxActiveDecoderCount: MAX_ACTIVE_VIDEO_WORKERS,
+      maxActiveDecoderCount: this.maxActiveDecoderCount,
+      decodeWindowMs: this.decodeWindowMs,
       readyDecoderCount,
       seekingDecoderCount,
       pendingSeekCount,
@@ -303,7 +321,7 @@ export class DecoderPool {
     const perAssetCounts = new Map<string, number>();
 
     for (const { clip, assetUrl } of candidates) {
-      if (permittedClipIds.size >= MAX_ACTIVE_VIDEO_WORKERS) break;
+      if (permittedClipIds.size >= this.maxActiveDecoderCount) break;
 
       const assetCount = perAssetCounts.get(assetUrl) ?? 0;
       if (assetCount >= MAX_WORKERS_PER_ASSET_URL) continue;
@@ -797,8 +815,8 @@ export class DecoderPool {
   private isClipInDecodeWindow(clip: VideoClip, playheadMs: number): boolean {
     const clipEnd = clip.startMs + clip.durationMs;
     return (
-      playheadMs >= clip.startMs - DECODE_WINDOW_MS &&
-      playheadMs <= clipEnd + DECODE_WINDOW_MS
+      playheadMs >= clip.startMs - this.decodeWindowMs &&
+      playheadMs <= clipEnd + this.decodeWindowMs
     );
   }
 

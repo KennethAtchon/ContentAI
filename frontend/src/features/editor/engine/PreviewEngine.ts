@@ -29,9 +29,11 @@ const DECODER_RECONCILE_INTERVAL_MS = 500;
 const SCRUB_QUALITY_IDLE_RESTORE_MS = 220;
 const DROPPED_FRAME_DEGRADE_THRESHOLD = 3;
 const STABLE_FRAME_RECOVERY_THRESHOLD = 90;
+const MEMORY_PRESSURE_CHECK_INTERVAL_MS = 1_000;
 
 export type PreviewQualityLevel = "full" | "half" | "low";
 type PreviewQualityReason = "steady" | "scrubbing" | "dropped-frames";
+type DecoderBudgetReason = "steady" | "memory-pressure";
 
 export interface PreviewQualityState extends CompositorPreviewQuality {
   disableEffects: boolean;
@@ -59,6 +61,14 @@ const PREVIEW_QUALITY: Record<PreviewQualityLevel, PreviewQualityState> = {
   },
 };
 
+const DECODER_BUDGETS: Record<
+  DecoderBudgetReason,
+  { decodeWindowMs: number; maxActiveDecoderCount: number }
+> = {
+  steady: { decodeWindowMs: 5_000, maxActiveDecoderCount: 4 },
+  "memory-pressure": { decodeWindowMs: 2_000, maxActiveDecoderCount: 2 },
+};
+
 export interface SeekLatencyMetrics {
   seekId: number;
   targetMs: number;
@@ -75,6 +85,7 @@ export interface PreviewEngineMetrics {
   compositorFrameMs: number;
   reactPublishMs: number;
   audioClockDriftMs: number;
+  decoderBudgetReason: DecoderBudgetReason;
   previewQuality: PreviewQualityState;
   lastSeekLatency: SeekLatencyMetrics | null;
   decoderPool: DecoderPoolMetrics;
@@ -311,6 +322,8 @@ export class PreviewEngine {
   private scrubQualityRestoreTimer: number | null = null;
   private droppedFramePressureCount = 0;
   private stableFrameCount = 0;
+  private decoderBudgetReason: DecoderBudgetReason = "steady";
+  private lastMemoryPressureCheckMs = Number.NEGATIVE_INFINITY;
   private metrics: PreviewEngineMetricState = {
     seekCount: 0,
     decodedFrameCount: 0,
@@ -318,6 +331,7 @@ export class PreviewEngine {
     compositorFrameMs: 0,
     reactPublishMs: 0,
     audioClockDriftMs: 0,
+    decoderBudgetReason: "steady",
     previewQuality: PREVIEW_QUALITY.full,
     lastSeekLatency: null,
   };
@@ -380,6 +394,7 @@ export class PreviewEngine {
       }
     }
 
+    this.observeMemoryPressure();
     this.decoderPool.update(tracks, assetUrlMap, this.currentTimeMs);
     this.tickCompositor(this.currentTimeMs);
   }
@@ -442,6 +457,7 @@ export class PreviewEngine {
       this.callbacks.onClearFrames(videoClipIds);
     }
 
+    this.observeMemoryPressure();
     this.decoderPool.update(this.tracks, this.assetUrlMap, targetMs);
     this.decoderPool.seekAll(this.tracks, targetMs);
     this.tickCompositor(targetMs);
@@ -617,6 +633,38 @@ export class PreviewEngine {
     }
   }
 
+  private observeMemoryPressure(): void {
+    const now = performance.now();
+    if (
+      now - this.lastMemoryPressureCheckMs <
+      MEMORY_PRESSURE_CHECK_INTERVAL_MS
+    ) {
+      return;
+    }
+    this.lastMemoryPressureCheckMs = now;
+
+    const memory = (
+      performance as Performance & {
+        memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+      }
+    ).memory;
+    if (!memory || memory.jsHeapSizeLimit <= 0) return;
+
+    const pressureRatio = memory.usedJSHeapSize / memory.jsHeapSizeLimit;
+    const nextReason: DecoderBudgetReason =
+      pressureRatio >= 0.75 ? "memory-pressure" : "steady";
+    if (nextReason === this.decoderBudgetReason) return;
+
+    this.decoderBudgetReason = nextReason;
+    this.metrics.decoderBudgetReason = nextReason;
+    this.decoderPool.setResourceBudget(DECODER_BUDGETS[nextReason]);
+    systemPerformance.setDebugValue("editorDecoderBudget", {
+      reason: nextReason,
+      pressureRatio,
+      ...DECODER_BUDGETS[nextReason],
+    });
+  }
+
   private buildTextObjects(timelineMs: number): SerializedTextObject[] {
     const textTrack = this.tracks.find((track) => track.type === "text");
     if (!textTrack) return [];
@@ -689,6 +737,7 @@ export class PreviewEngine {
         DECODER_RECONCILE_INTERVAL_MS
       ) {
         this.lastDecoderReconcileMs = audibleMs;
+        this.observeMemoryPressure();
         this.decoderPool.update(this.tracks, this.assetUrlMap, audibleMs);
       }
 
@@ -743,6 +792,7 @@ export class PreviewEngine {
       compositorFrameMs: 0,
       reactPublishMs: 0,
       audioClockDriftMs: 0,
+      decoderBudgetReason: this.decoderBudgetReason,
       previewQuality: this.previewQuality,
       lastSeekLatency: null,
     };
@@ -851,6 +901,7 @@ export class PreviewEngine {
       canvasWidth: this.canvasWidth,
       canvasHeight: this.canvasHeight,
       previewQuality: this.previewQuality,
+      decoderBudgetReason: this.decoderBudgetReason,
       metrics: this.getMetrics(),
     };
   }

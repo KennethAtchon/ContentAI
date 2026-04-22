@@ -77,6 +77,14 @@ struct FrameRequest {
     source_time_ms: f64,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct ExportFrameRequest {
+    frame_index: u32,
+    timeline_ms: f64,
+    requests: Vec<FrameRequest>,
+}
+
 #[wasm_bindgen]
 pub fn compute_duration(tracks: JsValue) -> Result<f64, JsValue> {
     let tracks: Vec<Track> = serde_wasm_bindgen::from_value(tracks)
@@ -124,6 +132,18 @@ pub fn sanitize_no_overlap(tracks: JsValue) -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&tracks).map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
+#[wasm_bindgen]
+pub fn build_export_frame_requests(
+    tracks: JsValue,
+    duration_ms: f64,
+    fps: f64,
+) -> Result<JsValue, JsValue> {
+    let tracks: Vec<Track> = serde_wasm_bindgen::from_value(tracks)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    serde_wasm_bindgen::to_value(&build_export_frame_requests_core(&tracks, duration_ms, fps))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
 fn compute_duration_core(tracks: &[Track]) -> f64 {
     tracks
         .iter()
@@ -153,6 +173,74 @@ fn resolve_frame_core(tracks: &[Track], playhead_ms: f64) -> Option<FrameRequest
         }
     }
     None
+}
+
+fn build_export_frame_requests_core(
+    tracks: &[Track],
+    duration_ms: f64,
+    fps: f64,
+) -> Vec<ExportFrameRequest> {
+    let safe_duration_ms = duration_ms.max(0.0);
+    let safe_fps = fps.clamp(1.0, 120.0);
+    let frame_count = ((safe_duration_ms / 1000.0) * safe_fps).ceil() as u32;
+    let frame_duration_ms = 1000.0 / safe_fps;
+    let video_tracks: Vec<&Track> = tracks
+        .iter()
+        .filter(|track| track.track_type == "video")
+        .collect();
+
+    (0..frame_count)
+        .map(|frame_index| {
+            let timeline_ms = (frame_index as f64 * frame_duration_ms).min(safe_duration_ms);
+            let requests = collect_video_frame_requests(&video_tracks, timeline_ms);
+            ExportFrameRequest {
+                frame_index,
+                timeline_ms,
+                requests,
+            }
+        })
+        .collect()
+}
+
+fn collect_video_frame_requests(video_tracks: &[&Track], timeline_ms: f64) -> Vec<FrameRequest> {
+    video_tracks
+        .iter()
+        .flat_map(|track| {
+            track
+                .clips
+                .iter()
+                .filter(|clip| {
+                    clip.clip_type == "video"
+                        && clip.enabled != Some(false)
+                        && clip.asset_id.is_some()
+                        && is_clip_needed_for_export_frame(clip, &track.transitions, timeline_ms)
+                })
+                .map(|clip| FrameRequest {
+                    clip_id: clip.id.clone(),
+                    asset_id: clip.asset_id.clone(),
+                    source_time_ms: clip_source_time_ms(clip, timeline_ms),
+                })
+        })
+        .collect()
+}
+
+fn is_clip_needed_for_export_frame(
+    clip: &Clip,
+    transitions: &[Transition],
+    timeline_ms: f64,
+) -> bool {
+    let clip_start = clip.start_ms;
+    let clip_end = clip.start_ms + clip.duration_ms;
+    if timeline_ms >= clip_start && timeline_ms < clip_end {
+        return true;
+    }
+
+    transitions.iter().any(|transition| {
+        transition.clip_a_id == clip.id
+            && transition.transition_type != "none"
+            && timeline_ms >= clip_end - transition.duration_ms
+            && timeline_ms <= clip_end
+    })
 }
 
 fn build_compositor_descriptors_core(
@@ -490,6 +578,18 @@ mod tests {
             normalize_numbers(descriptors),
             normalize_numbers(golden_fixture()["compositorAt875"].clone())
         );
+    }
+
+    #[test]
+    fn builds_export_frame_request_iterator() {
+        let frames = build_export_frame_requests_core(&fixture_tracks(), 1000.0, 4.0);
+        assert_eq!(frames.len(), 4);
+        assert_eq!(frames[0].frame_index, 0);
+        assert_eq!(frames[0].timeline_ms, 0.0);
+        assert!(frames.iter().any(|frame| frame
+            .requests
+            .iter()
+            .any(|request| request.clip_id == "clip-a")));
     }
 
     #[test]

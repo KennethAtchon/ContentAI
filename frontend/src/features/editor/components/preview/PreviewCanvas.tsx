@@ -12,11 +12,11 @@ import type {
   CompositorWorkerPerformanceMetrics,
   CompositorClipDescriptor,
   CompositorPreviewQuality,
+  CompositorRendererPreference,
   SerializedTextObject,
   SerializedCaptionFrame,
 } from "../../engine/CompositorWorker";
 import { systemPerformance } from "@/shared/utils/system/performance";
-import { EDITOR_COMPOSITOR_RENDERER } from "@/shared/utils/config/envUtil";
 
 export interface PreviewCanvasHandle {
   /**
@@ -42,18 +42,34 @@ interface PreviewCanvasProps {
   resolution: string;
   playheadMs: number;
   durationMs: number;
+  rendererPreference: CompositorRendererPreference;
+  onRendererPreferenceChange: (
+    preference: CompositorRendererPreference
+  ) => void;
 }
 
 export const PreviewCanvas = forwardRef<
   PreviewCanvasHandle,
   PreviewCanvasProps
->(function PreviewCanvas({ resolution, playheadMs, durationMs }, ref) {
+>(function PreviewCanvas(
+  {
+    resolution,
+    playheadMs,
+    durationMs,
+    rendererPreference,
+    onRendererPreferenceChange,
+  },
+  ref
+) {
   const { t } = useTranslation();
   const outerRef = useRef<HTMLDivElement>(null);
   const visibleCanvasRef = useRef<HTMLCanvasElement>(null);
   const compositorWorkerRef = useRef<Worker | null>(null);
   const compositorReadyRef = useRef(false);
   const pendingDestroyTimerRef = useRef<number | null>(null);
+  const pendingDestroyRendererRef = useRef<CompositorRendererPreference | null>(
+    null
+  );
 
   const { previewSize, resolutionWidth, resolutionHeight } =
     usePreviewSurfaceSize(outerRef, resolution);
@@ -63,9 +79,15 @@ export const PreviewCanvas = forwardRef<
     const canvas = visibleCanvasRef.current;
     if (!canvas) return;
 
-    if (pendingDestroyTimerRef.current != null) {
+    if (
+      pendingDestroyTimerRef.current != null &&
+      pendingDestroyRendererRef.current === rendererPreference
+    ) {
       window.clearTimeout(pendingDestroyTimerRef.current);
       pendingDestroyTimerRef.current = null;
+      pendingDestroyRendererRef.current = null;
+    } else if (pendingDestroyTimerRef.current != null) {
+      compositorWorkerRef.current = null;
     }
 
     let worker = compositorWorkerRef.current;
@@ -98,6 +120,12 @@ export const PreviewCanvas = forwardRef<
             ready: true,
             ...metrics,
           });
+          return;
+        }
+
+        if (msg.type === "RENDERER_FALLBACK_REQUIRED") {
+          systemPerformance.setDebugValue("compositorRendererFallback", msg);
+          onRendererPreferenceChange("canvas2d");
         }
       };
 
@@ -109,7 +137,7 @@ export const PreviewCanvas = forwardRef<
           width: resolutionWidth,
           height: resolutionHeight,
           debugEnabled: systemPerformance.isEnabled,
-          rendererPreference: EDITOR_COMPOSITOR_RENDERER,
+          rendererPreference,
         },
         [offscreen]
       );
@@ -121,6 +149,7 @@ export const PreviewCanvas = forwardRef<
       compositorReadyRef.current = false;
       const activeWorker = compositorWorkerRef.current;
       if (!activeWorker) return;
+      pendingDestroyRendererRef.current = rendererPreference;
       pendingDestroyTimerRef.current = window.setTimeout(() => {
         activeWorker.postMessage({ type: "DESTROY" });
         window.setTimeout(() => activeWorker.terminate(), 200);
@@ -129,9 +158,10 @@ export const PreviewCanvas = forwardRef<
         }
         systemPerformance.clearDebugValue("compositorWorker");
         pendingDestroyTimerRef.current = null;
+        pendingDestroyRendererRef.current = null;
       }, 0);
     };
-  }, []);
+  }, [onRendererPreferenceChange, rendererPreference]);
 
   useEffect(() => {
     const worker = compositorWorkerRef.current;
@@ -215,6 +245,7 @@ export const PreviewCanvas = forwardRef<
         }}
       >
         <canvas
+          key={rendererPreference}
           ref={visibleCanvasRef}
           width={resolutionWidth}
           height={resolutionHeight}

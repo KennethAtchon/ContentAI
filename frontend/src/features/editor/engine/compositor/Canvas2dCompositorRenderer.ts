@@ -43,8 +43,8 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
     this.applyCanvasSize();
   }
 
-  render(request: CompositorRenderRequest): void {
-    if (!this.renderCtx) return;
+  render(request: CompositorRenderRequest): boolean {
+    if (!this.renderCtx) return false;
 
     this.clearCanvas();
 
@@ -73,6 +73,8 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
         this.canvasHeight
       );
     }
+
+    return true;
   }
 
   releaseFrame(_frame: VideoFrame): void {}

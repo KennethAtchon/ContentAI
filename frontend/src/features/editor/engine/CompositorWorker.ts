@@ -92,6 +92,8 @@ class CompositorWorker {
   private textObjects: SerializedTextObject[] = [];
   /** Latest caption bitmap, replaced only when OVERLAY includes captionFrame. */
   private captionFrame: SerializedCaptionFrame | null = null;
+  private rendererPreference: CompositorRendererPreference = "auto";
+  private didRequestRendererFallback = false;
 
   /**
    * Per-clip queues of decoded VideoFrame objects, sorted by timestamp.
@@ -148,6 +150,7 @@ class CompositorWorker {
     this.canvasWidth = message.width;
     this.canvasHeight = message.height;
     this.debugEnabled = message.debugEnabled === true;
+    this.rendererPreference = message.rendererPreference ?? "auto";
     this.renderer = createCompositorRenderer({
       canvas: message.canvas,
       width: message.width,
@@ -187,12 +190,16 @@ class CompositorWorker {
   ): void {
     const frameStart = performance.now();
     this.applyQuality(quality);
-    this.renderer?.render({
+    const rendered = this.renderer?.render({
       clips,
       textObjects: this.textObjects,
       captionFrame: this.captionFrame,
       pickFrame: (clipId, sourceTimeUs) => this.pickFrame(clipId, sourceTimeUs),
     });
+
+    if (rendered === false) {
+      this.requestRendererFallback("Renderer context became unavailable.");
+    }
 
     if (this.debugEnabled) {
       this.postPerformanceMetrics(playheadMs, clips, frameStart);
@@ -392,6 +399,23 @@ class CompositorWorker {
     if (message.type === "FRAME") {
       message.frame.close();
     }
+  }
+
+  private requestRendererFallback(reason: string): void {
+    if (this.didRequestRendererFallback) return;
+    if (this.renderer?.mode !== "webgl2") return;
+
+    this.didRequestRendererFallback = true;
+    this.worker.postMessage(
+      {
+        type: "RENDERER_FALLBACK_REQUIRED",
+        from: "webgl2",
+        to: "canvas2d",
+        reason,
+        requestedPreference: this.rendererPreference,
+      },
+      []
+    );
   }
 }
 

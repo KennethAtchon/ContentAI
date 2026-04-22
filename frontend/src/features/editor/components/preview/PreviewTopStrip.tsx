@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { Grid, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
+import type { CompositorRendererPreference } from "../../engine/CompositorWorker";
 
 interface PreviewTopStripProps {
   resolution: string;
+  rendererPreference: CompositorRendererPreference;
+  onRendererPreferenceChange: (
+    preference: CompositorRendererPreference
+  ) => void;
 }
 
-export function PreviewTopStrip({ resolution }: PreviewTopStripProps) {
+export function PreviewTopStrip({
+  resolution,
+  rendererPreference,
+  onRendererPreferenceChange,
+}: PreviewTopStripProps) {
   const [quality, setQuality] = useState<"Full" | "½" | "¼">("Full");
   const [showGrid, setShowGrid] = useState(false);
   const [showSafeAreas, setShowSafeAreas] = useState(false);
@@ -34,6 +43,22 @@ export function PreviewTopStrip({ resolution }: PreviewTopStripProps) {
             )}
           >
             {q}
+          </button>
+        ))}
+        <div className="w-px h-4 bg-overlay-md mx-1 shrink-0" />
+        {(["webgl2", "canvas2d"] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => onRendererPreferenceChange(mode)}
+            className={cn(
+              "text-[10px] px-2 py-0.5 rounded cursor-pointer border transition-colors uppercase",
+              rendererPreference === mode
+                ? "bg-studio-accent/20 border-studio-accent/60 text-studio-accent"
+                : "bg-transparent border-overlay-md text-dim-3 hover:text-dim-1"
+            )}
+            title={`Use ${mode === "webgl2" ? "WebGL2" : "Canvas 2D"} compositor`}
+          >
+            {mode === "webgl2" ? "GL" : "2D"}
           </button>
         ))}
         <div className="w-px h-4 bg-overlay-md mx-1 shrink-0" />

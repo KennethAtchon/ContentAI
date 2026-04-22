@@ -9,6 +9,12 @@ export interface FrameRequest {
   sourceTimeMs: number;
 }
 
+export interface ExportFrameRequest {
+  frameIndex: number;
+  timelineMs: number;
+  requests: FrameRequest[];
+}
+
 interface EditorCoreWasmModule {
   default?: (moduleOrPath?: unknown) => Promise<unknown>;
   compute_duration(tracks: Track[]): number;
@@ -19,6 +25,11 @@ interface EditorCoreWasmModule {
     effectPreview: EffectPreviewPatch | null
   ): CompositorClipDescriptor[];
   sanitize_no_overlap(tracks: Track[]): Track[];
+  build_export_frame_requests(
+    tracks: Track[],
+    durationMs: number,
+    fps: number
+  ): ExportFrameRequest[];
 }
 
 let editorCoreModule: EditorCoreWasmModule | null = null;
@@ -127,5 +138,24 @@ export function buildCompositorDescriptorsWithRust(
     throw error;
   }
 
-  throw new Error("editor-core WASM returned an invalid compositor descriptor list.");
+  throw new Error(
+    "editor-core WASM returned an invalid compositor descriptor list."
+  );
+}
+
+export function buildExportFrameRequestsWithRust(
+  tracks: Track[],
+  durationMs: number,
+  fps: number
+): ExportFrameRequest[] {
+  const requests = requireEditorCoreModule().build_export_frame_requests(
+    tracks,
+    durationMs,
+    fps
+  );
+  if (Array.isArray(requests)) return requests;
+
+  throw new Error(
+    "editor-core WASM returned an invalid export frame request list."
+  );
 }

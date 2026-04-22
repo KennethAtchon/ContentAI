@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { X, Loader2 } from "lucide-react";
@@ -6,17 +6,28 @@ import { cn } from "@/shared/utils/helpers/utils";
 import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
 import { queryKeys } from "@/shared/lib/query-keys";
-import type { ExportJobStatus } from "../../types/editor";
+import type { ExportJobStatus, Track } from "../../types/editor";
+import { runClientExport } from "../../services/client-export";
 
 interface Props {
   projectId: string;
+  tracks: Track[];
+  durationMs: number;
+  assetUrlMap: Map<string, string>;
   initialResolution: string;
   initialFps: 24 | 30 | 60;
   onClose: () => void;
 }
 
+type ExportMutationResult =
+  | { kind: "client"; clientObjectUrl: string }
+  | { kind: "server"; exportJobId: string; clientFallbackReason: string };
+
 export function ExportModal({
   projectId,
+  tracks,
+  durationMs,
+  assetUrlMap,
   initialResolution,
   initialFps,
   onClose,
@@ -27,20 +38,47 @@ export function ExportModal({
   const [resolution, setResolution] = useState(initialResolution);
   const [fps, setFps] = useState<24 | 30 | 60>(initialFps);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [clientObjectUrl, setClientObjectUrl] = useState<string | null>(null);
+  const [clientExportFallback, setClientExportFallback] = useState<
+    string | null
+  >(null);
   const [copied, setCopied] = useState(false);
   const [enqueueError, setEnqueueError] = useState<string | null>(null);
 
-  const { mutate: enqueue, isPending } = useMutation({
-    mutationFn: () =>
-      authenticatedFetchJson<{ exportJobId: string }>(
-        `/api/editor/${projectId}/export`,
-        {
-          method: "POST",
-          body: JSON.stringify({ resolution, fps }),
-        }
-      ),
+  const { mutate: enqueue, isPending } = useMutation<ExportMutationResult>({
+    mutationFn: async () => {
+      const clientResult = await runClientExport({
+        tracks,
+        assetUrlMap,
+        durationMs,
+        resolution,
+        fps,
+      });
+      if (clientResult.status === "done") {
+        return { kind: "client", clientObjectUrl: clientResult.objectUrl };
+      }
+
+      const serverResult = await authenticatedFetchJson<{
+        exportJobId: string;
+      }>(`/api/editor/${projectId}/export`, {
+        method: "POST",
+        body: JSON.stringify({ resolution, fps }),
+      });
+      return {
+        kind: "server",
+        exportJobId: serverResult.exportJobId,
+        clientFallbackReason: clientResult.reason,
+      };
+    },
     onSuccess: (data) => {
       setEnqueueError(null);
+      if (data.kind === "client") {
+        setClientObjectUrl(data.clientObjectUrl);
+        setJobId(null);
+        return;
+      }
+
+      setClientExportFallback(data.clientFallbackReason);
       setJobId(data.exportJobId);
     },
     onError: (err: unknown) => {
@@ -61,10 +99,19 @@ export function ExportModal({
     },
   });
 
-  const status = statusData?.status ?? "idle";
+  const status = clientObjectUrl ? "done" : (statusData?.status ?? "idle");
   const progress = statusData?.progress ?? 0;
-  const r2Url = statusData?.r2Url;
+  const r2Url = clientObjectUrl ?? statusData?.r2Url;
   const exportError = statusData?.error;
+  const hasExportStarted = Boolean(jobId || clientObjectUrl);
+
+  useEffect(() => {
+    return () => {
+      if (clientObjectUrl) {
+        URL.revokeObjectURL(clientObjectUrl);
+      }
+    };
+  }, [clientObjectUrl]);
 
   const handleCopy = async () => {
     if (!r2Url) return;
@@ -95,7 +142,7 @@ export function ExportModal({
           </button>
         </div>
 
-        {!jobId ? (
+        {!hasExportStarted ? (
           <>
             {/* Export options */}
             <div className="space-y-4 mb-6">
@@ -133,6 +180,7 @@ export function ExportModal({
                       onClick={() => {
                         setResolution(r.value);
                         setEnqueueError(null);
+                        setClientExportFallback(null);
                       }}
                       className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
@@ -158,6 +206,7 @@ export function ExportModal({
                       onClick={() => {
                         setFps(f);
                         setEnqueueError(null);
+                        setClientExportFallback(null);
                       }}
                       className={cn(
                         "flex-1 py-1.5 text-xs rounded border cursor-pointer transition-colors",
@@ -194,6 +243,9 @@ export function ExportModal({
             {enqueueError && (
               <p className="text-xs text-error mt-2">{enqueueError}</p>
             )}
+            {clientExportFallback && (
+              <p className="text-xs text-dim-3 mt-2">{clientExportFallback}</p>
+            )}
           </>
         ) : (
           <>
@@ -203,6 +255,9 @@ export function ExportModal({
                 <p className="text-sm text-dim-2">
                   {t("editor_export_rendering")}
                 </p>
+                {clientExportFallback && (
+                  <p className="text-xs text-dim-3">{clientExportFallback}</p>
+                )}
                 <div className="w-full h-2 bg-overlay-sm rounded-full overflow-hidden">
                   <div
                     className="h-full bg-studio-accent transition-all duration-500 rounded-full"
@@ -249,7 +304,10 @@ export function ExportModal({
                   </p>
                 )}
                 <button
-                  onClick={() => setJobId(null)}
+                  onClick={() => {
+                    setJobId(null);
+                    setClientExportFallback(null);
+                  }}
                   className="text-xs text-studio-accent hover:underline bg-transparent border-0 cursor-pointer"
                 >
                   {t("editor_export_try_again")}

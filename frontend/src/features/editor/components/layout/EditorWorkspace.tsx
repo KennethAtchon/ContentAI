@@ -12,6 +12,8 @@ import { useEditorDocumentState } from "../../context/EditorDocumentStateContext
 import { useEditorClipCommands } from "../../context/EditorClipCommandsContext";
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
+import type { CompositorRendererPreference } from "../../engine/CompositorWorker";
+import { EDITOR_COMPOSITOR_RENDERER } from "@/shared/utils/config/envUtil";
 
 interface EditorWorkspaceProps {
   project: EditProject;
@@ -28,13 +30,20 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
     setPlaying,
     setPlayheadMs,
   } = useEditorPlaybackContext();
-  const { effectPreview, mediaActiveTab, setMediaActiveTab, pendingAdd, setPendingAdd } =
-    useEditorUIContext();
+  const {
+    effectPreview,
+    mediaActiveTab,
+    setMediaActiveTab,
+    pendingAdd,
+    setPendingAdd,
+  } = useEditorUIContext();
 
   const previewRef = useRef<PreviewCanvasHandle>(null);
   const captionLayerRef = useRef<CaptionLayerHandle>(null);
   const captionBitmapQueueRef = useRef<Array<ImageBitmap | null>>([]);
   const [captionBitmapVersion, setCaptionBitmapVersion] = useState(0);
+  const [rendererPreference, setRendererPreference] =
+    useState<CompositorRendererPreference>(EDITOR_COMPOSITOR_RENDERER);
   const currentTimeMsRef = useRef(currentTimeMs);
   const assetUrlMap = useAssetUrlMap();
 
@@ -99,8 +108,15 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
         pendingAdd={pendingAdd}
         onClearPendingAdd={() => setPendingAdd(null)}
       />
-      <PreviewArea previewRef={previewRef} />
-      <CaptionLayer ref={captionLayerRef} onBitmapReady={handleCaptionBitmapReady} />
+      <PreviewArea
+        previewRef={previewRef}
+        rendererPreference={rendererPreference}
+        onRendererPreferenceChange={setRendererPreference}
+      />
+      <CaptionLayer
+        ref={captionLayerRef}
+        onBitmapReady={handleCaptionBitmapReady}
+      />
       <Inspector />
     </div>
   );
