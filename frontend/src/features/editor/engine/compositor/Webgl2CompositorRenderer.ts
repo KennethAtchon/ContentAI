@@ -106,20 +106,24 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    let didFailFrameUpload = false;
     for (const clip of getDrawableClips(request.clips)) {
       const frame = request.pickFrame(clip.clipId, clip.sourceTimeUs);
       if (!frame) continue;
-      this.drawClipFrame(
+      const didDrawFrame = this.drawClipFrame(
         clip.opacity,
         clip.effects,
         clip.clipPath,
         clip.transform,
         frame
       );
+      if (!didDrawFrame) {
+        didFailFrameUpload = true;
+      }
     }
 
     this.drawOverlay(request);
-    return true;
+    return !didFailFrameUpload;
   }
 
   releaseFrame(frame: VideoFrame): void {
@@ -406,11 +410,11 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     clipPath: CompositorClipPath | null,
     transform: CompositorClipTransform,
     frame: VideoFrame
-  ): void {
-    if (!this.webgl) return;
+  ): boolean {
+    if (!this.webgl) return false;
 
     const texture = this.getOrUploadFrameTexture(frame);
-    if (!texture) return;
+    if (!texture) return false;
 
     const drawRect = getObjectContainRect(
       frame,
@@ -424,6 +428,7 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       effects,
       clipPath
     );
+    return true;
   }
 
   private getOrUploadFrameTexture(frame: VideoFrame): TextureRecord | null {
@@ -437,8 +442,19 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     if (!texture) return null;
 
     this.configureTexture(gl, texture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+    try {
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        frame
+      );
+    } catch {
+      gl.deleteTexture(texture);
+      return null;
+    }
 
     const record = { texture };
     this.webgl.frameTextures.set(frame, record);
@@ -453,7 +469,6 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
 
     const { gl, overlayTexture } = this.webgl;
     this.configureTexture(gl, overlayTexture);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,

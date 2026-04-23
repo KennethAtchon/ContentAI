@@ -24,12 +24,8 @@ export function EditorWorkspace({ project }: EditorWorkspaceProps) {
   const { tracks, isReadOnly, resolution, durationMs, fps } =
     useEditorDocumentState();
   const { handleAddClip } = useEditorClipCommands();
-  const {
-    currentTimeMs,
-    isPlaying,
-    setCurrentTime,
-    setPlaying,
-  } = useEditorPlaybackContext();
+  const { currentTimeMs, isPlaying, setCurrentTime, setPlaying } =
+    useEditorPlaybackContext();
   const {
     effectPreview,
     mediaActiveTab,

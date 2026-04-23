@@ -33,7 +33,7 @@
  * converted before creating EncodedVideoChunk objects.
  */
 
-import { createFile, MultiBufferStream } from "mp4box";
+import { createFile, DataStream } from "mp4box";
 import type { Movie, Sample, Track, VisualSampleEntry } from "mp4box";
 import {
   MAX_DECODE_FETCH_BYTES,
@@ -73,6 +73,10 @@ interface DecodableVideoSample {
   duration: number;
   is_sync: boolean;
   data?: Uint8Array;
+}
+
+interface DecoderConfigBox {
+  write(stream: DataStream): void;
 }
 
 export interface CachedDemuxMetadata {
@@ -593,22 +597,35 @@ class ClipDecodeWorker {
     if (!configBox) return undefined;
 
     try {
-      const stream = new MultiBufferStream();
-      configBox.write(stream);
+      const stream = new DataStream();
+      (configBox as DecoderConfigBox).write(stream);
 
-      // Box layout: [4 bytes size][4 bytes fourcc][N bytes config record].
-      const recordLength = stream.byteLength - 8;
-      if (recordLength <= 0) return undefined;
+      const bytes = new Uint8Array(stream.buffer, 0, stream.byteLength);
+      const recordOffset = this.getConfigRecordOffset(bytes);
+      if (recordOffset >= bytes.byteLength) return undefined;
 
-      this.cachedDecoderDescription = new Uint8Array(
-        stream.buffer as ArrayBuffer,
-        8,
-        recordLength
-      );
+      this.cachedDecoderDescription = bytes.slice(recordOffset);
       return this.cachedDecoderDescription;
     } catch {
       return undefined;
     }
+  }
+
+  private getConfigRecordOffset(bytes: Uint8Array): number {
+    if (bytes.byteLength < 8) return 0;
+
+    const boxSize =
+      bytes[0]! * 0x1000000 + (bytes[1]! << 16) + (bytes[2]! << 8) + bytes[3]!;
+    const boxType = String.fromCharCode(
+      bytes[4]!,
+      bytes[5]!,
+      bytes[6]!,
+      bytes[7]!
+    );
+    return boxSize === bytes.byteLength &&
+      (boxType === "avcC" || boxType === "hvcC")
+      ? 8
+      : 0;
   }
 
   // ---------------------------------------------------------------------------

@@ -356,6 +356,9 @@ export class PreviewEngine {
       this.metrics.decodedFrameCount += 1;
       this.markFirstDecodedFrameAfterSeek(clipId, timestampUs);
       this.callbacks.onFrame(frame, timestampUs, clipId);
+      if (!this.isPlaying) {
+        this.tickCompositor(this.currentTimeMs);
+      }
     });
     this.unregisterDebugProvider = systemPerformance.registerSnapshotProvider(
       "previewEngine",
@@ -644,7 +647,7 @@ export class PreviewEngine {
     this.lastMemoryPressureCheckMs = now;
 
     const memory = (
-      performance as Performance & {
+      globalThis.performance as typeof globalThis.performance & {
         memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
       }
     ).memory;

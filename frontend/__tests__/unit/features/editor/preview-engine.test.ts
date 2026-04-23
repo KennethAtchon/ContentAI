@@ -257,6 +257,54 @@ describe("PreviewEngine performance metrics", () => {
 
     engine.destroy();
   });
+
+  test("repaints the paused preview when a decoded frame arrives after the initial tick", async () => {
+    const ticks: number[] = [];
+    const frames: unknown[] = [];
+
+    const engine = await PreviewEngine.create(
+      {
+        onTimeUpdate() {},
+        onPlaybackEnd() {},
+        onFrame(frame) {
+          frames.push(frame);
+        },
+        onTick(playheadMs) {
+          ticks.push(playheadMs);
+        },
+        onClearFrames() {},
+      },
+      { canvasWidth: 1080, canvasHeight: 1920, fps: 30 }
+    );
+
+    engine.update([], new Map(), 2000, null, {
+      canvasWidth: 1080,
+      canvasHeight: 1920,
+      fps: 30,
+    });
+    const tickCountAfterInitialRender = ticks.length;
+
+    (
+      engine as unknown as {
+        decoderPool: {
+          onFrame(decoded: {
+            frame: VideoFrame;
+            timestampUs: number;
+            clipId: string;
+          }): void;
+        };
+      }
+    ).decoderPool.onFrame({
+      frame: { close() {} } as VideoFrame,
+      timestampUs: 0,
+      clipId: "clip-1",
+    });
+
+    expect(frames).toHaveLength(1);
+    expect(ticks.length).toBe(tickCountAfterInitialRender + 1);
+
+    engine.destroy();
+  });
 });
 
 describe("buildAudioClipDescriptors", () => {

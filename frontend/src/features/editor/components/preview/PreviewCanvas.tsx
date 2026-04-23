@@ -4,6 +4,7 @@ import {
   forwardRef,
   useImperativeHandle,
   useCallback,
+  type ElementRef,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { usePreviewSurfaceSize } from "../../runtime/usePreviewSurfaceSize";
@@ -52,19 +53,14 @@ export const PreviewCanvas = forwardRef<
   PreviewCanvasHandle,
   PreviewCanvasProps
 >(function PreviewCanvas(
-  {
-    resolution,
-    durationMs,
-    rendererPreference,
-    onRendererPreferenceChange,
-  },
+  { resolution, durationMs, rendererPreference, onRendererPreferenceChange },
   ref
 ) {
   const { t } = useTranslation();
   const clock = usePlayheadClock();
-  const timecodeRef = useRef<HTMLSpanElement>(null);
-  const outerRef = useRef<HTMLDivElement>(null);
-  const visibleCanvasRef = useRef<HTMLCanvasElement>(null);
+  const timecodeRef = useRef<ElementRef<"span">>(null);
+  const outerRef = useRef<ElementRef<"div">>(null);
+  const visibleCanvasRef = useRef<ElementRef<"canvas">>(null);
   const compositorWorkerRef = useRef<Worker | null>(null);
   const compositorReadyRef = useRef(false);
   const pendingDestroyTimerRef = useRef<number | null>(null);
@@ -264,7 +260,10 @@ export const PreviewCanvas = forwardRef<
       </div>
 
       <div className="mt-1 flex w-full justify-between px-3">
-        <span ref={timecodeRef} className="font-mono text-xs text-dim-3 tabular-nums">
+        <span
+          ref={timecodeRef}
+          className="font-mono text-xs text-dim-3 tabular-nums"
+        >
           {formatMMSS(clock.getTime())} / {formatMMSS(durationMs)}
         </span>
         <span className="text-xs text-dim-3">
