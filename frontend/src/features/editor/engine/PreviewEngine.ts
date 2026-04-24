@@ -23,6 +23,7 @@ import { isTextClip, isVideoClip } from "../utils/clip-types";
 import { getClipSourceTimeSecondsAtTimelineTime } from "../utils/editor-composition";
 import { getTextClipPreviewDisplay } from "../utils/text-segments";
 import type { Transition } from "../types/editor";
+import { debugLog } from "@/shared/utils/debug";
 
 const REACT_PUBLISH_INTERVAL_MS = 250;
 const DECODER_RECONCILE_INTERVAL_MS = 500;
@@ -30,6 +31,20 @@ const SCRUB_QUALITY_IDLE_RESTORE_MS = 220;
 const DROPPED_FRAME_DEGRADE_THRESHOLD = 3;
 const STABLE_FRAME_RECOVERY_THRESHOLD = 90;
 const MEMORY_PRESSURE_CHECK_INTERVAL_MS = 1_000;
+const LOG_COMPONENT = "PreviewEngine";
+
+function isMissingDescriptorClipId(clipId: unknown): boolean {
+  return typeof clipId !== "string" || clipId.trim().length === 0;
+}
+
+function formatDescriptorClipIdForLog(clipId: unknown): string {
+  if (typeof clipId === "string") {
+    return clipId.length > 0 ? clipId : "<empty>";
+  }
+  if (clipId === undefined) return "<undefined>";
+  if (clipId === null) return "<null>";
+  return `<${typeof clipId}:${String(clipId)}>`;
+}
 
 export type PreviewQualityLevel = "full" | "half" | "low";
 type PreviewQualityReason = "steady" | "scrubbing" | "dropped-frames";
@@ -336,10 +351,30 @@ export class PreviewEngine {
     lastSeekLatency: null,
   };
 
+  private logDebug(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logInfo(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.info(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
   static async create(
     callbacks: PreviewEngineCallbacks,
     options: { canvasWidth: number; canvasHeight: number; fps: number }
   ): Promise<PreviewEngine> {
+    debugLog.debug("Preloading editor-core wasm for preview engine", {
+      component: LOG_COMPONENT,
+      ...options,
+    });
     await preloadEditorCoreWasm();
     return new PreviewEngine(callbacks, options);
   }
@@ -355,6 +390,12 @@ export class PreviewEngine {
     this.decoderPool = new DecoderPool(({ frame, timestampUs, clipId }) => {
       this.metrics.decodedFrameCount += 1;
       this.markFirstDecodedFrameAfterSeek(clipId, timestampUs);
+      this.logDebug("Relaying decoded frame to preview surface", {
+        clipId,
+        timestampUs,
+        decodedFrameCount: this.metrics.decodedFrameCount,
+        isPlaying: this.isPlaying,
+      });
       this.callbacks.onFrame(frame, timestampUs, clipId);
       if (!this.isPlaying) {
         this.tickCompositor(this.currentTimeMs);
@@ -364,9 +405,15 @@ export class PreviewEngine {
       "previewEngine",
       () => this.getDebugSnapshot()
     );
+    this.logDebug("Initialized preview engine", {
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      fps: this.fps,
+    });
   }
 
   async primeAudioContext(): Promise<void> {
+    this.logDebug("Priming audio context");
     await this.audioMixer.prime();
   }
 
@@ -377,6 +424,14 @@ export class PreviewEngine {
     effectPreview: EffectPreviewPatch | null,
     dimensions?: { canvasWidth: number; canvasHeight: number; fps: number }
   ): void {
+    this.logDebug("Applying preview engine update", {
+      trackCount: tracks.length,
+      assetUrlCount: assetUrlMap.size,
+      durationMs,
+      playheadMs: this.currentTimeMs,
+      hasEffectPreview: Boolean(effectPreview),
+      hasDimensionOverride: Boolean(dimensions),
+    });
     this.tracks = tracks;
     this.assetUrlMap = assetUrlMap;
     this.durationMs = durationMs;
@@ -403,7 +458,14 @@ export class PreviewEngine {
   }
 
   async play(): Promise<void> {
-    if (this.isPlaying) return;
+    if (this.isPlaying) {
+      this.logDebug("Ignored play request while already playing");
+      return;
+    }
+    this.logDebug("Starting playback", {
+      currentTimeMs: this.currentTimeMs,
+      durationMs: this.durationMs,
+    });
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
     this.resetSessionMetrics();
@@ -420,9 +482,17 @@ export class PreviewEngine {
     this.lastPublishMs = Number.NEGATIVE_INFINITY;
     this.lastDecoderReconcileMs = this.currentTimeMs;
     this.startRafLoop();
+    this.logDebug("Playback started", {
+      requestToken,
+      currentTimeMs: this.currentTimeMs,
+    });
   }
 
   pause(): void {
+    this.logDebug("Pausing playback", {
+      isPlaying: this.isPlaying,
+      currentTimeMs: this.currentTimeMs,
+    });
     this.playRequestToken += 1;
     if (!this.isPlaying) {
       this.tickCompositor(this.currentTimeMs);
@@ -437,11 +507,18 @@ export class PreviewEngine {
     this.tickCompositor(this.currentTimeMs);
     this.publishTimeUpdate(this.currentTimeMs, "pause");
     this.logMetricsIfDevelopment();
+    this.logDebug("Playback paused", { currentTimeMs: this.currentTimeMs });
   }
 
   async seek(ms: number): Promise<void> {
     const targetMs = this.clampTime(ms);
     const wasPlaying = this.isPlaying;
+    this.logDebug("Seeking preview", {
+      requestedMs: ms,
+      targetMs,
+      wasPlaying,
+      currentTimeMs: this.currentTimeMs,
+    });
     const requestToken = this.playRequestToken + 1;
     this.playRequestToken = requestToken;
     this.startSeekLatency(targetMs);
@@ -468,6 +545,12 @@ export class PreviewEngine {
     if (wasPlaying) {
       await this.audioMixer.play(targetMs, this.buildAudioClipDescriptors());
       if (!this.isPlaying || requestToken !== this.playRequestToken) {
+        this.logDebug("Seek playback resume aborted due to stale request", {
+          targetMs,
+          requestToken,
+          activeRequestToken: this.playRequestToken,
+          isPlaying: this.isPlaying,
+        });
         return;
       }
       this.decoderPool.play();
@@ -475,14 +558,20 @@ export class PreviewEngine {
       this.lastDecoderReconcileMs = targetMs;
       this.startRafLoop();
       this.isPlaying = true;
+      this.logDebug("Seek completed and playback resumed", { targetMs });
       return;
     }
 
     this.isPlaying = false;
+    this.logDebug("Seek completed while paused", { targetMs });
   }
 
   setCurrentTime(ms: number): void {
     this.currentTimeMs = this.clampTime(ms);
+    this.logDebug("Set current time", {
+      requestedMs: ms,
+      currentTimeMs: this.currentTimeMs,
+    });
   }
 
   setCaptionFrame(captionFrame: SerializedCaptionFrame | null): void {
@@ -490,9 +579,13 @@ export class PreviewEngine {
       this.pendingCaptionFrame.bitmap.close();
     }
     this.pendingCaptionFrame = captionFrame;
+    this.logDebug("Updated pending caption frame", {
+      action: captionFrame ? "replace" : "clear",
+    });
   }
 
   renderCurrentFrame(): void {
+    this.logDebug("Rendering current frame", { currentTimeMs: this.currentTimeMs });
     this.tickCompositor(this.currentTimeMs);
   }
 
@@ -508,6 +601,7 @@ export class PreviewEngine {
   }
 
   destroy(): void {
+    this.logDebug("Destroying preview engine");
     this.stopRafLoop();
     this.clearScrubQualityRestoreTimer();
     this.decoderPool.destroy();
@@ -518,6 +612,7 @@ export class PreviewEngine {
       this.pendingCaptionFrame.bitmap.close();
       this.pendingCaptionFrame = undefined;
     }
+    this.logDebug("Preview engine destroyed");
   }
 
   private buildAudioClipDescriptors(): AudioClipDescriptor[] {
@@ -529,11 +624,61 @@ export class PreviewEngine {
     const timerId = systemPerformance.start("editor.compositorTick", {
       playheadMs,
     });
-    const clips = buildCompositorDescriptorsWithRust(
+    const rustClips = buildCompositorDescriptorsWithRust(
       this.tracks,
       playheadMs,
       this.effectPreview
     );
+    const jsClips = buildCompositorClips(
+      this.tracks,
+      playheadMs,
+      this.effectPreview
+    );
+    const rustClipIds = rustClips.map((clip) =>
+      formatDescriptorClipIdForLog(clip.clipId)
+    );
+    const jsClipIds = jsClips.map((clip) =>
+      formatDescriptorClipIdForLog(clip.clipId)
+    );
+    const blankRustClipIds = rustClips
+      .map((clip) => clip.clipId)
+      .filter((clipId) => isMissingDescriptorClipId(clipId))
+      .map((clipId) => formatDescriptorClipIdForLog(clipId));
+    const rustRawClipIds = rustClips.map((clip) => clip.clipId);
+    const jsRawClipIds = jsClips.map((clip) => clip.clipId);
+    const mismatchedClipIds =
+      rustRawClipIds.length !== jsRawClipIds.length ||
+      rustRawClipIds.some((clipId, index) => clipId !== jsRawClipIds[index]);
+
+    this.logDebug("Built compositor descriptors", {
+      playheadMs,
+      rustClipCount: rustClips.length,
+      rustClipIds,
+      jsClipCount: jsClips.length,
+      jsClipIds,
+      blankRustClipIdCount: blankRustClipIds.length,
+      descriptorMismatch: mismatchedClipIds,
+    });
+
+    if (blankRustClipIds.length > 0 || mismatchedClipIds) {
+      this.logInfo("Detected compositor descriptor mismatch", {
+        playheadMs,
+        rustClipIds,
+        jsClipIds,
+        blankRustClipIds,
+        rustFirstClipId: formatDescriptorClipIdForLog(rustClips[0]?.clipId),
+        jsFirstClipId: formatDescriptorClipIdForLog(jsClips[0]?.clipId),
+        rustFirstClipEnabled: rustClips[0]?.enabled ?? null,
+        jsFirstClipEnabled: jsClips[0]?.enabled ?? null,
+        rustFirstClipSourceTimeUs: rustClips[0]?.sourceTimeUs ?? null,
+        jsFirstClipSourceTimeUs: jsClips[0]?.sourceTimeUs ?? null,
+      }, {
+        rustFirstClip: rustClips[0] ?? null,
+        jsFirstClip: jsClips[0] ?? null,
+      });
+    }
+
+    const clips = rustClips;
     const previewClips = this.applyPreviewQualityToClips(clips);
     const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;
@@ -557,6 +702,15 @@ export class PreviewEngine {
     this.metrics.compositorFrameMs =
       measured?.durationMs ?? performance.now() - frameStart;
     this.markFirstCompositorTickAfterSeek(playheadMs);
+    if (!this.isPlaying) {
+      this.logDebug("Ticked compositor", {
+        playheadMs,
+        clipCount: previewClips.length,
+        textObjectCount: textObjects.length,
+        hasCaptionFrame: captionFrame !== undefined,
+        previewQuality: this.previewQuality.level,
+      });
+    }
   }
 
   private applyPreviewQualityToClips(
@@ -666,6 +820,12 @@ export class PreviewEngine {
       pressureRatio,
       ...DECODER_BUDGETS[nextReason],
     });
+    this.logInfo("Adjusted decoder budget due to memory pressure", {
+      pressureRatio,
+      nextReason,
+      decodeWindowMs: DECODER_BUDGETS[nextReason].decodeWindowMs,
+      maxActiveDecoderCount: DECODER_BUDGETS[nextReason].maxActiveDecoderCount,
+    });
   }
 
   private buildTextObjects(timelineMs: number): SerializedTextObject[] {
@@ -707,7 +867,14 @@ export class PreviewEngine {
   }
 
   private startRafLoop(): void {
-    if (this.rafHandle != null) return;
+    if (this.rafHandle != null) {
+      this.logDebug("Ignored RAF start; loop already active");
+      return;
+    }
+    this.logDebug("Starting RAF loop", {
+      currentTimeMs: this.currentTimeMs,
+      fps: this.fps,
+    });
     this.rafStartWallMs = performance.now();
     this.rafStartTimelineMs = this.currentTimeMs;
     this.lastAudibleTickMs = null;
@@ -756,6 +923,10 @@ export class PreviewEngine {
       }
 
       if (audibleMs >= this.durationMs) {
+        this.logDebug("Reached playback end in RAF loop", {
+          audibleMs,
+          durationMs: this.durationMs,
+        });
         this.stopRafLoop();
         this.decoderPool.pause();
         this.audioMixer.pause();
@@ -778,6 +949,7 @@ export class PreviewEngine {
     if (this.rafHandle == null) return;
     cancelAnimationFrame(this.rafHandle);
     this.rafHandle = null;
+    this.logDebug("Stopped RAF loop");
   }
 
   private clampTime(ms: number): number {
@@ -807,7 +979,7 @@ export class PreviewEngine {
     if (this.didLogMetricsForCurrentSession) return;
     if (!IS_DEVELOPMENT) return;
     this.didLogMetricsForCurrentSession = true;
-    console.table(this.getMetrics());
+    this.logInfo("Playback metric payload", undefined, this.getMetrics());
   }
 
   private publishTimeUpdate(

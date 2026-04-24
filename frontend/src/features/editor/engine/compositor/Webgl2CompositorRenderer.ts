@@ -8,10 +8,12 @@ import {
   type CompositorClipPath,
   type CompositorClipTransform,
   type CompositorPreviewQuality,
+  type CompositorRenderResult,
   type CompositorRenderRequest,
   type CompositorRenderer,
   type DrawRect,
 } from "./types";
+import { debugLog } from "@/shared/utils/debug";
 
 interface TextureRecord {
   texture: WebGLTexture;
@@ -44,6 +46,7 @@ interface WebglRendererState {
 
 const MAX_POLYGON_POINTS = 8;
 const IDENTITY_EFFECTS: CompositorClipEffects = { contrast: 0, warmth: 0 };
+const LOG_COMPONENT = "Webgl2CompositorRenderer";
 
 export class Webgl2CompositorRenderer implements CompositorRenderer {
   readonly mode = "webgl2" as const;
@@ -60,6 +63,22 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     private quality: CompositorPreviewQuality
   ) {}
 
+  private logDebug(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logWarn(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.warn(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
   static create(
     canvas: OffscreenCanvas,
     width: number,
@@ -72,8 +91,22 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       height,
       quality
     );
-    if (!renderer.initializeWebgl()) return null;
+    if (!renderer.initializeWebgl()) {
+      renderer.logWarn("Failed to initialize WebGL2 compositor renderer", {
+        width,
+        height,
+        previewQualityLevel: quality.level,
+        previewQualityScale: quality.scale,
+      });
+      return null;
+    }
     renderer.installContextLossHandlers();
+    renderer.logDebug("Initialized WebGL2 compositor renderer", {
+      width,
+      height,
+      previewQualityLevel: quality.level,
+      previewQualityScale: quality.scale,
+    });
     return renderer;
   }
 
@@ -82,6 +115,14 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     height: number,
     quality: CompositorPreviewQuality
   ): void {
+    this.logDebug("Resizing WebGL2 compositor renderer", {
+      previousWidth: this.canvasWidth,
+      previousHeight: this.canvasHeight,
+      width,
+      height,
+      previewQualityLevel: quality.level,
+      previewQualityScale: quality.scale,
+    });
     this.canvasWidth = width;
     this.canvasHeight = height;
     this.quality = quality;
@@ -93,24 +134,65 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     }
   }
 
-  render(request: CompositorRenderRequest): boolean {
-    if (!this.webgl || this.contextLost) return false;
+  render(request: CompositorRenderRequest): CompositorRenderResult {
+    if (!this.webgl || this.contextLost) {
+      this.logWarn("Skipping WebGL2 render because context is unavailable", {
+        hasWebglState: Boolean(this.webgl),
+        contextLost: this.contextLost,
+      });
+      return this.buildRenderFailureResult(request);
+    }
 
     const { gl } = this.webgl;
     if (gl.isContextLost()) {
+      this.logWarn("Detected lost WebGL2 context during render");
       this.contextLost = true;
       this.webgl = null;
-      return false;
+      return this.buildRenderFailureResult(request);
     }
+
+    const drawableClips = getDrawableClips(request.clips);
+    const drawnVideoClipIds: string[] = [];
+    const missingFrameClipIds: string[] = [];
+    const failedVideoClipIds: string[] = [];
+
+    this.logDebug("Starting WebGL2 render", {
+      clipCount: request.clips.length,
+      drawableClipCount: drawableClips.length,
+      drawableClipIds: drawableClips.map((clip) => clip.clipId),
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      scaledCanvasWidth: this.canvas.width,
+      scaledCanvasHeight: this.canvas.height,
+      previewQualityLevel: this.quality.level,
+      previewQualityScale: this.quality.scale,
+    });
 
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    this.logDebug("Cleared WebGL2 color buffer to black", {
+      scaledCanvasWidth: this.canvas.width,
+      scaledCanvasHeight: this.canvas.height,
+    });
+    this.drainGlErrors("after-clear");
 
     let didFailFrameUpload = false;
-    for (const clip of getDrawableClips(request.clips)) {
+    for (const clip of drawableClips) {
       const frame = request.pickFrame(clip.clipId, clip.sourceTimeUs);
-      if (!frame) continue;
+      if (!frame) {
+        missingFrameClipIds.push(clip.clipId);
+        this.logDebug("WebGL2 render found no frame for clip", {
+          clipId: clip.clipId,
+          sourceTimeUs: clip.sourceTimeUs,
+          opacity: clip.opacity,
+        });
+        continue;
+      }
       const didDrawFrame = this.drawClipFrame(
+        clip.clipId,
+        clip.sourceTimeUs,
         clip.opacity,
         clip.effects,
         clip.clipPath,
@@ -119,11 +201,71 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       );
       if (!didDrawFrame) {
         didFailFrameUpload = true;
+        failedVideoClipIds.push(clip.clipId);
+        this.logWarn("WebGL2 render failed to draw clip frame", {
+          clipId: clip.clipId,
+          sourceTimeUs: clip.sourceTimeUs,
+          frameTimestampUs: frame.timestamp,
+        });
+      } else {
+        drawnVideoClipIds.push(clip.clipId);
       }
     }
 
-    this.drawOverlay(request);
-    return !didFailFrameUpload;
+    const overlayDrawn = this.drawOverlay(request);
+    const overlayOnly = drawnVideoClipIds.length === 0 && overlayDrawn;
+    gl.flush();
+    this.logDebug("Flushed WebGL2 command buffer", {
+      drawnVideoClipCount: drawnVideoClipIds.length,
+      overlayDrawn,
+    });
+    this.drainGlErrors("after-flush");
+
+    if (drawnVideoClipIds.length === 0) {
+      this.logWarn("WebGL2 render produced no video draw", {
+        drawableClipCount: drawableClips.length,
+        drawableClipIds: drawableClips.map((clip) => clip.clipId),
+        missingFrameClipIds,
+        failedVideoClipIds,
+        overlayOnly,
+        textObjectCount: request.textObjects.length,
+        hasCaptionFrame: request.captionFrame !== null,
+      });
+    }
+
+    this.logDebug("Completed WebGL2 render", {
+      clipCount: request.clips.length,
+      drawableClipCount: drawableClips.length,
+      drawnVideoClipCount: drawnVideoClipIds.length,
+      drawnVideoClipIds,
+      missingFrameClipCount: missingFrameClipIds.length,
+      missingFrameClipIds,
+      failedVideoClipCount: failedVideoClipIds.length,
+      failedVideoClipIds,
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      didFailFrameUpload,
+      overlayDrawn,
+      overlayOnly,
+    });
+    return {
+      ok: !didFailFrameUpload,
+      stats: {
+        totalClipCount: request.clips.length,
+        drawableClipCount: drawableClips.length,
+        drawableClipIds: drawableClips.map((clip) => clip.clipId),
+        drawnVideoClipCount: drawnVideoClipIds.length,
+        drawnVideoClipIds,
+        missingFrameClipCount: missingFrameClipIds.length,
+        missingFrameClipIds,
+        failedVideoClipCount: failedVideoClipIds.length,
+        failedVideoClipIds,
+        textObjectCount: request.textObjects.length,
+        captionFramePresent: request.captionFrame !== null,
+        overlayDrawn,
+        overlayOnly,
+      },
+    };
   }
 
   releaseFrame(frame: VideoFrame): void {
@@ -139,6 +281,7 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
   destroy(): void {
     if (!this.webgl) return;
 
+    this.logDebug("Destroying WebGL2 compositor renderer");
     const { gl, program, vertexBuffer, overlayTexture } = this.webgl;
     gl.deleteProgram(program);
     gl.deleteBuffer(vertexBuffer);
@@ -158,7 +301,10 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       premultipliedAlpha: true,
     }) as WebGL2RenderingContext | null;
 
-    if (!gl) return false;
+    if (!gl) {
+      this.logWarn("Browser did not provide a WebGL2 context");
+      return false;
+    }
 
     const program = this.createProgram(gl);
     const vertexBuffer = gl.createBuffer();
@@ -188,18 +334,25 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     };
     this.ensureOverlayCanvas();
     this.configureWebgl(gl, program, overlayTexture);
+    this.logDebug("WebGL2 context initialized", {
+      scaledCanvasWidth: this.canvas.width,
+      scaledCanvasHeight: this.canvas.height,
+    });
     return true;
   }
 
   private installContextLossHandlers(): void {
     this.canvas.addEventListener("webglcontextlost", (event) => {
       event.preventDefault();
+      this.logWarn("WebGL2 context lost");
       this.contextLost = true;
       this.webgl = null;
     });
     this.canvas.addEventListener("webglcontextrestored", () => {
+      this.logDebug("WebGL2 context restored");
       this.contextLost = false;
       if (!this.initializeWebgl()) {
+        this.logWarn("Failed to reinitialize WebGL2 after context restore");
         this.contextLost = true;
       }
     });
@@ -405,6 +558,8 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
   }
 
   private drawClipFrame(
+    clipId: string,
+    sourceTimeUs: number,
     opacity: number,
     effects: CompositorClipEffects,
     clipPath: CompositorClipPath | null,
@@ -414,13 +569,34 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     if (!this.webgl) return false;
 
     const texture = this.getOrUploadFrameTexture(frame);
-    if (!texture) return false;
+    if (!texture) {
+      this.logWarn("WebGL2 could not upload frame texture", {
+        frameTimestampUs: frame.timestamp,
+        frameDisplayWidth: frame.displayWidth,
+        frameDisplayHeight: frame.displayHeight,
+      });
+      return false;
+    }
 
     const drawRect = getObjectContainRect(
       frame,
       this.canvasWidth,
       this.canvasHeight
     );
+    this.logDebug("Drawing clip frame in WebGL2 renderer", {
+      clipId,
+      sourceTimeUs,
+      frameTimestampUs: frame.timestamp,
+      frameDisplayWidth: frame.displayWidth,
+      frameDisplayHeight: frame.displayHeight,
+      drawRect,
+      opacity,
+      hasClipPath: clipPath !== null,
+      scale: transform.scale,
+      translateX: transform.translateX,
+      translateY: transform.translateY,
+      rotationDeg: transform.rotationDeg,
+    });
     this.drawTextureQuad(
       texture.texture,
       this.buildTransformedQuad(drawRect, transform),
@@ -428,6 +604,11 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       effects,
       clipPath
     );
+    this.drainGlErrors("after-video-draw", {
+      clipId,
+      sourceTimeUs,
+      frameTimestampUs: frame.timestamp,
+    });
     return true;
   }
 
@@ -439,7 +620,12 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
 
     const { gl } = this.webgl;
     const texture = gl.createTexture();
-    if (!texture) return null;
+    if (!texture) {
+      this.logWarn("Failed to allocate WebGL2 texture for frame", {
+        frameTimestampUs: frame.timestamp,
+      });
+      return null;
+    }
 
     this.configureTexture(gl, texture);
     try {
@@ -451,7 +637,17 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
         gl.UNSIGNED_BYTE,
         frame
       );
+      this.logDebug("Uploaded VideoFrame into WebGL2 texture", {
+        frameTimestampUs: frame.timestamp,
+        frameDisplayWidth: frame.displayWidth,
+        frameDisplayHeight: frame.displayHeight,
+      });
     } catch {
+      this.logWarn("WebGL2 texImage2D failed for VideoFrame upload", {
+        frameTimestampUs: frame.timestamp,
+        frameDisplayWidth: frame.displayWidth,
+        frameDisplayHeight: frame.displayHeight,
+      });
       gl.deleteTexture(texture);
       return null;
     }
@@ -461,11 +657,23 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     return record;
   }
 
-  private drawOverlay(request: CompositorRenderRequest): void {
-    if (!this.webgl) return;
+  private drawOverlay(request: CompositorRenderRequest): boolean {
+    if (!this.webgl) return false;
+
+    const hasOverlayContent =
+      request.textObjects.length > 0 || request.captionFrame !== null;
+    if (!hasOverlayContent) {
+      this.logDebug("Skipping WebGL2 overlay draw because overlay is empty");
+      return false;
+    }
 
     const overlayCtx = this.renderOverlayCanvas(request);
-    if (!overlayCtx) return;
+    if (!overlayCtx) {
+      this.logWarn(
+        "Skipped WebGL2 overlay draw because overlay context is unavailable"
+      );
+      return false;
+    }
 
     const { gl, overlayTexture } = this.webgl;
     this.configureTexture(gl, overlayTexture);
@@ -478,6 +686,13 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       overlayCtx.canvas
     );
 
+    this.logDebug("Uploading overlay canvas for WebGL2 draw", {
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      overlayWidth: overlayCtx.canvas.width,
+      overlayHeight: overlayCtx.canvas.height,
+    });
+
     this.drawTextureQuad(
       overlayTexture,
       this.buildFullscreenQuad(),
@@ -485,13 +700,18 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
       IDENTITY_EFFECTS,
       null
     );
+    this.drainGlErrors("after-overlay-draw");
+    return true;
   }
 
   private renderOverlayCanvas(
     request: CompositorRenderRequest
   ): OffscreenCanvasRenderingContext2D | null {
     this.ensureOverlayCanvas();
-    if (!this.overlayCtx) return null;
+    if (!this.overlayCtx) {
+      this.logWarn("Overlay canvas context is unavailable for WebGL2 renderer");
+      return null;
+    }
 
     this.overlayCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.overlayCtx.clearRect(
@@ -520,6 +740,13 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
         this.canvasHeight
       );
     }
+
+    this.logDebug("Rendered overlay canvas for WebGL2", {
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+    });
 
     return this.overlayCtx;
   }
@@ -567,6 +794,55 @@ export class Webgl2CompositorRenderer implements CompositorRenderer {
     this.applyClipUniforms(clipPath);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private buildRenderFailureResult(
+    request: CompositorRenderRequest
+  ): CompositorRenderResult {
+    const drawableClips = getDrawableClips(request.clips);
+    const overlayDrawn =
+      request.textObjects.length > 0 || request.captionFrame !== null;
+    return {
+      ok: false,
+      stats: {
+        totalClipCount: request.clips.length,
+        drawableClipCount: drawableClips.length,
+        drawableClipIds: drawableClips.map((clip) => clip.clipId),
+        drawnVideoClipCount: 0,
+        drawnVideoClipIds: [],
+        missingFrameClipCount: 0,
+        missingFrameClipIds: [],
+        failedVideoClipCount: 0,
+        failedVideoClipIds: [],
+        textObjectCount: request.textObjects.length,
+        captionFramePresent: request.captionFrame !== null,
+        overlayDrawn,
+        overlayOnly: overlayDrawn,
+      },
+    };
+  }
+
+  private drainGlErrors(
+    stage: string,
+    context?: Record<string, unknown>
+  ): void {
+    if (!this.webgl) return;
+
+    const { gl } = this.webgl;
+    const errors: number[] = [];
+    let error = gl.getError();
+    while (error !== gl.NO_ERROR) {
+      errors.push(error);
+      error = gl.getError();
+    }
+
+    if (errors.length === 0) return;
+
+    this.logWarn("Observed WebGL2 errors", {
+      stage,
+      errorCodes: errors.join(","),
+      ...context,
+    });
   }
 
   private applyClipUniforms(clipPath: CompositorClipPath | null): void {

@@ -18,7 +18,10 @@ import type {
   SerializedTextObject,
   SerializedCaptionFrame,
 } from "../../engine/CompositorWorker";
+import { debugLog } from "@/shared/utils/debug";
 import { systemPerformance } from "@/shared/utils/system/performance";
+
+const LOG_COMPONENT = "PreviewCanvas";
 
 export interface PreviewCanvasHandle {
   /**
@@ -56,6 +59,14 @@ export const PreviewCanvas = forwardRef<
   { resolution, durationMs, rendererPreference, onRendererPreferenceChange },
   ref
 ) {
+  const logDebug = (
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ) => {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  };
+
   const { t } = useTranslation();
   const clock = usePlayheadClock();
   const timecodeRef = useRef<ElementRef<"span">>(null);
@@ -76,19 +87,38 @@ export const PreviewCanvas = forwardRef<
     const canvas = visibleCanvasRef.current;
     if (!canvas) return;
 
+    logDebug("Preparing preview canvas worker lifecycle", {
+      rendererPreference,
+      resolution,
+      resolutionWidth,
+      resolutionHeight,
+    });
+
     if (
       pendingDestroyTimerRef.current != null &&
       pendingDestroyRendererRef.current === rendererPreference
     ) {
+      logDebug("Cancelled pending worker destroy due to renderer reuse", {
+        rendererPreference,
+      });
       window.clearTimeout(pendingDestroyTimerRef.current);
       pendingDestroyTimerRef.current = null;
       pendingDestroyRendererRef.current = null;
     } else if (pendingDestroyTimerRef.current != null) {
+      logDebug("Dropping previous worker ref due to renderer change", {
+        previousRendererPreference: pendingDestroyRendererRef.current,
+        nextRendererPreference: rendererPreference,
+      });
       compositorWorkerRef.current = null;
     }
 
     let worker = compositorWorkerRef.current;
     if (!worker) {
+      logDebug("Creating compositor worker", {
+        rendererPreference,
+        resolutionWidth,
+        resolutionHeight,
+      });
       worker = new Worker(
         new URL("../../engine/CompositorWorker.ts", import.meta.url),
         { type: "module" }
@@ -97,6 +127,11 @@ export const PreviewCanvas = forwardRef<
       worker.onmessage = (event: MessageEvent) => {
         const msg = event.data;
         if (msg.type === "READY") {
+          logDebug("Compositor worker reported READY", {
+            rendererPreference,
+            resolutionWidth,
+            resolutionHeight,
+          });
           compositorReadyRef.current = true;
           systemPerformance.setDebugValue("compositorWorker", {
             ready: true,
@@ -108,6 +143,31 @@ export const PreviewCanvas = forwardRef<
 
         if (msg.type === "PERFORMANCE") {
           const metrics = msg.metrics as CompositorWorkerPerformanceMetrics;
+          logDebug("Received compositor worker performance metrics", {
+            renderer: metrics.renderer,
+            playheadMs: metrics.playheadMs,
+            clipCount: metrics.clipCount,
+            incomingClipIds: metrics.incomingClipIds,
+            queueClipIds: metrics.queueClipIds,
+            matchedQueueClipIds: metrics.matchedQueueClipIds,
+            missingQueueClipIds: metrics.missingQueueClipIds,
+            blankClipIds: metrics.blankClipIds,
+            drawableClipCount: metrics.drawableClipCount,
+            drawableClipIds: metrics.drawableClipIds,
+            drawnVideoClipCount: metrics.drawnVideoClipCount,
+            drawnVideoClipIds: metrics.drawnVideoClipIds,
+            missingFrameClipCount: metrics.missingFrameClipCount,
+            missingFrameClipIds: metrics.missingFrameClipIds,
+            failedVideoClipCount: metrics.failedVideoClipCount,
+            failedVideoClipIds: metrics.failedVideoClipIds,
+            renderOk: metrics.renderOk,
+            overlayDrawn: metrics.overlayDrawn,
+            overlayOnly: metrics.overlayOnly,
+            textObjectCount: metrics.textObjectCount,
+            frameQueueTotal: metrics.frameQueueTotal,
+            previewQualityLevel: metrics.previewQuality.level,
+            previewQualityScale: metrics.previewQuality.scale,
+          });
           systemPerformance.record(
             "editor.compositorWorker.tick",
             metrics.compositorFrameMs,
@@ -121,12 +181,18 @@ export const PreviewCanvas = forwardRef<
         }
 
         if (msg.type === "RENDERER_FALLBACK_REQUIRED") {
+          logDebug("Compositor worker requested renderer fallback", msg);
           systemPerformance.setDebugValue("compositorRendererFallback", msg);
           onRendererPreferenceChange("canvas2d");
         }
       };
 
       const offscreen = canvas.transferControlToOffscreen();
+      logDebug("Transferred visible canvas to compositor worker", {
+        width: resolutionWidth,
+        height: resolutionHeight,
+        rendererPreference,
+      });
       worker.postMessage(
         {
           type: "INIT",
@@ -138,6 +204,12 @@ export const PreviewCanvas = forwardRef<
         },
         [offscreen]
       );
+      logDebug("Posted INIT to compositor worker", {
+        width: resolutionWidth,
+        height: resolutionHeight,
+        rendererPreference,
+        debugEnabled: systemPerformance.isEnabled,
+      });
 
       compositorWorkerRef.current = worker;
     }
@@ -147,7 +219,13 @@ export const PreviewCanvas = forwardRef<
       const activeWorker = compositorWorkerRef.current;
       if (!activeWorker) return;
       pendingDestroyRendererRef.current = rendererPreference;
+      logDebug("Scheduling compositor worker destroy", {
+        rendererPreference,
+      });
       pendingDestroyTimerRef.current = window.setTimeout(() => {
+        logDebug("Posting DESTROY to compositor worker", {
+          rendererPreference,
+        });
         activeWorker.postMessage({ type: "DESTROY" });
         window.setTimeout(() => activeWorker.terminate(), 200);
         if (compositorWorkerRef.current === activeWorker) {
@@ -164,6 +242,10 @@ export const PreviewCanvas = forwardRef<
     const worker = compositorWorkerRef.current;
     if (!worker) return;
 
+    logDebug("Posting RESIZE to compositor worker", {
+      width: resolutionWidth,
+      height: resolutionHeight,
+    });
     worker.postMessage({
       type: "RESIZE",
       width: resolutionWidth,
@@ -180,11 +262,28 @@ export const PreviewCanvas = forwardRef<
       quality?: CompositorPreviewQuality
     ) => {
       const worker = compositorWorkerRef.current;
-      if (!worker || !compositorReadyRef.current) return;
+      if (!worker || !compositorReadyRef.current) {
+        logDebug("Skipped compositor tick because worker is unavailable", {
+          playheadMs,
+          hasWorker: Boolean(worker),
+          workerReady: compositorReadyRef.current,
+        });
+        return;
+      }
 
       const transferables: Transferable[] = captionFrame
         ? [captionFrame.bitmap]
         : [];
+      logDebug("Posting compositor tick", {
+        playheadMs,
+        clipCount: clips.length,
+        clipIds: clips.map((clip) => clip.clipId),
+        textObjectCount: textObjects.length,
+        captionFrameState:
+          captionFrame === undefined ? "unchanged" : captionFrame ? "replace" : "clear",
+        previewQualityLevel: quality?.level ?? "default",
+        previewQualityScale: quality?.scale ?? "default",
+      });
       worker.postMessage(
         captionFrame === undefined
           ? { type: "OVERLAY", textObjects }
@@ -201,9 +300,21 @@ export const PreviewCanvas = forwardRef<
     (frame: VideoFrame, timestampUs: number, clipId: string) => {
       const worker = compositorWorkerRef.current;
       if (!worker) {
+        logDebug("Dropped frame because compositor worker is unavailable", {
+          clipId,
+          timestampUs,
+          frameTimestampUs: frame.timestamp,
+        });
         frame.close();
         return;
       }
+      logDebug("Posting decoded frame to compositor worker", {
+        clipId,
+        timestampUs,
+        frameTimestampUs: frame.timestamp,
+        frameDisplayWidth: frame.displayWidth,
+        frameDisplayHeight: frame.displayHeight,
+      });
       worker.postMessage({ type: "FRAME", frame, timestampUs, clipId }, [
         frame as unknown as Transferable,
       ]);
@@ -214,6 +325,10 @@ export const PreviewCanvas = forwardRef<
   const clearFrames = useCallback((clipIds: string[]) => {
     const worker = compositorWorkerRef.current;
     if (!worker) return;
+    logDebug("Posting clear-frame messages to compositor worker", {
+      clipCount: clipIds.length,
+      clipIds,
+    });
     for (const clipId of clipIds) {
       worker.postMessage({ type: "CLEAR_CLIP", clipId });
     }

@@ -7,15 +7,17 @@
  */
 
 import {
-  createCompositorRenderer,
-  type CompositorClipDescriptor,
-  type CompositorPreviewQuality,
-  type CompositorRenderer,
-  type CompositorRendererMode,
-  type CompositorRendererPreference,
-  type SerializedCaptionFrame,
+    createCompositorRenderer,
+    type CompositorClipDescriptor,
+    type CompositorPreviewQuality,
+    type CompositorRenderResult,
+    type CompositorRenderer,
+    type CompositorRendererMode,
+    type CompositorRendererPreference,
+    type SerializedCaptionFrame,
   type SerializedTextObject,
 } from "./compositor";
+import { debugLog } from "@/shared/utils/debug";
 
 export type {
   CompositorClipDescriptor,
@@ -43,6 +45,22 @@ export interface CompositorWorkerPerformanceMetrics {
   canvasWidth: number;
   canvasHeight: number;
   previewQuality: CompositorPreviewQuality;
+  renderOk: boolean;
+  drawableClipCount: number;
+  drawableClipIds: string[];
+  drawnVideoClipCount: number;
+  drawnVideoClipIds: string[];
+  missingFrameClipCount: number;
+  missingFrameClipIds: string[];
+  failedVideoClipCount: number;
+  failedVideoClipIds: string[];
+  overlayDrawn: boolean;
+  overlayOnly: boolean;
+  incomingClipIds: string[];
+  queueClipIds: string[];
+  matchedQueueClipIds: string[];
+  missingQueueClipIds: string[];
+  blankClipIds: string[];
 }
 
 type CompositorWorkerMessage =
@@ -81,6 +99,20 @@ interface WorkerCtx extends EventTarget {
 
 const ctx = self as unknown as WorkerCtx;
 const FULL_QUALITY: CompositorPreviewQuality = { level: "full", scale: 1 };
+const LOG_COMPONENT = "CompositorWorker";
+
+function isMissingDescriptorClipId(clipId: unknown): boolean {
+  return typeof clipId !== "string" || clipId.trim().length === 0;
+}
+
+function formatDescriptorClipIdForLog(clipId: unknown): string {
+  if (typeof clipId === "string") {
+    return clipId.length > 0 ? clipId : "<empty>";
+  }
+  if (clipId === undefined) return "<undefined>";
+  if (clipId === null) return "<null>";
+  return `<${typeof clipId}:${String(clipId)}>`;
+}
 
 class CompositorWorker {
   private renderer: CompositorRenderer | null = null;
@@ -109,6 +141,23 @@ class CompositorWorker {
     this.worker.onmessage = (event: MessageEvent) => {
       this.handleMessage(event.data as CompositorWorkerMessage);
     };
+    this.logDebug("Initialized compositor worker bridge");
+  }
+
+  private logDebug(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logWarn(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.warn(message, { component: LOG_COMPONENT, ...context }, data);
   }
 
   // ---------------------------------------------------------------------------
@@ -117,9 +166,44 @@ class CompositorWorker {
 
   private handleMessage(message: CompositorWorkerMessage): void {
     if (this.isDestroyed && message.type !== "DESTROY") {
+      this.logWarn("Ignoring message after compositor worker destruction", {
+        type: message.type,
+      });
       this.closeFrameFromIgnoredMessage(message);
       return;
     }
+
+    this.logDebug("Handling compositor worker message", {
+      type: message.type,
+      ...(message.type === "FRAME"
+        ? {
+            clipId: message.clipId,
+            messageTimestampUs: message.timestampUs,
+            frameTimestampUs: message.frame.timestamp,
+            frameDisplayWidth: message.frame.displayWidth,
+            frameDisplayHeight: message.frame.displayHeight,
+          }
+        : {}),
+      ...(message.type === "TICK"
+        ? {
+            playheadMs: message.playheadMs,
+            clipCount: message.clips.length,
+            previewQualityLevel: message.quality?.level ?? this.quality.level,
+            previewQualityScale: message.quality?.scale ?? this.quality.scale,
+          }
+        : {}),
+      ...(message.type === "OVERLAY"
+        ? {
+            textObjectCount: message.textObjects.length,
+            captionFrameState:
+              !("captionFrame" in message)
+                ? "unchanged"
+                : message.captionFrame
+                  ? "replace"
+                  : "clear",
+          }
+        : {}),
+    });
 
     switch (message.type) {
       case "INIT":
@@ -129,7 +213,7 @@ class CompositorWorker {
         this.resize(message.width, message.height);
         break;
       case "FRAME":
-        this.receiveFrame(message.clipId, message.frame);
+        this.receiveFrame(message.clipId, message.frame, message.timestampUs);
         break;
       case "OVERLAY":
         this.updateOverlay(message);
@@ -158,16 +242,43 @@ class CompositorWorker {
       preference: message.rendererPreference ?? "auto",
       quality: this.quality,
     });
+    this.logDebug("Initialized compositor renderer", {
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      rendererPreference: this.rendererPreference,
+      rendererMode: this.renderer?.mode ?? "unknown",
+      debugEnabled: this.debugEnabled,
+    });
     this.worker.postMessage({ type: "READY" });
   }
 
   private resize(width: number, height: number): void {
+    this.logDebug("Resizing compositor renderer", {
+      previousWidth: this.canvasWidth,
+      previousHeight: this.canvasHeight,
+      width,
+      height,
+      previewQualityLevel: this.quality.level,
+      previewQualityScale: this.quality.scale,
+    });
     this.canvasWidth = width;
     this.canvasHeight = height;
     this.renderer?.resize(width, height, this.quality);
   }
 
-  private receiveFrame(clipId: string, frame: VideoFrame): void {
+  private receiveFrame(
+    clipId: string,
+    frame: VideoFrame,
+    timestampUs: number
+  ): void {
+    this.logDebug("Received decoded frame from main thread", {
+      clipId,
+      timestampUs,
+      frameTimestampUs: frame.timestamp,
+      frameDisplayWidth: frame.displayWidth,
+      frameDisplayHeight: frame.displayHeight,
+      existingQueueSize: this.frameQueues.get(clipId)?.length ?? 0,
+    });
     this.enqueueFrame(clipId, frame);
   }
 
@@ -175,6 +286,15 @@ class CompositorWorker {
     message: Extract<CompositorWorkerMessage, { type: "OVERLAY" }>
   ): void {
     this.textObjects = message.textObjects ?? [];
+    this.logDebug("Updated compositor overlay payload", {
+      textObjectCount: this.textObjects.length,
+      captionFrameState:
+        !("captionFrame" in message)
+          ? "unchanged"
+          : message.captionFrame
+            ? "replace"
+            : "clear",
+    });
 
     if (!("captionFrame" in message)) return;
 
@@ -190,19 +310,90 @@ class CompositorWorker {
   ): void {
     const frameStart = performance.now();
     this.applyQuality(quality);
-    const rendered = this.renderer?.render({
+    this.logDebug("Starting compositor render tick", {
+      playheadMs,
+      clipCount: clips.length,
+      clipIds: clips.map((clip) => clip.clipId),
+      textObjectCount: this.textObjects.length,
+      hasCaptionFrame: this.captionFrame !== null,
+      rendererMode: this.renderer?.mode ?? "unknown",
+      frameQueueTotal: this.getTotalFrameQueueSize(),
+      previewQualityLevel: this.quality.level,
+      previewQualityScale: this.quality.scale,
+    });
+    const queueClipIds = Array.from(this.frameQueues.keys());
+    const incomingRawClipIds = clips.map((clip) => clip.clipId);
+    const incomingClipIds = incomingRawClipIds.map((clipId) =>
+      formatDescriptorClipIdForLog(clipId)
+    );
+    const matchedQueueClipIds = incomingRawClipIds
+      .filter(
+        (clipId): clipId is string =>
+          typeof clipId === "string" && this.frameQueues.has(clipId)
+      )
+      .map((clipId) => formatDescriptorClipIdForLog(clipId));
+    const missingQueueClipIds = incomingRawClipIds
+      .filter(
+        (clipId) =>
+          typeof clipId !== "string" || !this.frameQueues.has(clipId)
+      )
+      .map((clipId) => formatDescriptorClipIdForLog(clipId));
+    const blankClipIds = incomingRawClipIds
+      .filter((clipId) => isMissingDescriptorClipId(clipId))
+      .map((clipId) => formatDescriptorClipIdForLog(clipId));
+    if (blankClipIds.length > 0) {
+      this.logWarn("Compositor tick received blank clip IDs", {
+        playheadMs,
+        clipCount: clips.length,
+        blankClipIds,
+        queueClipIds,
+      });
+    }
+    if (missingQueueClipIds.length > 0) {
+      this.logWarn("Compositor tick clip IDs have no matching frame queues", {
+        playheadMs,
+        missingQueueClipIds,
+        queueClipIds,
+      });
+    }
+    const renderResult = this.renderer?.render({
       clips,
       textObjects: this.textObjects,
       captionFrame: this.captionFrame,
       pickFrame: (clipId, sourceTimeUs) => this.pickFrame(clipId, sourceTimeUs),
     });
+    const renderOk = renderResult?.ok ?? false;
+    const renderStats = renderResult?.stats;
 
-    if (rendered === false) {
+    this.logDebug("Completed compositor render tick", {
+      playheadMs,
+      rendered: renderOk,
+      rendererMode: this.renderer?.mode ?? "unknown",
+      drawableClipCount: renderStats?.drawableClipCount ?? 0,
+      drawnVideoClipCount: renderStats?.drawnVideoClipCount ?? 0,
+      missingFrameClipCount: renderStats?.missingFrameClipCount ?? 0,
+      failedVideoClipCount: renderStats?.failedVideoClipCount ?? 0,
+      overlayOnly: renderStats?.overlayOnly ?? false,
+      frameQueueTotal: this.getTotalFrameQueueSize(),
+      durationMs: performance.now() - frameStart,
+    });
+
+    if (renderOk === false) {
       this.requestRendererFallback("Renderer context became unavailable.");
     }
 
     if (this.debugEnabled) {
-      this.postPerformanceMetrics(playheadMs, clips, frameStart);
+      this.postPerformanceMetrics(
+        playheadMs,
+        clips,
+        frameStart,
+        renderResult ?? null,
+        incomingClipIds,
+        queueClipIds,
+        matchedQueueClipIds,
+        missingQueueClipIds,
+        blankClipIds
+      );
     }
   }
 
@@ -216,12 +407,22 @@ class CompositorWorker {
     }
 
     this.quality = quality;
+    this.logDebug("Applied compositor quality change", {
+      previewQualityLevel: quality.level,
+      previewQualityScale: quality.scale,
+    });
     this.renderer?.resize(this.canvasWidth, this.canvasHeight, this.quality);
   }
 
   private destroy(): void {
     if (this.isDestroyed) return;
 
+    this.logDebug("Destroying compositor worker", {
+      rendererMode: this.renderer?.mode ?? "unknown",
+      frameQueueTotal: this.getTotalFrameQueueSize(),
+      clipQueueCount: this.frameQueues.size,
+      hasCaptionFrame: this.captionFrame !== null,
+    });
     this.isDestroyed = true;
     this.clearAllFrames();
     this.closeCaptionFrame();
@@ -237,8 +438,15 @@ class CompositorWorker {
 
   private enqueueFrame(clipId: string, frame: VideoFrame): void {
     const queue = this.getOrCreateFrameQueue(clipId);
+    const queueSizeBefore = queue.length;
     queue.push(frame);
     queue.sort((a, b) => a.timestamp - b.timestamp);
+    this.logDebug("Queued decoded frame", {
+      clipId,
+      frameTimestampUs: frame.timestamp,
+      queueSizeBefore,
+      queueSizeAfter: queue.length,
+    });
 
     const sourceTimeUs = this.lastRequestedSourceTimeUs.get(clipId);
     if (typeof sourceTimeUs === "number") {
@@ -250,12 +458,24 @@ class CompositorWorker {
     if (queue.length <= 16) return;
 
     const evicted = queue.splice(0, queue.length - 16);
+    this.logDebug("Evicting oldest queued frames before clip is visited", {
+      clipId,
+      evictedFrameCount: evicted.length,
+      retainedFrameCount: queue.length,
+    });
     this.closeFrames(evicted, true);
   }
 
   private pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null {
     const queue = this.frameQueues.get(clipId);
-    if (!queue || queue.length === 0) return null;
+    if (!queue || queue.length === 0) {
+      this.logDebug("No queued frame available for compositor selection", {
+        clipId,
+        sourceTimeUs,
+        availableQueueClipIds: Array.from(this.frameQueues.keys()),
+      });
+      return null;
+    }
 
     this.lastRequestedSourceTimeUs.set(clipId, sourceTimeUs);
     this.pruneQueue(clipId, sourceTimeUs);
@@ -270,7 +490,18 @@ class CompositorWorker {
       }
     }
 
-    return best ?? prunedQueue[0] ?? null;
+    const selected = best ?? prunedQueue[0] ?? null;
+    this.logDebug("Selected frame for compositor draw", {
+      clipId,
+      sourceTimeUs,
+      queueSize: prunedQueue.length,
+      queueFirstTimestampUs: prunedQueue[0]?.timestamp ?? null,
+      queueLastTimestampUs: prunedQueue[prunedQueue.length - 1]?.timestamp ?? null,
+      selectedFrameTimestampUs: selected?.timestamp ?? null,
+      selectedFrameDeltaUs:
+        selected == null ? null : selected.timestamp - sourceTimeUs,
+    });
+    return selected;
   }
 
   private pruneQueue(clipId: string, sourceTimeUs: number): void {
@@ -288,6 +519,15 @@ class CompositorWorker {
       (_frame, index) => index < keepStart || index >= keepEnd
     );
 
+    this.logDebug("Pruned compositor frame queue", {
+      clipId,
+      sourceTimeUs,
+      queueSizeBefore: queue.length,
+      retainedFrameCount: retained.length,
+      removedFrameCount: framesToClose.length,
+      keepStart,
+      keepEnd,
+    });
     this.closeFrames(framesToClose, true);
     this.frameQueues.set(clipId, retained);
   }
@@ -313,6 +553,10 @@ class CompositorWorker {
     const queue = this.frameQueues.get(clipId);
     if (!queue) return;
 
+    this.logDebug("Clearing compositor frame queue for clip", {
+      clipId,
+      frameCount: queue.length,
+    });
     this.closeFrames(queue, false);
     this.frameQueues.delete(clipId);
     this.lastRequestedSourceTimeUs.delete(clipId);
@@ -325,6 +569,12 @@ class CompositorWorker {
   }
 
   private closeFrames(frames: VideoFrame[], evicted: boolean): void {
+    if (frames.length > 0) {
+      this.logDebug("Closing compositor-managed frames", {
+        frameCount: frames.length,
+        evicted,
+      });
+    }
     for (const frame of frames) {
       this.renderer?.releaseFrame(frame);
       frame.close();
@@ -352,6 +602,14 @@ class CompositorWorker {
     return sizes;
   }
 
+  private getTotalFrameQueueSize(): number {
+    let total = 0;
+    for (const queue of this.frameQueues.values()) {
+      total += queue.length;
+    }
+    return total;
+  }
+
   // ---------------------------------------------------------------------------
   // Metrics and cleanup helpers
   // ---------------------------------------------------------------------------
@@ -359,7 +617,13 @@ class CompositorWorker {
   private postPerformanceMetrics(
     playheadMs: number,
     clips: CompositorClipDescriptor[],
-    frameStart: number
+    frameStart: number,
+    renderResult: CompositorRenderResult | null,
+    incomingClipIds: string[],
+    queueClipIds: string[],
+    matchedQueueClipIds: string[],
+    missingQueueClipIds: string[],
+    blankClipIds: string[]
   ): void {
     const frameQueueSizes = this.getFrameQueueSizes();
     this.worker.postMessage(
@@ -382,6 +646,22 @@ class CompositorWorker {
           queueEvictedFrameCount: this.queueEvictedFrameCount,
           canvasWidth: this.canvasWidth,
           canvasHeight: this.canvasHeight,
+          renderOk: renderResult?.ok ?? false,
+          drawableClipCount: renderResult?.stats.drawableClipCount ?? 0,
+          drawableClipIds: renderResult?.stats.drawableClipIds ?? [],
+          drawnVideoClipCount: renderResult?.stats.drawnVideoClipCount ?? 0,
+          drawnVideoClipIds: renderResult?.stats.drawnVideoClipIds ?? [],
+          missingFrameClipCount: renderResult?.stats.missingFrameClipCount ?? 0,
+          missingFrameClipIds: renderResult?.stats.missingFrameClipIds ?? [],
+          failedVideoClipCount: renderResult?.stats.failedVideoClipCount ?? 0,
+          failedVideoClipIds: renderResult?.stats.failedVideoClipIds ?? [],
+          overlayDrawn: renderResult?.stats.overlayDrawn ?? false,
+          overlayOnly: renderResult?.stats.overlayOnly ?? false,
+          incomingClipIds,
+          queueClipIds,
+          matchedQueueClipIds,
+          missingQueueClipIds,
+          blankClipIds,
         },
       },
       []
@@ -391,12 +671,18 @@ class CompositorWorker {
   private closeCaptionFrame(): void {
     if (!this.captionFrame) return;
 
+    this.logDebug("Closing compositor caption frame");
     this.captionFrame.bitmap.close();
     this.captionFrame = null;
   }
 
   private closeFrameFromIgnoredMessage(message: CompositorWorkerMessage): void {
     if (message.type === "FRAME") {
+      this.logDebug("Closing frame from ignored compositor message", {
+        clipId: message.clipId,
+        messageTimestampUs: message.timestampUs,
+        frameTimestampUs: message.frame.timestamp,
+      });
       message.frame.close();
     }
   }
@@ -405,6 +691,10 @@ class CompositorWorker {
     if (this.didRequestRendererFallback) return;
     if (this.renderer?.mode !== "webgl2") return;
 
+    this.logWarn("Requesting compositor renderer fallback", {
+      reason,
+      requestedPreference: this.rendererPreference,
+    });
     this.didRequestRendererFallback = true;
     this.worker.postMessage(
       {

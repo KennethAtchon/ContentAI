@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -85,6 +85,47 @@ struct ExportFrameRequest {
     requests: Vec<FrameRequest>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct CompositorClipEffects {
+    contrast: f64,
+    warmth: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct CompositorClipTransform {
+    scale: f64,
+    translate_x: f64,
+    translate_y: f64,
+    translate_x_percent: f64,
+    translate_y_percent: f64,
+    rotation_deg: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+struct CompositorInsetClipPath {
+    #[serde(rename = "type")]
+    clip_path_type: &'static str,
+    top: f64,
+    right: f64,
+    bottom: f64,
+    left: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct CompositorClipDescriptor {
+    clip_id: String,
+    z_index: usize,
+    source_time_us: f64,
+    opacity: f64,
+    clip_path: Option<CompositorInsetClipPath>,
+    effects: CompositorClipEffects,
+    transform: CompositorClipTransform,
+    enabled: bool,
+}
+
 #[wasm_bindgen]
 pub fn compute_duration(tracks: JsValue) -> Result<f64, JsValue> {
     let tracks: Vec<Track> = serde_wasm_bindgen::from_value(tracks)
@@ -116,12 +157,9 @@ pub fn build_compositor_descriptors(
                 .map_err(|error| JsValue::from_str(&error.to_string()))?,
         )
     };
-    serde_wasm_bindgen::to_value(&build_compositor_descriptors_core(
-        &tracks,
-        playhead_ms,
-        effect_preview.as_ref(),
-    ))
-    .map_err(|error| JsValue::from_str(&error.to_string()))
+    build_compositor_descriptors_core(&tracks, playhead_ms, effect_preview.as_ref())
+        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
 #[wasm_bindgen]
@@ -247,7 +285,7 @@ fn build_compositor_descriptors_core(
     tracks: &[Track],
     playhead_ms: f64,
     effect_preview: Option<&EffectPreviewPatch>,
-) -> Value {
+) -> Vec<CompositorClipDescriptor> {
     let video_tracks: Vec<&Track> = tracks
         .iter()
         .filter(|track| track.track_type == "video")
@@ -288,47 +326,51 @@ fn build_compositor_descriptors_core(
                 0.0
             };
 
-            let mut transform = json!({
-                "scale": patched_number(patch, "scale").unwrap_or(clip.scale.unwrap_or(1.0)),
-                "translateX": patched_number(patch, "positionX").unwrap_or(clip.position_x.unwrap_or(0.0)),
-                "translateY": patched_number(patch, "positionY").unwrap_or(clip.position_y.unwrap_or(0.0)),
-                "translateXPercent": 0.0,
-                "translateYPercent": 0.0,
-                "rotationDeg": patched_number(patch, "rotation").unwrap_or(clip.rotation.unwrap_or(0.0)),
-            });
-            if let Some(transition_transform) = outgoing.transform {
-                merge_object(&mut transform, transition_transform);
+            let mut transform = CompositorClipTransform {
+                scale: patched_number(patch, "scale").unwrap_or(clip.scale.unwrap_or(1.0)),
+                translate_x: patched_number(patch, "positionX")
+                    .unwrap_or(clip.position_x.unwrap_or(0.0)),
+                translate_y: patched_number(patch, "positionY")
+                    .unwrap_or(clip.position_y.unwrap_or(0.0)),
+                translate_x_percent: 0.0,
+                translate_y_percent: 0.0,
+                rotation_deg: patched_number(patch, "rotation")
+                    .unwrap_or(clip.rotation.unwrap_or(0.0)),
+            };
+            if let Some(translate_x_percent) = outgoing.translate_x_percent {
+                transform.translate_x_percent = translate_x_percent;
+            }
+            if let Some(translate_y_percent) = outgoing.translate_y_percent {
+                transform.translate_y_percent = translate_y_percent;
             }
 
-            descriptors.push(json!({
-                "clipId": clip.id,
-                "zIndex": video_tracks.len() - 1 - track_index,
-                "sourceTimeUs": (clip_source_time_ms(clip, playhead_ms) * 1000.0).round(),
-                "opacity": opacity,
-                "clipPath": incoming.and_then(|value| value.clip_path).unwrap_or(Value::Null),
-                "effects": {
-                    "contrast": contrast,
-                    "warmth": warmth,
-                },
-                "transform": transform,
-                "enabled": clip.enabled != Some(false),
-            }));
+            descriptors.push(CompositorClipDescriptor {
+                clip_id: clip.id.clone(),
+                z_index: video_tracks.len() - 1 - track_index,
+                source_time_us: (clip_source_time_ms(clip, playhead_ms) * 1000.0).round(),
+                opacity,
+                clip_path: incoming.and_then(|value| value.clip_path),
+                effects: CompositorClipEffects { contrast, warmth },
+                transform,
+                enabled: clip.enabled != Some(false),
+            });
         }
     }
 
-    Value::Array(descriptors)
+    descriptors
 }
 
 #[derive(Default)]
 struct OutgoingTransitionDescriptor {
     opacity: Option<f64>,
-    transform: Option<Value>,
+    translate_x_percent: Option<f64>,
+    translate_y_percent: Option<f64>,
 }
 
 #[derive(Default)]
 struct IncomingTransitionDescriptor {
     opacity: Option<f64>,
-    clip_path: Option<Value>,
+    clip_path: Option<CompositorInsetClipPath>,
 }
 
 fn outgoing_transition_descriptor(
@@ -353,15 +395,18 @@ fn outgoing_transition_descriptor(
     match transition.transition_type.as_str() {
         "fade" | "dissolve" => OutgoingTransitionDescriptor {
             opacity: Some(1.0 - progress),
-            transform: None,
+            translate_x_percent: None,
+            translate_y_percent: None,
         },
         "slide-left" => OutgoingTransitionDescriptor {
             opacity: None,
-            transform: Some(json!({ "translateXPercent": -progress * 100.0 })),
+            translate_x_percent: Some(-progress * 100.0),
+            translate_y_percent: None,
         },
         "slide-up" => OutgoingTransitionDescriptor {
             opacity: None,
-            transform: Some(json!({ "translateYPercent": -progress * 100.0 })),
+            translate_x_percent: None,
+            translate_y_percent: Some(-progress * 100.0),
         },
         _ => OutgoingTransitionDescriptor::default(),
     }
@@ -396,13 +441,13 @@ fn incoming_transition_descriptor(
 
     Some(IncomingTransitionDescriptor {
         opacity: Some(1.0),
-        clip_path: Some(json!({
-            "type": "inset",
-            "top": 0.0,
-            "right": (1.0 - progress) * 100.0,
-            "bottom": 0.0,
-            "left": 0.0,
-        })),
+        clip_path: Some(CompositorInsetClipPath {
+            clip_path_type: "inset",
+            top: 0.0,
+            right: (1.0 - progress) * 100.0,
+            bottom: 0.0,
+            left: 0.0,
+        }),
     })
 }
 
@@ -512,15 +557,6 @@ fn value_number(value: &Value, key: &str) -> Option<f64> {
     value.get(key).and_then(Value::as_f64)
 }
 
-fn merge_object(target: &mut Value, source: Value) {
-    let (Value::Object(target), Value::Object(source)) = (target, source) else {
-        return;
-    };
-    for (key, value) in source {
-        target.insert(key, value);
-    }
-}
-
 fn json_number(value: f64) -> Value {
     serde_json::Number::from_f64(value)
         .map(Value::Number)
@@ -575,7 +611,7 @@ mod tests {
     fn builds_golden_compositor_descriptors() {
         let descriptors = build_compositor_descriptors_core(&fixture_tracks(), 875.0, None);
         assert_eq!(
-            normalize_numbers(descriptors),
+            normalize_numbers(serde_json::to_value(descriptors).unwrap()),
             normalize_numbers(golden_fixture()["compositorAt875"].clone())
         );
     }

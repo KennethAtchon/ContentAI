@@ -6,10 +6,14 @@ import {
   type CompositorClipPath,
   type CompositorClipTransform,
   type CompositorPreviewQuality,
+  type CompositorRenderResult,
   type CompositorRenderRequest,
   type CompositorRenderer,
   type DrawRect,
 } from "./types";
+import { debugLog } from "@/shared/utils/debug";
+
+const LOG_COMPONENT = "Canvas2dCompositorRenderer";
 
 export class Canvas2dCompositorRenderer implements CompositorRenderer {
   readonly mode = "canvas2d" as const;
@@ -30,6 +34,29 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
     this.renderCtx = this.canvas.getContext("2d", {
       alpha: false,
     }) as OffscreenCanvasRenderingContext2D | null;
+    this.logDebug("Initialized Canvas2D compositor renderer", {
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+      previewQualityLevel: this.quality.level,
+      previewQualityScale: this.quality.scale,
+      hasContext: Boolean(this.renderCtx),
+    });
+  }
+
+  private logDebug(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logWarn(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.warn(message, { component: LOG_COMPONENT, ...context }, data);
   }
 
   resize(
@@ -37,20 +64,73 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
     height: number,
     quality: CompositorPreviewQuality
   ): void {
+    this.logDebug("Resizing Canvas2D compositor renderer", {
+      previousWidth: this.canvasWidth,
+      previousHeight: this.canvasHeight,
+      width,
+      height,
+      previewQualityLevel: quality.level,
+      previewQualityScale: quality.scale,
+    });
     this.canvasWidth = width;
     this.canvasHeight = height;
     this.quality = quality;
     this.applyCanvasSize();
   }
 
-  render(request: CompositorRenderRequest): boolean {
-    if (!this.renderCtx) return false;
+  render(request: CompositorRenderRequest): CompositorRenderResult {
+    if (!this.renderCtx) {
+      this.logDebug("Canvas2D render skipped because context is unavailable");
+      return {
+        ok: false,
+        stats: {
+          totalClipCount: request.clips.length,
+          drawableClipCount: 0,
+          drawableClipIds: [],
+          drawnVideoClipCount: 0,
+          drawnVideoClipIds: [],
+          missingFrameClipCount: 0,
+          missingFrameClipIds: [],
+          failedVideoClipCount: 0,
+          failedVideoClipIds: [],
+          textObjectCount: request.textObjects.length,
+          captionFramePresent: request.captionFrame !== null,
+          overlayDrawn:
+            request.textObjects.length > 0 || request.captionFrame !== null,
+          overlayOnly:
+            request.textObjects.length > 0 || request.captionFrame !== null,
+        },
+      };
+    }
+
+    const drawableClips = getDrawableClips(request.clips);
+    const drawnVideoClipIds: string[] = [];
+    const missingFrameClipIds: string[] = [];
+
+    this.logDebug("Starting Canvas2D render", {
+      clipCount: request.clips.length,
+      drawableClipCount: drawableClips.length,
+      drawableClipIds: drawableClips.map((clip) => clip.clipId),
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      canvasWidth: this.canvasWidth,
+      canvasHeight: this.canvasHeight,
+    });
 
     this.clearCanvas();
 
-    for (const clip of getDrawableClips(request.clips)) {
+    for (const clip of drawableClips) {
       const frame = request.pickFrame(clip.clipId, clip.sourceTimeUs);
-      if (!frame) continue;
+      if (!frame) {
+        missingFrameClipIds.push(clip.clipId);
+        this.logDebug("Canvas2D render found no frame for clip", {
+          clipId: clip.clipId,
+          sourceTimeUs: clip.sourceTimeUs,
+          opacity: clip.opacity,
+        });
+        continue;
+      }
+      drawnVideoClipIds.push(clip.clipId);
       this.drawClipFrame(
         clip.opacity,
         clip.effects,
@@ -65,6 +145,10 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
     }
 
     if (request.captionFrame) {
+      this.logDebug("Drawing caption frame in Canvas2D renderer", {
+        canvasWidth: this.canvasWidth,
+        canvasHeight: this.canvasHeight,
+      });
       this.renderCtx.drawImage(
         request.captionFrame.bitmap,
         0,
@@ -74,7 +158,50 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
       );
     }
 
-    return true;
+    const overlayDrawn =
+      request.textObjects.length > 0 || request.captionFrame !== null;
+    const overlayOnly = drawnVideoClipIds.length === 0 && overlayDrawn;
+
+    if (drawnVideoClipIds.length === 0) {
+      this.logWarn("Canvas2D render produced no video draw", {
+        drawableClipCount: drawableClips.length,
+        drawableClipIds: drawableClips.map((clip) => clip.clipId),
+        missingFrameClipIds,
+        overlayOnly,
+        textObjectCount: request.textObjects.length,
+        hasCaptionFrame: request.captionFrame !== null,
+      });
+    }
+
+    this.logDebug("Completed Canvas2D render", {
+      clipCount: request.clips.length,
+      drawableClipCount: drawableClips.length,
+      drawnVideoClipCount: drawnVideoClipIds.length,
+      drawnVideoClipIds,
+      missingFrameClipCount: missingFrameClipIds.length,
+      missingFrameClipIds,
+      textObjectCount: request.textObjects.length,
+      hasCaptionFrame: request.captionFrame !== null,
+      overlayOnly,
+    });
+    return {
+      ok: true,
+      stats: {
+        totalClipCount: request.clips.length,
+        drawableClipCount: drawableClips.length,
+        drawableClipIds: drawableClips.map((clip) => clip.clipId),
+        drawnVideoClipCount: drawnVideoClipIds.length,
+        drawnVideoClipIds,
+        missingFrameClipCount: missingFrameClipIds.length,
+        missingFrameClipIds,
+        failedVideoClipCount: 0,
+        failedVideoClipIds: [],
+        textObjectCount: request.textObjects.length,
+        captionFramePresent: request.captionFrame !== null,
+        overlayDrawn,
+        overlayOnly,
+      },
+    };
   }
 
   releaseFrame(_frame: VideoFrame): void {}
@@ -84,6 +211,12 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
   private clearCanvas(): void {
     if (!this.renderCtx) return;
 
+    this.logDebug("Clearing Canvas2D surface to black", {
+      scaledCanvasWidth: this.canvas.width,
+      scaledCanvasHeight: this.canvas.height,
+      previewQualityLevel: this.quality.level,
+      previewQualityScale: this.quality.scale,
+    });
     this.renderCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.renderCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.renderCtx.fillStyle = "#000";
@@ -124,6 +257,19 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
       this.canvasHeight
     );
 
+    this.logDebug("Drawing clip frame in Canvas2D renderer", {
+      frameTimestampUs: frame.timestamp,
+      frameDisplayWidth: frame.displayWidth,
+      frameDisplayHeight: frame.displayHeight,
+      drawRect,
+      opacity,
+      hasClipPath: clipPath !== null,
+      scale: transform.scale,
+      translateX: transform.translateX,
+      translateY: transform.translateY,
+      rotationDeg: transform.rotationDeg,
+    });
+
     this.renderCtx.save();
     this.renderCtx.globalAlpha = opacity;
     this.renderCtx.filter = this.buildCanvasFilter(effects);
@@ -140,6 +286,10 @@ export class Canvas2dCompositorRenderer implements CompositorRenderer {
   private drawFrame(frame: VideoFrame, drawRect: DrawRect): void {
     if (!this.renderCtx) return;
 
+    this.logDebug("Issuing Canvas2D drawImage for frame", {
+      frameTimestampUs: frame.timestamp,
+      drawRect,
+    });
     this.renderCtx.drawImage(
       frame,
       drawRect.dx,

@@ -6,6 +6,17 @@ import {
   type EffectPreviewPatch,
 } from "../engine/PreviewEngine";
 import { usePlayheadClock } from "../context/PlayheadClockContext";
+import { debugLog } from "@/shared/utils/debug";
+
+const LOG_COMPONENT = "usePreviewEngine";
+
+function logDebug(
+  message: string,
+  context?: Record<string, unknown>,
+  data?: unknown
+): void {
+  debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+}
 
 interface UsePreviewEngineOptions {
   previewRef: RefObject<PreviewCanvasHandle | null>;
@@ -99,6 +110,15 @@ export function usePreviewEngine({
     let disposed = false;
     let engine: PreviewEngine | null = null;
 
+    logDebug("Initializing preview engine hook", {
+      canvasWidth,
+      canvasHeight,
+      fps,
+      trackCount: tracks.length,
+      assetUrlCount: assetUrlMap.size,
+      durationMs,
+    });
+
     void PreviewEngine.create(
       {
         onTimeUpdate(ms, reason) {
@@ -114,13 +134,37 @@ export function usePreviewEngine({
           }
         },
         onPlaybackEnd() {
+          logDebug("Received playback end callback from preview engine");
           onPlaybackEndRef.current();
         },
         onFrame(frame, timestampUs, clipId) {
-          previewRef.current?.receiveFrame(frame, timestampUs, clipId);
+          const previewHandle = previewRef.current;
+          logDebug("Forwarding decoded frame to preview canvas", {
+            clipId,
+            timestampUs,
+            frameTimestampUs: frame.timestamp,
+            frameDisplayWidth: frame.displayWidth,
+            frameDisplayHeight: frame.displayHeight,
+            hasPreviewHandle: Boolean(previewHandle),
+          });
+          previewHandle?.receiveFrame(frame, timestampUs, clipId);
         },
         onTick(playheadMs, clips, textObjects, quality, captionFrame) {
-          previewRef.current?.tick(
+          const previewHandle = previewRef.current;
+          logDebug("Forwarding compositor tick to preview canvas", {
+            playheadMs,
+            clipCount: clips.length,
+            clipIds: clips.map((clip) => clip.clipId),
+            textObjectCount: textObjects.length,
+            hasCaptionFrame:
+              captionFrame === undefined
+                ? "unchanged"
+                : Boolean(captionFrame),
+            previewQualityLevel: quality.level,
+            previewQualityScale: quality.scale,
+            hasPreviewHandle: Boolean(previewHandle),
+          });
+          previewHandle?.tick(
             playheadMs,
             clips,
             textObjects,
@@ -129,10 +173,17 @@ export function usePreviewEngine({
           );
         },
         onRenderTick(playheadMs) {
+          logDebug("Received render tick from preview engine", { playheadMs });
           onRenderPlayheadUpdateRef.current?.(playheadMs);
         },
         onClearFrames(clipIds) {
-          previewRef.current?.clearFrames(clipIds);
+          const previewHandle = previewRef.current;
+          logDebug("Forwarding clear-frames request to preview canvas", {
+            clipCount: clipIds.length,
+            clipIds,
+            hasPreviewHandle: Boolean(previewHandle),
+          });
+          previewHandle?.clearFrames(clipIds);
         },
       },
       { canvasWidth, canvasHeight, fps }
@@ -144,7 +195,20 @@ export function usePreviewEngine({
         }
         engine = createdEngine;
         engineRef.current = createdEngine;
+        logDebug("Preview engine created", {
+          canvasWidth,
+          canvasHeight,
+          fps,
+        });
         const latest = latestUpdateRef.current;
+        logDebug("Applying initial preview engine state", {
+          trackCount: latest.tracks.length,
+          assetUrlCount: latest.assetUrlMap.size,
+          durationMs: latest.durationMs,
+          canvasWidth: latest.canvasWidth,
+          canvasHeight: latest.canvasHeight,
+          fps: latest.fps,
+        });
         createdEngine.update(
           latest.tracks,
           latest.assetUrlMap,
@@ -174,6 +238,7 @@ export function usePreviewEngine({
       disposed = true;
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
+      logDebug("Disposing preview engine hook");
       engine?.destroy();
       engineRef.current = null;
     };
@@ -183,6 +248,15 @@ export function usePreviewEngine({
     const engine = engineRef.current;
     if (!engine) return;
 
+    logDebug("Applying preview engine update from React state", {
+      trackCount: tracks.length,
+      assetUrlCount: assetUrlMap.size,
+      durationMs,
+      canvasWidth,
+      canvasHeight,
+      fps,
+      hasEffectPreview: Boolean(effectPreview),
+    });
     engine.update(
       tracks,
       assetUrlMap,
@@ -209,6 +283,11 @@ export function usePreviewEngine({
       return;
     }
 
+    logDebug("Processing queued caption bitmaps", {
+      queuedBitmapCount: queuedBitmaps.length,
+      captionBitmapVersion,
+      isPlaying,
+    });
     const pendingUpdates = queuedBitmaps.splice(0, queuedBitmaps.length);
     const nextBitmap = pendingUpdates[pendingUpdates.length - 1] ?? null;
     for (const bitmap of pendingUpdates.slice(0, -1)) {
@@ -216,6 +295,7 @@ export function usePreviewEngine({
     }
 
     if (!nextBitmap) {
+      logDebug("Clearing caption frame on preview engine");
       engine.setCaptionFrame(null);
       if (!isPlaying) {
         engine.renderCurrentFrame();
@@ -223,6 +303,7 @@ export function usePreviewEngine({
       return;
     }
 
+    logDebug("Setting caption frame on preview engine");
     engine.setCaptionFrame({ bitmap: nextBitmap });
     if (!isPlaying) {
       engine.renderCurrentFrame();
@@ -235,6 +316,9 @@ export function usePreviewEngine({
 
     if (lastExternalTimeRef.current == null) {
       lastExternalTimeRef.current = currentTimeMs;
+      logDebug("Setting initial current time on preview engine", {
+        currentTimeMs,
+      });
       engine.setCurrentTime(currentTimeMs);
       return;
     }
@@ -246,10 +330,16 @@ export function usePreviewEngine({
 
     if (skipNextSeekRef.current) {
       skipNextSeekRef.current = false;
+      logDebug("Skipping explicit seek after engine-originated time update", {
+        currentTimeMs,
+      });
       engine.setCurrentTime(currentTimeMs);
       return;
     }
 
+    logDebug("Forwarding external seek request to preview engine", {
+      currentTimeMs,
+    });
     void engine.seek(currentTimeMs);
   }, [currentTimeMs]);
 

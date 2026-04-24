@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
 import { Toaster } from "@/shared/components/ui/sonner";
+import { DebugControlPanel } from "@/shared/components/debug/debug-control-panel";
 import { useTranslation } from "react-i18next";
 
 function RootLayout() {
@@ -22,6 +23,7 @@ function RootLayout() {
       >
         <Outlet />
         <Toaster />
+        <DebugControlPanel />
       </Suspense>
     </ErrorBoundary>
   );

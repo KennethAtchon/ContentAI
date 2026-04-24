@@ -84,6 +84,27 @@ export interface CompositorRenderRequest {
   pickFrame(clipId: string, sourceTimeUs: number): VideoFrame | null;
 }
 
+export interface CompositorRenderStats {
+  totalClipCount: number;
+  drawableClipCount: number;
+  drawableClipIds: string[];
+  drawnVideoClipCount: number;
+  drawnVideoClipIds: string[];
+  missingFrameClipCount: number;
+  missingFrameClipIds: string[];
+  failedVideoClipCount: number;
+  failedVideoClipIds: string[];
+  textObjectCount: number;
+  captionFramePresent: boolean;
+  overlayDrawn: boolean;
+  overlayOnly: boolean;
+}
+
+export interface CompositorRenderResult {
+  ok: boolean;
+  stats: CompositorRenderStats;
+}
+
 export interface CompositorRendererOptions {
   canvas: OffscreenCanvas;
   width: number;
@@ -99,7 +120,7 @@ export interface CompositorRenderer {
     height: number,
     quality: CompositorPreviewQuality
   ): void;
-  render(request: CompositorRenderRequest): boolean;
+  render(request: CompositorRenderRequest): CompositorRenderResult;
   releaseFrame(frame: VideoFrame): void;
   destroy(): void;
 }

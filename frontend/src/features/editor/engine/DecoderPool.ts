@@ -29,10 +29,12 @@ import {
   getClipDecodePriority,
 } from "./decode-guard";
 import type { CachedDemuxMetadata } from "./ClipDecodeWorker";
+import { debugLog } from "@/shared/utils/debug/debug.ts";
 
 /** How far ahead/behind the playhead we keep decoders warm. */
 const DEFAULT_DECODE_WINDOW_MS = 5_000;
 const MAX_DEMUX_METADATA_CACHE_ENTRIES = 3;
+const LOG_COMPONENT = "DecoderPool";
 
 export interface DecodedFrame {
   frame: VideoFrame;
@@ -144,7 +146,36 @@ export class DecoderPool {
   private decodeWindowMs = DEFAULT_DECODE_WINDOW_MS;
   private maxActiveDecoderCount = MAX_ACTIVE_VIDEO_WORKERS;
 
-  constructor(private readonly onFrame: FrameCallback) {}
+  constructor(private readonly onFrame: FrameCallback) {
+    this.logDebug("Initialized decoder pool", {
+      decodeWindowMs: this.decodeWindowMs,
+      maxActiveDecoderCount: this.maxActiveDecoderCount,
+    });
+  }
+
+  private logDebug(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.debug(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logWarn(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.warn(message, { component: LOG_COMPONENT, ...context }, data);
+  }
+
+  private logError(
+    message: string,
+    context?: Record<string, unknown>,
+    data?: unknown
+  ): void {
+    debugLog.error(message, { component: LOG_COMPONENT, ...context }, data);
+  }
 
   // ---------------------------------------------------------------------------
   // Public lifecycle
@@ -159,6 +190,13 @@ export class DecoderPool {
     assetUrlMap: Map<string, string>,
     playheadMs: number
   ): void {
+    this.logDebug("Reconciling decoder workers", {
+      playheadMs,
+      trackCount: tracks.length,
+      assetUrlCount: assetUrlMap.size,
+      activeWorkersBefore: this.workers.size,
+    });
+
     const { activeClipIds, candidates } = this.collectDecodeCandidates(
       tracks,
       assetUrlMap,
@@ -168,6 +206,14 @@ export class DecoderPool {
 
     this.ensureWorkersForCandidates(candidates, permittedClipIds, playheadMs);
     this.destroyWorkersOutsideSet(activeClipIds, permittedClipIds);
+
+    this.logDebug("Finished worker reconciliation", {
+      playheadMs,
+      activeClipCount: activeClipIds.size,
+      candidateCount: candidates.length,
+      permittedCount: permittedClipIds.size,
+      activeWorkersAfter: this.workers.size,
+    });
   }
 
   /**
@@ -176,13 +222,30 @@ export class DecoderPool {
    */
   seek(clipId: string, sourceTimeMs: number): void {
     const entry = this.workers.get(clipId);
-    if (!entry) return;
+    if (!entry) {
+      this.logDebug("Ignored seek for inactive clip", { clipId, sourceTimeMs });
+      return;
+    }
 
     const seekToken = this.nextSeekToken(entry);
     entry.playAfterSeek = this.isPlaying;
+    this.logDebug("Received seek request", {
+      clipId,
+      sourceTimeMs,
+      seekToken,
+      ready: entry.ready,
+      seeking: entry.seeking,
+      playAfterSeek: entry.playAfterSeek,
+    });
 
     if (!entry.ready || entry.seeking) {
       entry.pendingSeek = { targetMs: sourceTimeMs, seekToken };
+      this.logDebug("Queued pending seek", {
+        clipId,
+        sourceTimeMs,
+        seekToken,
+        reason: !entry.ready ? "not-ready" : "seek-in-flight",
+      });
       return;
     }
 
@@ -194,31 +257,52 @@ export class DecoderPool {
    * playhead. Use after scrubs or timeline changes.
    */
   seekAll(tracks: Track[], playheadMs: number): void {
+    this.logDebug("Seeking all active decoders", {
+      playheadMs,
+      workerCount: this.workers.size,
+    });
+
+    let seekCount = 0;
     for (const clip of this.iterVideoClips(tracks)) {
       if (!this.workers.has(clip.id)) continue;
       this.seek(clip.id, this.getClipSourceTimeMs(clip, playheadMs));
+      seekCount += 1;
     }
+
+    this.logDebug("Completed seekAll dispatch", {
+      playheadMs,
+      seekCount,
+    });
   }
 
   play(): void {
     this.isPlaying = true;
+    this.logDebug("Entering play mode", { workerCount: this.workers.size });
 
     for (const entry of this.workers.values()) {
       if (!entry.ready || entry.seeking) {
         entry.playAfterSeek = true;
+        this.logDebug("Deferred PLAY until seek/ready", {
+          clipId: entry.clipId,
+          ready: entry.ready,
+          seeking: entry.seeking,
+        });
         continue;
       }
 
       entry.worker.postMessage({ type: "PLAY" });
+      this.logDebug("Posted PLAY to worker", { clipId: entry.clipId });
     }
   }
 
   pause(): void {
     this.isPlaying = false;
+    this.logDebug("Entering pause mode", { workerCount: this.workers.size });
 
     for (const entry of this.workers.values()) {
       entry.playAfterSeek = false;
       entry.worker.postMessage({ type: "PAUSE" });
+      this.logDebug("Posted PAUSE to worker", { clipId: entry.clipId });
     }
   }
 
@@ -226,6 +310,11 @@ export class DecoderPool {
     decodeWindowMs: number;
     maxActiveDecoderCount: number;
   }): void {
+    const previousBudget = {
+      decodeWindowMs: this.decodeWindowMs,
+      maxActiveDecoderCount: this.maxActiveDecoderCount,
+    };
+
     this.decodeWindowMs = Math.max(500, Math.round(budget.decodeWindowMs));
     this.maxActiveDecoderCount = Math.max(
       1,
@@ -234,15 +323,32 @@ export class DecoderPool {
         Math.round(budget.maxActiveDecoderCount)
       )
     );
+
+    this.logDebug("Updated decoder resource budget", {
+      previousDecodeWindowMs: previousBudget.decodeWindowMs,
+      previousMaxActiveDecoderCount: previousBudget.maxActiveDecoderCount,
+      decodeWindowMs: this.decodeWindowMs,
+      maxActiveDecoderCount: this.maxActiveDecoderCount,
+      requestedDecodeWindowMs: budget.decodeWindowMs,
+      requestedMaxActiveDecoderCount: budget.maxActiveDecoderCount,
+    });
   }
 
   destroy(): void {
+    this.logDebug("Destroying decoder pool", {
+      workerCount: this.workers.size,
+      metadataWaiterAssets: this.metadataWaiters.size,
+      metadataLoadsInFlight: this.metadataLoadsInFlight.size,
+    });
+
     for (const clipId of Array.from(this.workers.keys())) {
       this.destroyWorker(clipId);
     }
     this.workers.clear();
     this.metadataWaiters.clear();
     this.metadataLoadsInFlight.clear();
+
+    this.logDebug("Decoder pool destroyed");
   }
 
   getMetrics(): DecoderPoolMetrics {
@@ -259,7 +365,7 @@ export class DecoderPool {
       if (entry.pendingSeek !== null) pendingSeekCount += 1;
     }
 
-    return {
+    const metrics: DecoderPoolMetrics = {
       activeDecoderCount: this.workers.size,
       maxActiveDecoderCount: this.maxActiveDecoderCount,
       decodeWindowMs: this.decodeWindowMs,
@@ -280,6 +386,16 @@ export class DecoderPool {
       ),
       clipIds: [...this.workers.keys()],
     };
+
+    this.logDebug("Collected decoder pool metrics", {
+      activeDecoderCount: metrics.activeDecoderCount,
+      readyDecoderCount: metrics.readyDecoderCount,
+      seekingDecoderCount: metrics.seekingDecoderCount,
+      pendingSeekCount: metrics.pendingSeekCount,
+      metadataCacheEntries: metrics.metadataCache.entryCount,
+    });
+
+    return metrics;
   }
 
   // ---------------------------------------------------------------------------
@@ -303,7 +419,20 @@ export class DecoderPool {
       activeClipIds.add(clip.id);
 
       const assetUrl = clip.assetId ? assetUrlMap.get(clip.assetId) : undefined;
-      if (!assetUrl || this.isAssetCoolingDown(assetUrl, now)) continue;
+      if (!assetUrl) {
+        this.logDebug("Skipped clip with missing asset URL", {
+          clipId: clip.id,
+          assetId: clip.assetId ?? null,
+        });
+        continue;
+      }
+      if (this.isAssetCoolingDown(assetUrl, now)) {
+        this.logDebug("Skipped candidate due to asset cooldown", {
+          clipId: clip.id,
+          assetUrl,
+        });
+        continue;
+      }
 
       candidates.push({
         clip,
@@ -313,6 +442,11 @@ export class DecoderPool {
     }
 
     candidates.sort((a, b) => a.priority - b.priority);
+    this.logDebug("Collected decode candidates", {
+      playheadMs,
+      activeClipCount: activeClipIds.size,
+      candidateCount: candidates.length,
+    });
     return { activeClipIds, candidates };
   }
 
@@ -321,15 +455,32 @@ export class DecoderPool {
     const perAssetCounts = new Map<string, number>();
 
     for (const { clip, assetUrl } of candidates) {
-      if (permittedClipIds.size >= this.maxActiveDecoderCount) break;
+      if (permittedClipIds.size >= this.maxActiveDecoderCount) {
+        this.logDebug("Reached global decoder worker cap", {
+          maxActiveDecoderCount: this.maxActiveDecoderCount,
+          rejectedClipId: clip.id,
+        });
+        break;
+      }
 
       const assetCount = perAssetCounts.get(assetUrl) ?? 0;
-      if (assetCount >= MAX_WORKERS_PER_ASSET_URL) continue;
+      if (assetCount >= MAX_WORKERS_PER_ASSET_URL) {
+        this.logDebug("Skipped clip due to per-asset worker cap", {
+          clipId: clip.id,
+          assetUrl,
+          maxWorkersPerAssetUrl: MAX_WORKERS_PER_ASSET_URL,
+        });
+        continue;
+      }
 
       permittedClipIds.add(clip.id);
       perAssetCounts.set(assetUrl, assetCount + 1);
     }
 
+    this.logDebug("Selected permitted clip IDs", {
+      candidateCount: candidates.length,
+      permittedCount: permittedClipIds.size,
+    });
     return permittedClipIds;
   }
 
@@ -342,9 +493,20 @@ export class DecoderPool {
       if (!permittedClipIds.has(clip.id)) continue;
 
       const existing = this.workers.get(clip.id);
-      if (existing?.assetUrl === assetUrl) continue;
+      if (existing?.assetUrl === assetUrl) {
+        this.logDebug("Reused existing worker", {
+          clipId: clip.id,
+          assetUrl,
+        });
+        continue;
+      }
 
       // Recreate on URL changes so the worker never decodes from a stale asset.
+      this.logDebug("Creating/replacing worker for candidate", {
+        clipId: clip.id,
+        assetUrl,
+        hadExistingWorker: Boolean(existing),
+      });
       this.destroyWorker(clip.id);
       this.createWorker(
         clip,
@@ -360,6 +522,11 @@ export class DecoderPool {
   ): void {
     for (const clipId of Array.from(this.workers.keys())) {
       if (!activeClipIds.has(clipId) || !permittedClipIds.has(clipId)) {
+        this.logDebug("Destroying worker outside active/permitted sets", {
+          clipId,
+          isActive: activeClipIds.has(clipId),
+          isPermitted: permittedClipIds.has(clipId),
+        });
         this.destroyWorker(clipId);
       }
     }
@@ -370,6 +537,12 @@ export class DecoderPool {
     assetUrl: string,
     initialSourceTimeMs: number
   ): void {
+    this.logDebug("Creating clip decode worker", {
+      clipId: clip.id,
+      assetUrl,
+      initialSourceTimeMs,
+    });
+
     const worker = new Worker(
       new URL("./ClipDecodeWorker.ts", import.meta.url),
       { type: "module" }
@@ -395,6 +568,11 @@ export class DecoderPool {
     };
 
     this.workers.set(clip.id, entry);
+    this.logDebug("Worker entry registered", {
+      clipId: clip.id,
+      assetUrl,
+      activeWorkers: this.workers.size,
+    });
     this.startWorkerLoad(entry);
   }
 
@@ -404,7 +582,7 @@ export class DecoderPool {
     assetUrl: string,
     initialSourceTimeMs: number
   ): WorkerEntry {
-    return {
+    const entry: WorkerEntry = {
       worker,
       clipId,
       assetUrl,
@@ -425,15 +603,37 @@ export class DecoderPool {
         acceptedFrameCount: 0,
       },
     };
+
+    this.logDebug("Created worker entry state", {
+      clipId,
+      assetUrl,
+      pendingSeekToken: entry.pendingSeek?.seekToken ?? null,
+      pendingSeekTargetMs: entry.pendingSeek?.targetMs ?? null,
+      playAfterSeek: entry.playAfterSeek,
+    });
+
+    return entry;
   }
 
   private destroyWorker(clipId: string): void {
     const entry = this.workers.get(clipId);
-    if (!entry) return;
+    if (!entry) {
+      this.logDebug("Skipped destroy for missing worker", { clipId });
+      return;
+    }
+
+    this.logDebug("Destroying worker", {
+      clipId,
+      assetUrl: entry.assetUrl,
+      metadataLoader: entry.metadataLoader,
+      seeking: entry.seeking,
+      hasPendingSeek: entry.pendingSeek !== null,
+    });
 
     entry.destroyed = true;
     if (entry.terminateTimer !== null) {
       clearTimeout(entry.terminateTimer);
+      this.logDebug("Cleared pending terminate timer", { clipId });
     }
 
     this.releaseMetadataOwnership(entry);
@@ -444,6 +644,10 @@ export class DecoderPool {
       200
     );
     this.workers.delete(clipId);
+    this.logDebug("Worker destroy dispatched", {
+      clipId,
+      activeWorkers: this.workers.size,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -454,6 +658,12 @@ export class DecoderPool {
     entry: WorkerEntry,
     message: ClipDecodeWorkerMessage
   ): void {
+    this.logDebug("Received worker message", {
+      clipId: entry.clipId,
+      type: message.type,
+      destroyed: entry.destroyed,
+    });
+
     if (entry.destroyed) {
       this.closeFrameFromDestroyedEntry(message);
       return;
@@ -485,16 +695,33 @@ export class DecoderPool {
     entry: WorkerEntry,
     message: Extract<ClipDecodeWorkerMessage, { type: "METADATA_READY" }>
   ): void {
-    if (message.assetUrl !== entry.assetUrl) return;
+    if (message.assetUrl !== entry.assetUrl) {
+      this.logWarn("Ignored METADATA_READY with mismatched asset URL", {
+        clipId: entry.clipId,
+        expectedAssetUrl: entry.assetUrl,
+        messageAssetUrl: message.assetUrl,
+      });
+      return;
+    }
 
     entry.metadataLoader = false;
     this.metadataLoadsInFlight.delete(entry.assetUrl);
     this.rememberMetadata(entry.assetUrl, message.metadata);
     this.releaseMetadataWaiters(entry.assetUrl, message.metadata);
+    this.logDebug("Processed METADATA_READY", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+      metadataCacheSize: this.metadataCache.size,
+    });
   }
 
   private handleWorkerReady(entry: WorkerEntry): void {
     entry.ready = true;
+    this.logDebug("Worker is READY", {
+      clipId: entry.clipId,
+      hasPendingSeek: entry.pendingSeek !== null,
+      isPlaying: this.isPlaying,
+    });
 
     if (entry.pendingSeek !== null) {
       this.dispatchPendingSeek(entry);
@@ -503,6 +730,7 @@ export class DecoderPool {
 
     if (this.isPlaying) {
       entry.worker.postMessage({ type: "PLAY" });
+      this.logDebug("Posted PLAY after READY", { clipId: entry.clipId });
     }
   }
 
@@ -512,12 +740,25 @@ export class DecoderPool {
   ): void {
     if (this.shouldDropFrame(entry, message.seekToken ?? null)) {
       entry.seekMetrics.staleFrameDropCount += 1;
+      this.logDebug("Dropped stale decoded frame", {
+        clipId: entry.clipId,
+        seekToken: message.seekToken ?? null,
+        latestRequestedSeekToken: entry.latestRequestedSeekToken,
+        activeSeekToken: entry.activeSeekToken,
+        staleFrameDropCount: entry.seekMetrics.staleFrameDropCount,
+      });
       message.frame.close();
       return;
     }
 
     entry.seekMetrics.acceptedFrameCount += 1;
     this.recordFirstAcceptedSeekFrame(entry);
+    this.logDebug("Accepted decoded frame", {
+      clipId: entry.clipId,
+      timestampUs: message.timestampUs,
+      seekToken: message.seekToken ?? null,
+      acceptedFrameCount: entry.seekMetrics.acceptedFrameCount,
+    });
     this.onFrame({
       frame: message.frame,
       timestampUs: message.timestampUs,
@@ -526,7 +767,22 @@ export class DecoderPool {
   }
 
   private handleSeekDone(entry: WorkerEntry, seekToken: number | null): void {
-    if (seekToken !== entry.activeSeekToken) return;
+    if (seekToken !== entry.activeSeekToken) {
+      this.logDebug("Ignored SEEK_DONE for stale token", {
+        clipId: entry.clipId,
+        seekToken,
+        activeSeekToken: entry.activeSeekToken,
+      });
+      return;
+    }
+
+    this.logDebug("Processed SEEK_DONE", {
+      clipId: entry.clipId,
+      seekToken,
+      hasPendingSeek: entry.pendingSeek !== null,
+      playAfterSeek: entry.playAfterSeek,
+      isPlaying: this.isPlaying,
+    });
 
     if (entry.pendingSeek !== null) {
       this.dispatchPendingSeek(entry);
@@ -539,6 +795,7 @@ export class DecoderPool {
     if (entry.playAfterSeek && this.isPlaying) {
       entry.playAfterSeek = false;
       entry.worker.postMessage({ type: "PLAY" });
+      this.logDebug("Posted PLAY after seek completion", { clipId: entry.clipId });
     }
   }
 
@@ -546,7 +803,20 @@ export class DecoderPool {
     entry: WorkerEntry,
     message: Extract<ClipDecodeWorkerMessage, { type: "SEEK_FAILED" }>
   ): void {
-    if ((message.seekToken ?? null) !== entry.activeSeekToken) return;
+    if ((message.seekToken ?? null) !== entry.activeSeekToken) {
+      this.logDebug("Ignored SEEK_FAILED for stale token", {
+        clipId: entry.clipId,
+        seekToken: message.seekToken ?? null,
+        activeSeekToken: entry.activeSeekToken,
+      });
+      return;
+    }
+
+    this.logWarn("Worker reported SEEK_FAILED", {
+      clipId: entry.clipId,
+      seekToken: message.seekToken ?? null,
+      message: message.message,
+    });
 
     this.handleWorkerFailure(
       entry,
@@ -559,6 +829,10 @@ export class DecoderPool {
     entry: WorkerEntry,
     message: Extract<ClipDecodeWorkerMessage, { type: "ERROR" }>
   ): void {
+    this.logError("Worker reported ERROR", {
+      clipId: entry.clipId,
+      message: message.message,
+    });
     this.handleWorkerFailure(
       entry,
       `Worker error for clip ${message.clipId}:`,
@@ -588,10 +862,19 @@ export class DecoderPool {
 
     entry.seekMetrics.lastFirstAcceptedFrameMs =
       performance.now() - entry.seekMetrics.lastRequestedAtMs;
+    this.logDebug("Recorded first accepted frame latency", {
+      clipId: entry.clipId,
+      latencyMs: entry.seekMetrics.lastFirstAcceptedFrameMs,
+      targetMs: entry.seekMetrics.lastTargetMs,
+    });
   }
 
   private closeFrameFromDestroyedEntry(message: ClipDecodeWorkerMessage): void {
     if (message.type === "FRAME") {
+      this.logDebug("Closing frame from destroyed entry", {
+        clipId: message.clipId,
+        timestampUs: message.timestampUs,
+      });
       message.frame.close();
     }
   }
@@ -602,11 +885,24 @@ export class DecoderPool {
 
   private nextSeekToken(entry: WorkerEntry): number {
     entry.latestRequestedSeekToken += 1;
+    this.logDebug("Allocated next seek token", {
+      clipId: entry.clipId,
+      seekToken: entry.latestRequestedSeekToken,
+    });
     return entry.latestRequestedSeekToken;
   }
 
   private dispatchPendingSeek(entry: WorkerEntry): void {
-    if (!entry.pendingSeek) return;
+    if (!entry.pendingSeek) {
+      this.logDebug("No pending seek to dispatch", { clipId: entry.clipId });
+      return;
+    }
+
+    this.logDebug("Dispatching pending seek", {
+      clipId: entry.clipId,
+      targetMs: entry.pendingSeek.targetMs,
+      seekToken: entry.pendingSeek.seekToken,
+    });
     this.dispatchSeek(
       entry,
       entry.pendingSeek.targetMs,
@@ -625,6 +921,12 @@ export class DecoderPool {
     entry.seekMetrics.lastRequestedAtMs = performance.now();
     entry.seekMetrics.lastTargetMs = sourceTimeMs;
     entry.seekMetrics.lastFirstAcceptedFrameMs = null;
+    this.logDebug("Posting SEEK to worker", {
+      clipId: entry.clipId,
+      sourceTimeMs,
+      seekToken,
+      playAfterSeek: entry.playAfterSeek,
+    });
     entry.worker.postMessage({
       type: "SEEK",
       targetMs: sourceTimeMs,
@@ -639,6 +941,10 @@ export class DecoderPool {
   private startWorkerLoad(entry: WorkerEntry): void {
     const cachedMetadata = this.getCachedMetadata(entry.assetUrl);
     if (cachedMetadata) {
+      this.logDebug("Starting LOAD with cached metadata", {
+        clipId: entry.clipId,
+        assetUrl: entry.assetUrl,
+      });
       this.postLoad(entry, cachedMetadata);
       return;
     }
@@ -646,16 +952,29 @@ export class DecoderPool {
     if (this.metadataLoadsInFlight.has(entry.assetUrl)) {
       // Another clip is already demuxing this asset. Wait and then LOAD with
       // cached metadata instead of making every worker parse the same MP4.
+      this.logDebug("Waiting for in-flight metadata load", {
+        clipId: entry.clipId,
+        assetUrl: entry.assetUrl,
+      });
       this.addMetadataWaiter(entry);
       return;
     }
 
     this.metadataLoadsInFlight.add(entry.assetUrl);
     entry.metadataLoader = true;
+    this.logDebug("Starting fresh metadata load", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+    });
     this.postLoad(entry);
   }
 
   private postLoad(entry: WorkerEntry, metadata?: CachedDemuxMetadata): void {
+    this.logDebug("Posting LOAD to worker", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+      usesCachedMetadata: Boolean(metadata),
+    });
     entry.worker.postMessage({
       type: "LOAD",
       assetUrl: entry.assetUrl,
@@ -669,13 +988,22 @@ export class DecoderPool {
       this.metadataWaiters.get(entry.assetUrl) ?? new Set<WorkerEntry>();
     waiters.add(entry);
     this.metadataWaiters.set(entry.assetUrl, waiters);
+    this.logDebug("Added metadata waiter", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+      waiterCount: waiters.size,
+    });
   }
 
   private getCachedMetadata(assetUrl: string): CachedDemuxMetadata | null {
     const entry = this.metadataCache.get(assetUrl);
-    if (!entry) return null;
+    if (!entry) {
+      this.logDebug("Metadata cache miss", { assetUrl });
+      return null;
+    }
 
     entry.lastUsedAtMs = performance.now();
+    this.logDebug("Metadata cache hit", { assetUrl });
     return entry.metadata;
   }
 
@@ -687,11 +1015,17 @@ export class DecoderPool {
       metadata,
       lastUsedAtMs: performance.now(),
     });
+    this.logDebug("Cached demux metadata", {
+      assetUrl,
+      cacheSize: this.metadataCache.size,
+    });
     this.evictOldMetadataIfNeeded();
   }
 
   private evictOldMetadataIfNeeded(): void {
-    if (this.metadataCache.size <= MAX_DEMUX_METADATA_CACHE_ENTRIES) return;
+    if (this.metadataCache.size <= MAX_DEMUX_METADATA_CACHE_ENTRIES) {
+      return;
+    }
 
     let oldestAssetUrl: string | null = null;
     let oldestUsedAtMs = Number.POSITIVE_INFINITY;
@@ -704,6 +1038,10 @@ export class DecoderPool {
 
     if (oldestAssetUrl) {
       this.metadataCache.delete(oldestAssetUrl);
+      this.logDebug("Evicted oldest metadata cache entry", {
+        assetUrl: oldestAssetUrl,
+        cacheSize: this.metadataCache.size,
+      });
     }
   }
 
@@ -712,12 +1050,21 @@ export class DecoderPool {
     metadata: CachedDemuxMetadata | null
   ): void {
     const waiters = this.metadataWaiters.get(assetUrl);
-    if (!waiters) return;
+    if (!waiters) {
+      this.logDebug("No metadata waiters to release", { assetUrl });
+      return;
+    }
 
     this.metadataWaiters.delete(assetUrl);
     const liveWaiters = [...waiters].filter(
       (waiter) => !waiter.destroyed && this.workers.has(waiter.clipId)
     );
+    this.logDebug("Releasing metadata waiters", {
+      assetUrl,
+      waiterCount: waiters.size,
+      liveWaiterCount: liveWaiters.length,
+      hasMetadata: Boolean(metadata),
+    });
 
     if (metadata) {
       // Happy path: all waiters can skip demux and configure from shared metadata.
@@ -735,12 +1082,20 @@ export class DecoderPool {
     liveWaiters: WorkerEntry[]
   ): void {
     const [loader, ...remainingWaiters] = liveWaiters;
-    if (!loader) return;
+    if (!loader) {
+      this.logWarn("No live waiter available to promote", { assetUrl });
+      return;
+    }
 
     // If the metadata loader was destroyed before finishing, choose one waiter
     // to become the new loader and keep the rest waiting.
     this.metadataLoadsInFlight.add(loader.assetUrl);
     loader.metadataLoader = true;
+    this.logDebug("Promoted waiter to metadata loader", {
+      assetUrl,
+      clipId: loader.clipId,
+      remainingWaiterCount: remainingWaiters.length,
+    });
     this.postLoad(loader);
 
     if (remainingWaiters.length > 0) {
@@ -752,6 +1107,10 @@ export class DecoderPool {
     if (entry.metadataLoader) {
       entry.metadataLoader = false;
       this.metadataLoadsInFlight.delete(entry.assetUrl);
+      this.logDebug("Released metadata loader ownership", {
+        clipId: entry.clipId,
+        assetUrl: entry.assetUrl,
+      });
       this.releaseMetadataWaiters(entry.assetUrl, null);
     }
 
@@ -759,6 +1118,11 @@ export class DecoderPool {
     if (!waiters) return;
 
     waiters.delete(entry);
+    this.logDebug("Removed worker from metadata waiters", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+      remainingWaiters: waiters.size,
+    });
     if (waiters.size === 0) {
       this.metadataWaiters.delete(entry.assetUrl);
     }
@@ -766,9 +1130,16 @@ export class DecoderPool {
 
   private destroyMetadataWaiters(assetUrl: string): void {
     const waiters = this.metadataWaiters.get(assetUrl);
-    if (!waiters) return;
+    if (!waiters) {
+      this.logDebug("No metadata waiters to destroy", { assetUrl });
+      return;
+    }
 
     this.metadataWaiters.delete(assetUrl);
+    this.logWarn("Destroying metadata waiters after loader failure", {
+      assetUrl,
+      waiterCount: waiters.size,
+    });
 
     for (const waiter of waiters) {
       if (waiter.destroyed) continue;
@@ -785,10 +1156,17 @@ export class DecoderPool {
     prefix: string,
     error: unknown
   ): void {
+    const blockedUntil = Date.now() + DECODE_FAILURE_COOLDOWN_MS;
     this.assetFailuresUntil.set(
       entry.assetUrl,
-      Date.now() + DECODE_FAILURE_COOLDOWN_MS
+      blockedUntil
     );
+    this.logWarn("Applied asset decode cooldown", {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+      blockedUntil,
+      cooldownMs: DECODE_FAILURE_COOLDOWN_MS,
+    });
 
     if (entry.metadataLoader) {
       entry.metadataLoader = false;
@@ -796,7 +1174,10 @@ export class DecoderPool {
       this.destroyMetadataWaiters(entry.assetUrl);
     }
 
-    console.error(`[DecoderPool] ${prefix}`, error);
+    this.logError(prefix, {
+      clipId: entry.clipId,
+      assetUrl: entry.assetUrl,
+    }, error);
     this.destroyWorker(entry.clipId);
   }
 
@@ -806,9 +1187,14 @@ export class DecoderPool {
 
     if (blockedUntil <= now) {
       this.assetFailuresUntil.delete(assetUrl);
+      this.logDebug("Asset cooldown expired", { assetUrl });
       return false;
     }
 
+    this.logDebug("Asset still cooling down", {
+      assetUrl,
+      blockedForMs: blockedUntil - now,
+    });
     return true;
   }
 
