@@ -69,29 +69,33 @@ graph TB
     PlayheadClock --> PreviewCanvas
 ```
 
+
+
 The preview runtime spans the main thread and two worker types. `ClipDecodeWorker` instances produce decoded `VideoFrame`s. `CompositorWorker` owns the visible `OffscreenCanvas` and keeps frame queues keyed by clip id. `PreviewEngine` coordinates timing, decoder warmup, audio-clock playback, descriptor generation, and the handoff into the preview canvas bridge.
 
 ## 3. Core Concepts & Glossary
 
-| Term | Definition |
-|------|------------|
-| Timeline time | The editor playhead position in milliseconds. This is where the user is in the edited composition. |
-| Source time | The timestamp inside the source media asset for a clip. It accounts for clip start, trim, speed, and source max duration. |
-| `VideoFrame` | WebCodecs decoded video frame object. Transferred between workers/main thread and eventually drawn by WebGL2 or Canvas2D. |
-| `EncodedVideoChunk` | WebCodecs encoded video packet created from mp4box samples and fed into `VideoDecoder`. |
-| `ClipDecodeWorker` | Worker module that fetches one media asset, demuxes MP4 samples, configures `VideoDecoder`, seeks, plays, and posts decoded frames. |
-| `DecoderPool` | Main-thread manager for clip decode workers. It decides which clips need workers, tracks seek freshness, accepts or drops frames, and caches demux metadata. |
-| `PreviewEngine` | Main coordinator for preview playback. It owns decoder pool, audio mixer, quality state, compositor ticks, text serialization, and caption bitmap handoff. |
-| `PreviewCanvas` | React component with the visible `<canvas>`. It transfers that canvas to `CompositorWorker` and exposes imperative `tick`, `receiveFrame`, and `clearFrames` methods. |
-| `CompositorWorker` | Worker that owns the visible `OffscreenCanvas`, stores `VideoFrame` queues, receives overlay updates, and calls the active renderer. |
-| `CompositorClipDescriptor` | Render instruction for a video clip at one timeline tick: clip id, z-index, source time, opacity, clip path, effects, transform, enabled. |
-| `editor-core WASM` | Rust/WASM module that builds compositor descriptors from editor tracks and playhead time. |
-| `rendererPreference` | User/config preference: `auto`, `webgl2`, or `canvas2d`. `auto` tries WebGL2 first. |
-| Overlay | Text objects and caption bitmap drawn above video frames. In WebGL2, overlays are first drawn into an offscreen overlay canvas, uploaded as a texture, then drawn fullscreen. |
-| Caption bitmap | `ImageBitmap` generated from a hidden caption canvas and transferred to the compositor worker. |
-| Frame queue | Per-clip ordered list of `VideoFrame`s held by `CompositorWorker`, keyed by `clipId`. |
-| Seek token | Monotonic token used by `DecoderPool` and `ClipDecodeWorker` to reject stale frames from older seeks. |
-| Decode window | Time range around playhead in which video clips are eligible to have active decoders. Default is 5 seconds in steady state. |
+
+| Term                       | Definition                                                                                                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Timeline time              | The editor playhead position in milliseconds. This is where the user is in the edited composition.                                                                            |
+| Source time                | The timestamp inside the source media asset for a clip. It accounts for clip start, trim, speed, and source max duration.                                                     |
+| `VideoFrame`               | WebCodecs decoded video frame object. Transferred between workers/main thread and eventually drawn by WebGL2 or Canvas2D.                                                     |
+| `EncodedVideoChunk`        | WebCodecs encoded video packet created from mp4box samples and fed into `VideoDecoder`.                                                                                       |
+| `ClipDecodeWorker`         | Worker module that fetches one media asset, demuxes MP4 samples, configures `VideoDecoder`, seeks, plays, and posts decoded frames.                                           |
+| `DecoderPool`              | Main-thread manager for clip decode workers. It decides which clips need workers, tracks seek freshness, accepts or drops frames, and caches demux metadata.                  |
+| `PreviewEngine`            | Main coordinator for preview playback. It owns decoder pool, audio mixer, quality state, compositor ticks, text serialization, and caption bitmap handoff.                    |
+| `PreviewCanvas`            | React component with the visible `<canvas>`. It transfers that canvas to `CompositorWorker` and exposes imperative `tick`, `receiveFrame`, and `clearFrames` methods.         |
+| `CompositorWorker`         | Worker that owns the visible `OffscreenCanvas`, stores `VideoFrame` queues, receives overlay updates, and calls the active renderer.                                          |
+| `CompositorClipDescriptor` | Render instruction for a video clip at one timeline tick: clip id, z-index, source time, opacity, clip path, effects, transform, enabled.                                     |
+| `editor-core WASM`         | Rust/WASM module that builds compositor descriptors from editor tracks and playhead time.                                                                                     |
+| `rendererPreference`       | User/config preference: `auto`, `webgl2`, or `canvas2d`. `auto` tries WebGL2 first.                                                                                           |
+| Overlay                    | Text objects and caption bitmap drawn above video frames. In WebGL2, overlays are first drawn into an offscreen overlay canvas, uploaded as a texture, then drawn fullscreen. |
+| Caption bitmap             | `ImageBitmap` generated from a hidden caption canvas and transferred to the compositor worker.                                                                                |
+| Frame queue                | Per-clip ordered list of `VideoFrame`s held by `CompositorWorker`, keyed by `clipId`.                                                                                         |
+| Seek token                 | Monotonic token used by `DecoderPool` and `ClipDecodeWorker` to reject stale frames from older seeks.                                                                         |
+| Decode window              | Time range around playhead in which video clips are eligible to have active decoders. Default is 5 seconds in steady state.                                                   |
+
 
 ## 4. High-Level Architecture
 
@@ -146,25 +150,27 @@ graph LR
     R --> C2D
 ```
 
-**`EditorWorkspace`**  
+
+
+`**EditorWorkspace**`  
 Owns the preview component tree. It reads editor document state, playback state, UI state, and asset URLs, then wires `usePreviewEngine`, `PreviewArea`, `PreviewCanvas`, and `CaptionLayer` together.
 
-**`usePreviewEngine`**  
+`**usePreviewEngine**`  
 Creates and owns a `PreviewEngine` instance for the React component lifetime. It adapts engine callbacks to React refs: decoded frames go to `PreviewCanvas.receiveFrame`, compositor ticks go to `PreviewCanvas.tick`, and frame-clears go to `PreviewCanvas.clearFrames`.
 
-**`PreviewEngine`**  
+`**PreviewEngine**`  
 Owns timing and orchestration. It updates decoder workers, computes compositor descriptors, serializes text overlays, accepts caption bitmaps, drives audio-clock playback, and publishes metrics.
 
-**`DecoderPool`**  
+`**DecoderPool**`  
 Owns active decode workers and their lifecycle. It warms clips inside the decode window, shares demux metadata by asset URL, enforces worker budgets, sends seek/play/pause messages, and forwards accepted frames to `PreviewEngine`.
 
-**`ClipDecodeWorker`**  
+`**ClipDecodeWorker**`  
 Owns one `VideoDecoder` for one clip instance. It fetches the MP4, demuxes samples with mp4box, extracts decoder config, handles seek/play decode loops, and transfers `VideoFrame`s back to `DecoderPool`.
 
-**`PreviewCanvas`**  
+`**PreviewCanvas**`  
 Owns the visible `<canvas>` element until mount, then transfers it to `CompositorWorker` as an `OffscreenCanvas`. After transfer, React does not draw into that canvas; it only posts messages to the worker.
 
-**`CompositorWorker`**  
+`**CompositorWorker**`  
 Owns the visible canvas after transfer. It stores decoded frame queues, tracks the latest caption bitmap and text overlay state, picks frames for each descriptor, and calls the selected renderer.
 
 **Renderer implementations**  
@@ -186,17 +192,21 @@ erDiagram
     CAPTION_LAYER ||--o{ CAPTION_BITMAP : produces
 ```
 
-| Entity | Purpose | Key Fields |
-|--------|---------|------------|
-| `Track` | Timeline lane. Only video tracks produce compositor video descriptors; text track contains text/caption clips. | `type`, `clips`, `transitions`, `muted` |
-| `VideoClip` | Timeline segment referencing source media. | `id`, `assetId`, `startMs`, `durationMs`, `trimStartMs`, `speed`, `opacity`, `positionX/Y`, `scale`, `rotation`, `enabled` |
-| `assetUrlMap` | Main-thread `Map<assetId, resolved URL>` produced by `useEditorAssetMap`. | `assetId -> mediaUrl/audioUrl/r2Url` |
-| `CompositorClipDescriptor` | Per-tick render instruction for one video clip. | `clipId`, `sourceTimeUs`, `zIndex`, `opacity`, `clipPath`, `effects`, `transform`, `enabled` |
-| `CachedDemuxMetadata` | Reusable demux result shared by workers using same asset URL. | `videoTrack`, `keyframeIndex`, `videoSamples`, `decoderDescription` |
-| `VideoFrame` | Decoded pixel frame. | `timestamp`, `displayWidth`, `displayHeight`; ownership is transferred and must be closed |
-| `SerializedTextObject` | Text overlay command generated inside `PreviewEngine`. | `text`, `x`, `y`, `fontSize`, `color`, `opacity`, `maxWidth` |
-| `SerializedCaptionFrame` | Caption bitmap transfer payload. | `bitmap: ImageBitmap` |
-| `CompositorWorkerPerformanceMetrics` | Debug snapshot posted by compositor worker when debug is enabled. | renderer, clip count, frame queue sizes, closed frames, canvas size |
+
+
+
+| Entity                               | Purpose                                                                                                        | Key Fields                                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `Track`                              | Timeline lane. Only video tracks produce compositor video descriptors; text track contains text/caption clips. | `type`, `clips`, `transitions`, `muted`                                                                                    |
+| `VideoClip`                          | Timeline segment referencing source media.                                                                     | `id`, `assetId`, `startMs`, `durationMs`, `trimStartMs`, `speed`, `opacity`, `positionX/Y`, `scale`, `rotation`, `enabled` |
+| `assetUrlMap`                        | Main-thread `Map<assetId, resolved URL>` produced by `useEditorAssetMap`.                                      | `assetId -> mediaUrl/audioUrl/r2Url`                                                                                       |
+| `CompositorClipDescriptor`           | Per-tick render instruction for one video clip.                                                                | `clipId`, `sourceTimeUs`, `zIndex`, `opacity`, `clipPath`, `effects`, `transform`, `enabled`                               |
+| `CachedDemuxMetadata`                | Reusable demux result shared by workers using same asset URL.                                                  | `videoTrack`, `keyframeIndex`, `videoSamples`, `decoderDescription`                                                        |
+| `VideoFrame`                         | Decoded pixel frame.                                                                                           | `timestamp`, `displayWidth`, `displayHeight`; ownership is transferred and must be closed                                  |
+| `SerializedTextObject`               | Text overlay command generated inside `PreviewEngine`.                                                         | `text`, `x`, `y`, `fontSize`, `color`, `opacity`, `maxWidth`                                                               |
+| `SerializedCaptionFrame`             | Caption bitmap transfer payload.                                                                               | `bitmap: ImageBitmap`                                                                                                      |
+| `CompositorWorkerPerformanceMetrics` | Debug snapshot posted by compositor worker when debug is enabled.                                              | renderer, clip count, frame queue sizes, closed frames, canvas size                                                        |
+
 
 Important ownership rule: `VideoFrame`s and caption `ImageBitmap`s are transfer-like resources. The component or worker that receives one becomes responsible for either transferring it onward or closing it.
 
@@ -237,6 +247,8 @@ sequenceDiagram
     R->>Canvas: draw pixels
 ```
 
+
+
 The preview is intentionally asynchronous. Decoding and ticking are decoupled: frames may arrive before or after a compositor tick, and ticks may happen when the queue is empty. The compositor therefore stores per-clip frame queues and picks the best available frame for each descriptor.
 
 ## 7. Initialization Flow
@@ -274,6 +286,8 @@ sequenceDiagram
     PE->>DP: update(...)
     PE->>PC: onTick(...)
 ```
+
+
 
 Step by step:
 
@@ -321,6 +335,8 @@ sequenceDiagram
     CDW-->>DP: READY
 ```
 
+
+
 Detailed behavior:
 
 1. `DecoderPool.collectDecodeCandidates()` iterates video clips.
@@ -329,14 +345,14 @@ Detailed behavior:
 4. Assets in cooldown from previous decode/load failure are skipped.
 5. Candidates are sorted by `getClipDecodePriority`.
 6. `pickPermittedClipIds()` enforces:
-   - `maxActiveDecoderCount`
-   - `MAX_WORKERS_PER_ASSET_URL`
+  - `maxActiveDecoderCount`
+  - `MAX_WORKERS_PER_ASSET_URL`
 7. Each permitted clip gets exactly one `ClipDecodeWorker` entry.
 8. If demux metadata exists for the asset URL, the pool sends it in `LOAD`.
 9. If another worker is already demuxing the same asset URL, this worker waits in `metadataWaiters`.
 10. Otherwise the worker fetches the asset and demuxes with mp4box.
 11. `ClipDecodeWorker` stores:
-    - `videoTrackId`
+  - `videoTrackId`
     - `videoTimescale`
     - `videoSamples`
     - `keyframeIndex`
@@ -346,15 +362,17 @@ Detailed behavior:
 
 Important constraints from `decode-guard.ts`:
 
-| Limit | Value | Purpose |
-|-------|-------|---------|
-| `MAX_ACTIVE_VIDEO_WORKERS` | 4 | Caps parallel decoder count. |
-| `MAX_WORKERS_PER_ASSET_URL` | 1 | Avoids duplicating decode workers for same asset URL. |
-| `MAX_DECODE_FETCH_BYTES` | 80 MB | Prevents huge preview fetches. |
-| `MAX_VIDEO_SAMPLES` | 12,000 | Prevents unbounded demux sample storage. |
-| `MAX_VIDEO_DIMENSION` | 4096 px | Rejects too-large decode tracks. |
-| `MAX_SEEK_DECODE_SAMPLES` | 240 | Caps seek decode work. |
-| `DECODE_FAILURE_COOLDOWN_MS` | 10 seconds | Temporarily blocks repeatedly failing assets. |
+
+| Limit                        | Value      | Purpose                                               |
+| ---------------------------- | ---------- | ----------------------------------------------------- |
+| `MAX_ACTIVE_VIDEO_WORKERS`   | 4          | Caps parallel decoder count.                          |
+| `MAX_WORKERS_PER_ASSET_URL`  | 1          | Avoids duplicating decode workers for same asset URL. |
+| `MAX_DECODE_FETCH_BYTES`     | 80 MB      | Prevents huge preview fetches.                        |
+| `MAX_VIDEO_SAMPLES`          | 12,000     | Prevents unbounded demux sample storage.              |
+| `MAX_VIDEO_DIMENSION`        | 4096 px    | Rejects too-large decode tracks.                      |
+| `MAX_SEEK_DECODE_SAMPLES`    | 240        | Caps seek decode work.                                |
+| `DECODE_FAILURE_COOLDOWN_MS` | 10 seconds | Temporarily blocks repeatedly failing assets.         |
+
 
 ## 9. Seek Flow
 
@@ -397,6 +415,8 @@ sequenceDiagram
     PC->>CW: OVERLAY + TICK
 ```
 
+
+
 Step by step:
 
 1. `PreviewEngine.seek(targetMs)` clamps target time.
@@ -409,7 +429,7 @@ Step by step:
 8. `DecoderPool.seekAll` computes source-media time for each active worker using `getClipSourceTimeSecondsAtTimelineTime`.
 9. Each seek gets a fresh `seekToken`.
 10. `ClipDecodeWorker.seekTo`:
-    - finds nearest keyframe at or before target
+  - finds nearest keyframe at or before target
     - clears buffered post-seek frames
     - resets and reconfigures `VideoDecoder`
     - decodes from GOP start until it crosses target
@@ -460,6 +480,8 @@ sequenceDiagram
     end
 ```
 
+
+
 Key details:
 
 1. `PreviewEngine.play()` resets session metrics and sets quality to `full`.
@@ -469,12 +491,12 @@ Key details:
 5. `ClipDecodeWorker.play()` starts a continuous decode loop.
 6. `PreviewEngine.startRafLoop()` uses `AudioMixer.getAudibleTimeMs()` as the canonical playback clock, not raw `requestAnimationFrame` elapsed time.
 7. Every RAF:
-   - updates `currentTimeMs`
-   - detects dropped-frame pressure from audio clock deltas
-   - periodically reconciles decode workers
-   - asks captions to render at the audio-clock time through `onRenderTick`
-   - ticks the compositor
-   - publishes React time updates only every 250ms, avoiding a React render every frame
+  - updates `currentTimeMs`
+  - detects dropped-frame pressure from audio clock deltas
+  - periodically reconciles decode workers
+  - asks captions to render at the audio-clock time through `onRenderTick`
+  - ticks the compositor
+  - publishes React time updates only every 250ms, avoiding a React render every frame
 8. At timeline end, it stops RAF, pauses decoders/audio, ticks final frame, publishes playback-end, logs metrics, and calls `onPlaybackEnd`.
 
 ## 11. Continuous Decode Loop Inside `ClipDecodeWorker`
@@ -496,6 +518,8 @@ sequenceDiagram
         CDW->>CDW: setTimeout(feedNextChunk, 0)
     end
 ```
+
+
 
 The feed loop is intentionally small and cooperative. It only feeds more encoded chunks when `decodeQueueSize` is not too high. If decoder reference state was reset or flushed, `decoderNeedsKeyFrame` causes playback to rewind to a GOP start before feeding delta frames, because delta frames require previous references.
 
@@ -539,6 +563,8 @@ sequenceDiagram
         CW->>CW: enqueueFrame(clipId, frame)
     end
 ```
+
+
 
 Important ownership details:
 
@@ -587,6 +613,8 @@ sequenceDiagram
     end
 ```
 
+
+
 Detailed behavior:
 
 1. `PreviewEngine.tickCompositor` starts a performance timer.
@@ -595,8 +623,8 @@ Detailed behavior:
 4. It serializes active plain text clips into `SerializedTextObject`s.
 5. It consumes `pendingCaptionFrame`, setting it back to `undefined`.
 6. `PreviewCanvas.tick` posts:
-   - an `OVERLAY` message first
-   - a `TICK` message second
+  - an `OVERLAY` message first
+  - a `TICK` message second
 7. `OVERLAY` with `captionFrame === undefined` means keep the current caption bitmap.
 8. `OVERLAY` with `captionFrame === null` means clear caption bitmap.
 9. `OVERLAY` with an `ImageBitmap` closes the previous caption bitmap and stores the new one.
@@ -621,17 +649,17 @@ The Rust core:
 5. Computes incoming transition data for clip B for dissolve/wipe.
 6. Computes whether the clip is active at `playheadMs`.
 7. Chooses opacity:
-   - `0` if disabled
-   - outgoing transition opacity if present
-   - incoming transition opacity if present
-   - base opacity if active
-   - `0` otherwise
+  - `0` if disabled
+  - outgoing transition opacity if present
+  - incoming transition opacity if present
+  - base opacity if active
+  - `0` otherwise
 8. Builds transform:
-   - scale
-   - translate X/Y
-   - translate X/Y percent
-   - rotation degrees
-   - outgoing transition transform overlay
+  - scale
+  - translate X/Y
+  - translate X/Y percent
+  - rotation degrees
+  - outgoing transition transform overlay
 9. Computes `sourceTimeUs` by converting source time ms to microseconds.
 10. Computes z-index as `video_tracks.len() - 1 - track_index`.
 
@@ -673,6 +701,8 @@ flowchart TD
     F --> H[Renderer draws frame]
     G --> H
 ```
+
+
 
 When a frame arrives:
 
@@ -719,6 +749,8 @@ sequenceDiagram
     GL-->>Canvas: pixels visible
 ```
 
+
+
 Important WebGL details:
 
 - The canvas is requested with `{ alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, premultipliedAlpha: true }`.
@@ -762,6 +794,8 @@ sequenceDiagram
     C2D->>CTX: draw caption bitmap
     CTX-->>Canvas: pixels visible
 ```
+
+
 
 Canvas2D differs from WebGL2 in that it draws `VideoFrame`s directly with `drawImage`. It does not need texture upload, shader setup, or texture lifetime management. It still uses the same descriptors, frame queues, and overlay payloads.
 
@@ -813,6 +847,8 @@ sequenceDiagram
     R->>R: draw caption bitmap as overlay
 ```
 
+
+
 Caption details:
 
 1. `CaptionLayer` is a hidden `<canvas>` component.
@@ -834,11 +870,13 @@ Caption details:
 
 Caption frame semantics:
 
-| Value | Meaning |
-|-------|---------|
-| `undefined` | Keep the compositor worker's existing caption bitmap. |
-| `null` | Clear the compositor worker's caption bitmap. |
-| `{ bitmap }` | Replace the compositor worker's caption bitmap. |
+
+| Value        | Meaning                                               |
+| ------------ | ----------------------------------------------------- |
+| `undefined`  | Keep the compositor worker's existing caption bitmap. |
+| `null`       | Clear the compositor worker's caption bitmap.         |
+| `{ bitmap }` | Replace the compositor worker's caption bitmap.       |
+
 
 ## 19. Text Overlay Flow
 
@@ -853,8 +891,8 @@ Plain text clips are not rendered by `CaptionLayer`. `PreviewEngine.buildTextObj
 7. Send serialized objects through `PreviewCanvas.tick`.
 8. `CompositorWorker.updateOverlay` stores them.
 9. Renderer draws them as part of overlay:
-   - WebGL2: text is first drawn into overlay `OffscreenCanvas`.
-   - Canvas2D: text is drawn directly after video frames.
+  - WebGL2: text is first drawn into overlay `OffscreenCanvas`.
+  - Canvas2D: text is drawn directly after video frames.
 
 ## 20. Preview Quality And Resource Budget
 
@@ -867,13 +905,17 @@ stateDiagram-v2
     Low --> Full: stable frame count reaches recovery threshold
 ```
 
+
+
 Preview quality state:
 
-| Level | Scale | Effects | Reason |
-|-------|-------|---------|--------|
-| `full` | `1` | enabled | steady |
-| `half` | `0.5` | enabled | scrubbing |
-| `low` | `0.35` | disabled | dropped frames |
+
+| Level  | Scale  | Effects  | Reason         |
+| ------ | ------ | -------- | -------------- |
+| `full` | `1`    | enabled  | steady         |
+| `half` | `0.5`  | enabled  | scrubbing      |
+| `low`  | `0.35` | disabled | dropped frames |
+
 
 Where quality applies:
 
@@ -907,6 +949,8 @@ flowchart TD
     I --> J[New CompositorWorker init uses canvas2d]
 ```
 
+
+
 Fallback cases:
 
 - WebGL2 cannot initialize: `createCompositorRenderer` directly constructs Canvas2D.
@@ -932,14 +976,16 @@ Stale frame behavior:
 
 ## 22. Timing And Units
 
-| Quantity | Unit | Owner |
-|----------|------|-------|
-| `currentTimeMs` | timeline milliseconds | `PreviewEngine`, editor playback state |
-| `playheadMs` | timeline milliseconds | compositor ticks, editor-core WASM |
-| `sourceTimeMs` | source media milliseconds | `DecoderPool.seek`, editor-core WASM internal helper |
-| `sourceTimeUs` | source media microseconds | `CompositorClipDescriptor` |
-| `frame.timestamp` | microseconds | `VideoFrame` from WebCodecs |
-| mp4box sample `dts` / `cts` | track ticks | `ClipDecodeWorker` |
+
+| Quantity                    | Unit                      | Owner                                                |
+| --------------------------- | ------------------------- | ---------------------------------------------------- |
+| `currentTimeMs`             | timeline milliseconds     | `PreviewEngine`, editor playback state               |
+| `playheadMs`                | timeline milliseconds     | compositor ticks, editor-core WASM                   |
+| `sourceTimeMs`              | source media milliseconds | `DecoderPool.seek`, editor-core WASM internal helper |
+| `sourceTimeUs`              | source media microseconds | `CompositorClipDescriptor`                           |
+| `frame.timestamp`           | microseconds              | `VideoFrame` from WebCodecs                          |
+| mp4box sample `dts` / `cts` | track ticks               | `ClipDecodeWorker`                                   |
+
 
 Critical conversions:
 
@@ -972,31 +1018,33 @@ window.__REEL_EDITOR_DEBUG__?.snapshot()
 
 Important fields:
 
-| Field | Meaning |
-|-------|---------|
-| `debug.editorCoreWasm` | Whether WASM descriptor module is pending/rust/fallback. |
-| `debug.previewEngine` | Playback state, dimensions, quality, metrics, decoder pool metrics. |
-| `debug.compositorWorker` | Worker readiness, renderer mode, frame queue sizes, clip count, caption presence. |
-| `debug.compositorRendererFallback` | Last renderer fallback request, if WebGL2 asked to fall back. |
-| `measures` | Performance records including compositor ticks and caption bitmap renders. |
-| `marks` | Named timing marks used for seek/caption measurements. |
+
+| Field                              | Meaning                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| `debug.editorCoreWasm`             | Whether WASM descriptor module is pending/rust/fallback.                          |
+| `debug.previewEngine`              | Playback state, dimensions, quality, metrics, decoder pool metrics.               |
+| `debug.compositorWorker`           | Worker readiness, renderer mode, frame queue sizes, clip count, caption presence. |
+| `debug.compositorRendererFallback` | Last renderer fallback request, if WebGL2 asked to fall back.                     |
+| `measures`                         | Performance records including compositor ticks and caption bitmap renders.        |
+| `marks`                            | Named timing marks used for seek/caption measurements.                            |
+
 
 For black video with captions visible, inspect:
 
 1. `debug.previewEngine.metrics.decodedFrameCount`
-   - `0` means no accepted decoded frames reached `PreviewEngine`.
+  - `0` means no accepted decoded frames reached `PreviewEngine`.
 2. `debug.previewEngine.metrics.decoderPool.activeDecoderCount`
-   - `0` means no workers are active near playhead.
+  - `0` means no workers are active near playhead.
 3. `debug.previewEngine.metrics.decoderPool.readyDecoderCount`
-   - `0` with active workers means workers are still loading or failing.
+  - `0` with active workers means workers are still loading or failing.
 4. `debug.previewEngine.metrics.decoderPool.clipSeekMetrics`
-   - `acceptedFrameCount` and `staleFrameDropCount` tell whether frames are accepted or discarded.
+  - `acceptedFrameCount` and `staleFrameDropCount` tell whether frames are accepted or discarded.
 5. `debug.compositorWorker.frameQueueSizes`
-   - Empty or zero means frames are not queued in compositor worker.
+  - Empty or zero means frames are not queued in compositor worker.
 6. `debug.compositorWorker.clipCount`
-   - `0` means descriptors are not asking renderer to draw a video clip.
+  - `0` means descriptors are not asking renderer to draw a video clip.
 7. `debug.compositorWorker.captionFramePresent`
-   - `true` confirms overlay path is active even if video path is broken.
+  - `true` confirms overlay path is active even if video path is broken.
 
 ## 24. Known Fragile Boundaries
 
@@ -1045,29 +1093,33 @@ flowchart TD
     H -->|No| H2[Check pickFrame timebase, z-index, opacity, clipPath, renderer draw]
 ```
 
+
+
 ## 26. File Map
 
-| File | Role |
-|------|------|
-| `frontend/src/features/editor/components/layout/EditorWorkspace.tsx` | Wires editor state, preview engine hook, preview canvas, and caption layer. |
-| `frontend/src/features/editor/hooks/usePreviewEngine.ts` | React lifecycle wrapper around `PreviewEngine`; bridges callbacks to `PreviewCanvas`. |
-| `frontend/src/features/editor/engine/PreviewEngine.ts` | Preview orchestration, playback clock, decoder pool coordination, descriptor/tick generation. |
-| `frontend/src/features/editor/engine/DecoderPool.ts` | Decode worker lifecycle, seek tokens, metadata cache, accepted/stale frame decisions. |
-| `frontend/src/features/editor/engine/ClipDecodeWorker.ts` | MP4 fetch/demux, `VideoDecoder` configure/seek/play, frame transfer. |
-| `frontend/src/features/editor/engine/CompositorWorker.ts` | Visible canvas owner, frame queues, overlay state, renderer dispatch. |
-| `frontend/src/features/editor/engine/compositor/types.ts` | Shared renderer contracts and descriptor types. |
-| `frontend/src/features/editor/engine/compositor/index.ts` | Renderer selection. |
-| `frontend/src/features/editor/engine/compositor/Webgl2CompositorRenderer.ts` | WebGL2 renderer. |
-| `frontend/src/features/editor/engine/compositor/Canvas2dCompositorRenderer.ts` | Canvas2D renderer. |
-| `frontend/src/features/editor/engine/editor-core-wasm.ts` | WASM loader and TypeScript facade for Rust editor core. |
-| `frontend/editor-core/src/lib.rs` | Rust implementation of compositor descriptor generation and source-time math. |
-| `frontend/src/features/editor/components/preview/PreviewCanvas.tsx` | Visible canvas bridge and worker message bridge. |
-| `frontend/src/features/editor/components/caption/CaptionLayer.tsx` | Hidden caption canvas lifecycle and active caption clip selection. |
-| `frontend/src/features/editor/caption/hooks/useCaptionCanvas.ts` | Caption token slicing, layout, rendering, and `ImageBitmap` creation. |
-| `frontend/src/features/editor/utils/editor-composition.ts` | Shared source-time and clip activity helpers. |
-| `frontend/src/features/editor/hooks/useEditorAssetMap.ts` | Builds `assetUrlMap` from generated content assets and media library items. |
-| `frontend/src/features/editor/engine/AudioMixer.ts` | Audio scheduling and audio-clock source for playback ticks. |
-| `frontend/src/features/editor/engine/decode-guard.ts` | Decode worker and asset safety limits. |
+
+| File                                                                           | Role                                                                                          |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `frontend/src/features/editor/components/layout/EditorWorkspace.tsx`           | Wires editor state, preview engine hook, preview canvas, and caption layer.                   |
+| `frontend/src/features/editor/hooks/usePreviewEngine.ts`                       | React lifecycle wrapper around `PreviewEngine`; bridges callbacks to `PreviewCanvas`.         |
+| `frontend/src/features/editor/engine/PreviewEngine.ts`                         | Preview orchestration, playback clock, decoder pool coordination, descriptor/tick generation. |
+| `frontend/src/features/editor/engine/DecoderPool.ts`                           | Decode worker lifecycle, seek tokens, metadata cache, accepted/stale frame decisions.         |
+| `frontend/src/features/editor/engine/ClipDecodeWorker.ts`                      | MP4 fetch/demux, `VideoDecoder` configure/seek/play, frame transfer.                          |
+| `frontend/src/features/editor/engine/CompositorWorker.ts`                      | Visible canvas owner, frame queues, overlay state, renderer dispatch.                         |
+| `frontend/src/features/editor/engine/compositor/types.ts`                      | Shared renderer contracts and descriptor types.                                               |
+| `frontend/src/features/editor/engine/compositor/index.ts`                      | Renderer selection.                                                                           |
+| `frontend/src/features/editor/engine/compositor/Webgl2CompositorRenderer.ts`   | WebGL2 renderer.                                                                              |
+| `frontend/src/features/editor/engine/compositor/Canvas2dCompositorRenderer.ts` | Canvas2D renderer.                                                                            |
+| `frontend/src/features/editor/engine/editor-core-wasm.ts`                      | WASM loader and TypeScript facade for Rust editor core.                                       |
+| `frontend/editor-core/src/lib.rs`                                              | Rust implementation of compositor descriptor generation and source-time math.                 |
+| `frontend/src/features/editor/components/preview/PreviewCanvas.tsx`            | Visible canvas bridge and worker message bridge.                                              |
+| `frontend/src/features/editor/components/caption/CaptionLayer.tsx`             | Hidden caption canvas lifecycle and active caption clip selection.                            |
+| `frontend/src/features/editor/caption/hooks/useCaptionCanvas.ts`               | Caption token slicing, layout, rendering, and `ImageBitmap` creation.                         |
+| `frontend/src/features/editor/utils/editor-composition.ts`                     | Shared source-time and clip activity helpers.                                                 |
+| `frontend/src/features/editor/hooks/useEditorAssetMap.ts`                      | Builds `assetUrlMap` from generated content assets and media library items.                   |
+| `frontend/src/features/editor/engine/AudioMixer.ts`                            | Audio scheduling and audio-clock source for playback ticks.                                   |
+| `frontend/src/features/editor/engine/decode-guard.ts`                          | Decode worker and asset safety limits.                                                        |
+
 
 ## 27. One-Screen Mental Model
 
@@ -1089,6 +1141,8 @@ flowchart LR
     Renderer --> Canvas[Visible preview canvas]
 ```
 
+
+
 Everything has to line up:
 
 - `assetUrlMap` must resolve clip media.
@@ -1099,3 +1153,4 @@ Everything has to line up:
 - Descriptor `sourceTimeUs` must match frame timestamps.
 - Renderer must successfully draw the selected frame.
 - Captions are independent overlay bitmaps and can work even if any video step fails.
+
