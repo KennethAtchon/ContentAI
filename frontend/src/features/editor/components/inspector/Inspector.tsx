@@ -1,41 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ClipPatch } from "../../types/editor";
-import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
-import { useEditorSelection } from "../../context/EditorSelectionContext";
-import { useEditorUIContext } from "../../context/EditorUIContext";
-import { InspectorHeader } from "./InspectorHeader";
-import type { InspectorTab } from "./InspectorHeader";
 import { AdjustTab } from "./AdjustTab";
 import { AnimateTab } from "./AnimateTab";
 import { EffectsTab } from "./EffectsTab";
+import { InspectorHeader, type InspectorTab } from "./InspectorHeader";
 import { ProjectTab } from "./ProjectTab";
 
 export function Inspector() {
   const { t } = useTranslation();
-  const {
-    selectedClip,
-    selectedTrack,
-    selectedTransition,
-  } = useEditorSelection();
-  const { setFps, setResolution } = useEditorDocumentActions();
-  const {
-    effectPreview,
-    setEffectPreview,
-    isCapturingThumbnail,
-    captureThumbnail,
-  } = useEditorUIContext();
   const [activeTab, setActiveTab] = useState<InspectorTab>("adjust");
-
-  const hasSelection = !!selectedClip || !!selectedTransition;
-
-  const handleEffectPreview = (patch: ClipPatch | null) => {
-    setEffectPreview(
-      patch && selectedClip ? { clipId: selectedClip.id, patch } : null
-    );
-  };
-
-  void effectPreview;
 
   return (
     <div
@@ -43,46 +16,22 @@ export function Inspector() {
       style={{ width: 320 }}
     >
       <InspectorHeader
-        selectedTrack={selectedTrack}
-        selectedClipLabel={
-          "label" in (selectedClip ?? {})
-            ? (selectedClip as { label: string }).label
-            : null
-        }
-        selectedTransition={selectedTransition}
+        selectedTrack={null}
+        selectedClipLabel={null}
+        selectedTransition={null}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        {activeTab === "adjust" && (
-          <>
-            {!hasSelection ? (
-              <div className="h-full flex flex-col items-center justify-center gap-2 px-4">
-                <span className="text-4xl opacity-20">✦</span>
-                <p className="text-xs italic text-dim-3 text-center">
-                  {t("editor_inspector_empty")}
-                </p>
-              </div>
-            ) : (
-              <AdjustTab
-                selectedTransition={selectedTransition}
-                onEffectPreview={handleEffectPreview}
-              />
-            )}
-          </>
-        )}
-
+        {activeTab === "adjust" && <AdjustTab selectedTransition={null} />}
         {activeTab === "animate" && <AnimateTab />}
         {activeTab === "effects" && <EffectsTab />}
-
-        {activeTab === "project" && (
-          <ProjectTab
-            onFpsChange={setFps}
-            onResolutionChange={setResolution}
-            isCapturingThumbnail={isCapturingThumbnail}
-            onCaptureThumbnail={() => void captureThumbnail()}
-          />
+        {activeTab === "project" && <ProjectTab />}
+        {activeTab === "adjust" && (
+          <p className="px-4 pb-4 text-xs italic text-dim-3">
+            {t("editor_inspector_empty")}
+          </p>
         )}
       </div>
     </div>

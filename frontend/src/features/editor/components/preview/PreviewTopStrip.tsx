@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Grid, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/utils/helpers/utils";
-import type { CompositorRendererPreference } from "../../engine/CompositorWorker";
+
+type CompositorRendererPreference = "auto" | "webgl2" | "canvas2d";
 
 interface PreviewTopStripProps {
   resolution: string;

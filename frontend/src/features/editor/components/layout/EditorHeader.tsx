@@ -1,40 +1,25 @@
+import { ArrowLeft, Check, FilePlus, Lock, Redo2, Undo2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Undo2, Redo2, Upload, Lock, FilePlus, Check, Loader2 } from "lucide-react";
-import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
-import { useEditorDocumentActions } from "../../context/EditorDocumentActionsContext";
-import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
-import { useEditorPersistContext } from "../../context/EditorPersistContext";
-import { useEditorUIContext } from "../../context/EditorUIContext";
 
-export function EditorHeader() {
+interface EditorHeaderProps {
+  title?: string;
+  isReadOnly?: boolean;
+  onBack?: () => void;
+}
+
+export function EditorHeader({
+  title = "Untitled Edit",
+  isReadOnly = false,
+  onBack,
+}: EditorHeaderProps) {
   const { t } = useTranslation();
-  const { title, isReadOnly, past, future } = useEditorDocumentState();
-  const { setTitle, undo, redo } = useEditorDocumentActions();
-  const { handleBack, saveNow } = useEditorPlaybackContext();
-  const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
-  const {
-    showExport,
-    setShowExport,
-    publishDialogOpen,
-    setPublishDialogOpen,
-    isPublishing,
-    isCreatingDraft,
-    createNewDraft,
-  } = useEditorUIContext();
-
-  void showExport;
-  void publishDialogOpen;
 
   return (
     <div
       className="flex items-center gap-0 px-3 border-b border-overlay-sm bg-studio-topbar shrink-0"
       style={{ height: 48 }}
     >
-      <button
-        onClick={() => void handleBack()}
-        title={t("editor_back")}
-        className="transport-btn mr-1"
-      >
+      <button onClick={onBack} title={t("editor_back")} className="transport-btn">
         <ArrowLeft size={15} />
       </button>
 
@@ -43,48 +28,21 @@ export function EditorHeader() {
       <input
         type="text"
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        readOnly={isReadOnly}
-        className="bg-transparent border-0 border-b border-overlay-md text-sm text-dim-1 min-w-[160px] max-w-[260px] outline-none focus:border-studio-accent transition-colors px-1 read-only:border-transparent read-only:cursor-default"
+        readOnly
+        className="bg-transparent border-0 border-b border-transparent text-sm text-dim-1 min-w-[160px] max-w-[260px] outline-none px-1 read-only:cursor-default"
       />
 
-      <div className="ml-2 min-w-[80px]">
-        {isSavingPatch ? (
-          <span className="flex items-center gap-1 text-xs text-dim-3">
-            <Loader2 size={11} className="animate-spin" />
-            {t("editor_saving")}
-          </span>
-        ) : isDirty ? (
-          <button
-            onClick={saveNow}
-            className="px-2 py-0.5 text-xs rounded bg-amber-400/15 border border-amber-400/30 text-amber-400 cursor-pointer hover:bg-amber-400/25 transition-colors"
-          >
-            {t("editor_save_now")}
-          </button>
-        ) : lastSavedAt ? (
-          <span className="flex items-center gap-1 text-xs text-dim-3">
-            <Check size={11} className="text-green-500" />
-            {t("editor_saved")}
-          </span>
-        ) : null}
-      </div>
+      <span className="ml-3 flex items-center gap-1 text-xs text-dim-3">
+        <Check size={11} className="text-green-500" />
+        {t("editor_saved")}
+      </span>
 
       <div className="flex-1" />
 
-      <button
-        onClick={undo}
-        disabled={past.length === 0}
-        title={t("editor_transport_undo")}
-        className="transport-btn disabled:opacity-30"
-      >
+      <button disabled title={t("editor_transport_undo")} className="transport-btn opacity-30">
         <Undo2 size={14} />
       </button>
-      <button
-        onClick={redo}
-        disabled={future.length === 0}
-        title={t("editor_transport_redo")}
-        className="transport-btn disabled:opacity-30"
-      >
+      <button disabled title={t("editor_transport_redo")} className="transport-btn opacity-30">
         <Redo2 size={14} />
       </button>
 
@@ -96,37 +54,18 @@ export function EditorHeader() {
             <Lock size={11} />
             {t("editor_status_published")}
           </span>
-          <button
-            onClick={createNewDraft}
-            disabled={isCreatingDraft}
-            className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors disabled:opacity-60"
-          >
+          <button className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg">
             <FilePlus size={14} />
             {t("editor_new_draft")}
           </button>
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowExport(true)}
-            className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg cursor-pointer hover:bg-overlay-md transition-colors"
-          >
+          <button className="flex items-center gap-1.5 bg-overlay-sm border border-overlay-md text-dim-1 text-sm font-semibold px-4 py-1.5 rounded-lg">
             <Upload size={14} />
             {t("editor_export_button")}
           </button>
-          <button
-            type="button"
-            onClick={() => setPublishDialogOpen(true)}
-            disabled={isPublishing || isSavingPatch}
-            title={
-              isPublishing
-                ? "Publishing..."
-                : isSavingPatch
-                  ? "Wait for autosave to finish before publishing."
-                  : t("editor_publish_button")
-            }
-            className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0 cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
-          >
+          <button className="flex items-center gap-1.5 bg-gradient-to-br from-studio-accent to-studio-purple text-white text-sm font-semibold px-4 py-1.5 rounded-lg border-0">
             {t("editor_publish_button")}
           </button>
         </div>

@@ -78,6 +78,7 @@ export async function createRenderer(config: RendererConfig): Promise<Renderer> 
 `packages/core/src/video/webgpu-renderer-impl.ts`
 
 Responsibilities:
+
 - Acquire high-perf GPU adapter + device
 - Configure canvas context with `premultiplied` alpha
 - Manage **3 pipelines**: composite, transform, border-radius
@@ -144,6 +145,7 @@ export class VideoEngine {
 ```
 
 Init order (abridged):
+
 1. Feature-detect WebCodecs.
 2. Load MediaBunny (WebCodecs wrapper that gives sub-frame seek).
 3. Start `ParallelFrameDecoder` (if enabled — preview only).
@@ -156,6 +158,7 @@ Frames are decoded via `decodeFrameWithMediaBunny()` — **not** via `<video>` e
 `packages/core/src/video/frame-cache.ts` (+ ring buffer, + bridge-level cache in `render-bridge.ts`)
 
 LRU cache, configured:
+
 - `maxFrames: 100`
 - `maxSizeBytes: 500MB`
 - `preloadAhead: 30`, `preloadBehind: 10`
@@ -190,6 +193,7 @@ export class MasterTimelineClock {
 Critical design: **use `AudioContext.currentTime`, not `performance.now()`**. AudioContext is sample-accurate and drifts less. Every subsystem (preview, audio, captions) reads from this one clock. No clock skew between video and audio.
 
 Subscribers register `onTimeUpdate(cb)`:
+
 - Preview → re-render canvas
 - Audio engine → advance playback
 - Caption engine → update active words
@@ -219,6 +223,7 @@ const Preview = () => {
 ```
 
 Note:
+
 - `currentTime` is **not** a React state. No `setState` per frame.
 - Preview component does **not** subscribe to the timeline store.
 - Only components that edit the timeline (Inspector, Timeline UI) subscribe to its state via Zustand selectors.
@@ -270,6 +275,7 @@ export interface Clip {
 ### Contrast with ContentAI
 
 Your CLAUDE.md says:
+
 > `trimStartMs + durationMs + trimEndMs === sourceMaxDurationMs`. `trimEndMs` is the unused tail.
 
 OpenReel uses `inPoint` / `outPoint` as **absolute** positions in source media. Neither is "better," but the `inPoint/outPoint` form is what every NLE on earth uses (Premiere, Resolve, FCP). Considering a switch: the mental model matches industry tooling, and trims like ripple/slip/slide become arithmetic on two numbers instead of three.
@@ -297,11 +303,13 @@ Every mutation goes through `ActionExecutor` (`packages/core/src/actions/`). Act
 
 Three distinct concepts, do not confuse:
 
-| Concept | Where | What |
-|---|---|---|
-| **Subtitle** | `Timeline.subtitles[]` | Timed text, often word-by-word, composited on top globally. SRT import lives here. |
-| **Text Clip** | a `Track` of `type: "text"` with `Clip`s | A regular timeline clip whose media is text. Lives at a track z-order. Used for titles, lower-thirds. |
-| **Text Animation** | applied to text clips | Typewriter, bounce, etc. Not the same as caption word-sync. |
+
+| Concept            | Where                                    | What                                                                                                  |
+| ------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Subtitle**       | `Timeline.subtitles[]`                   | Timed text, often word-by-word, composited on top globally. SRT import lives here.                    |
+| **Text Clip**      | a `Track` of `type: "text"` with `Clip`s | A regular timeline clip whose media is text. Lives at a track z-order. Used for titles, lower-thirds. |
+| **Text Animation** | applied to text clips                    | Typewriter, bounce, etc. Not the same as caption word-sync.                                           |
+
 
 ### 4.1 Subtitle shape
 
@@ -396,6 +404,7 @@ export function renderAnimatedCaption(
 **Pure function. No state.** Given `(subtitle, time)` → layout instructions. The canvas rasterizer (`canvas-renderers.ts`) consumes `WordSegment[]` and paints. This makes captions trivially testable: snapshot `(subtitle, t)` → expected segments.
 
 Supported `animationStyle`:
+
 - `none` — static display
 - `word-highlight` — active word colored, past/future dimmed
 - `word-by-word` — only active word visible
@@ -493,6 +502,7 @@ export class ExportEngine {
 ```
 
 Key points:
+
 - **Same `renderFrame()` as preview.** No shadow pipeline.
 - Disables parallel decode (`setParallelDecoding(false)`) — each frame decoded deterministically.
 - Uses MediaBunny `VideoSampleSource` / `AudioBufferSource` for muxing.
@@ -545,6 +555,7 @@ Engines are lazy-loaded. React components **do not instantiate engines**. They p
 ### 6.2 Bridges — one adapter per engine
 
 `apps/web/src/bridges/`:
+
 - `render-bridge.ts` — canvas + VideoEngine
 - `playback-bridge.ts` — play/pause/seek + MasterTimelineClock
 - `text-bridge.ts` — TitleEngine + TextAnimationEngine
@@ -553,6 +564,7 @@ Engines are lazy-loaded. React components **do not instantiate engines**. They p
 - …plus effects, graphics, transitions, beat-sync, motion-tracking
 
 Each bridge:
+
 1. Pulls engine handles from `useEngineStore`
 2. Exposes a narrow, React-friendly API
 3. Owns UI-side caches (e.g. `RenderBridge.frameCache`)
@@ -591,12 +603,14 @@ Why: components that only display timeline can subscribe via selector without re
 
 IndexedDB with four object stores:
 
-| Store | Contents | Indexes |
-|---|---|---|
-| `projects` | Project metadata + timeline JSON | `modifiedAt`, `name` |
-| `media` | Media blobs (video, image, audio) | `projectId` |
-| `cache` | Thumbnails, waveforms computed data | `timestamp` |
-| `waveforms` | Audio peaks | — |
+
+| Store       | Contents                            | Indexes              |
+| ----------- | ----------------------------------- | -------------------- |
+| `projects`  | Project metadata + timeline JSON    | `modifiedAt`, `name` |
+| `media`     | Media blobs (video, image, audio)   | `projectId`          |
+| `cache`     | Thumbnails, waveforms computed data | `timestamp`          |
+| `waveforms` | Audio peaks                         | —                    |
+
 
 Projects are serialized via `project-serializer.ts` — plain `JSON.stringify` of a Project DTO. No custom binary format. Media blobs live separately in the `media` store, referenced by `mediaId`.
 
@@ -719,6 +733,8 @@ flowchart TB
   TimelineStore <-->|autosave| IDB
 ```
 
+
+
 ---
 
 ## 10. Concrete Refactor Plan for ContentAI
@@ -741,6 +757,7 @@ Start with (1) and (2). They unblock everything else and you'll feel the preview
 ## 11. File-by-File Reference Index
 
 Core rendering
+
 - `packages/core/src/video/renderer-factory.ts` — WebGPU/Canvas2D selector
 - `packages/core/src/video/webgpu-renderer-impl.ts` — WebGPU impl
 - `packages/core/src/video/canvas2d-fallback-renderer.ts` — CPU fallback
@@ -750,16 +767,19 @@ Core rendering
 - `packages/core/src/video/parallel-frame-decoder.ts` + `decode-worker.ts`
 
 Playback
+
 - `packages/core/src/playback/master-timeline-clock.ts` — AudioContext clock
 - `packages/core/src/playback/playback-controller.ts`
 
 Timeline
+
 - `packages/core/src/types/timeline.ts` — types
 - `packages/core/src/timeline/clip-manager.ts`
 - `packages/core/src/timeline/track-manager.ts`
 - `packages/core/src/timeline/nested-sequence-engine.ts` — nested comps
 
 Text / captions
+
 - `packages/core/src/text/subtitle-engine.ts` — SRT import, subtitle CRUD
 - `packages/core/src/text/caption-animation-renderer.ts` — `renderAnimatedCaption`
 - `packages/core/src/text/title-engine.ts` — text clips
@@ -769,11 +789,13 @@ Text / captions
 - `packages/core/src/text/text-animation.ts` + `text-animation-presets.ts`
 
 Export
+
 - `packages/core/src/export/export-engine.ts`
 - `packages/core/src/export/export-worker.ts`
 - `packages/core/src/export/types.ts`
 
 React bridge layer
+
 - `apps/web/src/bridges/render-bridge.ts`
 - `apps/web/src/bridges/playback-bridge.ts`
 - `apps/web/src/bridges/text-bridge.ts`
@@ -784,5 +806,7 @@ React bridge layer
 - `apps/web/src/components/editor/preview/canvas-renderers.ts`
 
 Storage
+
 - `packages/core/src/storage/storage-engine.ts`
 - `packages/core/src/storage/project-serializer.ts`
+

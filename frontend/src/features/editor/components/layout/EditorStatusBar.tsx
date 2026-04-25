@@ -1,22 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
-import { useEditorPersistContext } from "../../context/EditorPersistContext";
 
-export function EditorStatusBar() {
+interface EditorStatusBarProps {
+  clipCount?: number;
+  trackCount?: number;
+  resolution?: string;
+  fps?: number;
+}
+
+export function EditorStatusBar({
+  clipCount = 0,
+  trackCount = 0,
+  resolution = "1080x1920",
+  fps = 30,
+}: EditorStatusBarProps) {
   const { t } = useTranslation();
-  const { tracks, resolution, fps } = useEditorDocumentState();
-  const { isDirty, isSavingPatch, lastSavedAt } = useEditorPersistContext();
-
-  const clipCount = tracks.reduce((n, tr) => n + tr.clips.length, 0);
-  const trackCount = tracks.length;
-
-  const saveLabel = isSavingPatch
-    ? t("editor_saving")
-    : isDirty
-      ? t("editor_status_unsaved")
-      : lastSavedAt
-        ? t("editor_saved")
-        : "";
 
   return (
     <div
@@ -27,7 +24,7 @@ export function EditorStatusBar() {
         {clipCount} {t("editor_status_clips")} · {trackCount} {t("editor_tracks_label")}
       </span>
       <div className="flex-1" />
-      {saveLabel && <span>{saveLabel}</span>}
+      <span>{t("editor_saved")}</span>
       <div className="w-px h-3 bg-overlay-md shrink-0" />
       <span>
         {resolution} · {fps} fps

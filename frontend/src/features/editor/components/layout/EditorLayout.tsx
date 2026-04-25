@@ -18,10 +18,19 @@ export function EditorLayout({ project, onBack }: Props) {
         className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
         style={{ height: "100%" }}
       >
-        <EditorHeader />
+        <EditorHeader
+          title={project.title ?? "Untitled Edit"}
+          isReadOnly={project.status === "published"}
+          onBack={onBack}
+        />
         <EditorWorkspace project={project} />
         <TimelineSection />
-        <EditorStatusBar />
+        <EditorStatusBar
+          clipCount={project.tracks.reduce((count, track) => count + track.clips.length, 0)}
+          trackCount={project.tracks.length}
+          resolution={project.resolution}
+          fps={project.fps}
+        />
         <EditorDialogs />
       </div>
     </EditorProviders>

@@ -1,26 +1,25 @@
 import type { RefObject } from "react";
-import type { PreviewCanvasHandle } from "./PreviewCanvas";
-import { PreviewCanvas } from "./PreviewCanvas";
-import { PreviewTopStrip } from "./PreviewTopStrip";
 import { PlaybackBar } from "./PlaybackBar";
-import type { CompositorRendererPreference } from "../../engine/CompositorWorker";
-import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
+import { PreviewCanvas, type PreviewCanvasHandle } from "./PreviewCanvas";
+import { PreviewTopStrip } from "./PreviewTopStrip";
+
+type RendererPreference = "auto" | "webgl2" | "canvas2d";
 
 interface PreviewAreaProps {
-  previewRef: RefObject<PreviewCanvasHandle | null>;
-  rendererPreference: CompositorRendererPreference;
-  onRendererPreferenceChange: (
-    preference: CompositorRendererPreference
-  ) => void;
+  resolution?: string;
+  durationMs?: number;
+  previewRef?: RefObject<PreviewCanvasHandle | null>;
+  rendererPreference?: RendererPreference;
+  onRendererPreferenceChange?: (preference: RendererPreference) => void;
 }
 
 export function PreviewArea({
+  resolution = "1080x1920",
+  durationMs = 0,
   previewRef,
-  rendererPreference,
-  onRendererPreferenceChange,
+  rendererPreference = "auto",
+  onRendererPreferenceChange = () => undefined,
 }: PreviewAreaProps) {
-  const { resolution, durationMs } = useEditorDocumentState();
-
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
       <PreviewTopStrip
@@ -28,14 +27,8 @@ export function PreviewArea({
         rendererPreference={rendererPreference}
         onRendererPreferenceChange={onRendererPreferenceChange}
       />
-      <PreviewCanvas
-        ref={previewRef}
-        resolution={resolution}
-        durationMs={durationMs}
-        rendererPreference={rendererPreference}
-        onRendererPreferenceChange={onRendererPreferenceChange}
-      />
-      <PlaybackBar />
+      <PreviewCanvas ref={previewRef} resolution={resolution} durationMs={durationMs} />
+      <PlaybackBar durationMs={durationMs} />
     </div>
   );
 }
