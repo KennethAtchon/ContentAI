@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/shared/ui/primitives/button";
@@ -22,11 +22,6 @@ interface ScrapeConfig {
   viralOnly: boolean;
 }
 
-interface _Niche {
-  id: number;
-  name: string;
-  config: ScrapeConfig;
-}
 
 interface ScrapeJob {
   jobId: string;

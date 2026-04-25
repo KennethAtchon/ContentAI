@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { ChevronRight, Home } from "lucide-react";
 import { StructuredDataStatic } from "@/shared/marketing/ui/structured-data";

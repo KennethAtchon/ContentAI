@@ -56,17 +56,6 @@ function SupportPage() {
     },
   ];
 
-  const _troubleshootingFAQs = [
-    {
-      question: t("support_studio_not_loading"),
-      answer: t("support_studio_not_loading_answer"),
-    },
-    {
-      question: t("support_generation_failed"),
-      answer: t("support_generation_failed_answer"),
-    },
-  ];
-
   const categories = [
     {
       title: t("support_getting_started_title"),

@@ -207,7 +207,7 @@ export function SubscriptionAnalytics() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {tierDistributionData.map((entry, index) => (
+                  {tierDistributionData.map((_, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}

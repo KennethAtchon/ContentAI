@@ -9,7 +9,7 @@ This document is **observational**. Once we agree on findings, we'll distill the
 ## TL;DR — Top 10 priorities
 
 1. **`SystemConfigView.tsx` is 1,866 lines.** One component owns every admin tab. Split per-tab. → `frontend/src/domains/admin/ui/system-config/SystemConfigView.tsx`
-2. **Frontend `tsconfig` has `strict: false`** while backend has `strict: true`. Asymmetric type safety. → `frontend/tsconfig.json:14`
+2. ~~Frontend `tsconfig` has `strict: false`~~ ✅ Fixed in PR 3 — strict + unused-locals/params + noImplicitReturns now on; 10 trivial errors fixed.
 3. **Zod schemas duplicated across backend/frontend.** Same shape declared twice → drift risk. → `backend/src/domain/customer/customer.schemas.ts` vs `frontend/src/shared/validation/api.schema.ts`
 4. **Shared layer leaks into domain.** `shared/ui/navigation/StudioTopBar.tsx` imports from `@/domains/auth/...` — breaks the dependency direction.
 5. **Empty `catch {}` blocks + dev-only logger.** 55 empty catches; many that *do* log use `debugLog.error` which only fires in dev (`utils/debug/debug.ts:5`). Production goes silent. → see B4, B10
@@ -144,19 +144,11 @@ routes/customer/orders.router.ts:33
 
 ## Frontend
 
-### F1. `tsconfig` is too loose
+### F1. `tsconfig` is too loose ~~P1~~ ✅ FIXED in PR 3
 
-```json
-// frontend/tsconfig.json:14-24
-"strict": false,
-"noImplicitAny": false,
-"strictFunctionTypes": false,
-"strictNullChecks": true   // only this is on
-```
+Frontend was `strict: false`, backend `strict: true`. Asymmetric.
 
-Backend is `strict: true`. Asymmetric.
-
-**Severity: P1.** Turn on strict mode; fix incrementally.
+**Resolution:** Enabled `strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`. Surfaced 10 unused-import/var errors (mostly stale `import React` from pre-JSX-transform code) — all fixed. Type check now clean. The codebase was already type-safe in practice; the flags were just off.
 
 ### F2. Mega-components
 

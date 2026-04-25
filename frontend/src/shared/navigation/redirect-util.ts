@@ -356,7 +356,7 @@ export function isAdminRoute(pathname: string): boolean {
  * Get appropriate redirect for unauthenticated users
  */
 export function getUnauthenticatedRedirect(
-  currentPath: string,
+  _currentPath: string,
   isSignUpPreferred: boolean = false
 ): { path: string; search?: Record<string, string> } {
   const returnUrl = encodeURIComponent(window.location.href);

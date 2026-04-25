@@ -4,7 +4,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/primitives/dialog";
-import React from "react";
 
 type Order = {
   id: string;
