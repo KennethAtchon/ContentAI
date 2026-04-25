@@ -8,7 +8,7 @@ This document is **observational**. Once we agree on findings, we'll distill the
 
 ## TL;DR — Top 10 priorities
 
-1. **`SystemConfigView.tsx` is 1,866 lines.** One component owns every admin tab. Split per-tab. → `frontend/src/domains/admin/ui/system-config/SystemConfigView.tsx`
+1. ~~`SystemConfigView.tsx` is 1,866 lines~~ ✅ Fixed in PR 4 — split into shell + 8 shared components + 7 per-tab files; tsc clean.
 2. ~~Frontend `tsconfig` has `strict: false`~~ ✅ Fixed in PR 3 — strict + unused-locals/params + noImplicitReturns now on; 10 trivial errors fixed.
 3. **Zod schemas duplicated across backend/frontend.** Same shape declared twice → drift risk. → `backend/src/domain/customer/customer.schemas.ts` vs `frontend/src/shared/validation/api.schema.ts`
 4. **Shared layer leaks into domain.** `shared/ui/navigation/StudioTopBar.tsx` imports from `@/domains/auth/...` — breaks the dependency direction.
@@ -152,17 +152,17 @@ Frontend was `strict: false`, backend `strict: true`. Asymmetric.
 
 ### F2. Mega-components
 
-| File | Lines |
-|---|---|
-| `domains/admin/ui/system-config/SystemConfigView.tsx` | **1,866** |
-| `routes/admin/_layout/developer.tsx` | 594 |
-| `domains/admin/ui/developer/DeveloperView.tsx` | 589 |
-| `domains/admin/ui/niches/NicheDetailView.tsx` | 584 |
-| `shared/debug/debug.ts` | 554 |
+| File | Lines | Status |
+|---|---|---|
+| ~~`domains/admin/ui/system-config/SystemConfigView.tsx`~~ | ~~**1,866**~~ → 105 | ✅ PR 4 |
+| `routes/admin/_layout/developer.tsx` | 594 | P2 |
+| `domains/admin/ui/developer/DeveloperView.tsx` | 589 | P2 |
+| `domains/admin/ui/niches/NicheDetailView.tsx` | 584 | P2 |
+| `shared/debug/debug.ts` | 554 | P2 |
 
-`SystemConfigView` mixes tab routing, form state, TTS voice picker, cache settings UI in one file. Split per-tab.
+**PR 4 split `SystemConfigView`:** 1,866 lines → 105-line shell + 8 shared components (`components/`) + 7 tab files (`tabs/`) + `types.ts`. Each tab is now self-contained, individually readable, and tests/refactors can target a single concern. Type check clean.
 
-**Severity: P1** for SystemConfigView, **P2** for the others.
+Remaining 4 mega-components (all admin domain) downgraded to **P2** — same playbook applies.
 
 ### F3. Shared → domain leak
 
