@@ -11,7 +11,7 @@
 import type { IConfigRepository } from "@/domain/config/config.repository";
 import type { SystemConfig } from "@/infrastructure/database/drizzle/schema";
 import { encrypt, decrypt } from "@/utils/crypto/encryption";
-import { debugLog } from "@/utils/debug/debug";
+import { systemLogger } from "@/utils/system/system-logger";
 
 const CACHE_TTL_SECONDS = 60;
 
@@ -24,6 +24,7 @@ export class SystemConfigService {
         .default as () => import("ioredis").default;
       return getRedisConnection();
     } catch {
+      // expected: Redis unavailable — caller treats null as "no cache"
       return null;
     }
   }
@@ -40,6 +41,7 @@ export class SystemConfigService {
       if (!raw) return null;
       return JSON.parse(raw) as SystemConfig[];
     } catch {
+      // expected: cache miss/parse-fail — caller falls through to DB
       return null;
     }
   }
@@ -92,10 +94,12 @@ export class SystemConfigService {
     if (!row.encryptedValue) return null;
     try {
       return decrypt(row.encryptedValue);
-    } catch {
-      debugLog.warn("Failed to decrypt config value", {
+    } catch (error) {
+      systemLogger.error("Failed to decrypt config value", {
         service: "system-config",
+        operation: "resolveValue",
         key: `${row.category}.${row.key}`,
+        error: error instanceof Error ? error.message : String(error),
       });
       return null;
     }
@@ -213,8 +217,16 @@ export class SystemConfigService {
     try {
       const val = await this.get("api_keys", key);
       if (val && val.trim()) return val.trim();
-    } catch {
-      // fall through
+    } catch (error) {
+      systemLogger.warn(
+        "Failed to load API key from DB; falling back to ENV",
+        {
+          service: "system-config",
+          operation: "getApiKey",
+          key,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
     }
     return envFallback;
   }

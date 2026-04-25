@@ -10,6 +10,7 @@ import {
   getStripePriceId,
   getStripePriceAmount,
 } from "@/utils/stripe-map-loader";
+import { systemLogger } from "@/utils/system/system-logger";
 
 export const SUBSCRIPTION_TIERS = {
   BASIC: "basic",
@@ -28,7 +29,15 @@ export async function getSubscriptionTrialDays(): Promise<number> {
       "trial_days",
       SUBSCRIPTION_TRIAL_DAYS,
     );
-  } catch {
+  } catch (error) {
+    systemLogger.warn(
+      "Failed to load trial_days from DB; using static fallback",
+      {
+        service: "subscription-constants",
+        operation: "getSubscriptionTrialDays",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return SUBSCRIPTION_TRIAL_DAYS;
   }
 }
@@ -218,7 +227,16 @@ export async function getFeatureLimitsForStripeRoleAsync(
         FREE_TIER_LIMITS.maxAnalysesPerMonth,
       ),
     };
-  } catch {
+  } catch (error) {
+    systemLogger.warn(
+      "Failed to load feature limits from DB; using static fallback",
+      {
+        service: "subscription-constants",
+        operation: "getFeatureLimitsForStripeRoleAsync",
+        stripeRole: stripeRole ?? "free",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return getFeatureLimitsForStripeRole(stripeRole);
   }
 }

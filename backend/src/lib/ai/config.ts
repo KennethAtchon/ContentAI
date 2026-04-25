@@ -10,6 +10,7 @@ import {
   DEFAULT_PROVIDER_PRIORITY,
   type ProviderId,
 } from "./providers";
+import { systemLogger } from "@/utils/system/system-logger";
 
 // ─── Default Call Settings ────────────────────────────────────────────────────
 
@@ -30,7 +31,15 @@ export async function getProviderPriorityAsync(): Promise<ProviderId[]> {
       "provider_priority",
       [...DEFAULT_PROVIDER_PRIORITY],
     );
-  } catch {
+  } catch (error) {
+    systemLogger.warn(
+      "Failed to load AI provider_priority from DB; using static default",
+      {
+        service: "ai-config",
+        operation: "getProviderPriorityAsync",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return [...DEFAULT_PROVIDER_PRIORITY];
   }
 }
@@ -67,8 +76,17 @@ export async function getModelForProviderAsync(
     const dbKey = PROVIDER_REGISTRY[providerId].dbModelKeys[tier];
     const dbVal = await systemConfigService.get("ai", dbKey);
     if (dbVal) return dbVal;
-  } catch {
-    // fall through to default
+  } catch (error) {
+    systemLogger.warn(
+      "Failed to load AI model override from DB; using registry default",
+      {
+        service: "ai-config",
+        operation: "getModelForProviderAsync",
+        providerId,
+        tier,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
   }
   return PROVIDER_REGISTRY[providerId].defaultModels[tier];
 }
