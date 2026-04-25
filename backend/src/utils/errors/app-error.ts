@@ -12,6 +12,43 @@ export class AppError extends Error {
     super(message);
     this.name = "AppError";
   }
+
+  toResponseBody(): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+      error: this.message,
+      code: this.code,
+    };
+
+    if (this.details === undefined) {
+      return body;
+    }
+
+    body.details = this.details;
+
+    if (typeof this.details !== "object" || this.details === null) {
+      return body;
+    }
+
+    const details = this.details as Record<string, unknown>;
+
+    if (
+      this.code === "PROJECT_EXISTS" &&
+      typeof details.existingProjectId === "string"
+    ) {
+      body.existingProjectId = details.existingProjectId;
+    }
+
+    if (this.code === "VIDEO_JOB_IN_PROGRESS") {
+      if (typeof details.jobId === "string") {
+        body.jobId = details.jobId;
+      }
+      if (typeof details.kind === "string") {
+        body.kind = details.kind;
+      }
+    }
+
+    return body;
+  }
 }
 
 export const Errors = {

@@ -116,6 +116,7 @@ export function ContentWorkspace({
   };
 
   const draftCount = drafts.length;
+  const fallbackDraftId = drafts[drafts.length - 1]?.id ?? null;
 
   return (
     <div className="w-[380px] h-full border-l bg-background flex flex-col shrink-0">
@@ -210,11 +211,9 @@ export function ContentWorkspace({
                 />
               ))}
             </div>
-          ) : (activeContentId ?? drafts[drafts.length - 1]?.id) ? (
+          ) : (activeContentId ?? fallbackDraftId) ? (
             <AudioPanel
-              generatedContentId={
-                activeContentId ?? drafts[drafts.length - 1]!.id
-              }
+              generatedContentId={activeContentId ?? fallbackDraftId ?? 0}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-base text-muted-foreground px-6 text-center">

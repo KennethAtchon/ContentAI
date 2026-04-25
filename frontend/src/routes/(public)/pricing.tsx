@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { PricingInteractive } from "./pricing/-pricing-interactive";
-import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioShell } from "@/app/layout/studio-shell";
 import { StudioHero } from "@/shared/ui/layout/studio-hero";
 import { StudioSection } from "@/shared/ui/layout/studio-section";
 import {

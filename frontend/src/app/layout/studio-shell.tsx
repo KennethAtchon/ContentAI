@@ -1,30 +1,20 @@
 /**
- * StudioShell — Unified dark app shell layout
- *
- * Replaces PageLayout for all routes. Provides the full-screen dark background,
- * StudioTopBar, and optional footer in a single consistent wrapper.
+ * StudioShell — Unified dark app shell layout.
  */
 
-import { ReactNode } from "react";
-import { StudioTopBar } from "@/domains/studio/ui/StudioTopBar";
+import type { ReactNode } from "react";
 import { StudioFooter } from "./studio-footer";
+import { StudioTopBar } from "./studio-top-bar";
 
 export type ShellVariant = "studio" | "public" | "customer" | "admin" | "auth";
 
 interface StudioShellProps {
-  /** Layout variant determines topbar navigation mode */
   variant: ShellVariant;
-  /** Page content */
   children: ReactNode;
-  /** Whether to show footer (only on public marketing pages) */
   showFooter?: boolean;
-  /** Active tab for the topbar navigation highlight */
   activeTab?: string;
-  /** Studio-specific: niche search value */
   niche?: string;
-  /** Studio-specific: niche change handler */
   onNicheChange?: (n: string) => void;
-  /** Studio-specific: scan action handler */
   onScan?: () => void;
 }
 

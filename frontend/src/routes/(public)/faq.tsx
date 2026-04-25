@@ -5,7 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/shared/ui/primitives/accordion";
-import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioShell } from "@/app/layout/studio-shell";
 import { StudioHero } from "@/shared/ui/layout/studio-hero";
 import { StudioSection } from "@/shared/ui/layout/studio-section";
 import { HelpCircle, Sparkles, ArrowRight } from "lucide-react";

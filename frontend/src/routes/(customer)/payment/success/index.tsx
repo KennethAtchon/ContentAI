@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PaymentSuccessInteractive } from "@/routes/(customer)/payment/success/-payment-success-interactive";
 import { AuthGuard } from "@/domains/auth/ui/auth-guard";
-import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioShell } from "@/app/layout/studio-shell";
 
 function PaymentSuccessPage() {
   return (

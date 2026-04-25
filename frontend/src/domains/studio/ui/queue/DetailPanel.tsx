@@ -99,8 +99,8 @@ export function DetailPanel({
     hashtags?: string[];
     cta?: string;
   } | null;
-  const hasMetadata =
-    (metadata?.hashtags?.length ?? 0) > 0 || Boolean(metadata?.cta);
+  const hashtags = metadata?.hashtags ?? [];
+  const hasMetadata = hashtags.length > 0 || Boolean(metadata?.cta);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -245,13 +245,13 @@ export function DetailPanel({
               {t("studio_queue_detail_social")}
             </p>
             <div className="space-y-3">
-              {(metadata?.hashtags?.length ?? 0) > 0 && (
+              {hashtags.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-sm text-dim-3">
                     {t("studio_queue_detail_hashtags")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {metadata!.hashtags!.map((tag) => (
+                    {hashtags.map((tag) => (
                       <span
                         key={tag}
                         className="text-sm text-studio-accent/80 bg-studio-accent/10 px-2 py-0.5 rounded-full"

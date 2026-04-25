@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent } from "@/shared/ui/primitives/card";
 import { Cookie, Shield, Settings, CheckCircle2 } from "lucide-react";
-import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioShell } from "@/app/layout/studio-shell";
 import { StudioHero } from "@/shared/ui/layout/studio-hero";
 import { StudioSection } from "@/shared/ui/layout/studio-section";
 import { useTranslation } from "react-i18next";

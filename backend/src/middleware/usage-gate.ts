@@ -1,8 +1,9 @@
 import type { MiddlewareHandler } from "hono";
 import type { HonoEnv } from "../types/hono.types";
 import { getFeatureLimitsForStripeRoleAsync } from "../constants/subscription.constants";
-import { debugLog } from "../utils/debug/debug";
+import { systemLogger } from "../utils/system/system-logger";
 import { customerRepository } from "../domain/singletons";
+import { Errors } from "../utils/errors/app-error";
 
 type GatedFeature = "generation" | "analysis";
 
@@ -60,14 +61,13 @@ export function usageGate(feature: GatedFeature): MiddlewareHandler<HonoEnv> {
 
       await next();
     } catch (error) {
-      debugLog.error("Usage gate error", {
+      systemLogger.error("Usage gate error", {
         service: "usage-gate",
         operation: "usageGate",
         feature,
         error: error instanceof Error ? error.message : "Unknown error",
       });
-      // Fail open — don't block the request on gate errors
-      await next();
+      throw Errors.serviceUnavailable("Unable to verify current usage limit");
     }
   };
 }

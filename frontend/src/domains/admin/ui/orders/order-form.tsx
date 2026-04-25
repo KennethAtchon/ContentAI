@@ -158,9 +158,10 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
   });
 
   const defaultValues = getDefaultValues();
+  const schema = useMemo(() => createOrderFormSchema(t), [t]);
 
   const form = useForm<OrderFormValues>({
-    resolver: zodResolver(createOrderFormSchema(t)),
+    resolver: zodResolver(schema),
     defaultValues,
   });
 

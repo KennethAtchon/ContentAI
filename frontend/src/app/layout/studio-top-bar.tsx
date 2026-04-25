@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/shared/lib/utils";
 import { useApp } from "@/app/state/app-context";
 import UserButton from "@/domains/auth/ui/user-button";
-import { ThemeToggle } from "@/shared/ui/theme-toggle";
 import { APP_NAME } from "@/shared/constants/app.constants";
-import type { ShellVariant } from "@/shared/ui/layout/studio-shell";
-
-/* ── Tab definitions per variant ──────────────────────────────────────────── */
+import { cn } from "@/shared/lib/utils";
+import { ThemeToggle } from "@/shared/ui/theme-toggle";
+import type { ShellVariant } from "./studio-shell";
 
 const STUDIO_TABS = [
   { key: "discover", path: "/studio/discover" },
@@ -36,8 +34,6 @@ const ADMIN_TABS = [
   { key: "settings", path: "/admin/settings" },
 ] as const;
 
-/* ── Tab key → i18n mapping ───────────────────────────────────────────────── */
-
 const TAB_LABELS: Record<string, string> = {
   discover: "studio_tabs_discover",
   generate: "studio_tabs_generate",
@@ -54,16 +50,11 @@ const TAB_LABELS: Record<string, string> = {
   settings: "admin_settings",
 };
 
-/* ── Component ────────────────────────────────────────────────────────────── */
-
-interface Props {
+interface StudioTopBarProps {
   variant?: ShellVariant;
   activeTab: string;
-  /** Studio-specific: niche search value */
   niche?: string;
-  /** Studio-specific: niche change handler */
   onNicheChange?: (n: string) => void;
-  /** Studio-specific: scan action handler */
   onScan?: () => void;
 }
 
@@ -73,14 +64,13 @@ export function StudioTopBar({
   niche: _niche,
   onNicheChange: _onNicheChange,
   onScan: _onScan,
-}: Props) {
+}: StudioTopBarProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  /* Determine which tabs to show */
   const tabs =
     variant === "studio"
       ? STUDIO_TABS
@@ -92,7 +82,6 @@ export function StudioTopBar({
             ? ADMIN_TABS
             : [];
 
-  /* Active detection */
   const isActive = (key: string, path: string) => {
     if (activeTab) return activeTab === key;
     if (path === "/") return location.pathname === "/";
@@ -102,7 +91,6 @@ export function StudioTopBar({
   return (
     <>
       <header className="bg-studio-topbar border-b border-overlay-sm flex items-center px-4 shrink-0 gap-0 font-studio relative z-50">
-        {/* Logo */}
         <Link
           to={variant === "studio" ? "/studio/discover" : "/"}
           className="flex items-center gap-2 pr-5 border-r border-overlay-sm mr-4 no-underline hover:opacity-90 transition-opacity"
@@ -115,7 +103,6 @@ export function StudioTopBar({
           </span>
         </Link>
 
-        {/* Auth variant — back link */}
         {variant === "auth" && (
           <Link
             to="/"
@@ -125,7 +112,6 @@ export function StudioTopBar({
           </Link>
         )}
 
-        {/* Tabs (desktop) */}
         {variant !== "auth" && (
           <nav className="hidden md:flex h-full">
             {tabs.map((tab) => (
@@ -138,7 +124,7 @@ export function StudioTopBar({
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-studio-ring",
                   isActive(tab.key, tab.path)
                     ? "text-studio-accent border-b-studio-accent"
-                    : "text-dim-2 border-b-transparent hover:text-dim-1"
+                    : "text-dim-2 border-b-transparent hover:text-dim-1",
                 )}
               >
                 {tab.key === "generate" && (
@@ -152,9 +138,7 @@ export function StudioTopBar({
 
         <div className="flex-1" />
 
-        {/* Right section */}
         <div className="flex items-center gap-2">
-          {/* Auth buttons for public */}
           {variant === "public" && !user && (
             <div className="hidden md:flex items-center gap-2">
               <Link
@@ -174,10 +158,8 @@ export function StudioTopBar({
 
           <ThemeToggle />
 
-          {/* User button for authenticated states */}
           {user && variant !== "auth" && <UserButton />}
 
-          {/* Mobile hamburger */}
           {variant !== "auth" && (
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -190,7 +172,6 @@ export function StudioTopBar({
         </div>
       </header>
 
-      {/* Mobile menu overlay */}
       {mobileMenuOpen && variant !== "auth" && (
         <div className="md:hidden absolute top-[48px] left-0 w-full bg-studio-surface border-b border-overlay-sm z-40 shadow-2xl">
           <nav className="flex flex-col p-3 space-y-0.5">
@@ -206,7 +187,7 @@ export function StudioTopBar({
                   "bg-transparent border-0 cursor-pointer font-studio transition-all",
                   isActive(tab.key, tab.path)
                     ? "bg-studio-accent/[0.08] text-studio-accent"
-                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs"
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs",
                 )}
               >
                 {t(TAB_LABELS[tab.key] ?? tab.key)}

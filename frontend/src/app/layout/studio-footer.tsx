@@ -31,7 +31,6 @@ export function StudioFooter() {
     <footer className="border-t border-overlay-sm bg-studio-surface px-6 py-10 mt-8">
       <div className="max-w-[1000px] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-6 h-6 bg-gradient-to-br from-studio-accent to-studio-purple rounded-[7px] flex items-center justify-center text-sm shrink-0">
@@ -46,7 +45,6 @@ export function StudioFooter() {
             </p>
           </div>
 
-          {/* Product */}
           <div>
             <p className="text-sm font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Product
@@ -65,7 +63,6 @@ export function StudioFooter() {
             </ul>
           </div>
 
-          {/* Company */}
           <div>
             <p className="text-sm font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Company
@@ -84,7 +81,6 @@ export function StudioFooter() {
             </ul>
           </div>
 
-          {/* Legal */}
           <div>
             <p className="text-sm font-semibold tracking-[1.5px] uppercase text-dim-3 mb-3">
               Legal
@@ -104,7 +100,6 @@ export function StudioFooter() {
           </div>
         </div>
 
-        {/* Copyright */}
         <div className="mt-8 pt-5 border-t border-overlay-sm text-sm text-dim-3 text-center">
           © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
         </div>

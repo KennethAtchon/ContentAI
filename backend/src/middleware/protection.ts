@@ -5,7 +5,7 @@ import { authService } from "../domain/singletons";
 import { validateCSRFToken } from "../services/csrf/csrf-protection";
 import { checkRateLimit } from "../services/rate-limit/rate-limit-redis";
 import { getRateLimitConfig } from "../constants/rate-limit.config";
-import { debugLog } from "../utils/debug/debug";
+import { systemLogger } from "../utils/system/system-logger";
 import { IS_DEVELOPMENT } from "../utils/config/envUtil";
 import type { AuthResult, HonoEnv } from "../types/hono.types";
 
@@ -100,9 +100,7 @@ export function authMiddleware(
       c.set("auth", authResult);
       await next();
     } catch (error) {
-      debugLog.error("Auth middleware error", {
-        service: "protection-middleware",
-        operation: "authMiddleware",
+      systemLogger.auth("error", "Auth middleware error", "authMiddleware", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json(
@@ -161,9 +159,7 @@ export function csrfMiddleware(): MiddlewareHandler<HonoEnv> {
 
       await next();
     } catch (error) {
-      debugLog.error("CSRF validation error", {
-        service: "protection-middleware",
-        operation: "csrfMiddleware",
+      systemLogger.csrf("CSRF validation error", "csrfMiddleware", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
       return c.json(
@@ -229,7 +225,7 @@ export function rateLimiter(
         });
       }
     } catch (error) {
-      debugLog.error("Rate limit error", {
+      systemLogger.error("Rate limit error", {
         service: "protection-middleware",
         operation: "rateLimiter",
         error: error instanceof Error ? error.message : "Unknown error",

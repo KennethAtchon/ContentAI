@@ -12,7 +12,7 @@ import {
 } from "@/shared/navigation/redirect-util";
 import { toast } from "sonner";
 import { IS_DEVELOPMENT } from "@/shared/config/envUtil";
-import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioShell } from "@/app/layout/studio-shell";
 import { cn } from "@/shared/lib/utils";
 import { AuthRouteBoundary } from "@/shared/ui/layout/auth-route-boundary";
 
