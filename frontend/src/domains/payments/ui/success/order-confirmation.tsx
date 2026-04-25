@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
-import { useApp } from "@/app/state/app-context";
 import { Button } from "@/shared/ui/primitives/button";
 import {
   Card,
@@ -22,110 +19,16 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { debugLog } from "@/shared/debug";
+import { useOrderConfirmation } from "../../hooks/use-order-confirmation";
 
 interface OrderConfirmationProps {
   orderId: string;
 }
 
-interface OrderDetails {
-  id: string;
-  customer: {
-    name: string;
-    email: string;
-    phone?: string;
-    address?: string;
-    medicalInfo?: any;
-    avatar: string;
-    initials: string;
-  };
-  therapies: Array<{
-    id: string;
-    name: string;
-    description?: string;
-    price: string;
-    duration?: number;
-    quantity: number;
-  }>;
-  status: string;
-  totalAmount: string;
-  createdAt: string;
-  stripeSessionId?: string;
-}
-
 export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
-  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useApp();
-  const { authenticatedFetch } = useAuthenticatedFetch();
+  const { error, isLoading, orderDetails, retry } = useOrderConfirmation(orderId);
 
-  // Page is under (customer)/(main) layout with AuthGuard; user is guaranteed.
-  // Fetch order details when user is available.
-  useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (!user) return; // Don't fetch if no authenticated user
-
-      try {
-        debugLog.info("OrderConfirmation: Fetching order details", {
-          component: "OrderConfirmation",
-          orderId,
-        });
-
-        const response = await authenticatedFetch(
-          `/api/customer/orders/${orderId}`
-        );
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("Order not found");
-          }
-          throw new Error(`Failed to fetch order details (${response.status})`);
-        }
-
-        const data = await response.json();
-
-        if (!data.order) {
-          throw new Error("Invalid order data received");
-        }
-
-        debugLog.info("OrderConfirmation: Order details fetched successfully", {
-          component: "OrderConfirmation",
-          orderId: data.order.id,
-        });
-
-        setOrderDetails(data.order);
-      } catch (err) {
-        debugLog.error(
-          "OrderConfirmation: Failed to fetch order details",
-          {
-            component: "OrderConfirmation",
-            orderId,
-          },
-          err
-        );
-
-        setError(
-          err instanceof Error ? err.message : "Failed to load order details"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchOrderDetails();
-    }
-  }, [orderId, user]);
-
-  const handleRetry = () => {
-    setError(null);
-    setLoading(true);
-    // Reload the page to retry
-    window.location.reload();
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="mb-8">
         <CardContent className="flex items-center justify-center py-12">
@@ -165,7 +68,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
             <div className="flex gap-4 justify-center">
               <Button
                 variant="outline"
-                onClick={handleRetry}
+                onClick={retry}
                 className="bg-error hover:bg-error text-white px-4 py-2 rounded-md"
               >
                 Try Again
@@ -295,7 +198,7 @@ export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
                   </span>
                 </div>
               )}
-              {orderDetails.customer.medicalInfo && (
+              {Boolean(orderDetails.customer.medicalInfo) && (
                 <div className="flex items-start gap-2">
                   <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
                   <span className="text-base">

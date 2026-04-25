@@ -6,7 +6,7 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { videoJobService } from "../../services/video-generation/job.service";
+import { videoJobService } from "../../domain/video/video-jobs";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import {
   fetchOwnedContent,

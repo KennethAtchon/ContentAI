@@ -1,4 +1,4 @@
-import { QueueChainError } from "../../lib/queue-chain-guard";
+import { QueueChainError } from "./queue-chain-guard";
 import { getFileUrl } from "../../services/storage/r2";
 import { Errors } from "../../utils/errors/app-error";
 import type { EditorRepository } from "../editor/editor.repository";

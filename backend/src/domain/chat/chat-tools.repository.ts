@@ -11,7 +11,7 @@ import {
 import {
   assertNoChainQueueItem,
   findChainQueueItem,
-} from "../../lib/queue-chain-guard";
+} from "../queue/queue-chain-guard";
 import type { AppDb } from "../database.types";
 
 /** Drizzle client for transactions and `resolveChainTip` / queue-chain helpers. */

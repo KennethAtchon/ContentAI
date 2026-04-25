@@ -4,9 +4,9 @@ import {
   callAiWithFallback,
   getModelInstance,
   extractUsageTokens,
-} from "./ai/helpers";
-import { DEFAULT_SETTINGS } from "./ai/config";
-import type { ProviderId, ModelTier } from "./ai/providers";
+} from "./helpers";
+import { DEFAULT_SETTINGS } from "./config";
+import type { ProviderId, ModelTier } from "./providers";
 
 // ─── Prompt Loader ────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ const promptCache: Record<string, string> = {};
 export function loadPrompt(name: string): string {
   if (promptCache[name]) return promptCache[name];
 
-  const filePath = join(import.meta.dir, "../prompts", `${name}.txt`);
+  const filePath = join(import.meta.dir, "../../prompts", `${name}.txt`);
   if (!existsSync(filePath)) {
     throw new Error(`Prompt file not found: ${name}.txt`);
   }

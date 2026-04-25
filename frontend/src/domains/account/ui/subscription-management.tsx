@@ -16,49 +16,20 @@ import { Button } from "@/shared/ui/primitives/button";
 import { Badge } from "@/shared/ui/primitives/badge";
 import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 import { Progress } from "@/shared/ui/primitives/progress";
-import { useApp } from "@/app/state/app-context";
-import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
-import { getTierConfig } from "@/shared/constants/subscription.constants";
-import { useQuery } from "@tanstack/react-query";
-import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { queryKeys } from "@/app/query/query-keys";
 import { ErrorAlert } from "@/shared/ui/feedback/error-alert";
 import { ManageSubscriptionButton } from "@/domains/subscriptions/ui/manage-subscription-button";
 import { TrendingUp, CheckCircle2 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { CORE_FEATURE_API_PREFIX } from "@/shared/constants/app.constants";
-
-interface UsageStats {
-  currentUsage: number;
-  usageLimit: number | null;
-  percentageUsed: number;
-  limitReached?: boolean;
-  resetDate?: string;
-}
+import { useSubscriptionManagement } from "../hooks/use-subscription-management";
 
 export function SubscriptionManagement() {
   const { t } = useTranslation();
-  const { user } = useApp();
-  const {
-    role,
-    hasEnterpriseAccess,
-    isLoading: subscriptionLoading,
-  } = useSubscription();
-  const fetcher = useQueryFetcher<UsageStats>();
+  const { error, hasEnterpriseAccess, loading, role, tierConfig, usageStats } =
+    useSubscriptionManagement();
 
-  const {
-    data: usageStats,
-    error,
-    isLoading: loading,
-  } = useQuery({
-    queryKey: queryKeys.api.reelsUsage(),
-    queryFn: () => fetcher(`${CORE_FEATURE_API_PREFIX}/usage`),
-    enabled: !!user,
-  });
-
-  if (loading || subscriptionLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -84,7 +55,10 @@ export function SubscriptionManagement() {
     );
   }
 
-  const tierConfig = getTierConfig(role);
+  const activeTierConfig = tierConfig;
+  if (!activeTierConfig) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -102,9 +76,9 @@ export function SubscriptionManagement() {
             </CardTitle>
             <CardDescription>
               {t("account_subscription_plan_price", {
-                name: tierConfig.name,
-                price: tierConfig.price,
-                billingCycle: tierConfig.billingCycle,
+                name: activeTierConfig.name,
+                price: activeTierConfig.price,
+                billingCycle: activeTierConfig.billingCycle,
               })}
             </CardDescription>
           </div>
@@ -116,7 +90,7 @@ export function SubscriptionManagement() {
                 {t("account_subscription_billing_cycle")}
               </p>
               <p className="text-xl font-semibold capitalize">
-                {tierConfig.billingCycle}
+                {activeTierConfig.billingCycle}
               </p>
             </div>
             {usageStats?.resetDate && (
@@ -197,10 +171,10 @@ export function SubscriptionManagement() {
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-base">
-                {tierConfig.features.maxReelsPerMonth === -1
+                {activeTierConfig.features.maxReelsPerMonth === -1
                   ? t("account_subscription_unlimited_calculations_feature")
                   : t("account_subscription_reels_per_month", {
-                      count: tierConfig.features.maxReelsPerMonth,
+                      count: activeTierConfig.features.maxReelsPerMonth,
                     })}
               </span>
             </li>
@@ -213,7 +187,7 @@ export function SubscriptionManagement() {
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-base">
-                {tierConfig.features.instagramPublishing
+                {activeTierConfig.features.instagramPublishing
                   ? t("account_subscription_feature_instagram_publishing")
                   : t("account_subscription_feature_export_save")}
               </span>
@@ -222,11 +196,11 @@ export function SubscriptionManagement() {
               <CheckCircle2 className="h-4 w-4 text-primary" />
               <span className="text-base">
                 {t("account_subscription_support_level", {
-                  level: tierConfig.features.supportLevel,
+                  level: activeTierConfig.features.supportLevel,
                 })}
               </span>
             </li>
-            {tierConfig.features.apiAccess && (
+            {activeTierConfig.features.apiAccess && (
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
                 <span className="text-base">

@@ -1,6 +1,6 @@
 import { generateText, tool } from "ai";
-import { getModel, getModelInfo, loadPrompt } from "../../lib/aiClient";
-import { trackAiCall } from "../../lib/ai/helpers";
+import { getModel, getModelInfo, loadPrompt } from "../../services/ai/ai-client";
+import { trackAiCall } from "../../services/ai/helpers";
 import { debugLog } from "../../utils/debug/debug";
 import type { ReelAnalysis } from "../../infrastructure/database/drizzle/schema";
 import type { IReelsRepository } from "./reels.repository";

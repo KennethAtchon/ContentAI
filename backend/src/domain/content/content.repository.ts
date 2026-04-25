@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
-import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
+import { assertNoChainQueueItem } from "../queue/queue-chain-guard";
 import {
   assets,
   chatSessionContent,

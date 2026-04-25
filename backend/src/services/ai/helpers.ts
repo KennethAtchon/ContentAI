@@ -8,7 +8,7 @@
 import { systemLogger } from "@/utils/system/system-logger";
 import { generateText } from "ai";
 import { debugLog } from "../../utils/debug/debug";
-import { recordAiCost } from "../cost-tracker";
+import { recordAiCost } from "../observability/ai-cost-recorder";
 import { getEnabledProvidersAsync, getModelForProviderAsync } from "./config";
 import {
   PROVIDER_REGISTRY,
@@ -195,6 +195,8 @@ export async function callAiWithFallback(
       errors.push(`${providerId}: ${msg}`);
       systemLogger.warn(`${providerId} call failed — trying next provider`, {
         service: "ai-client",
+        operation: "callAiWithFallback",
+        providerId,
         error: msg,
       });
     }

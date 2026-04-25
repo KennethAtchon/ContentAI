@@ -7,8 +7,8 @@ export async function buildAdminAiProvidersStatus() {
     getEnabledProvidersAsync,
     getProviderPriorityAsync,
     getModelForProviderAsync,
-  } = await import("../../lib/ai/config");
-  const { PROVIDER_REGISTRY } = await import("../../lib/ai/providers");
+  } = await import("../../services/ai/config");
+  const { PROVIDER_REGISTRY } = await import("../../services/ai/providers");
 
   const [priority, enabled] = await Promise.all([
     getProviderPriorityAsync(),

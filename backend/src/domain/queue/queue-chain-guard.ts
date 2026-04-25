@@ -15,8 +15,8 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 import {
   generatedContent,
   queueItems,
-} from "../infrastructure/database/drizzle/schema";
-import type { AppDb } from "../domain/database.types";
+} from "../../infrastructure/database/drizzle/schema";
+import type { AppDb } from "../database.types";
 
 type AnyDb = AppDb | PgTransaction<any, any, any>;
 

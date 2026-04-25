@@ -22,115 +22,16 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { useApp } from "@/app/state/app-context";
-import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { Card, CardContent } from "@/shared/ui/primitives/card";
-import { debugLog } from "@/shared/debug";
 import { Button } from "@/shared/ui/primitives/button";
+import { useOrderCreation } from "../../hooks/use-order-creation";
 
 interface OrderCreatorProps {
   sessionId: string;
 }
 
 export function OrderCreator({ sessionId }: OrderCreatorProps) {
-  const { user } = useApp();
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const [_isCreating, setIsCreating] = useState(true);
-  const [showError, setShowError] = useState(false);
-  const orderCreationAttempted = useRef(false);
-  const { authenticatedFetch } = useAuthenticatedFetch();
-
-  // Page is under (customer)/(main) layout with AuthGuard; user is guaranteed.
-  useEffect(() => {
-    if (!user) return;
-
-    // Prevent multiple order creation attempts
-    if (orderCreationAttempted.current) return;
-    orderCreationAttempted.current = true;
-
-    const createOrder = async () => {
-      try {
-        debugLog.info("OrderCreator: Starting order creation", {
-          component: "OrderCreator",
-          sessionId,
-          userId: user?.uid,
-        });
-
-        // Only set errors after we're properly initialized
-        // These checks should not fail at this point since we wait for initialization
-        if (!user?.uid) {
-          throw new Error("User not authenticated");
-        }
-
-        // Create order - SaaS model, no products
-        const orderRes = await authenticatedFetch(
-          "/api/customer/orders/create",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              status: "completed",
-              stripeSessionId: sessionId,
-            }),
-          }
-        );
-
-        if (!orderRes.ok) {
-          throw new Error(
-            `Order creation failed with status ${orderRes.status}`
-          );
-        }
-
-        const orderResult = await orderRes.json();
-        const orderId =
-          orderResult.order?.id || orderResult.id || orderResult.data?.id;
-
-        if (!orderId) {
-          throw new Error("No order ID returned from API");
-        }
-
-        debugLog.info("OrderCreator: Order created successfully", {
-          component: "OrderCreator",
-          orderId,
-        });
-
-        // Redirect to the same page but with order_id parameter
-        navigate({
-          to: `/payment/success`,
-          search: { session_id: sessionId, order_id: orderId } as any,
-        });
-      } catch (err) {
-        debugLog.error(
-          "OrderCreator: Order creation failed",
-          {
-            component: "OrderCreator",
-          },
-          err
-        );
-
-        setError(err instanceof Error ? err.message : "Failed to create order");
-        setIsCreating(false);
-
-        // Wait 2 seconds before showing the error to prevent premature error screens
-        setTimeout(() => {
-          setShowError(true);
-        }, 2000);
-      }
-    };
-
-    createOrder();
-  }, [sessionId, user, navigate, authenticatedFetch]);
-
-  const handleRetry = () => {
-    setError(null);
-    setShowError(false);
-    setIsCreating(true);
-    orderCreationAttempted.current = false; // Reset the flag for retry
-    // This will trigger the useEffect again
-    window.location.reload();
-  };
+  const { error, showError, retry } = useOrderCreation(sessionId);
 
   // Only show error state after delay to prevent premature error screens
   if (showError && error) {
@@ -159,7 +60,7 @@ export function OrderCreator({ sessionId }: OrderCreatorProps) {
             <p className="text-error mb-4">{error}</p>
             <Button
               variant="outline"
-              onClick={handleRetry}
+              onClick={retry}
               className="bg-error hover:bg-error text-white px-4 py-2 rounded-md"
             >
               Try Again

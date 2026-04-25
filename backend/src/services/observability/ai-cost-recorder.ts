@@ -1,8 +1,8 @@
 import { systemLogger } from "@/utils/system/system-logger";
-import { calculateAiCost } from "../constants/ai-pricing.constants";
-import { adminRepository } from "../domain/singletons";
+import { calculateAiCost } from "../../constants/ai-pricing.constants";
+import { adminRepository } from "../../domain/singletons";
 
-import type { ProviderId } from "./ai/providers";
+import type { ProviderId } from "../ai/providers";
 
 export interface AiCostParams {
   userId?: string;
@@ -42,7 +42,7 @@ export async function recordAiCost(params: AiCostParams): Promise<void> {
     });
   } catch (err) {
     systemLogger.error("Failed to record AI cost", {
-      service: "cost-tracker",
+      service: "ai-cost-recorder",
       operation: "recordAiCost",
       error: err instanceof Error ? err.message : "Unknown error",
     });

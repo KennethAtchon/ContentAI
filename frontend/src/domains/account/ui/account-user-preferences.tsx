@@ -1,11 +1,5 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
-import { queryKeys } from "@/app/query/query-keys";
-import { invalidateUserSettingsQuery } from "@/app/query/query-invalidation";
 import { cn } from "@/shared/lib/utils";
 import { Label } from "@/shared/ui/primitives/label";
 import {
@@ -16,13 +10,7 @@ import {
   SelectValue,
 } from "@/shared/ui/primitives/select";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/primitives/radio-group";
-import { toast } from "sonner";
-import type {
-  UserSettingsData,
-  AiDefaultsData,
-  VideoDefaultsData,
-  Voice,
-} from "../model";
+import { useUserPreferences } from "../hooks/use-user-preferences";
 
 // ─── PreferenceSelect ─────────────────────────────────────────────────────────
 
@@ -70,71 +58,17 @@ function PreferenceSelect({
 
 export function UserPreferences() {
   const { t } = useTranslation();
-  const fetcher = useQueryFetcher();
-  const { authenticatedFetchJson } = useAuthenticatedFetch();
-  const queryClient = useQueryClient();
-
-  const [savingField, setSavingField] = useState<string | null>(null);
-  const [savedField, setSavedField] = useState<string | null>(null);
-
-  const { data: settings, isLoading: settingsLoading } =
-    useQuery<UserSettingsData>({
-      queryKey: queryKeys.api.userSettings(),
-      queryFn: () =>
-        fetcher("/api/customer/settings") as Promise<UserSettingsData>,
-    });
-
-  const { data: voices, isLoading: voicesLoading } = useQuery<Voice[]>({
-    queryKey: queryKeys.api.userSettingsVoices(),
-    queryFn: () =>
-      (fetcher("/api/audio/voices") as Promise<{ voices: Voice[] }>).then(
-        (r) => r.voices
-      ),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: aiDefaults } = useQuery<AiDefaultsData>({
-    queryKey: queryKeys.api.aiDefaults(),
-    queryFn: () =>
-      fetcher("/api/customer/settings/ai-defaults") as Promise<AiDefaultsData>,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: videoDefaults } = useQuery<VideoDefaultsData>({
-    queryKey: queryKeys.api.videoDefaults(),
-    queryFn: () =>
-      fetcher(
-        "/api/customer/settings/video-defaults"
-      ) as Promise<VideoDefaultsData>,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const mutation = useMutation({
-    mutationFn: (data: Partial<UserSettingsData>) =>
-      authenticatedFetchJson<UserSettingsData>("/api/customer/settings", {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      void invalidateUserSettingsQuery(queryClient);
-    },
-    onError: () => {
-      toast.error(t("user_settings_save_error"));
-    },
-  });
-
-  async function handleChange(field: keyof UserSettingsData, value: string) {
-    setSavingField(field);
-    setSavedField(null);
-    const mapped = value === "system_default" ? null : value;
-    try {
-      await mutation.mutateAsync({ [field]: mapped });
-      setSavedField(field);
-      setTimeout(() => setSavedField(null), 2000);
-    } finally {
-      setSavingField(null);
-    }
-  }
+  const {
+    aiDefaults,
+    handleChange,
+    savedField,
+    savingField,
+    settings,
+    settingsLoading,
+    videoDefaults,
+    voices,
+    voicesLoading,
+  } = useUserPreferences();
 
   const systemDefault = t("user_settings_system_default");
 

@@ -1,9 +1,9 @@
 import { systemLogger } from "@/utils/system/system-logger";
 import { streamText, stepCountIs, createUIMessageStreamResponse } from "ai";
-import { loadPrompt, getModel, getModelInfo } from "../../lib/aiClient";
+import { getModel, getModelInfo, loadPrompt } from "../../services/ai/ai-client";
 import { recordUsage } from "../../middleware/usage-gate";
-import { recordAiCost } from "../../lib/cost-tracker";
-import { extractUsageTokens } from "../../lib/ai/helpers";
+import { extractUsageTokens } from "../../services/ai/helpers";
+import { recordAiCost } from "../../services/observability/ai-cost-recorder";
 import { createChatTools, type ToolContext } from "./chat-tools";
 import { chatService, syncService } from "../singletons";
 import { Errors } from "../../utils/errors/app-error";

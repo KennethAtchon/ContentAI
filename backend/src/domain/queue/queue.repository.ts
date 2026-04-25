@@ -8,7 +8,7 @@ import {
 } from "../../infrastructure/database/drizzle/schema";
 import type { AppDb } from "../database.types";
 import { rootEditProjectJoinQueueItems } from "./queue-editor-join";
-import { assertNoChainQueueItem } from "../../lib/queue-chain-guard";
+import { assertNoChainQueueItem } from "./queue-chain-guard";
 import { resolveChainTip } from "./pipeline/content-chain";
 
 export type QueueItemRow = typeof queueItems.$inferSelect;

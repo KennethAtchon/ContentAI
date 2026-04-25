@@ -1,13 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import { cn } from "@/shared/lib/utils";
-import { queryKeys } from "@/app/query/query-keys";
-import { invalidateQueueQueries } from "@/app/query/query-invalidation";
-import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
-import { useApp } from "@/app/state/app-context";
 import {
   Select,
   SelectContent,
@@ -15,171 +7,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/primitives/select";
-import type { QueueItem } from "@/domains/reels/model/reel.types";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import type {
-  StatusFilter,
-  Project,
-  QueueDetail,
-  VersionGroup,
-} from "./queue.types";
 import { QueueListItem } from "./QueueListItem";
 import { StackedQueueCard } from "./StackedQueueCard";
 import { DetailPanel } from "./DetailPanel";
-import { useResolvedParam } from "@/shared/react/use-resolved-param";
+import { useQueueView } from "../../hooks/use-queue-view";
 
 export function QueueView() {
   const { t } = useTranslation();
-  const search = useSearch({ strict: false }) as { projectId?: string };
-  const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [projectFilter, setProjectFilter] = useState<string>(
-    search.projectId ?? "all"
-  );
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [detailItemId, setDetailItemId] = useState<number | null>(null);
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setSearchQuery(searchInput), 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [searchInput]);
-
-  const { user } = useApp();
-  const fetcher = useQueryFetcher<{ items: QueueItem[]; total: number }>();
-  const projectsFetcher = useQueryFetcher<{ projects: Project[] }>();
-  const detailFetcher = useQueryFetcher<QueueDetail>();
-  const { authenticatedFetch } = useAuthenticatedFetch();
-  const queryClient = useQueryClient();
-
-  const queueParams = {
-    status: statusFilter === "all" ? undefined : statusFilter,
-    projectId: projectFilter === "all" ? undefined : projectFilter,
-    search: searchQuery || undefined,
-  };
-
-  const { data, isLoading } = useQuery({
-    queryKey: queryKeys.api.queue(queueParams),
-    queryFn: () => {
-      const params = new URLSearchParams({ limit: "20" });
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (projectFilter !== "all") params.set("projectId", projectFilter);
-      if (searchQuery) params.set("search", searchQuery);
-      return fetcher(`/api/queue?${params}`);
-    },
-    enabled: !!user,
-    refetchInterval: (query) => {
-      const items = query.state.data?.items ?? [];
-      const hasActive = items.some((item) =>
-        item.stages?.some(
-          (s) => s.status === "running" || s.status === "pending"
-        )
-      );
-      return hasActive ? 6000 : false;
-    },
-  });
-
-  const { data: projectsData } = useQuery({
-    queryKey: queryKeys.api.projects(),
-    queryFn: () => projectsFetcher("/api/projects"),
-    enabled: !!user,
-  });
-
-  const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: queryKeys.api.queueDetail(detailItemId!),
-    queryFn: () => detailFetcher(`/api/queue/${detailItemId}/detail`),
-    enabled: !!detailItemId,
-  });
-
-  const deleteItem = useMutation({
-    mutationFn: async (id: number) => {
-      await authenticatedFetch(`/api/queue/${id}`, { method: "DELETE" });
-    },
-    onSuccess: (_, id) => {
-      if (detailItemId === id) setDetailItemId(null);
-      void invalidateQueueQueries(queryClient);
-    },
-  });
-
-  const duplicateItem = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await authenticatedFetch(`/api/queue/${id}/duplicate`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to duplicate");
-      return res.json() as Promise<{
-        queueItem: QueueItem;
-        newGeneratedContentId: number;
-      }>;
-    },
-    onSuccess: () => {
-      toast.success(t("studio_queue_duplicated"));
-      void invalidateQueueQueries(queryClient);
-    },
-    onError: () => toast.error(t("studio_queue_duplicate_failed")),
-  });
-
-  const items = data?.items ?? [];
-  const projects = projectsData?.projects ?? [];
-  const selectedProjectExists =
-    projectFilter === "all" ||
-    projects.some((project) => project.id === projectFilter);
-
-  const clearMissingProjectFilter = useCallback(() => {
-    setProjectFilter("all");
-    void navigate({
-      to: "/studio/queue",
-      search: { projectId: undefined },
-      replace: true,
-    });
-  }, [navigate]);
-
-  useResolvedParam({
-    paramValue: projectFilter === "all" ? null : projectFilter,
-    isMissing:
-      projectFilter !== "all" && projects.length > 0 && !selectedProjectExists,
-    notFoundMessage: "Project not found",
-    onMissing: clearMissingProjectFilter,
-  });
-  const filters: StatusFilter[] = [
-    "all",
-    "draft",
-    "ready",
-    "scheduled",
-    "posted",
-    "failed",
-  ];
-
-  // Group items by version chain (rootContentId). Items with the same root
-  // are grouped together and displayed as a stacked card with navigation.
-  const versionGroups = useMemo(() => {
-    const groups: VersionGroup[] = [];
-    const seen = new Set<number | null>();
-
-    for (const item of items) {
-      const key = item.rootContentId;
-      if (key != null && seen.has(key)) continue;
-      if (key != null) seen.add(key);
-
-      const siblings =
-        key != null
-          ? items
-              .filter((i) => i.rootContentId === key)
-              .sort((a, b) => (a.version ?? 1) - (b.version ?? 1))
-          : [item];
-
-      groups.push({ rootContentId: key, items: siblings });
-    }
-    return groups;
-  }, [items]);
-
-  // Stages come from the list item (detail API doesn't compute them)
-  const selectedItem = items.find((item) => item.id === detailItemId) ?? null;
+  const {
+    data,
+    deleteItem,
+    detailData,
+    detailItemId,
+    detailLoading,
+    duplicateItem,
+    filters,
+    isLoading,
+    items,
+    projectFilter,
+    projects,
+    searchInput,
+    selectedItem,
+    selectedProjectExists,
+    setDetailItemId,
+    setProjectFilter,
+    setSearchInput,
+    setStatusFilter,
+    statusFilter,
+    versionGroups,
+  } = useQueueView();
 
   return (
     <div className="h-full grid grid-cols-[340px_1fr] overflow-hidden">

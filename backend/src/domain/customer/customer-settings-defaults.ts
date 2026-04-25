@@ -94,8 +94,8 @@ export function detectContextWindow(
 
 export async function buildCustomerAiDefaultsResponse() {
   const { getEnabledProvidersAsync, getModelForProviderAsync } =
-    await import("../../lib/ai/config");
-  const { PROVIDER_REGISTRY } = await import("../../lib/ai/providers");
+    await import("../../services/ai/config");
+  const { PROVIDER_REGISTRY } = await import("../../services/ai/providers");
 
   const enabled = await getEnabledProvidersAsync();
   const defaultProvider = enabled[0] ?? null;

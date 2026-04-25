@@ -1,5 +1,5 @@
 import { systemLogger } from "@/utils/system/system-logger";
-import { callAi, loadPrompt } from "../../lib/aiClient";
+import { callAi, loadPrompt } from "../../services/ai/ai-client";
 import type { IContentRepository } from "./content.repository";
 
 export type SourceReelOutputType = "hook_only" | "caption_only" | "full_script";

@@ -1,5 +1,5 @@
 import { getVoiceById, VOICES } from "../../config/voices";
-import { recordAiCost } from "../../lib/cost-tracker";
+import { recordAiCost } from "../../services/observability/ai-cost-recorder";
 import { deleteFile, getFileUrl, uploadFile } from "../../services/storage/r2";
 import { generateSpeech, type TTSSpeed } from "../../services/tts/elevenlabs";
 import { sanitizeScriptForTTS } from "./tts-script-sanitize";

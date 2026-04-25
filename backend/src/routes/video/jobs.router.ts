@@ -7,7 +7,7 @@ import {
   rateLimiter,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { videoJobService } from "../../services/video-generation/job.service";
+import { videoJobService } from "../../domain/video/video-jobs";
 import { AppError } from "../../utils/errors/app-error";
 import { enqueue, getRetryRunner } from "../../domain/video/reel-job-runner";
 import { videoJobIdParamSchema } from "../../domain/video/video.schemas";

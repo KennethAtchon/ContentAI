@@ -9,10 +9,10 @@ import { VOICES, getVoiceById } from "../../config/voices";
 import { OPENAI_API_KEY, FAL_API_KEY } from "../../utils/config/envUtil";
 import { generateSpeech } from "../../services/tts/elevenlabs";
 import { uploadFile, deleteFile } from "../../services/storage/r2";
+import { recordAiCost } from "../../services/observability/ai-cost-recorder";
 import { buildVoiceoverTextForTts } from "../audio/voiceover-text-for-tts";
 import { sanitizeScriptForTTS } from "../audio/tts-script-sanitize";
-import { recordAiCost } from "../../lib/cost-tracker";
-import { videoJobService } from "../../services/video-generation/job.service";
+import { videoJobService } from "../video/video-jobs";
 import {
   runReelGeneration,
   runShotRegenerate,

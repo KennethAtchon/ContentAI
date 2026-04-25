@@ -5,8 +5,7 @@
  * and usage trends over time.
  */
 
-import { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -14,11 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/primitives/card";
-import { useApp } from "@/app/state/app-context";
-import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
-import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { queryKeys } from "@/app/query/query-keys";
-import { invalidateUsageStatsAndGenerationHistory } from "@/app/query/query-invalidation";
 import {
   Loader2,
   Download,
@@ -30,8 +24,6 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "@/shared/ui/primitives/button";
-import { useTranslation } from "react-i18next";
-
 import { Progress } from "@/shared/ui/primitives/progress";
 import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 import { ErrorAlert } from "@/shared/ui/feedback/error-alert";
@@ -44,134 +36,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/primitives/table";
-type ContentType = string;
-const getContentShortName = (t: ContentType) => t;
-
-function isUnlimited(limit: number | null | undefined): boolean {
-  return limit === null || limit === -1;
-}
-
-function formatGenTime(ms: number): string {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
-}
-
-interface UsageStats {
-  reelsAnalyzed: number;
-  reelsAnalyzedLimit: number | null;
-  contentGenerated: number;
-  contentGeneratedLimit: number | null;
-  queueSize: number;
-  queueLimit: number | null;
-  resetDate?: string;
-}
-
-interface GenerationHistory {
-  id: string;
-  type: ContentType;
-  sourceReel: {
-    username: string;
-    hook: string;
-  };
-  prompt: string;
-  createdAt: Date;
-  generationTime: number;
-}
-
-interface GenerationHistoryPagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
-}
-
-interface GenerationHistoryResponse {
-  data: GenerationHistory[];
-  pagination: GenerationHistoryPagination;
-}
-
-const HISTORY_PAGE_LIMIT = 10;
+import {
+  formatGenerationTime,
+  useUsageDashboard,
+} from "../hooks/use-usage-dashboard";
 
 export function UsageDashboard() {
   const { t, i18n } = useTranslation();
-  const { user } = useApp();
-  const { authenticatedFetchJson } = useAuthenticatedFetch();
-  const queryClient = useQueryClient();
-  const fetcher = useQueryFetcher<UsageStats>();
-  const [historyPage, setHistoryPage] = useState(1);
-
-  const historyUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      page: historyPage.toString(),
-      limit: HISTORY_PAGE_LIMIT.toString(),
-    });
-    return `/api/generation/history?${params.toString()}`;
-  }, [historyPage]);
-
-  const historyFetcher = useQueryFetcher<GenerationHistoryResponse>();
-
   const {
-    data: usageStats,
-    error: statsError,
-    isLoading: statsLoading,
-  } = useQuery({
-    queryKey: queryKeys.api.usageStats(),
-    queryFn: () => fetcher("/api/customer/usage"),
-    enabled: !!user,
-  });
-
-  const {
-    data: historyResponse,
-    error: historyError,
-    isLoading: historyLoading,
-  } = useQuery({
-    queryKey: queryKeys.api.generationHistory({
-      page: historyPage,
-      limit: HISTORY_PAGE_LIMIT,
-    } as any),
-    queryFn: () => historyFetcher(historyUrl),
-    enabled: !!user,
-  });
-
-  const history = historyResponse?.data ?? [];
-  const historyPagination = historyResponse?.pagination;
-
-  const handleHistoryPageChange = (page: number): void => {
-    setHistoryPage(page);
-  };
-
-  const loading = statsLoading || historyLoading;
-  const error = statsError || historyError;
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  const handleExportUsage = async () => {
-    if (!user) return;
-
-    try {
-      const response = await authenticatedFetchJson<{ url: string }>(
-        "/api/customer/export",
-        {
-          method: "POST",
-          body: JSON.stringify({ format: "csv" }),
-        }
-      );
-
-      if (response.url) {
-        window.open(response.url, "_blank");
-      }
-
-      void invalidateUsageStatsAndGenerationHistory(queryClient);
-    } catch (err) {
-      setExportError(
-        err instanceof Error ? err.message : "Failed to export usage data"
-      );
-    }
-  };
-
-  // Get content type labels from centralized config
-  const getContentTypeLabel = (type: ContentType): string => {
-    return getContentShortName(type);
-  };
+    error,
+    exportError,
+    generationPercentage,
+    getContentTypeLabel,
+    handleExportUsage,
+    handleHistoryPageChange,
+    history,
+    historyPagination,
+    isUnlimited,
+    loading,
+    reelsPercentage,
+    usageStats,
+    user,
+  } = useUsageDashboard();
 
   if (loading) {
     return (
@@ -224,21 +110,6 @@ export function UsageDashboard() {
       </Card>
     );
   }
-
-  const reelsPercentage =
-    !isUnlimited(usageStats.reelsAnalyzedLimit) && usageStats.reelsAnalyzedLimit
-      ? Math.round(
-          (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100
-        )
-      : 0;
-
-  const generationPercentage =
-    !isUnlimited(usageStats.contentGeneratedLimit) &&
-    usageStats.contentGeneratedLimit
-      ? Math.round(
-          (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100
-        )
-      : 0;
 
   return (
     <div className="space-y-6">
@@ -400,7 +271,7 @@ export function UsageDashboard() {
                         )}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {formatGenTime(generation.generationTime)}
+                        {formatGenerationTime(generation.generationTime)}
                       </TableCell>
                     </TableRow>
                   ))}

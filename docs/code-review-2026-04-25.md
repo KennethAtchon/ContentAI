@@ -6,18 +6,18 @@ This document is **observational**. Once we agree on findings, we'll distill the
 
 ---
 
-## TL;DR — Top 10 priorities
+## TL;DR — Remaining priorities
 
-1. ~~`SystemConfigView.tsx` is 1,866 lines~~ ✅ Fixed in PR 4 — split into shell + 8 shared components + 7 per-tab files; tsc clean.
-2. ~~Frontend `tsconfig` has `strict: false~~` ✅ Fixed in PR 3 — strict + unused-locals/params + noImplicitReturns now on; 10 trivial errors fixed.
-3. **Schemas/constants duplicated across backend/frontend.** Contracts live in multiple places and already drift. → see X1
-4. **Shared layer leaks into domain.** `frontend/src/shared/ui/layout/studio-shell.tsx` imports `@/domains/studio/ui/StudioTopBar`, which then imports `@/domains/auth/ui/user-button`.
-5. **Empty `catch {}` blocks + dev-only logger.** 55 empty catches; many that *do* log use `debugLog.error` which only fires in dev (`utils/debug/debug.ts:5`). Production goes silent. → see B4, B10
-6. **Cross-domain UI imports** (chat → video, video → reels/generation). No clear composition layer. Coupling will compound.
-7. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules.
-8. **Two services folders.** `domain/`* vs `services/*` split unclear; `lib/` adds a third bucket. Pick a rule.
-9. **20+ non-null assertions (`!.`)** mix of justified and defensive across both sides. Defensive ones hide nullability bugs.
-10. **Frontend tests are stubs.** ~20 real test files; most empty. Hook + critical-path coverage is missing.
+1. **Schemas/contracts still live in multiple places.** The worst constant drift is fixed, but there is still no shared contract source of truth. → see X1
+2. **Empty `catch {}` blocks remain.** Critical cases were patched, but many silent fallbacks still need an audit. → see B4
+3. **Cross-domain UI imports** (chat → video, video → reels/generation) still lack a clear composition boundary. → see F4
+4. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules. → see X2
+5. **`domain/` vs `services/` vs `lib/` is still muddy.** New files still force a placement decision every time. → see B1
+6. **`any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
+7. **Frontend tests are still thin.** E2E coverage exists, but hooks/utilities and critical paths need real unit coverage. → see F10
+8. **Several large admin/debug components still need decomposition.** `SystemConfigView` is fixed; the others remain. → see F2
+9. **Route/file naming conventions are still mixed.** Some cleanup landed, but the repo is not consistent yet. → see B2, F8
+10. **Folder depth and internal indirection still trend high.** Payments and barrel-heavy areas are still harder to navigate than they need to be. → see X2, X4
 
 ---
 
@@ -34,14 +34,14 @@ But there are **three buckets for "code that does work"**:
 | ------------------ | ------------------------------------- | ------------------------------------------------------------------------ |
 | `domain/<area>/`   | Business logic, repositories, schemas | `domain/editor/editor.service.ts`                                        |
 | `services/<area>/` | Cross-cutting / infra                 | `services/firebase/`, `services/storage/`                                |
-| `lib/`             | Mixed bag                             | `lib/cost-tracker.ts`, `lib/chat-tools.ts`, `lib/aiClient.ts`, `lib/ai/` |
+| `lib/`             | Residual helpers / unclear placement  | `lib/queue-chain-guard.ts`                                                |
 
 
 **Problems:**
 
-- Video logic lives in **all three**: `domain/video/`, `services/video-generation/`, `lib/cost-tracker.ts`.
-- Chat tools split: `domain/chat/chat-tools.repository.ts` + `lib/chat-tools.ts`.
-- `lib/aiClient.ts` is infra (should be `services/ai/`); `lib/ai/` already exists as a folder.
+- Video logic still lives in both `domain/video/` and `services/video-generation/`, and the boundary between domain orchestration and provider infrastructure is still implicit rather than obvious.
+- Cross-cutting service code has improved (`services/ai/`, `services/observability/ai-cost-recorder.ts` now exist), but the repo still lacks a simple placement rule people can apply without judgment calls.
+- `lib/` is much smaller now, which is progress, but the broader taxonomy question is still open.
 
 **Severity: P2.** Not broken, but every new file forces a "where does this go?" decision.
 
@@ -52,16 +52,6 @@ But there are **three buckets for "code that does work"**:
 - Some folders: `index.ts` only (`health/index.ts`)
 
 **Severity: P3.** Pick one (`*.router.ts` reads best).
-
-### B3. Error handling — `AppError` works, handler is brittle
-
-`utils/errors/app-error.ts` defines a clean error type. Services throw it correctly.
-
-But `middleware/error-handler.ts:18-36` hard-codes specific error codes (`PROJECT_EXISTS`, `VIDEO_JOB_IN_PROGRESS`) and reaches into `error.details` to pull domain-specific fields. Each new domain error needs a handler edit.
-
-**Fix idea:** put response-shape logic on `AppError` itself (`error.toResponse()`), so the handler is dumb.
-
-**Severity: P2.**
 
 ### B4. Empty catches — silent fallbacks
 
@@ -90,46 +80,11 @@ Worst offenders:
 
 **Severity: P1.** Production debugging killer.
 
-### B10. Two loggers — one is dev-only, devs use the wrong one
-
-Two loggers exist:
-
-- `utils/debug/debug.ts` — `debugLog.error/warn/info` only fires when `NODE_ENV === "development"`. **Invisible in production.**
-- `utils/system/system-logger.ts` — `systemLogger.error/warn` always fires.
-
-Many catch blocks that *do* log use `debugLog.error(...)` — e.g. `middleware/protection.ts:103, 164, 232`. In production, those errors disappear.
-
-The naming makes the wrong choice the easy choice (`debugLog.error` reads as "the error logger").
-
-**Rule:** structured production events → `systemLogger`. Development-only diagnostics → `debugLog`. Better fix: rename `debugLog` to `devLog` (or remove its `.error`/`.warn` methods — debug-level only).
-
-**Severity: P1.** Auditing existing `debugLog.error|warn` callsites is a follow-up sweep.
-
-### B11. Usage gate fails open
-
-`middleware/usage-gate.ts:62-70` logs and then `await next()` on **any** gate failure: DB outage, config lookup failure, or repository bug. That means subscription enforcement disappears exactly when infra is degraded.
-
-This is different from a best-effort analytics write. `usageGate()` is an authorization/billing boundary.
-
-**Fix idea:** split the failure modes.
-
-- If usage/count lookup fails, return `503 SERVICE_UNAVAILABLE` for gated endpoints.
-- If product explicitly wants fail-open during incidents, make it a feature-flagged decision with a metric + alert, not a default `catch`.
-
-**Severity: P1.** Paid-limit bypass.
-
 ### B5. Validation — Zod schemas re-exported through too many paths
 
 Source-of-truth: `domain/<area>/<area>.schemas.ts`. ✅
 
-But routes also have:
-
-- `routes/customer/shared-validation.ts`
-- `routes/editor/schemas.ts` (says "canonical definitions in domain/" — so why does this file exist?)
-- `routes/editor/zod-validation-hook.ts`
-- `validation/zod-validation-hook.ts`
-
-There are **three separate Zod-error-formatter wrappers** (`zodValidationErrorHook`, `customerValidationErrorHook`, `editorZodValidationHook`). They do the same thing.
+The canonical hook now lives in `validation/zod-validation-hook.ts`, and the route-local wrapper files were removed. The remaining problem is consistency: route modules still mix direct domain-schema imports and route-local validation wiring patterns instead of following one obvious convention everywhere.
 
 **Severity: P2.** Consolidate to one hook in `validation/`.
 
@@ -164,44 +119,18 @@ routes/customer/orders.router.ts:33
 
 ## Frontend
 
-### F1. `tsconfig` is too loose ~~P1~~ ✅ FIXED in PR 3
-
-Frontend was `strict: false`, backend `strict: true`. Asymmetric.
-
-**Resolution:** Enabled `strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`. Surfaced 10 unused-import/var errors (mostly stale `import React` from pre-JSX-transform code) — all fixed. Type check now clean. The codebase was already type-safe in practice; the flags were just off.
-
 ### F2. Mega-components
 
 
 | File                                                      | Lines               | Status |
 | --------------------------------------------------------- | ------------------- | ------ |
-| ~~`domains/admin/ui/system-config/SystemConfigView.tsx`~~ | ~~**1,866**~~ → 105 | ✅ PR 4 |
 | `routes/admin/_layout/developer.tsx`                      | 594                 | P2     |
 | `domains/admin/ui/developer/DeveloperView.tsx`            | 589                 | P2     |
 | `domains/admin/ui/niches/NicheDetailView.tsx`             | 584                 | P2     |
 | `shared/debug/debug.ts`                                   | 554                 | P2     |
 
 
-**PR 4 split `SystemConfigView`:** 1,866 lines → 105-line shell + 8 shared components (`components/`) + 7 tab files (`tabs/`) + `types.ts`. Each tab is now self-contained, individually readable, and tests/refactors can target a single concern. Type check clean.
-
-Remaining 4 mega-components (all admin domain) downgraded to **P2** — same playbook applies.
-
-### F3. Shared → domain leak
-
-`shared/` should depend on **nothing** in `domains/`. Violations:
-
-- `frontend/src/shared/ui/navigation/StudioTopBar.tsx` was a 1-line re-export of `@/domains/studio/ui/StudioTopBar` — deceptive shim that hid the leak. **Deleted in PR 2.**
-- `frontend/src/shared/ui/layout/studio-shell.tsx` still imports `StudioTopBar` from `@/domains/studio/...` (after PR 2, directly instead of via shim). **Leak still present.**
-- `domains/studio/ui/StudioTopBar.tsx` itself imports `UserButton` from `@/domains/auth/...` (cross-domain, separate concern — see F4).
-
-**The real fix (deferred to PR 2b):** `studio-shell.tsx` is composition, not pure shared — it combines navigation + footer + auth-aware UI for 19 route consumers. Two options:
-
-(a) Move `studio-shell.tsx` + `studio-footer.tsx` to `frontend/src/app/layout/` (app-level composition, mirrors `app/providers/`, `app/state/`).
-(b) Convert `StudioShell` to take a `topBar` slot prop. Each route caller passes `<StudioTopBar variant="..." />`. Keeps `shared/` truly leaf-only.
-
-Option (b) is more architecturally pure but requires updating all 19 callers.
-
-**Severity: P1.** Architectural rule violation. PR 2 removed the misleading shim; PR 2b picks (a) or (b).
+Remaining large admin/debug components still need the same split/decomposition treatment.
 
 ### F4. Cross-domain coupling
 
@@ -226,17 +155,6 @@ Hook is a thin wrapper, fine. Real question is whether the two `shared/api/*-fet
 
 **Severity: P3** (downgraded from P1). Audit when next touched.
 
-### F6. Form schemas re-created on every render
-
-```tsx
-// frontend/src/domains/admin/ui/orders/order-form.tsx:66-75
-const schema = z.object({ ... t('field.label') ... })  // recreated each render
-```
-
-Either lift schema out (if i18n isn't needed inside) or `useMemo`.
-
-**Severity: P3.** Perf is fine, hygiene is not.
-
 ### F7. State management — mixed
 
 - TanStack Query for server state ✅
@@ -247,7 +165,7 @@ Either lift schema out (if i18n isn't needed inside) or `useMemo`.
 
 ### F8. File naming inconsistent
 
-- Hooks are mostly kebab-case (`use-portal-link.ts`, `use-query-fetcher.ts`) but `domains/chat/hooks/useChatLayout.ts` and `useProjectSidebar.ts` are camel-case
+- Hook naming is cleaner after the chat hook rename, but the repo still mixes conventions by kind.
 - Components mix `SystemConfigView.tsx` (PascalCase) with `order-form.tsx`, `user-button.tsx`, `auth-guard.tsx` (kebab-case)
 
 **Severity: P3.** Pick one per kind.
@@ -272,15 +190,8 @@ Same data shapes declared on both sides:
 
 - Customer order schema: `backend/src/domain/customer/customer.schemas.ts` vs `frontend/src/domains/admin/ui/orders/order-form.tsx`
 - Subscription tiers constant: defined in `backend/src/constants/subscription.constants.ts` AND `frontend/src/shared/constants/subscription.constants.ts`
-- Legacy validation modules exist on both sides too: `backend/src/utils/validation/api-validation.ts` and `frontend/src/shared/validation/api.schema.ts`
 
-This is no longer just theoretical drift. The subscription constants already disagree:
-
-- Frontend basic/pro generation limits are **50 / 300** in `frontend/src/shared/constants/subscription.constants.ts:55,65`
-- Backend basic/pro generation limits are **100 / 500** in `backend/src/constants/subscription.constants.ts:85,96`
-- Backend also models analysis limits + free-tier limits that the frontend constant file does not expose (`backend/src/constants/subscription.constants.ts:76-80,86-97`)
-
-The legacy validation files are worse: both still contain therapy-era schemas (`therapies`, `therapy_image`) in `backend/src/utils/validation/api-validation.ts:122-252` and `frontend/src/shared/validation/api.schema.ts:113-240`, while active customer routes now validate through `backend/src/domain/customer/customer.schemas.ts`.
+The immediate subscription-limit drift was fixed, and the dead frontend legacy validation file is gone. The underlying architectural issue still remains: backend and frontend continue to define API-facing contracts separately, and backend still carries older validation surface area in `backend/src/utils/validation/api-validation.ts`.
 
 **Fix idea:** shared package (`packages/contracts/`) with Zod schemas + types. Both sides import. Single source of truth.
 
@@ -325,13 +236,10 @@ CSRF middleware on all mutations. PII sanitizer mirrored on both sides. No raw H
 | P1 (must-fix)                                     | P2 (should-fix)                      | P3 (cleanup)                   |
 | ------------------------------------------------- | ------------------------------------ | ------------------------------ |
 | Empty catches (B4)                                | `domain`/`services`/`lib` split (B1) | Route file naming (B2)         |
-| Dev-only logger misuse (B10)                      |                                      |                                |
-| Usage gate fail-open (B11)                        |                                      |                                |
-| Frontend strict mode (F1)                         | Error-handler brittleness (B3)       | Param validation dup (B6)      |
-| `SystemConfigView` size (F2)                      | Validation hook dup (B5)             | Singletons / global state (B7) |
-| Shared → domain leak (F3)                         | Cross-domain coupling (F4)           | Form schema memo (F6)          |
-| ~~`use-authenticated-fetch.ts`~~ wrong count (F5) | State mgmt — chat streaming (F7)     | Filename casing (F8)           |
-| Schema duplication FE↔BE (X1)                     | Mega-components (F2 cont.)           | Barrel files (X2)              |
+| Schema duplication FE↔BE (X1)                     | Validation hook consistency (B5)     | Param validation dup (B6)      |
+|                                                   | Cross-domain coupling (F4)           | Singletons / global state (B7) |
+|                                                   | State mgmt — chat streaming (F7)     | Filename casing (F8)           |
+|                                                   | Mega-components (F2 cont.)           | Barrel files (X2)              |
 |                                                   | Frontend test coverage (F10)         | Folder depth (X4)              |
 |                                                   | `any` / cast audit (X3)              |                                |
 
