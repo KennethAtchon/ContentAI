@@ -1,47 +1,43 @@
 # ContentAI Code Review — 2026-04-25
 
-Audit of `frontend/` and `backend/` for anti-patterns, organizational drift, and inconsistencies. Findings include `file:line` citations. Severity is P1 (must-fix) / P2 (should-fix) / P3 (cleanup).
-
-This document is **observational**. Once we agree on findings, we'll distill the rules into a separate `code-guidelines.md`.
+Open architecture / organization work for `frontend/` and `backend/`. This file only lists things that still need to be done. Severity is P1 (must-fix) / P2 (should-fix) / P3 (cleanup).
 
 ---
 
 ## TL;DR — Remaining priorities
 
-1. **Schemas/contracts still live in multiple places.** The worst constant drift is fixed, but there is still no shared contract source of truth. → see X1
+1. **Schemas/contracts still live in multiple places.** There is still no shared contract source of truth. → see X1
 2. **Empty `catch {}` blocks remain.** Critical cases were patched, but many silent fallbacks still need an audit. → see B4
 3. **Cross-domain UI imports** (chat → video, video → reels/generation) still lack a clear composition boundary. → see F4
 4. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules. → see X2
-5. `**domain/` vs `services/` vs `lib/` is still muddy.** New files still force a placement decision every time. → see B1
-6. `**any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
+5. **`domain/` vs `services/` placement is still muddy.** `lib/` is mostly cleaned up, but backend layering rules are still not simple enough. → see B1
+6. **`any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
 7. **Frontend tests are still thin.** E2E coverage exists, but hooks/utilities and critical paths need real unit coverage. → see F10
-8. **Several large admin/debug components still need decomposition.** `SystemConfigView` is fixed; the others remain. → see F2
-9. **Route/file naming conventions are still mixed.** Some cleanup landed, but the repo is not consistent yet. → see B2, F8
+8. **Several large admin/debug components still need decomposition.** The biggest admin/debug surfaces still mix rendering with workflow logic. → see F2
+9. **Route/file naming conventions are still mixed.** The repo still does not follow one naming rule per file kind. → see B2, F8
 10. **Folder depth and internal indirection still trend high.** Payments and barrel-heavy areas are still harder to navigate than they need to be. → see X2, X4
 
 ---
 
 ## Backend
 
-### B1. Layering — `routes/` is clean, but `domain/` vs `services/` vs `lib/` is muddy
+### B1. Layering — backend placement rules still need to be finished
 
-Routes correctly delegate to services. No raw Drizzle in routes. ✅
-
-But there are **three buckets for "code that does work"**:
+Backend placement rules are still not fully settled:
 
 
 | Folder             | Holds                                 | Example                                   |
 | ------------------ | ------------------------------------- | ----------------------------------------- |
 | `domain/<area>/`   | Business logic, repositories, schemas | `domain/editor/editor.service.ts`         |
 | `services/<area>/` | Cross-cutting / infra                 | `services/firebase/`, `services/storage/` |
-| `lib/`             | Residual helpers / unclear placement  | `lib/queue-chain-guard.ts`                |
 
+The remaining work is clarifying the rule between `domain/` and `services/`.
 
 **Problems:**
 
-- Video logic still lives in both `domain/video/` and `services/video-generation/`, and the boundary between domain orchestration and provider infrastructure is still implicit rather than obvious.
-- Cross-cutting service code has improved (`services/ai/`, `services/observability/ai-cost-recorder.ts` now exist), but the repo still lacks a simple placement rule people can apply without judgment calls.
-- `lib/` is much smaller now, which is progress, but the broader taxonomy question is still open.
+- Video logic still lives in both `domain/video/` and `services/video-generation/`, and the boundary between domain orchestration, job lifecycle, and provider infrastructure is still only partially explicit.
+- There is still no short rule that answers "does this go in `domain/<area>` or `services/<area>`?" without case-by-case judgment.
+- Cross-domain helpers that enforce business invariants should keep moving toward the owning domain instead of lingering as generic helpers.
 
 **Severity: P2.** Not broken, but every new file forces a "where does this go?" decision.
 
@@ -67,7 +63,7 @@ catch {
 Worst offenders:
 
 - `constants/subscription.constants.ts:31, 221` — DB read for trial days / feature limits
-- `lib/ai/config.ts:33, 70` — DB read for AI provider config
+- `services/ai/config.ts:33, 70` — DB read for AI provider config
 - `services/config/system-config.service.ts:95, 216` — decrypt fail / API key DB lookup
 
 **Rule (to enforce in `code-guidelines.md`):** every `catch` block must do exactly one of:
@@ -76,13 +72,9 @@ Worst offenders:
 2. Log via `systemLogger.error|warn` with `{service, operation}` context, then return a documented fallback
 3. Bear a `// expected: <reason>` comment if silent fallback is the contract (e.g. `safe`* parsers, best-effort cache writes)
 
-**Status:** PR 1 patches the 6 critical ones above. Rest get audited as PRs touch them.
-
 **Severity: P1.** Production debugging killer.
 
-### B5. Validation — Zod schemas re-exported through too many paths
-
-Source-of-truth: `domain/<area>/<area>.schemas.ts`. ✅
+### B5. Validation — route conventions still need to be normalized
 
 The canonical hook now lives in `validation/zod-validation-hook.ts`, and the route-local wrapper files were removed. The remaining problem is consistency: route modules still mix direct domain-schema imports and route-local validation wiring patterns instead of following one obvious convention everywhere.
 
@@ -107,14 +99,6 @@ routes/customer/orders.router.ts:33
 
 **Severity: P3.**
 
-### B8. Logging
-
-`debugLog` is used consistently. ✅ No `console.log` pollution outside intentional sites (`utils/system/system-logger.ts`, `services/observability/firebase-logging.ts`).
-
-### B9. TODOs
-
-12 `TODO` markers reference "Phase 2 — AI direct-edit", concentrated in `domain/editor/`. Tracked work, not rot. ✅
-
 ---
 
 ## Frontend
@@ -128,15 +112,16 @@ routes/customer/orders.router.ts:33
 | `domains/admin/ui/developer/DeveloperView.tsx` | 589   | P2     |
 | `domains/admin/ui/niches/NicheDetailView.tsx`  | 584   | P2     |
 | `shared/debug/debug.ts`                        | 554   | P2     |
+| `domains/studio/ui/queue/DetailPanel.tsx`      | 360+  | P2     |
 
-
-Remaining large admin/debug components still need the same split/decomposition treatment.
+Remaining work here is not just line count. The remaining large files still mix rendering with data formatting, state transitions, and workflow logic instead of exposing smaller leaf components or domain hooks.
 
 ### F4. Cross-domain coupling
 
 - `domains/chat/ui/`* imports from `domains/video/`, `domains/reels/`, `domains/generation/`
 - `domains/studio/ui/StudioTopBar.tsx` imports `domains/auth/ui/user-button`
 - `domains/video/ui/VideoWorkspacePanel.tsx` imports video/reels/generation
+- There is still no explicit composition layer for "workspace" features that intentionally assemble multiple domains.
 
 No composition layer. Either:
 
@@ -157,9 +142,10 @@ Hook is a thin wrapper, fine. Real question is whether the two `shared/api/*-fet
 
 ### F7. State management — mixed
 
-- TanStack Query for server state ✅
-- React Context for client state (auth, profile, app, audio) ✅
+- TanStack Query handles most server state
+- React Context handles auth/profile/app/audio client state
 - Chat domain mixes Query + per-component `useState` for SSE streaming. No central streaming store.
+- Some heavy UI surfaces still own local workflow state that should probably move into domain hooks over time (`DetailPanel`, larger admin tools, parts of chat/video workspaces).
 
 **Severity: P2.** As chat features grow, this will need a real store (Zustand or context-with-reducer).
 
@@ -170,13 +156,9 @@ Hook is a thin wrapper, fine. Real question is whether the two `shared/api/*-fet
 
 **Severity: P3.** Pick one per kind.
 
-### F9. CSS — well-organized ✅
-
-Tailwind only. Token hierarchy in `styles/globals.css` (primitives → studio aliases → semantic). No CSS modules, no inline styles. No raw-HTML-injection escape hatches. Keep it.
-
 ### F10. Test coverage
 
-`frontend/__tests__/` exists but is mostly stubs. E2E tests (`e2e/`) cover sign-in/sign-up/admin flows ✅. Unit tests for hooks and utilities are missing.
+`frontend/__tests__/` exists but is mostly stubs. Unit tests for the newly extracted hooks/services and the remaining critical workspace flows are still missing.
 
 **Severity: P2.**
 
@@ -189,11 +171,12 @@ Tailwind only. Token hierarchy in `styles/globals.css` (primitives → studio al
 Same data shapes declared on both sides:
 
 - Customer order schema: `backend/src/domain/customer/customer.schemas.ts` vs `frontend/src/domains/admin/ui/orders/order-form.tsx`
-- Subscription tiers constant: defined in `backend/src/constants/subscription.constants.ts` AND `frontend/src/shared/constants/subscription.constants.ts`
+- Subscription tiers constant: still defined in both `backend/src/constants/subscription.constants.ts` and `frontend/src/shared/constants/subscription.constants.ts`
+- Account/payment/video-related API response shapes are still typed independently on each side rather than imported from one shared contract source
 
-The immediate subscription-limit drift was fixed, and the dead frontend legacy validation file is gone. The underlying architectural issue still remains: backend and frontend continue to define API-facing contracts separately, and backend still carries older validation surface area in `backend/src/utils/validation/api-validation.ts`.
+Backend and frontend still define API-facing contracts separately, and backend still carries older validation surface area in `backend/src/utils/validation/api-validation.ts`.
 
-**Fix idea:** shared package (`packages/contracts/`) with Zod schemas + types. Both sides import. Single source of truth.
+**Fix idea:** shared package (`packages/contracts/`) with Zod schemas + types, or a generation step that produces frontend/backend contract files from one source.
 
 **Severity: P1.** API contract drift = production bugs.
 
@@ -209,7 +192,7 @@ The immediate subscription-limit drift was fixed, and the dead frontend legacy v
 
 - Backend: ~14 `as any` / `as unknown as`
 - Frontend: ~13 `as any` / `as unknown as`
-- ~20 non-null assertions on each side; many defensive (`metadata!.hashtags!`)
+- Defensive non-null assertions still exist, especially in older admin/workspace code paths
 
 Each one is a "I know better than the type system" claim. Audit them; most are type-modeling gaps.
 
@@ -224,12 +207,6 @@ Worst offenders:
 
 **Severity: P3.** Flatten payments.
 
-### X5. Security baseline ✅
-
-CSRF middleware on all mutations. PII sanitizer mirrored on both sides. No raw HTML injection. Security baseline is solid.
-
----
-
 ## Severity rollup
 
 
@@ -242,10 +219,3 @@ CSRF middleware on all mutations. PII sanitizer mirrored on both sides. No raw H
 |                               | Mega-components (F2 cont.)           | Barrel files (X2)              |
 |                               | Frontend test coverage (F10)         | Folder depth (X4)              |
 |                               | `any` / cast audit (X3)              |                                |
-
-
----
-
-## Next step
-
-Walk through findings together. Decide which we accept, push back on, or downgrade. Then I'll distill the agreed-on rules into `docs/code-guidelines.md` — short, prescriptive, the rulebrick you wanted.
