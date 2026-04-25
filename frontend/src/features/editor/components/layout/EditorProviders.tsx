@@ -10,7 +10,7 @@ import { useEditorLayoutMutations } from "../../hooks/useEditorLayoutMutations";
 import { useEditorAssetMap } from "../../hooks/useEditorAssetMap";
 import { useEditorClipActions } from "../../hooks/useEditorClipActions";
 import { useEditorTransport } from "../../hooks/useEditorTransport";
-import { AssetUrlMapContext } from "../../context/asset-url-map-context";
+import { AssetUrlMapContext } from "../../context/AssetUrlMapContext";
 import { EditorDocumentStateContext } from "../../context/EditorDocumentStateContext";
 import { EditorDocumentActionsContext } from "../../context/EditorDocumentActionsContext";
 import { EditorSelectionContext } from "../../context/EditorSelectionContext";

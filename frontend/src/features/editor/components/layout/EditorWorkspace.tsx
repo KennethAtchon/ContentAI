@@ -7,7 +7,7 @@ import { PreviewArea } from "../preview/PreviewArea";
 import { Inspector } from "../inspector/Inspector";
 import { CaptionLayer } from "../caption/CaptionLayer";
 import type { CaptionLayerHandle } from "../caption/CaptionLayer";
-import { useAssetUrlMap } from "../../context/asset-url-map-context";
+import { useAssetUrlMap } from "../../context/AssetUrlMapContext";
 import { usePreviewEngine } from "../../hooks/usePreviewEngine";
 import { useEditorDocumentState } from "../../context/EditorDocumentStateContext";
 import { useEditorClipCommands } from "../../context/EditorClipCommandsContext";

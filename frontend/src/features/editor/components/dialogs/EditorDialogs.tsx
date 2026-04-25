@@ -14,7 +14,7 @@ import { useEditorDocumentState } from "../../context/EditorDocumentStateContext
 import { useEditorPlaybackContext } from "../../context/EditorPlaybackContext";
 import { useEditorUIContext } from "../../context/EditorUIContext";
 import { useEditorPersistContext } from "../../context/EditorPersistContext";
-import { useAssetUrlMap } from "../../context/asset-url-map-context";
+import { useAssetUrlMap } from "../../context/AssetUrlMapContext";
 
 export function EditorDialogs() {
   const { t } = useTranslation();
