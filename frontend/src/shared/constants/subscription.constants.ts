@@ -7,94 +7,26 @@
  */
 
 import {
+  BASE_TIER_FEATURES,
+  FREE_TIER_LIMITS,
+  SUBSCRIPTION_TIERS,
+  SUBSCRIPTION_TRIAL_DAYS,
+  TIER_NAMES,
+  type SubscriptionStatus,
+  type SubscriptionTier,
+  type SubscriptionTierConfig,
+  type SubscriptionTierFeatures,
+} from "@contracts/subscription";
+import {
   getStripePriceId,
   getStripePriceAmount,
 } from "@/shared/payments/stripe-map-loader";
-
-export const SUBSCRIPTION_TIERS = {
-  BASIC: "basic",
-  PRO: "pro",
-  ENTERPRISE: "enterprise",
-} as const;
-
-export const SUBSCRIPTION_TRIAL_DAYS = 14;
-
-export type SubscriptionTier =
-  (typeof SUBSCRIPTION_TIERS)[keyof typeof SUBSCRIPTION_TIERS];
-
-export type SubscriptionStatus =
-  | "active"
-  | "canceled"
-  | "past_due"
-  | "trialing"
-  | "incomplete"
-  | "incomplete_expired";
-
-export interface SubscriptionTierFeatures {
-  maxReelsPerMonth: number; // -1 = unlimited
-  maxGenerationsPerMonth: number; // -1 = unlimited (AI chat messages)
-  maxAnalysesPerMonth: number; // -1 = unlimited (reel AI analyses)
-  maxQueueItems: number; // -1 = unlimited
-  aiAnalysis: boolean;
-  instagramPublishing: boolean;
-  supportLevel: "email" | "priority" | "dedicated";
-  apiAccess: boolean;
-  customBranding: boolean;
-}
-
-export interface SubscriptionTierConfig {
-  name: string;
-  price: number;
-  billingCycle: "monthly" | "annual";
-  features: SubscriptionTierFeatures;
-  stripePriceId: string;
-}
-
-export const FREE_TIER_LIMITS = {
-  maxGenerationsPerMonth: 10,
-  maxAnalysesPerMonth: 5,
-} as const;
-
-const BASE_TIER_FEATURES: Record<SubscriptionTier, SubscriptionTierFeatures> = {
-  [SUBSCRIPTION_TIERS.BASIC]: {
-    maxReelsPerMonth: 100,
-    maxGenerationsPerMonth: 100,
-    maxAnalysesPerMonth: 50,
-    maxQueueItems: 10,
-    aiAnalysis: true,
-    instagramPublishing: false,
-    supportLevel: "email",
-    apiAccess: false,
-    customBranding: false,
-  },
-  [SUBSCRIPTION_TIERS.PRO]: {
-    maxReelsPerMonth: -1,
-    maxGenerationsPerMonth: 500,
-    maxAnalysesPerMonth: 200,
-    maxQueueItems: 100,
-    aiAnalysis: true,
-    instagramPublishing: true,
-    supportLevel: "priority",
-    apiAccess: false,
-    customBranding: false,
-  },
-  [SUBSCRIPTION_TIERS.ENTERPRISE]: {
-    maxReelsPerMonth: -1,
-    maxGenerationsPerMonth: -1,
-    maxAnalysesPerMonth: -1,
-    maxQueueItems: -1,
-    aiAnalysis: true,
-    instagramPublishing: true,
-    supportLevel: "dedicated",
-    apiAccess: true,
-    customBranding: true,
-  },
-};
-
-const TIER_NAMES: Record<SubscriptionTier, string> = {
-  [SUBSCRIPTION_TIERS.BASIC]: "Creator",
-  [SUBSCRIPTION_TIERS.PRO]: "Pro",
-  [SUBSCRIPTION_TIERS.ENTERPRISE]: "Agency",
+export { FREE_TIER_LIMITS, SUBSCRIPTION_TIERS, SUBSCRIPTION_TRIAL_DAYS };
+export type {
+  SubscriptionStatus,
+  SubscriptionTier,
+  SubscriptionTierConfig,
+  SubscriptionTierFeatures,
 };
 
 export function getTierConfig(

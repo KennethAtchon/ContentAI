@@ -1,4 +1,8 @@
 import { systemLogger } from "@/utils/system/system-logger";
+import {
+  createCustomerOrderSchema as sharedCreateCustomerOrderSchema,
+  updateCustomerProfileSchema as sharedUpdateCustomerProfileSchema,
+} from "@contracts/customer";
 import { z } from "zod";
 
 /**
@@ -157,24 +161,7 @@ export const createOrderSchema = z
     },
   );
 
-export const createCustomerOrderSchema = z.object({
-  // SECURITY: userId is NOT accepted from request body - always use authenticated user's ID
-  // Removed userId field to prevent privilege escalation attacks
-  totalAmount: z
-    .number()
-    .positive("Total amount must be positive")
-    .multipleOf(0.01, "Amount must have at most 2 decimal places")
-    .max(999999.99, "Amount cannot exceed $999,999.99")
-    .refine(
-      (value) => Number.isFinite(value) && value > 0,
-      "Amount must be a finite positive number",
-    ),
-  status: orderStatusSchema.optional().default("pending"),
-  stripeSessionId: z
-    .string()
-    .regex(/^cs_[a-zA-Z0-9_]+$/, "Invalid Stripe session ID format")
-    .optional(),
-});
+export const createCustomerOrderSchema = sharedCreateCustomerOrderSchema;
 
 export const updateOrderSchema = z
   .object({
@@ -207,17 +194,7 @@ export const updateOrderSchema = z
     },
   );
 
-export const updateProfileSchema = z.object({
-  name: nameSchema.optional(),
-  email: emailSchema.optional(),
-  phone: phoneNumberSchema.optional(),
-  address: z
-    .string()
-    .max(500, "Address cannot exceed 500 characters")
-    .optional()
-    .transform((val) => val?.trim() || undefined),
-  timezone: timezoneSchema.optional(),
-});
+export const updateProfileSchema = sharedUpdateCustomerProfileSchema;
 
 export const fileUploadSchema = z.object({
   file: z.object({

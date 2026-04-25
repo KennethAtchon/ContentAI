@@ -1,3 +1,10 @@
+import type {
+  OrderSuccessData,
+  PaymentSuccessParams,
+  PaymentSuccessType,
+  SubscriptionSuccessData,
+} from "@contracts/payments";
+
 export type PaymentMethod =
   | "credit_card"
   | "debit_card"
@@ -93,21 +100,9 @@ export interface PaymentFilter {
   amountMax?: number;
 }
 
-export type PaymentSuccessType = "subscription" | "order";
-
-export interface PaymentSuccessParams {
-  type?: PaymentSuccessType;
-  session_id?: string;
-  order_id?: string;
-}
-
-export interface SubscriptionSuccessData {
-  sessionId: string;
-  tier?: string;
-  billingCycle?: string;
-}
-
-export interface OrderSuccessData {
-  sessionId: string;
-  orderId: string;
-}
+export type {
+  OrderSuccessData,
+  PaymentSuccessParams,
+  PaymentSuccessType,
+  SubscriptionSuccessData,
+};

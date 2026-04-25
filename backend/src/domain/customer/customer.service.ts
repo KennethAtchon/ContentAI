@@ -1,17 +1,7 @@
 import type { ICustomerRepository } from "./customer.repository";
+import type { UsageStats } from "@contracts/customer";
 import { Errors } from "../../utils/errors/app-error";
 import type { CustomerProfile } from "./customer.types";
-
-export interface UsageStats {
-  reelsAnalyzed: number;
-  reelsAnalyzedLimit: number;
-  contentGenerated: number;
-  contentGeneratedLimit: number;
-  queueSize: number;
-  queueLimit: null;
-  tier: string;
-  resetDate: string;
-}
 
 export type { CustomerProfile } from "./customer.types";
 

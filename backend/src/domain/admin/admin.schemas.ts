@@ -1,50 +1,20 @@
 import { z } from "zod";
-
-export const adminOrdersQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().trim().min(1).optional(),
-  customerId: z.string().uuid().optional(),
-});
-
-export const adminCreateOrderBodySchema = z.object({
-  userId: z.string().uuid(),
-  totalAmount: z.union([z.number(), z.string().trim().min(1)]),
-  status: z
-    .enum([
-      "pending",
-      "confirmed",
-      "processing",
-      "completed",
-      "cancelled",
-      "refunded",
-    ])
-    .optional(),
-});
-
-export const adminUpdateOrderBodySchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid().optional(),
-  totalAmount: z.union([z.number(), z.string().trim().min(1)]).optional(),
-  status: z
-    .enum([
-      "pending",
-      "confirmed",
-      "processing",
-      "completed",
-      "cancelled",
-      "refunded",
-    ])
-    .optional(),
-});
+import {
+  adminCreateOrderBodySchema,
+  adminOrderIdParamSchema,
+  adminOrdersQuerySchema,
+  adminUpdateOrderBodySchema,
+} from "@contracts/admin";
+export {
+  adminCreateOrderBodySchema,
+  adminOrderIdParamSchema,
+  adminOrdersQuerySchema,
+  adminUpdateOrderBodySchema,
+};
 
 export const adminDeleteOrderBodySchema = z.object({
   id: z.string().uuid(),
   deletedBy: z.string().trim().min(1).max(255).optional(),
-});
-
-export const adminOrderIdParamSchema = z.object({
-  id: z.string().uuid(),
 });
 
 export const adminVerifyBodySchema = z.object({

@@ -1,16 +1,7 @@
 import { authenticatedFetchJson } from "@/shared/api/authenticated-fetch";
+export type { UsageStats } from "@contracts/customer";
 
 export type ContentType = string;
-
-export interface UsageStats {
-  reelsAnalyzed: number;
-  reelsAnalyzedLimit: number | null;
-  contentGenerated: number;
-  contentGeneratedLimit: number | null;
-  queueSize: number;
-  queueLimit: number | null;
-  resetDate?: string;
-}
 
 export interface GenerationHistory {
   id: string;

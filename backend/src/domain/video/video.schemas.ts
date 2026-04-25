@@ -1,3 +1,4 @@
+import { aspectRatioSchema, providerSchema } from "@contracts/video";
 import { z } from "zod";
 import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "./video-shot-durations";
 
@@ -43,13 +44,6 @@ export const timelineSchema = z.object({
 
 export type TimelinePayload = z.infer<typeof timelineSchema>;
 export type TimelineItemPayload = z.infer<typeof timelineItemSchema>;
-
-export const providerSchema = z.enum([
-  "kling-fal",
-  "runway",
-  "image-ken-burns",
-]);
-export const aspectRatioSchema = z.enum(["9:16", "16:9", "1:1"]);
 
 export const createReelSchema = z.object({
   generatedContentId: z.number().int().positive(),

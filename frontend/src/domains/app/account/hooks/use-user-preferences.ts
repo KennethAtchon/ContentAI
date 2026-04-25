@@ -52,7 +52,10 @@ export function useUserPreferences() {
     },
   });
 
-  async function handleChange(field: keyof UserSettingsData, value: string) {
+  async function handleChange(
+    field: Extract<keyof UserSettingsData, string>,
+    value: string,
+  ) {
     setSavingField(field);
     setSavedField(null);
 

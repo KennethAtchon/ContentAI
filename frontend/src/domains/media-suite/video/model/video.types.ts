@@ -1,57 +1,9 @@
-export type VideoJobStatus = "queued" | "running" | "completed" | "failed";
-
-export interface VideoJobProgress {
-  phase:
-    | "queued"
-    | "decode"
-    | "graph-build"
-    | "encode"
-    | "finalize"
-    | "completed";
-  percent: number;
-  message?: string;
-  shotsCompleted?: number;
-  totalShots?: number;
-}
-
-export interface VideoJobResult {
-  clipAssetId?: string;
-  assembledAssetId?: string;
-  videoUrl?: string;
-  provider?: string;
-  durationSeconds?: number;
-  shotCount?: number;
-}
-
-export interface VideoRenderJob {
-  id: string;
-  userId: string;
-  generatedContentId: number;
-  kind: "reel_generate" | "shot_regenerate" | "assemble" | "composition_render";
-  status: VideoJobStatus;
-  createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
-  request?: Record<string, unknown>;
-  error?: string;
-  result?: VideoJobResult;
-  progress?: VideoJobProgress;
-}
-
-export interface CreateReelRequest {
-  generatedContentId: number;
-  prompt?: string;
-  durationSeconds?: number;
-  aspectRatio?: "9:16" | "16:9" | "1:1";
-  provider?: "kling-fal" | "runway" | "image-ken-burns";
-}
-
-export interface CreateReelResponse {
-  jobId: string;
-  status: VideoJobStatus;
-  generatedContentId: number;
-}
-
-export interface VideoJobResponse {
-  job: VideoRenderJob;
-}
+export type {
+  CreateReelRequest,
+  CreateReelResponse,
+  VideoJobProgress,
+  VideoJobResponse,
+  VideoJobResult,
+  VideoJobStatus,
+  VideoRenderJob,
+} from "@contracts/video";

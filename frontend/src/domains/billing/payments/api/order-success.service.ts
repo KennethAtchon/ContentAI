@@ -1,4 +1,8 @@
 import { debugLog } from "@/shared/debug";
+import type {
+  CreateOrderFromCheckoutInput,
+  CreateOrderFromCheckoutResponse,
+} from "@contracts/customer";
 
 type AuthenticatedFetch = (
   url: string,
@@ -31,16 +35,6 @@ export interface OrderDetails {
   stripeSessionId?: string;
 }
 
-interface CreateOrderResponse {
-  order?: { id?: string };
-  id?: string;
-  data?: { id?: string };
-}
-
-function resolveOrderId(result: CreateOrderResponse): string | null {
-  return result.order?.id ?? result.id ?? result.data?.id ?? null;
-}
-
 export async function createOrderFromCheckoutSession(
   authenticatedFetch: AuthenticatedFetch,
   sessionId: string,
@@ -52,20 +46,22 @@ export async function createOrderFromCheckoutSession(
     userId,
   });
 
+  const payload: CreateOrderFromCheckoutInput = {
+    status: "completed",
+    stripeSessionId: sessionId,
+  };
+
   const response = await authenticatedFetch("/api/customer/orders/create", {
     method: "POST",
-    body: JSON.stringify({
-      status: "completed",
-      stripeSessionId: sessionId,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     throw new Error(`Order creation failed with status ${response.status}`);
   }
 
-  const result = (await response.json()) as CreateOrderResponse;
-  const orderId = resolveOrderId(result);
+  const result = (await response.json()) as CreateOrderFromCheckoutResponse;
+  const orderId = result.order?.id ?? null;
   if (!orderId) {
     throw new Error("No order ID returned from API");
   }
@@ -96,15 +92,12 @@ export async function fetchOrderDetails(
     throw new Error(`Failed to fetch order details (${response.status})`);
   }
 
-  const data = (await response.json()) as { order?: OrderDetails };
-  if (!data.order) {
-    throw new Error("Invalid order data received");
-  }
+  const data = (await response.json()) as OrderDetails;
 
   debugLog.info("OrderConfirmation: Order details fetched successfully", {
     component: "OrderConfirmation",
-    orderId: data.order.id,
+    orderId: data.id,
   });
 
-  return data.order;
+  return data;
 }

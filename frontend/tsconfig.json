@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "rootDir": "..",
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
@@ -25,7 +26,10 @@
       "@/*": ["./src/*"],
       "@/shared/*": ["./src/shared/*"],
       "@/domains/*": ["./src/domains/*"],
-      "@/app/*": ["./src/app/*"]
+      "@/app/*": ["./src/app/*"],
+      "@contracts": ["../packages/contracts/src/index.ts"],
+      "@contracts/*": ["../packages/contracts/src/*"],
+      "zod": ["./node_modules/zod"]
     }
   },
   "include": ["src"],

@@ -8,6 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  adminOrderStatusSchema,
+  type AdminOrderStatus,
+} from "@contracts/admin";
 
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
@@ -48,19 +52,11 @@ const API_ENDPOINTS = {
   ORDERS: "/api/admin/orders",
 } as const;
 
-const ORDER_STATUS = {
-  PAID: "paid",
-  PENDING: "pending",
-  CANCELLED: "cancelled",
-} as const;
-
 // Error messages are now translated - removed constant
 
 // Placeholders are now translated - removed constant
 
 const FORM_GRID_COLS = "grid-cols-1 gap-6";
-
-type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 
 // Schema will be created inside component to use translations
 const createOrderFormSchema = (t: (key: string) => string) =>
@@ -69,7 +65,7 @@ const createOrderFormSchema = (t: (key: string) => string) =>
     userId: z
       .string()
       .min(1, { message: t("admin_order_form_error_customer_required") }),
-    status: z.string(),
+    status: adminOrderStatusSchema,
   });
 
 type OrderFormValues = z.infer<ReturnType<typeof createOrderFormSchema>>;
@@ -81,7 +77,7 @@ interface User {
 }
 
 interface StatusOption {
-  value: OrderStatus;
+  value: AdminOrderStatus;
   label: string;
 }
 
@@ -107,9 +103,9 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
 
   // Status options configuration
   const statusOptions: StatusOption[] = [
-    { value: ORDER_STATUS.PAID, label: t("admin_orders_paid") },
-    { value: ORDER_STATUS.PENDING, label: t("admin_orders_pending") },
-    { value: ORDER_STATUS.CANCELLED, label: t("admin_orders_cancelled") },
+    { value: "completed", label: t("admin_orders_paid") },
+    { value: "pending", label: t("admin_orders_pending") },
+    { value: "cancelled", label: t("admin_orders_cancelled") },
   ];
 
   const usersUrl = useMemo(() => {
@@ -154,7 +150,7 @@ export function OrderForm({ order, onSubmit, onClose }: OrderFormProps) {
    */
   const getDefaultValues = (): Partial<OrderFormValues> => ({
     userId: order?.userId || "",
-    status: order?.status || ORDER_STATUS.PENDING,
+    status: adminOrderStatusSchema.catch("pending").parse(order?.status),
   });
 
   const defaultValues = getDefaultValues();
