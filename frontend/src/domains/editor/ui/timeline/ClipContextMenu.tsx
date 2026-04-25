@@ -10,7 +10,6 @@ import {
   ContextMenuTrigger,
 } from "@/shared/ui/primitives/context-menu";
 import type { Track, TrackType, Clip, Transition } from "../../model/editor";
-import { isCaptionClip } from "../../lib/clip-types";
 
 interface ClipContextMenuProps {
   clip: Clip;
@@ -40,7 +39,7 @@ export function ClipContextMenu({
   onDelete,
   onSetSpeed,
 }: ClipContextMenuProps) {
-  const isDisabled = !isCaptionClip(clip) && clip.enabled === false;
+  const isDisabled = clip.enabled === false;
 
   return (
     <ContextMenu>
@@ -66,30 +65,26 @@ export function ClipContextMenu({
           <ContextMenuShortcut>⌘V</ContextMenuShortcut>
         </ContextMenuItem>
 
-        {!isCaptionClip(clip) && (
-          <>
-            <ContextMenuSeparator />
+        <ContextMenuSeparator />
 
-            <ContextMenuItem onSelect={onToggleEnabled}>
-              {isDisabled ? "Enable Clip" : "Disable Clip"}
-            </ContextMenuItem>
+        <ContextMenuItem onSelect={onToggleEnabled}>
+          {isDisabled ? "Enable Clip" : "Disable Clip"}
+        </ContextMenuItem>
 
-            <ContextMenuSub>
-              <ContextMenuSubTrigger>Speed</ContextMenuSubTrigger>
-              <ContextMenuSubContent>
-                {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4].map((s) => (
-                  <ContextMenuItem
-                    key={s}
-                    onSelect={() => onSetSpeed(s)}
-                    className={clip.speed === s ? "text-studio-accent" : ""}
-                  >
-                    {s}x{clip.speed === s ? " ✓" : ""}
-                  </ContextMenuItem>
-                ))}
-              </ContextMenuSubContent>
-            </ContextMenuSub>
-          </>
-        )}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>Speed</ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4].map((s) => (
+              <ContextMenuItem
+                key={s}
+                onSelect={() => onSetSpeed(s)}
+                className={clip.speed === s ? "text-studio-accent" : ""}
+              >
+                {s}x{clip.speed === s ? " ✓" : ""}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
 
         <ContextMenuSeparator />
 

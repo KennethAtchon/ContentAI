@@ -341,9 +341,7 @@ export function getCodecRecommendations(
   });
 }
 
-export function getResolutionRecommendations(
-  profile: DeviceProfile
-): Array<{
+export function getResolutionRecommendations(profile: DeviceProfile): Array<{
   width: number;
   height: number;
   label: string;

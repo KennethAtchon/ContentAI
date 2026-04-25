@@ -13,9 +13,6 @@ import { AudioRepository } from "./audio/audio.repository";
 import { AudioService } from "./audio/audio.service";
 import { MusicRepository } from "./music/music.repository";
 import { MusicService } from "./music/music.service";
-import { CaptionsRepository } from "./editor/captions.repository";
-import { CaptionsService } from "./editor/captions.service";
-import { CaptionPresetRepository } from "./editor/captions/preset.repository";
 import { EditorRepository } from "./editor/editor.repository";
 import { EditorService } from "./editor/editor.service";
 import { SyncService } from "./editor/sync/sync.service";
@@ -55,14 +52,6 @@ export const authService = new AuthService(authRepository);
 export const assetsRepository = new AssetsRepository(db);
 export const assetsService = new AssetsService(assetsRepository);
 
-export const captionsRepository = new CaptionsRepository(db);
-export const captionPresetRepository = new CaptionPresetRepository(db);
-export const captionsService = new CaptionsService(
-  assetsRepository,
-  captionsRepository,
-  captionPresetRepository,
-);
-
 export const contentRepository = new ContentRepository(db);
 export const contentService = new ContentService(
   contentRepository,
@@ -83,12 +72,10 @@ export const queueService = new QueueService(queueRepository, editorRepository);
 export const syncService = new SyncService(
   editorRepository,
   contentRepository,
-  captionsService,
 );
 
 export const editorService = new EditorService(
   editorRepository,
-  captionsRepository,
   contentRepository,
   queueRepository,
   syncService,

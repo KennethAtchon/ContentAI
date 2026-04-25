@@ -75,39 +75,18 @@ export interface TextClip extends VisualClip {
   source?: "content" | "user";
 }
 
-export interface CaptionStyleOverrides {
-  positionY?: number;
-  fontSize?: number;
-  textTransform?: "none" | "uppercase" | "lowercase";
-}
-
-export interface CaptionClip extends BaseClip {
-  type: "caption";
-  originVoiceoverClipId: string | null;
-  captionDocId: string;
-  sourceStartMs: number;
-  sourceEndMs: number;
-  stylePresetId: string;
-  styleOverrides: CaptionStyleOverrides;
-  groupingMs: number;
-  stale?: boolean;
-  source?: "content" | "user";
-}
-
-export type Clip = VideoClip | AudioClip | MusicClip | TextClip | CaptionClip;
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
 export type MediaClip = VideoClip | AudioClip | MusicClip;
 
 export type VideoClipPatch = Partial<Omit<VideoClip, "id" | "type">>;
 export type AudioClipPatch = Partial<Omit<AudioClip, "id" | "type">>;
 export type MusicClipPatch = Partial<Omit<MusicClip, "id" | "type">>;
 export type TextClipPatch = Partial<Omit<TextClip, "id" | "type">>;
-export type CaptionClipPatch = Partial<Omit<CaptionClip, "id" | "type">>;
 export type ClipPatch =
   | VideoClipPatch
   | AudioClipPatch
   | MusicClipPatch
-  | TextClipPatch
-  | CaptionClipPatch;
+  | TextClipPatch;
 
 export type TrackType = "video" | "audio" | "music" | "text";
 

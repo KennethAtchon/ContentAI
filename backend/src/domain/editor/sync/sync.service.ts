@@ -35,8 +35,6 @@
  * - Content-sourced clips (source: "content" or no source field) are replaced
  *   by fresh ones, with trim/position adjustments preserved when the same
  *   assetId existed before.
- * - CaptionsService.transcribeAsset is idempotent: same assetId → same
- *   captionDocId → user caption style edits survive re-sync.
  * - chat_session_content membership and chat_sessions.activeContentId are
  *   owned by the chat tool save path (registerCreatedContent), not by
  *   SyncService. SyncService receives the already-saved contentId and reacts.
@@ -66,13 +64,10 @@
 
 import type { IContentRepository } from "../../content/content.repository";
 import type { IEditorRepository } from "../editor.repository";
-import type { CaptionsService } from "../captions.service";
 import type { TimelineTrackJson } from "../timeline/merge-placeholders-with-assets";
 import { sanitizeTrackOverlaps } from "../timeline/track-overlaps";
 import type { TimelineClipJson } from "../timeline/clip-trim";
 import { normalizeMediaClipTrimFields } from "../timeline/clip-trim";
-import { buildCaptionClip } from "../timeline/build-caption-clip";
-import { debugLog } from "../../../utils/debug/debug";
 
 type ContentAssetRow = {
   id: string;
@@ -95,7 +90,6 @@ export class SyncService {
   constructor(
     private readonly editor: IEditorRepository,
     private readonly content: IContentRepository,
-    private readonly captionsService: CaptionsService,
   ) {}
 
   /**
@@ -146,29 +140,6 @@ export class SyncService {
       musicTrack.clips = [
         this.buildAudioClip(musicAsset, "music", "Music", 0.3),
       ];
-    }
-
-    if (voiceoverAsset && (voiceoverAsset.durationMs ?? 0) > 0) {
-      try {
-        const { captionDocId } = await this.captionsService.transcribeAsset(
-          userId,
-          voiceoverAsset.id,
-        );
-        const textTrack = tracks.find((t) => t.type === "text")!;
-        textTrack.clips = [
-          buildCaptionClip({
-            captionDocId,
-            voiceoverAsset,
-            voiceoverClipId: null,
-          }) as unknown as TimelineClipJson,
-        ];
-      } catch (err) {
-        debugLog.warn("Caption transcription failed during deriveTimeline", {
-          service: "sync-service",
-          contentId,
-          error: err instanceof Error ? err.message : "unknown",
-        });
-      }
     }
 
     return { tracks, durationMs: this.computeDuration(tracks) };

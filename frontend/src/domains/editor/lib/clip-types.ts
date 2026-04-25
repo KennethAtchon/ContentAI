@@ -1,16 +1,11 @@
 import type {
   AudioClip,
-  CaptionClip,
   Clip,
   MediaClip,
   MusicClip,
   TextClip,
   VideoClip,
 } from "../model/editor";
-
-export function isCaptionClip(clip: Clip): clip is CaptionClip {
-  return clip.type === "caption";
-}
 
 export function isVideoClip(clip: Clip): clip is VideoClip {
   return clip.type === "video";
@@ -32,10 +27,4 @@ export function isMediaClip(clip: Clip): clip is MediaClip {
   return (
     clip.type === "video" || clip.type === "audio" || clip.type === "music"
   );
-}
-
-export function isNonCaptionClip(
-  clip: Clip
-): clip is Exclude<Clip, CaptionClip> {
-  return clip.type !== "caption";
 }

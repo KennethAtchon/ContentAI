@@ -1,8 +1,6 @@
 import {
   editorRepository,
   assetsRepository,
-  captionsRepository,
-  captionPresetRepository,
 } from "../../domain/singletons";
 import { runExportJob as runExportJobCore } from "../../domain/editor/run-export-job";
 
@@ -26,10 +24,6 @@ export async function runExportJob(
     updateExportJob: (id, p) => editorRepository.updateExportJob(id, p),
     findManyAssetsByIdsForUser: (uid, ids) =>
       assetsRepository.findManyByIdsForUser(uid, ids),
-    findCaptionDocByIdForUser: (uid, captionDocId) =>
-      captionsRepository.findByIdAndUser(captionDocId, uid),
-    getCaptionPreset: (presetId) =>
-      captionPresetRepository.getCaptionPreset(presetId),
     insertAssembledVideoAsset: (row) => assetsRepository.insertAsset(row),
   });
 }

@@ -2,23 +2,12 @@ import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { NewAssetRow } from "../assets/assets.repository";
-import { buildPages } from "./captions/page-builder";
-import { applyOverrides } from "./captions/preset.repository";
-import { sliceTokensToRange } from "./captions/slice-tokens";
-import {
-  deriveAssStyleName,
-  generateASS,
-  serializeASS,
-} from "./export/ass-exporter";
-import type { Token } from "../../infrastructure/database/drizzle/schema";
 import type {
   AudioClip,
-  CaptionClip,
   MusicClip,
   Track,
   VideoClip,
 } from "../../types/timeline.types";
-import type { CaptionPresetRecord } from "./captions/preset.repository";
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { buildFfmpegAtempoChain } from "./timeline/composition";
@@ -42,10 +31,6 @@ function isRenderableMediaClip(
   return (
     clip.type === "video" || clip.type === "audio" || clip.type === "music"
   );
-}
-
-function escapeSubtitlesFilterPath(filePath: string): string {
-  return filePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
 }
 
 function getClipPlaybackSpeed(clip: { speed?: number }): number {
@@ -166,11 +151,6 @@ export async function runExportJob(
       userId: string,
       ids: string[],
     ) => Promise<Array<{ id: string; r2Key: string | null; type: string }>>;
-    findCaptionDocByIdForUser: (
-      userId: string,
-      captionDocId: string,
-    ) => Promise<{ id: string; tokens: Token[] } | null>;
-    getCaptionPreset: (presetId: string) => Promise<CaptionPresetRecord | null>;
     insertAssembledVideoAsset: (row: NewAssetRow) => Promise<{ id: string }>;
   },
 ) {
@@ -237,9 +217,6 @@ export async function runExportJob(
     const musicClips = (musicTrack?.clips ?? [])
       .filter((clip): clip is MusicClip => clip.type === "music")
       .filter((c) => c.assetId && assetsMap[c.assetId]);
-    const captionClips = (textTrack?.clips ?? []).filter(
-      (clip): clip is CaptionClip => clip.type === "caption",
-    );
 
     if (videoClips.length === 0) {
       await deps.updateExportJob(jobId, {
@@ -247,27 +224,6 @@ export async function runExportJob(
         error: "No video clips on timeline",
       });
       return;
-    }
-
-    if (captionClips.length > 0) {
-      for (const clip of captionClips) {
-        const doc = await deps.findCaptionDocByIdForUser(
-          userId,
-          clip.captionDocId,
-        );
-        if (!doc) {
-          throw new Error(
-            `Caption doc "${clip.captionDocId}" was not found for clip "${clip.id}"`,
-          );
-        }
-
-        const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
-        if (!presetRecord) {
-          throw new Error(
-            `Caption preset "${clip.stylePresetId}" was not found for clip "${clip.id}"`,
-          );
-        }
-      }
     }
 
     const downloadToTmp = async (
@@ -393,81 +349,6 @@ export async function runExportJob(
         currentLabel = outLabel;
       }
       latestVideoLabel = "vjoined";
-    }
-
-    if (captionClips.length > 0) {
-      const styles = new Map<string, CaptionPresetRecord>();
-      const events = [];
-
-      for (const clip of captionClips) {
-        const doc = await deps.findCaptionDocByIdForUser(
-          userId,
-          clip.captionDocId,
-        );
-        const presetRecord = await deps.getCaptionPreset(clip.stylePresetId);
-        if (!doc || !presetRecord) {
-          throw new Error(
-            "Caption validation unexpectedly failed during export rendering",
-          );
-        }
-
-        const slicedTokens = sliceTokensToRange(
-          doc.tokens,
-          clip.sourceStartMs,
-          clip.sourceEndMs,
-        );
-        if (slicedTokens.length === 0) continue;
-
-        const resolvedPreset = applyOverrides(
-          presetRecord,
-          clip.styleOverrides ?? {},
-        );
-        const styleName = deriveAssStyleName(resolvedPreset);
-        const pages = buildPages(
-          slicedTokens,
-          clip.groupingMs || resolvedPreset.groupingMs,
-        );
-        if (pages.length === 0) continue;
-
-        styles.set(styleName, {
-          ...resolvedPreset,
-          createdAt: presetRecord.createdAt,
-          updatedAt: presetRecord.updatedAt,
-        });
-        events.push(
-          ...generateASS(
-            pages,
-            resolvedPreset,
-            { width: outW, height: outH },
-            clip.startMs,
-            styleName,
-          ),
-        );
-      }
-
-      if (events.length > 0) {
-        const assFilePath = join(tmpdir(), `export-${jobId}-captions.ass`);
-        writeFileSync(
-          assFilePath,
-          serializeASS(
-            events,
-            [...styles.entries()].map(([styleName, preset]) => ({
-              styleName,
-              preset,
-            })),
-            { width: outW, height: outH },
-          ),
-        );
-        tmpFiles.push(assFilePath);
-
-        const subtitleLabel = "vcaptions";
-        filterParts.push(
-          `[${latestVideoLabel}]subtitles='${escapeSubtitlesFilterPath(
-            assFilePath,
-          )}'[${subtitleLabel}]`,
-        );
-        latestVideoLabel = subtitleLabel;
-      }
     }
 
     type ExportAudioInput = {

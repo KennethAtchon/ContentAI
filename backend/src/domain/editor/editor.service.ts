@@ -6,7 +6,6 @@ import type { IContentRepository } from "../content/content.repository";
 import type { IQueueRepository } from "../queue/queue.repository";
 import type { createProjectSchema, patchProjectSchema } from "./editor.schemas";
 import type { IEditorRepository } from "./editor.repository";
-import type { ICaptionsRepository } from "./captions.repository";
 import type { SyncService } from "./sync/sync.service";
 import { sanitizeEditorTrackOverlaps } from "./timeline/track-overlaps";
 import { parseStoredEditorTracks } from "./validate-stored-tracks";
@@ -14,68 +13,10 @@ import { parseStoredEditorTracks } from "./validate-stored-tracks";
 export class EditorService {
   constructor(
     private readonly editor: IEditorRepository,
-    private readonly captions: ICaptionsRepository,
     private readonly content: IContentRepository,
     private readonly queue: IQueueRepository,
     private readonly syncService: SyncService,
   ) {}
-
-  private getCaptionDocIds(tracks: unknown): Set<string> {
-    return new Set(
-      parseStoredEditorTracks(tracks)
-        .flatMap((track) => track.clips)
-        .flatMap((clip) =>
-          clip.type === "caption" ? [clip.captionDocId] : [],
-        ),
-    );
-  }
-
-  private async cleanupCaptionDocsIfUnreferenced(
-    userId: string,
-    excludeProjectId: string,
-    candidateCaptionDocIds: Iterable<string>,
-  ) {
-    const candidateIds = [...new Set(candidateCaptionDocIds)].filter(Boolean);
-    if (candidateIds.length === 0) return;
-
-    try {
-      const otherProjects = await this.editor.listProjectTracksForUser(
-        userId,
-        excludeProjectId,
-      );
-      const referencedElsewhere = new Set<string>();
-
-      for (const project of otherProjects) {
-        try {
-          for (const captionDocId of this.getCaptionDocIds(project.tracks)) {
-            referencedElsewhere.add(captionDocId);
-          }
-        } catch (error) {
-          debugLog.warn(
-            "Skipping caption cleanup scan for invalid project tracks",
-            {
-              service: "editor-service",
-              operation: "cleanupCaptionDocsIfUnreferenced",
-              projectId: project.id,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
-          );
-        }
-      }
-
-      const orphanedIds = candidateIds.filter(
-        (captionDocId) => !referencedElsewhere.has(captionDocId),
-      );
-      await this.captions.deleteByIdsAndUser(orphanedIds, userId);
-    } catch (error) {
-      debugLog.warn("Caption doc cleanup failed", {
-        service: "editor-service",
-        operation: "cleanupCaptionDocsIfUnreferenced",
-        projectId: excludeProjectId,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  }
 
   async listProjectsForUser(userId: string) {
     return this.editor.listForUserWithGeneratedContent(userId);
@@ -191,7 +132,6 @@ export class EditorService {
     }
 
     const updateData: Record<string, unknown> = { userHasEdited: true };
-    let removedCaptionDocIds: string[] = [];
     if (parsed.title !== undefined) {
       updateData.title = parsed.title;
       if (parsed.title !== existing.title) {
@@ -199,13 +139,7 @@ export class EditorService {
       }
     }
     if (parsed.tracks !== undefined) {
-      const sanitizedTracks = sanitizeEditorTrackOverlaps(parsed.tracks);
-      const previousCaptionDocIds = this.getCaptionDocIds(existing.tracks);
-      const nextCaptionDocIds = this.getCaptionDocIds(sanitizedTracks);
-      removedCaptionDocIds = [...previousCaptionDocIds].filter(
-        (captionDocId) => !nextCaptionDocIds.has(captionDocId),
-      );
-      updateData.tracks = sanitizedTracks;
+      updateData.tracks = sanitizeEditorTrackOverlaps(parsed.tracks);
     }
     if (parsed.durationMs !== undefined)
       updateData.durationMs = parsed.durationMs;
@@ -219,11 +153,6 @@ export class EditorService {
       updateData,
     );
     if (!updated) throw Errors.notFound("Edit project");
-    await this.cleanupCaptionDocsIfUnreferenced(
-      userId,
-      projectId,
-      removedCaptionDocIds,
-    );
 
     return { id: updated.id, updatedAt: updated.updatedAt };
   }
@@ -231,13 +160,7 @@ export class EditorService {
   async deleteProjectForUser(userId: string, projectId: string) {
     const project = await this.editor.findByIdAndUserId(projectId, userId);
     if (!project) throw Errors.notFound("Edit project");
-    const captionDocIds = this.getCaptionDocIds(project.tracks);
     await this.editor.deleteByIdForUser(projectId, userId);
-    await this.cleanupCaptionDocsIfUnreferenced(
-      userId,
-      projectId,
-      captionDocIds,
-    );
   }
 
   async publishProjectForUser(userId: string, projectId: string) {

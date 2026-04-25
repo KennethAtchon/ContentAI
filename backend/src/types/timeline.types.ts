@@ -2,9 +2,6 @@
  * Strict TypeScript models for editor timeline JSONB (`edit_project.tracks`).
  * Aligned with `frontend/src/features/editor/types/editor.ts`.
  */
-import type { Token } from "../infrastructure/database/drizzle/schema";
-
-export type { Token };
 
 export interface TextStyle {
   fontSize: number;
@@ -77,24 +74,7 @@ export interface TextClip extends VisualClip {
 
 export type MediaClip = VideoClip | AudioClip | MusicClip;
 
-export interface CaptionStyleOverrides {
-  positionY?: number;
-  fontSize?: number;
-  textTransform?: "none" | "uppercase" | "lowercase";
-}
-
-export interface CaptionClip extends BaseClip {
-  type: "caption";
-  originVoiceoverClipId: string | null;
-  captionDocId: string;
-  sourceStartMs: number;
-  sourceEndMs: number;
-  stylePresetId: string;
-  styleOverrides: CaptionStyleOverrides;
-  groupingMs: number;
-}
-
-export type Clip = VideoClip | AudioClip | MusicClip | TextClip | CaptionClip;
+export type Clip = VideoClip | AudioClip | MusicClip | TextClip;
 
 export type TrackType = "video" | "audio" | "music" | "text";
 

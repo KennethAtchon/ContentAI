@@ -21,7 +21,6 @@ export type {
 } from "./hono.types";
 
 export type {
-  Token,
   TextStyle,
   Transition,
   BaseClip,
@@ -34,8 +33,6 @@ export type {
   TextClip,
   Clip,
   MediaClip,
-  CaptionStyleOverrides,
-  CaptionClip,
   TrackType,
   Track,
   EditorTracks,

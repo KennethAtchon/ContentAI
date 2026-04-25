@@ -461,28 +461,3 @@ export async function invalidateAfterSubscriptionRoleChange(
     }),
   ]);
 }
-
-export async function invalidateCaptionDocQuery(
-  queryClient: QueryClient,
-  captionDocId: string
-): Promise<void> {
-  await queryClient.invalidateQueries({
-    queryKey: queryKeys.api.captionDoc(captionDocId),
-  });
-}
-
-export async function invalidateCaptionQueriesAfterTranscription(
-  queryClient: QueryClient,
-  assetId: string,
-  captionDocId: string
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.api.captionDocByAsset(assetId),
-    }),
-    invalidateCaptionDocQuery(queryClient, captionDocId),
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.api.captionPresets(),
-    }),
-  ]);
-}

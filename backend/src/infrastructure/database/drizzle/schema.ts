@@ -12,7 +12,6 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
-import type { TextPreset as CaptionTextPreset } from "../../../domain/editor/captions/types";
 
 export const users = pgTable("user", {
   id: text("id")
@@ -809,75 +808,6 @@ export const aiCostLedger = pgTable(
 
 export type AiCostEntry = typeof aiCostLedger.$inferSelect;
 
-// ─── Captions ──────────────────────────────────────────────────────────────────
-// Word-level transcription data from Whisper, one row per (user, asset).
-
-export interface Token {
-  text: string;
-  startMs: number;
-  endMs: number;
-}
-
-export type CaptionDocSource = "whisper" | "manual" | "import";
-
-/**
- * Phase 2 stores the canonical preset JSON in the database before the full
- * caption renderer/export type system lands in later phases.
- */
-export type CaptionPresetDefinition = CaptionTextPreset;
-
-export const captionDocs = pgTable(
-  "caption_doc",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    assetId: text("asset_id").references(() => assets.id, {
-      onDelete: "cascade",
-    }),
-    language: text("language").notNull().default("en"),
-    tokens: jsonb("tokens").notNull().$type<Token[]>(),
-    fullText: text("full_text").notNull(),
-    source: text("source")
-      .notNull()
-      .default("whisper")
-      .$type<CaptionDocSource>(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at")
-      .notNull()
-      .defaultNow()
-      .$onUpdateFn(() => new Date()),
-  },
-  (t) => [
-    index("caption_doc_asset_idx").on(t.assetId),
-    index("caption_doc_user_idx").on(t.userId),
-    uniqueIndex("caption_doc_user_asset_unique")
-      .on(t.userId, t.assetId)
-      .where(sql`asset_id IS NOT NULL`),
-  ],
-);
-
-export const captionDocsRelations = relations(captionDocs, ({ one }) => ({
-  user: one(users, { fields: [captionDocs.userId], references: [users.id] }),
-  asset: one(assets, {
-    fields: [captionDocs.assetId],
-    references: [assets.id],
-  }),
-}));
-
-export const captionPresets = pgTable("caption_preset", {
-  id: text("id").primaryKey(),
-  definition: jsonb("definition").notNull().$type<CaptionPresetDefinition>(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at")
-    .notNull()
-    .defaultNow()
-    .$onUpdateFn(() => new Date()),
-});
-
 // ─── Inferred types ───────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -923,7 +853,3 @@ export type SystemConfig = typeof systemConfig.$inferSelect;
 export type NewSystemConfig = typeof systemConfig.$inferInsert;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type NewUserSettings = typeof userSettings.$inferInsert;
-export type CaptionDoc = typeof captionDocs.$inferSelect;
-export type NewCaptionDoc = typeof captionDocs.$inferInsert;
-export type CaptionPreset = typeof captionPresets.$inferSelect;
-export type NewCaptionPreset = typeof captionPresets.$inferInsert;

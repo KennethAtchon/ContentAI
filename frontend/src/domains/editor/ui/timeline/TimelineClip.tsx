@@ -157,11 +157,7 @@ function TimelineClipInner({
           style={{ color }}
         >
           {isDisabled ? "Disabled " : ""}
-          {clip.type === "caption"
-            ? "Caption"
-            : "label" in clip
-              ? clip.label
-              : "Clip"}
+          {"label" in clip ? clip.label : "Clip"}
         </span>
 
         <span

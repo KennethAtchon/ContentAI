@@ -46,7 +46,6 @@ export interface ToolContext {
    * This enables tools like:
    *   - trim_clip: AI trims a specific clip to a target duration
    *   - reorder_shots: AI reorders video clips to match revised script pacing
-   *   - set_caption_preset: AI picks a caption style preset
    *   - create_text_overlay: AI creates a lower third or title card
    *   - assemble_video_cut: AI selects shots and sets cut timing (may use
    *     onContentSaved or onEditorAction depending on whether a new content

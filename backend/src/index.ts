@@ -35,12 +35,10 @@ import audioRoutes from "./routes/audio/index";
 import assetsRoutes from "./routes/assets/index";
 import musicRoutes from "./routes/music/index";
 import editorRoutes from "./routes/editor/index";
-import captionsRoutes from "./routes/editor/captions";
 import videoRoutes from "./routes/video/index";
 import mediaRoutes from "./routes/media/index";
 import { startDailyScan } from "./jobs/daily-scan";
 import { seedSystemConfig } from "./services/config/config-seed";
-import { seedCaptionPresets } from "./services/config/caption-preset-seed";
 
 const app = new Hono();
 
@@ -102,7 +100,6 @@ app.route("/api/audio", audioRoutes);
 app.route("/api/assets", assetsRoutes);
 app.route("/api/music", musicRoutes);
 app.route("/api/editor", editorRoutes);
-app.route("/api/captions", captionsRoutes);
 app.route("/api/video", videoRoutes);
 app.route("/api/media", mediaRoutes);
 
@@ -137,8 +134,7 @@ debugLog.info(`Hono backend starting on port ${port}`, {
   port,
 });
 
-// Seed static data and system config defaults, then start cron jobs based on DB flag
-seedCaptionPresets();
+// Seed system config defaults, then start cron jobs based on DB flag
 seedSystemConfig()
   .then(async () => {
     const { systemConfigService } = await import("./domain/singletons");
