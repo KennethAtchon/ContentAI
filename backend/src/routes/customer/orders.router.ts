@@ -18,7 +18,7 @@ import {
   customerOrdersQuerySchema,
   orderBySessionQuerySchema,
 } from "../../domain/customer/customer.schemas";
-import { customerValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const stripeClient = STRIPE_SECRET_KEY
   ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
@@ -30,7 +30,7 @@ ordersRouter.get(
   "/orders",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", customerOrdersQuerySchema, customerValidationErrorHook),
+  zValidator("query", customerOrdersQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { page, limit } = c.req.valid("query");
@@ -52,7 +52,7 @@ ordersRouter.post(
   zValidator(
     "json",
     createOrderFromCheckoutSchema,
-    customerValidationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     if (!stripeClient) {
@@ -83,7 +83,7 @@ ordersRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", createCustomerOrderSchema, customerValidationErrorHook),
+  zValidator("json", createCustomerOrderSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const body = c.req.valid("json");
@@ -102,7 +102,7 @@ ordersRouter.get(
   "/orders/by-session",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", orderBySessionQuerySchema, customerValidationErrorHook),
+  zValidator("query", orderBySessionQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { sessionId } = c.req.valid("query");
@@ -137,7 +137,7 @@ ordersRouter.get(
   "/orders/:orderId",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", customerOrderIdParamSchema, customerValidationErrorHook),
+  zValidator("param", customerOrderIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { orderId } = c.req.valid("param");

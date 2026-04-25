@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { safeFetch } from "@/services/http/safe-fetch";
 import { resolveVideoOutputDurationSeconds } from "@/services/video-generation/dev-fixtures/estimate-mp4-duration";
 import { storage } from "@/services/storage";
@@ -153,7 +154,7 @@ async function pollUntilComplete(
     });
 
     if (!statusRes.ok) {
-      debugLog.warn("[kling-fal] Status poll non-OK, continuing", {
+      systemLogger.warn("[kling-fal] Status poll non-OK, continuing", {
         service: "kling-fal",
         operation: "pollUntilComplete",
         requestId,
@@ -167,7 +168,7 @@ async function pollUntilComplete(
     try {
       status = JSON.parse(statusBody) as FalStatusResponse;
     } catch {
-      debugLog.warn("[kling-fal] Status poll returned non-JSON, continuing", {
+      systemLogger.warn("[kling-fal] Status poll returned non-JSON, continuing", {
         service: "kling-fal",
         operation: "pollUntilComplete",
         requestId,

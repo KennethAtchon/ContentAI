@@ -10,7 +10,6 @@
  *
  * These logs are ALWAYS printed regardless of DEBUG_ENABLED or LOG_LEVEL settings
  */
-
 import {
   sanitizeObject,
   sanitizeString,
@@ -20,8 +19,8 @@ import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
 type SystemLogLevel = "info" | "warn" | "error" | "critical";
 
 interface SystemContext {
-  service: string;
-  operation: string;
+  service?: string;
+  operation?: string;
   [key: string]: any;
 }
 
@@ -29,7 +28,7 @@ class SystemLogger {
   private formatSystemMessage(
     level: SystemLogLevel,
     message: string,
-    context: SystemContext,
+    context: SystemContext = {},
     data?: any,
   ): void {
     const timestamp = new Date().toISOString();
@@ -66,19 +65,19 @@ class SystemLogger {
     }
   }
 
-  info(message: string, context: SystemContext, data?: any) {
+  info(message: string, context: SystemContext = {}, data?: any) {
     this.formatSystemMessage("info", message, context, data);
   }
 
-  warn(message: string, context: SystemContext, data?: any) {
+  warn(message: string, context: SystemContext = {}, data?: any) {
     this.formatSystemMessage("warn", message, context, data);
   }
 
-  error(message: string, context: SystemContext, data?: any) {
+  error(message: string, context: SystemContext = {}, data?: any) {
     this.formatSystemMessage("error", message, context, data);
   }
 
-  critical(message: string, context: SystemContext, data?: any) {
+  critical(message: string, context: SystemContext = {}, data?: any) {
     this.formatSystemMessage("critical", message, context, data);
   }
 

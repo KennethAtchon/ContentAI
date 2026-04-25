@@ -13,7 +13,7 @@ import {
   updateCustomerProfile,
 } from "../../domain/customer/customer-profile-firebase";
 import { updateCustomerProfileSchema } from "../../domain/customer/customer.schemas";
-import { customerValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const usageProfileRouter = new Hono<HonoEnv>();
 
@@ -60,7 +60,7 @@ usageProfileRouter.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("json", updateCustomerProfileSchema, customerValidationErrorHook),
+  zValidator("json", updateCustomerProfileSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { name, email, phone, address, timezone } = c.req.valid("json");

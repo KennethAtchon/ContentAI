@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { debugLog } from "@/utils/debug";
 import { CSRF_SECRET } from "@/utils/config/envUtil";
@@ -96,7 +97,7 @@ export function validateCSRFToken(token: string, expectedUID: string): boolean {
     });
     return true;
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "CSRF token validation error",
       { service: "csrf-protection" },
       error,

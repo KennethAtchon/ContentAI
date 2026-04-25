@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -157,7 +158,7 @@ seedSystemConfig()
     }
   })
   .catch((err) => {
-    debugLog.error("Config seed failed — falling back to ENV for cron flag", {
+    systemLogger.error("Config seed failed — falling back to ENV for cron flag", {
       service: "index",
       operation: "seed",
       error: String(err),

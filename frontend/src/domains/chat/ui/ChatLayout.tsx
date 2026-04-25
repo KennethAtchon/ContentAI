@@ -4,7 +4,7 @@ import { ProjectSidebar } from "./projects/ProjectSidebar";
 import { ChatPanel } from "./ChatPanel";
 import { ContentWorkspace } from "./ContentWorkspace";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
-import { useChatLayout } from "../hooks/useChatLayout";
+import { useChatLayout } from "../hooks/use-chat-layout";
 import type { Project } from "../model/chat.types";
 
 interface ChatLayoutProps {

@@ -1,5 +1,4 @@
 import { checkRateLimit } from "./rate-limit-redis";
-import { debugLog } from "@/utils/debug";
 import { systemLogger } from "@/utils/system/system-logger";
 import {
   getClientIp,
@@ -167,7 +166,7 @@ export async function applyRateLimit(
 
     return null;
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Rate limit check failed",
       { service: "rate-limiter", operation: "applyRateLimit" },
       error,
@@ -217,7 +216,7 @@ export async function applyUserBasedRateLimit(
 
       const userAllowed = await checkRateLimit(userId, userConfig);
       if (!userAllowed) {
-        debugLog.warn(
+        systemLogger.warn(
           "User rate limit exceeded",
           { service: "rate-limiter", operation: "applyUserBasedRateLimit" },
           { userId, ip, pathname, limitType: rateLimitType },
@@ -244,7 +243,7 @@ export async function applyUserBasedRateLimit(
 
     return applyRateLimit(request, rateLimitType);
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "User-based rate limit check failed",
       { service: "rate-limiter", operation: "applyUserBasedRateLimit" },
       error,

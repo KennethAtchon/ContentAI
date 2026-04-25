@@ -4,6 +4,7 @@
  * Sign up at resend.com to get your API key
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import * as fs from "fs";
 import * as path from "path";
 import { debugLog } from "@/utils/debug";
@@ -73,7 +74,7 @@ export async function sendEmail(options: EmailOptions) {
   );
 
   if (!RESEND_API_KEY) {
-    debugLog.warn("RESEND_API_KEY not found in environment variables", {
+    systemLogger.warn("RESEND_API_KEY not found in environment variables", {
       service: "resend",
     });
     debugLog.info(
@@ -97,7 +98,7 @@ export async function sendEmail(options: EmailOptions) {
   const invalidEmails = allEmails.filter((email) => !isValidEmail(email));
   if (invalidEmails.length > 0) {
     const error = `Invalid email addresses: ${invalidEmails.join(", ")}`;
-    debugLog.error(
+    systemLogger.error(
       "Email validation failed",
       { service: "resend" },
       { invalidEmails },
@@ -144,7 +145,7 @@ export async function sendEmail(options: EmailOptions) {
         errorDetails = { message: errorText };
       }
 
-      debugLog.error(
+      systemLogger.error(
         "Resend API error",
         { service: "resend" },
         {
@@ -167,7 +168,7 @@ export async function sendEmail(options: EmailOptions) {
     );
     return { success: true, id: result.id };
   } catch (error) {
-    debugLog.error("Failed to send email", { service: "resend" }, error);
+    systemLogger.error("Failed to send email", { service: "resend" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -219,19 +220,19 @@ function loadEmailTemplate(): string {
     if (fs.existsSync(templatePath)) {
       return fs.readFileSync(templatePath, "utf8");
     } else {
-      debugLog.warn(
+      systemLogger.warn(
         `Email template not found at ${TEMPLATE_PATH}. Using fallback template`,
         { service: "resend" },
       );
       return generateFallbackTemplate();
     }
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Error reading email template",
       { service: "resend" },
       error,
     );
-    debugLog.warn("Using fallback email template", { service: "resend" });
+    systemLogger.warn("Using fallback email template", { service: "resend" });
     return generateFallbackTemplate();
   }
 }

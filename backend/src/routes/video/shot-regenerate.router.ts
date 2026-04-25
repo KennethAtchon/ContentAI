@@ -8,9 +8,9 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { videoJobService } from "../../services/video-generation/job.service";
 import { Errors } from "../../utils/errors/app-error";
-import { regenerateShotSchema } from "./schemas";
 import { fetchOwnedContent } from "./phase4-metadata";
 import { enqueue, runShotRegenerate } from "../../domain/video/reel-job-runner";
+import { regenerateShotSchema } from "../../domain/video/video.schemas";
 
 const shotRegenerateRouter = new Hono<HonoEnv>();
 

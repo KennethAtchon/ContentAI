@@ -5,7 +5,7 @@ import type { HonoEnv } from "../../types/hono.types";
 import { getFileUrl } from "../../services/storage/r2";
 import { contentService } from "../../domain/singletons";
 import { assetsListQuerySchema } from "../../domain/assets/assets.schemas";
-import { assetsValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const listRouter = new Hono<HonoEnv>();
 
@@ -13,7 +13,7 @@ listRouter.get(
   "/",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", assetsListQuerySchema, assetsValidationErrorHook),
+  zValidator("query", assetsListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { generatedContentId, type: typeFilter } = c.req.valid("query");

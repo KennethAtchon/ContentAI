@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { adminRepository } from "../domain/singletons";
 import { scrapeJobQueueService } from "../services/scraping/scrape-job-queue.service";
 import { debugLog } from "../utils/debug/debug";
@@ -17,7 +18,7 @@ async function runDailyScan(): Promise<void> {
       await sleep(30_000);
     }
   } catch (err) {
-    debugLog.error("Daily scan failed", {
+    systemLogger.error("Daily scan failed", {
       service: "daily-scan",
       operation: "run",
       error: err instanceof Error ? err.message : String(err),

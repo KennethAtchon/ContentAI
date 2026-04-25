@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
@@ -8,7 +9,6 @@ import {
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
 import { musicService } from "../../domain/singletons";
-import { debugLog } from "../../utils/debug/debug";
 import {
   musicAttachBodySchema,
   musicListQuerySchema,
@@ -47,7 +47,7 @@ app.post(
     const { refreshEditorTimeline } =
       await import("../editor/services/refresh-editor-timeline");
     await refreshEditorTimeline(generatedContentId, auth.user.id).catch((err) =>
-      debugLog.warn("refreshEditorTimeline (attach-music) failed", {
+      systemLogger.warn("refreshEditorTimeline (attach-music) failed", {
         err,
         contentId: generatedContentId,
       }),

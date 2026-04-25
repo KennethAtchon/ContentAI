@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { VIDEO_GENERATION_PROVIDER } from "@/utils/config/envUtil";
-import { debugLog } from "@/utils/debug";
 import { videoGenerationProvidersById } from "./provider-registry";
 import type { VideoGenerationProvider, VideoProvider } from "./types";
 
@@ -58,7 +58,7 @@ export async function getVideoGenerationProvider(
         fallbackName !== providerName &&
         (await videoGenerationProvidersById[fallbackName].isAvailable())
       ) {
-        debugLog.warn(
+        systemLogger.warn(
           `Provider "${providerName}" not available (missing API key). Falling back to "${fallbackName}".`,
           {
             service: "video-generation",

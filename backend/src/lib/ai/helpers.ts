@@ -5,6 +5,7 @@
  * fallback orchestration. All provider-specific logic lives in providers.ts.
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { generateText } from "ai";
 import { debugLog } from "../../utils/debug/debug";
 import { recordAiCost } from "../cost-tracker";
@@ -192,7 +193,7 @@ export async function callAiWithFallback(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${providerId}: ${msg}`);
-      debugLog.warn(`${providerId} call failed — trying next provider`, {
+      systemLogger.warn(`${providerId} call failed — trying next provider`, {
         service: "ai-client",
         error: msg,
       });

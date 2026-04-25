@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { adminAuth } from "../../services/firebase/admin";
-import { debugLog } from "../../utils/debug/debug";
 import type { IAuthRepository } from "./auth.repository";
 import { FirebaseUserSync, type SyncResult } from "./firebase-user-sync";
 
@@ -99,7 +99,7 @@ export class AuthService {
 
       return results;
     } catch (error) {
-      debugLog.error(
+      systemLogger.error(
         "Error in bulk sync",
         { service: "firebase-sync", action: "bulk_sync" },
         error,

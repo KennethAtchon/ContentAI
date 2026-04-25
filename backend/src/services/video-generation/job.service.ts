@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import getRedisConnection from "../db/redis";
-import { debugLog } from "../../utils/debug/debug";
 
 export type VideoJobStatus = "queued" | "running" | "completed" | "failed";
 export type VideoJobKind =
@@ -83,7 +83,7 @@ class VideoJobService {
       if (!raw) return null;
       return JSON.parse(raw) as VideoRenderJob;
     } catch (err) {
-      debugLog.error("Failed to fetch video job", {
+      systemLogger.error("Failed to fetch video job", {
         service: "video-job-service",
         operation: "getJob",
         jobId,
@@ -124,7 +124,7 @@ class VideoJobService {
         JOB_TTL_SECONDS,
       );
     } catch (err) {
-      debugLog.error("Failed to persist video job", {
+      systemLogger.error("Failed to persist video job", {
         service: "video-job-service",
         operation: "persistJob",
         jobId: job.id,

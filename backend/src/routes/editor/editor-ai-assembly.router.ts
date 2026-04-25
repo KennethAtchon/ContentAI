@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import type { z } from "zod";
@@ -15,10 +16,12 @@ import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { ANTHROPIC_API_KEY } from "../../utils/config/envUtil";
 import { buildAIAssemblyPrompt } from "./services/ai-assembly-prompt";
-import { aiAssemblyResponseSchema, aiAssembleRequestSchema } from "./schemas";
-import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
+import {
+  aiAssemblyResponseSchema,
+  aiAssembleRequestSchema,
+  editorProjectIdParamSchema,
+} from "../../domain/editor/editor.schemas";
 import { AppError, Errors } from "../../utils/errors/app-error";
-import { debugLog } from "../../utils/debug/debug";
 import {
   loadProjectShotAssets,
   convertAIResponseToTracks,
@@ -134,7 +137,7 @@ assemblyRouter.post(
         }
       }
     } catch (err) {
-      debugLog.error(
+      systemLogger.error(
         "AI assembly parse failed — returning Standard preset fallback",
         {
           service: "editor-route",

@@ -13,7 +13,7 @@ import { Errors } from "../../utils/errors/app-error";
 import Stripe from "stripe";
 import { createCheckoutSessionBodySchema } from "../../domain/subscriptions/subscriptions.schemas";
 import { createSubscriptionCheckoutSession } from "../../domain/subscriptions/subscription-flows";
-import { subscriptionsValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const stripe = STRIPE_SECRET_KEY
   ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" })
@@ -29,7 +29,7 @@ checkoutRouter.post(
   zValidator(
     "json",
     createCheckoutSessionBodySchema,
-    subscriptionsValidationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     if (!stripe) throw Errors.internal("Stripe not configured");

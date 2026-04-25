@@ -1,8 +1,8 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import {
   MAX_SCRIPT_SHOT_DURATION_SECONDS,
   MIN_SCRIPT_SHOT_DURATION_SECONDS,
 } from "./video-shot-durations";
-import { debugLog } from "../../utils/debug/debug";
 
 export type ShotInput = {
   shotIndex: number;
@@ -101,7 +101,7 @@ export function parseScriptShots(script: string | null): ShotInput[] {
   }
 
   if (invalidLines.length > 0 && invalidLines.length > lines.length / 2) {
-    debugLog.warn(
+    systemLogger.warn(
       `More than half of script lines failed to parse (${invalidLines.length}/${lines.length}). ` +
         `Expected format: "[start-end] description". Invalid lines:\n${invalidLines.map((line) => `  - "${line}"`).join("\n")}`,
     );

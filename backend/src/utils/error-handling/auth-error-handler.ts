@@ -1,10 +1,10 @@
+import { systemLogger } from "@/utils/system/system-logger";
 /**
  * Firebase Authentication Error Handler
  *
  * Maps Firebase error codes to user-friendly error messages
  */
 
-import { debugLog } from "../debug/debug";
 
 // Define FirebaseError type for backend compatibility
 interface FirebaseError extends Error {
@@ -66,7 +66,7 @@ export function getAuthErrorMessage(
 
       default:
         // For unknown Firebase errors, log the code but show generic message
-        debugLog.warn("Unhandled Firebase error code", {
+        systemLogger.warn("Unhandled Firebase error code", {
           service: "auth-error-handler",
           operation: "getAuthErrorMessage",
           errorCode,

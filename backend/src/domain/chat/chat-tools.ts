@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { tool } from "ai";
 import { z } from "zod";
 import { debugLog } from "../../utils/debug/debug";
@@ -178,7 +179,7 @@ export function createSaveContentTool(context: ToolContext) {
         });
         return { success: true as const, contentId: row.id };
       } catch (err) {
-        debugLog.error("[tool:save_content] Tool failed", {
+        systemLogger.error("[tool:save_content] Tool failed", {
           service: "chat-tools",
           operation: "save_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -207,7 +208,7 @@ export function createGetReelAnalysisTool(context: ToolContext) {
       });
       // Security: only allow reels that were attached to this message
       if (!context.reelRefs || !context.reelRefs.includes(reelId)) {
-        debugLog.warn(
+        systemLogger.warn(
           "[tool:get_reel_analysis] Reel not in context — blocked",
           {
             service: "chat-tools",
@@ -242,7 +243,7 @@ export function createGetReelAnalysisTool(context: ToolContext) {
         });
         return analysis;
       } catch (err) {
-        debugLog.error("[tool:get_reel_analysis] Tool failed", {
+        systemLogger.error("[tool:get_reel_analysis] Tool failed", {
           service: "chat-tools",
           operation: "get_reel_analysis",
           error: err instanceof Error ? err.message : "Unknown",
@@ -302,7 +303,7 @@ export function createGetContentTool(context: ToolContext) {
           createdAt: row.createdAt,
         };
       } catch (err) {
-        debugLog.error("[tool:get_content] Tool failed", {
+        systemLogger.error("[tool:get_content] Tool failed", {
           service: "chat-tools",
           operation: "get_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -420,7 +421,7 @@ export function createEditContentFieldTool(context: ToolContext) {
         });
         return { success: true as const, contentId: row.id };
       } catch (err) {
-        debugLog.error("[tool:edit_content_field] Tool failed", {
+        systemLogger.error("[tool:edit_content_field] Tool failed", {
           service: "chat-tools",
           operation: "edit_content_field",
           error: err instanceof Error ? err.message : "Unknown",
@@ -497,7 +498,7 @@ export function createIterateContentTool(context: ToolContext) {
           );
 
         if (!parent) {
-          debugLog.warn(
+          systemLogger.warn(
             "[tool:iterate_content] Parent content not found or unauthorized",
             {
               service: "chat-tools",
@@ -555,7 +556,7 @@ export function createIterateContentTool(context: ToolContext) {
         });
         return { success: true as const, contentId: row.id };
       } catch (err) {
-        debugLog.error("[tool:iterate_content] Tool failed", {
+        systemLogger.error("[tool:iterate_content] Tool failed", {
           service: "chat-tools",
           operation: "iterate_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -609,7 +610,7 @@ export function createUpdateContentStatusTool(context: ToolContext) {
         });
         return { success: true as const, contentId, status };
       } catch (err) {
-        debugLog.error("[tool:update_content_status] Tool failed", {
+        systemLogger.error("[tool:update_content_status] Tool failed", {
           service: "chat-tools",
           operation: "update_content_status",
           error: err instanceof Error ? err.message : "Unknown",
@@ -673,7 +674,7 @@ export function createSearchContentTool(context: ToolContext) {
 
         return { results: rows, total: rows.length };
       } catch (err) {
-        debugLog.error("[tool:search_content] Tool failed", {
+        systemLogger.error("[tool:search_content] Tool failed", {
           service: "chat-tools",
           operation: "search_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -776,7 +777,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
           await import("../../routes/editor/services/refresh-editor-timeline");
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
           (err: unknown) =>
-            debugLog.warn(
+            systemLogger.warn(
               "refreshEditorTimeline (generate_voiceover tool) failed",
               { err, contentId },
             ),
@@ -803,7 +804,7 @@ export function createGenerateVoiceoverTool(context: ToolContext) {
 
         return { success: true as const, assetId: asset.id, durationMs };
       } catch (err) {
-        debugLog.error("[tool:generate_voiceover] Failed", {
+        systemLogger.error("[tool:generate_voiceover] Failed", {
           service: "chat-tools",
           operation: "generate_voiceover",
           error: err instanceof Error ? err.message : "Unknown",
@@ -845,7 +846,7 @@ export function createSearchMusicTool(_context: ToolContext) {
 
         return { tracks };
       } catch (err) {
-        debugLog.error("[tool:search_music] Failed", {
+        systemLogger.error("[tool:search_music] Failed", {
           service: "chat-tools",
           operation: "search_music",
           error: err instanceof Error ? err.message : "Unknown",
@@ -895,7 +896,7 @@ export function createAttachMusicTool(context: ToolContext) {
           await import("../../routes/editor/services/refresh-editor-timeline");
         await refreshEditorTimeline(contentId, context.auth.user.id).catch(
           (err: unknown) =>
-            debugLog.warn("refreshEditorTimeline (attach_music tool) failed", {
+            systemLogger.warn("refreshEditorTimeline (attach_music tool) failed", {
               err,
               contentId,
             }),
@@ -914,7 +915,7 @@ export function createAttachMusicTool(context: ToolContext) {
           artistName: track.artistName ?? null,
         };
       } catch (err) {
-        debugLog.error("[tool:attach_music] Failed", {
+        systemLogger.error("[tool:attach_music] Failed", {
           service: "chat-tools",
           operation: "attach_music",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1000,7 +1001,7 @@ export function createGenerateVideoReelTool(context: ToolContext) {
         });
         return { success: true as const, jobId: job.id, status: job.status };
       } catch (err) {
-        debugLog.error("[tool:generate_video_reel] Failed", {
+        systemLogger.error("[tool:generate_video_reel] Failed", {
           service: "chat-tools",
           operation: "generate_video_reel",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1100,7 +1101,7 @@ export function createRegenerateVideoShotTool(context: ToolContext) {
 
         return { success: true as const, jobId: job.id, status: job.status };
       } catch (err) {
-        debugLog.error("[tool:regenerate_video_shot] Failed", {
+        systemLogger.error("[tool:regenerate_video_shot] Failed", {
           service: "chat-tools",
           operation: "regenerate_video_shot",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1141,7 +1142,7 @@ export function createRetryVideoJobTool(context: ToolContext) {
           status: retryJob.status,
         };
       } catch (err) {
-        debugLog.error("[tool:retry_video_job] Failed", {
+        systemLogger.error("[tool:retry_video_job] Failed", {
           service: "chat-tools",
           operation: "retry_video_job",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1183,7 +1184,7 @@ export function createDeleteVoiceoverTool(context: ToolContext) {
 
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:delete_voiceover] Failed", {
+        systemLogger.error("[tool:delete_voiceover] Failed", {
           service: "chat-tools",
           operation: "delete_voiceover",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1214,7 +1215,7 @@ export function createRemoveMusicTool(_context: ToolContext) {
 
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:remove_music] Failed", {
+        systemLogger.error("[tool:remove_music] Failed", {
           service: "chat-tools",
           operation: "remove_music",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1248,7 +1249,7 @@ export function createRemoveFromQueueTool(context: ToolContext) {
         await chatToolsRepository.deleteQueueItemById(item.id);
         return { success: true as const };
       } catch (err) {
-        debugLog.error("[tool:remove_from_queue] Failed", {
+        systemLogger.error("[tool:remove_from_queue] Failed", {
           service: "chat-tools",
           operation: "remove_from_queue",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1299,7 +1300,7 @@ export function createScheduleContentTool(context: ToolContext) {
 
         return { success: true as const, scheduledFor: date.toISOString() };
       } catch (err) {
-        debugLog.error("[tool:schedule_content] Failed", {
+        systemLogger.error("[tool:schedule_content] Failed", {
           service: "chat-tools",
           operation: "schedule_content",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1341,7 +1342,7 @@ export function createGetTrendingAudioTool(_context: ToolContext) {
           })),
         };
       } catch (err) {
-        debugLog.error("[tool:get_trending_audio] Failed", {
+        systemLogger.error("[tool:get_trending_audio] Failed", {
           service: "chat-tools",
           operation: "get_trending_audio",
           error: err instanceof Error ? err.message : "Unknown",
@@ -1500,7 +1501,7 @@ export function createGenerateImageTool(context: ToolContext) {
           message: "Image generated and saved to your media library.",
         };
       } catch (err) {
-        debugLog.error("[tool:generate_image] Failed", {
+        systemLogger.error("[tool:generate_image] Failed", {
           service: "chat-tools",
           operation: "generate_image",
           error: err instanceof Error ? err.message : "Unknown",

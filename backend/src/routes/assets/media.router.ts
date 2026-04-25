@@ -6,7 +6,7 @@ import { getObjectWebStream } from "../../services/storage/r2";
 import { Errors } from "../../utils/errors/app-error";
 import { assetsService } from "../../domain/singletons";
 import { assetIdParamSchema } from "../../domain/assets/assets.schemas";
-import { assetsValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const mediaRouter = new Hono<HonoEnv>();
 
@@ -14,7 +14,7 @@ mediaRouter.get(
   "/:id/media-for-decode",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", assetIdParamSchema, assetsValidationErrorHook),
+  zValidator("param", assetIdParamSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

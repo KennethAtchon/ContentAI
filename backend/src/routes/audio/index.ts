@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
@@ -9,7 +10,6 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { audioService, syncService } from "../../domain/singletons";
 import { AppError } from "../../utils/errors/app-error";
-import { debugLog } from "../../utils/debug/debug";
 import {
   audioListQuerySchema,
   audioTtsBodySchema,
@@ -60,7 +60,7 @@ audioRouter.post(
       await syncService
         .syncLinkedProjects(auth.user.id, generatedContentId)
         .catch((err) =>
-          debugLog.warn("syncLinkedProjects (voiceover) failed", {
+          systemLogger.warn("syncLinkedProjects (voiceover) failed", {
             err,
             contentId: generatedContentId,
           }),

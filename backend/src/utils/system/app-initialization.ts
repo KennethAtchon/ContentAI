@@ -8,7 +8,6 @@ import {
   installGlobalErrorHandlers,
   getErrorMetrics,
 } from "@/utils/error-handling/global-error-handler";
-import debugLog from "@/utils/debug";
 import getRedisConnection from "@/services/db/redis";
 import { systemLogger } from "./system-logger";
 import { APP_ENV } from "@/utils/config/envUtil";
@@ -160,7 +159,7 @@ async function getRedisHealth() {
 function setupProcessMonitoring() {
   // Prevent multiple monitoring intervals
   if ((global as any).__monitoringInterval) {
-    debugLog.warn("Monitoring interval already exists, skipping setup", {
+    systemLogger.warn("Monitoring interval already exists, skipping setup", {
       service: "app-monitoring",
       operation: "setup",
     });

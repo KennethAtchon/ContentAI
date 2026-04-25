@@ -14,6 +14,7 @@
  * from `@/utils/api/response-helpers` instead.
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { reportError, withTimeout } from "./global-error-handler";
 import debugLog from "@/utils/debug/debug";
 
@@ -149,7 +150,7 @@ export function withApiErrorHandling(
         ip: getClientIp(request),
       });
 
-      debugLog.error(
+      systemLogger.error(
         "API request failed",
         { service: "api-wrapper", operation: "request-error" },
         {

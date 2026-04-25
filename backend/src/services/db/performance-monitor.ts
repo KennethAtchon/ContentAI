@@ -5,8 +5,8 @@
  * Delegates to the centralized metrics store in db.ts.
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { getQueryStats } from "./db";
-import debugLog from "@/utils/debug/debug";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 
@@ -26,7 +26,7 @@ class DatabasePerformanceMonitor {
       try {
         await this.checkConnectionPool();
       } catch (err) {
-        debugLog.error(
+        systemLogger.error(
           "Connection pool monitoring error",
           {
             service: "db-performance-monitor",
@@ -63,7 +63,7 @@ class DatabasePerformanceMonitor {
         if (this.connectionMetrics.length > 100) this.connectionMetrics.shift();
 
         if (util > 95) {
-          debugLog.error(
+          systemLogger.error(
             "CRITICAL: Database connection pool near limit",
             {
               service: "db-performance-monitor",
@@ -72,7 +72,7 @@ class DatabasePerformanceMonitor {
             { util: `${util.toFixed(1)}%`, active, max },
           );
         } else if (util > 80) {
-          debugLog.warn(
+          systemLogger.warn(
             "Database connection pool usage high",
             {
               service: "db-performance-monitor",

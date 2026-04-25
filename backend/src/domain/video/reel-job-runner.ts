@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { generateVideoClip, type VideoProvider } from "./video.service";
 import {
   videoJobService,
@@ -112,7 +113,7 @@ export async function runReelGeneration(input: {
           shotIndex: shot.shotIndex,
         })
         .catch((err) =>
-          debugLog.warn("refreshEditorTimeline (pre-generate) failed", {
+          systemLogger.warn("refreshEditorTimeline (pre-generate) failed", {
             err,
             contentId: job.generatedContentId,
             shotIndex: shot.shotIndex,
@@ -142,7 +143,7 @@ export async function runReelGeneration(input: {
       } catch (shotErr) {
         const msg =
           shotErr instanceof Error ? shotErr.message : "Unknown shot error";
-        debugLog.error("Shot generation failed", {
+        systemLogger.error("Shot generation failed", {
           service: "video-domain",
           operation: "runReelGeneration",
           jobId: job.id,
@@ -155,7 +156,7 @@ export async function runReelGeneration(input: {
             shotIndex: shot.shotIndex,
           })
           .catch((err) =>
-            debugLog.warn("refreshEditorTimeline (on-failure) failed", {
+            systemLogger.warn("refreshEditorTimeline (on-failure) failed", {
               err,
               contentId: job.generatedContentId,
               shotIndex: shot.shotIndex,
@@ -186,7 +187,7 @@ export async function runReelGeneration(input: {
       await editorRepository
         .refreshEditorTimeline(job.generatedContentId, job.userId)
         .catch((err) =>
-          debugLog.warn("refreshEditorTimeline (post-generate) failed", {
+          systemLogger.warn("refreshEditorTimeline (post-generate) failed", {
             err,
             contentId: job.generatedContentId,
             shotIndex: shot.shotIndex,
@@ -241,7 +242,7 @@ export async function runReelGeneration(input: {
       });
     }
 
-    debugLog.error("Video reel job failed", {
+    systemLogger.error("Video reel job failed", {
       service: "video-domain",
       operation: "runReelGeneration",
       jobId: job.id,
@@ -296,7 +297,7 @@ export async function runShotRegenerate(input: {
     await editorRepository
       .refreshEditorTimeline(job.generatedContentId, job.userId)
       .catch((err) =>
-        debugLog.warn("refreshEditorTimeline (shot-regenerate) failed", {
+        systemLogger.warn("refreshEditorTimeline (shot-regenerate) failed", {
           err,
           contentId: job.generatedContentId,
         }),
@@ -321,7 +322,7 @@ export async function runShotRegenerate(input: {
       error: errorMessage,
     });
 
-    debugLog.error("Shot regenerate failed", {
+    systemLogger.error("Shot regenerate failed", {
       service: "video-domain",
       operation: "runShotRegenerate",
       jobId: job.id,

@@ -8,8 +8,11 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { editorService } from "../../domain/singletons";
 import { AppError } from "../../utils/errors/app-error";
-import { patchProjectSchema, createProjectSchema } from "./schemas";
-import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
+import {
+  patchProjectSchema,
+  createProjectSchema,
+  editorProjectIdParamSchema,
+} from "../../domain/editor/editor.schemas";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const projectsRouter = new Hono<HonoEnv>();

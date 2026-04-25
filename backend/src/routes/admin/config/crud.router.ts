@@ -12,7 +12,7 @@ import {
   adminConfigKeyParamSchema,
   adminConfigUpdateBodySchema,
 } from "../../../domain/admin/admin.schemas";
-import { adminConfigValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../../validation/zod-validation-hook";
 
 const crudRouter = new Hono<HonoEnv>();
 
@@ -33,7 +33,7 @@ crudRouter.get(
   zValidator(
     "param",
     adminConfigCategoryParamSchema,
-    adminConfigValidationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     const { category } = c.req.valid("param");
@@ -50,12 +50,12 @@ crudRouter.put(
   zValidator(
     "param",
     adminConfigKeyParamSchema,
-    adminConfigValidationErrorHook,
+    zodValidationErrorHook,
   ),
   zValidator(
     "json",
     adminConfigUpdateBodySchema,
-    adminConfigValidationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     const { category, key } = c.req.valid("param");

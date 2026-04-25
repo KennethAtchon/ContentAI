@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
@@ -10,7 +11,6 @@ import type { HonoEnv } from "../../types/hono.types";
 import { assetsService } from "../../domain/singletons";
 import { parseMediaLibraryUploadForm } from "../../domain/assets/media-library-upload";
 import { uploadFile, deleteFile, getFileUrl } from "../../services/storage/r2";
-import { debugLog } from "../../utils/debug/debug";
 import { uuidParam } from "../../validation/shared.schemas";
 import { Errors } from "../../utils/errors/app-error";
 
@@ -98,7 +98,7 @@ app.delete(
     }
 
     await deleteFile(existing.r2Key).catch((err) => {
-      debugLog.error("Failed to delete R2 file", {
+      systemLogger.error("Failed to delete R2 file", {
         service: "media-route",
         operation: "deleteItem",
         key: existing.r2Key,

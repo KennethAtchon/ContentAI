@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { adminRepository } from "@/domain/singletons";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
@@ -144,7 +145,7 @@ async function recordMediaCost(params: {
       metadata: params.metadata ?? null,
     });
   } catch (err) {
-    debugLog.error("Failed to record media cost", {
+    systemLogger.error("Failed to record media cost", {
       service: "video-generation",
       operation: "recordMediaCost",
       error: err instanceof Error ? err.message : "Unknown error",

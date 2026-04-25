@@ -19,7 +19,7 @@ import {
   updateUserBodySchema,
   usersListQuerySchema,
 } from "../../domain/users/users.schemas";
-import { usersValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const adminUsersRouter = new Hono<HonoEnv>();
 
@@ -27,7 +27,7 @@ adminUsersRouter.get(
   "/",
   rateLimiter("admin"),
   authMiddleware("admin"),
-  zValidator("query", usersListQuerySchema, usersValidationErrorHook),
+  zValidator("query", usersListQuerySchema, zodValidationErrorHook),
   async (c) => {
     const { page, limit, search, includeDeleted } = c.req.valid("query");
 
@@ -47,7 +47,7 @@ adminUsersRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", createUserBodySchema, usersValidationErrorHook),
+  zValidator("json", createUserBodySchema, zodValidationErrorHook),
   async (c) => {
     const { name, email, password, createInFirebase, timezone } =
       c.req.valid("json");
@@ -69,7 +69,7 @@ adminUsersRouter.patch(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", updateUserBodySchema, usersValidationErrorHook),
+  zValidator("json", updateUserBodySchema, zodValidationErrorHook),
   async (c) => {
     const body = c.req.valid("json");
     const {
@@ -104,7 +104,7 @@ adminUsersRouter.delete(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", deleteUserBodySchema, usersValidationErrorHook),
+  zValidator("json", deleteUserBodySchema, zodValidationErrorHook),
   async (c) => {
     const { id, hardDelete } = c.req.valid("json");
 
@@ -123,7 +123,7 @@ adminUsersRouter.post(
   rateLimiter("admin"),
   csrfMiddleware(),
   authMiddleware("admin"),
-  zValidator("json", objectToProcessingBodySchema, usersValidationErrorHook),
+  zValidator("json", objectToProcessingBodySchema, zodValidationErrorHook),
   async (c) => {
     const { userId } = c.req.valid("json");
 

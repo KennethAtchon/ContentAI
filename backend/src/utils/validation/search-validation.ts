@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { z } from "zod";
-import { debugLog } from "../debug/debug";
 
 /**
  * SQL Injection Prevention Validation Schemas
@@ -234,7 +234,7 @@ export function validateSearchInput(
       const errorMessage = error.issues.map((e) => e.message).join(", ");
 
       // Log potential security issue
-      debugLog.warn(`Input validation failed in ${context}`, {
+      systemLogger.warn(`Input validation failed in ${context}`, {
         service: "search-validation",
         operation: "validateSearchInput",
         input:
@@ -252,7 +252,7 @@ export function validateSearchInput(
       return { success: false, error: errorMessage };
     }
 
-    debugLog.error(`Unexpected validation error in ${context}`, {
+    systemLogger.error(`Unexpected validation error in ${context}`, {
       service: "search-validation",
       operation: "validateSearchInput",
       error: error instanceof Error ? error.message : "Unknown error",

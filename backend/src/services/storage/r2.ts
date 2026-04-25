@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import {
   S3Client,
   GetObjectCommand,
@@ -14,7 +15,6 @@ import {
   R2_PUBLIC_URL,
   APP_ENV,
 } from "@/utils/config/envUtil";
-import { debugLog } from "@/utils/debug/debug";
 
 if (
   !R2_ACCOUNT_ID ||
@@ -22,7 +22,7 @@ if (
   !R2_SECRET_ACCESS_KEY ||
   !R2_BUCKET_NAME
 ) {
-  debugLog.warn(
+  systemLogger.warn(
     "R2 configuration is incomplete. R2 functionality will be disabled",
     { service: "r2-storage" },
   );
@@ -65,7 +65,7 @@ export async function uploadFile(
     await upload.done();
     return `${R2_PUBLIC_URL || ""}/${finalKey}`.replace(/([^:]\/)\/+/g, "$1"); // Remove duplicate slashes
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Error uploading to R2",
       { service: "r2-storage", key: finalKey },
       error,
@@ -86,7 +86,7 @@ export async function deleteFile(key: string): Promise<void> {
   try {
     await s3Client.send(new DeleteObjectCommand(params));
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Error deleting from R2",
       { service: "r2-storage", key: finalKey },
       error,
@@ -171,7 +171,7 @@ export async function getFileUrl(
       expiresIn,
     });
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Error generating signed URL",
       { service: "r2-storage", key: finalKey },
       error,
@@ -196,7 +196,7 @@ export function extractKeyFromUrl(url: string): string | null {
 
     return key;
   } catch (e) {
-    debugLog.error("Error parsing URL", { service: "r2-storage", url }, e);
+    systemLogger.error("Error parsing URL", { service: "r2-storage", url }, e);
     return null;
   }
 }

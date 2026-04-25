@@ -8,7 +8,7 @@ import {
 import type { HonoEnv } from "../../../types/hono.types";
 import { systemConfigService } from "../../../domain/singletons";
 import { adminConfigInvalidateBodySchema } from "../../../domain/admin/admin.schemas";
-import { adminConfigValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../../validation/zod-validation-hook";
 
 const cacheRouter = new Hono<HonoEnv>();
 
@@ -20,7 +20,7 @@ cacheRouter.post(
   zValidator(
     "json",
     adminConfigInvalidateBodySchema,
-    adminConfigValidationErrorHook,
+    zodValidationErrorHook,
   ),
   async (c) => {
     const { category } = c.req.valid("json");

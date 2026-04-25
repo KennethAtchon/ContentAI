@@ -9,13 +9,13 @@ This document is **observational**. Once we agree on findings, we'll distill the
 ## TL;DR — Top 10 priorities
 
 1. ~~`SystemConfigView.tsx` is 1,866 lines~~ ✅ Fixed in PR 4 — split into shell + 8 shared components + 7 per-tab files; tsc clean.
-2. ~~Frontend `tsconfig` has `strict: false`~~ ✅ Fixed in PR 3 — strict + unused-locals/params + noImplicitReturns now on; 10 trivial errors fixed.
+2. ~~Frontend `tsconfig` has `strict: false~~` ✅ Fixed in PR 3 — strict + unused-locals/params + noImplicitReturns now on; 10 trivial errors fixed.
 3. **Schemas/constants duplicated across backend/frontend.** Contracts live in multiple places and already drift. → see X1
 4. **Shared layer leaks into domain.** `frontend/src/shared/ui/layout/studio-shell.tsx` imports `@/domains/studio/ui/StudioTopBar`, which then imports `@/domains/auth/ui/user-button`.
 5. **Empty `catch {}` blocks + dev-only logger.** 55 empty catches; many that *do* log use `debugLog.error` which only fires in dev (`utils/debug/debug.ts:5`). Production goes silent. → see B4, B10
 6. **Cross-domain UI imports** (chat → video, video → reels/generation). No clear composition layer. Coupling will compound.
 7. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules.
-8. **Two services folders.** `domain/*` vs `services/*` split unclear; `lib/` adds a third bucket. Pick a rule.
+8. **Two services folders.** `domain/`* vs `services/*` split unclear; `lib/` adds a third bucket. Pick a rule.
 9. **20+ non-null assertions (`!.`)** mix of justified and defensive across both sides. Defensive ones hide nullability bugs.
 10. **Frontend tests are stubs.** ~20 real test files; most empty. Hook + critical-path coverage is missing.
 
@@ -65,7 +65,7 @@ But `middleware/error-handler.ts:18-36` hard-codes specific error codes (`PROJEC
 
 ### B4. Empty catches — silent fallbacks
 
-55 empty catches across 32 files. Most are defensible (best-effort cleanup, `safe*` parser contracts, stream-already-closed). The genuinely silent failures hide DB/infra degradation:
+55 empty catches across 32 files. Most are defensible (best-effort cleanup, `safe`* parser contracts, stream-already-closed). The genuinely silent failures hide DB/infra degradation:
 
 ```ts
 // backend/src/constants/subscription.constants.ts:24-34
@@ -84,7 +84,7 @@ Worst offenders:
 
 1. Re-throw (with optional transform)
 2. Log via `systemLogger.error|warn` with `{service, operation}` context, then return a documented fallback
-3. Bear a `// expected: <reason>` comment if silent fallback is the contract (e.g. `safe*` parsers, best-effort cache writes)
+3. Bear a `// expected: <reason>` comment if silent fallback is the contract (e.g. `safe`* parsers, best-effort cache writes)
 
 **Status:** PR 1 patches the 6 critical ones above. Rest get audited as PRs touch them.
 
@@ -205,7 +205,7 @@ Option (b) is more architecturally pure but requires updating all 19 callers.
 
 ### F4. Cross-domain coupling
 
-- `domains/chat/ui/*` imports from `domains/video/`, `domains/reels/`, `domains/generation/`
+- `domains/chat/ui/`* imports from `domains/video/`, `domains/reels/`, `domains/generation/`
 - `domains/studio/ui/StudioTopBar.tsx` imports `domains/auth/ui/user-button`
 - `domains/video/ui/VideoWorkspacePanel.tsx` imports video/reels/generation
 

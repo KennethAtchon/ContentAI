@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { z } from "zod";
-import { debugLog } from "../debug/debug";
 
 /**
  * Comprehensive API Request Validation Schemas
@@ -361,7 +361,7 @@ export function validateInput<T>(
         code: e.code,
       }));
 
-      debugLog.warn(`Failed validation in ${context}`, {
+      systemLogger.warn(`Failed validation in ${context}`, {
         service: "api-validation",
         operation: "validateWithSchema",
         context,
@@ -383,7 +383,7 @@ export function validateInput<T>(
       };
     }
 
-    debugLog.error(`Unexpected validation error in ${context}`, {
+    systemLogger.error(`Unexpected validation error in ${context}`, {
       service: "api-validation",
       operation: "validateWithSchema",
       error: error instanceof Error ? error.message : "Unknown error",

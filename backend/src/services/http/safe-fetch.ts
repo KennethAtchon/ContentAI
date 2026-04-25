@@ -4,6 +4,7 @@
  * Prevents hanging requests that could crash the application
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { reportError } from "@/utils/error-handling/global-error-handler";
 import { debugLog } from "@/utils/debug";
 import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
@@ -155,7 +156,7 @@ export async function safeFetch(
 
       // Log attempt failure
       if (logRequests) {
-        debugLog.warn(
+        systemLogger.warn(
           "External API request attempt failed",
           {
             service: "safe-fetch",
@@ -201,7 +202,7 @@ export async function safeFetch(
     },
   });
 
-  debugLog.error(
+  systemLogger.error(
     "External API request failed after all retries",
     {
       service: "safe-fetch",

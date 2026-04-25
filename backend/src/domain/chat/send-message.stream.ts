@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { streamText, stepCountIs, createUIMessageStreamResponse } from "ai";
 import { loadPrompt, getModel, getModelInfo } from "../../lib/aiClient";
 import { recordUsage } from "../../middleware/usage-gate";
@@ -6,7 +7,6 @@ import { extractUsageTokens } from "../../lib/ai/helpers";
 import { createChatTools, type ToolContext } from "./chat-tools";
 import { chatService, syncService } from "../singletons";
 import { Errors } from "../../utils/errors/app-error";
-import { debugLog } from "../../utils/debug/debug";
 import type { AuthResult } from "../../types/hono.types";
 import {
   composeChatRequest,
@@ -74,7 +74,7 @@ export async function createChatSendMessageStreamResponse(input: {
       );
 
     if (!sessionActiveStillAttached) {
-      debugLog.warn("[chat:send-message] Session active draft was detached", {
+      systemLogger.warn("[chat:send-message] Session active draft was detached", {
         service: "chat-route",
         operation: "active-draft-repair",
         sessionId,
@@ -183,7 +183,7 @@ export async function createChatSendMessageStreamResponse(input: {
     tools: createChatTools(toolContext),
 
     onError: async ({ error }) => {
-      debugLog.error("[chat:streamText] AI provider stream error", {
+      systemLogger.error("[chat:streamText] AI provider stream error", {
         service: "chat-route",
         operation: "onError",
         sessionId,
@@ -225,7 +225,7 @@ export async function createChatSendMessageStreamResponse(input: {
           durationMs,
         }).catch(() => {});
       } catch (err) {
-        debugLog.error("Failed to persist assistant message", {
+        systemLogger.error("Failed to persist assistant message", {
           service: "chat-route",
           operation: "onFinish",
           error: err instanceof Error ? err.message : "Unknown error",
@@ -248,7 +248,7 @@ export async function createChatSendMessageStreamResponse(input: {
             controller.enqueue(value);
           }
         } catch (err) {
-          debugLog.error("[chat:stream] Stream terminated with error", {
+          systemLogger.error("[chat:stream] Stream terminated with error", {
             service: "chat-route",
             operation: "stream-error",
             sessionId,

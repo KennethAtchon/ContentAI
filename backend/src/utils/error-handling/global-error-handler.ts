@@ -4,6 +4,7 @@
  * to prevent process crashes and ensure reliable operation
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import debugLog from "@/utils/debug/debug";
 import { APP_ENV } from "@/utils/config/envUtil";
 
@@ -317,7 +318,7 @@ function handleUnhandledRejection(reason: any, promise: Promise<any>) {
     structuredError.severity === ErrorSeverity.CRITICAL &&
     !structuredError.isRecoverable
   ) {
-    debugLog.error(
+    systemLogger.error(
       "Critical unrecoverable error detected, initiating graceful shutdown",
       {
         service: "global-error-handler",
@@ -344,7 +345,7 @@ function handleUncaughtException(error: Error) {
   logStructuredError(structuredError, "uncaughtException");
 
   // Uncaught exceptions are always serious - we should exit gracefully
-  debugLog.error(
+  systemLogger.error(
     "Uncaught exception detected, initiating graceful shutdown",
     {
       service: "global-error-handler",
@@ -363,7 +364,7 @@ function handleUncaughtException(error: Error) {
  * Handles process warning events
  */
 function handleProcessWarning(warning: any) {
-  debugLog.warn(
+  systemLogger.warn(
     "Process warning detected",
     {
       service: "global-error-handler",

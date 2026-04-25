@@ -4,7 +4,7 @@ import { CreateProjectModal } from "../CreateProjectModal";
 import { ProjectTree } from "./ProjectTree";
 import { ProjectSidebarUsage } from "./ProjectSidebarUsage";
 import { ProjectSidebarDeleteDialogs } from "./ProjectSidebarDeleteDialogs";
-import { useProjectSidebar } from "../../hooks/useProjectSidebar";
+import { useProjectSidebar } from "../../hooks/use-project-sidebar";
 import type { Project, ChatSession } from "../../model/chat.types";
 
 interface ProjectSidebarProps {

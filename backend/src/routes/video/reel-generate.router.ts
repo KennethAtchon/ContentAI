@@ -8,13 +8,13 @@ import {
 import type { HonoEnv } from "../../types/hono.types";
 import { videoJobService } from "../../services/video-generation/job.service";
 import { AppError, Errors } from "../../utils/errors/app-error";
-import { createReelSchema } from "./schemas";
 import {
   fetchOwnedContent,
   getPhase4AssemblyFromMetadata,
   updatePhase4Metadata,
 } from "./phase4-metadata";
 import { enqueue, runReelGeneration } from "../../domain/video/reel-job-runner";
+import { createReelSchema } from "../../domain/video/video.schemas";
 
 const reelGenerateRouter = new Hono<HonoEnv>();
 

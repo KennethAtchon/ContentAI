@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { scrapingService } from "../../domain/singletons";
 import { debugLog } from "../../utils/debug/debug";
 import getRedisConnection from "../db/redis";
@@ -68,7 +69,7 @@ class ScrapeJobQueueService {
       if (!raw) return null;
       return JSON.parse(raw) as ScrapeJob;
     } catch (err) {
-      debugLog.error("Failed to get job from Redis", {
+      systemLogger.error("Failed to get job from Redis", {
         service: "scrape-job-queue",
         jobId,
         error: err instanceof Error ? err.message : String(err),
@@ -86,7 +87,7 @@ class ScrapeJobQueueService {
       );
       return jobs.filter((j: ScrapeJob | null): j is ScrapeJob => j !== null);
     } catch (err) {
-      debugLog.error("Failed to list jobs from Redis", {
+      systemLogger.error("Failed to list jobs from Redis", {
         service: "scrape-job-queue",
         nicheId,
         error: err instanceof Error ? err.message : String(err),
@@ -143,7 +144,7 @@ class ScrapeJobQueueService {
       job.completedAt = new Date().toISOString();
       job.error = err instanceof Error ? err.message : String(err);
 
-      debugLog.error("Scrape job failed", {
+      systemLogger.error("Scrape job failed", {
         service: "scrape-job-queue",
         jobId: job.id,
         error: job.error,
@@ -168,7 +169,7 @@ class ScrapeJobQueueService {
         .expire(nicheKey, JOB_TTL_SECONDS)
         .exec();
     } catch (err) {
-      debugLog.error("Failed to persist job to Redis", {
+      systemLogger.error("Failed to persist job to Redis", {
         service: "scrape-job-queue",
         jobId: job.id,
         error: err instanceof Error ? err.message : String(err),

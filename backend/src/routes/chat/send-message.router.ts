@@ -10,7 +10,7 @@ import { usageGate } from "../../middleware/usage-gate";
 import { uuidParam } from "../../validation/shared.schemas";
 import { createChatSendMessageStreamResponse } from "../../domain/chat/send-message.stream";
 import { sendMessageSchema } from "./chat.schemas";
-import { chatValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const sendMessageRouter = new Hono<HonoEnv>();
 
@@ -19,7 +19,7 @@ sendMessageRouter.post(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   usageGate("generation"),
   zValidator("json", sendMessageSchema),
   async (c) => {

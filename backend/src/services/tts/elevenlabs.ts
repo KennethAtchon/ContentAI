@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import {
   DEV_MOCK_EXTERNAL_INTEGRATIONS,
   ELEVENLABS_API_KEY,
@@ -98,7 +99,7 @@ export async function generateSpeech(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    debugLog.error("ElevenLabs TTS API error", {
+    systemLogger.error("ElevenLabs TTS API error", {
       service: "elevenlabs-tts",
       operation: "generateSpeech",
       status: response.status,

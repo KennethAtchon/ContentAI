@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import getRedisConnection from "@/services/db/redis";
-import { debugLog } from "@/utils/debug";
 
 const RATE_LIMIT_WINDOW = 60;
 const RATE_LIMIT_MAX_REQUESTS = 10;
@@ -54,7 +54,7 @@ export async function checkRateLimit(
     await redis.incr(key);
     return true;
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Rate limit check failed",
       { service: "rate-limit", ip },
       error,
@@ -115,7 +115,7 @@ export async function checkRateLimitWithDetails(
       resetTime,
     };
   } catch (error) {
-    debugLog.error(
+    systemLogger.error(
       "Rate limit check with details failed",
       { service: "rate-limit", ip },
       error,

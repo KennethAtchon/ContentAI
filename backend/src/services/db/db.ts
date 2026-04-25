@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "@/infrastructure/database/drizzle/schema";
@@ -142,7 +143,7 @@ export async function ensureConnectionHealth(): Promise<boolean> {
       await rawClient`SELECT 1`;
       return true;
     } catch (err) {
-      debugLog.warn(
+      systemLogger.warn(
         "Database connection attempt failed",
         { service: "db-client", operation: "health-check" },
         { attempt, error: err instanceof Error ? err.message : "Unknown" },
@@ -165,7 +166,7 @@ export async function gracefulShutdown(): Promise<void> {
       operation: "shutdown",
     });
   } catch (err) {
-    debugLog.error(
+    systemLogger.error(
       "Error closing database",
       { service: "db-client", operation: "shutdown" },
       err,

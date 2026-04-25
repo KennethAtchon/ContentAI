@@ -4,6 +4,7 @@
  * ENV values are used as initial defaults so nothing breaks after first deploy.
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { configRepository } from "@/domain/singletons";
 import { encrypt } from "@/utils/crypto/encryption";
 import { debugLog } from "@/utils/debug/debug";
@@ -399,7 +400,7 @@ export async function seedSystemConfig(): Promise<void> {
       operation: "seed",
     });
   } catch (error) {
-    debugLog.error("Failed to seed system config", {
+    systemLogger.error("Failed to seed system config", {
       service: "config-seed",
       operation: "seed",
       error: error instanceof Error ? error.message : String(error),

@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -96,7 +97,7 @@ async function probeHasAudioStream(filePath: string): Promise<boolean> {
   }
 
   if (exitedOrTimedOut === "timeout") {
-    debugLog.warn("ffprobe timed out while probing audio stream", {
+    systemLogger.warn("ffprobe timed out while probing audio stream", {
       service: "export-job",
       operation: "probeHasAudioStream",
       filePath,
@@ -107,7 +108,7 @@ async function probeHasAudioStream(filePath: string): Promise<boolean> {
 
   if (proc.exitCode !== 0) {
     const stderr = await new Response(proc.stderr).text();
-    debugLog.warn("ffprobe exited non-zero while probing audio stream", {
+    systemLogger.warn("ffprobe exited non-zero while probing audio stream", {
       service: "export-job",
       operation: "probeHasAudioStream",
       filePath,
@@ -502,7 +503,7 @@ export async function runExportJob(
       })
       .catch(() => {});
 
-    debugLog.error("Export job failed", {
+    systemLogger.error("Export job failed", {
       service: "export-job",
       operation: "runExportJob",
       jobId,

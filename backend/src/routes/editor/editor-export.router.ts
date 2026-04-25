@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
@@ -6,11 +7,12 @@ import {
   csrfMiddleware,
 } from "../../middleware/protection";
 import type { HonoEnv } from "../../types/hono.types";
-import { debugLog } from "../../utils/debug/debug";
 import { getFileUrl } from "../../services/storage/r2";
-import { exportSchema } from "./schemas";
+import {
+  exportSchema,
+  editorProjectIdParamSchema,
+} from "../../domain/editor/editor.schemas";
 import { runExportJob } from "./export-worker";
-import { editorProjectIdParamSchema } from "../../domain/editor/editor.schemas";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import { assetsRepository, editorRepository } from "../../domain/singletons";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
@@ -59,7 +61,7 @@ exportRouter.post(
 
     runExportJob(job.id, project, auth.user.id, parsed).catch(
       (err: unknown) => {
-        debugLog.error("Export job failed", {
+        systemLogger.error("Export job failed", {
           service: "editor-route",
           operation: "runExportJob",
           jobId: job.id,

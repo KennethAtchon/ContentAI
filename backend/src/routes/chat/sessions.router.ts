@@ -15,7 +15,7 @@ import {
   resolveSessionForContentSchema,
   updateSessionSchema,
 } from "./chat.schemas";
-import { chatValidationErrorHook } from "./shared-validation";
+import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
 
 const sessionsRouter = new Hono<HonoEnv>();
 
@@ -23,7 +23,7 @@ sessionsRouter.get(
   "/sessions",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("query", listSessionsQuerySchema, chatValidationErrorHook),
+  zValidator("query", listSessionsQuerySchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { projectId } = c.req.valid("query");
@@ -91,7 +91,7 @@ sessionsRouter.get(
   "/sessions/:id",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
@@ -113,7 +113,7 @@ sessionsRouter.get(
   "/sessions/:id/content",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
@@ -131,7 +131,7 @@ sessionsRouter.get(
   "/sessions/:id/delete-preview",
   rateLimiter("customer"),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
@@ -150,7 +150,7 @@ sessionsRouter.delete(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id: sessionId } = c.req.valid("param");
@@ -166,7 +166,7 @@ sessionsRouter.put(
   rateLimiter("customer"),
   csrfMiddleware(),
   authMiddleware("user"),
-  zValidator("param", uuidParam, chatValidationErrorHook),
+  zValidator("param", uuidParam, zodValidationErrorHook),
   zValidator("json", updateSessionSchema),
   async (c) => {
     const auth = c.get("auth");

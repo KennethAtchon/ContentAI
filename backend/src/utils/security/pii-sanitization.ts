@@ -7,8 +7,8 @@
  * Addresses Ticket #20: PII Data Exposure in Logs and API Responses
  */
 
+import { systemLogger } from "@/utils/system/system-logger";
 import { IS_DEVELOPMENT } from "@/utils/config/envUtil";
-import { debugLog } from "../debug/debug";
 
 export interface SanitizationConfig {
   preserveLength?: boolean; // Keep original length with asterisks
@@ -346,7 +346,7 @@ export function safeLogError(message: string, error: any, context?: any): void {
     // Don't include the full error object to prevent PII leakage
   };
 
-  debugLog.error(sanitizedMessage, {
+  systemLogger.error(sanitizedMessage, {
     service: "pii-sanitization",
     operation: "logSecureError",
     error: sanitizedError,

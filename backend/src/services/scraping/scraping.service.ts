@@ -1,3 +1,4 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import type { NewReel } from "../../infrastructure/database/drizzle/schema";
 import type { IScrapingRepository } from "../../domain/scraping/scraping.repository";
 import { debugLog } from "../../utils/debug/debug";
@@ -131,7 +132,7 @@ export class ScrapingService {
     const apiKey = SOCIAL_API_KEY;
 
     if (!apiKey) {
-      debugLog.warn(
+      systemLogger.warn(
         "SOCIAL_API_KEY not set — skipping real scrape (stub mode)",
         {
           service: "scraping-service",
@@ -156,7 +157,7 @@ export class ScrapingService {
         lastError = err instanceof Error ? err : new Error(String(err));
         const delay = RETRY_DELAYS_MS[attempt] ?? 8000;
 
-        debugLog.warn(
+        systemLogger.warn(
           `Scrape attempt ${attempt + 1} failed — retrying in ${delay}ms`,
           {
             service: "scraping-service",
@@ -181,7 +182,7 @@ export class ScrapingService {
     const sourceReels = devMockReels as DevMockReelTemplate[];
 
     if (sourceReels.length === 0) {
-      debugLog.warn(
+      systemLogger.warn(
         "No hardcoded mock reels available for development scrape",
         {
           service: "scraping-service",
@@ -472,7 +473,7 @@ export class ScrapingService {
           if (analysisCount < maxAnalyses) {
             analysisCount++;
             this.analyzeReelAsync(reelId).catch((err: unknown) =>
-              debugLog.error("Async reel analysis failed", {
+              systemLogger.error("Async reel analysis failed", {
                 service: "scraping-service",
                 operation: "analyzeReelAsync",
                 reelId,
@@ -489,7 +490,7 @@ export class ScrapingService {
             audioUrl,
             newReel.thumbnailUrl ?? null,
           ).catch((err) =>
-            debugLog.error("Media upload failed", {
+            systemLogger.error("Media upload failed", {
               service: "scraping-service",
               externalId,
               error: err instanceof Error ? err.message : String(err),
@@ -499,7 +500,7 @@ export class ScrapingService {
       } catch (err) {
         // externalId conflict or other DB error — count as skipped
         skipped++;
-        debugLog.error("Failed to insert reel", {
+        systemLogger.error("Failed to insert reel", {
           service: "scraping-service",
           externalId,
           error: err instanceof Error ? err.message : String(err),
@@ -553,7 +554,7 @@ export class ScrapingService {
         reelId,
       });
     } catch (err) {
-      debugLog.error("Async reel analysis failed", {
+      systemLogger.error("Async reel analysis failed", {
         service: "scraping-service",
         operation: "analyzeReelAsync",
         reelId,
@@ -620,7 +621,7 @@ export class ScrapingService {
     if (videoResult.status === "fulfilled" && videoResult.value) {
       updates.videoR2Url = videoResult.value;
     } else if (videoResult.status === "rejected") {
-      debugLog.warn("Video R2 upload failed", {
+      systemLogger.warn("Video R2 upload failed", {
         service: "scraping-service",
         externalId,
         error: (videoResult.reason as Error)?.message,
@@ -630,7 +631,7 @@ export class ScrapingService {
     if (audioResult.status === "fulfilled" && audioResult.value) {
       updates.audioR2Url = audioResult.value;
     } else if (audioResult.status === "rejected") {
-      debugLog.warn("Audio R2 upload failed", {
+      systemLogger.warn("Audio R2 upload failed", {
         service: "scraping-service",
         externalId,
         error: (audioResult.reason as Error)?.message,
@@ -640,7 +641,7 @@ export class ScrapingService {
     if (thumbnailResult.status === "fulfilled" && thumbnailResult.value) {
       updates.thumbnailR2Url = thumbnailResult.value;
     } else if (thumbnailResult.status === "rejected") {
-      debugLog.warn("Thumbnail R2 upload failed", {
+      systemLogger.warn("Thumbnail R2 upload failed", {
         service: "scraping-service",
         externalId,
         error: (thumbnailResult.reason as Error)?.message,

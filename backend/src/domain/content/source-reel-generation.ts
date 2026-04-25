@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { callAi, loadPrompt } from "../../lib/aiClient";
-import { debugLog } from "../../utils/debug/debug";
 import type { IContentRepository } from "./content.repository";
 
 export type SourceReelOutputType = "hook_only" | "caption_only" | "full_script";
@@ -96,7 +96,7 @@ Generate an original variation following the same viral structure.`;
     try {
       parsed = JSON.parse(rawText) as GenerationResult;
     } catch {
-      debugLog.error("Failed to parse AI generation response", {
+      systemLogger.error("Failed to parse AI generation response", {
         service: "source-reel-generation",
         operation: "generateContentFromSourceReel",
         reelId,

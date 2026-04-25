@@ -1,5 +1,5 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { adminAuth } from "../../services/firebase/admin";
-import { debugLog } from "../../utils/debug/debug";
 
 export interface SyncResult {
   success: boolean;
@@ -57,7 +57,7 @@ export class FirebaseUserSync {
         firebaseUid,
       };
     } catch (error) {
-      debugLog.error(
+      systemLogger.error(
         "Error syncing user update to Firebase",
         { service: "firebase-sync", action: "update", firebaseUid },
         error,
@@ -91,7 +91,7 @@ export class FirebaseUserSync {
         firebaseUid,
       };
     } catch (error) {
-      debugLog.error(
+      systemLogger.error(
         "Error syncing user deletion to Firebase",
         {
           service: "firebase-sync",
@@ -140,7 +140,7 @@ export class FirebaseUserSync {
         firebaseUid: firebaseUser.uid,
       };
     } catch (error) {
-      debugLog.error(
+      systemLogger.error(
         "Error syncing user creation to Firebase",
         { service: "firebase-sync", action: "create" },
         error,

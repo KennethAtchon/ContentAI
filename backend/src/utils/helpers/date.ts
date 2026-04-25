@@ -1,6 +1,6 @@
+import { systemLogger } from "@/utils/system/system-logger";
 import { parseISO, isValid } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { debugLog } from "@/utils/debug/debug";
 import { TimeService } from "@/services/timezone/TimeService";
 
 /**
@@ -80,7 +80,7 @@ export function safeFormatDateWithTimezone(
       formatString,
     );
   } catch (error) {
-    debugLog.warn(
+    systemLogger.warn(
       "Timezone-aware date formatting error",
       { utility: "date", timezone },
       error,
