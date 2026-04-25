@@ -12,8 +12,8 @@ This document is **observational**. Once we agree on findings, we'll distill the
 2. **Empty `catch {}` blocks remain.** Critical cases were patched, but many silent fallbacks still need an audit. → see B4
 3. **Cross-domain UI imports** (chat → video, video → reels/generation) still lack a clear composition boundary. → see F4
 4. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules. → see X2
-5. **`domain/` vs `services/` vs `lib/` is still muddy.** New files still force a placement decision every time. → see B1
-6. **`any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
+5. `**domain/` vs `services/` vs `lib/` is still muddy.** New files still force a placement decision every time. → see B1
+6. `**any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
 7. **Frontend tests are still thin.** E2E coverage exists, but hooks/utilities and critical paths need real unit coverage. → see F10
 8. **Several large admin/debug components still need decomposition.** `SystemConfigView` is fixed; the others remain. → see F2
 9. **Route/file naming conventions are still mixed.** Some cleanup landed, but the repo is not consistent yet. → see B2, F8
@@ -30,11 +30,11 @@ Routes correctly delegate to services. No raw Drizzle in routes. ✅
 But there are **three buckets for "code that does work"**:
 
 
-| Folder             | Holds                                 | Example                                                                  |
-| ------------------ | ------------------------------------- | ------------------------------------------------------------------------ |
-| `domain/<area>/`   | Business logic, repositories, schemas | `domain/editor/editor.service.ts`                                        |
-| `services/<area>/` | Cross-cutting / infra                 | `services/firebase/`, `services/storage/`                                |
-| `lib/`             | Residual helpers / unclear placement  | `lib/queue-chain-guard.ts`                                                |
+| Folder             | Holds                                 | Example                                   |
+| ------------------ | ------------------------------------- | ----------------------------------------- |
+| `domain/<area>/`   | Business logic, repositories, schemas | `domain/editor/editor.service.ts`         |
+| `services/<area>/` | Cross-cutting / infra                 | `services/firebase/`, `services/storage/` |
+| `lib/`             | Residual helpers / unclear placement  | `lib/queue-chain-guard.ts`                |
 
 
 **Problems:**
@@ -122,12 +122,12 @@ routes/customer/orders.router.ts:33
 ### F2. Mega-components
 
 
-| File                                                      | Lines               | Status |
-| --------------------------------------------------------- | ------------------- | ------ |
-| `routes/admin/_layout/developer.tsx`                      | 594                 | P2     |
-| `domains/admin/ui/developer/DeveloperView.tsx`            | 589                 | P2     |
-| `domains/admin/ui/niches/NicheDetailView.tsx`             | 584                 | P2     |
-| `shared/debug/debug.ts`                                   | 554                 | P2     |
+| File                                           | Lines | Status |
+| ---------------------------------------------- | ----- | ------ |
+| `routes/admin/_layout/developer.tsx`           | 594   | P2     |
+| `domains/admin/ui/developer/DeveloperView.tsx` | 589   | P2     |
+| `domains/admin/ui/niches/NicheDetailView.tsx`  | 584   | P2     |
+| `shared/debug/debug.ts`                        | 554   | P2     |
 
 
 Remaining large admin/debug components still need the same split/decomposition treatment.
@@ -233,15 +233,15 @@ CSRF middleware on all mutations. PII sanitizer mirrored on both sides. No raw H
 ## Severity rollup
 
 
-| P1 (must-fix)                                     | P2 (should-fix)                      | P3 (cleanup)                   |
-| ------------------------------------------------- | ------------------------------------ | ------------------------------ |
-| Empty catches (B4)                                | `domain`/`services`/`lib` split (B1) | Route file naming (B2)         |
-| Schema duplication FE↔BE (X1)                     | Validation hook consistency (B5)     | Param validation dup (B6)      |
-|                                                   | Cross-domain coupling (F4)           | Singletons / global state (B7) |
-|                                                   | State mgmt — chat streaming (F7)     | Filename casing (F8)           |
-|                                                   | Mega-components (F2 cont.)           | Barrel files (X2)              |
-|                                                   | Frontend test coverage (F10)         | Folder depth (X4)              |
-|                                                   | `any` / cast audit (X3)              |                                |
+| P1 (must-fix)                 | P2 (should-fix)                      | P3 (cleanup)                   |
+| ----------------------------- | ------------------------------------ | ------------------------------ |
+| Empty catches (B4)            | `domain`/`services`/`lib` split (B1) | Route file naming (B2)         |
+| Schema duplication FE↔BE (X1) | Validation hook consistency (B5)     | Param validation dup (B6)      |
+|                               | Cross-domain coupling (F4)           | Singletons / global state (B7) |
+|                               | State mgmt — chat streaming (F7)     | Filename casing (F8)           |
+|                               | Mega-components (F2 cont.)           | Barrel files (X2)              |
+|                               | Frontend test coverage (F10)         | Folder depth (X4)              |
+|                               | `any` / cast audit (X3)              |                                |
 
 
 ---
