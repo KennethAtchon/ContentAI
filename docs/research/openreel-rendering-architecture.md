@@ -742,7 +742,7 @@ flowchart TB
 Rough order of operations — each step is a standalone PR that leaves the editor working.
 
 1. **Extract `editor-core/`.** Pull everything in `features/editor/engine/` and `features/editor/renderers/` out of React's reach. Zero React imports. `bun test` can run it headless. Add a lint rule forbidding `react` imports inside `editor-core/`.
-2. **Introduce `MasterTimelineClock`.** AudioContext-based. Remove `currentTime` from React context. Components that need the playhead subscribe via `useSyncExternalStore`.
+2. **Introduce `gyasterTimelineClock`.** AudioContext-based. Remove `currentTime` from React context. Components that need the playhead subscribe via `useSyncExternalStore`.
 3. **Unify one `renderFrame(project, t, w, h)` function.** Both the preview rAF loop and the exporter call it. Kill any second rendering code path.
 4. **Make captions pure-function + canvas.** `renderAnimatedCaption(subtitle, t) → WordSegment[]`, painted on canvas. If you currently draw subtitles as DOM, delete that path and use the canvas for preview too. Export becomes free.
 5. **Consider `inPoint/outPoint` instead of `trimStart/trimEnd`.** Industry-standard, two-variable arithmetic. This is a schema migration — per CLAUDE.md, just `bun run db:reset`; no compat shims.
