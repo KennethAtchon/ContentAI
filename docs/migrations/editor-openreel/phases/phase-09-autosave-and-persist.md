@@ -5,7 +5,7 @@
 
 ## Goal
 
-1. Autosave driven by `timelineStore.subscribe(selector, onChange)`, not a React hook.
+1. Autosave driven by `projectStore.subscribe(selector, onChange)`, not a React hook.
 2. Debounce + fingerprint remain. No change to server contract.
 3. JSON serialization runs in a Web Worker so main thread isn't blocked on large timelines.
 4. Flush on `beforeunload` / route change.
@@ -13,7 +13,8 @@
 
 ## Preconditions
 
-- Phase 8 merged (`timelineStore` exists).
+- Phase 3 merged (`projectStore` exists, action-based mutations).
+- Phases 4–8 merged; engine runtime is in final shape.
 
 ## Files Touched
 
@@ -33,7 +34,7 @@
 ### `autosave-service.ts`
 
 ```ts
-import { useTimelineStore } from "../stores/timelineStore";
+import { useProjectStore } from "../stores/projectStore";
 import { savePatch } from "./save-service";
 
 interface AutosaveOptions {
@@ -53,7 +54,7 @@ export function startAutosave(opts: AutosaveOptions): void {
   if (opts.isReadOnly) return;
   worker ??= new Worker(new URL("./autosave.worker.ts", import.meta.url), { type: "module" });
 
-  unsubscribeStore = useTimelineStore.subscribe(
+  unsubscribeStore = useProjectStore.subscribe(
     (s) => ({ tracks: s.tracks, subtitles: s.subtitles, caption: s.caption, meta: s.meta }),
     (snapshot) => scheduleFlush(opts, snapshot),
   );
@@ -77,16 +78,16 @@ async function flush(opts: AutosaveOptions, snapshot: unknown): Promise<void> {
   const { json, fingerprint } = await serializeInWorker(snapshot);
   if (fingerprint === lastFingerprint) return;
 
-  const { version } = useTimelineStore.getState().meta;
+  const { version } = useProjectStore.getState().meta;
   try {
     const resp = await savePatch(opts.projectId, { body: json, expectedVersion: version });
-    useTimelineStore.getState().setVersion(resp.version);
-    useTimelineStore.getState().setLastSavedAt(new Date());
+    useProjectStore.getState().setVersion(resp.version);
+    useProjectStore.getState().setLastSavedAt(new Date());
     lastFingerprint = fingerprint;
     lastFlushWall = performance.now();
   } catch (err) {
     if (isConflict(err)) {
-      useTimelineStore.getState().setConflict(true);
+      useProjectStore.getState().setConflict(true);
     } else {
       throw err;
     }
@@ -140,7 +141,7 @@ function fnv1a(s: string): string {
 ```ts
 window.addEventListener("beforeunload", () => {
   // Best-effort: sendBeacon with last known snapshot + fingerprint
-  const snap = useTimelineStore.getState();
+  const snap = useProjectStore.getState();
   navigator.sendBeacon(`/api/projects/${snap.meta.id}/autosave`, /* json */);
 });
 ```

@@ -27,11 +27,14 @@
 
 ### Modify
 - `CLAUDE.md` — update the "Editor System" section:
-  - Engine lives at `frontend/src/editor-core/`, React-free
-  - Playback clock is `MasterTimelineClock`, AudioContext-driven
-  - `VideoEngine.renderFrame()` is the single render entry used by preview and export
-  - Captions are pure functions painted inline
-  - Autosave runs in a worker
+  - Engine lives at `frontend/src/editor-core/`, React-free (ESLint-enforced)
+  - State lives in 4 Zustand stores (`projectStore`, `uiStore`, `playbackStore`, `engineStore`). No React contexts for state.
+  - Every component read uses a selector. Lint-enforced.
+  - Undo/redo is action-based via `ActionExecutor` in `editor-core/timeline/`. 200-action cap.
+  - Playback clock is `MasterTimelineClock`, AudioContext-driven, outside React state.
+  - `VideoEngine.renderFrame()` is the single render entry used by preview and export.
+  - Captions are pure functions painted inline.
+  - Autosave runs in a worker.
 - `docs/architecture/domain/editor-preview-rendering-flow.md` — rewrite. Delete old flow diagrams; produce a new Mermaid reflecting editor-core + bridges + stores.
 - `docs/architecture/overview.md` — update if it referenced the old structure.
 - `docs/plans/editor-unified-architecture.md` — mark superseded by this migration; link to `docs/migrations/editor-openreel/`.
@@ -46,7 +49,11 @@
 2. Grep for old names — must return no hits outside docs:
    - `PreviewEngine`
    - `useEditorAutosave`
-   - `EditorPlaybackContext`
+   - `EditorPlaybackContext` / `EditorDocumentStateContext` / any other `Editor*Context`
+   - `useEditorStore` / `useEditorReducer`
+   - `editorReducer` / `editor-reducer-*`
+   - `INITIAL_EDITOR_STATE`
+   - `snapshotEditorState`
    - `useCaptionCanvas`
    - `CaptionLayer`
    - `buildCompositorDescriptorsWithRust`

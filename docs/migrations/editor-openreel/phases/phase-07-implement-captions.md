@@ -1,7 +1,7 @@
-# Phase 6 — Pure-Function Captions
+# Phase 7 — Pure-Function Captions
 
 > Replace the React-coupled caption rendering (`useCaptionCanvas` + `CaptionLayer.tsx` + async `createImageBitmap` + `captionBitmapVersion` counter) with a pure `renderCaptionFrame(caption, t) → Segment[]` function painted inline by the main compositor.
-> After this phase: captions appear in the same canvas as video. Preview ≡ export for captions (export is unified in phase 7, but the caption path is ready).
+> After this phase: captions appear in the same canvas as video. Preview ≡ export for captions (export is unified in phase 8, but the caption path is ready).
 
 ## Goal
 
@@ -10,12 +10,12 @@
 3. `CaptionLayer.tsx` (hidden React canvas) and `useCaptionCanvas` hook are **deleted**.
 4. No more `captionBitmapVersion` rerender loop.
 5. `EditorWorkspace` drops all caption-specific state.
-6. Caption inspector panel (user edits style, transcript, preset) continues to work: mutations flow into timeline store; no separate "bitmap version" plumbing.
+6. Caption inspector panel (user edits style, transcript, preset) continues to work: mutations flow into `projectStore` via actions; no separate "bitmap version" plumbing.
 
 ## Preconditions
 
-- Phase 4 merged (unified render pipeline).
-- Phase 5 merged (frame cache) — not strictly required but keeps us linear.
+- Phase 5 merged (unified render pipeline).
+- Phase 6 merged (frame cache) — not strictly required but keeps us linear.
 
 ## Files Touched
 
@@ -169,7 +169,7 @@ export class TextBridge {
 
 ## Step-by-Step
 
-1. Branch `migration/phase-06-captions`.
+1. Branch `migration/phase-07-captions`.
 2. **Commit 1: moves.** Move all `caption/*.ts` files (slice-tokens, layout-engine, etc.) into `editor-core/text/`. Update imports. No logic changes.
 3. **Commit 2: add `renderCaptionFrame` + `paintCaptionToCanvas`.** Extract the pure pieces from the current `caption/renderer.ts`. Verify via snapshot test: given a known `(doc, preset, t)`, segments match a golden file.
 4. **Commit 3: integrate into `VideoEngine.renderFrame`.** Captions now paint on the main canvas.
@@ -207,7 +207,7 @@ export class TextBridge {
 
 ## Rollback
 
-Revert phase-06 PR. Moves in commit 1 may conflict with any parallel edits in `caption/`; keep PR short-lived.
+Revert phase-07 PR. Moves in commit 1 may conflict with any parallel edits in `caption/`; keep PR short-lived.
 
 ## Estimate
 

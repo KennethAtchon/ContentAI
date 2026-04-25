@@ -1,20 +1,113 @@
-# Phase 4 — Unified Render Pipeline
+# Phase 5 — Unified Render Pipeline
 
 > Replace the current `PreviewEngine.tickCompositor` + `CompositorWorker` + `DecoderPool` split with a single `VideoEngine.renderFrame(args) → RenderedFrame` inside `editor-core/`.
-> After this phase: the preview rAF loop calls `videoEngine.renderFrame()` each tick and paints to a visible canvas. Export still uses the old path (unified in phase 7).
+> After this phase: the preview rAF loop calls `videoEngine.renderFrame()` each tick and paints to a visible canvas. Export still uses the old path (unified in phase 8).
 
 ## Goal
 
 1. `VideoEngine.renderFrame({ tracks, subtitles, timelineMs, width, height })` is pure — input project state + time → `ImageBitmap`.
 2. `RendererFactory` chooses WebGL2 first, Canvas2D fallback.
 3. `GpuCompositor` layers clips with z-index, opacity, blend, transform.
-4. Decoding is via `DecoderPool` (moved into `editor-core/video/`), still workers, still WebCodecs.
+4. **Decoding switches from the hand-rolled `DecoderPool` + `ClipDecodeWorker` (raw WebCodecs) to MediaBunny.** MediaBunny wraps demux + WebCodecs decode and gives frame-accurate seek. Same pattern OpenReel uses.
 5. Preview rAF calls `videoEngine.renderFrame()` with the clock's current ms and draws the returned bitmap to the visible canvas.
+
+## MediaBunny Adoption
+
+OpenReel's decode speed comes from **not touching `HTMLVideoElement.currentTime`** — ever. MediaBunny (`mediabunny` npm package) is a WebCodecs wrapper that:
+
+- Demuxes MP4/WebM containers via a `FileSource` / `UrlSource`.
+- Decodes via `VideoSampleSource` / `AudioBufferSource` backed by `VideoDecoder` / `AudioDecoder`.
+- Supports **frame-accurate sub-second seek** via `source.getFrame(timestampUs)` without the non-deterministic `<video>` seek behavior.
+- Handles codec config, keyframe lookup, and B-frame reorder buffers internally.
+
+We need MediaBunny both for decode (new) and encode (already used in `client-export.ts`). Unifying around one library simplifies everything.
+
+### Installation
+
+`cd frontend && bun add mediabunny` — it's already a transitive dep per root `mediabunny.d.ts`; make it explicit.
+
+### Where MediaBunny replaces current code
+
+| Current | Replaced by |
+| --- | --- |
+| `frontend/src/features/editor/engine/ClipDecodeWorker.ts` (raw WebCodecs `VideoDecoder`, chunk management) | MediaBunny `VideoSampleSource` wrapped inside `editor-core/video/MediaBunnyDecoder.ts` |
+| `frontend/src/features/editor/engine/DecoderPool.ts` (pool-of-clips, maintains 1 decoder per clip) | `editor-core/video/DecoderPool.ts` — pool-of-MediaBunny-instances (one per clip source URL), cached via LRU |
+| `frontend/src/features/editor/engine/decode-guard.ts` (backpressure) | Integrated into `DecoderPool` as a `maxConcurrentDecodes` semaphore |
+
+### New file: `editor-core/video/MediaBunnyDecoder.ts`
+
+```ts
+import { Input, ALL_FORMATS, UrlSource, VideoSampleSource } from "mediabunny";
+
+export class MediaBunnyDecoder {
+  private input: Input | null = null;
+  private videoSource: VideoSampleSource | null = null;
+
+  async load(url: string): Promise<void> {
+    this.input = new Input({ formats: ALL_FORMATS, source: new UrlSource(url) });
+    const videoTrack = await this.input.getPrimaryVideoTrack();
+    if (!videoTrack) throw new Error(`no video track in ${url}`);
+    this.videoSource = new VideoSampleSource(videoTrack);
+  }
+
+  async getFrameAt(timestampUs: number): Promise<VideoFrame | null> {
+    if (!this.videoSource) return null;
+    const sample = await this.videoSource.getSample(timestampUs / 1_000_000);
+    return sample?.toVideoFrame() ?? null;
+  }
+
+  async dispose(): Promise<void> {
+    await this.input?.dispose();
+    this.input = null;
+    this.videoSource = null;
+  }
+}
+```
+
+(Actual mediabunny API may differ slightly — adapt to the installed version; the shape above matches the current mediabunny README for browser usage.)
+
+### Updated `DecoderPool`
+
+```ts
+export class DecoderPool {
+  private readonly decoders = new Map<string, MediaBunnyDecoder>();
+
+  async getFrameAt(clipId: string, sourceUrl: string, timestampUs: number): Promise<VideoFrame | null> {
+    let decoder = this.decoders.get(clipId);
+    if (!decoder) {
+      decoder = new MediaBunnyDecoder();
+      await decoder.load(sourceUrl);
+      this.decoders.set(clipId, decoder);
+    }
+    return decoder.getFrameAt(timestampUs);
+  }
+
+  async dropClip(clipId: string): Promise<void> {
+    const d = this.decoders.get(clipId);
+    if (!d) return;
+    await d.dispose();
+    this.decoders.delete(clipId);
+  }
+
+  async disposeAll(): Promise<void> {
+    for (const [, d] of this.decoders) await d.dispose();
+    this.decoders.clear();
+  }
+}
+```
+
+Phase 6 (frame cache) wires the cache in front of this pool so `getFrameAt` hits the cache first.
+
+### Why this matters
+
+- Today's `DecoderPool` + `ClipDecodeWorker` is ~500 lines of hand-rolled chunk management, keyframe indexing, and codec negotiation. MediaBunny replaces all of it with battle-tested library code.
+- MediaBunny already handles both decode AND encode — phase 8 already uses it for output. Unifying the input path eliminates two codec configs.
+- OpenReel parity: `packages/core/src/video/video-engine.ts:243+` explicitly uses MediaBunny for decode ("the single biggest perf win; HTMLVideoElement seek is slow and non-deterministic").
 
 ## Preconditions
 
-- Phase 3 merged (clock is live).
-- `usePreviewEngine` no longer reads/writes `currentTimeMs` to React state.
+- Phase 3 merged (stores own state; `projectStore` holds tracks/subtitles).
+- Phase 4 merged (clock is live; `PreviewEngine` already reads from clock).
 - Old `CompositorWorker` + `PreviewEngine` still exist and are driving pixels.
 
 ## Files Touched
@@ -248,7 +341,7 @@ export class RenderBridge {
 
 ## Step-by-Step
 
-1. Branch `migration/phase-04-render`.
+1. Branch `migration/phase-05-render`.
 2. **Commit 1: moves.** Move all files listed in "Move" section, updating every import. Zero logic changes. `bun run type-check` must pass.
 3. **Commit 2: factor `buildCompositorDescriptors` into `editor-core/timeline/`.** Remove the old export from `PreviewEngine.ts`; all callers import from new location.
 4. **Commit 3: implement `VideoEngine`, `GpuCompositor`, `RendererFactory`.** They should produce the same pixels the old `CompositorWorker` did. Unit-test against a known tracks array + time → snapshot the `RenderedFrame` bytes.
@@ -285,7 +378,7 @@ export class RenderBridge {
 
 ## Rollback
 
-Revert phase-04 PR. The move commits are benign, so a revert cleanly restores everything. Risk is moderate — validate pixel parity carefully before merging.
+Revert phase-05 PR. The move commits are benign, so a revert cleanly restores everything. Risk is moderate — validate pixel parity carefully before merging.
 
 ## Estimate
 

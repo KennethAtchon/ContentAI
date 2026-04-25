@@ -1,4 +1,4 @@
-# Phase 5 — LRU Frame Cache + Global Memory Budget
+# Phase 6 — LRU Frame Cache + Global Memory Budget
 
 > Replace the per-clip unbounded frame queues with a single LRU cache that bounds total memory.
 > After this phase: preview memory is stable on long timelines; scrub is faster due to preload window.
@@ -13,7 +13,7 @@
 
 ## Preconditions
 
-- Phase 4 merged. `VideoEngine.renderFrame()` drives preview.
+- Phase 5 merged. `VideoEngine.renderFrame()` drives preview.
 - `DecoderPool` now lives in `editor-core/video/`.
 
 ## Files Touched
@@ -204,7 +204,7 @@ const video = new VideoEngine(decoderPool, compositor, renderer);
 
 ## Step-by-Step
 
-1. Branch `migration/phase-05-frame-cache`.
+1. Branch `migration/phase-06-frame-cache`.
 2. Implement `FrameCache` with unit tests:
    - `put` evicts on count overflow
    - `put` evicts on byte overflow
@@ -237,7 +237,7 @@ const video = new VideoEngine(decoderPool, compositor, renderer);
 
 ## Rollback
 
-Revert phase-05 PR. The decoder pool API change is the biggest risk — keep its signature stable externally (so revert is clean).
+Revert phase-06 PR. The decoder pool API change is the biggest risk — keep its signature stable externally (so revert is clean).
 
 ## Estimate
 

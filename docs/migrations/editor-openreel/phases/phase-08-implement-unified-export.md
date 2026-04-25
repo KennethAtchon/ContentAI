@@ -1,4 +1,4 @@
-# Phase 7 — Unified Export (Preview ≡ Export)
+# Phase 8 — Unified Export (Preview ≡ Export)
 
 > Collapse `services/client-export.ts` (760 lines) into a thin `ExportEngine` that calls the same `VideoEngine.renderFrame()` as preview. Eliminate the parallel export render path.
 > After this phase: whatever appears in preview will appear in export, byte-identical (modulo encoder).
@@ -16,7 +16,7 @@
 
 ## Preconditions
 
-- Phases 4, 5, 6 merged. `VideoEngine.renderFrame()` produces correct pixels including captions.
+- Phases 5, 6, 7 merged. `VideoEngine.renderFrame()` produces correct pixels including captions.
 
 ## Files Touched
 
@@ -161,7 +161,7 @@ export async function exportClientSide(args: {
 
 ## Step-by-Step
 
-1. Branch `migration/phase-07-unified-export`.
+1. Branch `migration/phase-08-unified-export`.
 2. Implement `ExportEngine` with a unit test that exports a 1-second synthetic project, counts frames produced, asserts `yields.length === fps`.
 3. Add `setParallelDecoding` to `VideoEngine` + `DecoderPool`.
 4. Rewrite `client-export.ts` video pass to use `ExportEngine`. Delete duplicated descriptor/compositor code.
@@ -192,7 +192,7 @@ export async function exportClientSide(args: {
 
 ## Rollback
 
-Revert phase-07 PR. Old export code is gone, so revert restores it. Validate export manually post-revert.
+Revert phase-08 PR. Old export code is gone, so revert restores it. Validate export manually post-revert.
 
 ## Estimate
 

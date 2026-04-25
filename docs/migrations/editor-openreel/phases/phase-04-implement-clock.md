@@ -1,21 +1,22 @@
-# Phase 3 — Implement Clock + Playhead Decoupling
+# Phase 4 — Clock + Playhead Decoupling
 
-> The highest-impact phase. Removes `currentTimeMs` from React state; replaces with an AudioContext-driven clock UI reads via `useSyncExternalStore`.
-> Expected impact: rerenders during 10s playback drop from ~300 → ≤20. Preview FPS jumps meaningfully even before the new render pipeline.
+> The highest-impact runtime phase. Replaces `PreviewEngine`'s internal time accounting with an AudioContext-driven clock; UI reads via `useSyncExternalStore`.
+> Builds on the state foundation from phase 3 — `playbackStore` exists, `currentTimeMs` no longer lives in React state.
 
 ## Goal
 
 1. `MasterTimelineClock` is the single source of truth for playhead time.
 2. UI that displays playhead (timecode, playhead line, clip highlights) subscribes via `useSyncExternalStore` directly against the clock.
-3. `currentTimeMs` is NO LONGER in `EditorPlaybackContext`.
-4. `useEditorAssetMap` no longer depends on `currentTimeMs`.
+3. `PlayheadClockContext` is deleted.
+4. `useEditorAssetMap` no longer depends on playhead time (it shouldn't in phase 3 either; verify and clean up).
 5. `REACT_PUBLISH_INTERVAL_MS = 250` and `publishTimeUpdate` are deleted.
 6. Old `PreviewEngine` and `CompositorWorker` continue rendering, now driven by the new clock instead of internal RAF state.
 
 ## Preconditions
 
-- Phase 2 merged (scaffold in place).
-- `useEngineStore.getState().clock` exists but is `null`.
+- Phase 3 merged. Stores exist. Reducer + contexts deleted. `currentTimeMs` no longer in any React state.
+- `engineStore.clock` exists but is `null`.
+- `playbackStore` exists but does not hold `currentMs` (clock owns it).
 
 ## Files Touched
 
@@ -37,33 +38,18 @@
   - Remove `onTimeUpdate` callback from `PreviewEngineCallbacks`
   - RAF loop reads `clock.currentMs` instead of computing its own
 - `frontend/src/features/editor/hooks/usePreviewEngine.ts`
-  - Drop `currentTimeMs` / `isPlaying` from options
+  - Drop `currentTimeMs` / `isPlaying` from options (already gone in phase 3)
   - Drop the `onTimeUpdate` callback registration
   - Depend on `useEngineStore.getState().clock` instead
-- `frontend/src/features/editor/components/layout/EditorProviders.tsx`
-  - Remove `currentTimeMs` from the `playbackValue` useMemo deps + shape (lines 305–332)
-  - Remove `currentTimeMs` from `useEditorAssetMap` input (line 87)
-  - Initialize `engineStore` on mount, dispose on unmount
-- `frontend/src/features/editor/context/EditorPlaybackContext.tsx`
-  - Drop `currentTimeMs` from `EditorPlaybackContextValue`
-- `frontend/src/features/editor/model/editor-reducer-session-ops.ts` (and `editor-reducer.ts` if relevant)
-  - Remove `SET_CURRENT_TIME` action entirely
-  - Remove `currentTimeMs` field from reducer state (if present)
-- `frontend/src/features/editor/hooks/useEditorAssetMap.ts`
-  - Drop `currentTimeMs` parameter
-- All UI consumers of `useContext(EditorPlaybackContext).currentTimeMs`:
-  - `components/caption/CaptionLayer.tsx`
-  - `components/layout/EditorWorkspace.tsx`
+- `frontend/src/features/editor/context/PlayheadClockContext.tsx` — **delete**; clock lives on engineStore
+- All remaining UI consumers of playhead time (any survivors from phase 3):
+  - `components/caption/CaptionLayer.tsx` (until phase 7 deletes it)
   - `components/preview/PlaybackBar.tsx`
   - `components/preview/PreviewCanvas.tsx`
   - `components/timeline/Playhead.tsx`
-  - `components/timeline/Timeline.tsx`
-  - `components/timeline/TimelineClip.tsx`
-  - `components/timeline/TimelineSection.tsx`
-  - `components/timeline/TimelineToolstrip.tsx`
+  - `components/timeline/Timeline.tsx`, `TimelineClip.tsx`, `TimelineSection.tsx`, `TimelineToolstrip.tsx`
   - `components/layout/EditorHeader.tsx`
-  - `components/dialogs/EditorDialogs.tsx`
-  - Replace with `const playheadMs = usePlayheadMs();`
+  - Replace any `usePlayheadClock()` / remaining context reads with `usePlayheadMs()`.
 
 ## Key Implementations
 
@@ -292,44 +278,42 @@ Playback state owned by the clock. `PreviewEngine` is now a pure renderer driven
 
 ## Step-by-Step
 
-1. Branch `migration/phase-03-clock`.
+1. Branch `migration/phase-04-clock`.
 2. Implement `MasterTimelineClock`, `PlaybackController`, `PlaybackBridge` (fill phase-2 stubs).
-3. Wire `engineStore.initialize()`; call from `EditorProviders` on mount, `dispose` on unmount.
+3. Wire `engineStore.initialize()`; it was stubbed in phase 2 and lightly exercised in phase 3. Now it actually constructs the clock + controller.
 4. Add `hooks/usePlayheadMs.ts`, `hooks/useIsPlaying.ts`.
 5. **Rewire `PreviewEngine`** to accept clock and stop publishing time. Also update its consumers (`usePreviewEngine`, anywhere it's constructed).
-6. **Sweep all `EditorPlaybackContext.currentTimeMs` consumers** (list above). Replace with `usePlayheadMs()`.
-7. **Sweep all `EditorPlaybackContext.isPlaying` consumers.** Replace with `useIsPlaying()`.
-8. Delete `SET_CURRENT_TIME` action + `currentTimeMs` field from reducer.
-9. Remove `currentTimeMs` from `EditorPlaybackContextValue`.
-10. Remove `currentTimeMs` from `useEditorAssetMap` input.
-11. `bun run type-check` → fix whatever broke.
-12. `bun run lint`, `bun test`.
-13. Manual smoke:
+6. **Sweep surviving playhead consumers** (list in "Files Touched"). Replace with `usePlayheadMs()` / `useIsPlaying()`.
+7. Delete `frontend/src/features/editor/context/PlayheadClockContext.tsx`. Remove temporary ESLint whitelist from phase 3.
+8. `bun run type-check` → fix whatever broke.
+9. `bun run lint`, `bun test`.
+10. Manual smoke:
     - Open editor.
     - Playhead moves during playback.
     - Scrub the timeline — playhead updates.
     - Pause — playhead stops.
-    - Open React DevTools Profiler → record 10 seconds of playback → count commits. Should be **drastically fewer** than before (most components never re-render).
-14. Commit. PR.
+    - Open React DevTools Profiler → record 10 seconds of playback → count commits. Should be **drastically fewer** than phase 3 (only `usePlayheadMs`/`useIsPlaying` consumers commit).
+11. Commit. PR.
 
 ## Validation
 
 | Check | How |
 | --- | --- |
-| No `currentTimeMs` in React state | `grep -rn "currentTimeMs" frontend/src/features/editor/context frontend/src/features/editor/model` should only match removals/unrelated |
+| No `PlayheadClockContext` | `grep -rn "PlayheadClockContext" frontend/src` → zero hits |
+| `REACT_PUBLISH_INTERVAL_MS` / `publishTimeUpdate` gone | `grep -rn "REACT_PUBLISH_INTERVAL_MS\|publishTimeUpdate" frontend/src` → zero hits |
 | Clock drives playhead | Pause AudioContext in DevTools; playhead freezes. |
-| Rerender count | React DevTools Profiler: 10s playback → only timecode + playhead line commit. Target ≤ 20 total commits. |
-| FPS | DevTools Perf: target 30+ FPS (we're not done — full 60 awaits phase 4) |
+| Rerender count | React DevTools Profiler: 10s playback → only timecode + playhead line commit. Target ≤ 20 commits across the tree. |
+| FPS | DevTools Perf: target 25–35 FPS (still old CompositorWorker; full 60 awaits phase 5) |
 | All UI still works | Play, pause, scrub, click clip, edit text, save, export |
 | No ESLint violations | `bun run lint` |
 | Types clean | `bun run type-check` |
 
 ## Exit Criteria
 
-- `currentTimeMs` deleted from reducer, context, asset map hook.
+- `PlayheadClockContext` deleted. All editor contexts now gone.
 - `REACT_PUBLISH_INTERVAL_MS` and `publishTimeUpdate` gone from `PreviewEngine`.
-- Every place that previously read `currentTimeMs` now uses `usePlayheadMs()` (or direct `clock.currentMs` in engine code).
-- Profiler-verified commit-count drop during playback.
+- Every playhead read goes through `usePlayheadMs()` (React) or `clock.currentMs` (engine code).
+- Profiler-verified commit-count drop during playback, strictly better than phase 3.
 
 ## Rollback
 
@@ -350,6 +334,6 @@ This is the riskiest phase to rollback because many files change. Keep the PR sm
 Must hit before merging:
 
 - Playback profiler: ≤ 30 component commits during 10s continuous playback.
-- No `SET_CURRENT_TIME` dispatches in the Redux-style action log (if you have devtools hooked).
+- No playhead-related dispatches in the Zustand devtools action log. The clock owns time; no store action should touch it.
 
 If either fails, do NOT merge. Find the stray consumer still driving state on tick.
