@@ -551,20 +551,20 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
 ];
 
 export function getEffectDefinition(
-  type: LayerEffectType,
+  type: LayerEffectType
 ): EffectDefinition | undefined {
   return EFFECT_DEFINITIONS.find((def) => def.type === type);
 }
 
 export function getEffectsByCategory(
-  category: EffectCategory,
+  category: EffectCategory
 ): EffectDefinition[] {
   return EFFECT_DEFINITIONS.filter((def) => def.category === category);
 }
 
 export function createDefaultEffect(
   type: LayerEffectType,
-  id: string,
+  id: string
 ): LayerEffect | null {
   const definition = getEffectDefinition(type);
   if (!definition) return null;

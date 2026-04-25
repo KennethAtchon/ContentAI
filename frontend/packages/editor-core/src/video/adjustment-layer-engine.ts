@@ -75,7 +75,7 @@ export class AdjustmentLayerEngine {
   createAdjustmentLayer(
     trackId: string,
     startTime: number,
-    options: CreateAdjustmentLayerOptions = {},
+    options: CreateAdjustmentLayerOptions = {}
   ): AdjustmentLayer {
     const layer: AdjustmentLayer = {
       id: generateId(),
@@ -144,7 +144,7 @@ export class AdjustmentLayerEngine {
 
   updateLayer(
     id: string,
-    updates: Partial<Omit<AdjustmentLayer, "id">>,
+    updates: Partial<Omit<AdjustmentLayer, "id">>
   ): boolean {
     const layer = this.layers.get(id);
     if (!layer) return false;
@@ -206,7 +206,7 @@ export class AdjustmentLayerEngine {
   updateEffect(
     layerId: string,
     effectId: string,
-    updates: Partial<Effect>,
+    updates: Partial<Effect>
   ): boolean {
     const layer = this.layers.get(layerId);
     if (!layer) return false;
@@ -250,7 +250,7 @@ export class AdjustmentLayerEngine {
   getEffectsForClip(
     clipTrackIndex: number,
     time: number,
-    trackIndices: Map<string, number>,
+    trackIndices: Map<string, number>
   ): AdjustmentLayerEffect[] {
     const effects: AdjustmentLayerEffect[] = [];
 

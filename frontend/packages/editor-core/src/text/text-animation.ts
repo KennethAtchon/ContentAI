@@ -73,11 +73,11 @@ export class TextAnimationEngine {
     const easing = animation.params.easing ?? "ease-out";
     const easedInProgress = this.animationEngine.applyEasing(
       inProgress,
-      easing,
+      easing
     );
     const easedOutProgress = this.animationEngine.applyEasing(
       outProgress,
-      easing,
+      easing
     );
     return this.applyPreset(
       clip,
@@ -85,13 +85,13 @@ export class TextAnimationEngine {
       animation.params,
       easedInProgress,
       easedOutProgress,
-      time,
+      time
     );
   }
 
   private applyKeyframeAnimation(
     clip: TextClip,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text, keyframes } = clip;
 
@@ -158,7 +158,7 @@ export class TextAnimationEngine {
     params: TextAnimationParams,
     inProgress: number,
     outProgress: number,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
 
@@ -217,7 +217,7 @@ export class TextAnimationEngine {
           inProgress,
           outProgress,
           params,
-          time,
+          time
         );
 
       case "rainbow":
@@ -237,7 +237,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    _time: number,
+    _time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const totalChars = text.length;
@@ -257,7 +257,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const startOpacity = params.fadeOpacity?.start ?? 0;
@@ -278,7 +278,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     params: TextAnimationParams,
-    direction: "left" | "right" | "up" | "down",
+    direction: "left" | "right" | "up" | "down"
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const distance = params.slideDistance ?? 0.2; // Normalized distance
@@ -322,7 +322,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const scaleFrom = params.scaleFrom ?? 0;
@@ -350,7 +350,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const blurAmount = params.blurAmount ?? 10;
@@ -378,7 +378,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const bounceHeight = params.bounceHeight ?? 0.1;
@@ -418,7 +418,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const rotateAngle = params.rotateAngle ?? 360;
@@ -446,7 +446,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     params: TextAnimationParams,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const amplitude = params.waveAmplitude ?? 0.02;
@@ -484,7 +484,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     params: TextAnimationParams,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const intensity = params.shakeIntensity ?? 0.01;
@@ -517,7 +517,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const overshoot = params.popOvershoot ?? 1.2;
@@ -554,7 +554,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     params: TextAnimationParams,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const intensity = params.glitchIntensity ?? 0.02;
@@ -594,7 +594,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const direction = params.splitDirection ?? "horizontal";
@@ -635,7 +635,7 @@ export class TextAnimationEngine {
     clip: TextClip,
     inProgress: number,
     outProgress: number,
-    params: TextAnimationParams,
+    params: TextAnimationParams
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const axis = params.flipAxis ?? "y";
@@ -666,7 +666,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     _params: TextAnimationParams,
-    _time: number,
+    _time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
 
@@ -689,7 +689,7 @@ export class TextAnimationEngine {
     inProgress: number,
     outProgress: number,
     params: TextAnimationParams,
-    time: number,
+    time: number
   ): AnimatedTextState {
     const { style, transform, text } = clip;
     const speed = params.rainbowSpeed ?? 1;
@@ -727,7 +727,7 @@ export class TextAnimationEngine {
     preset: TextAnimationPreset,
     inDuration: number = 0.5,
     outDuration: number = 0.5,
-    params: Partial<TextAnimationParams> = {},
+    params: Partial<TextAnimationParams> = {}
   ): TextAnimation {
     const defaultParams = this.getDefaultParams(preset);
 

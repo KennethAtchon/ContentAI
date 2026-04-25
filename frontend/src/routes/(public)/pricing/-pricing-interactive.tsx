@@ -7,22 +7,22 @@
 "use client";
 
 import { useState, lazy, Suspense } from "react";
-import { PricingCard } from "@/shared/components/saas/PricingCard";
+import { PricingCard } from "@/domains/subscriptions/ui/PricingCard";
 import {
   getTierConfig,
   SUBSCRIPTION_TIERS,
   SUBSCRIPTION_TRIAL_DAYS,
 } from "@/shared/constants/subscription.constants";
-import { Switch } from "@/shared/components/ui/switch";
-import { Badge } from "@/shared/components/ui/badge";
-import { Card, CardContent } from "@/shared/components/ui/card";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
+import { Switch } from "@/shared/ui/primitives/switch";
+import { Badge } from "@/shared/ui/primitives/badge";
+import { Card, CardContent } from "@/shared/ui/primitives/card";
+import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 import { Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 // Dynamically import FeatureComparison to reduce initial bundle size
 const FeatureComparison = lazy(() =>
-  import("@/shared/components/saas/FeatureComparison").then((mod) => ({
+  import("@/domains/subscriptions/ui/FeatureComparison").then((mod) => ({
     default: mod.FeatureComparison,
   }))
 );

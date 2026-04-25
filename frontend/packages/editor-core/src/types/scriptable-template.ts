@@ -282,7 +282,7 @@ export interface PlaceholderGroup {
 }
 
 export function isExtendedPlaceholder(
-  placeholder: TemplatePlaceholder | ExtendedPlaceholder,
+  placeholder: TemplatePlaceholder | ExtendedPlaceholder
 ): placeholder is ExtendedPlaceholder {
   return (
     "targets" in placeholder &&
@@ -291,7 +291,7 @@ export function isExtendedPlaceholder(
 }
 
 export function convertLegacyPlaceholder(
-  placeholder: TemplatePlaceholder,
+  placeholder: TemplatePlaceholder
 ): ExtendedPlaceholder {
   return {
     id: placeholder.id,
@@ -314,13 +314,13 @@ export function convertLegacyPlaceholder(
 }
 
 export function getPresetForCategory(
-  category: SocialMediaCategory,
+  category: SocialMediaCategory
 ): SocialMediaPreset {
   return SOCIAL_MEDIA_PRESETS[category] || SOCIAL_MEDIA_PRESETS.custom;
 }
 
 export function createProjectSettingsFromPreset(
-  preset: SocialMediaPreset,
+  preset: SocialMediaPreset
 ): ProjectSettings {
   return {
     width: preset.width,

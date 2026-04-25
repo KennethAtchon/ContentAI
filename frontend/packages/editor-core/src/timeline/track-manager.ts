@@ -36,7 +36,7 @@ export class TrackManager {
 
   async addTrack(
     timeline: Timeline,
-    params: CreateTrackParams,
+    params: CreateTrackParams
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/add",
@@ -53,7 +53,7 @@ export class TrackManager {
 
     if (result.success) {
       const newTrack = project.timeline.tracks.find(
-        (t: Track) => !timeline.tracks.some((existing) => existing.id === t.id),
+        (t: Track) => !timeline.tracks.some((existing) => existing.id === t.id)
       );
       return {
         success: true,
@@ -69,7 +69,7 @@ export class TrackManager {
 
   async removeTrack(
     timeline: Timeline,
-    trackId: string,
+    trackId: string
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/remove",
@@ -92,7 +92,7 @@ export class TrackManager {
   async reorderTrack(
     timeline: Timeline,
     trackId: string,
-    newPosition: number,
+    newPosition: number
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/reorder",
@@ -116,7 +116,7 @@ export class TrackManager {
   async setTrackLocked(
     timeline: Timeline,
     trackId: string,
-    locked: boolean,
+    locked: boolean
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/lock",
@@ -140,7 +140,7 @@ export class TrackManager {
   async setTrackHidden(
     timeline: Timeline,
     trackId: string,
-    hidden: boolean,
+    hidden: boolean
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/hide",
@@ -164,7 +164,7 @@ export class TrackManager {
   async setTrackMuted(
     timeline: Timeline,
     trackId: string,
-    muted: boolean,
+    muted: boolean
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/mute",
@@ -188,7 +188,7 @@ export class TrackManager {
   async setTrackSolo(
     timeline: Timeline,
     trackId: string,
-    solo: boolean,
+    solo: boolean
   ): Promise<TrackOperationResult> {
     const action: Action = {
       type: "track/solo",
@@ -215,7 +215,7 @@ export class TrackManager {
 
   getTracksByType(
     timeline: Timeline,
-    type: "video" | "audio" | "image",
+    type: "video" | "audio" | "image"
   ): Track[] {
     return timeline.tracks.filter((t) => t.type === type);
   }
@@ -263,7 +263,7 @@ export class TrackManager {
 
 export function createTrack(
   type: "video" | "audio" | "image",
-  name?: string,
+  name?: string
 ): Track {
   return {
     id: `track-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
@@ -299,7 +299,7 @@ export function getTrackClips(track: Track): Clip[] {
 
 export function canAcceptMediaType(
   track: Track,
-  mediaType: "video" | "audio" | "image",
+  mediaType: "video" | "audio" | "image"
 ): boolean {
   // Video tracks can accept video and image
   if (track.type === "video") {

@@ -249,7 +249,8 @@ function calculateOverallTier(
 
 export async function detectDeviceCapabilities(): Promise<DeviceProfile> {
   const cores = navigator.hardwareConcurrency || 4;
-  const memory = (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
+  const memory =
+    (navigator as unknown as { deviceMemory?: number }).deviceMemory || 4;
 
   const cpu: CpuInfo = { cores, tier: getCpuTier(cores) };
   const memoryInfo: MemoryInfo = { gb: memory, tier: getMemoryTier(memory) };
@@ -342,7 +343,13 @@ export function getCodecRecommendations(
 
 export function getResolutionRecommendations(
   profile: DeviceProfile
-): Array<{ width: number; height: number; label: string; recommended: boolean; warning?: string }> {
+): Array<{
+  width: number;
+  height: number;
+  label: string;
+  recommended: boolean;
+  warning?: string;
+}> {
   const recommendations = [];
 
   recommendations.push({
@@ -356,7 +363,8 @@ export function getResolutionRecommendations(
     width: 1920,
     height: 1080,
     label: "1080p Full HD",
-    recommended: profile.overallTier === "mid" || profile.overallTier === "high",
+    recommended:
+      profile.overallTier === "mid" || profile.overallTier === "high",
   });
 
   if (profile.memory.gb >= 4) {
@@ -366,7 +374,9 @@ export function getResolutionRecommendations(
       label: "1440p QHD",
       recommended: profile.overallTier === "high",
       warning:
-        profile.overallTier !== "high" ? "May be slow on this device" : undefined,
+        profile.overallTier !== "high"
+          ? "May be slow on this device"
+          : undefined,
     });
   }
 

@@ -123,7 +123,8 @@ export class RealtimeAudioGraph {
 
   createTrack(config: TrackConfig): void {
     this.removeTrack(config.trackId);
-    config.volume = this.trackVolumeOverrides.get(config.trackId) ?? config.volume;
+    config.volume =
+      this.trackVolumeOverrides.get(config.trackId) ?? config.volume;
     config.pan = this.trackPanOverrides.get(config.trackId) ?? config.pan;
     this.trackConfigs.set(config.trackId, config);
 
@@ -304,7 +305,7 @@ export class RealtimeAudioGraph {
 
   private getOrCreateImpulseResponse(
     roomSize: number,
-    damping: number,
+    damping: number
   ): AudioBuffer {
     const key = `${roomSize.toFixed(2)}_${damping.toFixed(2)}`;
 
@@ -320,7 +321,7 @@ export class RealtimeAudioGraph {
     const impulseBuffer = this.audioContext.createBuffer(
       channels,
       length,
-      sampleRate,
+      sampleRate
     );
 
     for (let channel = 0; channel < channels; channel++) {
@@ -423,10 +424,7 @@ export class RealtimeAudioGraph {
     this.trackPanOverrides.set(trackId, clamped);
     const nodes = this.trackNodes.get(trackId);
     if (nodes) {
-      nodes.panNode.pan.setValueAtTime(
-        clamped,
-        this.audioContext.currentTime,
-      );
+      nodes.panNode.pan.setValueAtTime(clamped, this.audioContext.currentTime);
     }
     const config = this.trackConfigs.get(trackId);
     if (config) {
@@ -466,7 +464,7 @@ export class RealtimeAudioGraph {
 
   private updateSoloState(): void {
     this.hasSoloTracks = Array.from(this.trackConfigs.values()).some(
-      (c) => c.solo,
+      (c) => c.solo
     );
     for (const trackId of this.trackNodes.keys()) {
       this.updateTrackAudibility(trackId);
@@ -488,7 +486,7 @@ export class RealtimeAudioGraph {
     const targetGain = audible ? config.volume : 0;
     nodes.outputGain.gain.setValueAtTime(
       targetGain,
-      this.audioContext.currentTime,
+      this.audioContext.currentTime
     );
   }
 
@@ -647,7 +645,7 @@ export class RealtimeAudioGraph {
             const existingSources =
               this.scheduledSources.get(clip.trackId) || [];
             const alreadyScheduled = existingSources.some(
-              (s) => s.clipId === clip.clipId,
+              (s) => s.clipId === clip.clipId
             );
             if (!alreadyScheduled) {
               this.scheduleClip(clip);
@@ -697,7 +695,7 @@ export function getRealtimeAudioGraph(): RealtimeAudioGraph {
 }
 
 export function initializeRealtimeAudioGraph(
-  masterClock?: MasterTimelineClock,
+  masterClock?: MasterTimelineClock
 ): RealtimeAudioGraph {
   if (realtimeAudioGraphInstance) {
     realtimeAudioGraphInstance.dispose();

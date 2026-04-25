@@ -20,7 +20,14 @@ export interface ParticlePreset {
   thumbnail?: string;
 }
 
-const CONFETTI_COLORS = ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#ff6b9d", "#845ef7"];
+const CONFETTI_COLORS = [
+  "#ff6b6b",
+  "#ffd93d",
+  "#6bcb77",
+  "#4d96ff",
+  "#ff6b9d",
+  "#845ef7",
+];
 const FIRE_COLORS = ["#ff4500", "#ff6b00", "#ffb700", "#ffd700"];
 const SPARKLE_COLORS = ["#ffffff", "#fffacd", "#fff8dc", "#ffffe0"];
 const DUST_COLORS = ["#a0a0a0", "#808080", "#606060", "#404040"];
@@ -200,7 +207,14 @@ export const PARTICLE_PRESETS: ParticlePreset[] = [
       speed: 100,
       speedVariance: 50,
       gravity: 400,
-      colors: ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"],
+      colors: [
+        "#ff0000",
+        "#00ff00",
+        "#0000ff",
+        "#ffff00",
+        "#ff00ff",
+        "#00ffff",
+      ],
       size: { min: 8, max: 16 },
       opacity: { start: 1, end: 0.5 },
       lifetime: { min: 0.5, max: 1.2 },
@@ -313,7 +327,9 @@ export function getParticlePresetById(id: string): ParticlePreset | undefined {
   return PARTICLE_PRESETS.find((p) => p.id === id);
 }
 
-export function getParticlePresetsByType(type: ParticleEffectType): ParticlePreset[] {
+export function getParticlePresetsByType(
+  type: ParticleEffectType
+): ParticlePreset[] {
   return PARTICLE_PRESETS.filter((p) => p.type === type);
 }
 

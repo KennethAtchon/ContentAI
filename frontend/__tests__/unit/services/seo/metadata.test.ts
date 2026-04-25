@@ -7,7 +7,7 @@ import {
   generateBusinessMetadata,
   generateProductMetadata,
   generatePageMetadata,
-} from "@/shared/services/seo/metadata";
+} from "@/shared/seo/metadata";
 import { APP_NAME } from "@/shared/constants/app.constants";
 
 describe("metadata", () => {

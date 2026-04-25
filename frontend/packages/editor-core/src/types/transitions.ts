@@ -388,7 +388,7 @@ export const TRANSITION_PRESETS: TransitionPreset[] = [
 
 export function createTransition<T extends ClipTransitionType>(
   type: T,
-  overrides?: Partial<Transition>,
+  overrides?: Partial<Transition>
 ): Transition {
   const id = `transition-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -453,13 +453,13 @@ export function createTransition<T extends ClipTransitionType>(
 }
 
 export function getTransitionPresetById(
-  presetId: string,
+  presetId: string
 ): TransitionPreset | undefined {
   return TRANSITION_PRESETS.find((p) => p.id === presetId);
 }
 
 export function getTransitionPresetsByCategory(
-  category: TransitionPreset["category"],
+  category: TransitionPreset["category"]
 ): TransitionPreset[] {
   return TRANSITION_PRESETS.filter((p) => p.category === category);
 }

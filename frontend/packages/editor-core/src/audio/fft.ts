@@ -143,7 +143,7 @@ export class FFT {
 
   getMagnitudeAndPhase(
     real: Float32Array,
-    imag: Float32Array,
+    imag: Float32Array
   ): { magnitudes: Float32Array; phases: Float32Array } {
     const halfSize = this.size / 2;
     const magnitudes = new Float32Array(halfSize);
@@ -159,7 +159,7 @@ export class FFT {
 
   fromMagnitudeAndPhase(
     magnitudes: Float32Array,
-    phases: Float32Array,
+    phases: Float32Array
   ): { real: Float32Array; imag: Float32Array } {
     const n = this.size;
     const halfSize = magnitudes.length;

@@ -194,7 +194,7 @@ export class AutoReframeEngine {
     frames: ImageBitmap[],
     frameRate: number,
     settings: ReframeSettings,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<ReframeResult> {
     if (!this.initialized || !this.ctx) {
       return {
@@ -232,7 +232,7 @@ export class AutoReframeEngine {
         faces,
         settings,
         lastCropX,
-        lastCropY,
+        lastCropY
       );
 
       lastCropX = crop.x;
@@ -250,7 +250,7 @@ export class AutoReframeEngine {
 
     const smoothedKeyframes = this.smoothKeyframes(
       keyframes,
-      settings.smoothing,
+      settings.smoothing
     );
 
     onProgress?.(100, "Analysis complete");
@@ -267,7 +267,7 @@ export class AutoReframeEngine {
     frame: ImageBitmap,
     keyframe: ReframeKeyframe,
     outputWidth: number,
-    outputHeight: number,
+    outputHeight: number
   ): Promise<ImageBitmap> {
     if (!this.ctx || !this.canvas) {
       return frame;
@@ -285,7 +285,7 @@ export class AutoReframeEngine {
       0,
       0,
       outputWidth,
-      outputHeight,
+      outputHeight
     );
 
     return createImageBitmap(this.canvas);
@@ -315,7 +315,7 @@ export class AutoReframeEngine {
 
   private async detectFaces(
     frame: ImageBitmap,
-    frameIndex: number,
+    frameIndex: number
   ): Promise<DetectedFace[]> {
     if (this.faceCache.has(frameIndex)) {
       return this.faceCache.get(frameIndex)!;
@@ -402,7 +402,7 @@ export class AutoReframeEngine {
   private findConnectedRegions(
     skinMap: Uint8Array,
     width: number,
-    height: number,
+    height: number
   ): Array<{ x: number; y: number; width: number; height: number }> {
     const visited = new Uint8Array(width * height);
     const regions: Array<{
@@ -424,7 +424,7 @@ export class AutoReframeEngine {
             height,
             bx,
             by,
-            blockSize,
+            blockSize
           );
           if (region) {
             regions.push(region);
@@ -443,7 +443,7 @@ export class AutoReframeEngine {
     height: number,
     startX: number,
     startY: number,
-    blockSize: number,
+    blockSize: number
   ): { x: number; y: number; width: number; height: number } | null {
     let minX = startX,
       maxX = startX;
@@ -491,7 +491,7 @@ export class AutoReframeEngine {
     faces: DetectedFace[],
     settings: ReframeSettings,
     lastCropX: number,
-    lastCropY: number,
+    lastCropY: number
   ): { x: number; y: number; width: number; height: number } {
     const sourceRatio = sourceWidth / sourceHeight;
 
@@ -513,7 +513,7 @@ export class AutoReframeEngine {
       const mainFace = faces.reduce((a, b) =>
         a.width * a.height * a.confidence > b.width * b.height * b.confidence
           ? a
-          : b,
+          : b
       );
 
       const faceCenterX = mainFace.x + mainFace.width / 2;
@@ -551,7 +551,7 @@ export class AutoReframeEngine {
 
   private smoothKeyframes(
     keyframes: ReframeKeyframe[],
-    smoothing: number,
+    smoothing: number
   ): ReframeKeyframe[] {
     if (keyframes.length < 3 || smoothing === 0) return keyframes;
 
@@ -584,7 +584,7 @@ export class AutoReframeEngine {
 
   getKeyframeAtTime(
     keyframes: ReframeKeyframe[],
-    time: number,
+    time: number
   ): ReframeKeyframe {
     if (keyframes.length === 0) {
       return {
@@ -616,7 +616,7 @@ export class AutoReframeEngine {
   private interpolateKeyframes(
     a: ReframeKeyframe,
     b: ReframeKeyframe,
-    t: number,
+    t: number
   ): ReframeKeyframe {
     const ease = t * t * (3 - 2 * t);
     return {
@@ -625,7 +625,7 @@ export class AutoReframeEngine {
       cropY: Math.round(a.cropY + (b.cropY - a.cropY) * ease),
       cropWidth: Math.round(a.cropWidth + (b.cropWidth - a.cropWidth) * ease),
       cropHeight: Math.round(
-        a.cropHeight + (b.cropHeight - a.cropHeight) * ease,
+        a.cropHeight + (b.cropHeight - a.cropHeight) * ease
       ),
       scale: a.scale + (b.scale - a.scale) * ease,
     };

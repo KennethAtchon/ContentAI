@@ -34,7 +34,7 @@ export class CompositionRenderer {
 
   async renderFrame(
     composition: Composition,
-    time: number,
+    time: number
   ): Promise<ImageBitmap> {
     const { width, height, backgroundColor } = composition;
 
@@ -49,7 +49,7 @@ export class CompositionRenderer {
       (layer) =>
         layer.visible &&
         time >= layer.startTime &&
-        time < layer.startTime + layer.duration,
+        time < layer.startTime + layer.duration
     );
 
     for (const layer of visibleLayers) {
@@ -107,7 +107,7 @@ export class CompositionRenderer {
 
   private evaluateKeyframes(
     propKeyframes: PropertyKeyframes,
-    time: number,
+    time: number
   ): any {
     const keyframes = propKeyframes.keyframes;
 
@@ -307,7 +307,7 @@ export class CompositionRenderer {
           cp2.x,
           cp2.y,
           point.point.x,
-          point.point.y,
+          point.point.y
         );
       } else {
         this.ctx.lineTo(point.point.x, point.point.y);
@@ -335,7 +335,7 @@ export class CompositionRenderer {
         0,
         center.x,
         center.y,
-        radius,
+        radius
       );
     }
 
@@ -365,7 +365,7 @@ export class CompositionRenderer {
     text: string,
     x: number,
     y: number,
-    spacing: number,
+    spacing: number
   ): void {
     let currentX = x;
     for (const char of text) {
@@ -392,7 +392,7 @@ export class CompositionRenderer {
 
   private async renderVideoLayer(
     layer: VideoLayer,
-    time: number,
+    time: number
   ): Promise<void> {
     let video = this.videoCache.get(layer.videoUrl);
 
@@ -407,7 +407,7 @@ export class CompositionRenderer {
   }
 
   private async loadImage(
-    url: string,
+    url: string
   ): Promise<HTMLImageElement | ImageBitmap> {
     return new Promise((resolve, reject) => {
       const img = new Image();

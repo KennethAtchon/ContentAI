@@ -74,7 +74,7 @@ export class ParallelFrameDecoder {
   constructor(private workerCount: number = 4) {
     this.workerCount = Math.max(
       1,
-      Math.min(workerCount, navigator.hardwareConcurrency || 4),
+      Math.min(workerCount, navigator.hardwareConcurrency || 4)
     );
   }
 
@@ -154,12 +154,12 @@ export class ParallelFrameDecoder {
 
   private async handleDecodeResponse(
     state: WorkerState,
-    response: DecodeResponse,
+    response: DecodeResponse
   ): Promise<void> {
     const pending = state.pendingRequests.get(response.requestId);
     if (!pending) {
       console.warn(
-        `[ParallelFrameDecoder] No pending request for ${response.requestId}`,
+        `[ParallelFrameDecoder] No pending request for ${response.requestId}`
       );
       return;
     }
@@ -217,7 +217,7 @@ export class ParallelFrameDecoder {
 
   private async getFromCache(
     clipId: string,
-    time: number,
+    time: number
   ): Promise<ImageBitmap | null> {
     const cacheKey = `${clipId}:${time.toFixed(3)}`;
     const cached = this.frameCache.get(cacheKey);
@@ -269,7 +269,7 @@ export class ParallelFrameDecoder {
     worker: WorkerState,
     request: FrameDecodeRequest,
     resolve: (result: FrameDecodeResult) => void,
-    reject: (error: Error) => void,
+    reject: (error: Error) => void
   ): void {
     const requestId = `req_${this.requestIdCounter++}`;
 
@@ -322,7 +322,7 @@ export class ParallelFrameDecoder {
   }
 
   async decodeFrames(
-    requests: FrameDecodeRequest[],
+    requests: FrameDecodeRequest[]
   ): Promise<Map<string, FrameDecodeResult>> {
     if (!this.initialized) {
       await this.initialize();
@@ -346,7 +346,7 @@ export class ParallelFrameDecoder {
   async decodeClipsAtTime(
     clips: Array<{ clipId: string; blob: Blob; time: number }>,
     width: number,
-    height: number,
+    height: number
   ): Promise<Map<string, ImageBitmap>> {
     const requests: FrameDecodeRequest[] = clips.map((clip) => ({
       clipId: clip.clipId,
@@ -435,7 +435,7 @@ export function getParallelFrameDecoder(): ParallelFrameDecoder {
 }
 
 export async function initializeParallelDecoder(
-  workerCount?: number,
+  workerCount?: number
 ): Promise<ParallelFrameDecoder> {
   if (parallelDecoderInstance) {
     parallelDecoderInstance.dispose();

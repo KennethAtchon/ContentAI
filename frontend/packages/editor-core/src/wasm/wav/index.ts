@@ -9,26 +9,26 @@ export type WasmWavExports = {
   encodeWav16Mono(
     samples: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void;
   encodeWav16Stereo(
     left: Float32Array,
     right: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void;
   encodeWav24Stereo(
     left: Float32Array,
     right: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void;
   writeWavHeader(
     output: Uint8Array,
     numChannels: number,
     sampleRate: number,
     bitsPerSample: number,
-    numSamples: number,
+    numSamples: number
   ): void;
   allocateU8(length: number): Uint8Array;
   allocateF32(length: number): Float32Array;
@@ -85,7 +85,7 @@ export function isWasmWavAvailable(): boolean {
 function jsEncodeWav16Mono(
   samples: Float32Array,
   output: Uint8Array,
-  dataOffset: number,
+  dataOffset: number
 ): void {
   for (let i = 0; i < samples.length; i++) {
     let sample = samples[i];
@@ -101,7 +101,7 @@ function jsEncodeWav16Stereo(
   left: Float32Array,
   right: Float32Array,
   output: Uint8Array,
-  dataOffset: number,
+  dataOffset: number
 ): void {
   for (let i = 0; i < left.length; i++) {
     let leftSample = Math.max(-1, Math.min(1, left[i]));
@@ -122,7 +122,7 @@ function jsEncodeWav24Stereo(
   left: Float32Array,
   right: Float32Array,
   output: Uint8Array,
-  dataOffset: number,
+  dataOffset: number
 ): void {
   const maxVal = 8388607;
   for (let i = 0; i < left.length; i++) {
@@ -147,7 +147,7 @@ function jsWriteWavHeader(
   numChannels: number,
   sampleRate: number,
   bitsPerSample: number,
-  numSamples: number,
+  numSamples: number
 ): void {
   const bytesPerSample = bitsPerSample >> 3;
   const blockAlign = numChannels * bytesPerSample;
@@ -235,7 +235,7 @@ export class WavEncoder {
   encodeWav16Mono(
     samples: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.encodeWav16Mono(samples, output, dataOffset);
@@ -248,7 +248,7 @@ export class WavEncoder {
     left: Float32Array,
     right: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.encodeWav16Stereo(left, right, output, dataOffset);
@@ -261,7 +261,7 @@ export class WavEncoder {
     left: Float32Array,
     right: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.encodeWav24Stereo(left, right, output, dataOffset);
@@ -275,7 +275,7 @@ export class WavEncoder {
     numChannels: number,
     sampleRate: number,
     bitsPerSample: number,
-    numSamples: number,
+    numSamples: number
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.writeWavHeader(
@@ -283,17 +283,23 @@ export class WavEncoder {
         numChannels,
         sampleRate,
         bitsPerSample,
-        numSamples,
+        numSamples
       );
     } else {
-      jsWriteWavHeader(output, numChannels, sampleRate, bitsPerSample, numSamples);
+      jsWriteWavHeader(
+        output,
+        numChannels,
+        sampleRate,
+        bitsPerSample,
+        numSamples
+      );
     }
   }
 
   encodeFullWav(
     samples: Float32Array[],
     sampleRate: number,
-    bitsPerSample: 16 | 24 = 16,
+    bitsPerSample: 16 | 24 = 16
   ): Uint8Array {
     const numChannels = samples.length;
     const numSamples = samples[0].length;
@@ -301,7 +307,13 @@ export class WavEncoder {
     const dataSize = numSamples * numChannels * bytesPerSample;
     const output = new Uint8Array(44 + dataSize);
 
-    this.writeWavHeader(output, numChannels, sampleRate, bitsPerSample, numSamples);
+    this.writeWavHeader(
+      output,
+      numChannels,
+      sampleRate,
+      bitsPerSample,
+      numSamples
+    );
 
     if (numChannels === 1 && bitsPerSample === 16) {
       this.encodeWav16Mono(samples[0], output, 44);
@@ -319,7 +331,7 @@ export class WavEncoder {
   private encodeWav24Mono(
     samples: Float32Array,
     output: Uint8Array,
-    dataOffset: number,
+    dataOffset: number
   ): void {
     const maxVal = 8388607;
     for (let i = 0; i < samples.length; i++) {

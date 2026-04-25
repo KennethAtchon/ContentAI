@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
-import { Badge } from "@/shared/components/ui/badge";
+} from "@/shared/ui/primitives/card";
+import { Badge } from "@/shared/ui/primitives/badge";
 import { Code, Lock, Zap, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 

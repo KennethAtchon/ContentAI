@@ -26,6 +26,7 @@
     "i18n:check": "bun scripts/fix-i18n-interpolation.ts",
     "i18n:fix": "bun scripts/fix-i18n-interpolation.ts --fix",
     "i18n:missing": "bun scripts/check-unloaded-translations.ts",
+    "imports:rewrite": "bun scripts/rewrite-src-imports.ts",
     "type-check": "bun run editor-core:build && tsc --noEmit",
     "type-check:strict": "bun run editor-core:build && tsc --noEmit --strict",
     "build:production": "NODE_ENV=production bun run build",

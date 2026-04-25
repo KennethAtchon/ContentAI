@@ -79,7 +79,7 @@ export class CompositeEngine {
 
   async compositeLayers(
     layers: CompositeLayerInput[],
-    backgroundColor?: RGBColor,
+    backgroundColor?: RGBColor
   ): Promise<CompositeResult> {
     const startTime = performance.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -129,7 +129,7 @@ export class CompositeEngine {
   private async blendLayerPixels(
     image: ImageBitmap,
     blendMode: BlendMode,
-    opacity: number,
+    opacity: number
   ): Promise<void> {
     // Draw layer to temp canvas
     this.tempCtx.clearRect(0, 0, this.width, this.height);
@@ -153,7 +153,7 @@ export class CompositeEngine {
       const blended = this.applyBlendMode(
         { r: baseR, g: baseG, b: baseB },
         { r: layerR, g: layerG, b: layerB },
-        blendMode,
+        blendMode
       );
 
       // Alpha compositing
@@ -176,7 +176,7 @@ export class CompositeEngine {
   private applyBlendMode(
     base: RGBColor,
     layer: RGBColor,
-    mode: BlendMode,
+    mode: BlendMode
   ): RGBColor {
     switch (mode) {
       case "multiply":
@@ -297,7 +297,7 @@ export class CompositeEngine {
 
   async applyChromaKey(
     image: ImageBitmap,
-    config: ChromaKeyConfig,
+    config: ChromaKeyConfig
   ): Promise<CompositeChromaKeyResult> {
     const startTime = performance.now();
 
@@ -315,7 +315,7 @@ export class CompositeEngine {
       const g = data[i + 1] / 255;
       const b = data[i + 2] / 255;
       const distance = Math.sqrt(
-        (r - keyR) ** 2 + (g - keyG) ** 2 + (b - keyB) ** 2,
+        (r - keyR) ** 2 + (g - keyG) ** 2 + (b - keyB) ** 2
       );
 
       // Normalize distance (max distance in RGB space is sqrt(3))
@@ -336,7 +336,7 @@ export class CompositeEngine {
         const spillResult = this.suppressSpill(
           { r, g, b },
           config.keyColor,
-          config.spillSuppression,
+          config.spillSuppression
         );
         data[i] = Math.round(spillResult.r * 255);
         data[i + 1] = Math.round(spillResult.g * 255);
@@ -358,7 +358,7 @@ export class CompositeEngine {
   private suppressSpill(
     color: RGBColor,
     keyColor: RGBColor,
-    amount: number,
+    amount: number
   ): RGBColor {
     // Determine which channel is the key (highest in key color)
     const maxKey = Math.max(keyColor.r, keyColor.g, keyColor.b);
@@ -386,7 +386,7 @@ export class CompositeEngine {
     image: ImageBitmap,
     x: number,
     y: number,
-    sampleRadius: number = 5,
+    sampleRadius: number = 5
   ): Promise<RGBColor> {
     // Draw image to temp canvas
     this.tempCtx.clearRect(0, 0, this.width, this.height);
@@ -402,7 +402,7 @@ export class CompositeEngine {
       startX,
       startY,
       endX - startX,
-      endY - startY,
+      endY - startY
     );
     const data = imageData.data;
 

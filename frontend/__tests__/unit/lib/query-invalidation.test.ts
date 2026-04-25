@@ -3,8 +3,8 @@ import { QueryClient } from "@tanstack/react-query";
 import {
   ensureSessionDraftVisible,
   invalidateAfterChatMessageSent,
-} from "@/shared/lib/query-invalidation";
-import { queryKeys } from "@/shared/lib/query-keys";
+} from "@/app/query/query-invalidation";
+import { queryKeys } from "@/app/query/query-keys";
 
 describe("query-invalidation", () => {
   describe("ensureSessionDraftVisible", () => {

@@ -332,13 +332,13 @@ export const TRANSFORM_3D_PRESETS: Transform3DPreset[] = [
 ];
 
 export function getTransform3DPresetsByCategory(
-  category: Transform3DPreset["category"],
+  category: Transform3DPreset["category"]
 ): Transform3DPreset[] {
   return TRANSFORM_3D_PRESETS.filter((p) => p.category === category);
 }
 
 export function getTransform3DPresetById(
-  id: string,
+  id: string
 ): Transform3DPreset | undefined {
   return TRANSFORM_3D_PRESETS.find((p) => p.id === id);
 }
@@ -346,7 +346,7 @@ export function getTransform3DPresetById(
 export function interpolateTransform3D(
   from: Transform3D,
   to: Transform3D,
-  t: number,
+  t: number
 ): Transform3D {
   return {
     position: {
@@ -375,7 +375,7 @@ export function interpolateTransform3D(
 
 export function mergeTransform3D(
   base: Transform3D,
-  partial: Partial<Transform3D>,
+  partial: Partial<Transform3D>
 ): Transform3D {
   return {
     position: partial.position

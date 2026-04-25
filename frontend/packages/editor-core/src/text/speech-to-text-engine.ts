@@ -331,7 +331,7 @@ export class SpeechToTextEngine {
   async transcribeAudioElement(
     audioElement: HTMLAudioElement | HTMLVideoElement,
     startOffset: number = 0,
-    duration?: number,
+    duration?: number
   ): Promise<TranscriptionResult> {
     if (!this.recognition) {
       return {
@@ -404,7 +404,7 @@ export class SpeechToTextEngine {
 
   segmentsToSubtitles(
     segments: TranscriptionSegment[],
-    style?: Partial<SubtitleStyle>,
+    style?: Partial<SubtitleStyle>
   ): Subtitle[] {
     const subtitleStyle: SubtitleStyle = {
       ...DEFAULT_SUBTITLE_STYLE,

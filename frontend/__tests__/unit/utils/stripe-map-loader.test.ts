@@ -7,7 +7,7 @@ import {
   getStripeTierConfig,
   getStripePriceId,
   getStripePriceAmount,
-} from "@/shared/utils/stripe-map-loader";
+} from "@/shared/payments/stripe-map-loader";
 
 describe("stripe-map-loader", () => {
   describe("getStripeMap", () => {

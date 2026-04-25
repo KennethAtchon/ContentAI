@@ -157,7 +157,7 @@ export class WebGPURenderer implements Renderer {
         maxSize: this._maxTextureCache,
         onEvict: (entry) => {
           console.debug(
-            `[WebGPURenderer] Evicted frame cache entry: ${entry.clipId}:${entry.frameTime}`,
+            `[WebGPURenderer] Evicted frame cache entry: ${entry.clipId}:${entry.frameTime}`
           );
         },
       });
@@ -175,7 +175,7 @@ export class WebGPURenderer implements Renderer {
     this.device.lost.then((info: GPUDeviceLostInfo) => {
       console.warn(
         `[WebGPURenderer] Device lost: ${info.reason}`,
-        info.message,
+        info.message
       );
       this.isDeviceLost = true;
 
@@ -208,7 +208,7 @@ export class WebGPURenderer implements Renderer {
     }
 
     console.error(
-      "[WebGPURenderer] Failed to recreate device after multiple attempts",
+      "[WebGPURenderer] Failed to recreate device after multiple attempts"
     );
     this.deviceRecreationInProgress = false;
   }
@@ -345,7 +345,7 @@ export class WebGPURenderer implements Renderer {
   }
 
   private async createCompositePipeline(
-    format: GPUTextureFormat,
+    format: GPUTextureFormat
   ): Promise<void> {
     if (
       !this.device ||
@@ -399,7 +399,7 @@ export class WebGPURenderer implements Renderer {
   }
 
   private async createTransformPipeline(
-    format: GPUTextureFormat,
+    format: GPUTextureFormat
   ): Promise<void> {
     if (
       !this.device ||
@@ -453,7 +453,7 @@ export class WebGPURenderer implements Renderer {
   }
 
   private async createBorderRadiusPipeline(
-    format: GPUTextureFormat,
+    format: GPUTextureFormat
   ): Promise<void> {
     if (
       !this.device ||
@@ -638,7 +638,7 @@ export class WebGPURenderer implements Renderer {
     copyEncoder.copyTextureToBuffer(
       { texture: frameBuffer },
       { buffer, bytesPerRow },
-      { width: this.width, height: this.height },
+      { width: this.width, height: this.height }
     );
     this.device.queue.submit([copyEncoder.finish()]);
 
@@ -656,7 +656,7 @@ export class WebGPURenderer implements Renderer {
       const dstOffset = y * dstBytesPerRow;
       dstData.set(
         srcData.subarray(srcOffset, srcOffset + dstBytesPerRow),
-        dstOffset,
+        dstOffset
       );
     }
 
@@ -686,7 +686,7 @@ export class WebGPURenderer implements Renderer {
       if (layer.effects.length > 0 && this.effectsProcessor) {
         processedTexture = this.effectsProcessor.processEffects(
           gpuTexture,
-          layer.effects,
+          layer.effects
         );
       }
 
@@ -702,7 +702,7 @@ export class WebGPURenderer implements Renderer {
   private renderLayerWithTransform(
     renderPass: GPURenderPassEncoder,
     texture: GPUTexture,
-    layer: RenderLayer,
+    layer: RenderLayer
   ): void {
     if (
       !this.device ||
@@ -720,18 +720,18 @@ export class WebGPURenderer implements Renderer {
       layer.transform.rotation,
       layer.transform.anchor,
       this.width,
-      this.height,
+      this.height
     );
     const uniformData = createTransformUniformsBuffer(
       matrix,
       layer.opacity * layer.transform.opacity,
       layer.borderRadius,
-      layer.transform.crop,
+      layer.transform.crop
     );
     this.device.queue.writeBuffer(
       this.transformUniformBuffer,
       0,
-      uniformData.buffer as ArrayBuffer,
+      uniformData.buffer as ArrayBuffer
     );
     const uniformBindGroup = this.device.createBindGroup({
       label: "Transform Uniform Bind Group",
@@ -760,7 +760,7 @@ export class WebGPURenderer implements Renderer {
   private renderLayerWithBorderRadius(
     renderPass: GPURenderPassEncoder,
     texture: GPUTexture,
-    layer: RenderLayer,
+    layer: RenderLayer
   ): void {
     if (
       !this.device ||
@@ -778,7 +778,7 @@ export class WebGPURenderer implements Renderer {
       layer.transform.rotation,
       layer.transform.anchor,
       this.width,
-      this.height,
+      this.height
     );
     const normalizedRadius = Math.min(layer.borderRadius / 100, 0.5);
     const uniformData = new Float32Array(20);
@@ -791,7 +791,7 @@ export class WebGPURenderer implements Renderer {
     this.device.queue.writeBuffer(
       this.borderRadiusUniformBuffer,
       0,
-      uniformData.buffer as ArrayBuffer,
+      uniformData.buffer as ArrayBuffer
     );
     const uniformBindGroup = this.device.createBindGroup({
       label: "Border Radius Uniform Bind Group",
@@ -834,7 +834,7 @@ export class WebGPURenderer implements Renderer {
     this.device.queue.writeBuffer(
       this.layerUniformBuffer,
       0,
-      uniformData.buffer as ArrayBuffer,
+      uniformData.buffer as ArrayBuffer
     );
     const uniformBindGroup = this.device.createBindGroup({
       label: "Composite Uniform Bind Group",
@@ -876,7 +876,7 @@ export class WebGPURenderer implements Renderer {
     this.device.queue.copyExternalImageToTexture(
       { source: image },
       { texture },
-      { width: image.width, height: image.height },
+      { width: image.width, height: image.height }
     );
 
     return texture;
@@ -890,7 +890,7 @@ export class WebGPURenderer implements Renderer {
 
   applyEffects(
     texture: GPUTexture | ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): GPUTexture | ImageBitmap {
     if (
       !this.effectsProcessor ||
@@ -927,8 +927,8 @@ export class WebGPURenderer implements Renderer {
     if (this.lastRenderTime > 100) {
       console.warn(
         `[WebGPURenderer] Re-render took ${this.lastRenderTime.toFixed(
-          2,
-        )}ms, exceeds 100ms target`,
+          2
+        )}ms, exceeds 100ms target`
       );
     }
   }
@@ -1004,7 +1004,7 @@ export class WebGPURenderer implements Renderer {
   cacheFrame(
     clipId: string,
     frameTime: number,
-    image: ImageBitmap,
+    image: ImageBitmap
   ): GPUTexture {
     if (!this.device) {
       throw new Error("WebGPU device not initialized");

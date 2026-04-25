@@ -14,7 +14,9 @@ import {
 } from "./export-estimator";
 import type { DeviceProfile, BenchmarkResult } from "./device-capabilities";
 
-const createMockProfile = (overrides?: Partial<DeviceProfile>): DeviceProfile => ({
+const createMockProfile = (
+  overrides?: Partial<DeviceProfile>
+): DeviceProfile => ({
   cpu: { cores: 8, tier: "high" },
   memory: { gb: 16, tier: "high" },
   gpu: {
@@ -158,9 +160,14 @@ describe("ExportEstimator", () => {
       const settingsWithEffects = createMockSettings({ hasEffects: true });
 
       const noEffectsEstimate = estimateExportTime(profile, settingsNoEffects);
-      const withEffectsEstimate = estimateExportTime(profile, settingsWithEffects);
+      const withEffectsEstimate = estimateExportTime(
+        profile,
+        settingsWithEffects
+      );
 
-      expect(withEffectsEstimate.seconds).toBeGreaterThan(noEffectsEstimate.seconds);
+      expect(withEffectsEstimate.seconds).toBeGreaterThan(
+        noEffectsEstimate.seconds
+      );
     });
 
     it("should format time correctly for various durations", () => {
@@ -190,7 +197,12 @@ describe("ExportEstimator", () => {
   describe("compareCodecEstimates", () => {
     it("should return estimates for all supported codecs", () => {
       const profile = createMockProfile();
-      const settings = { width: 1920, height: 1080, frameRate: 30, duration: 60 };
+      const settings = {
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
+        duration: 60,
+      };
 
       const comparisons = compareCodecEstimates(profile, settings);
 
@@ -200,7 +212,12 @@ describe("ExportEstimator", () => {
 
     it("should sort by estimated time (fastest first)", () => {
       const profile = createMockProfile();
-      const settings = { width: 1920, height: 1080, frameRate: 30, duration: 60 };
+      const settings = {
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
+        duration: 60,
+      };
 
       const comparisons = compareCodecEstimates(profile, settings);
 
@@ -213,7 +230,12 @@ describe("ExportEstimator", () => {
 
     it("should include speed labels", () => {
       const profile = createMockProfile();
-      const settings = { width: 1920, height: 1080, frameRate: 30, duration: 60 };
+      const settings = {
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
+        duration: 60,
+      };
 
       const comparisons = compareCodecEstimates(profile, settings);
 
@@ -231,7 +253,12 @@ describe("ExportEstimator", () => {
           av1: { hardware: false, supported: false },
         },
       });
-      const settings = { width: 1920, height: 1080, frameRate: 30, duration: 60 };
+      const settings = {
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
+        duration: 60,
+      };
 
       const comparisons = compareCodecEstimates(profile, settings);
 

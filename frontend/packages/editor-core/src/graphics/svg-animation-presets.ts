@@ -180,13 +180,13 @@ export const SVG_ANIMATION_PRESETS: SVGAnimationPresetInfo[] = [
 ];
 
 export function getSVGPresetInfo(
-  preset: GraphicAnimationType,
+  preset: GraphicAnimationType
 ): SVGAnimationPresetInfo | undefined {
   return SVG_ANIMATION_PRESETS.find((p) => p.id === preset);
 }
 
 export function createDefaultSVGAnimation(
-  preset: GraphicAnimationType,
+  preset: GraphicAnimationType
 ): GraphicAnimation {
   const info = getSVGPresetInfo(preset);
   if (!info) {

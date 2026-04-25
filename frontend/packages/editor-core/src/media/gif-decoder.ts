@@ -32,7 +32,7 @@ export async function decodeGif(blob: Blob): Promise<DecodedGif | null> {
     const signature = String.fromCharCode(
       dataView.getUint8(0),
       dataView.getUint8(1),
-      dataView.getUint8(2),
+      dataView.getUint8(2)
     );
     if (signature !== "GIF") {
       return null;
@@ -142,7 +142,7 @@ export async function decodeGif(blob: Blob): Promise<DecodedGif | null> {
 }
 
 export async function createGifFrameCache(
-  blob: Blob,
+  blob: Blob
 ): Promise<GifFrameCache | null> {
   try {
     const img = await createImageBitmap(blob);
@@ -172,7 +172,7 @@ export async function createGifFrameCache(
 
 export function getGifFrameAtTime(
   cache: GifFrameCache,
-  timeMs: number,
+  timeMs: number
 ): number {
   if (cache.frames.length <= 1) return 0;
 

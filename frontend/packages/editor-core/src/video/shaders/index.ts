@@ -169,7 +169,7 @@ export function createTransformUniformsBuffer(
   matrix: Float32Array,
   opacity: number,
   borderRadius: number,
-  crop?: { x: number; y: number; width: number; height: number },
+  crop?: { x: number; y: number; width: number; height: number }
 ): Float32Array {
   const buffer = new Float32Array(24); // 96 bytes aligned (increased for crop data)
   buffer.set(matrix, 0); // 16 floats for 4x4 matrix
@@ -187,7 +187,7 @@ export function createTransformUniformsBuffer(
 export function createBorderRadiusUniformsBuffer(
   radius: number,
   width: number,
-  height: number,
+  height: number
 ): Float32Array {
   const buffer = new Float32Array(4); // 16 bytes aligned
   buffer[0] = radius;
@@ -207,7 +207,7 @@ export function createTransformMatrix(
   rotation: number,
   anchor: { x: number; y: number },
   canvasWidth: number,
-  canvasHeight: number,
+  canvasHeight: number
 ): Float32Array {
   const matrix = new Float32Array(16);
   const normalizedX = (position.x / canvasWidth) * 2;
@@ -259,7 +259,7 @@ export function createTransformMatrix(
 
 export function multiplyMatrices(
   a: Float32Array,
-  b: Float32Array,
+  b: Float32Array
 ): Float32Array {
   const result = new Float32Array(16);
 
@@ -280,7 +280,7 @@ export function calculateBorderRadiusAlpha(
   x: number,
   y: number,
   radius: number,
-  smoothness: number = 0.01,
+  smoothness: number = 0.01
 ): number {
   const clampedRadius = Math.max(0, Math.min(0.5, radius));
   const halfSize = 1.0;
@@ -557,7 +557,7 @@ export function createEffectUniformsBuffer(
   temperature: number = 0,
   tint: number = 0,
   shadows: number = 0,
-  highlights: number = 0,
+  highlights: number = 0
 ): Float32Array {
   const buffer = new Float32Array(8);
   buffer[0] = brightness;
@@ -575,7 +575,7 @@ export function createBlurUniformsBuffer(
   radius: number = 0,
   sigma: number = 0,
   directionX: number = 1,
-  directionY: number = 0,
+  directionY: number = 0
 ): Float32Array {
   const buffer = new Float32Array(4);
   buffer[0] = radius;
@@ -587,7 +587,7 @@ export function createBlurUniformsBuffer(
 
 export function createDimensionsBuffer(
   width: number,
-  height: number,
+  height: number
 ): Uint32Array {
   const buffer = new Uint32Array(4);
   buffer[0] = width;

@@ -67,7 +67,7 @@ export class FrameRingBuffer {
   async writeFromCanvas(
     canvas: HTMLCanvasElement | OffscreenCanvas,
     timestamp: number,
-    frameNumber: number,
+    frameNumber: number
   ): Promise<void> {
     const bitmap = await createImageBitmap(canvas);
     this.write(bitmap, timestamp, frameNumber);
@@ -207,7 +207,7 @@ export class CompositeFrameBuffer {
 
   getOrCreateTrackBuffer(
     trackId: string,
-    bufferSize: number = 3,
+    bufferSize: number = 3
   ): FrameRingBuffer {
     let buffer = this.buffers.get(trackId);
     if (!buffer) {
@@ -221,7 +221,7 @@ export class CompositeFrameBuffer {
     trackId: string,
     bitmap: ImageBitmap,
     timestamp: number,
-    frameNumber: number,
+    frameNumber: number
   ): void {
     const buffer = this.getOrCreateTrackBuffer(trackId);
     buffer.write(bitmap, timestamp, frameNumber);
@@ -246,7 +246,7 @@ export class CompositeFrameBuffer {
   writeCompositedFrame(
     bitmap: ImageBitmap,
     timestamp: number,
-    frameNumber: number,
+    frameNumber: number
   ): void {
     this.compositedBuffer.write(bitmap, timestamp, frameNumber);
     this.lastCompositeTime = performance.now();

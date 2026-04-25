@@ -29,7 +29,7 @@ export interface BlendModeSettings {
 export class BlendModeEngine {
   applyBlendMode(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-    mode: BlendMode,
+    mode: BlendMode
   ): void {
     switch (mode) {
       case "normal":

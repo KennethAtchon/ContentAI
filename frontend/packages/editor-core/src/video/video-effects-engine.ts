@@ -417,7 +417,7 @@ export class VideoEffectsEngine {
         } catch (error) {
           console.warn(
             "[VideoEffectsEngine] WebGPU initialization failed, falling back to WebGL2:",
-            error,
+            error
           );
         }
       }
@@ -448,7 +448,7 @@ export class VideoEffectsEngine {
     } catch (error) {
       console.warn(
         "[VideoEffectsEngine] Failed to initialize new renderer, falling back to WebGL2:",
-        error,
+        error
       );
       this.useNewRenderer = false;
       this.initializeWebGL();
@@ -476,14 +476,14 @@ export class VideoEffectsEngine {
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
-      gl.STATIC_DRAW,
+      gl.STATIC_DRAW
     );
     this.texCoordBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuffer);
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]),
-      gl.STATIC_DRAW,
+      gl.STATIC_DRAW
     );
     for (let i = 0; i < 2; i++) {
       const fb = gl.createFramebuffer()!;
@@ -525,7 +525,7 @@ export class VideoEffectsEngine {
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      null,
+      null
     );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -538,7 +538,7 @@ export class VideoEffectsEngine {
   private compileShader(
     name: FilterType | "passthrough",
     vertexSrc: string,
-    fragmentSrc: string,
+    fragmentSrc: string
   ): void {
     const gl = this.gl!;
 
@@ -548,7 +548,7 @@ export class VideoEffectsEngine {
 
     if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
       throw new Error(
-        `Vertex shader error: ${gl.getShaderInfoLog(vertexShader)}`,
+        `Vertex shader error: ${gl.getShaderInfoLog(vertexShader)}`
       );
     }
 
@@ -558,7 +558,7 @@ export class VideoEffectsEngine {
 
     if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
       throw new Error(
-        `Fragment shader error: ${gl.getShaderInfoLog(fragmentShader)}`,
+        `Fragment shader error: ${gl.getShaderInfoLog(fragmentShader)}`
       );
     }
 
@@ -598,7 +598,7 @@ export class VideoEffectsEngine {
 
   async applyEffects(
     image: ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<FilterResult> {
     const startTime = performance.now();
     const enabledEffects = effects.filter((e) => e.enabled);
@@ -622,7 +622,7 @@ export class VideoEffectsEngine {
 
   private async _applyEffectsWithNewRenderer(
     image: ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<ImageBitmap> {
     if (!this.renderer) {
       throw new Error("Renderer not initialized");
@@ -652,7 +652,7 @@ export class VideoEffectsEngine {
 
       if (!result || result.width === 0 || result.height === 0) {
         console.warn(
-          "[VideoEffectsEngine] Renderer returned invalid result, using CPU fallback",
+          "[VideoEffectsEngine] Renderer returned invalid result, using CPU fallback"
         );
         return this.applyEffectsCPU(image, effects);
       }
@@ -661,7 +661,7 @@ export class VideoEffectsEngine {
     } catch (error) {
       console.warn(
         "[VideoEffectsEngine] applyEffectsWithNewRenderer failed:",
-        error,
+        error
       );
       return this.applyEffectsCPU(image, effects);
     }
@@ -669,12 +669,12 @@ export class VideoEffectsEngine {
 
   private async _applyEffectsGPU(
     image: ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<ImageBitmap> {
     const gl = this.gl!;
     if (gl.isContextLost()) {
       console.warn(
-        "[VideoEffectsEngine] WebGL context lost, falling back to CPU",
+        "[VideoEffectsEngine] WebGL context lost, falling back to CPU"
       );
       return this.applyEffectsCPU(image, effects);
     }
@@ -702,7 +702,7 @@ export class VideoEffectsEngine {
             0,
             gl.RGBA,
             gl.UNSIGNED_BYTE,
-            null,
+            null
           );
         }
       }
@@ -716,7 +716,7 @@ export class VideoEffectsEngine {
           gl.COLOR_ATTACHMENT0,
           gl.TEXTURE_2D,
           this.renderTextures[i],
-          0,
+          0
         );
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -782,21 +782,21 @@ export class VideoEffectsEngine {
   private renderWithShader(
     filterType: FilterType,
     texture: WebGLTexture,
-    params: Record<string, unknown>,
+    params: Record<string, unknown>
   ): void {
     const gl = this.gl!;
     const shader = this.shaders.get(filterType);
     if (!shader) return;
     gl.bindFramebuffer(
       gl.FRAMEBUFFER,
-      this.framebuffers[this.currentRenderTarget],
+      this.framebuffers[this.currentRenderTarget]
     );
     gl.framebufferTexture2D(
       gl.FRAMEBUFFER,
       gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D,
       this.renderTextures[this.currentRenderTarget],
-      0,
+      0
     );
     gl.viewport(0, 0, this.width, this.height);
 
@@ -850,7 +850,7 @@ export class VideoEffectsEngine {
   private setFilterUniforms(
     filterType: FilterType,
     shader: ShaderProgram,
-    params: Record<string, unknown>,
+    params: Record<string, unknown>
   ): void {
     const gl = this.gl!;
 
@@ -925,7 +925,7 @@ export class VideoEffectsEngine {
             keyColorLoc,
             keyColor?.r ?? 0,
             keyColor?.g ?? 1,
-            keyColor?.b ?? 0,
+            keyColor?.b ?? 0
           );
         }
         if (toleranceLoc)
@@ -971,7 +971,7 @@ export class VideoEffectsEngine {
    */
   private async applyEffectsCPU(
     image: ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<ImageBitmap> {
     const canvas = new OffscreenCanvas(image.width, image.height);
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
@@ -1006,7 +1006,7 @@ export class VideoEffectsEngine {
         ctx,
         effect,
         canvas.width,
-        canvas.height,
+        canvas.height
       );
     }
 
@@ -1017,7 +1017,7 @@ export class VideoEffectsEngine {
     ctx: OffscreenCanvasRenderingContext2D,
     effect: Effect,
     width: number,
-    height: number,
+    height: number
   ): Promise<void> {
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
@@ -1051,7 +1051,7 @@ export class VideoEffectsEngine {
           data,
           keyColor || { r: 0, g: 1, b: 0 },
           tolerance,
-          softness,
+          softness
         );
         break;
       }
@@ -1082,7 +1082,7 @@ export class VideoEffectsEngine {
     data: Uint8ClampedArray,
     width: number,
     height: number,
-    amount: number,
+    amount: number
   ): void {
     const normalizedAmount = amount / 100;
     const copy = new Uint8ClampedArray(data);
@@ -1120,7 +1120,7 @@ export class VideoEffectsEngine {
     height: number,
     amount: number,
     midpoint: number,
-    feather: number,
+    feather: number
   ): void {
     const normalizedAmount = amount / 100;
     const centerX = width / 2;
@@ -1135,7 +1135,7 @@ export class VideoEffectsEngine {
         const vignette = this.smoothstep(
           midpoint - feather,
           midpoint + feather,
-          dist,
+          dist
         );
         const factor = 1 - vignette * normalizedAmount;
 
@@ -1167,7 +1167,7 @@ export class VideoEffectsEngine {
     data: Uint8ClampedArray,
     keyColor: { r: number; g: number; b: number },
     tolerance: number,
-    softness: number,
+    softness: number
   ): void {
     const keyR = keyColor.r * 255;
     const keyG = keyColor.g * 255;
@@ -1184,7 +1184,7 @@ export class VideoEffectsEngine {
       const alpha = this.smoothstep(
         tolDist - softDist,
         tolDist + softDist,
-        dist,
+        dist
       );
       data[i + 3] = Math.round(data[i + 3] * alpha);
     }
@@ -1236,7 +1236,7 @@ export class VideoEffectsEngine {
     data: Uint8ClampedArray,
     shadows: number,
     midtones: number,
-    highlights: number,
+    highlights: number
   ): void {
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i] / 255;
@@ -1253,10 +1253,10 @@ export class VideoEffectsEngine {
 
       data[i] = Math.round(Math.max(0, Math.min(255, (r + adjustment) * 255)));
       data[i + 1] = Math.round(
-        Math.max(0, Math.min(255, (g + adjustment) * 255)),
+        Math.max(0, Math.min(255, (g + adjustment) * 255))
       );
       data[i + 2] = Math.round(
-        Math.max(0, Math.min(255, (b + adjustment) * 255)),
+        Math.max(0, Math.min(255, (b + adjustment) * 255))
       );
     }
   }
@@ -1291,7 +1291,7 @@ export class VideoEffectsEngine {
   reorderEffects(
     effects: Effect[],
     fromIndex: number,
-    toIndex: number,
+    toIndex: number
   ): Effect[] {
     const result = [...effects];
     const [removed] = result.splice(fromIndex, 1);
@@ -1418,7 +1418,7 @@ let initializationPromise: Promise<VideoEffectsEngine> | null = null;
 
 export async function getVideoEffectsEngineAsync(
   width: number = 1920,
-  height: number = 1080,
+  height: number = 1080
 ): Promise<VideoEffectsEngine> {
   if (videoEffectsEngineInstance) {
     if (
@@ -1445,14 +1445,14 @@ export async function getVideoEffectsEngineAsync(
 
 export function getVideoEffectsEngine(
   width: number = 1920,
-  height: number = 1080,
+  height: number = 1080
 ): VideoEffectsEngine {
   if (!videoEffectsEngineInstance) {
     videoEffectsEngineInstance = new VideoEffectsEngine({ width, height });
     videoEffectsEngineInstance.initialize().catch((error) => {
       console.error(
         "[VideoEffectsEngine] Background initialization failed:",
-        error,
+        error
       );
     });
   } else if (

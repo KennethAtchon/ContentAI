@@ -128,7 +128,7 @@ export class SpectralNoiseReducer {
 
   async processBuffer(
     inputBuffer: AudioBuffer,
-    context: BaseAudioContext,
+    context: BaseAudioContext
   ): Promise<AudioBuffer> {
     if (!this.noiseProfile) {
       throw new Error("No noise profile set. Call learnNoiseProfile() first.");
@@ -138,7 +138,7 @@ export class SpectralNoiseReducer {
     const outputBuffer = context.createBuffer(
       numChannels,
       inputBuffer.length,
-      inputBuffer.sampleRate,
+      inputBuffer.sampleRate
     );
 
     for (let channel = 0; channel < numChannels; channel++) {
@@ -241,7 +241,7 @@ export class SpectralNoiseReducer {
 
   private reconstructFrame(
     magnitudes: Float32Array,
-    phases: Float32Array,
+    phases: Float32Array
   ): Float32Array {
     const { real, imag } = this.fft.fromMagnitudeAndPhase(magnitudes, phases);
     const timeDomain = this.fft.inverse(real, imag);
@@ -260,7 +260,7 @@ export class SpectralNoiseReducer {
 export function detectNoiseSegments(
   buffer: AudioBuffer,
   threshold: number = -50,
-  minDuration: number = 0.5,
+  minDuration: number = 0.5
 ): Array<{ start: number; end: number }> {
   const channelData = buffer.getChannelData(0);
   const sampleRate = buffer.sampleRate;
@@ -305,7 +305,7 @@ export function extractAudioSegment(
   buffer: AudioBuffer,
   start: number,
   end: number,
-  context: BaseAudioContext,
+  context: BaseAudioContext
 ): AudioBuffer {
   const startSample = Math.floor(start * buffer.sampleRate);
   const endSample = Math.floor(end * buffer.sampleRate);
@@ -314,7 +314,7 @@ export function extractAudioSegment(
   const extracted = context.createBuffer(
     buffer.numberOfChannels,
     length,
-    buffer.sampleRate,
+    buffer.sampleRate
   );
 
   for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
@@ -331,7 +331,7 @@ export function extractAudioSegment(
 
 export async function autoLearnNoiseProfile(
   buffer: AudioBuffer,
-  context: BaseAudioContext,
+  context: BaseAudioContext
 ): Promise<NoiseProfile | null> {
   const segments = detectNoiseSegments(buffer, -50, 0.5);
 
@@ -349,7 +349,7 @@ export async function autoLearnNoiseProfile(
     buffer,
     longestSegment.start,
     longestSegment.end,
-    context,
+    context
   );
 
   // Learn profile

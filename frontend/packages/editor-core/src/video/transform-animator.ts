@@ -63,7 +63,7 @@ export class TransformAnimator {
   getTransformAtTime(
     baseTransform: Transform,
     keyframes: Keyframe[],
-    time: number,
+    time: number
   ): AnimatedTransform {
     const animatedProperties: AnimatableTransformProperty[] = [];
     let isAnimated = false;
@@ -83,12 +83,12 @@ export class TransformAnimator {
     // Animate position.x
     const posXKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "position.x",
+      "position.x"
     );
     if (posXKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         posXKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.position.x = interpolated.value;
@@ -100,12 +100,12 @@ export class TransformAnimator {
     // Animate position.y
     const posYKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "position.y",
+      "position.y"
     );
     if (posYKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         posYKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.position.y = interpolated.value;
@@ -117,12 +117,12 @@ export class TransformAnimator {
     // Animate scale.x
     const scaleXKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "scale.x",
+      "scale.x"
     );
     if (scaleXKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         scaleXKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.scale.x = interpolated.value;
@@ -134,12 +134,12 @@ export class TransformAnimator {
     // Animate scale.y
     const scaleYKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "scale.y",
+      "scale.y"
     );
     if (scaleYKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         scaleYKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.scale.y = interpolated.value;
@@ -151,12 +151,12 @@ export class TransformAnimator {
     // Animate rotation
     const rotationKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "rotation",
+      "rotation"
     );
     if (rotationKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         rotationKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.rotation = interpolated.value;
@@ -168,12 +168,12 @@ export class TransformAnimator {
     // Animate opacity
     const opacityKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "opacity",
+      "opacity"
     );
     if (opacityKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         opacityKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.opacity = Math.max(0, Math.min(1, interpolated.value));
@@ -185,12 +185,12 @@ export class TransformAnimator {
     // Animate anchor.x
     const anchorXKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "anchor.x",
+      "anchor.x"
     );
     if (anchorXKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         anchorXKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.anchor.x = interpolated.value;
@@ -202,12 +202,12 @@ export class TransformAnimator {
     // Animate anchor.y
     const anchorYKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "anchor.y",
+      "anchor.y"
     );
     if (anchorYKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         anchorYKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.anchor.y = interpolated.value;
@@ -219,12 +219,12 @@ export class TransformAnimator {
     // Animate rotate3d.x
     const rotate3dXKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "rotate3d.x",
+      "rotate3d.x"
     );
     if (rotate3dXKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         rotate3dXKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.rotate3d.x = interpolated.value;
@@ -236,12 +236,12 @@ export class TransformAnimator {
     // Animate rotate3d.y
     const rotate3dYKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "rotate3d.y",
+      "rotate3d.y"
     );
     if (rotate3dYKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         rotate3dYKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.rotate3d.y = interpolated.value;
@@ -253,12 +253,12 @@ export class TransformAnimator {
     // Animate rotate3d.z
     const rotate3dZKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "rotate3d.z",
+      "rotate3d.z"
     );
     if (rotate3dZKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         rotate3dZKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.rotate3d.z = interpolated.value;
@@ -270,12 +270,12 @@ export class TransformAnimator {
     // Animate perspective
     const perspectiveKeyframes = this.animationEngine.getKeyframesForProperty(
       keyframes,
-      "perspective",
+      "perspective"
     );
     if (perspectiveKeyframes.length > 0) {
       const interpolated = this.animationEngine.getValueAtTime(
         perspectiveKeyframes,
-        time,
+        time
       );
       if (typeof interpolated.value === "number") {
         result.perspective = Math.max(0, interpolated.value);
@@ -294,7 +294,7 @@ export class TransformAnimator {
   computeTransformMatrix(
     transform: Transform,
     width: number,
-    height: number,
+    height: number
   ): TransformMatrix {
     const anchorX = transform.anchor.x * width;
     const anchorY = transform.anchor.y * height;
@@ -341,7 +341,7 @@ export class TransformAnimator {
   getRotationCenter(
     transform: Transform,
     width: number,
-    height: number,
+    height: number
   ): Point2D {
     return {
       x: transform.position.x + transform.anchor.x * width,
@@ -352,7 +352,7 @@ export class TransformAnimator {
   rotatePointAroundAnchor(
     point: Point2D,
     anchor: Point2D,
-    angleDegrees: number,
+    angleDegrees: number
   ): Point2D {
     const radians = (angleDegrees * Math.PI) / 180;
     const cos = Math.cos(radians);
@@ -378,7 +378,7 @@ export class TransformAnimator {
     endPos: Point2D,
     startTime: number,
     endTime: number,
-    easing: Keyframe["easing"] = "linear",
+    easing: Keyframe["easing"] = "linear"
   ): Keyframe[] {
     return [
       {
@@ -417,7 +417,7 @@ export class TransformAnimator {
     endScale: Point2D,
     startTime: number,
     endTime: number,
-    easing: Keyframe["easing"] = "linear",
+    easing: Keyframe["easing"] = "linear"
   ): Keyframe[] {
     return [
       {
@@ -456,7 +456,7 @@ export class TransformAnimator {
     endRotation: number,
     startTime: number,
     endTime: number,
-    easing: Keyframe["easing"] = "linear",
+    easing: Keyframe["easing"] = "linear"
   ): Keyframe[] {
     return [
       {
@@ -481,7 +481,7 @@ export class TransformAnimator {
     endOpacity: number,
     startTime: number,
     endTime: number,
-    easing: Keyframe["easing"] = "linear",
+    easing: Keyframe["easing"] = "linear"
   ): Keyframe[] {
     return [
       {

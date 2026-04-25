@@ -1,31 +1,31 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
+import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import {
   getTableConfigs,
   generateExpectedParams,
   type TableConfig,
-} from "@/shared/utils/system/drizzle-introspection";
-import { debugLog } from "@/shared/utils/debug";
-import { IS_DEVELOPMENT as _IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
+} from "@/shared/system/drizzle-introspection";
+import { debugLog } from "@/shared/debug";
+import { IS_DEVELOPMENT as _IS_DEVELOPMENT } from "@/shared/config/envUtil";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
-import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
-import { Textarea } from "@/shared/components/ui/textarea";
+} from "@/shared/ui/primitives/card";
+import { Button } from "@/shared/ui/primitives/button";
+import { Label } from "@/shared/ui/primitives/label";
+import { Textarea } from "@/shared/ui/primitives/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/shared/components/ui/select";
+} from "@/shared/ui/primitives/select";
 import {
   Database,
   Download,
@@ -35,7 +35,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
+import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 
 export const Route = createFileRoute("/admin/_layout/developer")({
   component: DeveloperPage,

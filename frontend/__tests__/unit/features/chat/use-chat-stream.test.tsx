@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { cleanup, renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { queryKeys } from "@/shared/lib/query-keys";
-import { useChatStream } from "@/features/chat/hooks/use-chat-stream";
-import { chatService } from "@/features/chat/services/chat.service";
-import * as sseClient from "@/features/chat/streaming/sse-client";
+import { queryKeys } from "@/app/query/query-keys";
+import { useChatStream } from "@/domains/chat/hooks/use-chat-stream";
+import { chatService } from "@/domains/chat/api/chat.service";
+import * as sseClient from "@/domains/chat/streaming/sse-client";
 
 function createWrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {

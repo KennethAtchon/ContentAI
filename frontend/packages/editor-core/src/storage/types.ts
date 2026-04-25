@@ -120,10 +120,22 @@ export interface IStorageEngine {
   deleteWaveform(mediaId: string): Promise<void>;
 
   // File handle operations (for cross-session asset restoration)
-  saveFileHandle(name: string, size: number, handle: FileSystemFileHandle): Promise<void>;
-  loadFileHandle(name: string, size: number): Promise<FileSystemFileHandle | null>;
-  saveDirectoryHandle(projectId: string, handle: FileSystemDirectoryHandle): Promise<void>;
-  loadDirectoryHandle(projectId: string): Promise<{ handle: FileSystemDirectoryHandle; folderName: string } | null>;
+  saveFileHandle(
+    name: string,
+    size: number,
+    handle: FileSystemFileHandle
+  ): Promise<void>;
+  loadFileHandle(
+    name: string,
+    size: number
+  ): Promise<FileSystemFileHandle | null>;
+  saveDirectoryHandle(
+    projectId: string,
+    handle: FileSystemDirectoryHandle
+  ): Promise<void>;
+  loadDirectoryHandle(
+    projectId: string
+  ): Promise<{ handle: FileSystemDirectoryHandle; folderName: string } | null>;
 
   // Storage info
   getStorageUsage(): Promise<StorageUsage>;

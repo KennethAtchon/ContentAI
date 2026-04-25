@@ -47,7 +47,7 @@ export class ActionSerializer {
         item.params === null
       ) {
         throw new Error(
-          `Invalid action at index ${index}: missing required fields`,
+          `Invalid action at index ${index}: missing required fields`
         );
       }
       return item as Action;

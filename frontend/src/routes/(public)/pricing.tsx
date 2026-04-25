@@ -1,19 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { PricingInteractive } from "./pricing/-pricing-interactive";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/shared/components/ui/accordion";
+} from "@/shared/ui/primitives/accordion";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { SUBSCRIPTION_TIERS } from "@/shared/constants/subscription.constants";
 import { useTranslation } from "react-i18next";
-import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
+import { REDIRECT_PATHS } from "@/shared/navigation/redirect-util";
 
 function PricingPage() {
   const { t } = useTranslation();

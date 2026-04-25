@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { QUERY_STALE, makeQueryClient } from "@/shared/lib/query-client";
+import { QUERY_STALE, makeQueryClient } from "@/app/query/query-client";
 
 describe("query-client", () => {
   describe("QUERY_STALE", () => {

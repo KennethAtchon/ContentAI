@@ -151,7 +151,7 @@ export class ChromaKeyEngine {
 
   async applyChromaKey(
     image: ImageBitmap,
-    clipId: string,
+    clipId: string
   ): Promise<ChromaKeyResult> {
     const startTime = performance.now();
     const settings = this.clipSettings.get(clipId);
@@ -169,7 +169,7 @@ export class ChromaKeyEngine {
   async applyChromaKeyWithSettings(
     image: ImageBitmap,
     settings: ChromaKeySettings,
-    startTime: number = performance.now(),
+    startTime: number = performance.now()
   ): Promise<ChromaKeyResult> {
     // Draw source image
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -191,7 +191,7 @@ export class ChromaKeyEngine {
           b,
           keyColor,
           spillSuppression,
-          alpha,
+          alpha
         );
         data[i] = Math.round(spillResult.r * 255);
         data[i + 1] = Math.round(spillResult.g * 255);
@@ -271,7 +271,7 @@ export class ChromaKeyEngine {
     r: number,
     g: number,
     b: number,
-    keyColor: RGB,
+    keyColor: RGB
   ): number {
     const dr = r - keyColor.r;
     const dg = g - keyColor.g;
@@ -282,7 +282,7 @@ export class ChromaKeyEngine {
   private calculateAlpha(
     distance: number,
     tolerance: number,
-    softness: number,
+    softness: number
   ): number {
     // Maximum possible distance in RGB space is sqrt(3) ≈ 1.732
     // Scale tolerance to this range
@@ -309,7 +309,7 @@ export class ChromaKeyEngine {
     b: number,
     keyColor: RGB,
     amount: number,
-    alpha: number,
+    alpha: number
   ): RGB {
     if (alpha >= 1 || alpha <= 0) {
       return { r, g, b };
@@ -348,7 +348,7 @@ export class ChromaKeyEngine {
 
   async composite(
     foreground: ImageBitmap,
-    background: ImageBitmap,
+    background: ImageBitmap
   ): Promise<ImageBitmap> {
     // Draw background first
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -363,7 +363,7 @@ export class ChromaKeyEngine {
   async applyAndComposite(
     foreground: ImageBitmap,
     background: ImageBitmap,
-    clipId: string,
+    clipId: string
   ): Promise<ChromaKeyResult> {
     const startTime = performance.now();
     const keyedResult = await this.applyChromaKey(foreground, clipId);

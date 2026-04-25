@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { prefetchStudioDiscover } from "@/shared/lib/route-data-prefetch";
-import { ReelList } from "@/features/reels/components/ReelList";
-import { TikTokFeed } from "@/features/reels/components/TikTokFeed";
-import { AnalysisPanel } from "@/features/reels/components/AnalysisPanel";
-import { TrendingAudio } from "@/features/reels/components/TrendingAudio";
+import { prefetchStudioDiscover } from "@/app/query/route-data-prefetch";
+import { ReelList } from "@/domains/reels/ui/ReelList";
+import { TikTokFeed } from "@/domains/reels/ui/TikTokFeed";
+import { AnalysisPanel } from "@/domains/reels/ui/AnalysisPanel";
+import { TrendingAudio } from "@/domains/reels/ui/TrendingAudio";
 import {
   useReels,
   useReel,
   useReelNiches,
-} from "@/features/reels/hooks/use-reels";
-import type { Reel } from "@/features/reels/types/reel.types";
+} from "@/domains/reels/hooks/use-reels";
+import type { Reel } from "@/domains/reels/model/reel.types";
 import { useTranslation } from "react-i18next";
 import {
   Select,
@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/shared/components/ui/select";
+} from "@/shared/ui/primitives/select";
 
 const PAGE_SIZE = 20;
 

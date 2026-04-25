@@ -8,8 +8,8 @@ import { describe, it, expect } from "bun:test";
 import {
   PaymentService,
   type RequiredCustomerData,
-} from "@/features/payments/services/payment-service";
-import type { CheckoutLineItem } from "@/features/payments/services/stripe-checkout";
+} from "@/domains/payments/api/payment-service";
+import type { CheckoutLineItem } from "@/domains/payments/api/stripe-checkout";
 
 const validCustomerData: RequiredCustomerData = {
   name: "Test User",

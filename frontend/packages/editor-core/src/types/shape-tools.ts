@@ -105,7 +105,7 @@ export function createDefaultShapeToolState(): ShapeToolState {
 
 export function createDefaultRectangleConfig(
   center: Vector2D,
-  size: Vector2D = { x: 200, y: 150 },
+  size: Vector2D = { x: 200, y: 150 }
 ): RectangleShapeConfig {
   return {
     type: "rectangle",
@@ -117,7 +117,7 @@ export function createDefaultRectangleConfig(
 
 export function createDefaultEllipseConfig(
   center: Vector2D,
-  radius: Vector2D = { x: 100, y: 75 },
+  radius: Vector2D = { x: 100, y: 75 }
 ): EllipseShapeConfig {
   return {
     type: "ellipse",
@@ -129,7 +129,7 @@ export function createDefaultEllipseConfig(
 export function createDefaultPolygonConfig(
   center: Vector2D,
   radius: number = 100,
-  sides: number = 6,
+  sides: number = 6
 ): PolygonShapeConfig {
   return {
     type: "polygon",
@@ -144,7 +144,7 @@ export function createDefaultStarConfig(
   center: Vector2D,
   outerRadius: number = 100,
   innerRadius: number = 50,
-  points: number = 5,
+  points: number = 5
 ): StarShapeConfig {
   return {
     type: "star",
@@ -158,7 +158,7 @@ export function createDefaultStarConfig(
 
 export function createDefaultLineConfig(
   start: Vector2D,
-  end: Vector2D,
+  end: Vector2D
 ): LineShapeConfig {
   return {
     type: "line",

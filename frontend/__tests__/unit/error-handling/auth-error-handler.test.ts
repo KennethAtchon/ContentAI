@@ -15,12 +15,12 @@ const debugLogStub = {
   debug: noop,
   timezone: noop,
 };
-mock.module("@/shared/utils/debug/debug", () => ({
+mock.module("@/shared/debug/debug", () => ({
   debugLog: debugLogStub,
   default: debugLogStub,
 }));
 
-import { getAuthErrorMessage } from "@/shared/utils/error-handling/auth-error-handler";
+import { getAuthErrorMessage } from "@/shared/errors/auth-error-handler";
 
 // Error with code property (Firebase-style)
 class ErrorWithCode extends Error {

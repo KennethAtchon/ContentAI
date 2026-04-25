@@ -65,7 +65,7 @@ export class BeatDetectionEngine {
   }
 
   async analyzeAudioBuffer(
-    audioBuffer: AudioBuffer,
+    audioBuffer: AudioBuffer
   ): Promise<BeatAnalysisResult> {
     const channelData = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
@@ -115,7 +115,12 @@ export class BeatDetectionEngine {
     const numFrames = Math.floor((samples.length - windowSize) / hopSize);
     const energiesF32 = new Float32Array(numFrames);
 
-    this.wasmProcessor.computeRMSEnergies(samples, windowSize, hopSize, energiesF32);
+    this.wasmProcessor.computeRMSEnergies(
+      samples,
+      windowSize,
+      hopSize,
+      energiesF32
+    );
 
     const smoothedF32 = new Float32Array(numFrames);
     this.wasmProcessor.smoothArray(energiesF32, smoothedF32, 5);
@@ -124,7 +129,7 @@ export class BeatDetectionEngine {
     // Step 3: Compute dynamic threshold based on local statistics and sensitivity
     const threshold = this.calculateAdaptiveThreshold(
       smoothedEnergies,
-      sensitivity,
+      sensitivity
     );
 
     // Step 4: Detect peaks (onsets) with multiple constraints
@@ -165,7 +170,7 @@ export class BeatDetectionEngine {
    */
   private calculateAdaptiveThreshold(
     energies: number[],
-    sensitivity: number,
+    sensitivity: number
   ): number[] {
     const medianWindowSize = 50;
     const thresholds: number[] = [];
@@ -187,7 +192,7 @@ export class BeatDetectionEngine {
 
   private calculateBpm(
     onsets: number[],
-    duration: number,
+    duration: number
   ): { bpm: number; confidence: number } {
     if (onsets.length < 4) {
       return { bpm: 120, confidence: 0 };
@@ -203,7 +208,7 @@ export class BeatDetectionEngine {
     const maxInterval = 60 / minBpm;
 
     const validIntervals = intervals.filter(
-      (i) => i >= minInterval && i <= maxInterval,
+      (i) => i >= minInterval && i <= maxInterval
     );
 
     if (validIntervals.length < 3) {
@@ -245,7 +250,7 @@ export class BeatDetectionEngine {
     const actualBeats = onsets.length;
     const confidence = Math.min(
       1,
-      Math.max(0, 1 - Math.abs(expectedBeats - actualBeats) / expectedBeats),
+      Math.max(0, 1 - Math.abs(expectedBeats - actualBeats) / expectedBeats)
     );
 
     return { bpm: bestBpm, confidence };
@@ -254,7 +259,7 @@ export class BeatDetectionEngine {
   private generateBeats(
     bpm: number,
     duration: number,
-    onsets: number[],
+    onsets: number[]
   ): Beat[] {
     const beatInterval = 60 / bpm;
     const beats: Beat[] = [];
@@ -272,7 +277,7 @@ export class BeatDetectionEngine {
       const nearestOnset = this.findNearestOnset(
         time,
         onsets,
-        beatInterval * 0.3,
+        beatInterval * 0.3
       );
       const strength = nearestOnset !== null ? 1 : 0.5;
 
@@ -291,7 +296,7 @@ export class BeatDetectionEngine {
   private findNearestOnset(
     time: number,
     onsets: number[],
-    tolerance: number,
+    tolerance: number
   ): number | null {
     let nearest: number | null = null;
     let minDist = tolerance;
@@ -335,7 +340,7 @@ export class BeatDetectionEngine {
     bpm: number,
     duration: number,
     startTime: number = 0,
-    beatsPerBar: number = 4,
+    beatsPerBar: number = 4
   ): Beat[] {
     const beatInterval = 60 / bpm;
     const beats: Beat[] = [];
@@ -357,7 +362,7 @@ export class BeatDetectionEngine {
   snapTimeToNearestBeat(
     time: number,
     beats: Beat[],
-    snapThreshold: number = 0.1,
+    snapThreshold: number = 0.1
   ): number {
     if (beats.length === 0) return time;
 

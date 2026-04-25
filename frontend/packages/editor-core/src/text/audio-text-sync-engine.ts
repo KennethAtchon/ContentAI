@@ -5,7 +5,10 @@
  * Read this file with ../types and the folder README nearby; most exports here are wired through the local index.ts barrel.
  */
 
-import { getBeatDetectionEngine, type BeatAnalysisResult } from "../audio/beat-detection-engine";
+import {
+  getBeatDetectionEngine,
+  type BeatAnalysisResult,
+} from "../audio/beat-detection-engine";
 
 export interface ClipTiming {
   readonly clipId: string;
@@ -49,7 +52,7 @@ export interface ClipInfo {
 export class BeatSyncEngine {
   async analyzeBeats(
     audioBlob: Blob,
-    onProgress?: SyncProgressCallback,
+    onProgress?: SyncProgressCallback
   ): Promise<BeatAnalysisResult> {
     onProgress?.({
       phase: "analyzing",
@@ -73,7 +76,7 @@ export class BeatSyncEngine {
     clips: ClipInfo[],
     beatAnalysis: BeatAnalysisResult,
     audioStartTime: number,
-    config: BeatSyncConfig,
+    config: BeatSyncConfig
   ): ClipTiming[] {
     if (clips.length === 0 || beatAnalysis.beats.length === 0) {
       return [];
@@ -88,13 +91,15 @@ export class BeatSyncEngine {
       return [];
     }
 
-    const avgBeatInterval = (beatTimes[beatTimes.length - 1] - beatTimes[0]) / (beatTimes.length - 1);
+    const avgBeatInterval =
+      (beatTimes[beatTimes.length - 1] - beatTimes[0]) / (beatTimes.length - 1);
     let currentBeatIndex = 0;
 
     for (const clip of sortedClips) {
       if (currentBeatIndex >= beatTimes.length) break;
 
-      const beatTime = beatTimes[currentBeatIndex] + audioStartTime + offsetSeconds;
+      const beatTime =
+        beatTimes[currentBeatIndex] + audioStartTime + offsetSeconds;
 
       switch (config.syncMode) {
         case "preserve-duration": {
@@ -110,8 +115,12 @@ export class BeatSyncEngine {
         }
 
         case "one-per-beat": {
-          const nextBeatIndex = Math.min(currentBeatIndex + 1, beatTimes.length - 1);
-          const nextBeatTime = beatTimes[nextBeatIndex] + audioStartTime + offsetSeconds;
+          const nextBeatIndex = Math.min(
+            currentBeatIndex + 1,
+            beatTimes.length - 1
+          );
+          const nextBeatTime =
+            beatTimes[nextBeatIndex] + audioStartTime + offsetSeconds;
           const beatDuration = nextBeatTime - beatTime;
 
           timings.push({
@@ -127,9 +136,16 @@ export class BeatSyncEngine {
 
         case "smart":
         default: {
-          const beatsToSpan = Math.max(1, Math.round(clip.duration / avgBeatInterval));
-          const endBeatIndex = Math.min(currentBeatIndex + beatsToSpan, beatTimes.length - 1);
-          const endBeatTime = beatTimes[endBeatIndex] + audioStartTime + offsetSeconds;
+          const beatsToSpan = Math.max(
+            1,
+            Math.round(clip.duration / avgBeatInterval)
+          );
+          const endBeatIndex = Math.min(
+            currentBeatIndex + beatsToSpan,
+            beatTimes.length - 1
+          );
+          const endBeatTime =
+            beatTimes[endBeatIndex] + audioStartTime + offsetSeconds;
           const newDuration = endBeatTime - beatTime;
 
           timings.push({
@@ -150,7 +166,7 @@ export class BeatSyncEngine {
 
   private getSubdividedBeats(
     beatAnalysis: BeatAnalysisResult,
-    config: BeatSyncConfig,
+    config: BeatSyncConfig
   ): number[] {
     const beats = config.snapToDownbeats
       ? beatAnalysis.beats.filter((_, i) => i % 4 === 0)
@@ -178,7 +194,7 @@ export class BeatSyncEngine {
     clipStartTime: number,
     beatAnalysis: BeatAnalysisResult,
     audioStartTime: number,
-    maxSnapDistance: number = 0.2,
+    maxSnapDistance: number = 0.2
   ): number {
     const relativeTime = clipStartTime - audioStartTime;
     let nearestBeat = beatAnalysis.beats[0];

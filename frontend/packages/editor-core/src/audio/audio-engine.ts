@@ -28,7 +28,9 @@ type MediaBunnyAudioInput = {
 
 class SegmentedAudioDecoder {
   private input: MediaBunnyAudioInput | null = null;
-  private sink: InstanceType<typeof import("mediabunny").AudioBufferSink> | null = null;
+  private sink: InstanceType<
+    typeof import("mediabunny").AudioBufferSink
+  > | null = null;
   private initialized = false;
 
   constructor(private readonly file: File | Blob) {}
@@ -73,7 +75,7 @@ class SegmentedAudioDecoder {
 
   async *buffers(
     startTime: number,
-    endTime: number,
+    endTime: number
   ): AsyncGenerator<import("mediabunny").WrappedAudioBuffer, void, unknown> {
     if (!this.sink) {
       return;
@@ -113,7 +115,8 @@ export class AudioEngine {
   private config: AudioEngineConfig;
   private trackNodes: Map<string, AudioTrackNodes> = new Map();
   private mediaBuffers: Map<string, AudioBuffer> = new Map();
-  private segmentedAudioDecoders: Map<string, SegmentedAudioDecoder> = new Map();
+  private segmentedAudioDecoders: Map<string, SegmentedAudioDecoder> =
+    new Map();
 
   /**
    * Creates a new AudioEngine instance.
@@ -145,7 +148,7 @@ export class AudioEngine {
       throw new Error(
         `AudioEngine initialization failed: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`,
+        }`
       );
     }
   }
@@ -189,7 +192,7 @@ export class AudioEngine {
   async renderAudio(
     project: Project,
     startTime: number,
-    duration: number,
+    duration: number
   ): Promise<RenderedAudio> {
     this.ensureInitialized();
 
@@ -201,12 +204,12 @@ export class AudioEngine {
     const offlineContext = new OfflineAudioContext(
       channels,
       frameCount,
-      sampleRate,
+      sampleRate
     );
     const audioTracks = this.getAudioTracksAtTime(
       timeline,
       startTime,
-      duration,
+      duration
     );
     const hasSoloTracks = audioTracks.some((t) => t.solo);
     for (const trackInfo of audioTracks) {
@@ -214,14 +217,14 @@ export class AudioEngine {
 
       for (const clipInfo of trackInfo.clips) {
         const mediaItem = mediaLibrary.items.find(
-          (m) => m.id === clipInfo.mediaId,
+          (m) => m.id === clipInfo.mediaId
         );
         if (!mediaItem) continue;
         await this.renderClipToContext(
           offlineContext,
           mediaItem,
           clipInfo,
-          startTime,
+          startTime
         );
       }
     }
@@ -246,7 +249,7 @@ export class AudioEngine {
    */
   isTrackMuted(
     trackInfo: AudioTrackRenderInfo,
-    hasSoloTracks: boolean,
+    hasSoloTracks: boolean
   ): boolean {
     if (trackInfo.muted) return true;
     if (hasSoloTracks && !trackInfo.solo) return true;
@@ -278,7 +281,7 @@ export class AudioEngine {
   private getAudioTracksAtTime(
     timeline: Timeline,
     startTime: number,
-    duration: number,
+    duration: number
   ): AudioTrackRenderInfo[] {
     const result: AudioTrackRenderInfo[] = [];
     const endTime = startTime + duration;
@@ -295,7 +298,7 @@ export class AudioEngine {
         muted: track.muted,
         solo: track.solo,
         clips: clips.map((clip) =>
-          this.createClipRenderInfo(clip, startTime, endTime),
+          this.createClipRenderInfo(clip, startTime, endTime)
         ),
       });
     });
@@ -306,7 +309,7 @@ export class AudioEngine {
   private getClipsInRange(
     track: Track,
     startTime: number,
-    endTime: number,
+    endTime: number
   ): Clip[] {
     return track.clips.filter((clip) => {
       const clipEnd = clip.startTime + clip.duration;
@@ -317,7 +320,7 @@ export class AudioEngine {
   private createClipRenderInfo(
     clip: Clip,
     rangeStart: number,
-    rangeEnd: number,
+    rangeEnd: number
   ): AudioClipRenderInfo {
     const clipStart = Math.max(clip.startTime, rangeStart);
     const clipEnd = Math.min(clip.startTime + clip.duration, rangeEnd);
@@ -347,7 +350,7 @@ export class AudioEngine {
 
   private async getAudioBuffer(
     mediaItem: MediaItem,
-    context: BaseAudioContext,
+    context: BaseAudioContext
   ): Promise<AudioBuffer | null> {
     const cached = this.mediaBuffers.get(mediaItem.id);
     if (cached) return cached;
@@ -368,7 +371,7 @@ export class AudioEngine {
         try {
           const audioBuffer = await this.extractAudioFromVideo(
             mediaItem,
-            context,
+            context
           );
           if (audioBuffer) {
             this.mediaBuffers.set(mediaItem.id, audioBuffer);
@@ -384,7 +387,7 @@ export class AudioEngine {
 
   private async extractAudioFromVideo(
     mediaItem: MediaItem,
-    context: BaseAudioContext,
+    context: BaseAudioContext
   ): Promise<AudioBuffer | null> {
     if (!mediaItem.blob) return null;
 
@@ -430,7 +433,7 @@ export class AudioEngine {
       const sink = new AudioSampleSink(audioTrack);
       const timestamps = Array.from(
         { length: totalSamplePoints },
-        (_, i) => i / samplesPerSecond,
+        (_, i) => i / samplesPerSecond
       );
 
       const allSamples: Float32Array[] = [];
@@ -478,7 +481,11 @@ export class AudioEngine {
         return null;
       }
 
-      const audioBuffer = context.createBuffer(channels, frameIndex, sampleRate);
+      const audioBuffer = context.createBuffer(
+        channels,
+        frameIndex,
+        sampleRate
+      );
       audioBuffer.copyToChannel(leftChannel.subarray(0, frameIndex), 0);
       audioBuffer.copyToChannel(rightChannel.subarray(0, frameIndex), 1);
 
@@ -492,14 +499,14 @@ export class AudioEngine {
     context: OfflineAudioContext,
     mediaItem: MediaItem,
     clipInfo: AudioClipRenderInfo,
-    renderStartTime: number,
+    renderStartTime: number
   ): Promise<void> {
     if (this.shouldUseSegmentedAudioDecoding(mediaItem, clipInfo)) {
       const renderedSegment = await this.renderClipToContextFromSegments(
         context,
         mediaItem,
         clipInfo,
-        renderStartTime,
+        renderStartTime
       );
       if (renderedSegment) {
         return;
@@ -523,7 +530,7 @@ export class AudioEngine {
     source.connect(gainNode);
     const contextStartTime = Math.max(
       0,
-      clipInfo.timelineStartTime - renderStartTime,
+      clipInfo.timelineStartTime - renderStartTime
     );
     this.applyFades(gainNode, clipInfo, contextStartTime);
 
@@ -536,7 +543,7 @@ export class AudioEngine {
 
   private shouldUseSegmentedAudioDecoding(
     mediaItem: MediaItem,
-    clipInfo: AudioClipRenderInfo,
+    clipInfo: AudioClipRenderInfo
   ): boolean {
     return (
       mediaItem.metadata.duration >= SEGMENTED_AUDIO_DECODE_THRESHOLD_SECONDS &&
@@ -549,7 +556,7 @@ export class AudioEngine {
     context: OfflineAudioContext,
     mediaItem: MediaItem,
     clipInfo: AudioClipRenderInfo,
-    renderStartTime: number,
+    renderStartTime: number
   ): Promise<boolean> {
     const decoder = await this.getSegmentedAudioDecoder(mediaItem);
     if (!decoder) {
@@ -565,7 +572,7 @@ export class AudioEngine {
     const { gainNode } = this.createClipOutputNodes(context, clipInfo);
     const contextStartTime = Math.max(
       0,
-      clipInfo.timelineStartTime - renderStartTime,
+      clipInfo.timelineStartTime - renderStartTime
     );
     this.applyFades(gainNode, clipInfo, contextStartTime);
 
@@ -587,7 +594,7 @@ export class AudioEngine {
       source.start(
         contextStartTime + (overlapStart - rangeStart),
         overlapStart - bufferStart,
-        overlapEnd - overlapStart,
+        overlapEnd - overlapStart
       );
       rendered = true;
     }
@@ -597,7 +604,7 @@ export class AudioEngine {
 
   private createClipOutputNodes(
     context: OfflineAudioContext,
-    clipInfo: AudioClipRenderInfo,
+    clipInfo: AudioClipRenderInfo
   ): {
     gainNode: GainNode;
     pannerNode: StereoPannerNode;
@@ -615,7 +622,7 @@ export class AudioEngine {
   }
 
   private async getSegmentedAudioDecoder(
-    mediaItem: MediaItem,
+    mediaItem: MediaItem
   ): Promise<SegmentedAudioDecoder | null> {
     if (!mediaItem.blob) {
       return null;
@@ -639,7 +646,7 @@ export class AudioEngine {
   private applyFades(
     gainNode: GainNode,
     clipInfo: AudioClipRenderInfo,
-    startTime: number,
+    startTime: number
   ): void {
     const { fadeIn, fadeOut, duration, volume } = clipInfo;
 
@@ -658,7 +665,7 @@ export class AudioEngine {
   async mixTracks(
     buffers: AudioBuffer[],
     volumes: number[],
-    pans: number[],
+    pans: number[]
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
@@ -666,7 +673,7 @@ export class AudioEngine {
       return this.audioContext!.createBuffer(
         this.config.channels,
         this.config.sampleRate,
-        this.config.sampleRate,
+        this.config.sampleRate
       );
     }
     const maxLength = Math.max(...buffers.map((b) => b.length));
@@ -674,7 +681,7 @@ export class AudioEngine {
     const offlineContext = new OfflineAudioContext(
       this.config.channels,
       maxLength,
-      sampleRate,
+      sampleRate
     );
     for (let i = 0; i < buffers.length; i++) {
       const source = offlineContext.createBufferSource();
@@ -718,7 +725,7 @@ export class AudioEngine {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -738,7 +745,7 @@ export class AudioEngine {
 
   private createEffectNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): AudioNode | null {
     const params = effect.params as Record<string, number>;
 
@@ -777,7 +784,7 @@ export class AudioEngine {
 
   private createEQNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): AudioNode | null {
     const bands = (
       effect.params as {

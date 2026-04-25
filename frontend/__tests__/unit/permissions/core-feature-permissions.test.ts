@@ -6,7 +6,7 @@ import {
   hasTierAccess,
   getAccessibleFeatures,
   FEATURE_TIER_REQUIREMENTS,
-} from "@/shared/utils/permissions/core-feature-permissions";
+} from "@/shared/permissions/core-feature-permissions";
 
 describe("core-feature-permissions", () => {
   describe("getRequiredTierForFeature", () => {

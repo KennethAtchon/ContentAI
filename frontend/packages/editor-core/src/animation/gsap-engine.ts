@@ -305,9 +305,7 @@ export function keyframesToMotionPath(
     }
   }
 
-  return generateDefaultControlPoints(
-    points.sort((a, b) => a.time - b.time)
-  );
+  return generateDefaultControlPoints(points.sort((a, b) => a.time - b.time));
 }
 
 export function motionPathToKeyframes(
@@ -344,7 +342,10 @@ class GSAPAnimationEngine {
   private timelines: Map<string, gsap.core.Timeline> = new Map();
   private motionPaths: Map<string, MotionPathConfig> = new Map();
 
-  createTimeline(clipId: string, config?: GSAPAnimationConfig): gsap.core.Timeline {
+  createTimeline(
+    clipId: string,
+    config?: GSAPAnimationConfig
+  ): gsap.core.Timeline {
     if (this.timelines.has(clipId)) {
       this.timelines.get(clipId)!.kill();
     }
@@ -373,7 +374,10 @@ class GSAPAnimationEngine {
     }
   }
 
-  setMotionPath(clipId: string, config: Omit<MotionPathConfig, "clipId">): void {
+  setMotionPath(
+    clipId: string,
+    config: Omit<MotionPathConfig, "clipId">
+  ): void {
     this.motionPaths.set(clipId, { ...config, clipId });
   }
 
@@ -451,12 +455,17 @@ class GSAPAnimationEngine {
     const config = this.motionPaths.get(clipId);
     if (!config || !config.enabled) return [];
 
-    const frames: Array<{ time: number; x: number; y: number; rotation?: number }> = [];
+    const frames: Array<{
+      time: number;
+      x: number;
+      y: number;
+      rotation?: number;
+    }> = [];
     const duration = endTime - startTime;
     const frameCount = Math.ceil(duration * frameRate);
 
     for (let i = 0; i <= frameCount; i++) {
-      const time = startTime + (i / frameRate);
+      const time = startTime + i / frameRate;
       const normalizedTime = duration > 0 ? (time - startTime) / duration : 0;
       const position = sampleMotionPath(config.points, normalizedTime);
       if (position) {

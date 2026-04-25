@@ -154,7 +154,7 @@ export function shapeToPath(shape: MaskShape): BezierPath {
 
 export function createDefaultMask(
   type: MaskShapeType,
-  id: string = generateId(),
+  id: string = generateId()
 ): MaskDefinition {
   const basePoints: Record<MaskShapeType, MaskPoint[]> = {
     rectangle: [
@@ -207,7 +207,7 @@ export function createDefaultPath(): BezierPath {
 export function interpolatePaths(
   pathA: BezierPath,
   pathB: BezierPath,
-  t: number,
+  t: number
 ): BezierPath {
   t = Math.max(0, Math.min(1, t));
   const maxPoints = Math.max(pathA.points.length, pathB.points.length);
@@ -250,7 +250,7 @@ export function interpolatePaths(
 
 export function applyEasing(
   t: number,
-  easing: "linear" | "ease-in" | "ease-out" | "ease-in-out",
+  easing: "linear" | "ease-in" | "ease-out" | "ease-in-out"
 ): number {
   switch (easing) {
     case "linear":
@@ -269,7 +269,7 @@ export function applyEasing(
 export function pointsToDrawnPath(
   points: MaskPoint[],
   smoothing: number = 0.3,
-  closed: boolean = true,
+  closed: boolean = true
 ): BezierPath {
   if (points.length < 2) {
     return { points: [], closed };
@@ -438,7 +438,7 @@ export class MaskEngine {
   addMaskKeyframe(
     maskId: string,
     time: number,
-    path: BezierPath,
+    path: BezierPath
   ): MaskKeyframe | null {
     const mask = this.masks.get(maskId);
     if (!mask) return null;
@@ -450,7 +450,7 @@ export class MaskEngine {
       easing: "linear",
     };
     const keyframes = [...mask.keyframes, keyframe].sort(
-      (a, b) => a.time - b.time,
+      (a, b) => a.time - b.time
     );
     this.masks.set(maskId, { ...mask, keyframes });
 
@@ -468,12 +468,12 @@ export class MaskEngine {
   setKeyframeEasing(
     maskId: string,
     keyframeId: string,
-    easing: "linear" | "ease-in" | "ease-out" | "ease-in-out",
+    easing: "linear" | "ease-in" | "ease-out" | "ease-in-out"
   ): void {
     const mask = this.masks.get(maskId);
     if (mask) {
       const keyframes = mask.keyframes.map((k) =>
-        k.id === keyframeId ? { ...k, easing } : k,
+        k.id === keyframeId ? { ...k, easing } : k
       );
       this.masks.set(maskId, { ...mask, keyframes });
     }
@@ -528,7 +528,7 @@ export class MaskEngine {
   async applyMask(
     image: ImageBitmap,
     mask: Mask,
-    time?: number,
+    time?: number
   ): Promise<MaskResult> {
     const startTime = performance.now();
     const path =
@@ -570,7 +570,7 @@ export class MaskEngine {
 
   async applyMaskDefinition(
     image: ImageBitmap,
-    mask: MaskDefinition,
+    mask: MaskDefinition
   ): Promise<MaskResult> {
     const startTime = performance.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -623,7 +623,7 @@ export class MaskEngine {
 
   private drawBezierPath(
     ctx: OffscreenCanvasRenderingContext2D,
-    path: BezierPath,
+    path: BezierPath
   ): void {
     if (path.points.length < 2) return;
 
@@ -651,7 +651,7 @@ export class MaskEngine {
         cp2.x * this.width,
         cp2.y * this.height,
         next.x * this.width,
-        next.y * this.height,
+        next.y * this.height
       );
     }
   }
@@ -691,21 +691,21 @@ export class MaskEngine {
 
   private drawRectangleMask(
     ctx: OffscreenCanvasRenderingContext2D,
-    points: MaskPoint[],
+    points: MaskPoint[]
   ): void {
     if (points.length < 2) return;
 
     const x1 = Math.min(
       points[0].x,
-      points.length > 1 ? points[1].x : points[0].x,
+      points.length > 1 ? points[1].x : points[0].x
     );
     const y1 = Math.min(
       points[0].y,
-      points.length > 1 ? points[1].y : points[0].y,
+      points.length > 1 ? points[1].y : points[0].y
     );
     const x2 = Math.max(
       points.length > 2 ? points[2].x : points[1].x,
-      points.length > 1 ? points[1].x : points[0].x,
+      points.length > 1 ? points[1].x : points[0].x
     );
     const y2 = Math.max(
       points.length > 2 ? points[2].y : points[1].y,
@@ -713,7 +713,7 @@ export class MaskEngine {
         ? points[3].y
         : points.length > 1
           ? points[1].y
-          : points[0].y,
+          : points[0].y
     );
 
     const px1 = x1 * this.width;
@@ -726,7 +726,7 @@ export class MaskEngine {
 
   private drawEllipseMask(
     ctx: OffscreenCanvasRenderingContext2D,
-    points: MaskPoint[],
+    points: MaskPoint[]
   ): void {
     if (points.length < 2) return;
 
@@ -740,7 +740,7 @@ export class MaskEngine {
 
   private drawPolygonMask(
     ctx: OffscreenCanvasRenderingContext2D,
-    points: MaskPoint[],
+    points: MaskPoint[]
   ): void {
     if (points.length < 3) return;
 
@@ -754,7 +754,7 @@ export class MaskEngine {
   private drawBezierMask(
     ctx: OffscreenCanvasRenderingContext2D,
     points: MaskPoint[],
-    bezierPoints?: BezierPoint[],
+    bezierPoints?: BezierPoint[]
   ): void {
     if (points.length < 2) return;
 
@@ -782,7 +782,7 @@ export class MaskEngine {
         cp2.x * this.width,
         cp2.y * this.height,
         next.x * this.width,
-        next.y * this.height,
+        next.y * this.height
       );
     }
   }
@@ -870,7 +870,7 @@ export class MaskEngine {
   addPoint(
     mask: MaskDefinition,
     point: MaskPoint,
-    index?: number,
+    index?: number
   ): MaskDefinition {
     const newPoints = [...mask.points];
     if (index !== undefined && index >= 0 && index <= newPoints.length) {

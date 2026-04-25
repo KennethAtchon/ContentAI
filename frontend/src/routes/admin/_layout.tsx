@@ -1,9 +1,9 @@
 "use client";
 
 import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { DashboardLayout } from "@/features/admin/components/dashboard/dashboard-layout";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { ScopedErrorBoundary } from "@/shared/components/layout/error-boundary";
+import { DashboardLayout } from "@/domains/admin/ui/dashboard/dashboard-layout";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
+import { ScopedErrorBoundary } from "@/shared/ui/layout/error-boundary";
 
 function AdminLayout() {
   return (

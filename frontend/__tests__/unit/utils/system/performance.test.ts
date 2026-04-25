@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { systemPerformance } from "@/shared/utils/system/performance";
+import { systemPerformance } from "@/shared/system/performance";
 
 describe("systemPerformance", () => {
   afterEach(() => {

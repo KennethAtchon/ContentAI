@@ -223,7 +223,7 @@ export class UpscalingEngine {
     srcWidth: number,
     srcHeight: number,
     dstWidth: number,
-    dstHeight: number,
+    dstHeight: number
   ): boolean {
     return dstWidth > srcWidth || dstHeight > srcHeight;
   }
@@ -232,7 +232,7 @@ export class UpscalingEngine {
     inputTexture: GPUTexture,
     targetWidth: number,
     targetHeight: number,
-    settings: UpscalingSettings = DEFAULT_UPSCALING_SETTINGS,
+    settings: UpscalingSettings = DEFAULT_UPSCALING_SETTINGS
   ): Promise<GPUTexture> {
     if (!this.initialized || !this.device) {
       throw new Error("UpscalingEngine not initialized");
@@ -254,14 +254,14 @@ export class UpscalingEngine {
         result = await this.upscaleFast(
           inputTexture,
           targetWidth,
-          targetHeight,
+          targetHeight
         );
         break;
       case "balanced":
         result = await this.upscaleBalanced(
           inputTexture,
           targetWidth,
-          targetHeight,
+          targetHeight
         );
         break;
       case "quality":
@@ -269,14 +269,14 @@ export class UpscalingEngine {
           inputTexture,
           targetWidth,
           targetHeight,
-          settings.sharpening,
+          settings.sharpening
         );
         break;
       default:
         result = await this.upscaleBalanced(
           inputTexture,
           targetWidth,
-          targetHeight,
+          targetHeight
         );
     }
 
@@ -287,7 +287,7 @@ export class UpscalingEngine {
   private async upscaleFast(
     input: GPUTexture,
     targetWidth: number,
-    targetHeight: number,
+    targetHeight: number
   ): Promise<GPUTexture> {
     return this.applyLanczos(input, targetWidth, targetHeight);
   }
@@ -295,12 +295,12 @@ export class UpscalingEngine {
   private async upscaleBalanced(
     input: GPUTexture,
     targetWidth: number,
-    targetHeight: number,
+    targetHeight: number
   ): Promise<GPUTexture> {
     const lanczosResult = await this.applyLanczos(
       input,
       targetWidth,
-      targetHeight,
+      targetHeight
     );
     const edgeTexture = await this.applyEdgeDetection(lanczosResult);
     const result = await this.applyEdgeDirected(lanczosResult, edgeTexture);
@@ -314,17 +314,17 @@ export class UpscalingEngine {
     input: GPUTexture,
     targetWidth: number,
     targetHeight: number,
-    sharpening: number,
+    sharpening: number
   ): Promise<GPUTexture> {
     const lanczosResult = await this.applyLanczos(
       input,
       targetWidth,
-      targetHeight,
+      targetHeight
     );
     const edgeTexture = await this.applyEdgeDetection(lanczosResult);
     const edgeDirectedResult = await this.applyEdgeDirected(
       lanczosResult,
-      edgeTexture,
+      edgeTexture
     );
 
     this.releaseTexture(edgeTexture);
@@ -341,7 +341,7 @@ export class UpscalingEngine {
   private async applyLanczos(
     input: GPUTexture,
     targetWidth: number,
-    targetHeight: number,
+    targetHeight: number
   ): Promise<GPUTexture> {
     if (!this.device || !this.lanczosPipeline || !this.lanczosBindGroupLayout) {
       throw new Error("Lanczos pipeline not ready");
@@ -364,8 +364,8 @@ export class UpscalingEngine {
         srcHeight,
         targetWidth,
         targetHeight,
-        0,
-      ),
+        0
+      )
     );
 
     const hBindGroup = this.device.createBindGroup({
@@ -383,7 +383,7 @@ export class UpscalingEngine {
     hPass.setBindGroup(0, hBindGroup);
     hPass.dispatchWorkgroups(
       Math.ceil(targetWidth / 16),
-      Math.ceil(srcHeight / 16),
+      Math.ceil(srcHeight / 16)
     );
     hPass.end();
 
@@ -401,8 +401,8 @@ export class UpscalingEngine {
         srcHeight,
         targetWidth,
         targetHeight,
-        1,
-      ),
+        1
+      )
     );
 
     const vBindGroup = this.device.createBindGroup({
@@ -419,7 +419,7 @@ export class UpscalingEngine {
     vPass.setBindGroup(0, vBindGroup);
     vPass.dispatchWorkgroups(
       Math.ceil(targetWidth / 16),
-      Math.ceil(targetHeight / 16),
+      Math.ceil(targetHeight / 16)
     );
     vPass.end();
 
@@ -453,7 +453,7 @@ export class UpscalingEngine {
     this.device.queue.writeBuffer(
       uniformBuffer,
       0,
-      createEdgeDimensionsBuffer(width, height),
+      createEdgeDimensionsBuffer(width, height)
     );
 
     const bindGroup = this.device.createBindGroup({
@@ -471,7 +471,7 @@ export class UpscalingEngine {
     computePass.setBindGroup(0, bindGroup);
     computePass.dispatchWorkgroups(
       Math.ceil(width / 16),
-      Math.ceil(height / 16),
+      Math.ceil(height / 16)
     );
     computePass.end();
 
@@ -483,7 +483,7 @@ export class UpscalingEngine {
 
   private async applyEdgeDirected(
     colorTexture: GPUTexture,
-    edgeTexture: GPUTexture,
+    edgeTexture: GPUTexture
   ): Promise<GPUTexture> {
     if (
       !this.device ||
@@ -505,7 +505,7 @@ export class UpscalingEngine {
     this.device.queue.writeBuffer(
       uniformBuffer,
       0,
-      createEdgeDimensionsBuffer(width, height),
+      createEdgeDimensionsBuffer(width, height)
     );
 
     const bindGroup = this.device.createBindGroup({
@@ -524,7 +524,7 @@ export class UpscalingEngine {
     computePass.setBindGroup(0, bindGroup);
     computePass.dispatchWorkgroups(
       Math.ceil(width / 16),
-      Math.ceil(height / 16),
+      Math.ceil(height / 16)
     );
     computePass.end();
 
@@ -536,7 +536,7 @@ export class UpscalingEngine {
 
   private async applySharpen(
     input: GPUTexture,
-    strength: number,
+    strength: number
   ): Promise<GPUTexture> {
     if (!this.device || !this.sharpenPipeline || !this.sharpenBindGroupLayout) {
       throw new Error("Sharpen pipeline not ready");
@@ -554,7 +554,7 @@ export class UpscalingEngine {
     this.device.queue.writeBuffer(
       uniformBuffer,
       0,
-      createSharpenUniformsBuffer(width, height, strength),
+      createSharpenUniformsBuffer(width, height, strength)
     );
 
     const bindGroup = this.device.createBindGroup({
@@ -572,7 +572,7 @@ export class UpscalingEngine {
     computePass.setBindGroup(0, bindGroup);
     computePass.dispatchWorkgroups(
       Math.ceil(width / 16),
-      Math.ceil(height / 16),
+      Math.ceil(height / 16)
     );
     computePass.end();
 
@@ -632,7 +632,7 @@ export class UpscalingEngine {
     image: ImageBitmap,
     targetWidth: number,
     targetHeight: number,
-    settings: UpscalingSettings = DEFAULT_UPSCALING_SETTINGS,
+    settings: UpscalingSettings = DEFAULT_UPSCALING_SETTINGS
   ): Promise<ImageBitmap> {
     if (!this.initialized || !this.device) {
       return this.canvas2DFallback(image, targetWidth, targetHeight);
@@ -652,14 +652,14 @@ export class UpscalingEngine {
       this.device.queue.copyExternalImageToTexture(
         { source: image },
         { texture: inputTexture },
-        { width: image.width, height: image.height },
+        { width: image.width, height: image.height }
       );
 
       const resultTexture = await this.upscale(
         inputTexture,
         targetWidth,
         targetHeight,
-        settings,
+        settings
       );
 
       const resultBitmap = await this.textureToImageBitmap(resultTexture);
@@ -671,14 +671,14 @@ export class UpscalingEngine {
     } catch (error) {
       console.warn(
         "[UpscalingEngine] GPU upscale failed, using fallback:",
-        error,
+        error
       );
       return this.canvas2DFallback(image, targetWidth, targetHeight);
     }
   }
 
   private async textureToImageBitmap(
-    texture: GPUTexture,
+    texture: GPUTexture
   ): Promise<ImageBitmap> {
     if (!this.device) {
       throw new Error("Device not available");
@@ -697,7 +697,7 @@ export class UpscalingEngine {
     commandEncoder.copyTextureToBuffer(
       { texture },
       { buffer: readBuffer, bytesPerRow },
-      { width, height },
+      { width, height }
     );
     this.device.queue.submit([commandEncoder.finish()]);
 
@@ -729,7 +729,7 @@ export class UpscalingEngine {
   private async canvas2DFallback(
     image: ImageBitmap,
     targetWidth: number,
-    targetHeight: number,
+    targetHeight: number
   ): Promise<ImageBitmap> {
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext("2d");

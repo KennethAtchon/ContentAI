@@ -200,7 +200,7 @@ export class SoundGenerator {
   private getScaleFrequencies(
     root: number,
     scale: number[],
-    octaves: number = 2,
+    octaves: number = 2
   ): number[] {
     const freqs: number[] = [];
     for (let oct = 0; oct < octaves; oct++) {
@@ -214,7 +214,7 @@ export class SoundGenerator {
   private createReverbImpulse(
     ctx: OfflineAudioContext,
     duration: number,
-    decay: number,
+    decay: number
   ): AudioBuffer {
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * duration;
@@ -236,7 +236,7 @@ export class SoundGenerator {
     startTime: number,
     duration: number,
     volume: number,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const detunes = [-12, -5, 0, 5, 7, 12];
 
@@ -257,11 +257,11 @@ export class SoundGenerator {
       gain.gain.setValueAtTime(0, startTime);
       gain.gain.linearRampToValueAtTime(
         volume / detunes.length,
-        startTime + attackTime,
+        startTime + attackTime
       );
       gain.gain.setValueAtTime(
         (volume / detunes.length) * 0.7,
-        startTime + duration - releaseTime,
+        startTime + duration - releaseTime
       );
       gain.gain.linearRampToValueAtTime(0, startTime + duration);
 
@@ -280,7 +280,7 @@ export class SoundGenerator {
     startTime: number,
     duration: number,
     volume: number,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const osc1 = ctx.createOscillator();
     osc1.type = "sawtooth";
@@ -319,7 +319,7 @@ export class SoundGenerator {
     startTime: number,
     duration: number,
     volume: number,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const sub = ctx.createOscillator();
     sub.type = "sine";
@@ -334,7 +334,7 @@ export class SoundGenerator {
     filter.frequency.setValueAtTime(800, startTime);
     filter.frequency.exponentialRampToValueAtTime(
       200,
-      startTime + duration * 0.5,
+      startTime + duration * 0.5
     );
 
     const subGain = ctx.createGain();
@@ -342,7 +342,7 @@ export class SoundGenerator {
     subGain.gain.linearRampToValueAtTime(volume * 0.7, startTime + 0.02);
     subGain.gain.exponentialRampToValueAtTime(
       volume * 0.4,
-      startTime + duration * 0.3,
+      startTime + duration * 0.3
     );
     subGain.gain.linearRampToValueAtTime(0, startTime + duration);
 
@@ -351,7 +351,7 @@ export class SoundGenerator {
     midGain.gain.linearRampToValueAtTime(volume * 0.3, startTime + 0.01);
     midGain.gain.exponentialRampToValueAtTime(
       0.001,
-      startTime + duration * 0.5,
+      startTime + duration * 0.5
     );
 
     sub.connect(subGain);
@@ -371,7 +371,7 @@ export class SoundGenerator {
     ctx: OfflineAudioContext,
     startTime: number,
     volume: number,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const osc = ctx.createOscillator();
     osc.type = "sine";
@@ -412,12 +412,12 @@ export class SoundGenerator {
     ctx: OfflineAudioContext,
     startTime: number,
     volume: number,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const noiseBuffer = ctx.createBuffer(
       1,
       ctx.sampleRate * 0.2,
-      ctx.sampleRate,
+      ctx.sampleRate
     );
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) {
@@ -462,13 +462,13 @@ export class SoundGenerator {
     startTime: number,
     volume: number,
     open: boolean,
-    destination: AudioNode,
+    destination: AudioNode
   ): void {
     const duration = open ? 0.15 : 0.04;
     const noiseBuffer = ctx.createBuffer(
       1,
       ctx.sampleRate * duration,
-      ctx.sampleRate,
+      ctx.sampleRate
     );
     const data = noiseBuffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) {
@@ -503,7 +503,7 @@ export class SoundGenerator {
     id: string,
     name: string,
     duration: number,
-    fast: boolean = true,
+    fast: boolean = true
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -529,7 +529,7 @@ export class SoundGenerator {
     filter.frequency.setValueAtTime(fast ? 2000 : 800, 0);
     filter.frequency.exponentialRampToValueAtTime(
       fast ? 8000 : 3000,
-      duration * 0.3,
+      duration * 0.3
     );
     filter.frequency.exponentialRampToValueAtTime(fast ? 1000 : 400, duration);
 
@@ -574,7 +574,7 @@ export class SoundGenerator {
   async generateImpact(
     id: string,
     name: string,
-    heavy: boolean = true,
+    heavy: boolean = true
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -691,7 +691,7 @@ export class SoundGenerator {
 
   async generateNotification(
     id: string,
-    name: string,
+    name: string
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -904,7 +904,7 @@ export class SoundGenerator {
       const noiseBuffer = ctx.createBuffer(
         2,
         sampleRate * glitchDuration,
-        sampleRate,
+        sampleRate
       );
       for (let channel = 0; channel < 2; channel++) {
         const data = noiseBuffer.getChannelData(channel);
@@ -1123,7 +1123,7 @@ export class SoundGenerator {
     name: string,
     bpm: number,
     genre: MusicGenre,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1210,7 +1210,7 @@ export class SoundGenerator {
     id: string,
     name: string,
     genre: MusicGenre,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1282,7 +1282,7 @@ export class SoundGenerator {
     bpm: number,
     genre: MusicGenre,
     mood: MoodTag[],
-    progressionType: keyof typeof CHORD_PROGRESSIONS = "pop",
+    progressionType: keyof typeof CHORD_PROGRESSIONS = "pop"
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1316,7 +1316,7 @@ export class SoundGenerator {
         filter.frequency.setValueAtTime(2000, chordStart);
         filter.frequency.linearRampToValueAtTime(
           800,
-          chordStart + chordDuration,
+          chordStart + chordDuration
         );
         filter.Q.value = 1;
 
@@ -1369,7 +1369,7 @@ export class SoundGenerator {
     bpm: number,
     genre: MusicGenre,
     mood: MoodTag[],
-    scaleType: keyof typeof SCALES = "pentatonic",
+    scaleType: keyof typeof SCALES = "pentatonic"
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1422,7 +1422,7 @@ export class SoundGenerator {
       gain.gain.linearRampToValueAtTime(0.2, noteStart + 0.02);
       gain.gain.exponentialRampToValueAtTime(
         0.01,
-        noteStart + noteDuration * 0.9,
+        noteStart + noteDuration * 0.9
       );
 
       osc.connect(filter);
@@ -1465,7 +1465,7 @@ export class SoundGenerator {
     name: string,
     bpm: number,
     genre: MusicGenre,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1499,7 +1499,7 @@ export class SoundGenerator {
         filter.frequency.setValueAtTime(4000, noteStart);
         filter.frequency.exponentialRampToValueAtTime(
           500,
-          noteStart + noteDuration,
+          noteStart + noteDuration
         );
         filter.Q.value = 5;
 
@@ -1508,7 +1508,7 @@ export class SoundGenerator {
         gain.gain.linearRampToValueAtTime(0.15, noteStart + 0.01);
         gain.gain.exponentialRampToValueAtTime(
           0.01,
-          noteStart + noteDuration * 0.8,
+          noteStart + noteDuration * 0.8
         );
 
         osc.connect(filter);
@@ -1550,7 +1550,7 @@ export class SoundGenerator {
     name: string,
     bpm: number,
     genre: MusicGenre,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1579,7 +1579,7 @@ export class SoundGenerator {
       filter.frequency.setValueAtTime(800, noteStart);
       filter.frequency.exponentialRampToValueAtTime(
         200,
-        noteStart + beatDuration,
+        noteStart + beatDuration
       );
       filter.Q.value = 8;
 
@@ -1588,7 +1588,7 @@ export class SoundGenerator {
       gain.gain.linearRampToValueAtTime(0.4, noteStart + 0.02);
       gain.gain.exponentialRampToValueAtTime(
         0.1,
-        noteStart + beatDuration * 0.8,
+        noteStart + beatDuration * 0.8
       );
 
       const subGain = ctx.createGain();
@@ -1637,7 +1637,7 @@ export class SoundGenerator {
     bpm: number,
     genre: MusicGenre,
     mood: MoodTag[],
-    style: "basic" | "complex" | "minimal" = "basic",
+    style: "basic" | "complex" | "minimal" = "basic"
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1790,7 +1790,7 @@ export class SoundGenerator {
     name: string,
     bpm: number,
     genre: MusicGenre,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -1874,7 +1874,7 @@ export class SoundGenerator {
               noteStart,
               beatDuration * 0.8,
               0.4,
-              dryGain,
+              dryGain
             );
           }
         }
@@ -1887,7 +1887,7 @@ export class SoundGenerator {
             noteStart,
             beatDuration * 0.7,
             0.3,
-            dryGain,
+            dryGain
           );
         }
       }
@@ -1910,7 +1910,7 @@ export class SoundGenerator {
               noteTime,
               beatDuration * 0.4,
               0.15,
-              reverb,
+              reverb
             );
           }
         });
@@ -1939,7 +1939,7 @@ export class SoundGenerator {
             time + beatDuration / 2,
             0.06,
             true,
-            reverb,
+            reverb
           );
         }
       } else {
@@ -1955,14 +1955,14 @@ export class SoundGenerator {
             time + beatDuration * 0.25,
             0.04,
             false,
-            dryGain,
+            dryGain
           );
           this.createShimmeringHiHat(
             ctx,
             time + beatDuration * 0.75,
             0.04,
             false,
-            dryGain,
+            dryGain
           );
         }
       }
@@ -1996,7 +1996,7 @@ export class SoundGenerator {
   async generateStinger(
     id: string,
     name: string,
-    mood: MoodTag[],
+    mood: MoodTag[]
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -2066,7 +2066,7 @@ export class SoundGenerator {
 
   async generateCinematicHit(
     id: string,
-    name: string,
+    name: string
   ): Promise<GeneratedSound> {
     const cached = this.cache.get(id);
     if (cached) return cached;
@@ -2278,7 +2278,7 @@ export class SoundGenerator {
       gain.gain.linearRampToValueAtTime(isFinal ? 0.4 : 0.3, time + 0.02);
       gain.gain.exponentialRampToValueAtTime(
         0.01,
-        time + (isFinal ? 0.8 : 0.15),
+        time + (isFinal ? 0.8 : 0.15)
       );
 
       osc.connect(gain);

@@ -2,6 +2,31 @@
 
 Shared TypeScript contracts for projects, timelines, actions, effects, templates, Lottie, transitions, shapes, sounds, and results.
 
+## What This Folder Owns
+
+This folder is the vocabulary of editor-core. Other folders should use these types to agree on project shape, timeline shape, actions, effects, templates, transitions, Lottie data, shape tools, sound libraries, 3D transforms, and standard results.
+
+## How It Fits The Architecture
+
+- project.ts and timeline.ts define the main document and edit timeline data.
+- actions.ts defines command payloads used by the actions folder.
+- effects.ts, transitions.ts, transform-3d.ts, and shape-tools.ts describe visual behavior.
+- template.ts, scriptable-template.ts, composition.ts, and lottie.ts support reusable/generated/motion content.
+- result.ts provides a standard success/error pattern.
+
+## Typical Flow
+
+```mermaid
+sequenceDiagram
+  participant Feature as Feature Module
+  participant Types as src/types
+  participant Storage as Storage/Export
+  Feature->>Types: import shared contracts
+  Feature-->>Storage: produce typed project/timeline data
+  Storage->>Types: serialize according to shared schema
+  Storage-->>Feature: typed load result
+```
+
 ## Read Order
 
 1. `index.ts`
@@ -19,22 +44,28 @@ Shared TypeScript contracts for projects, timelines, actions, effects, templates
 13. `transform-3d.ts`
 14. `result.ts`
 
-## Files
+## File Guide
 
-- `actions.ts` - shared action type definitions for editor mutations.
-- `composition.ts` - shared composition and layer-related domain types.
-- `effects.ts` - shared effect configuration and preset types.
-- `index.ts` - barrel file that defines the public exports for this folder.
-- `lottie.ts` - Lottie schema compatibility, layer, asset, and export types.
-- `project.ts` - root project document and metadata types.
-- `result.ts` - standard success/error result type helpers.
-- `scriptable-template.ts` - scriptable template configuration and variable types.
-- `shape-tools.ts` - shape drawing tool state and default shape config helpers.
-- `sound-library.ts` - sound-library asset and category types.
-- `template.ts` - template metadata, variables, and category types.
-- `timeline.ts` - timeline, track, clip, and time-range types.
-- `transform-3d.ts` - 3D transform and perspective types.
-- `transitions.ts` - transition types, presets, and creation helpers.
+- `actions.ts` - Editor mutation/action contracts.
+- `composition.ts` - Composition/layer/template variable contracts.
+- `effects.ts` - Effect configuration and preset contracts.
+- `index.ts` - Public type barrel.
+- `lottie.ts` - Lottie schema compatibility and export contracts.
+- `project.ts` - Root project document and metadata contracts.
+- `result.ts` - Standard result type helpers.
+- `scriptable-template.ts` - Scriptable template contracts.
+- `shape-tools.ts` - Shape tool state/default config helpers.
+- `sound-library.ts` - Sound library asset/category contracts.
+- `template.ts` - Template metadata and variable contracts.
+- `timeline.ts` - Timeline, track, clip, and range contracts.
+- `transform-3d.ts` - 3D transform and perspective contracts.
+- `transitions.ts` - Transition types, presets, and helpers.
+
+## Important Contracts
+
+- Avoid runtime side effects here.
+- Keep breaking type changes intentional because they ripple through the whole package.
+- Prefer adding shared domain vocabulary here before duplicating incompatible local shapes.
 
 ## Dependencies
 

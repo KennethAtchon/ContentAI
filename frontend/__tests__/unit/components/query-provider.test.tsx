@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import QueryProvider from "@/shared/components/query-provider";
+import QueryProvider from "@/app/query/query-provider";
 
 describe("QueryProvider", () => {
   afterEach(() => {

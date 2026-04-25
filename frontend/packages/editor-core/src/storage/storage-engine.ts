@@ -25,7 +25,7 @@ import {
 function createStorageError(
   code: StorageErrorCode,
   message: string,
-  quotaInfo?: StorageError["quotaInfo"],
+  quotaInfo?: StorageError["quotaInfo"]
 ): StorageError {
   return { code, message, quotaInfo };
 }
@@ -54,8 +54,8 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "BROWSER_NOT_SUPPORTED",
-            "IndexedDB is not supported in this environment",
-          ),
+            "IndexedDB is not supported in this environment"
+          )
         );
         return;
       }
@@ -66,8 +66,8 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "DATABASE_ERROR",
-            `Failed to open database: ${request.error?.message}`,
-          ),
+            `Failed to open database: ${request.error?.message}`
+          )
         );
       };
 
@@ -125,7 +125,7 @@ export class StorageEngine implements IStorageEngine {
   private async transaction<T>(
     storeNames: string | string[],
     mode: IDBTransactionMode,
-    operation: (stores: Record<string, IDBObjectStore>) => IDBRequest<T>,
+    operation: (stores: Record<string, IDBObjectStore>) => IDBRequest<T>
   ): Promise<T> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
@@ -147,8 +147,8 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "DATABASE_ERROR",
-            `Transaction failed: ${request.error?.message}`,
-          ),
+            `Transaction failed: ${request.error?.message}`
+          )
         );
     });
   }
@@ -156,7 +156,7 @@ export class StorageEngine implements IStorageEngine {
   private async transactionGetAll<T>(
     storeName: string,
     indexName?: string,
-    query?: IDBValidKey | IDBKeyRange,
+    query?: IDBValidKey | IDBKeyRange
   ): Promise<T[]> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
@@ -170,8 +170,8 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "DATABASE_ERROR",
-            `Failed to get all: ${request.error?.message}`,
-          ),
+            `Failed to get all: ${request.error?.message}`
+          )
         );
     });
   }
@@ -188,7 +188,7 @@ export class StorageEngine implements IStorageEngine {
       };
 
       await this.transaction(STORES.PROJECTS, "readwrite", (stores) =>
-        stores[STORES.PROJECTS].put(record),
+        stores[STORES.PROJECTS].put(record)
       );
     } catch (error) {
       if ((error as StorageError).code) {
@@ -196,7 +196,7 @@ export class StorageEngine implements IStorageEngine {
       }
       throw createStorageError(
         "SERIALIZATION_FAILED",
-        `Failed to serialize project: ${(error as Error).message}`,
+        `Failed to serialize project: ${(error as Error).message}`
       );
     }
   }
@@ -206,7 +206,7 @@ export class StorageEngine implements IStorageEngine {
       const record = await this.transaction<ProjectRecord | undefined>(
         STORES.PROJECTS,
         "readonly",
-        (stores) => stores[STORES.PROJECTS].get(id),
+        (stores) => stores[STORES.PROJECTS].get(id)
       );
 
       if (!record) {
@@ -220,14 +220,14 @@ export class StorageEngine implements IStorageEngine {
       }
       throw createStorageError(
         "DESERIALIZATION_FAILED",
-        `Failed to deserialize project: ${(error as Error).message}`,
+        `Failed to deserialize project: ${(error as Error).message}`
       );
     }
   }
 
   async listProjects(): Promise<ProjectSummary[]> {
     const records = await this.transactionGetAll<ProjectRecord>(
-      STORES.PROJECTS,
+      STORES.PROJECTS
     );
 
     return records
@@ -258,15 +258,15 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "DATABASE_ERROR",
-            `Failed to delete project: ${request.error?.message}`,
-          ),
+            `Failed to delete project: ${request.error?.message}`
+          )
         );
     });
   }
 
   async saveMedia(media: MediaRecord): Promise<void> {
     await this.transaction(STORES.MEDIA, "readwrite", (stores) =>
-      stores[STORES.MEDIA].put(media),
+      stores[STORES.MEDIA].put(media)
     );
   }
 
@@ -274,7 +274,7 @@ export class StorageEngine implements IStorageEngine {
     const record = await this.transaction<MediaRecord | undefined>(
       STORES.MEDIA,
       "readonly",
-      (stores) => stores[STORES.MEDIA].get(id),
+      (stores) => stores[STORES.MEDIA].get(id)
     );
     return record || null;
   }
@@ -283,7 +283,7 @@ export class StorageEngine implements IStorageEngine {
     await this.deleteWaveform(id);
 
     await this.transaction(STORES.MEDIA, "readwrite", (stores) =>
-      stores[STORES.MEDIA].delete(id),
+      stores[STORES.MEDIA].delete(id)
     );
   }
 
@@ -291,13 +291,13 @@ export class StorageEngine implements IStorageEngine {
     return this.transactionGetAll<MediaRecord>(
       STORES.MEDIA,
       "projectId",
-      projectId,
+      projectId
     );
   }
 
   async saveCache(record: CacheRecord): Promise<void> {
     await this.transaction(STORES.CACHE, "readwrite", (stores) =>
-      stores[STORES.CACHE].put(record),
+      stores[STORES.CACHE].put(record)
     );
   }
 
@@ -305,7 +305,7 @@ export class StorageEngine implements IStorageEngine {
     const record = await this.transaction<CacheRecord | undefined>(
       STORES.CACHE,
       "readonly",
-      (stores) => stores[STORES.CACHE].get(key),
+      (stores) => stores[STORES.CACHE].get(key)
     );
 
     if (record) {
@@ -322,7 +322,7 @@ export class StorageEngine implements IStorageEngine {
 
   async deleteCache(key: string): Promise<void> {
     await this.transaction(STORES.CACHE, "readwrite", (stores) =>
-      stores[STORES.CACHE].delete(key),
+      stores[STORES.CACHE].delete(key)
     );
   }
 
@@ -338,15 +338,15 @@ export class StorageEngine implements IStorageEngine {
         reject(
           createStorageError(
             "DATABASE_ERROR",
-            `Failed to clear cache: ${request.error?.message}`,
-          ),
+            `Failed to clear cache: ${request.error?.message}`
+          )
         );
     });
   }
 
   async saveWaveform(record: WaveformRecord): Promise<void> {
     await this.transaction(STORES.WAVEFORMS, "readwrite", (stores) =>
-      stores[STORES.WAVEFORMS].put(record),
+      stores[STORES.WAVEFORMS].put(record)
     );
   }
 
@@ -354,14 +354,14 @@ export class StorageEngine implements IStorageEngine {
     const record = await this.transaction<WaveformRecord | undefined>(
       STORES.WAVEFORMS,
       "readonly",
-      (stores) => stores[STORES.WAVEFORMS].get(mediaId),
+      (stores) => stores[STORES.WAVEFORMS].get(mediaId)
     );
     return record || null;
   }
 
   async deleteWaveform(mediaId: string): Promise<void> {
     await this.transaction(STORES.WAVEFORMS, "readwrite", (stores) =>
-      stores[STORES.WAVEFORMS].delete(mediaId),
+      stores[STORES.WAVEFORMS].delete(mediaId)
     );
   }
 
@@ -403,7 +403,11 @@ export class StorageEngine implements IStorageEngine {
     };
   }
 
-  async saveFileHandle(name: string, size: number, handle: FileSystemFileHandle): Promise<void> {
+  async saveFileHandle(
+    name: string,
+    size: number,
+    handle: FileSystemFileHandle
+  ): Promise<void> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORES.FILE_HANDLES, "readwrite");
@@ -414,37 +418,57 @@ export class StorageEngine implements IStorageEngine {
     });
   }
 
-  async loadFileHandle(name: string, size: number): Promise<FileSystemFileHandle | null> {
+  async loadFileHandle(
+    name: string,
+    size: number
+  ): Promise<FileSystemFileHandle | null> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORES.FILE_HANDLES, "readonly");
       const store = tx.objectStore(STORES.FILE_HANDLES);
       const request = store.get(`${name}:${size}`);
-      request.onsuccess = () => resolve((request.result as { handle: FileSystemFileHandle } | undefined)?.handle ?? null);
+      request.onsuccess = () =>
+        resolve(
+          (request.result as { handle: FileSystemFileHandle } | undefined)
+            ?.handle ?? null
+        );
       request.onerror = () => reject(request.error);
     });
   }
 
-  async saveDirectoryHandle(projectId: string, handle: FileSystemDirectoryHandle): Promise<void> {
+  async saveDirectoryHandle(
+    projectId: string,
+    handle: FileSystemDirectoryHandle
+  ): Promise<void> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORES.DIR_HANDLES, "readwrite");
       const store = tx.objectStore(STORES.DIR_HANDLES);
-      const request = store.put({ key: projectId, handle, folderName: handle.name });
+      const request = store.put({
+        key: projectId,
+        handle,
+        folderName: handle.name,
+      });
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
   }
 
-  async loadDirectoryHandle(projectId: string): Promise<{ handle: FileSystemDirectoryHandle; folderName: string } | null> {
+  async loadDirectoryHandle(
+    projectId: string
+  ): Promise<{ handle: FileSystemDirectoryHandle; folderName: string } | null> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORES.DIR_HANDLES, "readonly");
       const store = tx.objectStore(STORES.DIR_HANDLES);
       const request = store.get(projectId);
       request.onsuccess = () => {
-        const rec = request.result as { handle: FileSystemDirectoryHandle; folderName: string } | undefined;
-        resolve(rec ? { handle: rec.handle, folderName: rec.folderName } : null);
+        const rec = request.result as
+          | { handle: FileSystemDirectoryHandle; folderName: string }
+          | undefined;
+        resolve(
+          rec ? { handle: rec.handle, folderName: rec.folderName } : null
+        );
       };
       request.onerror = () => reject(request.error);
     });

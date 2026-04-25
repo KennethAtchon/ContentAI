@@ -1147,13 +1147,13 @@ export class TemplateEngine {
       category: TemplateCategory;
       placeholders: TemplatePlaceholder[];
       tags?: string[];
-    },
+    }
   ): Template {
     const templateId = `template-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const templateTimeline = this.convertToTemplateTimeline(
       project.timeline,
-      options.placeholders,
+      options.placeholders
     );
 
     return {
@@ -1175,14 +1175,14 @@ export class TemplateEngine {
 
   private convertToTemplateTimeline(
     timeline: Project["timeline"],
-    placeholders: TemplatePlaceholder[],
+    placeholders: TemplatePlaceholder[]
   ): TemplateTimeline {
     const placeholderIds = new Set(placeholders.map((p) => p.id));
 
     const templateTracks: TemplateTrack[] = timeline.tracks.map((track) => ({
       ...track,
       clips: track.clips.map((clip) =>
-        this.convertToTemplateClip(clip, placeholderIds),
+        this.convertToTemplateClip(clip, placeholderIds)
       ),
     }));
 
@@ -1190,7 +1190,7 @@ export class TemplateEngine {
       (sub) => ({
         ...sub,
         isPlaceholder: false,
-      }),
+      })
     );
 
     return {
@@ -1202,7 +1202,7 @@ export class TemplateEngine {
 
   private convertToTemplateClip(
     clip: Clip,
-    placeholderIds: Set<string>,
+    placeholderIds: Set<string>
   ): TemplateClip {
     return {
       ...clip,
@@ -1215,7 +1215,7 @@ export class TemplateEngine {
 
   applyTemplate(
     template: Template,
-    replacements: TemplateReplacements,
+    replacements: TemplateReplacements
   ): {
     project: Project;
     missingPlaceholders: string[];
@@ -1245,18 +1245,18 @@ export class TemplateEngine {
 
     const mediaItems = this.createMediaFromReplacements(
       effectiveReplacements,
-      template.placeholders,
+      template.placeholders
     );
 
     const tracks = template.timeline.tracks.map((track) => {
       const clips = track.clips.map((clip) => {
         const resolved = this.resolveClipPlaceholder(
           clip,
-          effectiveReplacements,
+          effectiveReplacements
         );
         if (clip.isPlaceholder && clip.placeholderId) {
           const placeholder = template.placeholders.find(
-            (p) => p.id === clip.placeholderId,
+            (p) => p.id === clip.placeholderId
           );
           if (placeholder?.type === "text") {
             const textValue =
@@ -1286,7 +1286,7 @@ export class TemplateEngine {
         ...template.timeline,
         tracks,
         subtitles: template.timeline.subtitles.map((sub) =>
-          this.resolveSubtitlePlaceholder(sub, effectiveReplacements),
+          this.resolveSubtitlePlaceholder(sub, effectiveReplacements)
         ),
       },
     };
@@ -1296,7 +1296,7 @@ export class TemplateEngine {
 
   private createMediaFromReplacements(
     replacements: TemplateReplacements,
-    placeholders: TemplatePlaceholder[],
+    placeholders: TemplatePlaceholder[]
   ): MediaItem[] {
     const items: MediaItem[] = [];
 
@@ -1334,7 +1334,7 @@ export class TemplateEngine {
 
   private resolveClipPlaceholder(
     clip: TemplateClip,
-    replacements: TemplateReplacements,
+    replacements: TemplateReplacements
   ): Clip {
     if (!clip.isPlaceholder || !clip.placeholderId) {
       const { isPlaceholder, placeholderId, ...clipData } = clip;
@@ -1360,7 +1360,7 @@ export class TemplateEngine {
 
   private resolveSubtitlePlaceholder(
     subtitle: TemplateSubtitle,
-    replacements: TemplateReplacements,
+    replacements: TemplateReplacements
   ): Subtitle {
     if (!subtitle.isPlaceholder || !subtitle.placeholderId) {
       const { isPlaceholder, placeholderId, ...subData } = subtitle;
@@ -1382,7 +1382,7 @@ export class TemplateEngine {
 
   resolvePropertyPath(
     obj: Record<string, unknown>,
-    path: string,
+    path: string
   ): { parent: Record<string, unknown>; key: string; value: unknown } | null {
     const parts = path.split(".");
     let current: Record<string, unknown> = obj;
@@ -1430,7 +1430,7 @@ export class TemplateEngine {
   setPropertyByPath(
     obj: Record<string, unknown>,
     path: string,
-    value: unknown,
+    value: unknown
   ): boolean {
     const resolved = this.resolvePropertyPath(obj, path);
     if (!resolved) return false;
@@ -1454,7 +1454,7 @@ export class TemplateEngine {
 
   validatePlaceholderValue(
     placeholder: ExtendedPlaceholder,
-    value: unknown,
+    value: unknown
   ): TemplateValidationError | null {
     if (
       placeholder.required &&
@@ -1566,7 +1566,7 @@ export class TemplateEngine {
 
   applyScriptableTemplate(
     template: ScriptableTemplate,
-    replacements: ScriptableTemplateReplacements,
+    replacements: ScriptableTemplateReplacements
   ): {
     project: Project;
     result: TemplateApplicationResult;
@@ -1606,7 +1606,7 @@ export class TemplateEngine {
 
       const validationError = this.validatePlaceholderValue(
         placeholder,
-        effectiveReplacements[placeholder.id]?.value,
+        effectiveReplacements[placeholder.id]?.value
       );
       if (validationError) {
         errors.push(validationError);
@@ -1616,7 +1616,7 @@ export class TemplateEngine {
     const projectId = `project-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const timelineClone = JSON.parse(
-      JSON.stringify(template.timeline),
+      JSON.stringify(template.timeline)
     ) as Timeline;
 
     for (const placeholder of template.placeholders) {
@@ -1629,7 +1629,7 @@ export class TemplateEngine {
           target,
           replacement.value,
           placeholder,
-          warnings,
+          warnings
         );
       }
 
@@ -1643,7 +1643,7 @@ export class TemplateEngine {
                 textClips.push({
                   id: clip.id,
                   text: String(
-                    replacement.value ?? placeholder.defaultValue ?? "",
+                    replacement.value ?? placeholder.defaultValue ?? ""
                   ),
                   placeholderId: placeholder.id,
                   trackId: track.id,
@@ -1669,7 +1669,7 @@ export class TemplateEngine {
                 textClips.push({
                   id: clip.id,
                   text: String(
-                    replacement.value ?? placeholder.defaultValue ?? "",
+                    replacement.value ?? placeholder.defaultValue ?? ""
                   ),
                   placeholderId: placeholder.id,
                   trackId: track.id,
@@ -1689,7 +1689,7 @@ export class TemplateEngine {
 
     const mediaItems = this.createMediaFromScriptableReplacements(
       effectiveReplacements,
-      template.placeholders,
+      template.placeholders
     );
 
     const project: Project = {
@@ -1718,7 +1718,7 @@ export class TemplateEngine {
     target: PlaceholderTarget,
     value: unknown,
     placeholder: ExtendedPlaceholder,
-    warnings: string[],
+    warnings: string[]
   ): void {
     if (target.clipId) {
       for (const track of timeline.tracks) {
@@ -1727,14 +1727,14 @@ export class TemplateEngine {
           const clipObj = clip as unknown as Record<string, unknown>;
           if (!this.setPropertyByPath(clipObj, target.property, value)) {
             warnings.push(
-              `Failed to set ${target.property} on clip ${target.clipId}`,
+              `Failed to set ${target.property} on clip ${target.clipId}`
             );
           }
           return;
         }
       }
       warnings.push(
-        `Clip ${target.clipId} not found for placeholder ${placeholder.id}`,
+        `Clip ${target.clipId} not found for placeholder ${placeholder.id}`
       );
     } else if (target.trackId) {
       const track = timeline.tracks.find((t) => t.id === target.trackId);
@@ -1742,12 +1742,12 @@ export class TemplateEngine {
         const trackObj = track as unknown as Record<string, unknown>;
         if (!this.setPropertyByPath(trackObj, target.property, value)) {
           warnings.push(
-            `Failed to set ${target.property} on track ${target.trackId}`,
+            `Failed to set ${target.property} on track ${target.trackId}`
           );
         }
       } else {
         warnings.push(
-          `Track ${target.trackId} not found for placeholder ${placeholder.id}`,
+          `Track ${target.trackId} not found for placeholder ${placeholder.id}`
         );
       }
     } else if (target.effectId) {
@@ -1758,7 +1758,7 @@ export class TemplateEngine {
             const effectObj = effect as unknown as Record<string, unknown>;
             if (!this.setPropertyByPath(effectObj, target.property, value)) {
               warnings.push(
-                `Failed to set ${target.property} on effect ${target.effectId}`,
+                `Failed to set ${target.property} on effect ${target.effectId}`
               );
             }
             return;
@@ -1766,14 +1766,14 @@ export class TemplateEngine {
         }
       }
       warnings.push(
-        `Effect ${target.effectId} not found for placeholder ${placeholder.id}`,
+        `Effect ${target.effectId} not found for placeholder ${placeholder.id}`
       );
     }
   }
 
   private createMediaFromScriptableReplacements(
     replacements: ScriptableTemplateReplacements,
-    placeholders: ExtendedPlaceholder[],
+    placeholders: ExtendedPlaceholder[]
   ): MediaItem[] {
     const items: MediaItem[] = [];
 
@@ -1817,7 +1817,7 @@ export class TemplateEngine {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(
         [TEMPLATE_STORE_NAME],
-        "readwrite",
+        "readwrite"
       );
       const store = transaction.objectStore(TEMPLATE_STORE_NAME);
       const request = store.put(template);
@@ -1840,7 +1840,7 @@ export class TemplateEngine {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(
         [TEMPLATE_STORE_NAME],
-        "readonly",
+        "readonly"
       );
       const store = transaction.objectStore(TEMPLATE_STORE_NAME);
       const request = store.get(id);
@@ -1866,7 +1866,7 @@ export class TemplateEngine {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(
         [TEMPLATE_STORE_NAME],
-        "readwrite",
+        "readwrite"
       );
       const store = transaction.objectStore(TEMPLATE_STORE_NAME);
       const request = store.delete(id);
@@ -1885,7 +1885,7 @@ export class TemplateEngine {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction(
         [TEMPLATE_STORE_NAME],
-        "readonly",
+        "readonly"
       );
       const store = transaction.objectStore(TEMPLATE_STORE_NAME);
       const request = store.getAll();
@@ -1893,7 +1893,7 @@ export class TemplateEngine {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const customTemplates = (request.result as Template[]).map(
-          this.toSummary,
+          this.toSummary
         );
         const builtinSummaries = BUILTIN_TEMPLATES.map(this.toSummary);
         resolve([...builtinSummaries, ...customTemplates]);
@@ -1921,7 +1921,7 @@ export class TemplateEngine {
         .toLowerCase()
         .includes(lowerQuery);
       const matchesTags = template.tags.some((tag) =>
-        tag.toLowerCase().includes(lowerQuery),
+        tag.toLowerCase().includes(lowerQuery)
       );
 
       if (matchesName || matchesDescription || matchesTags) {

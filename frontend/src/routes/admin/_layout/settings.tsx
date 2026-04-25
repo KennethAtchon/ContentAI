@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Input } from "@/shared/components/ui/input";
-import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
+import { Input } from "@/shared/ui/primitives/input";
+import { Button } from "@/shared/ui/primitives/button";
+import { Label } from "@/shared/ui/primitives/label";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
-import { useApp } from "@/shared/contexts/app-context";
-import { debugLog } from "@/shared/utils/debug";
+} from "@/shared/ui/primitives/card";
+import { useApp } from "@/app/state/app-context";
+import { debugLog } from "@/shared/debug";
 import { User, Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
+import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 
 export const Route = createFileRoute("/admin/_layout/settings")({
   component: SettingsPage,

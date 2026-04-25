@@ -54,7 +54,7 @@ export class AnimationExporter {
     project: Project,
     textClips: TextClip[] = [],
     shapeClips: ShapeClip[] = [],
-    options: ExportOptions = {},
+    options: ExportOptions = {}
   ): ExportResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -76,7 +76,7 @@ export class AnimationExporter {
         const layer = this.exportTextClip(
           textClip,
           project.settings.width,
-          project.settings.height,
+          project.settings.height
         );
         layers.push(layer);
       }
@@ -85,7 +85,7 @@ export class AnimationExporter {
         const layer = this.exportShapeClip(
           shapeClip,
           project.settings.width,
-          project.settings.height,
+          project.settings.height
         );
         layers.push(layer);
       }
@@ -93,7 +93,7 @@ export class AnimationExporter {
       for (const track of project.timeline.tracks) {
         for (const clip of track.clips) {
           const mediaItem = project.mediaLibrary.items.find(
-            (item) => item.id === clip.mediaId,
+            (item) => item.id === clip.mediaId
           );
           if (!mediaItem) {
             warnings.push(`Media item not found for clip ${clip.id}`);
@@ -104,14 +104,14 @@ export class AnimationExporter {
             const layer = this.exportImageClip(
               clip,
               mediaItem,
-              options.includeIds,
+              options.includeIds
             );
             layers.push(layer);
           } else if (mediaItem.type === "video") {
             const layer = this.exportVideoClip(
               clip,
               mediaItem,
-              options.includeIds,
+              options.includeIds
             );
             layers.push(layer);
           }
@@ -189,7 +189,7 @@ export class AnimationExporter {
   private exportTextClip(
     clip: TextClip,
     _canvasWidth: number,
-    _canvasHeight: number,
+    _canvasHeight: number
   ): TextLayer {
     const textStyle: TextStyle = {
       fontFamily: clip.style.fontFamily,
@@ -257,7 +257,7 @@ export class AnimationExporter {
   private exportShapeClip(
     clip: ShapeClip,
     _canvasWidth: number,
-    _canvasHeight: number,
+    _canvasHeight: number
   ): ShapeLayer {
     const shapeDefinition = this.createShapeDefinition(clip.shapeType);
     const animations = this.convertKeyframesToAnimations(clip.keyframes);
@@ -296,7 +296,7 @@ export class AnimationExporter {
   }
 
   private createShapeDefinition(
-    shapeType: ShapeType,
+    shapeType: ShapeType
   ): RectangleShape | EllipseShape | PolygonShape | StarShape {
     switch (shapeType) {
       case "rectangle":
@@ -318,7 +318,7 @@ export class AnimationExporter {
   private exportImageClip(
     clip: Clip,
     mediaItem: MediaItem,
-    includeIds?: boolean,
+    includeIds?: boolean
   ): ImageLayer {
     const animations = this.convertKeyframesToAnimations(clip.keyframes);
 
@@ -349,7 +349,7 @@ export class AnimationExporter {
   private exportVideoClip(
     clip: Clip,
     mediaItem: MediaItem,
-    includeIds?: boolean,
+    includeIds?: boolean
   ): VideoLayer {
     const animations = this.convertKeyframesToAnimations(clip.keyframes);
 
@@ -388,7 +388,7 @@ export class AnimationExporter {
 
       for (const clip of track.clips) {
         const mediaItem = project.mediaLibrary.items.find(
-          (item) => item.id === clip.mediaId,
+          (item) => item.id === clip.mediaId
         );
         if (!mediaItem || mediaItem.type !== "audio") continue;
 
@@ -405,7 +405,7 @@ export class AnimationExporter {
   }
 
   private convertKeyframesToAnimations(
-    keyframes: Keyframe[],
+    keyframes: Keyframe[]
   ): AnimationDefinition[] {
     if (keyframes.length === 0) return [];
 
@@ -445,7 +445,7 @@ export function exportAnimation(
   project: Project,
   textClips?: TextClip[],
   shapeClips?: ShapeClip[],
-  options?: ExportOptions,
+  options?: ExportOptions
 ): ExportResult {
   return animationExporter.export(project, textClips, shapeClips, options);
 }
@@ -454,7 +454,7 @@ export function exportAnimationToJSON(
   project: Project,
   textClips?: TextClip[],
   shapeClips?: ShapeClip[],
-  options?: ExportOptions,
+  options?: ExportOptions
 ): string {
   const result = exportAnimation(project, textClips, shapeClips, {
     ...options,

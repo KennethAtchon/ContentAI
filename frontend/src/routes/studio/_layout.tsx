@@ -7,13 +7,13 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/shared/contexts/app-context";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { useSubscription } from "@/features/subscriptions/hooks/use-subscription";
-import { ThemeToggle } from "@/shared/components/theme-toggle";
-import { ScopedErrorBoundary } from "@/shared/components/layout/error-boundary";
-import { cn } from "@/shared/utils/helpers/utils";
-import { getTierDisplay } from "@/features/account/components/account-helpers";
+import { useApp } from "@/app/state/app-context";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
+import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
+import { ThemeToggle } from "@/shared/ui/theme-toggle";
+import { ScopedErrorBoundary } from "@/shared/ui/layout/error-boundary";
+import { cn } from "@/shared/lib/utils";
+import { getTierDisplay } from "@/domains/account/ui/account-helpers";
 import { APP_NAME } from "@/shared/constants/app.constants";
 import {
   Telescope,
@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/shared/components/ui/dropdown-menu";
+} from "@/shared/ui/primitives/dropdown-menu";
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 

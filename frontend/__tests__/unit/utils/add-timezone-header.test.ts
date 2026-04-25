@@ -2,7 +2,7 @@
  * Unit tests for addTimezoneHeader utility
  */
 import { describe, expect, test } from "bun:test";
-import { addTimezoneHeader } from "@/shared/utils/api/add-timezone-header";
+import { addTimezoneHeader } from "@/shared/api/add-timezone-header";
 
 describe("addTimezoneHeader", () => {
   test("should add x-timezone header to empty options", () => {

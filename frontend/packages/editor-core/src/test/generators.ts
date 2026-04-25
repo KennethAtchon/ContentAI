@@ -60,7 +60,7 @@ export const easingTypeArb: fc.Arbitrary<EasingType> = fc.constantFrom(
   "ease-in",
   "ease-out",
   "ease-in-out",
-  "bezier",
+  "bezier"
 );
 
 export const projectSettingsArb: fc.Arbitrary<ProjectSettings> = fc.record({
@@ -119,7 +119,7 @@ const jsonSafeValueArb: fc.Arbitrary<unknown> = fc.oneof(
   fc.boolean(),
   fc.constant(null),
   fc.double({ noNaN: true, noDefaultInfinity: true }),
-  fc.integer(),
+  fc.integer()
 );
 
 export const effectArb: fc.Arbitrary<Effect> = fc.record({
@@ -129,7 +129,7 @@ export const effectArb: fc.Arbitrary<Effect> = fc.record({
     "contrast",
     "saturation",
     "blur",
-    "sharpen",
+    "sharpen"
   ),
   params: fc.dictionary(fc.string(), jsonSafeValueArb),
   enabled: fc.boolean(),
@@ -144,12 +144,12 @@ export const keyframeArb: fc.Arbitrary<Keyframe> = fc.record({
     "y",
     "scaleX",
     "scaleY",
-    "rotation",
+    "rotation"
   ),
   value: fc.oneof(
     fc.double({ noNaN: true, noDefaultInfinity: true }),
     fc.string(),
-    fc.boolean(),
+    fc.boolean()
   ),
   easing: easingTypeArb,
 });
@@ -187,7 +187,7 @@ export const transitionArb: fc.Arbitrary<Transition> = fc.record({
     "wipe",
     "slide",
     "zoom",
-    "push",
+    "push"
   ),
   duration: durationArb,
   params: fc.dictionary(fc.string(), jsonSafeValueArb),
@@ -323,7 +323,7 @@ export const actionArb: fc.Arbitrary<any> = fc.oneof(
         opacity: fc.double({ min: 0, max: 1, noNaN: true }),
       }),
     }),
-  }),
+  })
 );
 
 export const projectWithTracksArb: fc.Arbitrary<Project> = fc
@@ -404,6 +404,6 @@ export const executableActionArb = (project: Project): fc.Arbitrary<any> => {
           params: fc.record({
             trackType: fc.constantFrom("video", "audio", "image"),
           }),
-        }),
+        })
   );
 };

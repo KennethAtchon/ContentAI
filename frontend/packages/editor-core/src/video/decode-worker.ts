@@ -71,7 +71,7 @@ async function getOrCreateResources(
   clipId: string,
   blob: Blob,
   width: number,
-  height: number,
+  height: number
 ): Promise<CachedResource | null> {
   const cached = resourceCache.get(clipId);
   if (cached) {
@@ -115,7 +115,7 @@ async function getOrCreateResources(
   } catch (error) {
     console.error(
       `[DecodeWorker ${workerId}] Failed to create resources for ${clipId}:`,
-      error,
+      error
     );
     return null;
   }
@@ -201,7 +201,7 @@ const workerSelf = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage: (
     message: unknown,
-    options?: { transfer?: Transferable[] },
+    options?: { transfer?: Transferable[] }
   ) => void;
 };
 

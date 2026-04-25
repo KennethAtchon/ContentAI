@@ -248,7 +248,7 @@ export function getMasterClock(): MasterTimelineClock {
 }
 
 export function initializeMasterClock(
-  options: ClockOptions = {},
+  options: ClockOptions = {}
 ): MasterTimelineClock {
   if (masterClockInstance) {
     masterClockInstance.dispose();

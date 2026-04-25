@@ -83,7 +83,7 @@ export class GraphicsEngine {
     params: CreateShapeParams,
     trackId: string,
     startTime: number,
-    duration: number,
+    duration: number
   ): ShapeClip {
     const id = this.generateId();
     const style: ShapeStyle = {
@@ -128,13 +128,13 @@ export class GraphicsEngine {
     duration: number,
     width: number,
     height: number,
-    style?: Partial<ShapeStyle>,
+    style?: Partial<ShapeStyle>
   ): ShapeClip {
     return this.createShape(
       { shapeType: "rectangle", width, height, style },
       trackId,
       startTime,
-      duration,
+      duration
     );
   }
 
@@ -153,13 +153,13 @@ export class GraphicsEngine {
     startTime: number,
     duration: number,
     radius: number,
-    style?: Partial<ShapeStyle>,
+    style?: Partial<ShapeStyle>
   ): ShapeClip {
     return this.createShape(
       { shapeType: "circle", width: radius * 2, height: radius * 2, style },
       trackId,
       startTime,
-      duration,
+      duration
     );
   }
 
@@ -182,7 +182,7 @@ export class GraphicsEngine {
     width: number,
     height: number,
     arrowProps?: Partial<ArrowProperties>,
-    style?: Partial<ShapeStyle>,
+    style?: Partial<ShapeStyle>
   ): ShapeClip {
     const defaultArrowProps: ArrowProperties = {
       headWidth: height * 0.6,
@@ -202,7 +202,7 @@ export class GraphicsEngine {
       },
       trackId,
       startTime,
-      duration,
+      duration
     );
   }
 
@@ -275,7 +275,7 @@ export class GraphicsEngine {
       blendMode?: import("../video/types").BlendMode;
       blendOpacity?: number;
       emphasisAnimation?: EmphasisAnimation;
-    },
+    }
   ): ShapeClip | undefined {
     const existing = this.shapeClips.get(id);
     if (!existing) return undefined;
@@ -306,7 +306,7 @@ export class GraphicsEngine {
    */
   updateTransform(
     graphic: GraphicClip,
-    transform: Partial<Transform>,
+    transform: Partial<Transform>
   ): GraphicClip {
     return {
       ...graphic,
@@ -328,7 +328,7 @@ export class GraphicsEngine {
     svgContent: string,
     trackId: string,
     startTime: number,
-    duration: number,
+    duration: number
   ): SVGClip {
     const parsed = this.parseSVG(svgContent);
     const id = this.generateId();
@@ -422,7 +422,7 @@ export class GraphicsEngine {
     graphic: GraphicClip,
     time: number,
     width: number,
-    height: number,
+    height: number
   ): Promise<GraphicRenderResult> {
     const canvas =
       typeof OffscreenCanvas !== "undefined"
@@ -459,7 +459,7 @@ export class GraphicsEngine {
           graphic as SVGClip,
           width,
           height,
-          animatedState,
+          animatedState
         );
         break;
       case "sticker":
@@ -475,7 +475,7 @@ export class GraphicsEngine {
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     shape: ShapeClip,
     width: number,
-    height: number,
+    height: number
   ): void {
     const { style, shapeType } = shape;
     const baseSize = Math.min(width, height);
@@ -519,7 +519,7 @@ export class GraphicsEngine {
           0,
           halfSize,
           style.points || 5,
-          style.innerRadius || 0.5,
+          style.innerRadius || 0.5
         );
         break;
       case "polygon":
@@ -536,7 +536,7 @@ export class GraphicsEngine {
           ctx,
           style.fill.gradient,
           shapeSize,
-          shapeSize,
+          shapeSize
         );
       } else {
         ctx.fillStyle = style.fill.color || "#000000";
@@ -573,7 +573,7 @@ export class GraphicsEngine {
     svg: SVGClip,
     _width: number,
     _height: number,
-    animatedState: AnimatedGraphicState,
+    animatedState: AnimatedGraphicState
   ): Promise<void> {
     const svgContent = svg.svgContent;
 
@@ -606,7 +606,13 @@ export class GraphicsEngine {
           tempCtx.fillRect(0, 0, svgWidth, svgHeight);
           ctx.drawImage(tempCanvas, -svgWidth / 2, -svgHeight / 2);
         } else {
-          ctx.drawImage(img, -svgWidth / 2, -svgHeight / 2, svgWidth, svgHeight);
+          ctx.drawImage(
+            img,
+            -svgWidth / 2,
+            -svgHeight / 2,
+            svgWidth,
+            svgHeight
+          );
         }
       } else {
         ctx.drawImage(img, -svgWidth / 2, -svgHeight / 2, svgWidth, svgHeight);
@@ -622,7 +628,7 @@ export class GraphicsEngine {
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     sticker: StickerClip,
     _width: number,
-    _height: number,
+    _height: number
   ): Promise<void> {
     const img = await this.loadImage(sticker.imageUrl);
 
@@ -637,7 +643,7 @@ export class GraphicsEngine {
       -imgWidth * anchorX,
       -imgHeight * anchorY,
       imgWidth,
-      imgHeight,
+      imgHeight
     );
   }
 
@@ -647,7 +653,7 @@ export class GraphicsEngine {
     cy: number,
     width: number,
     height: number,
-    cornerRadius?: number,
+    cornerRadius?: number
   ): void {
     const x = cx - width / 2;
     const y = cy - height / 2;
@@ -672,7 +678,7 @@ export class GraphicsEngine {
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     cx: number,
     cy: number,
-    radius: number,
+    radius: number
   ): void {
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   }
@@ -682,7 +688,7 @@ export class GraphicsEngine {
     cx: number,
     cy: number,
     radiusX: number,
-    radiusY: number,
+    radiusY: number
   ): void {
     ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, Math.PI * 2);
   }
@@ -692,7 +698,7 @@ export class GraphicsEngine {
     cx: number,
     cy: number,
     width: number,
-    height: number,
+    height: number
   ): void {
     ctx.moveTo(cx, cy - height / 2);
     ctx.lineTo(cx + width / 2, cy + height / 2);
@@ -705,7 +711,7 @@ export class GraphicsEngine {
     cx: number,
     cy: number,
     width: number,
-    height: number,
+    height: number
   ): void {
     const headWidth = height * 0.6;
     const headLength = width * 0.3;
@@ -730,7 +736,7 @@ export class GraphicsEngine {
     x1: number,
     y1: number,
     x2: number,
-    y2: number,
+    y2: number
   ): void {
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
@@ -742,7 +748,7 @@ export class GraphicsEngine {
     cy: number,
     outerRadius: number,
     points: number,
-    innerRadiusRatio: number,
+    innerRadiusRatio: number
   ): void {
     const innerRadius = outerRadius * innerRadiusRatio;
     const step = Math.PI / points;
@@ -761,7 +767,7 @@ export class GraphicsEngine {
   private drawPolygonCentered(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     points: Point2D[],
-    size: number,
+    size: number
   ): void {
     if (points.length < 2) return;
 
@@ -777,7 +783,7 @@ export class GraphicsEngine {
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     gradient: GradientStyle,
     width: number,
-    height: number,
+    height: number
   ): CanvasGradient {
     let canvasGradient: CanvasGradient;
 
@@ -795,7 +801,7 @@ export class GraphicsEngine {
         0,
         width / 2,
         height / 2,
-        Math.max(width, height) / 2,
+        Math.max(width, height) / 2
       );
     }
 
@@ -808,7 +814,7 @@ export class GraphicsEngine {
 
   private getAnimatedGraphicState(
     graphic: GraphicClip,
-    time: number,
+    time: number
   ): AnimatedGraphicState {
     let transform = { ...graphic.transform };
     let opacity = transform.opacity;
@@ -846,7 +852,7 @@ export class GraphicsEngine {
             entryAnim.type,
             inProgress,
             entryAnim.easing,
-            true,
+            true
           );
           scale *= animState.scale;
           offsetX += animState.offsetX;
@@ -864,7 +870,7 @@ export class GraphicsEngine {
             exitAnim.type,
             outProgress,
             exitAnim.easing,
-            false,
+            false
           );
           scale *= animState.scale;
           offsetX += animState.offsetX;
@@ -884,7 +890,7 @@ export class GraphicsEngine {
     ) {
       const emphasisState = this.applyEmphasisAnimation(
         graphic.emphasisAnimation,
-        time,
+        time
       );
       scale *= emphasisState.scale;
       scaleX *= emphasisState.scaleX;
@@ -923,7 +929,7 @@ export class GraphicsEngine {
 
   private applyEmphasisAnimation(
     animation: EmphasisAnimation,
-    time: number,
+    time: number
   ): {
     opacity: number;
     scale: number;
@@ -1334,7 +1340,7 @@ export class GraphicsEngine {
     type: GraphicAnimationType,
     progress: number,
     easing: string,
-    isEntry: boolean,
+    isEntry: boolean
   ): {
     opacity: number;
     scale: number;
@@ -1345,7 +1351,7 @@ export class GraphicsEngine {
   } {
     const easedProgress = this.animationEngine.applyEasing(
       progress,
-      easing as any,
+      easing as any
     );
     const animProgress = isEntry ? easedProgress : 1 - easedProgress;
 
@@ -1490,7 +1496,7 @@ export class GraphicsEngine {
     for (const prop of properties) {
       const keyframes = this.animationEngine.getKeyframesForProperty(
         graphic.keyframes,
-        prop,
+        prop
       );
 
       if (keyframes.length > 0) {
@@ -1508,7 +1514,7 @@ export class GraphicsEngine {
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     transform: Transform,
     width: number,
-    height: number,
+    height: number
   ): void {
     const posX = transform.position.x * width;
     const posY = transform.position.y * height;
@@ -1522,7 +1528,7 @@ export class GraphicsEngine {
   private setNestedProperty(
     obj: Record<string, unknown>,
     path: string,
-    value: unknown,
+    value: unknown
   ): void {
     const parts = path.split(".");
     let current = obj as Record<string, unknown>;
@@ -1563,7 +1569,7 @@ export class GraphicsEngine {
       ...graphic,
       keyframes: this.animationEngine.removeKeyframe(
         graphic.keyframes,
-        keyframeId,
+        keyframeId
       ),
     };
   }
@@ -1579,14 +1585,14 @@ export class GraphicsEngine {
   updateKeyframe<T extends GraphicClip>(
     graphic: T,
     keyframeId: string,
-    updates: Partial<Omit<Keyframe, "id">>,
+    updates: Partial<Omit<Keyframe, "id">>
   ): T {
     return {
       ...graphic,
       keyframes: this.animationEngine.updateKeyframe(
         graphic.keyframes,
         keyframeId,
-        updates,
+        updates
       ),
     };
   }
@@ -1659,7 +1665,7 @@ export class GraphicsEngine {
    */
   getShapeClipsForTrack(trackId: string): ShapeClip[] {
     return Array.from(this.shapeClips.values()).filter(
-      (clip) => clip.trackId === trackId,
+      (clip) => clip.trackId === trackId
     );
   }
 
@@ -1671,7 +1677,7 @@ export class GraphicsEngine {
    */
   getSVGClipsForTrack(trackId: string): SVGClip[] {
     return Array.from(this.svgClips.values()).filter(
-      (clip) => clip.trackId === trackId,
+      (clip) => clip.trackId === trackId
     );
   }
 
@@ -1714,7 +1720,7 @@ export class GraphicsEngine {
       blendMode?: import("../video/types").BlendMode;
       blendOpacity?: number;
       emphasisAnimation?: EmphasisAnimation;
-    },
+    }
   ): SVGClip | undefined {
     const existing = this.svgClips.get(id);
     if (!existing) {
@@ -1753,7 +1759,7 @@ export class GraphicsEngine {
   setSVGAnimation(
     svg: SVGClip,
     type: "entry" | "exit",
-    animation: GraphicAnimation,
+    animation: GraphicAnimation
   ): SVGClip {
     const updated: SVGClip = {
       ...svg,
@@ -1817,7 +1823,7 @@ export class GraphicsEngine {
    */
   getStickerClipsForTrack(trackId: string): StickerClip[] {
     return Array.from(this.stickerClips.values()).filter(
-      (clip) => clip.trackId === trackId,
+      (clip) => clip.trackId === trackId
     );
   }
 
@@ -1847,7 +1853,7 @@ export class GraphicsEngine {
       blendMode?: import("../video/types").BlendMode;
       blendOpacity?: number;
       emphasisAnimation?: EmphasisAnimation;
-    },
+    }
   ): StickerClip | undefined {
     const existing = this.stickerClips.get(id);
     if (!existing) {
@@ -1917,7 +1923,7 @@ export class GraphicsEngine {
   createGraphicAnimation(
     type: GraphicAnimationType,
     duration: number = 0.5,
-    easing: string = "ease-out",
+    easing: string = "ease-out"
   ): GraphicAnimation {
     return {
       type,

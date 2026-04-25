@@ -4,8 +4,8 @@ import {
   reorderVideoItems,
   setVideoItemDurationById,
   splitVideoItemAt,
-} from "@/features/video/utils/timeline-utils";
-import type { Timeline } from "@/features/video/types/composition.types";
+} from "@/domains/video/lib/utils/timeline-utils";
+import type { Timeline } from "@/domains/video/model/composition.types";
 
 function makeTimeline(): Timeline {
   return {

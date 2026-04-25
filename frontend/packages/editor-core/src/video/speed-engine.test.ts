@@ -127,7 +127,11 @@ describe("SpeedEngine", () => {
 
       speedEngine.setClipSpeed("clip-1", 2, originalDuration);
 
-      for (let playheadTime = clipStartTime; playheadTime < clipStartTime + 5; playheadTime += 0.5) {
+      for (
+        let playheadTime = clipStartTime;
+        playheadTime < clipStartTime + 5;
+        playheadTime += 0.5
+      ) {
         const clipLocalTime = playheadTime - clipStartTime;
         expect(clipLocalTime).toBeGreaterThanOrEqual(0);
         expect(clipLocalTime).toBeLessThanOrEqual(originalDuration / 2);
@@ -142,7 +146,10 @@ describe("SpeedEngine", () => {
       const realTimeElapsed = 1;
       const expectedMediaTimeAdvance = realTimeElapsed * speed;
 
-      const mediaTime = speedEngine.getSourceTimeAtPlaybackTime("clip-1", realTimeElapsed);
+      const mediaTime = speedEngine.getSourceTimeAtPlaybackTime(
+        "clip-1",
+        realTimeElapsed
+      );
       expect(mediaTime).toBe(expectedMediaTimeAdvance);
     });
   });
@@ -167,7 +174,10 @@ describe("SpeedEngine - Playback Time vs Media Time", () => {
 
       for (const fraction of testPoints) {
         const playheadTime = playbackDuration * fraction;
-        const expectedMediaTime = Math.min(originalDuration, playheadTime * speed);
+        const expectedMediaTime = Math.min(
+          originalDuration,
+          playheadTime * speed
+        );
 
         const actualMediaTime = speedEngine.getSourceTimeAtPlaybackTime(
           `clip-${speed}`,

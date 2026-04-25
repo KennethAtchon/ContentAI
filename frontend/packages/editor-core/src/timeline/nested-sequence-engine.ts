@@ -69,7 +69,7 @@ export class NestedSequenceEngine {
   createCompoundClip(
     clips: Clip[],
     tracks: Track[],
-    options: CreateCompoundClipOptions = {},
+    options: CreateCompoundClipOptions = {}
   ): CompoundClip {
     if (clips.length === 0) {
       throw new Error("Cannot create compound clip from empty selection");
@@ -155,7 +155,7 @@ export class NestedSequenceEngine {
   createInstance(
     compoundClipId: string,
     trackId: string,
-    startTime: number,
+    startTime: number
   ): CompoundClipInstance | null {
     const compound = this.compoundClips.get(compoundClipId);
     if (!compound) return null;
@@ -195,7 +195,7 @@ export class NestedSequenceEngine {
     return Array.from(instanceIds)
       .map((id) => this.instances.get(id))
       .filter(
-        (instance): instance is CompoundClipInstance => instance !== undefined,
+        (instance): instance is CompoundClipInstance => instance !== undefined
       );
   }
 

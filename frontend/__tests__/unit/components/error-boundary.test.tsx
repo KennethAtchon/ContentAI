@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach, spyOn } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
+import { ErrorBoundary } from "@/shared/ui/layout/error-boundary";
 import React from "react";
 
 // Mock component that throws

@@ -70,7 +70,7 @@ export class KeyframeEngine {
     property: string,
     time: number,
     value: unknown,
-    easing: EasingPreset = "linear",
+    easing: EasingPreset = "linear"
   ): ExtendedKeyframe {
     const keyframe: ExtendedKeyframe = {
       id: this.generateKeyframeId(),
@@ -86,7 +86,7 @@ export class KeyframeEngine {
 
   removeKeyframe(
     keyframes: ExtendedKeyframe[],
-    keyframeId: string,
+    keyframeId: string
   ): ExtendedKeyframe[] {
     return keyframes.filter((kf) => kf.id !== keyframeId);
   }
@@ -94,7 +94,7 @@ export class KeyframeEngine {
   updateKeyframe(
     keyframes: ExtendedKeyframe[],
     keyframeId: string,
-    updates: Partial<Omit<ExtendedKeyframe, "id">>,
+    updates: Partial<Omit<ExtendedKeyframe, "id">>
   ): ExtendedKeyframe[] {
     const result = keyframes.map((kf) => {
       if (kf.id === keyframeId) {
@@ -111,14 +111,14 @@ export class KeyframeEngine {
 
   getKeyframe(
     keyframes: ExtendedKeyframe[],
-    keyframeId: string,
+    keyframeId: string
   ): ExtendedKeyframe | null {
     return keyframes.find((kf) => kf.id === keyframeId) || null;
   }
 
   getKeyframesForProperty(
     keyframes: ExtendedKeyframe[],
-    property: string,
+    property: string
   ): ExtendedKeyframe[] {
     return keyframes
       .filter((kf) => kf.property === property)
@@ -127,7 +127,7 @@ export class KeyframeEngine {
 
   getValueAtTime(
     keyframes: ExtendedKeyframe[],
-    time: number,
+    time: number
   ): KeyframeInterpolationResult {
     if (keyframes.length === 0) {
       return {
@@ -184,7 +184,7 @@ export class KeyframeEngine {
     const value = this.interpolateValue(
       keyframeA.value,
       keyframeB.value,
-      easedProgress,
+      easedProgress
     );
 
     return {
@@ -211,7 +211,7 @@ export class KeyframeEngine {
   setEasing(
     keyframes: ExtendedKeyframe[],
     keyframeId: string,
-    easing: EasingPreset | BezierCurve,
+    easing: EasingPreset | BezierCurve
   ): ExtendedKeyframe[] {
     return keyframes.map((kf) => {
       if (kf.id === keyframeId) {
@@ -245,7 +245,7 @@ export class KeyframeEngine {
         keyframe.bezierHandles.in.x,
         keyframe.bezierHandles.in.y,
         keyframe.bezierHandles.out.x,
-        keyframe.bezierHandles.out.y,
+        keyframe.bezierHandles.out.y
       );
     }
     switch (keyframe.easing) {
@@ -334,7 +334,7 @@ export class KeyframeEngine {
   updateBezierHandles(
     keyframes: ExtendedKeyframe[],
     keyframeId: string,
-    handles: { in: { x: number; y: number }; out: { x: number; y: number } },
+    handles: { in: { x: number; y: number }; out: { x: number; y: number } }
   ): ExtendedKeyframe[] {
     return keyframes.map((kf) => {
       if (kf.id === keyframeId) {
@@ -349,7 +349,7 @@ export class KeyframeEngine {
   }
 
   getBezierControlPoints(
-    keyframe: ExtendedKeyframe,
+    keyframe: ExtendedKeyframe
   ): BezierControlPoints | null {
     if (!keyframe.bezierHandles) return null;
     return {
@@ -364,21 +364,21 @@ export class KeyframeEngine {
     valueA: unknown,
     valueB: unknown,
     t: number,
-    controlPoints: BezierControlPoints,
+    controlPoints: BezierControlPoints
   ): unknown {
     const easedT = this.animationEngine.cubicBezier(
       t,
       controlPoints.x1,
       controlPoints.y1,
       controlPoints.x2,
-      controlPoints.y2,
+      controlPoints.y2
     );
     return this.interpolateValue(valueA, valueB, easedT);
   }
   copyKeyframes(
     keyframes: ExtendedKeyframe[],
     sourceClipId: string,
-    sourceProperty: string,
+    sourceProperty: string
   ): KeyframeClipboard {
     const clipboard: KeyframeClipboard = {
       keyframes: keyframes.map((kf) => ({ ...kf })),
@@ -394,7 +394,7 @@ export class KeyframeEngine {
     clipboard: KeyframeClipboard,
     _targetClipId: string,
     targetProperty: string,
-    timeOffset: number = 0,
+    timeOffset: number = 0
   ): ExtendedKeyframe[] {
     const minTime = Math.min(...clipboard.keyframes.map((kf) => kf.time));
 
@@ -417,7 +417,7 @@ export class KeyframeEngine {
   getMotionPath(
     clipId: string,
     keyframes: ExtendedKeyframe[],
-    sampleCount: number = 100,
+    sampleCount: number = 100
   ): MotionPath {
     const xKeyframes = this.getKeyframesForProperty(keyframes, "position.x");
     const yKeyframes = this.getKeyframesForProperty(keyframes, "position.y");
@@ -471,7 +471,7 @@ export class KeyframeEngine {
   }
 
   private getDefaultBezierHandles(
-    preset: EasingPreset,
+    preset: EasingPreset
   ):
     | { in: { x: number; y: number }; out: { x: number; y: number } }
     | undefined {
@@ -496,7 +496,7 @@ export class KeyframeEngine {
   private interpolateValue(
     valueA: unknown,
     valueB: unknown,
-    progress: number,
+    progress: number
   ): unknown {
     if (typeof valueA === "number" && typeof valueB === "number") {
       return valueA + (valueB - valueA) * progress;

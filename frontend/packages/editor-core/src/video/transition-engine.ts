@@ -71,18 +71,18 @@ export class TransitionEngine {
     outgoingFrame: ImageBitmap,
     incomingFrame: ImageBitmap,
     transition: Transition,
-    progress: number,
+    progress: number
   ): Promise<TransitionRenderResult> {
     const startTime = performance.now();
     if (!this.canvas || !this.ctx) {
       throw new Error(
-        "Canvas not available. Rendering requires a browser environment.",
+        "Canvas not available. Rendering requires a browser environment."
       );
     }
     const clampedProgress = Math.max(0, Math.min(1, progress));
     const easedProgress = this.applyEasing(
       clampedProgress,
-      transition.params.curve as string,
+      transition.params.curve as string
     );
     this.ctx.clearRect(0, 0, this.width, this.height);
     switch (transition.type) {
@@ -95,7 +95,7 @@ export class TransitionEngine {
           incomingFrame,
           easedProgress,
           "black",
-          (transition.params.holdDuration as number) || 0,
+          (transition.params.holdDuration as number) || 0
         );
         break;
       case "dipToWhite":
@@ -104,7 +104,7 @@ export class TransitionEngine {
           incomingFrame,
           easedProgress,
           "white",
-          (transition.params.holdDuration as number) || 0,
+          (transition.params.holdDuration as number) || 0
         );
         break;
       case "wipe":
@@ -113,7 +113,7 @@ export class TransitionEngine {
           incomingFrame,
           easedProgress,
           (transition.params.direction as string) || "left",
-          (transition.params.softness as number) || 0,
+          (transition.params.softness as number) || 0
         );
         break;
       case "slide":
@@ -122,7 +122,7 @@ export class TransitionEngine {
           incomingFrame,
           easedProgress,
           (transition.params.direction as string) || "left",
-          (transition.params.pushOut as boolean) || false,
+          (transition.params.pushOut as boolean) || false
         );
         break;
       case "zoom":
@@ -134,7 +134,7 @@ export class TransitionEngine {
           (transition.params.center as { x: number; y: number }) || {
             x: 0.5,
             y: 0.5,
-          },
+          }
         );
         break;
       case "push":
@@ -142,7 +142,7 @@ export class TransitionEngine {
           outgoingFrame,
           incomingFrame,
           easedProgress,
-          (transition.params.direction as string) || "left",
+          (transition.params.direction as string) || "left"
         );
         break;
       default:
@@ -161,7 +161,7 @@ export class TransitionEngine {
   private async renderCrossfade(
     outgoing: ImageBitmap,
     incoming: ImageBitmap,
-    progress: number,
+    progress: number
   ): Promise<void> {
     const ctx = this.getContext();
     // Draw outgoing frame with decreasing opacity
@@ -179,7 +179,7 @@ export class TransitionEngine {
     incoming: ImageBitmap,
     progress: number,
     color: "black" | "white",
-    holdDuration: number,
+    holdDuration: number
   ): Promise<void> {
     // Total transition: fade out -> hold -> fade in
     const totalPhases = 2 + holdDuration;
@@ -215,7 +215,7 @@ export class TransitionEngine {
     incoming: ImageBitmap,
     progress: number,
     direction: string,
-    softness: number,
+    softness: number
   ): Promise<void> {
     const ctx = this.getContext();
     // Draw outgoing frame as base
@@ -231,7 +231,7 @@ export class TransitionEngine {
           progress * this.width,
           0,
           this.width,
-          this.height,
+          this.height
         );
         break;
       case "right":
@@ -241,7 +241,7 @@ export class TransitionEngine {
           0,
           this.width * (1 - progress),
           this.height,
-          true,
+          true
         );
         break;
       case "up":
@@ -250,7 +250,7 @@ export class TransitionEngine {
           0,
           progress * this.height,
           this.width,
-          this.height,
+          this.height
         );
         break;
       case "down":
@@ -260,7 +260,7 @@ export class TransitionEngine {
           0,
           this.width,
           this.height * (1 - progress),
-          true,
+          true
         );
         break;
       case "diagonal":
@@ -272,7 +272,7 @@ export class TransitionEngine {
           progress * this.width,
           0,
           this.width,
-          this.height,
+          this.height
         );
     }
     if (softness > 0 && softPixels > 0) {
@@ -289,7 +289,7 @@ export class TransitionEngine {
     y: number,
     width: number,
     height: number,
-    invert: boolean = false,
+    invert: boolean = false
   ): void {
     ctx.beginPath();
     if (invert) {
@@ -302,7 +302,7 @@ export class TransitionEngine {
 
   private createDiagonalWipeClip(
     ctx: OffscreenCanvasRenderingContext2D,
-    progress: number,
+    progress: number
   ): void {
     const offset = (this.width + this.height) * progress;
     ctx.beginPath();
@@ -319,7 +319,7 @@ export class TransitionEngine {
     incoming: ImageBitmap,
     progress: number,
     direction: string,
-    pushOut: boolean,
+    pushOut: boolean
   ): Promise<void> {
     const ctx = this.getContext();
     let outX = 0,
@@ -360,7 +360,7 @@ export class TransitionEngine {
     incoming: ImageBitmap,
     progress: number,
     scale: number,
-    center: { x: number; y: number },
+    center: { x: number; y: number }
   ): Promise<void> {
     // Outgoing frame zooms in and fades out
     const outScale = 1 + (scale - 1) * progress;
@@ -396,7 +396,7 @@ export class TransitionEngine {
     outgoing: ImageBitmap,
     incoming: ImageBitmap,
     progress: number,
-    direction: string,
+    direction: string
   ): Promise<void> {
     // Push is like slide but both frames always move together
     await this.renderSlide(outgoing, incoming, progress, direction, true);
@@ -418,7 +418,7 @@ export class TransitionEngine {
   validateTransition(
     clipA: Clip,
     clipB: Clip,
-    duration: number,
+    duration: number
   ): TransitionValidationResult {
     const clipAEnd = clipA.startTime + clipA.duration;
     const gap = Math.abs(clipB.startTime - clipAEnd);
@@ -448,14 +448,14 @@ export class TransitionEngine {
       clipA.duration,
       clipB.duration,
       maxFromClipA,
-      maxFromClipB,
+      maxFromClipB
     );
 
     if (duration > maxDuration) {
       return {
         valid: true,
         warning: `Insufficient handle frames. Maximum transition duration is ${maxDuration.toFixed(
-          2,
+          2
         )}s`,
         maxDuration,
       };
@@ -489,7 +489,7 @@ export class TransitionEngine {
   findAdjacentClipPairs(track: Track): Array<{ clipA: Clip; clipB: Clip }> {
     const pairs: Array<{ clipA: Clip; clipB: Clip }> = [];
     const sortedClips = [...track.clips].sort(
-      (a, b) => a.startTime - b.startTime,
+      (a, b) => a.startTime - b.startTime
     );
 
     for (let i = 0; i < sortedClips.length - 1; i++) {
@@ -509,7 +509,7 @@ export class TransitionEngine {
     clipB: Clip,
     type: TransitionType,
     duration: number,
-    params?: Partial<TransitionParams[typeof type]>,
+    params?: Partial<TransitionParams[typeof type]>
   ): Transition | null {
     const validation = this.validateTransition(clipA, clipB, duration);
     if (!validation.valid && !validation.warning) {
@@ -558,7 +558,7 @@ export class TransitionEngine {
     transition: Transition,
     clipA: Clip,
     clipB: Clip,
-    newDuration: number,
+    newDuration: number
   ): Transition {
     const validation = this.validateTransition(clipA, clipB, newDuration);
     const actualDuration = validation.maxDuration
@@ -581,7 +581,7 @@ export class TransitionEngine {
   calculateTransitionProgress(
     transition: Transition,
     clipA: Clip,
-    currentTime: number,
+    currentTime: number
   ): number {
     const transitionStart =
       clipA.startTime + clipA.duration - transition.duration / 2;
@@ -600,7 +600,7 @@ export class TransitionEngine {
   isTimeInTransition(
     transition: Transition,
     clipA: Clip,
-    currentTime: number,
+    currentTime: number
   ): boolean {
     const transitionStart =
       clipA.startTime + clipA.duration - transition.duration / 2;
@@ -648,7 +648,7 @@ export class TransitionEngine {
 
 export function createTransitionEngine(
   width: number = 1920,
-  height: number = 1080,
+  height: number = 1080
 ): TransitionEngine {
   return new TransitionEngine({ width, height });
 }

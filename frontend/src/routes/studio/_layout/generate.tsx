@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ChatLayout } from "@/features/chat/components/ChatLayout";
-import { useProjects } from "@/features/chat/hooks/use-projects";
+import { ChatLayout } from "@/domains/chat/ui/ChatLayout";
+import { useProjects } from "@/domains/chat/hooks/use-projects";
 import { useState } from "react";
 
 function GeneratePage() {

@@ -58,7 +58,7 @@ function renderNone(subtitle: Subtitle): AnimatedCaptionFrame {
 
 function renderWordHighlight(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (!subtitle.words || subtitle.words.length === 0) {
     return renderNone(subtitle);
@@ -95,14 +95,14 @@ function renderWordHighlight(
 
 function renderWordByWord(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (!subtitle.words || subtitle.words.length === 0) {
     return renderNone(subtitle);
   }
 
   const activeWord = subtitle.words.find(
-    (word) => currentTime >= word.startTime && currentTime < word.endTime,
+    (word) => currentTime >= word.startTime && currentTime < word.endTime
   );
 
   if (!activeWord) {
@@ -140,7 +140,7 @@ function renderWordByWord(
 
 function renderKaraoke(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (!subtitle.words || subtitle.words.length === 0) {
     return renderNone(subtitle);
@@ -189,7 +189,7 @@ function renderKaraoke(
 
 function renderBounce(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (!subtitle.words || subtitle.words.length === 0) {
     return renderNone(subtitle);
@@ -231,14 +231,14 @@ function renderBounce(
 
 function renderTypewriter(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (!subtitle.words || subtitle.words.length === 0) {
     return renderNone(subtitle);
   }
 
   const visibleWords = subtitle.words.filter(
-    (word) => currentTime >= word.startTime,
+    (word) => currentTime >= word.startTime
   );
 
   if (visibleWords.length === 0) {
@@ -265,7 +265,7 @@ function renderTypewriter(
 
 export function renderAnimatedCaption(
   subtitle: Subtitle,
-  currentTime: number,
+  currentTime: number
 ): AnimatedCaptionFrame {
   if (currentTime < subtitle.startTime || currentTime > subtitle.endTime) {
     return { segments: [], visible: false };
@@ -291,7 +291,7 @@ export function renderAnimatedCaption(
 }
 
 export function getAnimationStyleDisplayName(
-  style: CaptionAnimationStyle,
+  style: CaptionAnimationStyle
 ): string {
   const names: Record<CaptionAnimationStyle, string> = {
     none: "Static",

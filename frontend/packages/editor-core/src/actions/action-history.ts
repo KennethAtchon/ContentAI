@@ -123,7 +123,7 @@ export class ActionHistory {
     this.redoStack = [];
 
     this.snapshots = this.snapshots.filter(
-      (s) => s.stackIndex <= this.undoStack.length,
+      (s) => s.stackIndex <= this.undoStack.length
     );
 
     if (this.undoStack.length > this.maxHistorySize) {

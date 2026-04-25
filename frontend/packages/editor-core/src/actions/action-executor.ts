@@ -70,7 +70,7 @@ export class ActionExecutor {
     const projectSnapshot = JSON.parse(JSON.stringify(project));
     const inverseAction = this.inverseGenerator.generate(
       action,
-      projectSnapshot,
+      projectSnapshot
     );
     try {
       await this.applyAction(action as TimelineAction, project);
@@ -94,7 +94,7 @@ export class ActionExecutor {
 
   async executeMany(
     actions: Action[],
-    project: Project,
+    project: Project
   ): Promise<ActionResult[]> {
     const results: ActionResult[] = [];
 
@@ -207,7 +207,7 @@ export class ActionExecutor {
 
   private async applyAction(
     action: TimelineAction,
-    project: Project,
+    project: Project
   ): Promise<void> {
     const type = action.type;
 
@@ -273,7 +273,7 @@ export class ActionExecutor {
 
   private async applyMediaAction(
     action: MediaAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): Promise<void> {
     const mediaLibrary = project.mediaLibrary as any;
 
@@ -307,7 +307,7 @@ export class ActionExecutor {
       case "media/delete": {
         const params = action.params as { mediaId: string };
         mediaLibrary.items = mediaLibrary.items.filter(
-          (item: MediaItem) => item.id !== params.mediaId,
+          (item: MediaItem) => item.id !== params.mediaId
         );
         break;
       }
@@ -315,7 +315,7 @@ export class ActionExecutor {
       case "media/rename": {
         const params = action.params as { mediaId: string; name: string };
         mediaLibrary.items = mediaLibrary.items.map((item: MediaItem) =>
-          item.id === params.mediaId ? { ...item, name: params.name } : item,
+          item.id === params.mediaId ? { ...item, name: params.name } : item
         );
         break;
       }
@@ -337,7 +337,7 @@ export class ActionExecutor {
 
   private applyTrackAction(
     action: TrackAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -356,7 +356,7 @@ export class ActionExecutor {
         };
         const trackCount =
           timeline.tracks.filter(
-            (t: MutableTrack) => t.type === params.trackType,
+            (t: MutableTrack) => t.type === params.trackType
           ).length + 1;
         const newTrack: MutableTrack = {
           id: `track-${Date.now()}`,
@@ -387,7 +387,7 @@ export class ActionExecutor {
       case "track/remove": {
         const params = action.params as { trackId: string };
         timeline.tracks = timeline.tracks.filter(
-          (t: MutableTrack) => t.id !== params.trackId,
+          (t: MutableTrack) => t.id !== params.trackId
         );
         break;
       }
@@ -408,7 +408,7 @@ export class ActionExecutor {
           newPosition: number;
         };
         const trackIndex = timeline.tracks.findIndex(
-          (t: MutableTrack) => t.id === params.trackId,
+          (t: MutableTrack) => t.id === params.trackId
         );
         if (trackIndex !== -1) {
           const [track] = timeline.tracks.splice(trackIndex, 1);
@@ -420,7 +420,7 @@ export class ActionExecutor {
       case "track/lock": {
         const params = action.params as { trackId: string; locked: boolean };
         timeline.tracks = timeline.tracks.map((t: MutableTrack) =>
-          t.id === params.trackId ? { ...t, locked: params.locked } : t,
+          t.id === params.trackId ? { ...t, locked: params.locked } : t
         );
         break;
       }
@@ -428,7 +428,7 @@ export class ActionExecutor {
       case "track/hide": {
         const params = action.params as { trackId: string; hidden: boolean };
         timeline.tracks = timeline.tracks.map((t: MutableTrack) =>
-          t.id === params.trackId ? { ...t, hidden: params.hidden } : t,
+          t.id === params.trackId ? { ...t, hidden: params.hidden } : t
         );
         break;
       }
@@ -436,7 +436,7 @@ export class ActionExecutor {
       case "track/mute": {
         const params = action.params as { trackId: string; muted: boolean };
         timeline.tracks = timeline.tracks.map((t: MutableTrack) =>
-          t.id === params.trackId ? { ...t, muted: params.muted } : t,
+          t.id === params.trackId ? { ...t, muted: params.muted } : t
         );
         break;
       }
@@ -444,7 +444,7 @@ export class ActionExecutor {
       case "track/solo": {
         const params = action.params as { trackId: string; solo: boolean };
         timeline.tracks = timeline.tracks.map((t: MutableTrack) =>
-          t.id === params.trackId ? { ...t, solo: params.solo } : t,
+          t.id === params.trackId ? { ...t, solo: params.solo } : t
         );
         break;
       }
@@ -453,7 +453,7 @@ export class ActionExecutor {
 
   private applyClipAction(
     action: ClipAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -466,11 +466,11 @@ export class ActionExecutor {
           duration?: number;
         };
         const track = timeline.tracks.find(
-          (t: MutableTrack) => t.id === params.trackId,
+          (t: MutableTrack) => t.id === params.trackId
         );
         if (track) {
           const mediaItem = project.mediaLibrary.items.find(
-            (item) => item.id === params.mediaId,
+            (item) => item.id === params.mediaId
           );
           // Use provided duration, or fall back to media duration (if > 0), or default to 5
           // Images and graphics have duration: 0, so we use the 5-second default for them
@@ -519,7 +519,7 @@ export class ActionExecutor {
         timeline.tracks = timeline.tracks.map((track: MutableTrack) =>
           track.id === params.clip.trackId
             ? { ...track, clips: [...track.clips, params.clip] }
-            : track,
+            : track
         );
         break;
       }
@@ -535,7 +535,7 @@ export class ActionExecutor {
           timeline.tracks = timeline.tracks.map((track: MutableTrack) => ({
             ...track,
             clips: track.clips.filter(
-              (c: MutableClip) => c.id !== params.clipId,
+              (c: MutableClip) => c.id !== params.clipId
             ),
           }));
           const targetTrackId = params.trackId || clip.trackId;
@@ -552,7 +552,7 @@ export class ActionExecutor {
                     },
                   ],
                 }
-              : track,
+              : track
           );
         }
         break;
@@ -609,7 +609,7 @@ export class ActionExecutor {
           timeline.tracks = timeline.tracks.map((track: MutableTrack) => ({
             ...track,
             clips: track.clips.flatMap((c: MutableClip) =>
-              c.id === params.clipId ? [clip1, clip2] : [c],
+              c.id === params.clipId ? [clip1, clip2] : [c]
             ),
           }));
 
@@ -658,7 +658,7 @@ export class ActionExecutor {
                   .map((c: MutableClip) =>
                     c.startTime > deletedStartTime
                       ? { ...c, startTime: c.startTime - deletedDuration }
-                      : c,
+                      : c
                   ),
               };
             }
@@ -677,7 +677,7 @@ export class ActionExecutor {
           if (track.id === params.clip.trackId) {
             const restoredClips = track.clips.map((c: MutableClip) => {
               const affected = params.affectedClips.find(
-                (ac) => ac.id === c.id,
+                (ac) => ac.id === c.id
               );
               return affected
                 ? { ...c, startTime: affected.originalStartTime }
@@ -704,7 +704,7 @@ export class ActionExecutor {
             clips: track.clips.map((c: MutableClip) =>
               c.id === params.clipId
                 ? { ...c, inPoint: newInPoint, outPoint: newOutPoint }
-                : c,
+                : c
             ),
           }));
         }
@@ -811,7 +811,7 @@ export class ActionExecutor {
 
   private applyEffectAction(
     action: EffectAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -834,7 +834,7 @@ export class ActionExecutor {
           clips: track.clips.map((clip: MutableClip) =>
             clip.id === params.clipId
               ? { ...clip, effects: [...clip.effects, newEffect] }
-              : clip,
+              : clip
           ),
         }));
         this.lastAddedIds.set("effect", newEffect.id);
@@ -850,10 +850,10 @@ export class ActionExecutor {
               ? {
                   ...clip,
                   effects: clip.effects.filter(
-                    (e: Effect) => e.id !== params.effectId,
+                    (e: Effect) => e.id !== params.effectId
                   ),
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -894,10 +894,10 @@ export class ActionExecutor {
                   effects: clip.effects.map((e: Effect) =>
                     e.id === params.effectId
                       ? { ...e, params: { ...e.params, ...params.params } }
-                      : e,
+                      : e
                   ),
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -915,7 +915,7 @@ export class ActionExecutor {
             if (clip.id === params.clipId) {
               const effects = [...clip.effects];
               const effectIndex = effects.findIndex(
-                (e: Effect) => e.id === params.effectId,
+                (e: Effect) => e.id === params.effectId
               );
               if (effectIndex !== -1) {
                 const [effect] = effects.splice(effectIndex, 1);
@@ -933,7 +933,7 @@ export class ActionExecutor {
 
   private applyTransformAction(
     action: TransformAction,
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -945,14 +945,14 @@ export class ActionExecutor {
               ...clip,
               transform: { ...clip.transform, ...action.params.transform },
             }
-          : clip,
+          : clip
       ),
     }));
   }
 
   private applyKeyframeAction(
     action: KeyframeAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -977,7 +977,7 @@ export class ActionExecutor {
           clips: track.clips.map((clip: MutableClip) =>
             clip.id === params.clipId
               ? { ...clip, keyframes: [...clip.keyframes, newKeyframe] }
-              : clip,
+              : clip
           ),
         }));
         this.lastAddedIds.set("keyframe", newKeyframe.id);
@@ -1001,10 +1001,10 @@ export class ActionExecutor {
                       !(
                         kf.property === params.property &&
                         kf.time === params.time
-                      ),
+                      )
                   ),
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -1035,10 +1035,10 @@ export class ActionExecutor {
                             easing: params.easing,
                           }),
                         }
-                      : kf,
+                      : kf
                   ),
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -1050,7 +1050,7 @@ export class ActionExecutor {
     action:
       | TransitionAction
       | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -1065,7 +1065,7 @@ export class ActionExecutor {
         const clipA = this.findClip(timeline, params.clipAId);
         if (clipA) {
           const track = timeline.tracks.find(
-            (t: MutableTrack) => t.id === clipA.trackId,
+            (t: MutableTrack) => t.id === clipA.trackId
           );
           if (track) {
             const newTransition: Transition = {
@@ -1088,7 +1088,7 @@ export class ActionExecutor {
         timeline.tracks = timeline.tracks.map((track: MutableTrack) => ({
           ...track,
           transitions: (track.transitions || []).filter(
-            (t: Transition) => t.id !== params.transitionId,
+            (t: Transition) => t.id !== params.transitionId
           ),
         }));
         break;
@@ -1107,7 +1107,7 @@ export class ActionExecutor {
                     params.transition,
                   ],
                 }
-              : track,
+              : track
           );
         }
         break;
@@ -1132,7 +1132,7 @@ export class ActionExecutor {
                     params: { ...t.params, ...params.params },
                   }),
                 }
-              : t,
+              : t
           ),
         }));
         break;
@@ -1142,7 +1142,7 @@ export class ActionExecutor {
 
   private applyAudioAction(
     action: AudioAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -1154,7 +1154,7 @@ export class ActionExecutor {
           clips: track.clips.map((clip: MutableClip) =>
             clip.id === params.clipId
               ? { ...clip, volume: params.volume }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -1183,7 +1183,7 @@ export class ActionExecutor {
                         : clip.fade?.fadeOut || 0,
                   },
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -1205,7 +1205,7 @@ export class ActionExecutor {
                     volume: params.points,
                   },
                 }
-              : clip,
+              : clip
           ),
         }));
         break;
@@ -1215,7 +1215,7 @@ export class ActionExecutor {
 
   private applySubtitleAction(
     action: SubtitleAction | { type: string; params: Record<string, unknown> },
-    project: Project,
+    project: Project
   ): void {
     const timeline = project.timeline as MutableTimeline;
 
@@ -1240,7 +1240,7 @@ export class ActionExecutor {
       case "subtitle/remove": {
         const params = action.params as { subtitleId: string };
         timeline.subtitles = (timeline.subtitles || []).filter(
-          (s: Subtitle) => s.id !== params.subtitleId,
+          (s: Subtitle) => s.id !== params.subtitleId
         );
         break;
       }
@@ -1276,7 +1276,7 @@ export class ActionExecutor {
                   endTime: params.endTime,
                 }),
               }
-            : s,
+            : s
         );
         break;
       }
@@ -1326,7 +1326,7 @@ export class ActionExecutor {
 
   private findClip(
     timeline: MutableTimeline,
-    clipId: string,
+    clipId: string
   ): MutableClip | null {
     for (const track of timeline.tracks) {
       const clip = track.clips.find((c: MutableClip) => c.id === clipId);

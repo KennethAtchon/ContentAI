@@ -1,6 +1,31 @@
 # Source Root
 
-The `src` folder contains the public package barrel and all editor-core feature modules. Treat this level as the map of the package: `index.ts` is what downstream packages import, while each subfolder owns one domain area.
+Package entry point and top-level feature-module map for editor-core.
+
+## What This Folder Owns
+
+The source root owns the package barrel and the first-level folder organization. It should remain a thin routing layer: downstream packages import from src/index.ts through the package root, and engineers jump from here into focused feature folders.
+
+## How It Fits The Architecture
+
+- index.ts re-exports folder barrels and selected export symbols.
+- Feature folders own implementation details.
+- Shared domain contracts live in types; feature-local contracts live beside their implementations.
+- Do not add large implementation logic at this root level.
+
+## Typical Flow
+
+```mermaid
+sequenceDiagram
+  participant Consumer as Downstream Package
+  participant Root as src/index.ts
+  participant Folder as Feature Barrel
+  participant Impl as Implementation File
+  Consumer->>Root: import editor-core symbol
+  Root->>Folder: re-export feature API
+  Folder->>Impl: expose focused implementation
+  Impl-->>Consumer: typed function/class/constants
+```
 
 ## Read Order
 
@@ -8,13 +33,13 @@ The `src` folder contains the public package barrel and all editor-core feature 
 2. `types`
 3. `timeline`
 4. `actions`
-5. `media`, `video`, `audio`, `text`, `photo`, and `graphics`
-6. `playback`, `storage`, `export`, and `device`
-7. Optional feature folders such as `animation`, `effects`, `template`, `ai`, and `wasm`
+5. `media`
+6. `video`
+7. `audio`
 
-## Files
+## File Guide
 
-- `index.ts` - package-level barrel that exposes the stable editor-core API.
+- `index.ts` - Package-level public API barrel.
 
 ## Subfolders
 
@@ -39,10 +64,16 @@ The `src` folder contains the public package barrel and all editor-core feature 
 - [video](video) - Video decode/playback/rendering, WebGPU/Canvas renderers, effects, transitions, masks, speed changes, multicam, tracking, caching, and frame buffering.
 - [wasm](wasm) - Optional WebAssembly-backed acceleration for FFT, WAV encoding, and beat detection.
 
+## Important Contracts
+
+- Keep this level thin.
+- Add public exports through folder barrels where possible.
+- Document new top-level folders here and in the package README.
+
 ## Dependencies
 
-This root should stay thin. It depends on folder-level barrels and selected export types/constants, but it should not contain feature implementation logic.
+Folder-level barrels and selected export types/constants.
 
 ## Used By
 
-Application packages and tests import editor-core APIs from this root barrel whenever they need package-level behavior.
+Application packages and tests importing editor-core APIs.

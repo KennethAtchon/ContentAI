@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 import { afterEach, describe, expect, it } from "bun:test";
 import { cleanup, renderHook } from "@testing-library/react";
-import { useChatDisplayMessages } from "@/features/chat/hooks/use-chat-display-messages";
+import { useChatDisplayMessages } from "@/domains/chat/hooks/use-chat-display-messages";
 
 describe("useChatDisplayMessages", () => {
   afterEach(() => {

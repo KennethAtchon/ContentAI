@@ -18,13 +18,13 @@ export function err<E>(error: E): Result<never, E> {
 }
 
 export function isOk<T, E>(
-  result: Result<T, E>,
+  result: Result<T, E>
 ): result is { success: true; data: T } {
   return result.success;
 }
 
 export function isErr<T, E>(
-  result: Result<T, E>,
+  result: Result<T, E>
 ): result is { success: false; error: E } {
   return !result.success;
 }
@@ -44,7 +44,7 @@ export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
 
 export function map<T, U, E>(
   result: Result<T, E>,
-  fn: (value: T) => U,
+  fn: (value: T) => U
 ): Result<U, E> {
   if (result.success) {
     return { success: true, data: fn(result.data) };
@@ -54,7 +54,7 @@ export function map<T, U, E>(
 
 export function mapErr<T, E, F>(
   result: Result<T, E>,
-  fn: (error: E) => F,
+  fn: (error: E) => F
 ): Result<T, F> {
   if (!result.success) {
     return { success: false, error: fn(result.error) };
@@ -64,7 +64,7 @@ export function mapErr<T, E, F>(
 
 export function flatMap<T, U, E>(
   result: Result<T, E>,
-  fn: (value: T) => Result<U, E>,
+  fn: (value: T) => Result<U, E>
 ): Result<U, E> {
   if (result.success) {
     return fn(result.data);
@@ -73,7 +73,7 @@ export function flatMap<T, U, E>(
 }
 
 export async function fromPromise<T>(
-  promise: Promise<T>,
+  promise: Promise<T>
 ): Promise<Result<T, Error>> {
   try {
     const data = await promise;
@@ -88,7 +88,7 @@ export async function fromPromise<T>(
 
 export function fromNullable<T>(
   value: T | null | undefined,
-  errorMsg: string,
+  errorMsg: string
 ): Result<T, Error> {
   if (value === null || value === undefined) {
     return { success: false, error: new Error(errorMsg) };
@@ -97,7 +97,7 @@ export function fromNullable<T>(
 }
 
 export function combine<T extends Result<unknown, unknown>[]>(
-  results: [...T],
+  results: [...T]
 ): Result<
   { [K in keyof T]: T[K] extends Result<infer U, unknown> ? U : never },
   Error

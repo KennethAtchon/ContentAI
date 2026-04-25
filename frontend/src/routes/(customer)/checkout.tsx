@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckoutInteractive } from "@/routes/(customer)/checkout/-checkout-interactive";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
 
 function CheckoutPage() {
   return (

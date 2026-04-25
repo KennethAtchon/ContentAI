@@ -40,7 +40,7 @@ export class PhotoEngine {
   createProject(
     width: number = this.defaultWidth,
     height: number = this.defaultHeight,
-    name: string = "Untitled",
+    name: string = "Untitled"
   ): PhotoProject {
     return {
       id: generateId(),
@@ -56,7 +56,7 @@ export class PhotoEngine {
   importPhoto(
     project: PhotoProject,
     image: ImageBitmap,
-    name: string = "Background",
+    name: string = "Background"
   ): PhotoProject {
     const baseLayer = this.createLayer({
       name,
@@ -91,7 +91,7 @@ export class PhotoEngine {
 
   addLayer(
     project: PhotoProject,
-    options: CreateLayerOptions = {},
+    options: CreateLayerOptions = {}
   ): PhotoProject {
     const newLayer = this.createLayer(options);
     const layers = [...project.layers];
@@ -133,7 +133,7 @@ export class PhotoEngine {
   reorderLayers(
     project: PhotoProject,
     fromIndex: number,
-    toIndex: number,
+    toIndex: number
   ): ReorderResult {
     if (
       fromIndex < 0 ||
@@ -167,14 +167,14 @@ export class PhotoEngine {
   setLayerOpacity(
     project: PhotoProject,
     layerId: string,
-    opacity: number,
+    opacity: number
   ): PhotoProject {
     const clampedOpacity = Math.max(0, Math.min(1, opacity));
 
     return {
       ...project,
       layers: project.layers.map((layer) =>
-        layer.id === layerId ? { ...layer, opacity: clampedOpacity } : layer,
+        layer.id === layerId ? { ...layer, opacity: clampedOpacity } : layer
       ),
     };
   }
@@ -182,14 +182,14 @@ export class PhotoEngine {
   setLayerVisibility(
     project: PhotoProject,
     layerId: string,
-    visible?: boolean,
+    visible?: boolean
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
         layer.id === layerId
           ? { ...layer, visible: visible ?? !layer.visible }
-          : layer,
+          : layer
       ),
     };
   }
@@ -197,12 +197,12 @@ export class PhotoEngine {
   setLayerBlendMode(
     project: PhotoProject,
     layerId: string,
-    blendMode: PhotoBlendMode,
+    blendMode: PhotoBlendMode
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
-        layer.id === layerId ? { ...layer, blendMode } : layer,
+        layer.id === layerId ? { ...layer, blendMode } : layer
       ),
     };
   }
@@ -210,14 +210,14 @@ export class PhotoEngine {
   setLayerTransform(
     project: PhotoProject,
     layerId: string,
-    transform: Partial<LayerTransform>,
+    transform: Partial<LayerTransform>
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
         layer.id === layerId
           ? { ...layer, transform: { ...layer.transform, ...transform } }
-          : layer,
+          : layer
       ),
     };
   }
@@ -225,12 +225,12 @@ export class PhotoEngine {
   setLayerLocked(
     project: PhotoProject,
     layerId: string,
-    locked: boolean,
+    locked: boolean
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
-        layer.id === layerId ? { ...layer, locked } : layer,
+        layer.id === layerId ? { ...layer, locked } : layer
       ),
     };
   }
@@ -238,12 +238,12 @@ export class PhotoEngine {
   renameLayer(
     project: PhotoProject,
     layerId: string,
-    name: string,
+    name: string
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
-        layer.id === layerId ? { ...layer, name } : layer,
+        layer.id === layerId ? { ...layer, name } : layer
       ),
     };
   }
@@ -299,7 +299,7 @@ export class PhotoEngine {
 
   async renderComposite(
     project: PhotoProject,
-    options: CompositeOptions = {},
+    options: CompositeOptions = {}
   ): Promise<ImageBitmap> {
     const width = options.width ?? project.width;
     const height = options.height ?? project.height;
@@ -346,7 +346,7 @@ export class PhotoEngine {
     ctx: OffscreenCanvasRenderingContext2D,
     layer: PhotoLayer,
     _canvasWidth: number,
-    _canvasHeight: number,
+    _canvasHeight: number
   ): void {
     const { transform, content } = layer;
     if (!content) return;
@@ -362,7 +362,7 @@ export class PhotoEngine {
   }
 
   private getCanvasBlendMode(
-    blendMode: PhotoBlendMode,
+    blendMode: PhotoBlendMode
   ): GlobalCompositeOperation {
     const blendModeMap: Record<PhotoBlendMode, GlobalCompositeOperation> = {
       normal: "source-over",
@@ -405,7 +405,7 @@ export class PhotoEngine {
 
   async mergeLayerDown(
     project: PhotoProject,
-    layerId: string,
+    layerId: string
   ): Promise<PhotoProject> {
     const layerIndex = project.layers.findIndex((l) => l.id === layerId);
     if (layerIndex <= 0) {
@@ -434,7 +434,7 @@ export class PhotoEngine {
       layers,
       selectedLayerIndex: Math.min(
         project.selectedLayerIndex,
-        layers.length - 1,
+        layers.length - 1
       ),
     };
   }

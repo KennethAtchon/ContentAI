@@ -74,7 +74,7 @@ export class PlaybackEngine {
       this.initialized = true;
     } catch (error) {
       throw new Error(
-        "PlaybackEngine initialization failed: MediaBunny not available",
+        "PlaybackEngine initialization failed: MediaBunny not available"
       );
     }
   }
@@ -109,7 +109,7 @@ export class PlaybackEngine {
       duration: number;
       inPoint: number;
     }>,
-    startTime: number = 0,
+    startTime: number = 0
   ): Promise<void> {
     if (!this.initialized || !this.mediabunny || !this.config) {
       throw new Error("PlaybackEngine not initialized or configured");
@@ -161,7 +161,7 @@ export class PlaybackEngine {
       startTime: number;
       duration: number;
       inPoint: number;
-    }>,
+    }>
   ): Promise<void> {
     const wasPlaying = this.state === "playing";
 
@@ -183,7 +183,7 @@ export class PlaybackEngine {
     if (wasPlaying) {
       // Wait for buffer then resume
       await this.waitForBuffer(
-        this.config?.bufferAhead ? this.config.bufferAhead / 4 : 15,
+        this.config?.bufferAhead ? this.config.bufferAhead / 4 : 15
       );
       this.setState("playing");
       this.lastFrameTime = performance.now();
@@ -202,7 +202,7 @@ export class PlaybackEngine {
       duration: number;
       inPoint: number;
     }>,
-    time: number,
+    time: number
   ): Promise<void> {
     this.clearStreams();
 
@@ -241,7 +241,7 @@ export class PlaybackEngine {
         const sinkInstance = new VideoSampleSink(videoTrack);
         const samplesIterator = sinkInstance.samples(
           mediaStartTime,
-          mediaEndTime,
+          mediaEndTime
         );
 
         this.activeStreams.set(clip.clipId, {
@@ -267,7 +267,7 @@ export class PlaybackEngine {
       startTime: number;
       duration: number;
       inPoint: number;
-    }>,
+    }>
   ): void {
     if (this.decodingActive) return;
 
@@ -292,7 +292,7 @@ export class PlaybackEngine {
       duration: number;
       inPoint: number;
     }>,
-    signal: AbortSignal,
+    signal: AbortSignal
   ): Promise<void> {
     while (this.decodingActive && !signal.aborted) {
       if (this.frameBuffer.length >= this.maxBufferSize) {
@@ -333,20 +333,20 @@ export class PlaybackEngine {
               } else {
                 // Sample is a VideoFrame-like object
                 imageBitmap = await createImageBitmap(
-                  sample as unknown as VideoFrame,
+                  sample as unknown as VideoFrame
                 );
               }
             } catch {
               const canvas = new OffscreenCanvas(
                 sample.displayWidth,
-                sample.displayHeight,
+                sample.displayHeight
               );
               const ctx = canvas.getContext("2d");
               const sampleWithDraw = sample as unknown as {
                 draw?: (
                   ctx: OffscreenCanvasRenderingContext2D,
                   x: number,
-                  y: number,
+                  y: number
                 ) => void;
               };
               if (ctx && typeof sampleWithDraw.draw === "function") {
@@ -465,7 +465,7 @@ export class PlaybackEngine {
       duration: number;
       inPoint: number;
     }>,
-    time: number,
+    time: number
   ): Promise<BufferedFrame | null> {
     const { Input, ALL_FORMATS, BlobSource, CanvasSink } = this.mediabunny!;
     const clip = clips.find((c) => {

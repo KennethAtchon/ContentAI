@@ -173,7 +173,7 @@ export function parseSRT(srtContent: string): SRTParseResult {
 
     const timestampLine = lines[1].trim();
     const timestampMatch = timestampLine.match(
-      /^(.+?)\s*-->\s*(.+?)(?:\s+.*)?$/,
+      /^(.+?)\s*-->\s*(.+?)(?:\s+.*)?$/
     );
 
     if (!timestampMatch) {
@@ -261,7 +261,7 @@ export function exportSRT(subtitles: readonly Subtitle[]): string {
     const endTimestamp = formatSRTTimestamp(subtitle.endTime);
 
     blocks.push(
-      `${index}\n${startTimestamp} --> ${endTimestamp}\n${subtitle.text}`,
+      `${index}\n${startTimestamp} --> ${endTimestamp}\n${subtitle.text}`
     );
   }
 
@@ -281,7 +281,7 @@ export function normalizeSRT(srtContent: string): string {
 export class SubtitleEngine {
   importSRT(
     timeline: Timeline,
-    srtContent: string,
+    srtContent: string
   ): { timeline: Timeline; result: SRTParseResult } {
     const result = parseSRT(srtContent);
 
@@ -302,7 +302,7 @@ export class SubtitleEngine {
     text: string,
     startTime: number,
     endTime: number,
-    style?: SubtitleStyle,
+    style?: SubtitleStyle
   ): { timeline: Timeline; subtitle: Subtitle } | { error: string } {
     if (endTime <= startTime) {
       return { error: "End time must be greater than start time" };
@@ -331,10 +331,10 @@ export class SubtitleEngine {
   updateSubtitle(
     timeline: Timeline,
     subtitleId: string,
-    updates: Partial<Pick<Subtitle, "text" | "startTime" | "endTime">>,
+    updates: Partial<Pick<Subtitle, "text" | "startTime" | "endTime">>
   ): { timeline: Timeline; subtitle: Subtitle } | { error: string } {
     const subtitleIndex = timeline.subtitles.findIndex(
-      (s) => s.id === subtitleId,
+      (s) => s.id === subtitleId
     );
 
     if (subtitleIndex === -1) {
@@ -374,10 +374,10 @@ export class SubtitleEngine {
 
   removeSubtitle(
     timeline: Timeline,
-    subtitleId: string,
+    subtitleId: string
   ): { timeline: Timeline } | { error: string } {
     const subtitleIndex = timeline.subtitles.findIndex(
-      (s) => s.id === subtitleId,
+      (s) => s.id === subtitleId
     );
 
     if (subtitleIndex === -1) {
@@ -405,10 +405,10 @@ export class SubtitleEngine {
   setSubtitleStyle(
     timeline: Timeline,
     subtitleId: string,
-    style: SubtitleStyle,
+    style: SubtitleStyle
   ): { timeline: Timeline } | { error: string } {
     const subtitleIndex = timeline.subtitles.findIndex(
-      (s) => s.id === subtitleId,
+      (s) => s.id === subtitleId
     );
 
     if (subtitleIndex === -1) {
@@ -439,10 +439,10 @@ export class SubtitleEngine {
   getSubtitlesInRange(
     timeline: Timeline,
     startTime: number,
-    endTime: number,
+    endTime: number
   ): Subtitle[] {
     return timeline.subtitles.filter(
-      (s) => s.endTime > startTime && s.startTime < endTime,
+      (s) => s.endTime > startTime && s.startTime < endTime
     );
   }
 
@@ -463,7 +463,7 @@ export class SubtitleEngine {
 
   applyStylePreset(
     timeline: Timeline,
-    presetName: string,
+    presetName: string
   ): { timeline: Timeline } | { error: string } {
     const preset = SUBTITLE_STYLE_PRESETS[presetName];
 
@@ -478,7 +478,7 @@ export class SubtitleEngine {
 
   mergeAdjacentSubtitles(
     timeline: Timeline,
-    gapThreshold: number = 0.1,
+    gapThreshold: number = 0.1
   ): Timeline {
     const sorted = this.getSortedSubtitles(timeline);
 
@@ -515,7 +515,7 @@ export class SubtitleEngine {
   splitSubtitle(
     timeline: Timeline,
     subtitleId: string,
-    splitTime: number,
+    splitTime: number
   ):
     | { timeline: Timeline; subtitles: [Subtitle, Subtitle] }
     | { error: string } {
@@ -541,7 +541,7 @@ export class SubtitleEngine {
     };
 
     const updatedSubtitles = timeline.subtitles.filter(
-      (s) => s.id !== subtitleId,
+      (s) => s.id !== subtitleId
     );
     updatedSubtitles.push(firstHalf, secondHalf);
 

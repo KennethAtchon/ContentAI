@@ -4,7 +4,7 @@
  */
 /// <reference lib="dom" />
 import { describe, it, expect, beforeEach } from "bun:test";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useIsMobile } from "@/shared/react/use-mobile";
 
 describe("useIsMobile", () => {
   it("is a function", () => {

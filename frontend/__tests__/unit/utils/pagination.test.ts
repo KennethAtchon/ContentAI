@@ -8,7 +8,7 @@ import {
   createPaginatedResponse,
   createSearchConditions,
   createDateRangeConditions,
-} from "@/shared/utils/helpers/pagination";
+} from "@/shared/lib/pagination";
 
 describe("pagination utilities", () => {
   describe("parsePaginationParams", () => {

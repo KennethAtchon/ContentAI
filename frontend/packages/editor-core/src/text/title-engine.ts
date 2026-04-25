@@ -101,13 +101,13 @@ export class TitleEngine {
 
   getTextClipsForTrack(trackId: string): TextClip[] {
     return Array.from(this.textClips.values()).filter(
-      (clip) => clip.trackId === trackId,
+      (clip) => clip.trackId === trackId
     );
   }
 
   updateTextClip(
     id: string,
-    updates: UpdateTextClipOptions,
+    updates: UpdateTextClipOptions
   ): TextClip | undefined {
     const existing = this.textClips.get(id);
     if (!existing) {
@@ -147,7 +147,7 @@ export class TitleEngine {
 
   updatePosition(
     id: string,
-    position: { x: number; y: number },
+    position: { x: number; y: number }
   ): TextClip | undefined {
     return this.updateTextClip(id, {
       transform: { position },
@@ -164,7 +164,7 @@ export class TitleEngine {
       return undefined;
     }
     const existingIndex = clip.keyframes.findIndex(
-      (kf) => kf.time === keyframe.time && kf.property === keyframe.property,
+      (kf) => kf.time === keyframe.time && kf.property === keyframe.property
     );
 
     let newKeyframes: Keyframe[];
@@ -173,7 +173,7 @@ export class TitleEngine {
       newKeyframes[existingIndex] = keyframe;
     } else {
       newKeyframes = [...clip.keyframes, keyframe].sort(
-        (a, b) => a.time - b.time,
+        (a, b) => a.time - b.time
       );
     }
 
@@ -205,7 +205,7 @@ export class TitleEngine {
     clip: TextClip,
     width: number,
     height: number,
-    time: number = 0,
+    time: number = 0
   ): TextRenderResult {
     let canvas: HTMLCanvasElement | OffscreenCanvas;
     let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -230,7 +230,7 @@ export class TitleEngine {
     if (clip.emphasisAnimation && clip.emphasisAnimation.type !== "none") {
       const emphasisState = this.applyEmphasisAnimation(
         clip.emphasisAnimation,
-        time,
+        time
       );
       opacity = opacity * emphasisState.opacity;
       transform = {
@@ -312,7 +312,7 @@ export class TitleEngine {
             ctx.globalAlpha = opacity * charState.opacity;
             ctx.translate(
               startX + xOffset + charState.offsetX + charWidth / 2,
-              y + charState.offsetY,
+              y + charState.offsetY
             );
             ctx.rotate((charState.rotation * Math.PI) / 180);
             ctx.scale(charState.scale, charState.scale);
@@ -400,7 +400,7 @@ export class TitleEngine {
   private wrapText(
     text: string,
     style: TextStyle,
-    maxWidth?: number,
+    maxWidth?: number
   ): string[] {
     if (!maxWidth) {
       return text.split("\n");
@@ -442,7 +442,7 @@ export class TitleEngine {
 
   private applyTextStyle(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-    style: TextStyle,
+    style: TextStyle
   ): void {
     const fontWeight =
       typeof style.fontWeight === "number"
@@ -491,7 +491,7 @@ export class TitleEngine {
 
   private applyEmphasisAnimation(
     animation: import("../graphics/types").EmphasisAnimation,
-    time: number,
+    time: number
   ): {
     opacity: number;
     scale: number;

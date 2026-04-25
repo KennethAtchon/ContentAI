@@ -13,7 +13,9 @@ import {
   type DeviceProfile,
 } from "./device-capabilities";
 
-const createMockProfile = (overrides?: Partial<DeviceProfile>): DeviceProfile => ({
+const createMockProfile = (
+  overrides?: Partial<DeviceProfile>
+): DeviceProfile => ({
   cpu: { cores: 8, tier: "high" },
   memory: { gb: 16, tier: "high" },
   gpu: {
@@ -236,5 +238,4 @@ describe("DeviceCapabilities", () => {
       expect(summary).not.toContain("Unknown");
     });
   });
-
 });

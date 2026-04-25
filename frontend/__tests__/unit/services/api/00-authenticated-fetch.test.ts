@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, it, expect, mock } from "bun:test";
 
-mock.module("@/shared/services/firebase/config", () => ({
+mock.module("@/shared/platform/firebase-services/config", () => ({
   auth: {
     currentUser: {
       getIdToken: () => Promise.resolve("mock-id-token"),
@@ -15,7 +15,7 @@ mock.module("@/shared/services/firebase/config", () => ({
 }));
 
 const { authenticatedFetch, authenticatedFetchJson } =
-  await import("@/shared/services/api/authenticated-fetch");
+  await import("@/shared/api/authenticated-fetch");
 
 describe("authenticated-fetch", () => {
   const originalFetch = globalThis.fetch;

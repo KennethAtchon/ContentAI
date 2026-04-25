@@ -206,7 +206,7 @@ export class WebGPUEffectsProcessor {
     this.device.queue.writeBuffer(
       this.dimensionsBuffer,
       0,
-      dimensionsData.buffer as ArrayBuffer,
+      dimensionsData.buffer as ArrayBuffer
     );
   }
 
@@ -252,7 +252,7 @@ export class WebGPUEffectsProcessor {
     commandEncoder.copyTextureToTexture(
       { texture: inputTexture },
       { texture: this.intermediateTextures[0] },
-      { width: this.width, height: this.height },
+      { width: this.width, height: this.height }
     );
 
     this.currentTextureIndex = 0;
@@ -344,7 +344,7 @@ export class WebGPUEffectsProcessor {
 
   private applyColorEffects(
     commandEncoder: GPUCommandEncoder,
-    params: EffectParams,
+    params: EffectParams
   ): void {
     const uniformData = createEffectUniformsBuffer(
       params.brightness,
@@ -354,12 +354,12 @@ export class WebGPUEffectsProcessor {
       params.temperature,
       params.tint,
       params.shadows,
-      params.highlights,
+      params.highlights
     );
     this.device.queue.writeBuffer(
       this.effectsUniformBuffer!,
       0,
-      uniformData.buffer as ArrayBuffer,
+      uniformData.buffer as ArrayBuffer
     );
 
     const inputTexture = this.intermediateTextures[this.currentTextureIndex];
@@ -394,7 +394,7 @@ export class WebGPUEffectsProcessor {
 
   private applyBlur(
     commandEncoder: GPUCommandEncoder,
-    params: BlurParams,
+    params: BlurParams
   ): void {
     if (params.radius < 0.5) return;
 
@@ -409,18 +409,18 @@ export class WebGPUEffectsProcessor {
     commandEncoder: GPUCommandEncoder,
     params: BlurParams,
     dirX: number,
-    dirY: number,
+    dirY: number
   ): void {
     const uniformData = createBlurUniformsBuffer(
       params.radius,
       params.sigma ?? params.radius / 3,
       dirX,
-      dirY,
+      dirY
     );
     this.device.queue.writeBuffer(
       this.blurUniformBuffer!,
       0,
-      uniformData.buffer as ArrayBuffer,
+      uniformData.buffer as ArrayBuffer
     );
 
     const inputTexture = this.intermediateTextures[this.currentTextureIndex];
@@ -503,7 +503,7 @@ export class WebGPUEffectsProcessor {
       this.device.queue.writeBuffer(
         this.dimensionsBuffer,
         0,
-        dimensionsData.buffer as ArrayBuffer,
+        dimensionsData.buffer as ArrayBuffer
       );
     }
 

@@ -5,19 +5,19 @@ import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as router from "@tanstack/react-router";
 import * as i18n from "react-i18next";
-import * as appContext from "@/shared/contexts/app-context";
-import * as chatSessionsHooks from "@/features/chat/hooks/use-chat-sessions";
-import * as sessionDraftsHooks from "@/features/chat/hooks/use-session-drafts";
-import * as chatStreamHooks from "@/features/chat/hooks/use-chat-stream";
-import * as videoJobHooks from "@/features/chat/hooks/use-video-job-manager";
-import * as activeReelsHooks from "@/features/chat/hooks/use-chat-active-reels";
-import * as sideEffectsHooks from "@/features/chat/hooks/use-streaming-content-side-effects";
-import * as navigationHooks from "@/features/chat/hooks/use-chat-layout-navigation";
-import * as displayMessagesHooks from "@/features/chat/hooks/use-chat-display-messages";
-import * as pendingReelsHooks from "@/features/chat/hooks/use-chat-send-with-pending-reels";
-import * as uiLib from "@/features/chat/lib/chat-layout-ui";
-import * as draftLabels from "@/features/chat/lib/draft-labels";
-import { useChatLayout } from "@/features/chat/hooks/useChatLayout";
+import * as appContext from "@/app/state/app-context";
+import * as chatSessionsHooks from "@/domains/chat/hooks/use-chat-sessions";
+import * as sessionDraftsHooks from "@/domains/chat/hooks/use-session-drafts";
+import * as chatStreamHooks from "@/domains/chat/hooks/use-chat-stream";
+import * as videoJobHooks from "@/domains/chat/hooks/use-video-job-manager";
+import * as activeReelsHooks from "@/domains/chat/hooks/use-chat-active-reels";
+import * as sideEffectsHooks from "@/domains/chat/hooks/use-streaming-content-side-effects";
+import * as navigationHooks from "@/domains/chat/hooks/use-chat-layout-navigation";
+import * as displayMessagesHooks from "@/domains/chat/hooks/use-chat-display-messages";
+import * as pendingReelsHooks from "@/domains/chat/hooks/use-chat-send-with-pending-reels";
+import * as uiLib from "@/domains/chat/lib/chat-layout-ui";
+import * as draftLabels from "@/domains/chat/lib/draft-labels";
+import { useChatLayout } from "@/domains/chat/hooks/useChatLayout";
 
 function createWrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {

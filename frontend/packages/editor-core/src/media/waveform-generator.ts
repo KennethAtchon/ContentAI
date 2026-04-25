@@ -41,7 +41,7 @@ export class WaveformGenerator {
 
   constructor(
     mediaEngine?: MediaBunnyEngine,
-    storageEngine?: IStorageEngine | null,
+    storageEngine?: IStorageEngine | null
   ) {
     this.mediaEngine = mediaEngine || getMediaEngine();
     this.storageEngine = storageEngine || null;
@@ -54,7 +54,7 @@ export class WaveformGenerator {
   async generateWaveform(
     file: File | Blob,
     mediaId: string,
-    options: WaveformGeneratorOptions = {},
+    options: WaveformGeneratorOptions = {}
   ): Promise<WaveformData> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
     const memoryCached = this.memoryCache.get(mediaId);
@@ -73,7 +73,7 @@ export class WaveformGenerator {
     }
     const waveformData = await this.mediaEngine.generateWaveform(
       file,
-      opts.samplesPerSecond,
+      opts.samplesPerSecond
     );
 
     // Cache the result
@@ -92,7 +92,7 @@ export class WaveformGenerator {
       WAVEFORM_RESOLUTIONS.OVERVIEW,
       WAVEFORM_RESOLUTIONS.MEDIUM,
       WAVEFORM_RESOLUTIONS.HIGH,
-    ],
+    ]
   ): Promise<MultiResolutionWaveform> {
     const result: MultiResolutionWaveform = {
       mediaId,
@@ -121,12 +121,12 @@ export class WaveformGenerator {
 
   getWaveformForZoomLevel(
     multiRes: MultiResolutionWaveform,
-    pixelsPerSecond: number,
+    pixelsPerSecond: number
   ): WaveformData | null {
     // We want roughly 1-2 samples per pixel for smooth rendering
     const idealSamplesPerSecond = Math.max(
       10,
-      Math.min(500, pixelsPerSecond * 2),
+      Math.min(500, pixelsPerSecond * 2)
     );
     let bestMatch: WaveformData | null = null;
     let bestDiff = Infinity;
@@ -148,7 +148,7 @@ export class WaveformGenerator {
 
   downsampleWaveform(
     source: WaveformData,
-    targetSamplesPerSecond: number,
+    targetSamplesPerSecond: number
   ): WaveformData {
     if (targetSamplesPerSecond >= source.samplesPerSecond) {
       // No downsampling needed
@@ -192,15 +192,15 @@ export class WaveformGenerator {
   getWaveformSlice(
     waveform: WaveformData,
     startTime: number,
-    endTime: number,
+    endTime: number
   ): WaveformData {
     const startIdx = Math.max(
       0,
-      Math.floor(startTime * waveform.samplesPerSecond),
+      Math.floor(startTime * waveform.samplesPerSecond)
     );
     const endIdx = Math.min(
       waveform.peaks.length,
-      Math.ceil(endTime * waveform.samplesPerSecond),
+      Math.ceil(endTime * waveform.samplesPerSecond)
     );
 
     return {
@@ -232,7 +232,7 @@ export class WaveformGenerator {
 
   private async saveToCache(
     mediaId: string,
-    waveformData: WaveformData,
+    waveformData: WaveformData
   ): Promise<void> {
     if (!this.storageEngine) {
       return;
@@ -269,7 +269,7 @@ export class WaveformGenerator {
 
   private waveformDataToRecord(
     mediaId: string,
-    waveformData: WaveformData,
+    waveformData: WaveformData
   ): WaveformRecord {
     const data: number[] = [];
     for (let i = 0; i < waveformData.peaks.length; i++) {
@@ -351,7 +351,7 @@ export function getWaveformGenerator(): WaveformGenerator {
 
 export function createWaveformGenerator(
   mediaEngine?: MediaBunnyEngine,
-  storageEngine?: IStorageEngine | null,
+  storageEngine?: IStorageEngine | null
 ): WaveformGenerator {
   return new WaveformGenerator(mediaEngine, storageEngine);
 }

@@ -122,7 +122,7 @@ export class GPUCompositor {
       for (const layer of this.layers.values()) {
         if (layer.texture) {
           this.renderer.releaseTexture(
-            layer.texture as GPUTexture | ImageBitmap,
+            layer.texture as GPUTexture | ImageBitmap
           );
           this.stats.texturesReleased++;
         }
@@ -193,7 +193,7 @@ export class GPUCompositor {
   }
 
   async createTextureFromCanvas(
-    canvas: HTMLCanvasElement | OffscreenCanvas,
+    canvas: HTMLCanvasElement | OffscreenCanvas
   ): Promise<GPUTexture | ImageBitmap> {
     if (!this.renderer) {
       throw new Error("Renderer not set");
@@ -211,7 +211,7 @@ export class GPUCompositor {
   }
 
   async createTextureFromBitmap(
-    bitmap: ImageBitmap,
+    bitmap: ImageBitmap
   ): Promise<GPUTexture | ImageBitmap> {
     if (!this.renderer) {
       throw new Error("Renderer not set");
@@ -292,7 +292,7 @@ export class GPUCompositor {
   }
 
   async compositeToCanvas(
-    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
   ): Promise<void> {
     const bitmap = await this.composite();
     ctx.drawImage(bitmap, 0, 0);
@@ -353,7 +353,7 @@ export function createDefaultTransform(): Transform {
 export function createGPUCompositeLayer(
   id: string,
   texture: GPUTexture | ImageBitmap | HTMLCanvasElement | OffscreenCanvas,
-  options: Partial<Omit<GPUCompositeLayer, "id" | "texture">> = {},
+  options: Partial<Omit<GPUCompositeLayer, "id" | "texture">> = {}
 ): GPUCompositeLayer {
   return {
     id,
@@ -376,14 +376,14 @@ export function getGPUCompositor(config?: CompositorConfig): GPUCompositor {
   }
   if (!gpuCompositorInstance) {
     throw new Error(
-      "GPUCompositor not initialized. Provide config on first call.",
+      "GPUCompositor not initialized. Provide config on first call."
     );
   }
   return gpuCompositorInstance;
 }
 
 export function initializeGPUCompositor(
-  config: CompositorConfig,
+  config: CompositorConfig
 ): GPUCompositor {
   if (gpuCompositorInstance) {
     gpuCompositorInstance.dispose();

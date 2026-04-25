@@ -3,12 +3,12 @@
  * Tests pagination logic, options defaults, and URL builder.
  */
 import { describe, it, expect } from "bun:test";
-import { usePaginatedData } from "@/shared/hooks/use-paginated-data";
+import { usePaginatedData } from "@/shared/react/use-paginated-data";
 import type {
   PaginationInfo,
   PaginatedResponse,
   UsePaginatedDataOptions,
-} from "@/shared/hooks/use-paginated-data";
+} from "@/shared/react/use-paginated-data";
 
 describe("usePaginatedData", () => {
   it("is a function", () => {
@@ -16,7 +16,7 @@ describe("usePaginatedData", () => {
   });
 
   it("module exports usePaginatedData", async () => {
-    const module = await import("@/shared/hooks/use-paginated-data");
+    const module = await import("@/shared/react/use-paginated-data");
     expect(typeof module.usePaginatedData).toBe("function");
   });
 });

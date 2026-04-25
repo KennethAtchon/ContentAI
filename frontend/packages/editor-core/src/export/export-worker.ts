@@ -8,12 +8,7 @@
 import type { VideoExportSettings } from "./types";
 
 interface WorkerMessage {
-  type:
-    | "init"
-    | "addFrame"
-    | "addAudio"
-    | "finalize"
-    | "cancel";
+  type: "init" | "addFrame" | "addAudio" | "finalize" | "cancel";
   settings?: VideoExportSettings;
   frame?: ImageBitmap;
   frameIndex?: number;
@@ -29,7 +24,13 @@ interface WorkerMessage {
 }
 
 interface WorkerResponse {
-  type: "progress" | "complete" | "error" | "ready" | "frameProcessed" | "chunk";
+  type:
+    | "progress"
+    | "complete"
+    | "error"
+    | "ready"
+    | "frameProcessed"
+    | "chunk";
   progress?: number;
   phase?: string;
   currentFrame?: number;
@@ -44,9 +45,16 @@ interface WorkerResponse {
 
 let mediabunny: typeof import("mediabunny") | null = null;
 let output: InstanceType<typeof import("mediabunny").Output> | null = null;
-let videoSource: InstanceType<typeof import("mediabunny").VideoSampleSource> | null = null;
-let audioSource: InstanceType<typeof import("mediabunny").AudioSampleSource> | null = null;
-let target: InstanceType<typeof import("mediabunny").BufferTarget> | InstanceType<typeof import("mediabunny").StreamTarget> | null = null;
+let videoSource: InstanceType<
+  typeof import("mediabunny").VideoSampleSource
+> | null = null;
+let audioSource: InstanceType<
+  typeof import("mediabunny").AudioSampleSource
+> | null = null;
+let target:
+  | InstanceType<typeof import("mediabunny").BufferTarget>
+  | InstanceType<typeof import("mediabunny").StreamTarget>
+  | null = null;
 let cancelled = false;
 let useStreamTarget = false;
 
@@ -64,7 +72,7 @@ let isProcessing = false;
 async function initialize(
   settings: VideoExportSettings,
   projectName: string,
-  streamMode?: boolean,
+  streamMode?: boolean
 ) {
   try {
     mediabunny = await import("mediabunny");
@@ -95,7 +103,9 @@ async function initialize(
         break;
       case "mp4":
       default:
-        outputFormat = new Mp4OutputFormat({ fastStart: streamMode ? false : "in-memory" });
+        outputFormat = new Mp4OutputFormat({
+          fastStart: streamMode ? false : "in-memory",
+        });
         break;
     }
 
@@ -103,10 +113,13 @@ async function initialize(
       const chunkStream = new WritableStream({
         write(chunk: { data: Uint8Array; position: number }) {
           const dataCopy = new Uint8Array(chunk.data);
-          (self as unknown as Worker).postMessage({
-            type: "chunk",
-            chunk: { data: dataCopy, position: chunk.position },
-          } as WorkerResponse, [dataCopy.buffer]);
+          (self as unknown as Worker).postMessage(
+            {
+              type: "chunk",
+              chunk: { data: dataCopy, position: chunk.position },
+            } as WorkerResponse,
+            [dataCopy.buffer]
+          );
         },
       });
       target = new StreamTarget(chunkStream, {
@@ -121,7 +134,7 @@ async function initialize(
 
     const videoCodec = await getFirstEncodableVideoCodec(
       outputFormat.getSupportedVideoCodecs(),
-      { width: settings.width, height: settings.height },
+      { width: settings.width, height: settings.height }
     );
 
     if (!videoCodec) {
@@ -133,9 +146,11 @@ async function initialize(
 
     for (const fallbackCodec of ["aac", "mp3", "opus"]) {
       if (!audioCodec) {
-        const found = supportedAudioCodecs.find((c: string) =>
-          String(c).toLowerCase().includes(fallbackCodec) ||
-          (fallbackCodec === "aac" && String(c).toLowerCase().includes("mp4a"))
+        const found = supportedAudioCodecs.find(
+          (c: string) =>
+            String(c).toLowerCase().includes(fallbackCodec) ||
+            (fallbackCodec === "aac" &&
+              String(c).toLowerCase().includes("mp4a"))
         );
         if (found) {
           audioCodec = found;
@@ -169,7 +184,8 @@ async function initialize(
   } catch (error) {
     postMessage({
       type: "error",
-      error: error instanceof Error ? error.message : "Failed to initialize encoder",
+      error:
+        error instanceof Error ? error.message : "Failed to initialize encoder",
     } as WorkerResponse);
   }
 }
@@ -228,7 +244,7 @@ function queueFrame(
   frameIndex: number,
   timestamp: number,
   totalFrames: number,
-  frameRate: number,
+  frameRate: number
 ) {
   frameQueue.push({ frame, frameIndex, timestamp, totalFrames, frameRate });
   processFrameQueue();
@@ -247,12 +263,12 @@ async function addAudio(audioData: {
     const audioContext = new OfflineAudioContext(
       audioData.channels.length,
       audioData.length,
-      audioData.sampleRate,
+      audioData.sampleRate
     );
     const audioBuffer = audioContext.createBuffer(
       audioData.channels.length,
       audioData.length,
-      audioData.sampleRate,
+      audioData.sampleRate
     );
 
     for (let i = 0; i < audioData.channels.length; i++) {
@@ -306,7 +322,9 @@ async function finalize() {
         phase: "complete",
       } as WorkerResponse);
     } else {
-      const bufferTarget = target as InstanceType<typeof import("mediabunny").BufferTarget>;
+      const bufferTarget = target as InstanceType<
+        typeof import("mediabunny").BufferTarget
+      >;
       const buffer = bufferTarget.buffer;
       if (!buffer) {
         throw new Error("Output buffer is empty");
@@ -324,7 +342,8 @@ async function finalize() {
   } catch (error) {
     postMessage({
       type: "error",
-      error: error instanceof Error ? error.message : "Failed to finalize video",
+      error:
+        error instanceof Error ? error.message : "Failed to finalize video",
     } as WorkerResponse);
   }
 }
@@ -336,10 +355,14 @@ function cancel() {
   }
   frameQueue.length = 0;
   if (videoSource) {
-    try { videoSource.close(); } catch {}
+    try {
+      videoSource.close();
+    } catch {}
   }
   if (audioSource) {
-    try { audioSource.close(); } catch {}
+    try {
+      audioSource.close();
+    } catch {}
   }
 }
 
@@ -364,8 +387,20 @@ self.onmessage = (event: MessageEvent<WorkerMessage>) => {
       }
       break;
     case "addFrame":
-      if (frame !== undefined && frameIndex !== undefined && timestamp !== undefined && totalFrames !== undefined && settings) {
-        queueFrame(frame, frameIndex, timestamp, totalFrames, settings.frameRate);
+      if (
+        frame !== undefined &&
+        frameIndex !== undefined &&
+        timestamp !== undefined &&
+        totalFrames !== undefined &&
+        settings
+      ) {
+        queueFrame(
+          frame,
+          frameIndex,
+          timestamp,
+          totalFrames,
+          settings.frameRate
+        );
       }
       break;
     case "addAudio":

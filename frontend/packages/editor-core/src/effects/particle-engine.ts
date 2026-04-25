@@ -64,14 +64,17 @@ function getEmissionPosition(config: ParticleConfig, center: Vector3): Vector3 {
     }
     case "rectangle": {
       return {
-        x: center.x + randomRange(-config.emissionRadius, config.emissionRadius),
-        y: center.y + randomRange(-config.emissionRadius, config.emissionRadius),
+        x:
+          center.x + randomRange(-config.emissionRadius, config.emissionRadius),
+        y:
+          center.y + randomRange(-config.emissionRadius, config.emissionRadius),
         z: center.z,
       };
     }
     case "line": {
       return {
-        x: center.x + randomRange(-config.emissionRadius, config.emissionRadius),
+        x:
+          center.x + randomRange(-config.emissionRadius, config.emissionRadius),
         y: center.y,
         z: center.z,
       };
@@ -88,7 +91,8 @@ function getInitialVelocity(
   center: Vector3,
   position: Vector3
 ): Vector3 {
-  const speed = config.speed + randomRange(-config.speedVariance, config.speedVariance);
+  const speed =
+    config.speed + randomRange(-config.speedVariance, config.speedVariance);
 
   switch (effectType) {
     case "explode": {
@@ -211,7 +215,11 @@ export class ParticleEngine {
     }
   }
 
-  updateEffectTiming(effectId: string, startTime: number, duration: number): void {
+  updateEffectTiming(
+    effectId: string,
+    startTime: number,
+    duration: number
+  ): void {
     const effect = this.effects.get(effectId);
     if (effect) {
       effect.startTime = startTime;
@@ -229,7 +237,7 @@ export class ParticleEngine {
   }
 
   getEffectsForClip(clipId: string): ParticleEffect[] {
-    return Array.from(this.effects.values()).filter(e => e.clipId === clipId);
+    return Array.from(this.effects.values()).filter((e) => e.clipId === clipId);
   }
 
   toggleEffect(effectId: string, enabled: boolean): void {
@@ -240,10 +248,7 @@ export class ParticleEngine {
     }
   }
 
-  private createParticle(
-    effect: ParticleEffect,
-    center: Vector3
-  ): Particle {
+  private createParticle(effect: ParticleEffect, center: Vector3): Particle {
     const config = effect.config;
     const position = getEmissionPosition(config, center);
     const velocity = getInitialVelocity(config, effect.type, center, position);
@@ -302,13 +307,18 @@ export class ParticleEngine {
       for (const particle of emitter.particles) {
         if (!particle.active) continue;
 
-        particle.velocity.x += (particle.acceleration.x + config.wind.x) * deltaTime;
-        particle.velocity.y += (particle.acceleration.y + config.wind.y) * deltaTime;
-        particle.velocity.z += (particle.acceleration.z + config.wind.z) * deltaTime;
+        particle.velocity.x +=
+          (particle.acceleration.x + config.wind.x) * deltaTime;
+        particle.velocity.y +=
+          (particle.acceleration.y + config.wind.y) * deltaTime;
+        particle.velocity.z +=
+          (particle.acceleration.z + config.wind.z) * deltaTime;
 
         if (config.turbulence > 0) {
-          particle.velocity.x += randomRange(-config.turbulence, config.turbulence) * deltaTime;
-          particle.velocity.y += randomRange(-config.turbulence, config.turbulence) * deltaTime;
+          particle.velocity.x +=
+            randomRange(-config.turbulence, config.turbulence) * deltaTime;
+          particle.velocity.y +=
+            randomRange(-config.turbulence, config.turbulence) * deltaTime;
         }
 
         particle.position.x += particle.velocity.x * deltaTime;
@@ -320,13 +330,20 @@ export class ParticleEngine {
 
         const lifeProgress = particle.age / particle.lifetime;
         if (lifeProgress < config.fadeIn) {
-          particle.opacity = config.opacity.start * (lifeProgress / config.fadeIn);
+          particle.opacity =
+            config.opacity.start * (lifeProgress / config.fadeIn);
         } else if (lifeProgress > 1 - config.fadeOut) {
           const fadeProgress = (1 - lifeProgress) / config.fadeOut;
-          particle.opacity = config.opacity.end + (config.opacity.start - config.opacity.end) * fadeProgress;
+          particle.opacity =
+            config.opacity.end +
+            (config.opacity.start - config.opacity.end) * fadeProgress;
         } else {
-          const midProgress = (lifeProgress - config.fadeIn) / (1 - config.fadeIn - config.fadeOut);
-          particle.opacity = config.opacity.start + (config.opacity.end - config.opacity.start) * midProgress;
+          const midProgress =
+            (lifeProgress - config.fadeIn) /
+            (1 - config.fadeIn - config.fadeOut);
+          particle.opacity =
+            config.opacity.start +
+            (config.opacity.end - config.opacity.start) * midProgress;
         }
 
         if (particle.age >= particle.lifetime) {

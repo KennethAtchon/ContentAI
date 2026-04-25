@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Loader2 } from "lucide-react";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { REDIRECT_PATHS } from "@/shared/utils/redirect/redirect-util";
+import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
+import { REDIRECT_PATHS } from "@/shared/navigation/redirect-util";
 
 interface OpenChatButtonProps {
   sessionId: string | null;

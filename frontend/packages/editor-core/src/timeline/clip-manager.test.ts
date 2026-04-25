@@ -372,7 +372,7 @@ describe("ClipManager", () => {
       const result = await clipManager.splitClip(
         timeline,
         "non-existent-clip",
-        2,
+        2
       );
 
       expect(result.success).toBe(false);
@@ -445,7 +445,7 @@ describe("ClipManager", () => {
 
       const result = await clipManager.deleteClip(
         timeline,
-        "non-existent-clip",
+        "non-existent-clip"
       );
 
       expect(result.success).toBe(false);

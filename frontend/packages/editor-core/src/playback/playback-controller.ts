@@ -70,7 +70,7 @@ export class PlaybackController {
 
   async initialize(
     videoEngine: VideoEngine,
-    audioEngine: AudioEngine,
+    audioEngine: AudioEngine
   ): Promise<void> {
     this.videoEngine = videoEngine;
     this.audioEngine = audioEngine;
@@ -437,7 +437,7 @@ export class PlaybackController {
   }
 
   private async renderFrameWithTimeout(
-    time: number,
+    time: number
   ): Promise<FrameRenderResult> {
     if (!this.project || !this.videoEngine) {
       return {
@@ -526,7 +526,7 @@ export class PlaybackController {
       await this.realtimeAudioGraph.resume();
       this.setupTracksInAudioGraph();
       this.realtimeAudioGraph.startScheduler((time) =>
-        this.getAudioClipsAtTime(time),
+        this.getAudioClipsAtTime(time)
       );
     }
   }
@@ -741,7 +741,7 @@ export function getPlaybackController(): PlaybackController {
 
 export async function initializePlaybackController(
   videoEngine: VideoEngine,
-  audioEngine: AudioEngine,
+  audioEngine: AudioEngine
 ): Promise<PlaybackController> {
   const controller = getPlaybackController();
   await controller.initialize(videoEngine, audioEngine);

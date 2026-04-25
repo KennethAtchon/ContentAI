@@ -118,7 +118,7 @@ vi.mock("mediabunny", () => {
   class MockStreamTarget {
     constructor(
       _writable: WritableStream<{ data: Uint8Array; position: number }>,
-      _options?: Record<string, unknown>,
+      _options?: Record<string, unknown>
     ) {}
   }
 
@@ -141,7 +141,7 @@ vi.mock("mediabunny", () => {
 
     constructor(
       _data: unknown,
-      _init: { timestamp: number; duration: number },
+      _init: { timestamp: number; duration: number }
     ) {}
   }
 
@@ -437,7 +437,7 @@ describe("ExportEngine", () => {
       const generator = exportEngine.exportVideo(
         project,
         { ...DEFAULT_VIDEO_SETTINGS, frameRate: 1, width: 640, height: 360 },
-        writableStream,
+        writableStream
       );
 
       while (true) {
@@ -527,7 +527,7 @@ describe("Export Types and Defaults", () => {
 
     it("should have higher bitrate for 4K than 1080p", () => {
       expect(VIDEO_QUALITY_PRESETS["4k"].bitrate).toBeGreaterThan(
-        VIDEO_QUALITY_PRESETS["1080p"].bitrate,
+        VIDEO_QUALITY_PRESETS["1080p"].bitrate
       );
     });
   });

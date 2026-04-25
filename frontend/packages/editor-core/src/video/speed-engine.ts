@@ -95,7 +95,7 @@ export class SpeedEngine {
   setReverse(
     clipId: string,
     reverse: boolean,
-    originalDuration?: number,
+    originalDuration?: number
   ): void {
     let data = this.clipSpeedData.get(clipId);
     if (!data && originalDuration !== undefined) {
@@ -116,7 +116,7 @@ export class SpeedEngine {
   getFrameIndexAtTime(
     clipId: string,
     playbackTime: number,
-    frameRate: number,
+    frameRate: number
   ): number {
     const sourceTime = this.getSourceTimeAtPlaybackTime(clipId, playbackTime);
     const frameIndex = Math.floor(sourceTime * frameRate);
@@ -128,7 +128,7 @@ export class SpeedEngine {
     clipId: string,
     startTime: number,
     endTime: number,
-    frameRate: number,
+    frameRate: number
   ): number[] {
     const frameDuration = 1 / frameRate;
     const frames: number[] = [];
@@ -144,7 +144,7 @@ export class SpeedEngine {
     clipId: string,
     time: number,
     speed: number,
-    easing: EasingType = "linear",
+    easing: EasingType = "linear"
   ): string {
     const data = this.clipSpeedData.get(clipId);
     if (!data) {
@@ -161,7 +161,7 @@ export class SpeedEngine {
       easing,
     };
     const existingIndex = data.keyframes.findIndex(
-      (kf) => Math.abs(kf.time - time) < 0.001,
+      (kf) => Math.abs(kf.time - time) < 0.001
     );
 
     if (existingIndex >= 0) {
@@ -195,7 +195,7 @@ export class SpeedEngine {
 
   private getSpeedAtSourceTime(
     data: ClipSpeedData,
-    sourceTime: number,
+    sourceTime: number
   ): number {
     const keyframes = data.keyframes;
 
@@ -221,7 +221,7 @@ export class SpeedEngine {
         const linearProgress = duration > 0 ? elapsed / duration : 0;
         const easedProgress = this.animationEngine.applyEasing(
           linearProgress,
-          kf1.easing,
+          kf1.easing
         );
         return kf1.speed + (kf2.speed - kf1.speed) * easedProgress;
       }
@@ -234,7 +234,7 @@ export class SpeedEngine {
     clipId: string,
     sourceTime: number,
     startTime: number,
-    duration: number,
+    duration: number
   ): FreezeFrame {
     const data = this.clipSpeedData.get(clipId);
     if (!data) {
@@ -262,7 +262,7 @@ export class SpeedEngine {
     const data = this.clipSpeedData.get(clipId);
     if (data) {
       data.freezeFrames = data.freezeFrames.filter(
-        (ff) => ff.id !== freezeFrameId,
+        (ff) => ff.id !== freezeFrameId
       );
     }
   }
@@ -274,7 +274,7 @@ export class SpeedEngine {
 
   getFreezeFrameAtTime(
     clipId: string,
-    playbackTime: number,
+    playbackTime: number
   ): FreezeFrame | null {
     const data = this.clipSpeedData.get(clipId);
     if (!data) return null;
@@ -321,7 +321,7 @@ export class SpeedEngine {
 
   private calculateSourceTimeWithVariableSpeed(
     data: ClipSpeedData,
-    playbackTime: number,
+    playbackTime: number
   ): number {
     // Use numerical integration to find source time
     // We use binary search with numerical integration
@@ -356,7 +356,7 @@ export class SpeedEngine {
 
   private integratePlaybackTime(
     data: ClipSpeedData,
-    sourceTime: number,
+    sourceTime: number
   ): number {
     const steps = Math.max(100, Math.ceil(sourceTime * 100));
     const dt = sourceTime / steps;
@@ -384,7 +384,7 @@ export class SpeedEngine {
   }
   private getOrCreateSpeedData(
     clipId: string,
-    originalDuration: number,
+    originalDuration: number
   ): ClipSpeedData {
     let data = this.clipSpeedData.get(clipId);
     if (!data) {
@@ -432,7 +432,7 @@ export function getSpeedEngine(): SpeedEngine {
 }
 
 export function initializeSpeedEngine(
-  animationEngine?: AnimationEngine,
+  animationEngine?: AnimationEngine
 ): SpeedEngine {
   speedEngineInstance = new SpeedEngine(animationEngine);
   return speedEngineInstance;

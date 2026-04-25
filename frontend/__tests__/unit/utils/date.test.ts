@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import {
   safeFormatDateWithTimezone,
   formatDateWithTimezone,
-} from "@/shared/utils/helpers/date";
+} from "@/shared/lib/date";
 
 declare const global: typeof globalThis & {
   __testMocks__?: {

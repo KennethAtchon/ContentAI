@@ -70,7 +70,7 @@ export class UnifiedEffectsProcessor {
   async processFrame(
     frame: ImageBitmap,
     effects: Effect[],
-    colorGrading?: ColorGradingParams,
+    colorGrading?: ColorGradingParams
   ): Promise<ProcessingResult> {
     const startTime = performance.now();
 
@@ -89,13 +89,13 @@ export class UnifiedEffectsProcessor {
       processedFrame = await this.processWithWebGPU(
         frame,
         enabledEffects,
-        colorGrading,
+        colorGrading
       );
     } else {
       processedFrame = await this.processWithCanvas2D(
         frame,
         enabledEffects,
-        colorGrading,
+        colorGrading
       );
     }
 
@@ -106,7 +106,7 @@ export class UnifiedEffectsProcessor {
   private async processWithWebGPU(
     frame: ImageBitmap,
     effects: Effect[],
-    colorGrading?: ColorGradingParams,
+    colorGrading?: ColorGradingParams
   ): Promise<ImageBitmap> {
     // For now, use Canvas2D as a working fallback
     return this.processWithCanvas2D(frame, effects, colorGrading);
@@ -115,7 +115,7 @@ export class UnifiedEffectsProcessor {
   private async processWithCanvas2D(
     frame: ImageBitmap,
     effects: Effect[],
-    colorGrading?: ColorGradingParams,
+    colorGrading?: ColorGradingParams
   ): Promise<ImageBitmap> {
     if (!this.canvas || !this.ctx) {
       this.canvas = new OffscreenCanvas(frame.width, frame.height);
@@ -145,7 +145,7 @@ export class UnifiedEffectsProcessor {
 
   private buildFilterString(
     effects: Effect[],
-    colorGrading?: ColorGradingParams,
+    colorGrading?: ColorGradingParams
   ): string {
     const filters: string[] = [];
     for (const effect of effects) {
@@ -222,7 +222,7 @@ export class UnifiedEffectsProcessor {
   async applyEffect(
     frame: ImageBitmap,
     effectType: string,
-    value: number,
+    value: number
   ): Promise<ImageBitmap> {
     const effect: Effect = {
       id: "temp",
@@ -265,7 +265,7 @@ export function getUnifiedEffectsProcessor(): UnifiedEffectsProcessor {
 
 export async function initUnifiedEffectsProcessor(
   width?: number,
-  height?: number,
+  height?: number
 ): Promise<UnifiedEffectsProcessor> {
   if (!instance) {
     instance = new UnifiedEffectsProcessor(width, height);

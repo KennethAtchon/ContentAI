@@ -74,7 +74,7 @@ export class RealtimeAudioProcessor {
     const processor = new TrackProcessor(
       this.audioContext,
       this.masterGain,
-      config,
+      config
     );
 
     this.trackProcessors.set(config.trackId, processor);
@@ -94,7 +94,7 @@ export class RealtimeAudioProcessor {
 
   updateSoloState(): void {
     const hasSoloTracks = Array.from(this.trackProcessors.values()).some((p) =>
-      p.isSolo(),
+      p.isSolo()
     );
 
     this.state.hasSoloTracks = hasSoloTracks;
@@ -205,7 +205,7 @@ export class TrackProcessor {
   constructor(
     context: AudioContext,
     destination: AudioNode,
-    config: TrackProcessorConfig,
+    config: TrackProcessorConfig
   ) {
     this.context = context;
     this.inputNode = context.createGain();
@@ -382,7 +382,7 @@ export function getRealtimeAudioProcessor(): RealtimeAudioProcessor {
 }
 
 export async function initializeRealtimeProcessor(
-  context?: AudioContext,
+  context?: AudioContext
 ): Promise<RealtimeAudioProcessor> {
   const processor = getRealtimeAudioProcessor();
   await processor.initialize(context);

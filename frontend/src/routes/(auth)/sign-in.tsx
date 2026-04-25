@@ -6,21 +6,21 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useApp } from "@/shared/contexts/app-context";
+import { useApp } from "@/app/state/app-context";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Eye, EyeOff, LogIn, Sparkles } from "lucide-react";
-import { debugLog } from "@/shared/utils/debug";
+import { debugLog } from "@/shared/debug";
 import { useTranslation } from "react-i18next";
-import { getAuthErrorMessage } from "@/shared/utils/error-handling/auth-error-handler";
+import { getAuthErrorMessage } from "@/shared/errors/auth-error-handler";
 import {
   useSmartRedirect,
   REDIRECT_PATHS as _REDIRECT_PATHS,
-} from "@/shared/utils/redirect/redirect-util";
+} from "@/shared/navigation/redirect-util";
 import { toast } from "sonner";
-import { IS_DEVELOPMENT } from "@/shared/utils/config/envUtil";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { cn } from "@/shared/utils/helpers/utils";
-import { AuthRouteBoundary } from "@/shared/components/layout/auth-route-boundary";
+import { IS_DEVELOPMENT } from "@/shared/config/envUtil";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { cn } from "@/shared/lib/utils";
+import { AuthRouteBoundary } from "@/shared/ui/layout/auth-route-boundary";
 
 const SIGN_UP_PATH = "/sign-up";
 

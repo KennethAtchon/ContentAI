@@ -428,7 +428,7 @@ mock.module("firebase-admin/auth", () => ({
   })),
 }));
 
-mock.module("@/shared/services/firebase/admin", () => ({
+mock.module("@/shared/platform/firebase-services/admin", () => ({
   adminAuth: adminAuthMocks,
 }));
 
@@ -547,19 +547,19 @@ const storageMockFactory = () => ({
 mock.module("@/shared/services/storage", storageMockFactory);
 mock.module("@/shared/services/storage/index", storageMockFactory);
 
-mock.module("@/shared/utils/debug", () => ({
+mock.module("@/shared/debug", () => ({
   debugLog: debugLogMocks,
   default: debugLogMocks,
 }));
 
-mock.module("@/shared/utils/debug/debug", () => ({
+mock.module("@/shared/debug/debug", () => ({
   debugLog: debugLogMocks,
   default: debugLogMocks,
 }));
 
 // Do not mock envUtil — use real module with process.env set above (ENCRYPTION_KEY, etc.)
 
-mock.module("@/features/auth/services/firebase-middleware", () => ({
+mock.module("@/domains/auth/api/firebase-middleware", () => ({
   requireAuth: requireAuthMock,
   requireAdmin: requireAdminMock,
 }));
@@ -597,7 +597,7 @@ mock.module("@/shared/services/rate-limit/rate-limit-redis", () => ({
 checkRateLimitMock.mockResolvedValue(true);
 
 // App uses TimeService.getBrowserTimezone() etc. — export as TimeService object
-mock.module("@/shared/services/timezone/TimeService", () => ({
+mock.module("@/shared/time/timezone/TimeService", () => ({
   TimeService: {
     getBrowserTimezone: timeServiceMocks.getBrowserTimezone,
     fromUTC: timeServiceMocks.fromUTC,
@@ -605,7 +605,7 @@ mock.module("@/shared/services/timezone/TimeService", () => ({
   },
 }));
 
-mock.module("@/shared/utils/security/pii-sanitization", () => ({
+mock.module("@/shared/security/pii-sanitization", () => ({
   sanitizeObject: piiMocks.sanitizeObject,
   sanitizeString: piiMocks.sanitizeString,
   safeLogError: mock(() => {}),
@@ -613,7 +613,7 @@ mock.module("@/shared/utils/security/pii-sanitization", () => ({
   sanitize: piiMocks.sanitizeObject,
 }));
 
-mock.module("@/shared/utils/system/system-logger", () => ({
+mock.module("@/shared/system/system-logger", () => ({
   systemLogger: systemLoggerMocks,
   default: systemLoggerMocks,
   logSystemMemory: (msg: string, op: string, data: any) =>

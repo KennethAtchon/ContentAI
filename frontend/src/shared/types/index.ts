@@ -18,7 +18,7 @@ export {
 
   // Helper functions
   generateUserInitials,
-} from "@/shared/utils/config/mock";
+} from "@/shared/config/mock";
 
 // Additional commonly used derived types
 export interface CustomerSummary {

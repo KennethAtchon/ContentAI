@@ -4,7 +4,7 @@
  * NOTE: validateStaff, validateService, validateTimeSlot were removed — they
  * belonged to a prior booking/scheduling SaaS template with no active consumers.
  */
-import { TimeService } from "@/shared/services/timezone/TimeService";
+import { TimeService } from "@/shared/time/timezone/TimeService";
 
 const DATE_VALIDATION_BOUNDS = {
   MIN_YEAR: 1900,

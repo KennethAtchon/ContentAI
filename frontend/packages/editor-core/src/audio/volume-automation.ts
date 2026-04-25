@@ -61,7 +61,7 @@ export class VolumeAutomation {
   }
 
   async initialize(
-    context?: AudioContext | OfflineAudioContext,
+    context?: AudioContext | OfflineAudioContext
   ): Promise<void> {
     if (context) {
       this.audioContext = context;
@@ -84,7 +84,7 @@ export class VolumeAutomation {
   private ensureInitialized(): void {
     if (!this.initialized || !this.audioContext) {
       throw new Error(
-        "VolumeAutomation not initialized. Call initialize() first.",
+        "VolumeAutomation not initialized. Call initialize() first."
       );
     }
   }
@@ -92,7 +92,7 @@ export class VolumeAutomation {
   async applyVolumeAutomation(
     buffer: AudioBuffer,
     keyframes: VolumeKeyframe[],
-    baseVolume: number = 1,
+    baseVolume: number = 1
   ): Promise<VolumeAutomationResult> {
     this.ensureInitialized();
 
@@ -105,7 +105,7 @@ export class VolumeAutomation {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -116,7 +116,7 @@ export class VolumeAutomation {
       gainNode,
       sortedKeyframes,
       clampedBaseVolume,
-      buffer.duration,
+      buffer.duration
     );
 
     source.connect(gainNode);
@@ -135,7 +135,7 @@ export class VolumeAutomation {
     gainNode: GainNode,
     keyframes: VolumeKeyframe[],
     baseVolume: number,
-    duration: number,
+    duration: number
   ): void {
     const firstKeyframe = keyframes[0];
     const initialValue =
@@ -164,7 +164,7 @@ export class VolumeAutomation {
         prevTime,
         kf.time,
         curve,
-        kf.bezierControls,
+        kf.bezierControls
       );
     }
 
@@ -173,7 +173,7 @@ export class VolumeAutomation {
     if (lastKeyframe && lastKeyframe.time < duration) {
       gainNode.gain.setValueAtTime(
         clampVolume(lastKeyframe.value),
-        lastKeyframe.time,
+        lastKeyframe.time
       );
     }
   }
@@ -185,7 +185,7 @@ export class VolumeAutomation {
     fromTime: number,
     toTime: number,
     curve: AutomationCurve,
-    bezierControls?: AudioBezierControlPoints,
+    bezierControls?: AudioBezierControlPoints
   ): void {
     switch (curve) {
       case "linear":
@@ -206,7 +206,7 @@ export class VolumeAutomation {
         gainNode.gain.setValueCurveAtTime(
           logCurve,
           fromTime,
-          toTime - fromTime,
+          toTime - fromTime
         );
         break;
 
@@ -222,12 +222,12 @@ export class VolumeAutomation {
           fromValue,
           toValue,
           bezierControls || { cp1x: 0.25, cp1y: 0.1, cp2x: 0.75, cp2y: 0.9 },
-          128,
+          128
         );
         gainNode.gain.setValueCurveAtTime(
           bezierCurve,
           fromTime,
-          toTime - fromTime,
+          toTime - fromTime
         );
         break;
 
@@ -239,7 +239,7 @@ export class VolumeAutomation {
   private generateLogarithmicCurve(
     fromValue: number,
     toValue: number,
-    samples: number,
+    samples: number
   ): Float32Array {
     const curve = new Float32Array(samples);
     const range = toValue - fromValue;
@@ -257,7 +257,7 @@ export class VolumeAutomation {
   private generateSCurve(
     fromValue: number,
     toValue: number,
-    samples: number,
+    samples: number
   ): Float32Array {
     const curve = new Float32Array(samples);
     const range = toValue - fromValue;
@@ -275,7 +275,7 @@ export class VolumeAutomation {
     fromValue: number,
     toValue: number,
     controls: AudioBezierControlPoints,
-    samples: number,
+    samples: number
   ): Float32Array {
     const curve = new Float32Array(samples);
 
@@ -294,7 +294,7 @@ export class VolumeAutomation {
     p0: number,
     p1: number,
     p2: number,
-    p3: number,
+    p3: number
   ): number {
     const oneMinusT = 1 - t;
     return (
@@ -307,12 +307,12 @@ export class VolumeAutomation {
 
   private async applyConstantVolume(
     buffer: AudioBuffer,
-    volume: number,
+    volume: number
   ): Promise<AudioBuffer> {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -331,7 +331,7 @@ export class VolumeAutomation {
   async applyFadeIn(
     buffer: AudioBuffer,
     config: FadeConfig,
-    targetVolume: number = 1,
+    targetVolume: number = 1
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
@@ -341,7 +341,7 @@ export class VolumeAutomation {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -356,7 +356,7 @@ export class VolumeAutomation {
       0,
       fadeDuration,
       config.curve,
-      config.bezierControls,
+      config.bezierControls
     );
 
     // Hold at target volume after fade
@@ -372,7 +372,7 @@ export class VolumeAutomation {
   async applyFadeOut(
     buffer: AudioBuffer,
     config: FadeConfig,
-    startVolume: number = 1,
+    startVolume: number = 1
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
@@ -383,7 +383,7 @@ export class VolumeAutomation {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -401,7 +401,7 @@ export class VolumeAutomation {
       fadeStartTime,
       buffer.duration,
       config.curve,
-      config.bezierControls,
+      config.bezierControls
     );
 
     source.connect(gainNode);
@@ -415,7 +415,7 @@ export class VolumeAutomation {
     buffer: AudioBuffer,
     fadeIn: FadeConfig,
     fadeOut: FadeConfig,
-    volume: number = 1,
+    volume: number = 1
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
@@ -427,7 +427,7 @@ export class VolumeAutomation {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -444,7 +444,7 @@ export class VolumeAutomation {
       0,
       fadeInDuration,
       fadeIn.curve,
-      fadeIn.bezierControls,
+      fadeIn.bezierControls
     );
 
     // Hold at volume
@@ -459,7 +459,7 @@ export class VolumeAutomation {
       fadeOutStart,
       buffer.duration,
       fadeOut.curve,
-      fadeOut.bezierControls,
+      fadeOut.bezierControls
     );
 
     source.connect(gainNode);
@@ -472,7 +472,7 @@ export class VolumeAutomation {
   getVolumeAtTime(
     time: number,
     keyframes: VolumeKeyframe[],
-    baseVolume: number = 1,
+    baseVolume: number = 1
   ): number {
     if (keyframes.length === 0) {
       return clampVolume(baseVolume);
@@ -549,7 +549,7 @@ export function getVolumeAutomation(): VolumeAutomation {
 }
 
 export async function initializeVolumeAutomation(
-  context?: AudioContext | OfflineAudioContext,
+  context?: AudioContext | OfflineAudioContext
 ): Promise<VolumeAutomation> {
   const engine = getVolumeAutomation();
   await engine.initialize(context);
@@ -565,7 +565,7 @@ export class AudioDucker {
   }
 
   async initialize(
-    context?: AudioContext | OfflineAudioContext,
+    context?: AudioContext | OfflineAudioContext
   ): Promise<void> {
     if (context) {
       this.audioContext = context;
@@ -594,7 +594,7 @@ export class AudioDucker {
   detectAudioPresence(
     buffer: AudioBuffer,
     threshold: number = -30,
-    windowSize: number = 0.05,
+    windowSize: number = 0.05
   ): Array<{ start: number; end: number }> {
     const channelData = buffer.getChannelData(0);
     const sampleRate = buffer.sampleRate;
@@ -632,11 +632,11 @@ export class AudioDucker {
   generateDuckingKeyframes(
     foregroundBuffer: AudioBuffer,
     config: DuckingConfig,
-    backgroundVolume: number = 1,
+    backgroundVolume: number = 1
   ): VolumeKeyframe[] {
     const presenceRanges = this.detectAudioPresence(
       foregroundBuffer,
-      config.threshold,
+      config.threshold
     );
 
     if (presenceRanges.length === 0) {
@@ -648,7 +648,7 @@ export class AudioDucker {
     const normalVolume = clampVolume(backgroundVolume);
     const mergedRanges = this.mergePresenceRanges(
       presenceRanges,
-      config.holdTime,
+      config.holdTime
     );
 
     for (const range of mergedRanges) {
@@ -682,7 +682,7 @@ export class AudioDucker {
 
   private mergePresenceRanges(
     ranges: Array<{ start: number; end: number }>,
-    holdTime: number,
+    holdTime: number
   ): Array<{ start: number; end: number }> {
     if (ranges.length === 0) return [];
 
@@ -721,14 +721,14 @@ export class AudioDucker {
     backgroundBuffer: AudioBuffer,
     foregroundBuffer: AudioBuffer,
     config: DuckingConfig,
-    backgroundVolume: number = 1,
+    backgroundVolume: number = 1
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
     const keyframes = this.generateDuckingKeyframes(
       foregroundBuffer,
       config,
-      backgroundVolume,
+      backgroundVolume
     );
 
     if (keyframes.length === 0) {
@@ -738,7 +738,7 @@ export class AudioDucker {
       const result = await volumeAutomation.applyVolumeAutomation(
         backgroundBuffer,
         [],
-        backgroundVolume,
+        backgroundVolume
       );
       return result.buffer;
     }
@@ -749,7 +749,7 @@ export class AudioDucker {
     const result = await volumeAutomation.applyVolumeAutomation(
       backgroundBuffer,
       keyframes,
-      backgroundVolume,
+      backgroundVolume
     );
 
     return result.buffer;
@@ -758,7 +758,7 @@ export class AudioDucker {
   createRealtimeDucker(
     foregroundSource: AudioNode,
     backgroundSource: AudioNode,
-    config: DuckingConfig,
+    config: DuckingConfig
   ): {
     output: GainNode;
     analyser: AnalyserNode;
@@ -824,7 +824,7 @@ export function getAudioDucker(): AudioDucker {
 }
 
 export async function initializeAudioDucker(
-  context?: AudioContext | OfflineAudioContext,
+  context?: AudioContext | OfflineAudioContext
 ): Promise<AudioDucker> {
   const ducker = getAudioDucker();
   await ducker.initialize(context);

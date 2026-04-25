@@ -60,7 +60,7 @@ export class ClipManager {
   async addClip(
     timeline: Timeline,
     params: AddClipParams,
-    pixelsPerSecond: number = 100,
+    pixelsPerSecond: number = 100
   ): Promise<ClipOperationResult> {
     const track = timeline.tracks.find((t) => t.id === params.trackId);
     if (!track) {
@@ -76,7 +76,7 @@ export class ClipManager {
         startTime,
         timeline,
         params.trackId,
-        pixelsPerSecond,
+        pixelsPerSecond
       );
       startTime = snapResult.snappedTime;
     }
@@ -85,7 +85,7 @@ export class ClipManager {
       track,
       startTime,
       duration,
-      null,
+      null
     );
 
     if (constrainedPosition !== startTime) {
@@ -115,7 +115,7 @@ export class ClipManager {
           (c: Clip) =>
             !timeline.tracks
               .find((t) => t.id === params.trackId)
-              ?.clips.some((existing) => existing.id === c.id),
+              ?.clips.some((existing) => existing.id === c.id)
         );
 
       return {
@@ -137,7 +137,7 @@ export class ClipManager {
   async moveClip(
     timeline: Timeline,
     params: MoveClipParams,
-    pixelsPerSecond: number = 100,
+    pixelsPerSecond: number = 100
   ): Promise<ClipOperationResult> {
     const clip = this.findClip(timeline, params.clipId);
     if (!clip) {
@@ -169,7 +169,7 @@ export class ClipManager {
         timeline,
         targetTrackId,
         pixelsPerSecond,
-        params.clipId,
+        params.clipId
       );
       startTime = snapResult.snappedTime;
     }
@@ -177,7 +177,7 @@ export class ClipManager {
       targetTrack,
       startTime,
       clip.duration,
-      params.clipId,
+      params.clipId
     );
 
     if (constrainedPosition !== startTime) {
@@ -214,7 +214,7 @@ export class ClipManager {
     timeline: Timeline,
     trackId: string,
     pixelsPerSecond: number,
-    excludeClipId?: string,
+    excludeClipId?: string
   ): SnapResult {
     if (!this.snapToGridEnabled) {
       return { snappedTime: time, didSnap: false };
@@ -270,7 +270,7 @@ export class ClipManager {
     track: Track,
     startTime: number,
     duration: number,
-    excludeClipId?: string,
+    excludeClipId?: string
   ): boolean {
     const endTime = startTime + duration;
 
@@ -291,14 +291,14 @@ export class ClipManager {
     track: Track,
     desiredStartTime: number,
     duration: number,
-    excludeClipId: string | null,
+    excludeClipId: string | null
   ): number {
     if (
       !this.wouldOverlap(
         track,
         desiredStartTime,
         duration,
-        excludeClipId ?? undefined,
+        excludeClipId ?? undefined
       )
     ) {
       return desiredStartTime;
@@ -330,7 +330,7 @@ export class ClipManager {
           track,
           afterClipStart,
           duration,
-          excludeClipId ?? undefined,
+          excludeClipId ?? undefined
         )
       ) {
         const distance = Math.abs(desiredStartTime - afterClipStart);
@@ -350,7 +350,7 @@ export class ClipManager {
             track,
             beforeClipStart,
             duration,
-            excludeClipId ?? undefined,
+            excludeClipId ?? undefined
           )
         ) {
           const distance = Math.abs(desiredStartTime - beforeClipStart);
@@ -369,7 +369,7 @@ export class ClipManager {
     track: Track,
     startTime: number,
     duration: number,
-    excludeClipId?: string,
+    excludeClipId?: string
   ): Clip[] {
     const endTime = startTime + duration;
     return track.clips.filter((clip) => {
@@ -394,13 +394,13 @@ export class ClipManager {
 
   getClipsSortedByTime(timeline: Timeline, trackId: string): Clip[] {
     return this.getTrackClips(timeline, trackId).sort(
-      (a, b) => a.startTime - b.startTime,
+      (a, b) => a.startTime - b.startTime
     );
   }
 
   canTrackAcceptClip(
     track: Track,
-    mediaType: "video" | "audio" | "image",
+    mediaType: "video" | "audio" | "image"
   ): boolean {
     // Video tracks can accept video and image
     if (track.type === "video") {
@@ -448,7 +448,7 @@ export class ClipManager {
   async splitClip(
     timeline: Timeline,
     clipId: string,
-    splitTime: number,
+    splitTime: number
   ): Promise<ClipOperationResult> {
     const clip = this.findClip(timeline, clipId);
     if (!clip) {
@@ -494,7 +494,7 @@ export class ClipManager {
   async trimClip(
     timeline: Timeline,
     clipId: string,
-    params: { inPoint?: number; outPoint?: number },
+    params: { inPoint?: number; outPoint?: number }
   ): Promise<ClipOperationResult> {
     const clip = this.findClip(timeline, clipId);
     if (!clip) {
@@ -562,7 +562,7 @@ export class ClipManager {
 
   async deleteClip(
     timeline: Timeline,
-    clipId: string,
+    clipId: string
   ): Promise<ClipOperationResult> {
     const clip = this.findClip(timeline, clipId);
     if (!clip) {
@@ -599,7 +599,7 @@ export class ClipManager {
 
   async rippleDeleteClip(
     timeline: Timeline,
-    clipId: string,
+    clipId: string
   ): Promise<ClipOperationResult> {
     const clip = this.findClip(timeline, clipId);
     if (!clip) {
@@ -679,7 +679,7 @@ export function createClip(
   mediaId: string,
   trackId: string,
   startTime: number = 0,
-  duration: number = 5,
+  duration: number = 5
 ): Clip {
   return {
     id: `clip-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,

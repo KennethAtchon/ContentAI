@@ -13,7 +13,7 @@ import {
   withErrorHandling,
   withTimeout,
   ErrorCategory,
-} from "@/shared/utils/error-handling/global-error-handler";
+} from "@/shared/errors/global-error-handler";
 
 describe("global-error-handler", () => {
   beforeEach(() => {

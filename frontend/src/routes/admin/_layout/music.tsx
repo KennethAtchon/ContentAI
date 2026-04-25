@@ -9,15 +9,15 @@ import {
   Upload,
   Loader2,
 } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
+import { Button } from "@/shared/ui/primitives/button";
 import {
   useAdminMusicTracks,
   useUploadMusicTrack,
   useToggleMusicTrack,
   useDeleteMusicTrack,
   type AdminMusicTrack,
-} from "@/features/admin/hooks/use-admin-music";
-import { cn } from "@/shared/utils/helpers/utils";
+} from "@/domains/admin/hooks/use-admin-music";
+import { cn } from "@/shared/lib/utils";
 
 export const Route = createFileRoute("/admin/_layout/music")({
   head: () => ({ meta: [{ title: "Music Library — Admin" }] }),

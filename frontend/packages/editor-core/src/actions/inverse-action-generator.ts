@@ -29,52 +29,52 @@ export class InverseActionGenerator {
     if (type.startsWith("project/")) {
       return this.generateProjectInverse(
         action as ProjectAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("media/")) {
       return this.generateMediaInverse(
         action as MediaAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("track/")) {
       return this.generateTrackInverse(
         action as TrackAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("clip/")) {
       return this.generateClipInverse(
         action as ClipAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("effect/")) {
       return this.generateEffectInverse(
         action as EffectAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("transform/")) {
       return this.generateTransformInverse(
         action as TransformAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("keyframe/")) {
       return this.generateKeyframeInverse(
         action as KeyframeAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("transition/")) {
       return this.generateTransitionInverse(
         action as TransitionAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("audio/")) {
       return this.generateAudioInverse(
         action as AudioAction & Action,
-        projectBefore,
+        projectBefore
       );
     } else if (type.startsWith("subtitle/")) {
       return this.generateSubtitleInverse(
         action as SubtitleAction & Action,
-        projectBefore,
+        projectBefore
       );
     }
 
@@ -84,7 +84,7 @@ export class InverseActionGenerator {
   private createInverseAction(
     originalAction: Action,
     type: string,
-    params: Record<string, unknown>,
+    params: Record<string, unknown>
   ): Action {
     return {
       type,
@@ -96,7 +96,7 @@ export class InverseActionGenerator {
 
   private generateProjectInverse(
     action: ProjectAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     switch (action.type) {
       case "project/rename":
@@ -117,7 +117,7 @@ export class InverseActionGenerator {
 
   private generateMediaInverse(
     action: MediaAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     switch (action.type) {
       case "media/import":
@@ -128,7 +128,7 @@ export class InverseActionGenerator {
 
       case "media/delete": {
         const deletedMedia = projectBefore.mediaLibrary.items.find(
-          (item) => item.id === action.params.mediaId,
+          (item) => item.id === action.params.mediaId
         );
         if (!deletedMedia) return null;
         return this.createInverseAction(action, "media/restore", {
@@ -138,7 +138,7 @@ export class InverseActionGenerator {
 
       case "media/rename": {
         const media = projectBefore.mediaLibrary.items.find(
-          (item) => item.id === action.params.mediaId,
+          (item) => item.id === action.params.mediaId
         );
         if (!media) return null;
 
@@ -152,7 +152,7 @@ export class InverseActionGenerator {
 
   private generateTrackInverse(
     action: TrackAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const timeline = projectBefore.timeline;
 
@@ -165,12 +165,12 @@ export class InverseActionGenerator {
 
       case "track/remove": {
         const removedTrack = timeline.tracks.find(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (!removedTrack) return null;
 
         const position = timeline.tracks.findIndex(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
 
         return this.createInverseAction(action, "track/restore", {
@@ -181,7 +181,7 @@ export class InverseActionGenerator {
 
       case "track/reorder": {
         const currentPosition = timeline.tracks.findIndex(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (currentPosition === -1) return null;
 
@@ -193,7 +193,7 @@ export class InverseActionGenerator {
 
       case "track/lock": {
         const track = timeline.tracks.find(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (!track) return null;
 
@@ -205,7 +205,7 @@ export class InverseActionGenerator {
 
       case "track/hide": {
         const track = timeline.tracks.find(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (!track) return null;
 
@@ -217,7 +217,7 @@ export class InverseActionGenerator {
 
       case "track/mute": {
         const track = timeline.tracks.find(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (!track) return null;
 
@@ -229,7 +229,7 @@ export class InverseActionGenerator {
 
       case "track/solo": {
         const track = timeline.tracks.find(
-          (t) => t.id === action.params.trackId,
+          (t) => t.id === action.params.trackId
         );
         if (!track) return null;
 
@@ -243,7 +243,7 @@ export class InverseActionGenerator {
 
   private generateClipInverse(
     action: ClipAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const timeline = projectBefore.timeline;
 
@@ -314,7 +314,7 @@ export class InverseActionGenerator {
 
   private generateEffectInverse(
     action: EffectAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const timeline = projectBefore.timeline;
     const clip = this.findClip(timeline, action.params.clipId);
@@ -329,12 +329,12 @@ export class InverseActionGenerator {
 
       case "effect/remove": {
         const effect = clip.effects.find(
-          (e) => e.id === action.params.effectId,
+          (e) => e.id === action.params.effectId
         );
         if (!effect) return null;
 
         const index = clip.effects.findIndex(
-          (e) => e.id === action.params.effectId,
+          (e) => e.id === action.params.effectId
         );
 
         return this.createInverseAction(action, "effect/restore", {
@@ -346,7 +346,7 @@ export class InverseActionGenerator {
 
       case "effect/update": {
         const effect = clip.effects.find(
-          (e) => e.id === action.params.effectId,
+          (e) => e.id === action.params.effectId
         );
         if (!effect) return null;
 
@@ -359,7 +359,7 @@ export class InverseActionGenerator {
 
       case "effect/reorder": {
         const currentIndex = clip.effects.findIndex(
-          (e) => e.id === action.params.effectId,
+          (e) => e.id === action.params.effectId
         );
         if (currentIndex === -1) return null;
 
@@ -374,7 +374,7 @@ export class InverseActionGenerator {
 
   private generateTransformInverse(
     action: TransformAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const clip = this.findClip(projectBefore.timeline, action.params.clipId);
     if (!clip) return null;
@@ -387,7 +387,7 @@ export class InverseActionGenerator {
 
   private generateKeyframeInverse(
     action: KeyframeAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const clip = this.findClip(projectBefore.timeline, action.params.clipId);
     if (!clip) return null;
@@ -404,7 +404,7 @@ export class InverseActionGenerator {
         const keyframe = clip.keyframes.find(
           (kf) =>
             kf.property === action.params.property &&
-            kf.time === action.params.time,
+            kf.time === action.params.time
         );
         if (!keyframe) return null;
 
@@ -420,7 +420,7 @@ export class InverseActionGenerator {
         const keyframe = clip.keyframes.find(
           (kf) =>
             kf.property === action.params.property &&
-            kf.time === action.params.time,
+            kf.time === action.params.time
         );
         if (!keyframe) return null;
 
@@ -437,7 +437,7 @@ export class InverseActionGenerator {
 
   private generateTransitionInverse(
     action: TransitionAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const timeline = projectBefore.timeline;
 
@@ -450,7 +450,7 @@ export class InverseActionGenerator {
       case "transition/remove": {
         const transition = this.findTransition(
           timeline,
-          action.params.transitionId,
+          action.params.transitionId
         );
         if (!transition) return null;
 
@@ -462,7 +462,7 @@ export class InverseActionGenerator {
       case "transition/update": {
         const transition = this.findTransition(
           timeline,
-          action.params.transitionId,
+          action.params.transitionId
         );
         if (!transition) return null;
 
@@ -477,7 +477,7 @@ export class InverseActionGenerator {
 
   private generateAudioInverse(
     action: AudioAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const clip = this.findClip(projectBefore.timeline, action.params.clipId);
     if (!clip) return null;
@@ -506,7 +506,7 @@ export class InverseActionGenerator {
 
   private generateSubtitleInverse(
     action: SubtitleAction & Action,
-    projectBefore: Project,
+    projectBefore: Project
   ): Action | null {
     const timeline = projectBefore.timeline;
 
@@ -523,7 +523,7 @@ export class InverseActionGenerator {
 
       case "subtitle/remove": {
         const subtitle = timeline.subtitles.find(
-          (s) => s.id === action.params.subtitleId,
+          (s) => s.id === action.params.subtitleId
         );
         if (!subtitle) return null;
 
@@ -534,7 +534,7 @@ export class InverseActionGenerator {
 
       case "subtitle/update": {
         const subtitle = timeline.subtitles.find(
-          (s) => s.id === action.params.subtitleId,
+          (s) => s.id === action.params.subtitleId
         );
         if (!subtitle) return null;
 
@@ -565,7 +565,7 @@ export class InverseActionGenerator {
 
   private findTransition(
     timeline: { tracks: Track[] },
-    transitionId: string,
+    transitionId: string
   ): Transition | null {
     for (const track of timeline.tracks) {
       const transition = track.transitions?.find((t) => t.id === transitionId);

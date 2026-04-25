@@ -59,7 +59,7 @@ export interface ImportOptions {
 
 function createDefaultMediaMetadata(
   type: "video" | "audio" | "image",
-  overrides: Partial<MediaMetadata> = {},
+  overrides: Partial<MediaMetadata> = {}
 ): MediaMetadata {
   return {
     duration: 0,
@@ -222,7 +222,7 @@ export class AnimationImporter {
           videoTrackId,
           textClips,
           shapeClips,
-          warnings,
+          warnings
         );
         if (!result.success && result.error) {
           errors.push(result.error);
@@ -301,7 +301,7 @@ export class AnimationImporter {
     videoTrackId: string,
     textClips: TextClip[],
     shapeClips: ShapeClip[],
-    warnings: string[],
+    warnings: string[]
   ): { success: boolean; error?: string } {
     switch (layer.type) {
       case "text":
@@ -309,14 +309,14 @@ export class AnimationImporter {
           layer as TextLayer,
           schema,
           videoTrackId,
-          textClips,
+          textClips
         );
       case "shape":
         return this.processShapeLayer(
           layer as ShapeLayer,
           schema,
           videoTrackId,
-          shapeClips,
+          shapeClips
         );
       case "image":
         return this.processImageLayer(layer as ImageLayer, schema, videoTrack);
@@ -343,7 +343,7 @@ export class AnimationImporter {
     layer: TextLayer,
     schema: AnimationSchema,
     trackId: string,
-    textClips: TextClip[],
+    textClips: TextClip[]
   ): { success: boolean; error?: string } {
     const textStyle: CoreTextStyle = {
       fontFamily: layer.style.fontFamily || "Arial",
@@ -394,11 +394,11 @@ export class AnimationImporter {
     layer: ShapeLayer,
     schema: AnimationSchema,
     trackId: string,
-    shapeClips: ShapeClip[],
+    shapeClips: ShapeClip[]
   ): { success: boolean; error?: string } {
     const shapeType = mapShapeType(
       layer.shape.type,
-      layer.shape.type === "polygon" ? layer.shape.sides : undefined,
+      layer.shape.type === "polygon" ? layer.shape.sides : undefined
     );
 
     const fillColor = typeof layer.fill === "string" ? layer.fill : "#ffffff";
@@ -452,7 +452,7 @@ export class AnimationImporter {
   private processImageLayer(
     layer: ImageLayer,
     schema: AnimationSchema,
-    videoTrack: Track,
+    videoTrack: Track
   ): { success: boolean; error?: string } {
     const clip: Clip = {
       id:
@@ -493,7 +493,7 @@ export class AnimationImporter {
   private processVideoLayer(
     layer: VideoLayer,
     schema: AnimationSchema,
-    videoTrack: Track,
+    videoTrack: Track
   ): { success: boolean; error?: string } {
     const clip: Clip = {
       id:
@@ -532,7 +532,7 @@ export class AnimationImporter {
   }
 
   private convertAnimationsToKeyframes(
-    animations: AnimationDefinition[],
+    animations: AnimationDefinition[]
   ): Keyframe[] {
     const keyframes: Keyframe[] = [];
 
@@ -566,14 +566,14 @@ export const animationImporter = new AnimationImporter();
 
 export function importAnimation(
   schema: AnimationSchema,
-  options?: ImportOptions,
+  options?: ImportOptions
 ): ImportResult {
   return animationImporter.import(schema, options);
 }
 
 export function importAnimationFromJSON(
   json: string,
-  options?: ImportOptions,
+  options?: ImportOptions
 ): ImportResult {
   try {
     const schema = JSON.parse(json) as AnimationSchema;

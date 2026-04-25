@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { queryKeys } from "@/shared/lib/query-keys";
+import { queryKeys } from "@/app/query/query-keys";
 
 describe("query-keys", () => {
   describe("api", () => {

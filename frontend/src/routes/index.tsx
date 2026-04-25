@@ -15,11 +15,11 @@ import { useTranslation } from "react-i18next";
 import {
   useSmartRedirect,
   REDIRECT_PATHS,
-} from "@/shared/utils/redirect/redirect-util";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
-import { StudioFeatureCard } from "@/shared/components/layout/studio-feature-card";
+} from "@/shared/navigation/redirect-util";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
+import { StudioFeatureCard } from "@/shared/ui/layout/studio-feature-card";
 
 function HomePage() {
   const { t } = useTranslation();

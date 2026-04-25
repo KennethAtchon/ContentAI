@@ -42,12 +42,12 @@ export type MutableClip = Mutable<Clip>;
 export function updateTrackInTimeline(
   timeline: Timeline,
   trackId: string,
-  updater: (track: Track) => Track,
+  updater: (track: Track) => Track
 ): Timeline {
   return {
     ...timeline,
     tracks: timeline.tracks.map((track) =>
-      track.id === trackId ? updater(track) : track,
+      track.id === trackId ? updater(track) : track
     ),
   };
 }
@@ -65,7 +65,7 @@ export function updateTrackProperty<K extends keyof Track>(
   timeline: Timeline,
   trackId: string,
   key: K,
-  value: Track[K],
+  value: Track[K]
 ): Timeline {
   return updateTrackInTimeline(timeline, trackId, (track) => ({
     ...track,
@@ -85,14 +85,14 @@ export function updateTrackProperty<K extends keyof Track>(
 export function updateClipInTimeline(
   timeline: Timeline,
   clipId: string,
-  updater: (clip: Clip) => Clip,
+  updater: (clip: Clip) => Clip
 ): Timeline {
   return {
     ...timeline,
     tracks: timeline.tracks.map((track) => ({
       ...track,
       clips: track.clips.map((clip) =>
-        clip.id === clipId ? updater(clip) : clip,
+        clip.id === clipId ? updater(clip) : clip
       ),
     })),
   };
@@ -109,12 +109,12 @@ export function updateClipInTimeline(
 export function updateClipInTrack(
   track: Track,
   clipId: string,
-  updater: (clip: Clip) => Clip,
+  updater: (clip: Clip) => Clip
 ): Track {
   return {
     ...track,
     clips: track.clips.map((clip) =>
-      clip.id === clipId ? updater(clip) : clip,
+      clip.id === clipId ? updater(clip) : clip
     ),
   };
 }
@@ -123,7 +123,7 @@ export function updateClipProperty<K extends keyof Clip>(
   timeline: Timeline,
   clipId: string,
   key: K,
-  value: Clip[K],
+  value: Clip[K]
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => ({
     ...clip,
@@ -142,7 +142,7 @@ export function updateClipProperty<K extends keyof Clip>(
 export function addClipToTrack(
   timeline: Timeline,
   trackId: string,
-  clip: Clip,
+  clip: Clip
 ): Timeline {
   return updateTrackInTimeline(timeline, trackId, (track) => ({
     ...track,
@@ -159,7 +159,7 @@ export function addClipToTrack(
  */
 export function removeClipFromTimeline(
   timeline: Timeline,
-  clipId: string,
+  clipId: string
 ): Timeline {
   return {
     ...timeline,
@@ -179,7 +179,7 @@ export function addTrackToTimeline(timeline: Timeline, track: Track): Timeline {
 
 export function removeTrackFromTimeline(
   timeline: Timeline,
-  trackId: string,
+  trackId: string
 ): Timeline {
   return {
     ...timeline,
@@ -190,7 +190,7 @@ export function removeTrackFromTimeline(
 export function addEffectToClip(
   timeline: Timeline,
   clipId: string,
-  effect: Effect,
+  effect: Effect
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => ({
     ...clip,
@@ -201,7 +201,7 @@ export function addEffectToClip(
 export function removeEffectFromClip(
   timeline: Timeline,
   clipId: string,
-  effectId: string,
+  effectId: string
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => ({
     ...clip,
@@ -213,12 +213,12 @@ export function updateEffectInClip(
   timeline: Timeline,
   clipId: string,
   effectId: string,
-  updater: (effect: Effect) => Effect,
+  updater: (effect: Effect) => Effect
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => ({
     ...clip,
     effects: clip.effects.map((effect) =>
-      effect.id === effectId ? updater(effect) : effect,
+      effect.id === effectId ? updater(effect) : effect
     ),
   }));
 }
@@ -226,11 +226,11 @@ export function updateEffectInClip(
 export function addKeyframeToClip(
   timeline: Timeline,
   clipId: string,
-  keyframe: Keyframe,
+  keyframe: Keyframe
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => {
     const existingIndex = clip.keyframes.findIndex(
-      (kf) => kf.time === keyframe.time && kf.property === keyframe.property,
+      (kf) => kf.time === keyframe.time && kf.property === keyframe.property
     );
 
     if (existingIndex >= 0) {
@@ -249,7 +249,7 @@ export function addKeyframeToClip(
 export function removeKeyframeFromClip(
   timeline: Timeline,
   clipId: string,
-  keyframeId: string,
+  keyframeId: string
 ): Timeline {
   return updateClipInTimeline(timeline, clipId, (clip) => ({
     ...clip,
@@ -260,7 +260,7 @@ export function removeKeyframeFromClip(
 export function addTransitionToTrack(
   timeline: Timeline,
   trackId: string,
-  transition: Transition,
+  transition: Transition
 ): Timeline {
   return updateTrackInTimeline(timeline, trackId, (track) => ({
     ...track,
@@ -271,7 +271,7 @@ export function addTransitionToTrack(
 export function removeTransitionFromTrack(
   timeline: Timeline,
   trackId: string,
-  transitionId: string,
+  transitionId: string
 ): Timeline {
   return updateTrackInTimeline(timeline, trackId, (track) => ({
     ...track,
@@ -288,7 +288,7 @@ export function removeTransitionFromTrack(
  */
 export function findTrackById(
   timeline: Timeline,
-  trackId: string,
+  trackId: string
 ): Track | undefined {
   return timeline.tracks.find((track) => track.id === trackId);
 }
@@ -302,7 +302,7 @@ export function findTrackById(
  */
 export function findClipById(
   timeline: Timeline,
-  clipId: string,
+  clipId: string
 ): Clip | undefined {
   for (const track of timeline.tracks) {
     const clip = track.clips.find((c) => c.id === clipId);
@@ -320,10 +320,10 @@ export function findClipById(
  */
 export function findTrackByClipId(
   timeline: Timeline,
-  clipId: string,
+  clipId: string
 ): Track | undefined {
   return timeline.tracks.find((track) =>
-    track.clips.some((clip) => clip.id === clipId),
+    track.clips.some((clip) => clip.id === clipId)
   );
 }
 
@@ -338,7 +338,7 @@ export function findTrackByClipId(
 export function moveClipToTrack(
   timeline: Timeline,
   clipId: string,
-  targetTrackId: string,
+  targetTrackId: string
 ): Timeline {
   const clip = findClipById(timeline, clipId);
   if (!clip) return timeline;
@@ -351,7 +351,7 @@ export function moveClipToTrack(
 export function reorderTracks(
   timeline: Timeline,
   fromIndex: number,
-  toIndex: number,
+  toIndex: number
 ): Timeline {
   const tracks = [...timeline.tracks];
   const [removed] = tracks.splice(fromIndex, 1);
@@ -363,7 +363,7 @@ export function duplicateClip(
   timeline: Timeline,
   clipId: string,
   newId: string,
-  newStartTime?: number,
+  newStartTime?: number
 ): Timeline {
   const clip = findClipById(timeline, clipId);
   if (!clip) return timeline;

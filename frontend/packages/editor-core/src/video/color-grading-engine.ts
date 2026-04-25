@@ -322,14 +322,14 @@ export class ColorGradingEngine {
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
-      gl.STATIC_DRAW,
+      gl.STATIC_DRAW
     );
     this.texCoordBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordBuffer);
     gl.bufferData(
       gl.ARRAY_BUFFER,
       new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]),
-      gl.STATIC_DRAW,
+      gl.STATIC_DRAW
     );
 
     // Compile shaders
@@ -344,7 +344,7 @@ export class ColorGradingEngine {
   private compileShader(
     name: string,
     vertexSrc: string,
-    fragmentSrc: string,
+    fragmentSrc: string
   ): void {
     const gl = this.gl!;
 
@@ -354,7 +354,7 @@ export class ColorGradingEngine {
 
     if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
       throw new Error(
-        `Vertex shader error: ${gl.getShaderInfoLog(vertexShader)}`,
+        `Vertex shader error: ${gl.getShaderInfoLog(vertexShader)}`
       );
     }
 
@@ -364,7 +364,7 @@ export class ColorGradingEngine {
 
     if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
       throw new Error(
-        `Fragment shader error: ${gl.getShaderInfoLog(fragmentShader)}`,
+        `Fragment shader error: ${gl.getShaderInfoLog(fragmentShader)}`
       );
     }
 
@@ -404,7 +404,7 @@ export class ColorGradingEngine {
 
   async applyColorWheels(
     image: ImageBitmap,
-    values: ColorWheelValues,
+    values: ColorWheelValues
   ): Promise<ColorGradingResult> {
     const startTime = performance.now();
     this.ensureInitialized();
@@ -436,21 +436,21 @@ export class ColorGradingEngine {
         shadowsLoc,
         values.shadows.r,
         values.shadows.g,
-        values.shadows.b,
+        values.shadows.b
       );
     if (midtonesLoc)
       gl.uniform3f(
         midtonesLoc,
         values.midtones.r,
         values.midtones.g,
-        values.midtones.b,
+        values.midtones.b
       );
     if (highlightsLoc)
       gl.uniform3f(
         highlightsLoc,
         values.highlights.r,
         values.highlights.g,
-        values.highlights.b,
+        values.highlights.b
       );
     if (liftLoc) gl.uniform1f(liftLoc, values.shadowsLift);
     if (gammaLoc) gl.uniform1f(gammaLoc, values.midtonesGamma);
@@ -470,7 +470,7 @@ export class ColorGradingEngine {
 
   async applyCurves(
     image: ImageBitmap,
-    curves: CurvesValues,
+    curves: CurvesValues
   ): Promise<ColorGradingResult> {
     const startTime = performance.now();
     this.ensureInitialized();
@@ -560,7 +560,7 @@ export class ColorGradingEngine {
 
   async applyLUT(
     image: ImageBitmap,
-    lut: LUTData,
+    lut: LUTData
   ): Promise<ColorGradingResult> {
     const startTime = performance.now();
 
@@ -601,7 +601,7 @@ export class ColorGradingEngine {
         ri: number,
         gi: number,
         bi: number,
-        channel: number,
+        channel: number
       ): number => {
         const idx = (bi * lutSize * lutSize + gi * lutSize + ri) * 3 + channel;
         return lutData[idx] / 255;
@@ -632,13 +632,13 @@ export class ColorGradingEngine {
 
       // Mix with original based on intensity
       data[i] = Math.round(
-        (r * (1 - lut.intensity) + lutR * lut.intensity) * 255,
+        (r * (1 - lut.intensity) + lutR * lut.intensity) * 255
       );
       data[i + 1] = Math.round(
-        (g * (1 - lut.intensity) + lutG * lut.intensity) * 255,
+        (g * (1 - lut.intensity) + lutG * lut.intensity) * 255
       );
       data[i + 2] = Math.round(
-        (b * (1 - lut.intensity) + lutB * lut.intensity) * 255,
+        (b * (1 - lut.intensity) + lutB * lut.intensity) * 255
       );
     }
 
@@ -653,7 +653,7 @@ export class ColorGradingEngine {
 
   async applyHSL(
     image: ImageBitmap,
-    hsl: HSLValues,
+    hsl: HSLValues
   ): Promise<ColorGradingResult> {
     const startTime = performance.now();
 
@@ -675,11 +675,11 @@ export class ColorGradingEngine {
       hslColor.h = (hslColor.h + hsl.hue[hueIndex] / 360 + 1) % 1;
       hslColor.s = Math.max(
         0,
-        Math.min(1, hslColor.s + hsl.saturation[hueIndex]),
+        Math.min(1, hslColor.s + hsl.saturation[hueIndex])
       );
       hslColor.l = Math.max(
         0,
-        Math.min(1, hslColor.l + hsl.luminance[hueIndex]),
+        Math.min(1, hslColor.l + hsl.luminance[hueIndex])
       );
       const rgb = this.hslToRgb(hslColor.h, hslColor.s, hslColor.l);
 
@@ -739,7 +739,7 @@ export class ColorGradingEngine {
 
   async generateVectorscope(
     image: ImageBitmap,
-    size: number = 256,
+    size: number = 256
   ): Promise<VectorscopeData> {
     const canvas = new OffscreenCanvas(image.width, image.height);
     const ctx = canvas.getContext("2d")!;
@@ -802,7 +802,7 @@ export class ColorGradingEngine {
   private rgbToHsl(
     r: number,
     g: number,
-    b: number,
+    b: number
   ): { h: number; s: number; l: number } {
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
@@ -830,7 +830,7 @@ export class ColorGradingEngine {
   private hslToRgb(
     h: number,
     s: number,
-    l: number,
+    l: number
   ): { r: number; g: number; b: number } {
     if (s === 0) {
       return { r: l, g: l, b: l };

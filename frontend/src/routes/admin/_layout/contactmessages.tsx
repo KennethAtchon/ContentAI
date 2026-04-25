@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ContactMessagesView } from "@/features/admin/components/contact-messages/ContactMessagesView";
+import { ContactMessagesView } from "@/domains/admin/ui/contact-messages/ContactMessagesView";
 
 export const Route = createFileRoute("/admin/_layout/contactmessages")({
   component: ContactMessagesPage,

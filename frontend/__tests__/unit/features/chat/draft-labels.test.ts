@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { getSessionDraftLabel } from "@/features/chat/lib/draft-labels";
-import type { SessionDraft } from "@/features/chat/types/chat.types";
+import { getSessionDraftLabel } from "@/domains/chat/lib/draft-labels";
+import type { SessionDraft } from "@/domains/chat/model/chat.types";
 
 function makeDraft(overrides?: Partial<SessionDraft>): SessionDraft {
   return {

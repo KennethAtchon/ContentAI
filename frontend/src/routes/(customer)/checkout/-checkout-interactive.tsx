@@ -1,30 +1,30 @@
 import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useSearch, Link } from "@tanstack/react-router";
-import { Button } from "@/shared/components/ui/button";
+import { Button } from "@/shared/ui/primitives/button";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
-import { useApp } from "@/shared/contexts/app-context";
+import { useApp } from "@/app/state/app-context";
 import { useTranslation } from "react-i18next";
 import {
   SUBSCRIPTION_TIERS,
   type SubscriptionTier,
   SUBSCRIPTION_TRIAL_DAYS,
 } from "@/shared/constants/subscription.constants";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import { Badge } from "@/shared/components/ui/badge";
+import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
+import { Badge } from "@/shared/ui/primitives/badge";
 import { useQuery } from "@tanstack/react-query";
-import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
-import { queryKeys } from "@/shared/lib/query-keys";
-import { debugLog } from "@/shared/utils/debug";
+import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
+import { queryKeys } from "@/app/query/query-keys";
+import { debugLog } from "@/shared/debug";
 import {
   getProductById,
   DEFAULT_PRODUCT,
 } from "@/shared/constants/order.constants";
-import { SubscriptionCheckout } from "@/features/payments/components/checkout/subscription-checkout";
-import { OrderCheckout } from "@/features/payments/components/checkout/order-checkout";
+import { SubscriptionCheckout } from "@/domains/payments/ui/checkout/subscription-checkout";
+import { OrderCheckout } from "@/domains/payments/ui/checkout/order-checkout";
 import {
   useSmartRedirect,
   REDIRECT_PATHS,
-} from "@/shared/utils/redirect/redirect-util";
+} from "@/shared/navigation/redirect-util";
 
 interface OrderItem {
   name: string;

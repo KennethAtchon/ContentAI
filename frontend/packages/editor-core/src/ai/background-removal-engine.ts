@@ -69,7 +69,7 @@ export class BackgroundRemovalEngine {
 
   setSettings(
     clipId: string,
-    settings: Partial<BackgroundRemovalSettings>,
+    settings: Partial<BackgroundRemovalSettings>
   ): void {
     const current = this.settings.get(clipId) || {
       ...DEFAULT_BACKGROUND_SETTINGS,
@@ -91,7 +91,7 @@ export class BackgroundRemovalEngine {
     clipId: string,
     frame: ImageBitmap,
     width: number,
-    height: number,
+    height: number
   ): Promise<ImageBitmap> {
     const settings = this.getSettings(clipId);
 
@@ -128,7 +128,7 @@ export class BackgroundRemovalEngine {
           mask,
           width,
           height,
-          settings.blurAmount,
+          settings.blurAmount
         );
         break;
       case "color":
@@ -137,7 +137,7 @@ export class BackgroundRemovalEngine {
           mask,
           width,
           height,
-          settings.backgroundColor,
+          settings.backgroundColor
         );
         break;
       case "image":
@@ -155,7 +155,7 @@ export class BackgroundRemovalEngine {
 
   private generateSimpleMask(
     imageData: ImageData,
-    _threshold: number,
+    _threshold: number
   ): ImageData {
     const { data, width, height } = imageData;
     const mask = new ImageData(width, height);
@@ -193,7 +193,7 @@ export class BackgroundRemovalEngine {
     const result = new ImageData(
       new Uint8ClampedArray(mask.data),
       width,
-      height,
+      height
     );
 
     for (let iter = 0; iter < iterations; iter++) {
@@ -256,7 +256,7 @@ export class BackgroundRemovalEngine {
     mask: ImageData,
     width: number,
     height: number,
-    blurAmount: number,
+    blurAmount: number
   ): Promise<void> {
     if (!this.outputCtx) return;
 
@@ -289,7 +289,7 @@ export class BackgroundRemovalEngine {
     mask: ImageData,
     width: number,
     height: number,
-    color: string,
+    color: string
   ): void {
     if (!this.outputCtx) return;
 
@@ -318,7 +318,7 @@ export class BackgroundRemovalEngine {
     frame: ImageBitmap,
     mask: ImageData,
     width: number,
-    height: number,
+    height: number
   ): void {
     if (!this.outputCtx || !this.backgroundImage) {
       this.renderColorBackground(frame, mask, width, height, "#000000");
@@ -349,7 +349,7 @@ export class BackgroundRemovalEngine {
     frame: ImageBitmap,
     mask: ImageData,
     width: number,
-    height: number,
+    height: number
   ): void {
     if (!this.outputCtx) return;
 

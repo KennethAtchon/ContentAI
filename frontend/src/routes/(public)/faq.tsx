@@ -4,13 +4,13 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/shared/components/ui/accordion";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
+} from "@/shared/ui/primitives/accordion";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
 import { HelpCircle, Sparkles, ArrowRight } from "lucide-react";
-import { generateFAQSchema } from "@/shared/services/seo/structured-data";
-import { StructuredDataStatic } from "@/shared/components/marketing/structured-data";
+import { generateFAQSchema } from "@/shared/seo/structured-data";
+import { StructuredDataStatic } from "@/shared/marketing/ui/structured-data";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 

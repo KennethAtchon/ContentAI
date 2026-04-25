@@ -71,7 +71,7 @@ export class ProjectSerializer {
           };
         }
         return item;
-      },
+      }
     );
 
     return {
@@ -110,7 +110,7 @@ export class ProjectSerializer {
         result.valid = false;
       } else if (projectFile.version !== SCHEMA_VERSION) {
         result.warnings.push(
-          `Version mismatch: expected ${SCHEMA_VERSION}, got ${projectFile.version}`,
+          `Version mismatch: expected ${SCHEMA_VERSION}, got ${projectFile.version}`
         );
       }
 
@@ -148,7 +148,7 @@ export class ProjectSerializer {
       }
 
       const mediaIds = new Set(
-        project.mediaLibrary.items.map((item: MediaItem) => item.id),
+        project.mediaLibrary.items.map((item: MediaItem) => item.id)
       );
 
       for (const item of project.mediaLibrary.items) {
@@ -173,7 +173,7 @@ export class ProjectSerializer {
                 !mediaIds.has(clip.mediaId)
               ) {
                 result.errors.push(
-                  `Clip ${clip.id} references non-existent mediaId: ${clip.mediaId}`,
+                  `Clip ${clip.id} references non-existent mediaId: ${clip.mediaId}`
                 );
                 result.valid = false;
               }
@@ -184,12 +184,12 @@ export class ProjectSerializer {
 
       if (result.missingAssets && result.missingAssets.length > 0) {
         result.warnings.push(
-          `${result.missingAssets.length} asset(s) need replacement`,
+          `${result.missingAssets.length} asset(s) need replacement`
         );
       }
     } catch (error) {
       result.errors.push(
-        `Invalid JSON: ${error instanceof Error ? error.message : "Parse error"}`,
+        `Invalid JSON: ${error instanceof Error ? error.message : "Parse error"}`
       );
       result.valid = false;
     }
@@ -257,7 +257,7 @@ export class ProjectSerializer {
         blob: null,
         fileHandle: null,
         waveformData: null,
-      }),
+      })
     );
 
     return {
@@ -282,7 +282,7 @@ export class ProjectSerializer {
 }
 
 export function createProjectSerializer(
-  storage: IStorageEngine,
+  storage: IStorageEngine
 ): ProjectSerializer {
   return new ProjectSerializer(storage);
 }

@@ -2,6 +2,37 @@
 
 Title, subtitle, caption, transcription, speech-to-text, text animation, and audio/text synchronization features.
 
+## What This Folder Owns
+
+This folder owns text as timed media: titles, subtitles, animated captions, transcription results, character-level animation, and audio-synchronized text effects. It bridges plain text data with timeline timing and renderable caption/title output.
+
+## How It Fits The Architecture
+
+- types.ts defines text/subtitle/transcription contracts.
+- subtitle-engine.ts parses/edits/serializes timed captions.
+- speech-to-text-engine.ts and transcription-service.ts adapt transcription providers/jobs.
+- title-engine.ts handles title presets/layers.
+- text-animation.ts, presets, character animator, and caption renderer produce renderable animated text.
+- audio-text-sync-engine.ts aligns text with audio cues.
+
+## Typical Flow
+
+```mermaid
+sequenceDiagram
+  participant UI as Text/Caption UI
+  participant STT as Speech/Transcription
+  participant Subtitle as SubtitleEngine
+  participant Anim as Text Animation
+  participant Renderer as CaptionRenderer
+  participant Timeline as Timeline Layer
+  UI->>STT: transcribe audio
+  STT-->>Subtitle: transcript segments
+  UI->>Subtitle: edit/import captions
+  Subtitle->>Anim: resolve animation at time
+  Anim->>Renderer: render caption/title state
+  Renderer-->>Timeline: text layer output
+```
+
 ## Read Order
 
 1. `index.ts`
@@ -16,19 +47,25 @@ Title, subtitle, caption, transcription, speech-to-text, text animation, and aud
 10. `character-animator.ts`
 11. `audio-text-sync-engine.ts`
 
-## Files
+## File Guide
 
-- `audio-text-sync-engine.ts` - aligns text/caption timing with audio analysis cues.
-- `caption-animation-renderer.ts` - renders animated captions for preview/export.
-- `character-animator.ts` - animates text at character-level granularity.
-- `index.ts` - barrel file that defines the public exports for this folder.
-- `speech-to-text-engine.ts` - adapts speech recognition/transcription engines.
-- `subtitle-engine.ts` - parses, edits, and serializes subtitle/caption data.
-- `text-animation-presets.ts` - defines reusable text animation presets.
-- `text-animation.ts` - evaluates text animation timing and properties.
-- `title-engine.ts` - creates and renders title/text layer presets.
-- `transcription-service.ts` - coordinates transcription jobs and transcript normalization.
-- `types.ts` - folder-local type definitions and constants.
+- `audio-text-sync-engine.ts` - Audio cue to text timing alignment.
+- `caption-animation-renderer.ts` - Animated caption rendering.
+- `character-animator.ts` - Character-level animation.
+- `index.ts` - Public text API barrel.
+- `speech-to-text-engine.ts` - Speech recognition/transcription engine adapter.
+- `subtitle-engine.ts` - Subtitle parsing, editing, and serialization.
+- `text-animation-presets.ts` - Reusable text animation presets.
+- `text-animation.ts` - Text animation evaluation.
+- `title-engine.ts` - Title/text layer creation and preset handling.
+- `transcription-service.ts` - Transcription job orchestration and normalization.
+- `types.ts` - Text, title, subtitle, caption, and transcription contracts.
+
+## Important Contracts
+
+- Preserve timing precision across subtitle import/export.
+- Keep transcript data separate from render-specific animation state.
+- Ensure preview and export use the same animation evaluation path.
 
 ## Dependencies
 

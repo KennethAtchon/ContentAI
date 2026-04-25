@@ -43,7 +43,7 @@ export class ActionValidator {
     }
     const typeValidationErrors = this.validateActionType(
       action as TimelineAction,
-      project,
+      project
     );
     errors.push(...typeValidationErrors);
 
@@ -55,7 +55,7 @@ export class ActionValidator {
 
   private validateActionType(
     action: TimelineAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const type = action.type;
 
@@ -91,7 +91,7 @@ export class ActionValidator {
 
   private validateProjectAction(
     action: ProjectAction,
-    _project: Project,
+    _project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
 
@@ -144,7 +144,7 @@ export class ActionValidator {
 
   private validateMediaAction(
     action: MediaAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
 
@@ -172,7 +172,7 @@ export class ActionValidator {
           });
         } else {
           const mediaExists = project.mediaLibrary.items.some(
-            (item) => item.id === action.params.mediaId,
+            (item) => item.id === action.params.mediaId
           );
           if (!mediaExists) {
             errors.push({
@@ -200,7 +200,7 @@ export class ActionValidator {
 
   private validateTrackAction(
     action: TrackAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -209,7 +209,7 @@ export class ActionValidator {
       case "track/add":
         if (
           !["video", "audio", "image", "text", "graphics"].includes(
-            action.params.trackType,
+            action.params.trackType
           )
         ) {
           errors.push({
@@ -340,7 +340,7 @@ export class ActionValidator {
 
   private validateClipAction(
     action: ClipAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -383,7 +383,7 @@ export class ActionValidator {
           });
         } else {
           const mediaExists = project.mediaLibrary.items.some(
-            (item) => item.id === action.params.mediaId,
+            (item) => item.id === action.params.mediaId
           );
           if (!mediaExists) {
             errors.push({
@@ -615,7 +615,7 @@ export class ActionValidator {
 
   private validateEffectAction(
     action: EffectAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -677,7 +677,7 @@ export class ActionValidator {
           });
         } else {
           const effectExists = clip.effects.some(
-            (e) => e.id === action.params.effectId,
+            (e) => e.id === action.params.effectId
           );
           if (!effectExists) {
             errors.push({
@@ -711,7 +711,7 @@ export class ActionValidator {
 
   private validateTransformAction(
     action: TransformAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -760,7 +760,7 @@ export class ActionValidator {
 
   private validateKeyframeAction(
     action: KeyframeAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -814,7 +814,7 @@ export class ActionValidator {
 
   private validateTransitionAction(
     action: TransitionAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -935,7 +935,7 @@ export class ActionValidator {
 
   private validateAudioAction(
     action: AudioAction,
-    project: Project,
+    project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
     const timeline = project.timeline;
@@ -1024,7 +1024,7 @@ export class ActionValidator {
 
   private validateSubtitleAction(
     action: SubtitleAction,
-    _project: Project,
+    _project: Project
   ): ValidationError[] {
     const errors: ValidationError[] = [];
 

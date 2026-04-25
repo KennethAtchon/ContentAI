@@ -57,7 +57,7 @@ export class RetouchingEngine {
     image: ImageBitmap,
     x: number,
     y: number,
-    radius?: number,
+    radius?: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
     const healRadius = radius ?? this.brushConfig.size / 2;
@@ -140,10 +140,10 @@ export class RetouchingEngine {
           // Blend with surrounding average
           data[idx] = Math.round(data[idx] * (1 - alpha) + avgR * alpha);
           data[idx + 1] = Math.round(
-            data[idx + 1] * (1 - alpha) + avgG * alpha,
+            data[idx + 1] * (1 - alpha) + avgG * alpha
           );
           data[idx + 2] = Math.round(
-            data[idx + 2] * (1 - alpha) + avgB * alpha,
+            data[idx + 2] * (1 - alpha) + avgB * alpha
           );
         }
       }
@@ -155,7 +155,7 @@ export class RetouchingEngine {
 
   async spotHealStroke(
     image: ImageBitmap,
-    stroke: BrushStroke,
+    stroke: BrushStroke
   ): Promise<ImageBitmap> {
     let result = image;
 
@@ -171,7 +171,7 @@ export class RetouchingEngine {
     image: ImageBitmap,
     targetX: number,
     targetY: number,
-    radius?: number,
+    radius?: number
   ): Promise<ImageBitmap> {
     if (!this.cloneSource) {
       return createImageBitmap(image);
@@ -229,13 +229,13 @@ export class RetouchingEngine {
 
             // Blend source pixels to target
             data[dstIdx] = Math.round(
-              data[dstIdx] * (1 - alpha) + data[srcIdx] * alpha,
+              data[dstIdx] * (1 - alpha) + data[srcIdx] * alpha
             );
             data[dstIdx + 1] = Math.round(
-              data[dstIdx + 1] * (1 - alpha) + data[srcIdx + 1] * alpha,
+              data[dstIdx + 1] * (1 - alpha) + data[srcIdx + 1] * alpha
             );
             data[dstIdx + 2] = Math.round(
-              data[dstIdx + 2] * (1 - alpha) + data[srcIdx + 2] * alpha,
+              data[dstIdx + 2] * (1 - alpha) + data[srcIdx + 2] * alpha
             );
           }
         }
@@ -248,7 +248,7 @@ export class RetouchingEngine {
 
   async cloneStampStroke(
     image: ImageBitmap,
-    stroke: BrushStroke,
+    stroke: BrushStroke
   ): Promise<ImageBitmap> {
     if (!this.cloneSource) {
       return createImageBitmap(image);
@@ -278,7 +278,7 @@ export class RetouchingEngine {
     image: ImageBitmap,
     x: number,
     y: number,
-    radius: number,
+    radius: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
 
@@ -337,7 +337,7 @@ export class RetouchingEngine {
 
   generateBrushMask(
     size: number = this.brushConfig.size,
-    hardness: number = this.brushConfig.hardness,
+    hardness: number = this.brushConfig.hardness
   ): OffscreenCanvas {
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext("2d")!;
@@ -351,7 +351,7 @@ export class RetouchingEngine {
       radius * hardness,
       centerX,
       centerY,
-      radius,
+      radius
     );
     gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -366,7 +366,7 @@ export class RetouchingEngine {
 
   private getCanvas(
     width: number,
-    height: number,
+    height: number
   ): { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } {
     if (
       !this.canvas ||

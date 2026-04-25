@@ -50,7 +50,7 @@ export class TextureCache {
     clipId: string,
     frameTime: number,
     texture: GPUTexture,
-    size: number,
+    size: number
   ): void {
     const key = getCacheKey(clipId, frameTime);
     if (this.cache.has(key)) {
@@ -165,7 +165,7 @@ export class TextureCache {
 export function calculateTextureSize(
   width: number,
   height: number,
-  format: string = "rgba8unorm",
+  format: string = "rgba8unorm"
 ): number {
   // Bytes per pixel based on format
   const bytesPerPixel: Record<string, number> = {

@@ -49,7 +49,7 @@ export class AudioEffectsEngine {
   }
 
   async initialize(
-    context?: AudioContext | OfflineAudioContext,
+    context?: AudioContext | OfflineAudioContext
   ): Promise<void> {
     if (context) {
       this.audioContext = context;
@@ -77,14 +77,14 @@ export class AudioEffectsEngine {
   private ensureInitialized(): void {
     if (!this.initialized || !this.audioContext) {
       throw new Error(
-        "AudioEffectsEngine not initialized. Call initialize() first.",
+        "AudioEffectsEngine not initialized. Call initialize() first."
       );
     }
   }
 
   async applyEffectChain(
     buffer: AudioBuffer,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<EffectProcessingResult> {
     this.ensureInitialized();
 
@@ -95,13 +95,13 @@ export class AudioEffectsEngine {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
     const source = offlineContext.createBufferSource();
     source.buffer = buffer;
     const { firstNode, lastNode, appliedEffects } = await this.buildEffectChain(
       offlineContext,
-      enabledEffects,
+      enabledEffects
     );
     if (firstNode && lastNode) {
       source.connect(firstNode);
@@ -122,7 +122,7 @@ export class AudioEffectsEngine {
 
   private async buildEffectChain(
     context: BaseAudioContext,
-    effects: Effect[],
+    effects: Effect[]
   ): Promise<{
     firstNode: AudioNode | null;
     lastNode: AudioNode | null;
@@ -160,7 +160,7 @@ export class AudioEffectsEngine {
 
   private async createEffectNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): Promise<EffectNodePair | null> {
     switch (effect.type) {
       case "eq":
@@ -182,7 +182,7 @@ export class AudioEffectsEngine {
 
   private createEQNodePair(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): EffectNodePair | null {
     const params = effect.params as AudioEffectParams["eq"];
     const bands = params?.bands;
@@ -235,7 +235,7 @@ export class AudioEffectsEngine {
 
   private createCompressorNodePair(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): EffectNodePair {
     const compressor = this.createCompressorNode(context, effect);
     return { input: compressor, output: compressor };
@@ -243,23 +243,23 @@ export class AudioEffectsEngine {
 
   createCompressorNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): DynamicsCompressorNode {
     const params = effect.params as AudioEffectParams["compressor"];
     const compressor = context.createDynamicsCompressor();
 
     compressor.threshold.value = Math.max(
       -60,
-      Math.min(0, params?.threshold ?? -24),
+      Math.min(0, params?.threshold ?? -24)
     );
     compressor.ratio.value = Math.max(1, Math.min(20, params?.ratio ?? 4));
     compressor.attack.value = Math.max(
       0.001,
-      Math.min(1, params?.attack ?? 0.003),
+      Math.min(1, params?.attack ?? 0.003)
     );
     compressor.release.value = Math.max(
       0.01,
-      Math.min(3, params?.release ?? 0.25),
+      Math.min(3, params?.release ?? 0.25)
     );
     compressor.knee.value = Math.max(0, Math.min(40, params?.knee ?? 30));
 
@@ -268,7 +268,7 @@ export class AudioEffectsEngine {
 
   async createReverbNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): Promise<EffectNodePair> {
     const params = effect.params as AudioEffectParams["reverb"];
 
@@ -284,7 +284,7 @@ export class AudioEffectsEngine {
     const impulseResponse = await this.getOrCreateImpulseResponse(
       context,
       params?.roomSize ?? 0.5,
-      params?.damping ?? 0.5,
+      params?.damping ?? 0.5
     );
     convolver.buffer = impulseResponse;
 
@@ -312,7 +312,7 @@ export class AudioEffectsEngine {
   private async getOrCreateImpulseResponse(
     context: BaseAudioContext,
     roomSize: number,
-    damping: number,
+    damping: number
   ): Promise<AudioBuffer> {
     const key = `${roomSize.toFixed(2)}_${damping.toFixed(2)}`;
 
@@ -323,7 +323,7 @@ export class AudioEffectsEngine {
     const impulseResponse = this.generateImpulseResponse(
       context,
       roomSize,
-      damping,
+      damping
     );
     this.impulseResponses.set(key, impulseResponse);
 
@@ -333,7 +333,7 @@ export class AudioEffectsEngine {
   generateImpulseResponse(
     context: BaseAudioContext,
     roomSize: number,
-    damping: number,
+    damping: number
   ): AudioBuffer {
     const sampleRate = context.sampleRate;
     // Duration based on room size (0.5s to 4s)
@@ -373,7 +373,7 @@ export class AudioEffectsEngine {
     delayNode.delayTime.value = Math.max(0, Math.min(2, params?.time ?? 0.5));
     feedbackGain.gain.value = Math.max(
       0,
-      Math.min(0.95, params?.feedback ?? 0.3),
+      Math.min(0.95, params?.feedback ?? 0.3)
     );
     wetGain.gain.value = params?.wetLevel ?? 0.5;
     dryGain.gain.value = 1 - (params?.wetLevel ?? 0.5);
@@ -392,7 +392,7 @@ export class AudioEffectsEngine {
 
   private createGainNodePair(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): EffectNodePair {
     const gainNode = this.createGainNode(context, effect);
     return { input: gainNode, output: gainNode };
@@ -407,7 +407,7 @@ export class AudioEffectsEngine {
 
   private createNoiseReductionNodePair(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): EffectNodePair {
     const params = effect.params as AudioEffectParams["noiseReduction"];
 
@@ -427,7 +427,7 @@ export class AudioEffectsEngine {
 
   createNoiseReductionNode(
     context: BaseAudioContext,
-    effect: Effect,
+    effect: Effect
   ): AudioNode {
     const pair = this.createNoiseReductionNodePair(context, effect);
     return pair.input;
@@ -435,7 +435,7 @@ export class AudioEffectsEngine {
 
   private createNoiseReductionBands(
     context: BaseAudioContext,
-    params?: AudioEffectParams["noiseReduction"],
+    params?: AudioEffectParams["noiseReduction"]
   ): Array<{ filter: BiquadFilterNode; gate: GainNode }> {
     const threshold = params?.threshold ?? -40;
     const reduction = params?.reduction ?? 0.5;
@@ -466,7 +466,7 @@ export class AudioEffectsEngine {
 
   async learnNoiseProfile(
     buffer: AudioBuffer,
-    profileId: string,
+    profileId: string
   ): Promise<SimpleNoiseProfile> {
     this.ensureInitialized();
 
@@ -475,7 +475,7 @@ export class AudioEffectsEngine {
     const channelData = buffer.getChannelData(0);
     const numFrames = Math.max(
       1,
-      Math.floor((channelData.length - fftSize) / hopSize) + 1,
+      Math.floor((channelData.length - fftSize) / hopSize) + 1
     );
     const fft = new FFT(fftSize);
 
@@ -528,7 +528,7 @@ export class AudioEffectsEngine {
   async applyNoiseReductionWithProfile(
     buffer: AudioBuffer,
     profileId: string,
-    reduction: number = 0.5,
+    reduction: number = 0.5
   ): Promise<AudioBuffer> {
     this.ensureInitialized();
 
@@ -539,7 +539,7 @@ export class AudioEffectsEngine {
     const offlineContext = new OfflineAudioContext(
       buffer.numberOfChannels,
       buffer.length,
-      buffer.sampleRate,
+      buffer.sampleRate
     );
 
     const source = offlineContext.createBufferSource();
@@ -549,7 +549,7 @@ export class AudioEffectsEngine {
     const filters = this.createProfileBasedFilters(
       offlineContext,
       profile,
-      reduction,
+      reduction
     );
 
     source.connect(inputGain);
@@ -575,7 +575,7 @@ export class AudioEffectsEngine {
   private createProfileBasedFilters(
     context: BaseAudioContext,
     profile: SimpleNoiseProfile,
-    reduction: number,
+    reduction: number
   ): BiquadFilterNode[] {
     const filters: BiquadFilterNode[] = [];
     const magnitudes = profile.magnitudes;
@@ -660,7 +660,7 @@ export class AudioEffectsEngine {
     // Low frequency energy concentrated <200Hz is typically noise, not signal
     const lowFreqEnergy = this.calculateLowFrequencyEnergy(
       magnitudes,
-      binWidth,
+      binWidth
     );
     if (lowFreqEnergy > mean * 1.5) {
       const highpass = context.createBiquadFilter();
@@ -703,7 +703,7 @@ export class AudioEffectsEngine {
 
   private calculateLowFrequencyEnergy(
     magnitudes: Float32Array,
-    binWidth: number,
+    binWidth: number
   ): number {
     const maxBin = Math.min(magnitudes.length, Math.ceil(200 / binWidth));
     let energy = 0;
@@ -743,7 +743,7 @@ export function getAudioEffectsEngine(): AudioEffectsEngine {
 }
 
 export async function initializeAudioEffectsEngine(
-  context?: AudioContext | OfflineAudioContext,
+  context?: AudioContext | OfflineAudioContext
 ): Promise<AudioEffectsEngine> {
   const engine = getAudioEffectsEngine();
   await engine.initialize(context);

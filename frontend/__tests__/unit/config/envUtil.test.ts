@@ -12,7 +12,7 @@ import {
   APP_NAME,
   LOG_LEVEL,
   DEBUG_ENABLED,
-} from "@/shared/utils/config/envUtil";
+} from "@/shared/config/envUtil";
 
 describe("envUtil", () => {
   describe("env-derived constants", () => {

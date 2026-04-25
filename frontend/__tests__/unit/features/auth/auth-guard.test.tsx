@@ -32,15 +32,15 @@ beforeAll(() => {
     useTranslation: () => stableTranslation,
   }));
 
-  mock.module("@/shared/contexts/app-context", () => ({
+  mock.module("@/app/state/app-context", () => ({
     useApp: () => stableAppContext, // Always returns same object reference
   }));
 
-  mock.module("@/features/auth/hooks/use-authenticated-fetch", () => ({
+  mock.module("@/domains/auth/hooks/use-authenticated-fetch", () => ({
     useAuthenticatedFetch: () => stableAuthObject, // Always returns same object
   }));
 
-  mock.module("@/shared/utils/debug", () => ({
+  mock.module("@/shared/debug", () => ({
     debugLog: stableDebugLog,
   }));
 
@@ -50,7 +50,7 @@ beforeAll(() => {
 });
 
 // Import AFTER mocking
-import { AuthGuard } from "@/features/auth/components/auth-guard";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
 
 describe("AuthGuard", () => {
   afterEach(() => {

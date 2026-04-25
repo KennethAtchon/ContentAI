@@ -4,7 +4,7 @@
 /// <reference lib="dom" />
 import { describe, it, expect, afterEach, mock } from "bun:test";
 
-mock.module("@/features/auth/hooks/use-authenticated-fetch", () => ({
+mock.module("@/domains/auth/hooks/use-authenticated-fetch", () => ({
   useAuthenticatedFetch: () => ({
     authenticatedFetch: mock(async () => new Response()),
     authenticatedFetchJson: mock(async (_url: string) => ({})),
@@ -13,7 +13,7 @@ mock.module("@/features/auth/hooks/use-authenticated-fetch", () => ({
 
 import { renderHook, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { useQueryFetcher } from "@/shared/hooks/use-query-fetcher";
+import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 
 describe("useQueryFetcher", () => {
   afterEach(() => {

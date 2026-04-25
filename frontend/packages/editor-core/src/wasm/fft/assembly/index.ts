@@ -34,7 +34,7 @@ export function init(fftSize: i32): void {
   for (let i = 0; i < size; i++) {
     let reversed: u32 = 0;
     for (let j = 0; j < bits; j++) {
-      reversed = (reversed << 1) | ((<u32>i >> j) & 1);
+      reversed = (reversed << 1) | (((<u32>i) >> j) & 1);
     }
     unchecked((revTab[i] = reversed));
   }
@@ -48,7 +48,11 @@ export function getSize(): i32 {
   return size;
 }
 
-export function forward(input: Float32Array, real: Float32Array, imag: Float32Array): void {
+export function forward(
+  input: Float32Array,
+  real: Float32Array,
+  imag: Float32Array
+): void {
   if (!reverseTable || !cosTable || !sinTable) return;
   const revTable = reverseTable!;
   const cosTab = cosTable!;
@@ -92,7 +96,11 @@ export function forward(input: Float32Array, real: Float32Array, imag: Float32Ar
   }
 }
 
-export function inverse(real: Float32Array, imag: Float32Array, output: Float32Array): void {
+export function inverse(
+  real: Float32Array,
+  imag: Float32Array,
+  output: Float32Array
+): void {
   if (!reverseTable || !cosTable || !sinTable) return;
   const revTable = reverseTable!;
   const cosTab = cosTable!;
@@ -143,7 +151,11 @@ export function inverse(real: Float32Array, imag: Float32Array, output: Float32A
   }
 }
 
-export function getMagnitude(real: Float32Array, imag: Float32Array, magnitude: Float32Array): void {
+export function getMagnitude(
+  real: Float32Array,
+  imag: Float32Array,
+  magnitude: Float32Array
+): void {
   const halfSize = size >> 1;
   for (let i = 0; i < halfSize; i++) {
     const r = unchecked(real[i]);
@@ -156,7 +168,7 @@ export function getMagnitudeAndPhase(
   real: Float32Array,
   imag: Float32Array,
   magnitudes: Float32Array,
-  phases: Float32Array,
+  phases: Float32Array
 ): void {
   const halfSize = size >> 1;
   for (let i = 0; i < halfSize; i++) {
@@ -171,7 +183,7 @@ export function fromMagnitudeAndPhase(
   magnitudes: Float32Array,
   phases: Float32Array,
   real: Float32Array,
-  imag: Float32Array,
+  imag: Float32Array
 ): void {
   const n = size;
   const halfSize = magnitudes.length;
@@ -189,7 +201,10 @@ export function fromMagnitudeAndPhase(
   }
 }
 
-export function applyHannWindow(input: Float32Array, output: Float32Array): void {
+export function applyHannWindow(
+  input: Float32Array,
+  output: Float32Array
+): void {
   const n = input.length;
   const twoPi: f32 = 6.283185307179586;
   const nMinus1: f32 = <f32>(n - 1);

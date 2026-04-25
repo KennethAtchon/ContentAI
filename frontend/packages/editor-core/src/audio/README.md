@@ -2,6 +2,34 @@
 
 Audio graph construction, effects, analysis, beat detection, synthesis, volume automation, and realtime worklet processing.
 
+## What This Folder Owns
+
+This folder handles audio loading, realtime preview graphs, offline-ish processing helpers, analysis, effects, sound generation, and sound-library support. It gives playback/export code a consistent way to decode, schedule, mix, automate, and analyze audio assets.
+
+## How It Fits The Architecture
+
+- audio-engine.ts coordinates higher-level audio operations.
+- realtime-audio-graph.ts and realtime-processor.ts support preview-time graph processing.
+- effects-worklet-processor.ts is designed for AudioWorklet execution, so keep serialization boundaries in mind.
+- FFT, beat detection, and noise reduction are analysis/processing helpers that feed UI features and synchronization systems.
+- volume-automation.ts evaluates time-based gain changes for clips/tracks.
+
+## Typical Flow
+
+```mermaid
+sequenceDiagram
+  participant Playback as Playback/Export
+  participant Engine as AudioEngine
+  participant Graph as RealtimeAudioGraph
+  participant Worklet as EffectsWorkletProcessor
+  participant Analysis as FFT/Beat Detection
+  Playback->>Engine: load and schedule audio clips
+  Engine->>Graph: create nodes and connections
+  Graph->>Worklet: stream samples/effect params
+  Engine->>Analysis: analyze buffer when needed
+  Graph-->>Playback: mixed preview audio
+```
+
 ## Read Order
 
 1. `index.ts`
@@ -12,21 +40,27 @@ Audio graph construction, effects, analysis, beat detection, synthesis, volume a
 6. `audio-effects-engine.ts`
 7. `beat-detection-engine.ts`
 
-## Files
+## File Guide
 
-- `audio-effects-engine.ts` - applies audio effects and effect-chain processing.
-- `audio-engine.ts` - coordinates core audio loading, playback, decoding, and graph setup.
-- `beat-detection-engine.ts` - finds beats and rhythmic markers in decoded audio buffers.
-- `effects-worklet-processor.ts` - runs realtime audio effects inside an AudioWorklet processor.
-- `fft.ts` - performs frequency-domain analysis for audio features.
-- `index.ts` - barrel file that defines the public exports for this folder.
-- `noise-reduction.ts` - reduces background noise from audio buffers or streams.
-- `realtime-audio-graph.ts` - builds and controls the realtime Web Audio node graph.
-- `realtime-processor.ts` - processes realtime audio samples for preview and analysis.
-- `sound-generator.ts` - synthesizes generated tones, sweeps, or utility audio.
-- `sound-library-engine.ts` - manages reusable sound assets and sound-library lookup.
-- `types.ts` - folder-local type definitions and constants.
-- `volume-automation.ts` - evaluates volume keyframes and automation envelopes over time.
+- `audio-effects-engine.ts` - Effect-chain processing outside the worklet boundary.
+- `audio-engine.ts` - Top-level audio engine for loading, decoding, playback coordination, and graph setup.
+- `beat-detection-engine.ts` - Detects beats/rhythm markers from audio.
+- `effects-worklet-processor.ts` - AudioWorklet processor for low-latency effects.
+- `fft.ts` - Frequency-domain analysis helpers.
+- `index.ts` - Public audio API barrel.
+- `noise-reduction.ts` - Noise cleanup helpers.
+- `realtime-audio-graph.ts` - Builds the Web Audio graph used during preview.
+- `realtime-processor.ts` - Processes realtime sample streams.
+- `sound-generator.ts` - Creates synthetic utility sounds.
+- `sound-library-engine.ts` - Manages reusable sound assets.
+- `types.ts` - Audio-specific settings, effect, waveform, and processing contracts.
+- `volume-automation.ts` - Evaluates volume curves over time.
+
+## Important Contracts
+
+- Keep worklet message payloads serializable.
+- Do not let audio analysis mutate project state directly; return analysis data to callers.
+- Use shared audio types for effect parameters so preview and export stay aligned.
 
 ## Dependencies
 

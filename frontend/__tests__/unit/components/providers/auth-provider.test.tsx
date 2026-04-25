@@ -23,9 +23,9 @@ mock.module("firebase/auth", () => ({
   GoogleAuthProvider: class {},
 }));
 
-mock.module("@/shared/services/firebase/config", () => ({ auth: {} }));
+mock.module("@/shared/platform/firebase-services/config", () => ({ auth: {} }));
 
-import { AuthProvider, useAuth } from "@/shared/contexts/auth-context";
+import { AuthProvider, useAuth } from "@/app/state/auth-context";
 
 function TestConsumer() {
   const { user, authLoading } = useAuth();

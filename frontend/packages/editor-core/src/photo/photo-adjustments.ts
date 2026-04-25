@@ -20,7 +20,7 @@ export class PhotoAdjustmentEngine {
 
   createAdjustment<T extends AdjustmentType>(
     type: T,
-    params: AdjustmentParams[T],
+    params: AdjustmentParams[T]
   ): Effect {
     return {
       id: generateId(),
@@ -33,14 +33,14 @@ export class PhotoAdjustmentEngine {
   addAdjustmentToLayer(
     project: PhotoProject,
     layerId: string,
-    adjustment: Effect,
+    adjustment: Effect
   ): PhotoProject {
     return {
       ...project,
       layers: project.layers.map((layer) =>
         layer.id === layerId
           ? { ...layer, adjustments: [...layer.adjustments, adjustment] }
-          : layer,
+          : layer
       ),
     };
   }
@@ -48,7 +48,7 @@ export class PhotoAdjustmentEngine {
   removeAdjustmentFromLayer(
     project: PhotoProject,
     layerId: string,
-    adjustmentId: string,
+    adjustmentId: string
   ): PhotoProject {
     return {
       ...project,
@@ -57,10 +57,10 @@ export class PhotoAdjustmentEngine {
           ? {
               ...layer,
               adjustments: layer.adjustments.filter(
-                (a) => a.id !== adjustmentId,
+                (a) => a.id !== adjustmentId
               ),
             }
-          : layer,
+          : layer
       ),
     };
   }
@@ -69,7 +69,7 @@ export class PhotoAdjustmentEngine {
     project: PhotoProject,
     layerId: string,
     adjustmentId: string,
-    params: Record<string, unknown>,
+    params: Record<string, unknown>
   ): PhotoProject {
     return {
       ...project,
@@ -78,17 +78,17 @@ export class PhotoAdjustmentEngine {
           ? {
               ...layer,
               adjustments: layer.adjustments.map((a) =>
-                a.id === adjustmentId ? { ...a, params } : a,
+                a.id === adjustmentId ? { ...a, params } : a
               ),
             }
-          : layer,
+          : layer
       ),
     };
   }
 
   async applyBrightness(
     image: ImageBitmap,
-    value: number,
+    value: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
 
@@ -121,11 +121,11 @@ export class PhotoAdjustmentEngine {
       data[i] = Math.max(0, Math.min(255, (data[i] - 128) * factor + 128));
       data[i + 1] = Math.max(
         0,
-        Math.min(255, (data[i + 1] - 128) * factor + 128),
+        Math.min(255, (data[i + 1] - 128) * factor + 128)
       );
       data[i + 2] = Math.max(
         0,
-        Math.min(255, (data[i + 2] - 128) * factor + 128),
+        Math.min(255, (data[i + 2] - 128) * factor + 128)
       );
     }
 
@@ -135,7 +135,7 @@ export class PhotoAdjustmentEngine {
 
   async applySaturation(
     image: ImageBitmap,
-    value: number,
+    value: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
 
@@ -152,11 +152,11 @@ export class PhotoAdjustmentEngine {
       data[i] = Math.max(0, Math.min(255, luminance + (r - luminance) * value));
       data[i + 1] = Math.max(
         0,
-        Math.min(255, luminance + (g - luminance) * value),
+        Math.min(255, luminance + (g - luminance) * value)
       );
       data[i + 2] = Math.max(
         0,
-        Math.min(255, luminance + (b - luminance) * value),
+        Math.min(255, luminance + (b - luminance) * value)
       );
     }
 
@@ -166,7 +166,7 @@ export class PhotoAdjustmentEngine {
 
   async applyTemperature(
     image: ImageBitmap,
-    value: number,
+    value: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
 
@@ -204,7 +204,7 @@ export class PhotoAdjustmentEngine {
 
   async applyHighlights(
     image: ImageBitmap,
-    value: number,
+    value: number
   ): Promise<ImageBitmap> {
     const { ctx, canvas } = this.getCanvas(image.width, image.height);
 
@@ -221,15 +221,15 @@ export class PhotoAdjustmentEngine {
 
       data[i] = Math.max(
         0,
-        Math.min(255, data[i] + adjustment * highlightWeight),
+        Math.min(255, data[i] + adjustment * highlightWeight)
       );
       data[i + 1] = Math.max(
         0,
-        Math.min(255, data[i + 1] + adjustment * highlightWeight),
+        Math.min(255, data[i + 1] + adjustment * highlightWeight)
       );
       data[i + 2] = Math.max(
         0,
-        Math.min(255, data[i + 2] + adjustment * highlightWeight),
+        Math.min(255, data[i + 2] + adjustment * highlightWeight)
       );
     }
 
@@ -254,11 +254,11 @@ export class PhotoAdjustmentEngine {
       data[i] = Math.max(0, Math.min(255, data[i] + adjustment * shadowWeight));
       data[i + 1] = Math.max(
         0,
-        Math.min(255, data[i + 1] + adjustment * shadowWeight),
+        Math.min(255, data[i + 1] + adjustment * shadowWeight)
       );
       data[i + 2] = Math.max(
         0,
-        Math.min(255, data[i + 2] + adjustment * shadowWeight),
+        Math.min(255, data[i + 2] + adjustment * shadowWeight)
       );
     }
 
@@ -289,15 +289,15 @@ export class PhotoAdjustmentEngine {
 
       data[i] = Math.max(
         0,
-        Math.min(255, luminance + (r - luminance) * (1 + boost)),
+        Math.min(255, luminance + (r - luminance) * (1 + boost))
       );
       data[i + 1] = Math.max(
         0,
-        Math.min(255, luminance + (g - luminance) * (1 + boost)),
+        Math.min(255, luminance + (g - luminance) * (1 + boost))
       );
       data[i + 2] = Math.max(
         0,
-        Math.min(255, luminance + (b - luminance) * (1 + boost)),
+        Math.min(255, luminance + (b - luminance) * (1 + boost))
       );
     }
 
@@ -307,7 +307,7 @@ export class PhotoAdjustmentEngine {
 
   async applyAdjustments(
     image: ImageBitmap,
-    adjustments: Effect[],
+    adjustments: Effect[]
   ): Promise<ImageBitmap> {
     let result = image;
 
@@ -350,7 +350,7 @@ export class PhotoAdjustmentEngine {
 
   private getCanvas(
     width: number,
-    height: number,
+    height: number
   ): { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } {
     if (
       !this.canvas ||

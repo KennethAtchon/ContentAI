@@ -2,7 +2,7 @@
  * Config / mock – generateUserInitials and type re-exports.
  */
 import { describe, expect, test } from "bun:test";
-import { generateUserInitials } from "@/shared/utils/config/mock";
+import { generateUserInitials } from "@/shared/config/mock";
 
 describe("mock (config)", () => {
   describe("generateUserInitials", () => {

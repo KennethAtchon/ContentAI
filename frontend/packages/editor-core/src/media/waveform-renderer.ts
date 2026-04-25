@@ -90,10 +90,10 @@ export class WaveformRenderer {
     if (duration <= 0) return;
 
     const startSample = Math.floor(
-      options.startTime * waveformData.samplesPerSecond,
+      options.startTime * waveformData.samplesPerSecond
     );
     const endSample = Math.ceil(
-      options.endTime * waveformData.samplesPerSecond,
+      options.endTime * waveformData.samplesPerSecond
     );
     const sampleCount = endSample - startSample;
 
@@ -114,7 +114,7 @@ export class WaveformRenderer {
         options.width,
         centerY,
         halfHeight,
-        style,
+        style
       );
     } else {
       // Low zoom: aggregate samples per pixel
@@ -126,7 +126,7 @@ export class WaveformRenderer {
         centerY,
         halfHeight,
         samplesPerPixel,
-        style,
+        style
       );
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -139,7 +139,7 @@ export class WaveformRenderer {
     width: number,
     centerY: number,
     halfHeight: number,
-    style: Required<WaveformStyle>,
+    style: Required<WaveformStyle>
   ): void {
     if (!this.ctx) return;
 
@@ -207,7 +207,7 @@ export class WaveformRenderer {
     centerY: number,
     halfHeight: number,
     samplesPerPixel: number,
-    style: Required<WaveformStyle>,
+    style: Required<WaveformStyle>
   ): void {
     if (!this.ctx) return;
 
@@ -220,7 +220,7 @@ export class WaveformRenderer {
       const sampleStart = startSample + Math.floor(x * samplesPerPixel);
       const sampleEnd = Math.min(
         startSample + Math.floor((x + 1) * samplesPerPixel),
-        waveformData.peaks.length,
+        waveformData.peaks.length
       );
 
       let maxPeak = 0;
@@ -240,7 +240,7 @@ export class WaveformRenderer {
         const sampleStart = startSample + Math.floor(x * samplesPerPixel);
         const sampleEnd = Math.min(
           startSample + Math.floor((x + 1) * samplesPerPixel),
-          waveformData.peaks.length,
+          waveformData.peaks.length
         );
 
         let maxPeak = 0;
@@ -271,7 +271,7 @@ export class WaveformRenderer {
         const sampleStart = startSample + Math.floor(x * samplesPerPixel);
         const sampleEnd = Math.min(
           startSample + Math.floor((x + 1) * samplesPerPixel),
-          waveformData.rms.length,
+          waveformData.rms.length
         );
 
         let sumSquares = 0;
@@ -294,7 +294,7 @@ export class WaveformRenderer {
           const sampleStart = startSample + Math.floor(x * samplesPerPixel);
           const sampleEnd = Math.min(
             startSample + Math.floor((x + 1) * samplesPerPixel),
-            waveformData.rms.length,
+            waveformData.rms.length
           );
 
           let sumSquares = 0;
@@ -322,14 +322,14 @@ export class WaveformRenderer {
 
   renderMultiResolution(
     multiRes: MultiResolutionWaveform,
-    options: WaveformRenderOptions,
+    options: WaveformRenderOptions
   ): void {
     const duration = options.endTime - options.startTime;
     const pixelsPerSecond = options.width / duration;
     const generator = getWaveformGenerator();
     const waveformData = generator.getWaveformForZoomLevel(
       multiRes,
-      pixelsPerSecond,
+      pixelsPerSecond
     );
 
     if (!waveformData) {
@@ -347,7 +347,7 @@ export class WaveformRenderer {
   getAmplitudeAtPosition(
     waveformData: WaveformData,
     x: number,
-    options: WaveformRenderOptions,
+    options: WaveformRenderOptions
   ): AmplitudeInfo | null {
     const duration = options.endTime - options.startTime;
     const timePerPixel = duration / options.width;
@@ -381,7 +381,7 @@ export class WaveformRenderer {
 
     // For OffscreenCanvas, we need to convert differently
     throw new Error(
-      "toDataURL not supported for OffscreenCanvas. Use toBlob() instead.",
+      "toDataURL not supported for OffscreenCanvas. Use toBlob() instead."
     );
   }
 
@@ -404,7 +404,7 @@ export class WaveformRenderer {
           }
         },
         type,
-        quality,
+        quality
       );
     });
   }
@@ -431,7 +431,7 @@ export function createWaveformImage(
   waveformData: WaveformData,
   width: number,
   height: number,
-  style?: WaveformStyle,
+  style?: WaveformStyle
 ): OffscreenCanvas {
   const canvas = new OffscreenCanvas(width, height);
   const renderer = new WaveformRenderer();
@@ -452,7 +452,7 @@ export function createClipWaveformThumbnail(
   clipDuration: number,
   width: number,
   height: number,
-  style?: WaveformStyle,
+  style?: WaveformStyle
 ): OffscreenCanvas {
   const canvas = new OffscreenCanvas(width, height);
   const renderer = new WaveformRenderer();

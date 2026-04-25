@@ -71,14 +71,14 @@ export class ExportEngine {
       throw new Error(
         `ExportEngine initialization failed: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`,
+        }`
       );
     }
   }
 
   async initializeGPUForExport(
     width: number,
-    height: number,
+    height: number
   ): Promise<boolean> {
     if (!this.initialized || !this.videoEngine) {
       await this.initialize();
@@ -100,7 +100,7 @@ export class ExportEngine {
       throw new Error(
         `ExportEngine initialization failed: ${
           error instanceof Error ? error.message : "Unknown error"
-        }`,
+        }`
       );
     }
   }
@@ -129,13 +129,13 @@ export class ExportEngine {
   private async findSupportedAudioCodec(
     outputFormat: { getSupportedAudioCodecs: () => any[] },
     audioSettings: AudioExportSettings,
-    getFirstEncodableAudioCodec: (codecs: any[]) => Promise<string | null>,
+    getFirstEncodableAudioCodec: (codecs: any[]) => Promise<string | null>
   ): Promise<{ codec: string; bitrate: number }> {
     const supportedCodecs = outputFormat.getSupportedAudioCodecs();
     const requestedBitrate = audioSettings.bitrate * 1000;
 
     const bitrateFallbacks = [requestedBitrate, 192000, 128000, 96000].filter(
-      (b, i, arr) => arr.indexOf(b) === i,
+      (b, i, arr) => arr.indexOf(b) === i
     );
 
     for (const bitrate of bitrateFallbacks) {
@@ -145,7 +145,7 @@ export class ExportEngine {
           codec,
           bitrate,
           audioSettings.channels,
-          audioSettings.sampleRate,
+          audioSettings.sampleRate
         );
         if (isSupported) {
           return { codec, bitrate };
@@ -155,9 +155,11 @@ export class ExportEngine {
 
     for (const fallbackCodec of ["aac", "mp3", "opus"]) {
       if (
-        supportedCodecs.some((c: string) =>
-          String(c).toLowerCase().includes(fallbackCodec) ||
-          (fallbackCodec === "aac" && String(c).toLowerCase().includes("mp4a")),
+        supportedCodecs.some(
+          (c: string) =>
+            String(c).toLowerCase().includes(fallbackCodec) ||
+            (fallbackCodec === "aac" &&
+              String(c).toLowerCase().includes("mp4a"))
         )
       ) {
         for (const bitrate of bitrateFallbacks) {
@@ -165,7 +167,7 @@ export class ExportEngine {
             fallbackCodec,
             bitrate,
             audioSettings.channels,
-            audioSettings.sampleRate,
+            audioSettings.sampleRate
           );
           if (isSupported) {
             return { codec: fallbackCodec, bitrate };
@@ -185,7 +187,7 @@ export class ExportEngine {
     codec: string,
     bitrate: number,
     channels: number,
-    sampleRate: number,
+    sampleRate: number
   ): Promise<boolean> {
     if (typeof AudioEncoder === "undefined") {
       return true;
@@ -220,7 +222,7 @@ export class ExportEngine {
   async *exportVideo(
     project: Project,
     settings: Partial<VideoExportSettings> = {},
-    writableStream?: FileSystemWritableFileStream,
+    writableStream?: FileSystemWritableFileStream
   ): AsyncGenerator<ExportProgress, ExportResult> {
     this.ensureInitialized();
 
@@ -266,9 +268,13 @@ export class ExportEngine {
       maxH = Math.min(maxH, 1080);
     }
     if (fullSettings.width > maxW || fullSettings.height > maxH) {
-      const scale = Math.min(maxW / fullSettings.width, maxH / fullSettings.height, 1);
-      fullSettings.width = Math.round(fullSettings.width * scale / 2) * 2;
-      fullSettings.height = Math.round(fullSettings.height * scale / 2) * 2;
+      const scale = Math.min(
+        maxW / fullSettings.width,
+        maxH / fullSettings.height,
+        1
+      );
+      fullSettings.width = Math.round((fullSettings.width * scale) / 2) * 2;
+      fullSettings.height = Math.round((fullSettings.height * scale) / 2) * 2;
     }
     if (isLongVideo && fullSettings.frameRate > 30) {
       fullSettings.frameRate = 30;
@@ -277,10 +283,7 @@ export class ExportEngine {
     this.abortController = new AbortController();
     this.currentExport = { startTime: Date.now(), framesRendered: 0 };
 
-    await this.initializeGPUForExport(
-      fullSettings.width,
-      fullSettings.height,
-    );
+    await this.initializeGPUForExport(fullSettings.width, fullSettings.height);
 
     this.videoEngine?.resetExportState();
 
@@ -290,7 +293,7 @@ export class ExportEngine {
         error: this.createError(
           "MUXER_ERROR",
           "Timeline is empty. Add clips before exporting.",
-          "preparing",
+          "preparing"
         ),
       };
     }
@@ -301,7 +304,7 @@ export class ExportEngine {
         error: this.createError(
           "MUXER_ERROR",
           "No writable stream provided. Export requires a file destination.",
-          "preparing",
+          "preparing"
         ),
       };
     }
@@ -327,11 +330,14 @@ export class ExportEngine {
       } = this.mediabunny!;
 
       const diskWriter = writableStream;
-      const chunkWriter = new WritableStream<{ data: Uint8Array; position: number }>({
+      const chunkWriter = new WritableStream<{
+        data: Uint8Array;
+        position: number;
+      }>({
         async write(chunk) {
           const buf = chunk.data.buffer.slice(
             chunk.data.byteOffset,
-            chunk.data.byteOffset + chunk.data.byteLength,
+            chunk.data.byteOffset + chunk.data.byteLength
           ) as ArrayBuffer;
           await diskWriter.seek(chunk.position);
           await diskWriter.write(buf);
@@ -361,26 +367,28 @@ export class ExportEngine {
 
       const videoCodec = await getFirstEncodableVideoCodec(
         outputFormat.getSupportedVideoCodecs(),
-        { width: fullSettings.width, height: fullSettings.height },
+        { width: fullSettings.width, height: fullSettings.height }
       );
 
       if (!videoCodec) {
         throw this.createError(
           "UNSUPPORTED_CODEC",
           "No supported video codec found",
-          "preparing",
+          "preparing"
         );
       }
 
       const audioCodecResult = await this.findSupportedAudioCodec(
         outputFormat,
         fullSettings.audioSettings,
-        getFirstEncodableAudioCodec,
+        getFirstEncodableAudioCodec
       );
 
       const videoSource = new VideoSampleSource({
         codec: videoCodec,
-        bitrate: fullSettings.bitrate ? fullSettings.bitrate * 1000 : QUALITY_MEDIUM,
+        bitrate: fullSettings.bitrate
+          ? fullSettings.bitrate * 1000
+          : QUALITY_MEDIUM,
         keyFrameInterval:
           fullSettings.keyframeInterval / fullSettings.frameRate,
         hardwareAcceleration: "prefer-software",
@@ -411,7 +419,7 @@ export class ExportEngine {
         if (track.type !== "video") continue;
         for (const clip of track.clips) {
           const mediaItem = project.mediaLibrary.items.find(
-            (m) => m.id === clip.mediaId,
+            (m) => m.id === clip.mediaId
           );
           if (mediaItem?.blob && !videoMediaIds.includes(mediaItem.id)) {
             videoMediaIds.push(mediaItem.id);
@@ -419,7 +427,7 @@ export class ExportEngine {
               await mediaEngine.createExportDecoder(
                 mediaItem.id,
                 mediaItem.blob,
-                fullSettings.width,
+                fullSettings.width
               );
             } catch {}
           }
@@ -431,7 +439,7 @@ export class ExportEngine {
           throw this.createError(
             "CANCELLED",
             "Export cancelled by user",
-            "rendering",
+            "rendering"
           );
         }
 
@@ -440,7 +448,7 @@ export class ExportEngine {
           project,
           time,
           fullSettings.width,
-          fullSettings.height,
+          fullSettings.height
         );
         const shouldUpscale = this.shouldApplyUpscaling(project, fullSettings);
         let frameImage = rendered.image;
@@ -450,7 +458,7 @@ export class ExportEngine {
             frameImage,
             fullSettings.width,
             fullSettings.height,
-            fullSettings.upscaling!,
+            fullSettings.upscaling!
           );
           frameImage.close();
           frameImage = upscaled;
@@ -481,7 +489,7 @@ export class ExportEngine {
           (frame + 1) / totalFrames,
           totalFrames,
           frame + 1,
-          bytesWritten,
+          bytesWritten
         );
       }
 
@@ -496,7 +504,7 @@ export class ExportEngine {
         0.98,
         totalFrames,
         totalFrames,
-        bytesWritten,
+        bytesWritten
       );
 
       await output.finalize();
@@ -507,7 +515,7 @@ export class ExportEngine {
         1,
         totalFrames,
         totalFrames,
-        bytesWritten,
+        bytesWritten
       );
 
       return {
@@ -515,7 +523,9 @@ export class ExportEngine {
         stats: this.calculateStats(totalFrames, bytesWritten),
       };
     } catch (error) {
-      try { await writableStream.abort(); } catch {}
+      try {
+        await writableStream.abort();
+      } catch {}
       if (error && typeof error === "object" && "code" in error) {
         return { success: false, error: error as ExportError };
       }
@@ -524,7 +534,7 @@ export class ExportEngine {
         error: this.createError(
           "FRAME_ENCODE_FAILED",
           error instanceof Error ? error.message : "Unknown error",
-          "rendering",
+          "rendering"
         ),
       };
     } finally {
@@ -549,7 +559,7 @@ export class ExportEngine {
 
   async *exportAudio(
     project: Project,
-    settings: Partial<AudioExportSettings> = {},
+    settings: Partial<AudioExportSettings> = {}
   ): AsyncGenerator<ExportProgress, ExportResult> {
     this.ensureInitialized();
 
@@ -564,7 +574,7 @@ export class ExportEngine {
         error: this.createError(
           "UNSUPPORTED_CODEC",
           `Audio export to ${fullSettings.format} format requires MediaBunny. WAV format is available as a fallback.`,
-          "preparing",
+          "preparing"
         ),
       };
     }
@@ -581,7 +591,7 @@ export class ExportEngine {
         error: this.createError(
           "AUDIO_ENCODE_FAILED",
           "Timeline is empty. Add clips before exporting.",
-          "preparing",
+          "preparing"
         ),
       };
     }
@@ -594,7 +604,7 @@ export class ExportEngine {
         throw this.createError(
           "AUDIO_ENCODE_FAILED",
           "No audio to export",
-          "rendering",
+          "rendering"
         );
       }
 
@@ -632,7 +642,7 @@ export class ExportEngine {
         error: this.createError(
           "AUDIO_ENCODE_FAILED",
           error instanceof Error ? error.message : "Unknown error",
-          "encoding",
+          "encoding"
         ),
       };
     } finally {
@@ -644,7 +654,7 @@ export class ExportEngine {
   async exportFrame(
     project: Project,
     time: number,
-    settings: Partial<ImageExportSettings> = {},
+    settings: Partial<ImageExportSettings> = {}
   ): Promise<ExportResult> {
     this.ensureInitialized();
 
@@ -660,7 +670,7 @@ export class ExportEngine {
         project,
         time,
         fullSettings.width,
-        fullSettings.height,
+        fullSettings.height
       );
 
       // Scale if needed (fallback in case render didn't match)
@@ -677,7 +687,7 @@ export class ExportEngine {
             0,
             0,
             fullSettings.width,
-            fullSettings.height,
+            fullSettings.height
           );
         }
         renderedFrame.image.close();
@@ -712,7 +722,7 @@ export class ExportEngine {
         error: this.createError(
           "FRAME_ENCODE_FAILED",
           error instanceof Error ? error.message : "Unknown error",
-          "rendering",
+          "rendering"
         ),
       };
     }
@@ -720,14 +730,14 @@ export class ExportEngine {
 
   async exportImage(
     project: Project,
-    settings: Partial<ImageExportSettings> = {},
+    settings: Partial<ImageExportSettings> = {}
   ): Promise<ExportResult> {
     return this.exportFrame(project, 0, settings);
   }
 
   async *exportImageSequence(
     project: Project,
-    settings: Partial<SequenceExportSettings> = {},
+    settings: Partial<SequenceExportSettings> = {}
   ): AsyncGenerator<ExportProgress, ExportResult> {
     this.ensureInitialized();
 
@@ -759,7 +769,7 @@ export class ExportEngine {
           throw this.createError(
             "CANCELLED",
             "Export cancelled by user",
-            "rendering",
+            "rendering"
           );
         }
 
@@ -778,7 +788,7 @@ export class ExportEngine {
           (i + 1) / framesToExport,
           framesToExport,
           i + 1,
-          blobs.reduce((sum, b) => sum + b.size, 0),
+          blobs.reduce((sum, b) => sum + b.size, 0)
         );
       }
 
@@ -787,7 +797,7 @@ export class ExportEngine {
         1,
         framesToExport,
         framesToExport,
-        0,
+        0
       );
 
       const totalSize = blobs.reduce((sum, b) => sum + b.size, 0);
@@ -806,7 +816,7 @@ export class ExportEngine {
         error: this.createError(
           "FRAME_ENCODE_FAILED",
           error instanceof Error ? error.message : "Unknown error",
-          "rendering",
+          "rendering"
         ),
       };
     } finally {
@@ -1001,7 +1011,7 @@ export class ExportEngine {
 
   createPreset(
     name: string,
-    settings: VideoExportSettings | AudioExportSettings | ImageExportSettings,
+    settings: VideoExportSettings | AudioExportSettings | ImageExportSettings
   ): ExportPreset {
     return {
       id: `custom-${Date.now()}`,
@@ -1014,7 +1024,7 @@ export class ExportEngine {
 
   estimateFileSize(
     project: Project,
-    settings: VideoExportSettings | AudioExportSettings,
+    settings: VideoExportSettings | AudioExportSettings
   ): number {
     const duration = project.timeline.duration;
 
@@ -1028,7 +1038,7 @@ export class ExportEngine {
           duration *
             settings.sampleRate *
             settings.channels *
-            (settings.bitDepth / 8),
+            (settings.bitDepth / 8)
         );
       }
       return Math.ceil((settings.bitrate * 1000 * duration) / 8);
@@ -1037,7 +1047,7 @@ export class ExportEngine {
 
   estimateExportTime(
     project: Project,
-    settings: VideoExportSettings | AudioExportSettings,
+    settings: VideoExportSettings | AudioExportSettings
   ): number {
     const duration = project.timeline.duration;
 
@@ -1055,7 +1065,7 @@ export class ExportEngine {
   private async renderTimelineAudio(
     project: Project,
     startTime: number = 0,
-    duration?: number,
+    duration?: number
   ): Promise<AudioBuffer | null> {
     const { timeline } = project;
 
@@ -1063,7 +1073,7 @@ export class ExportEngine {
       (track) =>
         (track.type === "audio" || track.type === "video") &&
         !track.muted &&
-        track.clips.length > 0,
+        track.clips.length > 0
     );
 
     if (!hasAudio) {
@@ -1077,7 +1087,7 @@ export class ExportEngine {
 
     const renderDuration = Math.max(
       0,
-      Math.min(duration ?? timelineDuration, timelineDuration - startTime),
+      Math.min(duration ?? timelineDuration, timelineDuration - startTime)
     );
     if (renderDuration <= 0) {
       return null;
@@ -1086,7 +1096,7 @@ export class ExportEngine {
     const rendered = await this.audioEngine!.renderAudio(
       project,
       startTime,
-      renderDuration,
+      renderDuration
     );
 
     return rendered.buffer;
@@ -1094,7 +1104,7 @@ export class ExportEngine {
 
   private async encodeTimelineAudioToSource(
     project: Project,
-    audioSource: InstanceType<typeof import("mediabunny").AudioBufferSource>,
+    audioSource: InstanceType<typeof import("mediabunny").AudioBufferSource>
   ): Promise<void> {
     const timelineDuration = this.calculateTimelineDuration(project.timeline);
     if (timelineDuration <= 0) {
@@ -1112,18 +1122,18 @@ export class ExportEngine {
         throw this.createError(
           "CANCELLED",
           "Export cancelled by user",
-          "encoding",
+          "encoding"
         );
       }
 
       const currentChunkDuration = Math.min(
         chunkDuration,
-        timelineDuration - startTime,
+        timelineDuration - startTime
       );
       const audioBuffer = await this.renderTimelineAudio(
         project,
         startTime,
-        currentChunkDuration,
+        currentChunkDuration
       );
 
       if (!audioBuffer) {
@@ -1140,7 +1150,7 @@ export class ExportEngine {
 
   private async encodeAudioWithMediaBunny(
     buffer: AudioBuffer,
-    settings: AudioExportSettings,
+    settings: AudioExportSettings
   ): Promise<Blob> {
     const {
       Output,
@@ -1166,7 +1176,7 @@ export class ExportEngine {
     const output = new Output({ format: outputFormat, target });
 
     const audioCodec = await getFirstEncodableAudioCodec(
-      outputFormat.getSupportedAudioCodecs(),
+      outputFormat.getSupportedAudioCodecs()
     );
 
     const audioSource = new AudioSampleSource({
@@ -1198,7 +1208,7 @@ export class ExportEngine {
   private encodeWav(buffer: AudioBuffer, settings: AudioExportSettings): Blob {
     const numberOfChannels = Math.min(
       buffer.numberOfChannels,
-      settings.channels,
+      settings.channels
     );
     const sampleRate = settings.sampleRate;
     const bitDepth = settings.bitDepth;
@@ -1216,7 +1226,7 @@ export class ExportEngine {
     const wavData = encoder.encodeFullWav(
       samples,
       sampleRate,
-      bitDepth as 16 | 24,
+      bitDepth as 16 | 24
     );
 
     return new Blob([wavData.buffer as ArrayBuffer], { type: "audio/wav" });
@@ -1225,7 +1235,7 @@ export class ExportEngine {
   private encodeWav32Float(
     buffer: AudioBuffer,
     numberOfChannels: number,
-    sampleRate: number,
+    sampleRate: number
   ): Blob {
     const bitDepth = 32;
     const bytesPerSample = 4;
@@ -1303,7 +1313,7 @@ export class ExportEngine {
     progress: number,
     totalFrames: number,
     currentFrame: number,
-    bytesWritten: number,
+    bytesWritten: number
   ): ExportProgress {
     const elapsed = this.currentExport
       ? (Date.now() - this.currentExport.startTime) / 1000
@@ -1327,7 +1337,7 @@ export class ExportEngine {
   private createError(
     code: ExportError["code"],
     message: string,
-    phase: ExportProgress["phase"],
+    phase: ExportProgress["phase"]
   ): ExportError {
     return {
       code,
@@ -1403,7 +1413,7 @@ export class ExportEngine {
 
   private shouldApplyUpscaling(
     project: Project,
-    settings: VideoExportSettings,
+    settings: VideoExportSettings
   ): boolean {
     if (!settings.upscaling?.enabled) {
       return false;

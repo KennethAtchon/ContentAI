@@ -184,7 +184,7 @@ export function createEffectsWorkletUrl(): string {
 }
 
 export async function loadEffectsWorklet(
-  audioContext: AudioContext,
+  audioContext: AudioContext
 ): Promise<void> {
   const workletUrl = createEffectsWorkletUrl();
   try {
@@ -196,7 +196,7 @@ export async function loadEffectsWorklet(
 
 export function createEffectsWorkletNode(
   audioContext: AudioContext,
-  params?: Partial<EffectWorkletParams>,
+  params?: Partial<EffectWorkletParams>
 ): AudioWorkletNode {
   const node = new AudioWorkletNode(audioContext, EFFECTS_WORKLET_NAME);
 
@@ -209,7 +209,7 @@ export function createEffectsWorkletNode(
 
 export function updateEffectsWorkletParams(
   node: AudioWorkletNode,
-  params: Partial<EffectWorkletParams>,
+  params: Partial<EffectWorkletParams>
 ): void {
   node.port.postMessage({ type: "updateParams", params });
 }

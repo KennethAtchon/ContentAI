@@ -11,11 +11,11 @@ import { RouterProvider } from "@tanstack/react-router";
 import { I18nextProvider } from "react-i18next";
 import { router } from "./router";
 import { appQueryClient } from "./app-query-client";
-import i18n from "@/shared/lib/i18n";
-import { AppProvider } from "@/shared/contexts/app-context";
+import i18n from "@/app/i18n/i18n";
+import { AppProvider } from "@/app/state/app-context";
 
 // Initialize Sentry for error tracking
-import { initializeSentry } from "@/shared/services/monitoring/sentry";
+import { initializeSentry } from "@/shared/observability/sentry";
 initializeSentry();
 
 import "./styles/globals.css";

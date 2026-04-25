@@ -64,7 +64,7 @@ export class TranscriptionService {
   async transcribeClip(
     clip: Clip,
     mediaItem: MediaItem,
-    onProgress?: (progress: WhisperTranscriptionProgress) => void,
+    onProgress?: (progress: WhisperTranscriptionProgress) => void
   ): Promise<Subtitle[]> {
     try {
       onProgress?.({
@@ -111,7 +111,7 @@ export class TranscriptionService {
 
   private async extractAudioFromClip(
     clip: Clip,
-    mediaItem: MediaItem,
+    mediaItem: MediaItem
   ): Promise<Blob> {
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
@@ -145,7 +145,7 @@ export class TranscriptionService {
     const trimmedBuffer = offlineContext.createBuffer(
       1,
       numSamples,
-      sampleRate,
+      sampleRate
     );
     const channelData = trimmedBuffer.getChannelData(0);
     const sourceData = audioBuffer.getChannelData(0);
@@ -212,7 +212,7 @@ export class TranscriptionService {
 
   private async sendToWhisper(
     audioBlob: Blob,
-    onProgress?: (progress: WhisperTranscriptionProgress) => void,
+    onProgress?: (progress: WhisperTranscriptionProgress) => void
   ): Promise<CloudflareWhisperResponse> {
     const formData = new FormData();
     formData.append("audio", audioBlob, "audio.wav");
@@ -231,12 +231,12 @@ export class TranscriptionService {
     if (!response.ok) {
       if (response.status === 429) {
         throw new Error(
-          "Rate limit reached. Please wait a minute before transcribing more audio. This free service is limited to 10 requests per minute.",
+          "Rate limit reached. Please wait a minute before transcribing more audio. This free service is limited to 10 requests per minute."
         );
       }
       const errorText = await response.text();
       throw new Error(
-        `Transcription failed: ${response.status} - ${errorText}`,
+        `Transcription failed: ${response.status} - ${errorText}`
       );
     }
 
@@ -245,7 +245,7 @@ export class TranscriptionService {
 
   private convertToSubtitles(
     response: CloudflareWhisperResponse,
-    clip: Clip,
+    clip: Clip
   ): Subtitle[] {
     if (!response.words || response.words.length === 0) {
       if (!response.text) return [];
@@ -268,7 +268,7 @@ export class TranscriptionService {
 
   private groupWordsIntoSubtitles(
     words: CloudflareWhisperWord[],
-    clipStartTime: number,
+    clipStartTime: number
   ): Subtitle[] {
     const subtitles: Subtitle[] = [];
     const maxWords = this.config.maxWordsPerSegment || 10;
@@ -291,7 +291,7 @@ export class TranscriptionService {
         currentWords.length > 0
       ) {
         subtitles.push(
-          this.createSubtitleFromWords(currentWords, clipStartTime),
+          this.createSubtitleFromWords(currentWords, clipStartTime)
         );
         currentWords = [word];
         groupStart = word.start;
@@ -300,7 +300,7 @@ export class TranscriptionService {
 
         if (isPunctuation && currentWords.length >= 3) {
           subtitles.push(
-            this.createSubtitleFromWords(currentWords, clipStartTime),
+            this.createSubtitleFromWords(currentWords, clipStartTime)
           );
           currentWords = [];
         }
@@ -316,7 +316,7 @@ export class TranscriptionService {
 
   private createSubtitleFromWords(
     words: CloudflareWhisperWord[],
-    clipStartTime: number,
+    clipStartTime: number
   ): Subtitle {
     const text = words
       .map((w) => w.word)
@@ -359,7 +359,7 @@ export function getTranscriptionService(): TranscriptionService | null {
 }
 
 export function initializeTranscriptionService(
-  config: TranscriptionConfig,
+  config: TranscriptionConfig
 ): TranscriptionService {
   if (transcriptionServiceInstance) {
     transcriptionServiceInstance.dispose();

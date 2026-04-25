@@ -11,7 +11,7 @@ import {
   generateWebsiteSchema,
   generateBreadcrumbSchema,
   DEFAULT_BUSINESS_INFO,
-} from "@/shared/services/seo/structured-data";
+} from "@/shared/seo/structured-data";
 
 describe("structured-data", () => {
   const sampleBusiness = {

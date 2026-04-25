@@ -239,7 +239,7 @@ export class StickerLibrary {
 
   getStickersByCategory(categoryId: string): StickerItem[] {
     return Array.from(this.stickers.values()).filter(
-      (s) => s.category === categoryId,
+      (s) => s.category === categoryId
     );
   }
 
@@ -248,7 +248,7 @@ export class StickerLibrary {
     return Array.from(this.stickers.values()).filter(
       (s) =>
         s.name.toLowerCase().includes(lowerQuery) ||
-        s.tags?.some((t) => t.toLowerCase().includes(lowerQuery)),
+        s.tags?.some((t) => t.toLowerCase().includes(lowerQuery))
     );
   }
 
@@ -280,7 +280,7 @@ export class StickerLibrary {
   searchEmojis(query: string): EmojiItem[] {
     const lowerQuery = query.toLowerCase();
     return this.getAllEmojis().filter((e) =>
-      e.name.toLowerCase().includes(lowerQuery),
+      e.name.toLowerCase().includes(lowerQuery)
     );
   }
 
@@ -292,7 +292,7 @@ export class StickerLibrary {
     sticker: StickerItem,
     trackId: string,
     startTime: number,
-    duration: number,
+    duration: number
   ): StickerClip {
     return {
       id: `sticker_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
@@ -312,7 +312,7 @@ export class StickerLibrary {
     emoji: EmojiItem,
     trackId: string,
     startTime: number,
-    duration: number,
+    duration: number
   ): StickerClip {
     const imageUrl = this.emojiToDataUrl(emoji.emoji);
 
@@ -358,7 +358,7 @@ export class StickerLibrary {
     file: File,
     name: string,
     category: string = "custom",
-    tags?: string[],
+    tags?: string[]
   ): Promise<StickerItem> {
     const imageUrl = await this.fileToDataUrl(file);
 

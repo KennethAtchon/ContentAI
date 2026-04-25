@@ -9,7 +9,7 @@
 export function encodeWav16Mono(
   samples: Float32Array,
   output: Uint8Array,
-  dataOffset: i32,
+  dataOffset: i32
 ): void {
   const numSamples = samples.length;
 
@@ -29,7 +29,7 @@ export function encodeWav16Stereo(
   left: Float32Array,
   right: Float32Array,
   output: Uint8Array,
-  dataOffset: i32,
+  dataOffset: i32
 ): void {
   const numSamples = left.length;
 
@@ -56,7 +56,7 @@ export function encodeWav24Stereo(
   left: Float32Array,
   right: Float32Array,
   output: Uint8Array,
-  dataOffset: i32,
+  dataOffset: i32
 ): void {
   const numSamples = left.length;
   const maxVal: f32 = 8388607.0;
@@ -87,7 +87,7 @@ export function writeWavHeader(
   numChannels: i32,
   sampleRate: i32,
   bitsPerSample: i32,
-  numSamples: i32,
+  numSamples: i32
 ): void {
   const bytesPerSample = bitsPerSample >> 3;
   const blockAlign = numChannels * bytesPerSample;

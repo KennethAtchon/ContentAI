@@ -8,16 +8,16 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
-import { Switch } from "@/shared/components/ui/switch";
+import { Button } from "@/shared/ui/primitives/button";
+import { Switch } from "@/shared/ui/primitives/switch";
 import {
   useNiches,
   useCreateNiche,
   useUpdateNiche,
   useDeleteNiche,
   type AdminNiche,
-} from "@/features/admin/hooks/use-niches";
-import { cn } from "@/shared/utils/helpers/utils";
+} from "@/domains/admin/hooks/use-niches";
+import { cn } from "@/shared/lib/utils";
 
 export const Route = createFileRoute("/admin/_layout/niches/")({
   head: () => ({ meta: [{ title: "Niches — Admin" }] }),

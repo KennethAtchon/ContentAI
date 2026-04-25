@@ -97,7 +97,7 @@ export class Canvas2DFallbackRenderer implements Renderer {
         drawY,
         image.width,
         image.height,
-        borderRadius,
+        borderRadius
       );
       ctx.clip();
     }
@@ -114,7 +114,7 @@ export class Canvas2DFallbackRenderer implements Renderer {
     y: number,
     width: number,
     height: number,
-    radius: number,
+    radius: number
   ): void {
     const r = Math.min(radius, width / 2, height / 2);
     ctx.moveTo(x + r, y);
@@ -140,7 +140,7 @@ export class Canvas2DFallbackRenderer implements Renderer {
 
   applyEffects(
     texture: GPUTexture | ImageBitmap,
-    _effects: Effect[],
+    _effects: Effect[]
   ): GPUTexture | ImageBitmap {
     // Canvas2D has limited effect support
     // For now, just return the texture unchanged

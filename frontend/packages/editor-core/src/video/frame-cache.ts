@@ -27,7 +27,7 @@ export class FrameCache {
   static getCacheKey(
     mediaId: string,
     time: number,
-    frameRate: number = 30,
+    frameRate: number = 30
   ): string {
     // Round time to nearest frame
     const frameTime = Math.round(time * frameRate) / frameRate;
@@ -134,16 +134,16 @@ export class FrameCache {
     mediaId: string,
     currentTime: number,
     duration: number,
-    frameRate: number,
+    frameRate: number
   ): { startTime: number; endTime: number; missingFrames: number[] } {
     const frameDuration = 1 / frameRate;
     const startTime = Math.max(
       0,
-      currentTime - this.config.preloadBehind * frameDuration,
+      currentTime - this.config.preloadBehind * frameDuration
     );
     const endTime = Math.min(
       duration,
-      currentTime + this.config.preloadAhead * frameDuration,
+      currentTime + this.config.preloadAhead * frameDuration
     );
 
     const missingFrames: number[] = [];
@@ -166,12 +166,12 @@ export class FrameCache {
       const forwardKey = FrameCache.getCacheKey(
         mediaId,
         time + offset * frameDuration,
-        frameRate,
+        frameRate
       );
       const backwardKey = FrameCache.getCacheKey(
         mediaId,
         time - offset * frameDuration,
-        frameRate,
+        frameRate
       );
 
       const forwardEntry = this.cache.get(forwardKey);

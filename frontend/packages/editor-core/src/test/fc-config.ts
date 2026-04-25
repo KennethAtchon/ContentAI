@@ -20,7 +20,7 @@ export const fcConfig = defaultFcParams;
 export function runProperty<T>(
   arbitrary: fc.Arbitrary<T>,
   predicate: (value: T) => boolean | void,
-  params: fc.Parameters<[T]> = {},
+  params: fc.Parameters<[T]> = {}
 ): void {
   fc.assert(fc.property(arbitrary, predicate), {
     ...defaultFcParams,
@@ -31,7 +31,7 @@ export function runProperty<T>(
 export async function runAsyncProperty<T>(
   arbitrary: fc.Arbitrary<T>,
   predicate: (value: T) => Promise<boolean | void>,
-  params: fc.Parameters<[T]> = {},
+  params: fc.Parameters<[T]> = {}
 ): Promise<void> {
   await fc.assert(fc.asyncProperty(arbitrary, predicate), {
     ...defaultFcParams,

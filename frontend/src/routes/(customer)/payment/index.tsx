@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -9,16 +9,16 @@ import {
   CreditCard,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
-import { Badge } from "@/shared/components/ui/badge";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { Button } from "@/shared/ui/primitives/button";
+import { Badge } from "@/shared/ui/primitives/badge";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
+} from "@/shared/ui/primitives/card";
 import { useTranslation } from "react-i18next";
 
 function PaymentPage() {

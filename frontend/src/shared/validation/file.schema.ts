@@ -1,5 +1,5 @@
 import path from "path";
-import { IS_TEST } from "@/shared/utils/config/envUtil";
+import { IS_TEST } from "@/shared/config/envUtil";
 
 export interface FileValidationConfig {
   maxSizeBytes: number;

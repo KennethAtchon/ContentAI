@@ -1,19 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
+} from "@/shared/ui/primitives/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/shared/components/ui/accordion";
+} from "@/shared/ui/primitives/accordion";
 import {
   HelpCircle,
   Rocket,

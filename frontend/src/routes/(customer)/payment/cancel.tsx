@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AuthGuard } from "@/features/auth/components/auth-guard";
-import { Card, CardContent } from "@/shared/components/ui/card";
-import { Button } from "@/shared/components/ui/button";
+import { AuthGuard } from "@/domains/auth/ui/auth-guard";
+import { Card, CardContent } from "@/shared/ui/primitives/card";
+import { Button } from "@/shared/ui/primitives/button";
 import { XCircle, ArrowLeft, HelpCircle, ArrowRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
 import { useTranslation } from "react-i18next";
 
 function PaymentCancelPage() {

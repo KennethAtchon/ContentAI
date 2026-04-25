@@ -71,7 +71,7 @@ export class MediaImportService {
 
   async importMedia(
     file: File,
-    options: MediaImportOptions = {},
+    options: MediaImportOptions = {}
   ): Promise<MediaImportResult> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
     const warnings: string[] = [];
@@ -114,7 +114,7 @@ export class MediaImportService {
       }
       if (!metadata.canDecode) {
         warnings.push(
-          "Codec may not be fully supported. Playback might be limited.",
+          "Codec may not be fully supported. Playback might be limited."
         );
 
         // Try fallback for unsupported codec
@@ -133,13 +133,13 @@ export class MediaImportService {
             thumbnails = await this.mediaEngine.generateThumbnails(
               file,
               opts.thumbnailCount,
-              opts.thumbnailWidth,
+              opts.thumbnailWidth
             );
           } catch (error) {
             warnings.push(
               `Thumbnail generation failed: ${
                 error instanceof Error ? error.message : "Unknown error"
-              }`,
+              }`
             );
           }
         } else if (mediaType === "image") {
@@ -183,7 +183,7 @@ export class MediaImportService {
             warnings.push(
               `Image thumbnail generation failed: ${
                 error instanceof Error ? error.message : "Unknown error"
-              }`,
+              }`
             );
           }
         }
@@ -193,13 +193,13 @@ export class MediaImportService {
         try {
           waveformData = await this.mediaEngine.generateWaveform(
             file,
-            opts.waveformSamplesPerSecond,
+            opts.waveformSamplesPerSecond
           );
         } catch (error) {
           warnings.push(
             `Waveform generation failed: ${
               error instanceof Error ? error.message : "Unknown error"
-            }`,
+            }`
           );
         }
       }
@@ -252,7 +252,7 @@ export class MediaImportService {
 
   private async importWithFallback(
     file: File,
-    opts: Required<MediaImportOptions>,
+    opts: Required<MediaImportOptions>
   ): Promise<MediaImportResult> {
     // Transcode to compatible format
     const compatibleBlob =
@@ -260,7 +260,7 @@ export class MediaImportService {
     const compatibleFile = new File(
       [compatibleBlob],
       file.name.replace(/\.[^.]+$/, ".webm"),
-      { type: "video/webm" },
+      { type: "video/webm" }
     );
 
     // Now process with MediaBunny
@@ -273,7 +273,7 @@ export class MediaImportService {
         thumbnails = await this.mediaEngine.generateThumbnails(
           compatibleFile,
           opts.thumbnailCount,
-          opts.thumbnailWidth,
+          opts.thumbnailWidth
         );
       } catch {
         // Ignore thumbnail errors in fallback
@@ -285,7 +285,7 @@ export class MediaImportService {
       try {
         waveformData = await this.mediaEngine.generateWaveform(
           compatibleFile,
-          opts.waveformSamplesPerSecond,
+          opts.waveformSamplesPerSecond
         );
       } catch {
         // Ignore waveform errors in fallback
@@ -334,7 +334,7 @@ export class MediaImportService {
 
   processedMediaToMediaItem(
     processedMedia: ProcessedMedia,
-    thumbnailUrl?: string,
+    thumbnailUrl?: string
   ): MediaItem {
     const metadata: MediaMetadata = {
       duration: processedMedia.metadata.duration,
@@ -362,7 +362,7 @@ export class MediaImportService {
   async importMultiple(
     files: File[],
     options: MediaImportOptions = {},
-    onProgress?: (completed: number, total: number, current: string) => void,
+    onProgress?: (completed: number, total: number, current: string) => void
   ): Promise<MediaImportResult[]> {
     const results: MediaImportResult[] = [];
 
@@ -389,7 +389,7 @@ export class MediaImportService {
 
   shouldUseProxyForFile(
     file: File | Blob,
-    metadata: { width: number; height: number; duration: number },
+    metadata: { width: number; height: number; duration: number }
   ): boolean {
     return this.ffmpegFallback.shouldUseProxy({
       ...metadata,
@@ -411,7 +411,7 @@ export class MediaImportService {
       phase: string;
       progress: number;
       estimatedTimeRemaining: number;
-    }) => void,
+    }) => void
   ): Promise<Blob> {
     // Try MediaBunny first (faster, hardware-accelerated)
     if (this.mediaEngine.isAvailable()) {
@@ -433,12 +433,12 @@ export class MediaImportService {
       phase: string;
       progress: number;
       estimatedTimeRemaining: number;
-    }) => void,
+    }) => void
   ): Promise<Blob> {
     return this.ffmpegFallback.generateProxyWithPreset(
       file,
       preset,
-      onProgress,
+      onProgress
     );
   }
 
@@ -449,7 +449,7 @@ export class MediaImportService {
       phase: string;
       progress: number;
       estimatedTimeRemaining: number;
-    }) => void,
+    }) => void
   ): Promise<Blob | null> {
     if (!this.shouldUseProxyForFile(file, metadata)) {
       return null;
@@ -483,7 +483,7 @@ export class MediaImportService {
   async generateThumbnailsForMedia(
     file: File | Blob,
     mediaType: "video" | "audio" | "image",
-    options: { count?: number; width?: number } = {},
+    options: { count?: number; width?: number } = {}
   ): Promise<ThumbnailResult[]> {
     if (!this.initialized) {
       await this.initialize();
@@ -531,7 +531,7 @@ export class MediaImportService {
 
   async generateWaveformForMedia(
     file: File | Blob,
-    samplesPerSecond = 100,
+    samplesPerSecond = 100
   ): Promise<WaveformData | null> {
     if (!this.initialized) {
       await this.initialize();

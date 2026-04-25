@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/ui/primitives/card";
 import { FileText, Scale, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { StudioShell } from "@/shared/components/layout/studio-shell";
-import { StudioHero } from "@/shared/components/layout/studio-hero";
-import { StudioSection } from "@/shared/components/layout/studio-section";
+import { StudioShell } from "@/shared/ui/layout/studio-shell";
+import { StudioHero } from "@/shared/ui/layout/studio-hero";
+import { StudioSection } from "@/shared/ui/layout/studio-section";
 import { useTranslation } from "react-i18next";
 import { SUPPORT_EMAIL } from "@/shared/constants/app.constants";
 

@@ -326,7 +326,7 @@ export function createLanczosDimensionsBuffer(
   srcHeight: number,
   dstWidth: number,
   dstHeight: number,
-  direction: number,
+  direction: number
 ): ArrayBuffer {
   const buffer = new ArrayBuffer(32);
   const view = new Uint32Array(buffer);
@@ -343,7 +343,7 @@ export function createLanczosDimensionsBuffer(
 
 export function createEdgeDimensionsBuffer(
   width: number,
-  height: number,
+  height: number
 ): ArrayBuffer {
   const buffer = new ArrayBuffer(16);
   const view = new Uint32Array(buffer);
@@ -357,7 +357,7 @@ export function createEdgeDimensionsBuffer(
 export function createSharpenUniformsBuffer(
   width: number,
   height: number,
-  strength: number,
+  strength: number
 ): ArrayBuffer {
   const buffer = new ArrayBuffer(16);
   const u32View = new Uint32Array(buffer);

@@ -1,7 +1,7 @@
 import { useSearch } from "@tanstack/react-router";
-import { OrderCreator } from "@/features/payments/components/success/order-creator";
-import { SubscriptionSuccess } from "@/features/payments/components/success/subscription-success";
-import { OrderSuccess } from "@/features/payments/components/success/order-success";
+import { OrderCreator } from "@/domains/payments/ui/success/order-creator";
+import { SubscriptionSuccess } from "@/domains/payments/ui/success/subscription-success";
+import { OrderSuccess } from "@/domains/payments/ui/success/order-success";
 
 export function PaymentSuccessInteractive() {
   const search = useSearch({ from: "/(customer)/payment/success/" }) as Record<

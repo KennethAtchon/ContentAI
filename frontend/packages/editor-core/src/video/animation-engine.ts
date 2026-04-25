@@ -80,7 +80,7 @@ export class AnimationEngine {
     const value = this.interpolateValue(
       keyframeA.value,
       keyframeB.value,
-      easedProgress,
+      easedProgress
     );
 
     return {
@@ -96,7 +96,7 @@ export class AnimationEngine {
       kf1.time <= kf2.time ? [kf1, kf2] : [kf2, kf1];
     const clampedTime = Math.max(
       keyframeA.time,
-      Math.min(keyframeB.time, time),
+      Math.min(keyframeB.time, time)
     );
     const duration = keyframeB.time - keyframeA.time;
     const elapsed = clampedTime - keyframeA.time;
@@ -105,14 +105,14 @@ export class AnimationEngine {
     return this.interpolateValue(
       keyframeA.value,
       keyframeB.value,
-      easedProgress,
+      easedProgress
     );
   }
 
   applyEasing(
     t: number,
     easing: EasingType,
-    bezierPoints?: BezierControlPoints,
+    bezierPoints?: BezierControlPoints
   ): number {
     const clampedT = Math.max(0, Math.min(1, t));
 
@@ -123,7 +123,7 @@ export class AnimationEngine {
           bezierPoints.x1,
           bezierPoints.y1,
           bezierPoints.x2,
-          bezierPoints.y2,
+          bezierPoints.y2
         );
       }
       return this.cubicBezier(clampedT, 0.25, 0.1, 0.25, 1.0);
@@ -154,7 +154,7 @@ export class AnimationEngine {
     x1: number,
     y1: number,
     x2: number,
-    y2: number,
+    y2: number
   ): number {
     const cacheKey = `${x1},${y1},${x2},${y2}`;
 
@@ -179,7 +179,7 @@ export class AnimationEngine {
     x1: number,
     y1: number,
     x2: number,
-    y2: number,
+    y2: number
   ): (t: number) => number {
     // Thresholds for numerical algorithms
     const NEWTON_ITERATIONS = 4;
@@ -245,7 +245,7 @@ export class AnimationEngine {
   interpolateValue(
     valueA: unknown,
     valueB: unknown,
-    progress: number,
+    progress: number
   ): unknown {
     if (typeof valueA === "number" && typeof valueB === "number") {
       return valueA + (valueB - valueA) * progress;
@@ -275,7 +275,7 @@ export class AnimationEngine {
   // Keyframe CRUD Operations
   addKeyframe(keyframes: Keyframe[], keyframe: Keyframe): Keyframe[] {
     const existingIndex = keyframes.findIndex(
-      (kf) => kf.time === keyframe.time && kf.property === keyframe.property,
+      (kf) => kf.time === keyframe.time && kf.property === keyframe.property
     );
 
     if (existingIndex >= 0) {
@@ -293,7 +293,7 @@ export class AnimationEngine {
   updateKeyframe(
     keyframes: Keyframe[],
     keyframeId: string,
-    updates: Partial<Omit<Keyframe, "id">>,
+    updates: Partial<Omit<Keyframe, "id">>
   ): Keyframe[] {
     const result = keyframes.map((kf) => {
       if (kf.id === keyframeId) {
@@ -318,12 +318,12 @@ export class AnimationEngine {
     keyframes: Keyframe[],
     property: string,
     time: number,
-    tolerance: number = 0.001,
+    tolerance: number = 0.001
   ): Keyframe | null {
     return (
       keyframes.find(
         (kf) =>
-          kf.property === property && Math.abs(kf.time - time) <= tolerance,
+          kf.property === property && Math.abs(kf.time - time) <= tolerance
       ) || null
     );
   }

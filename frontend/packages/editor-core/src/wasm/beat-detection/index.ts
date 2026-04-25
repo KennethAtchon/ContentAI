@@ -10,19 +10,19 @@ export type WasmBeatDetectionExports = {
     samples: Float32Array,
     windowSize: number,
     hopSize: number,
-    energies: Float32Array,
+    energies: Float32Array
   ): void;
   smoothArray(
     input: Float32Array,
     output: Float32Array,
-    windowSize: number,
+    windowSize: number
   ): void;
   calculateMedian(arr: Float32Array): number;
   findPeaks(
     energies: Float32Array,
     threshold: number,
     minDistance: number,
-    peaks: Int32Array,
+    peaks: Int32Array
   ): number;
   calculateMean(arr: Float32Array): number;
   calculateStdDev(arr: Float32Array, mean: number): number;
@@ -82,7 +82,7 @@ function jsComputeRMSEnergies(
   samples: Float32Array,
   windowSize: number,
   hopSize: number,
-  energies: Float32Array,
+  energies: Float32Array
 ): void {
   const numSamples = samples.length;
   const numFrames = energies.length;
@@ -104,7 +104,7 @@ function jsComputeRMSEnergies(
 function jsSmoothArray(
   input: Float32Array,
   output: Float32Array,
-  windowSize: number,
+  windowSize: number
 ): void {
   const len = input.length;
   const halfWindow = windowSize >> 1;
@@ -140,7 +140,7 @@ function jsFindPeaks(
   energies: Float32Array,
   threshold: number,
   minDistance: number,
-  peaks: Int32Array,
+  peaks: Int32Array
 ): number {
   const len = energies.length;
   let peakCount = 0;
@@ -209,7 +209,7 @@ export class BeatDetectionProcessor {
     samples: Float32Array,
     windowSize: number,
     hopSize: number,
-    energies: Float32Array,
+    energies: Float32Array
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.computeRMSEnergies(samples, windowSize, hopSize, energies);
@@ -221,7 +221,7 @@ export class BeatDetectionProcessor {
   smoothArray(
     input: Float32Array,
     output: Float32Array,
-    windowSize: number,
+    windowSize: number
   ): void {
     if (this.useWasm && wasmModule) {
       wasmModule.smoothArray(input, output, windowSize);
@@ -241,7 +241,7 @@ export class BeatDetectionProcessor {
     energies: Float32Array,
     threshold: number,
     minDistance: number,
-    peaks: Int32Array,
+    peaks: Int32Array
   ): number {
     if (this.useWasm && wasmModule) {
       return wasmModule.findPeaks(energies, threshold, minDistance, peaks);

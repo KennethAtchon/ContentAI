@@ -157,7 +157,7 @@ export class MultiCamEngine {
   addSwitch(
     groupId: string,
     angleId: string,
-    time: number,
+    time: number
   ): AngleSwitch | null {
     const group = this.groups.get(groupId);
     if (!group) return null;
@@ -238,7 +238,7 @@ export class MultiCamEngine {
   async syncByAudio(
     groupId: string,
     referenceAngleId: string,
-    audioBuffers: Map<string, AudioBuffer>,
+    audioBuffers: Map<string, AudioBuffer>
   ): Promise<Map<string, SyncResult>> {
     const group = this.groups.get(groupId);
     if (!group) return new Map();
@@ -272,7 +272,7 @@ export class MultiCamEngine {
 
   private async findAudioOffset(
     reference: AudioBuffer,
-    target: AudioBuffer,
+    target: AudioBuffer
   ): Promise<SyncResult> {
     const refData = reference.getChannelData(0);
     const targetData = target.getChannelData(0);
@@ -281,7 +281,7 @@ export class MultiCamEngine {
     const windowSize = Math.min(
       sampleRate * 5,
       refData.length,
-      targetData.length,
+      targetData.length
     );
     const maxOffset = Math.min(sampleRate * 30, targetData.length - windowSize);
 
@@ -345,7 +345,7 @@ export class MultiCamEngine {
   }
 
   exportGroupAsSequence(
-    groupId: string,
+    groupId: string
   ): { clipId: string; startTime: number; endTime: number }[] {
     const group = this.groups.get(groupId);
     if (!group) return [];
@@ -356,7 +356,7 @@ export class MultiCamEngine {
 
     if (switches.length === 0 && group.angles.length > 0) {
       const activeAngle = group.angles.find(
-        (a) => a.id === group.activeAngleId,
+        (a) => a.id === group.activeAngleId
       );
       if (activeAngle) {
         sequence.push({

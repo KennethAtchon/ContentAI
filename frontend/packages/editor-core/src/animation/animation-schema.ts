@@ -472,7 +472,7 @@ export function validateAnimationSchema(schema: unknown): {
 
 export function substituteVariables(
   schema: AnimationSchema,
-  variables: Record<string, unknown>,
+  variables: Record<string, unknown>
 ): AnimationSchema {
   const merged = { ...schema.variables, ...variables };
   const jsonStr = JSON.stringify(schema);

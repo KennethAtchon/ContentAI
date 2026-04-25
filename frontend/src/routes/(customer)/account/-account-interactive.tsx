@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SidebarPanel } from "@/features/account/components/account-sidebar-panel";
-import { MobileNav } from "@/features/account/components/account-mobile-nav";
-import { StudioOverview } from "@/features/account/components/account-overview";
-import { OrdersSection } from "@/features/account/components/account-orders-section";
-import { UserPreferences } from "@/features/account/components/account-user-preferences";
-import { SubscriptionManagement } from "@/features/account/components/subscription-management";
-import { UsageDashboard } from "@/features/account/components/usage-dashboard";
-import { ProfileEditor } from "@/features/account/components/profile-editor";
-import type { Section } from "@/features/account/types";
+import { SidebarPanel } from "@/domains/account/ui/account-sidebar-panel";
+import { MobileNav } from "@/domains/account/ui/account-mobile-nav";
+import { StudioOverview } from "@/domains/account/ui/account-overview";
+import { OrdersSection } from "@/domains/account/ui/account-orders-section";
+import { UserPreferences } from "@/domains/account/ui/account-user-preferences";
+import { SubscriptionManagement } from "@/domains/account/ui/subscription-management";
+import { UsageDashboard } from "@/domains/account/ui/usage-dashboard";
+import { ProfileEditor } from "@/domains/account/ui/profile-editor";
+import type { Section } from "@/domains/account/model";
 
 // ─── Section metadata ─────────────────────────────────────────────────────────
 

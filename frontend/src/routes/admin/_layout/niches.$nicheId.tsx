@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { NicheDetailView } from "@/features/admin/components/niches/NicheDetailView";
+import { NicheDetailView } from "@/domains/admin/ui/niches/NicheDetailView";
 
 export const Route = createFileRoute("/admin/_layout/niches/$nicheId")({
   head: ({ params }) => ({

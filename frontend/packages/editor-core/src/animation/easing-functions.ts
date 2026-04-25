@@ -173,7 +173,7 @@ export function cubicBezier(
   x1: number,
   y1: number,
   x2: number,
-  y2: number,
+  y2: number
 ): EasingFn {
   // Convert bezier coefficients to cubic polynomial: at^3 + bt^2 + ct + d
   const cx = 3 * x1;
@@ -230,7 +230,7 @@ export function cubicBezier(
 export function springEasing(
   stiffness: number = 100,
   damping: number = 10,
-  mass: number = 1,
+  mass: number = 1
 ): EasingFn {
   // Natural frequency of oscillation
   const w0 = Math.sqrt(stiffness / mass);
@@ -280,7 +280,7 @@ export function interpolate(
   startValue: number,
   endValue: number,
   progress: number,
-  easing: EasingFunction = "linear",
+  easing: EasingFunction = "linear"
 ): number {
   const easingFn = getEasingFunction(easing);
   const easedProgress = easingFn(Math.max(0, Math.min(1, progress)));
@@ -340,7 +340,7 @@ export const EASING_PRESETS: Record<
 };
 
 export const ALL_EASING_NAMES: EasingName[] = Object.keys(
-  EASING_FUNCTIONS,
+  EASING_FUNCTIONS
 ) as EasingName[];
 
 export interface EasingCategory {

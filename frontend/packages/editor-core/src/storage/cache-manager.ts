@@ -36,7 +36,7 @@ export class CacheManager {
 
   constructor(
     storage: IStorageEngine,
-    config: Partial<CacheManagerConfig> = {},
+    config: Partial<CacheManagerConfig> = {}
   ) {
     this.storage = storage;
     this.config = { ...DEFAULT_CACHE_CONFIG, ...config };
@@ -60,7 +60,7 @@ export class CacheManager {
   async getFrame(
     projectId: string,
     clipId: string,
-    time: number,
+    time: number
   ): Promise<ArrayBuffer | null> {
     const key = this.createFrameKey(projectId, clipId, time);
     const record = await this.storage.loadCache(key);
@@ -78,7 +78,7 @@ export class CacheManager {
     projectId: string,
     clipId: string,
     time: number,
-    data: ArrayBuffer,
+    data: ArrayBuffer
   ): Promise<void> {
     const key = this.createFrameKey(projectId, clipId, time);
     const size = data.byteLength;
@@ -99,7 +99,7 @@ export class CacheManager {
   async deleteFrame(
     projectId: string,
     clipId: string,
-    time: number,
+    time: number
   ): Promise<void> {
     const key = this.createFrameKey(projectId, clipId, time);
     const record = await this.storage.loadCache(key);
@@ -126,7 +126,7 @@ export class CacheManager {
   async setWaveform(
     mediaId: string,
     data: Float32Array,
-    sampleRate: number,
+    sampleRate: number
   ): Promise<void> {
     const record: WaveformRecord = {
       mediaId,
@@ -169,7 +169,7 @@ export class CacheManager {
   private createFrameKey(
     projectId: string,
     clipId: string,
-    time: number,
+    time: number
   ): string {
     return `${projectId}:${clipId}:${time.toFixed(3)}`;
   }
@@ -199,7 +199,7 @@ export class CacheManager {
 
 export function createCacheManager(
   storage: IStorageEngine,
-  config?: Partial<CacheManagerConfig>,
+  config?: Partial<CacheManagerConfig>
 ): CacheManager {
   return new CacheManager(storage, config);
 }

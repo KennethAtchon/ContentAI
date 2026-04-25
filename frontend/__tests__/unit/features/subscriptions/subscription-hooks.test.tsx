@@ -16,7 +16,7 @@ mock.module("firebase/auth", () => ({
 import {
   useSubscription,
   useHasTierAccess,
-} from "@/features/subscriptions/hooks/use-subscription";
+} from "@/domains/subscriptions/hooks/use-subscription";
 
 describe("useSubscription exports", () => {
   it("useSubscription is a function", () => {

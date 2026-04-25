@@ -96,7 +96,7 @@ export class CharacterAnimator {
     fontSize: number,
     fontWeight: string | number,
     letterSpacing: number,
-    lineHeight: number,
+    lineHeight: number
   ): TextLayout {
     if (!this.measureCtx) {
       return this.createFallbackLayout(text, fontSize, lineHeight);
@@ -203,7 +203,7 @@ export class CharacterAnimator {
   private createFallbackLayout(
     text: string,
     fontSize: number,
-    lineHeight: number,
+    lineHeight: number
   ): TextLayout {
     const avgCharWidth = fontSize * 0.6;
     const lines = text.split("\n");
@@ -294,7 +294,7 @@ export class CharacterAnimator {
 
   calculateAnimatedLayout(
     clip: TextClip,
-    currentTime: number,
+    currentTime: number
   ): AnimatedTextLayout {
     const animation = clip.animation;
     if (!animation || animation.preset === "none") {
@@ -307,7 +307,7 @@ export class CharacterAnimator {
       clip.style.fontSize,
       String(clip.style.fontWeight),
       clip.style.letterSpacing,
-      clip.style.lineHeight,
+      clip.style.lineHeight
     );
 
     const relativeTime = currentTime - clip.startTime;
@@ -488,7 +488,7 @@ export class CharacterAnimator {
       clip.style.fontSize,
       String(clip.style.fontWeight),
       clip.style.letterSpacing,
-      clip.style.lineHeight,
+      clip.style.lineHeight
     );
 
     const defaultState: UnitAnimationState = {

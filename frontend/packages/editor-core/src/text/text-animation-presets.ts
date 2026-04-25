@@ -80,8 +80,8 @@ const typewriterAnimation: AnimationFn = (ctx) => {
       0,
       Math.min(
         1,
-        (progress * ctx.animation.inDuration - unitDelay) / unitDuration,
-      ),
+        (progress * ctx.animation.inDuration - unitDelay) / unitDuration
+      )
     );
   } else {
     unitProgress =
@@ -90,8 +90,8 @@ const typewriterAnimation: AnimationFn = (ctx) => {
         0,
         Math.min(
           1,
-          (progress * ctx.animation.outDuration - unitDelay) / unitDuration,
-        ),
+          (progress * ctx.animation.outDuration - unitDelay) / unitDuration
+        )
       );
   }
 
@@ -111,12 +111,12 @@ const fadeAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -132,7 +132,7 @@ const fadeAnimation: AnimationFn = (ctx) => {
 };
 
 const slideAnimation = (
-  direction: "left" | "right" | "up" | "down",
+  direction: "left" | "right" | "up" | "down"
 ): AnimationFn => {
   return (ctx) => {
     const { unit, progress, isIn, animation } = ctx;
@@ -145,12 +145,12 @@ const slideAnimation = (
     const duration = isIn ? animation.inDuration : animation.outDuration;
     const unitDuration = Math.max(
       0.1,
-      duration - (unit.totalUnits - 1) * stagger,
+      duration - (unit.totalUnits - 1) * stagger
     );
 
     let unitProgress = Math.max(
       0,
-      Math.min(1, (progress * duration - unitDelay) / unitDuration),
+      Math.min(1, (progress * duration - unitDelay) / unitDuration)
     );
     if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -196,12 +196,12 @@ const scaleAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -226,12 +226,12 @@ const blurAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -255,12 +255,12 @@ const bounceAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -285,12 +285,12 @@ const rotateAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -348,12 +348,12 @@ const popAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -405,12 +405,12 @@ const splitAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -440,12 +440,12 @@ const flipAnimation: AnimationFn = (ctx) => {
   const duration = isIn ? animation.inDuration : animation.outDuration;
   const unitDuration = Math.max(
     0.1,
-    duration - (unit.totalUnits - 1) * stagger,
+    duration - (unit.totalUnits - 1) * stagger
   );
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -473,7 +473,7 @@ const wordByWordAnimation: AnimationFn = (ctx) => {
 
   let unitProgress = Math.max(
     0,
-    Math.min(1, (progress * duration - unitDelay) / unitDuration),
+    Math.min(1, (progress * duration - unitDelay) / unitDuration)
   );
   if (!isIn) unitProgress = 1 - unitProgress;
 
@@ -524,7 +524,7 @@ const ANIMATION_MAP: Record<TextAnimationPreset, AnimationFn> = {
 };
 
 export function calculateUnitAnimationState(
-  ctx: TextAnimationContext,
+  ctx: TextAnimationContext
 ): UnitAnimationState {
   const animationFn = ANIMATION_MAP[ctx.animation.preset];
   if (!animationFn) return DEFAULT_STATE;
@@ -756,13 +756,13 @@ export const TEXT_ANIMATION_PRESETS: TextAnimationPresetInfo[] = [
 ];
 
 export function getPresetInfo(
-  preset: TextAnimationPreset,
+  preset: TextAnimationPreset
 ): TextAnimationPresetInfo | undefined {
   return TEXT_ANIMATION_PRESETS.find((p) => p.id === preset);
 }
 
 export function createDefaultAnimation(
-  preset: TextAnimationPreset,
+  preset: TextAnimationPreset
 ): TextAnimation {
   const info = getPresetInfo(preset);
   if (!info) {

@@ -82,6 +82,19 @@ export default [
         Transferable: "readonly",
         ImageBitmap: "readonly",
         VideoFrame: "readonly",
+        HTMLParagraphElement: "readonly",
+        HTMLHeadingElement: "readonly",
+        HTMLOListElement: "readonly",
+        HTMLUListElement: "readonly",
+        HTMLLIElement: "readonly",
+        HTMLAnchorElement: "readonly",
+        HTMLSpanElement: "readonly",
+        HTMLButtonElement: "readonly",
+        HTMLTableElement: "readonly",
+        HTMLTableSectionElement: "readonly",
+        HTMLTableRowElement: "readonly",
+        HTMLTableCellElement: "readonly",
+        HTMLTableCaptionElement: "readonly",
       },
     },
     plugins: {
@@ -111,7 +124,7 @@ export default [
           selector:
             "MemberExpression[object.object.name='import'][object.property.name='meta'][property.name='env']",
           message:
-            "Do not access import.meta.env directly. Use constants from @/shared/utils/config/envUtil instead.",
+            "Do not access import.meta.env directly. Use constants from @/shared/config/envUtil instead.",
         },
       ],
       // Guard: never use raw fetch — use useQueryFetcher or useAuthenticatedFetch
@@ -123,40 +136,40 @@ export default [
             "Do not use raw fetch. Use useQueryFetcher (GET/cache) or useAuthenticatedFetch (mutations) instead.",
         },
       ],
-      // Guard: never use console — use debugLog from @/shared/utils/debug
+      // Guard: never use console — use debugLog from @/shared/debug
       "no-console": "error",
     },
   },
   // Allowlist: ONLY debug.ts and system-logger.ts can use console
   {
-    files: ["src/shared/utils/debug/debug.ts"],
+    files: ["src/shared/debug/debug.ts"],
     rules: {
       "no-console": "off",
     },
   },
   {
-    files: ["src/shared/utils/system/system-logger.ts"],
+    files: ["src/shared/system/system-logger.ts"],
     rules: {
       "no-console": "off",
     },
   },
   // Allowlist: envUtil is the one place allowed to read import.meta.env
   {
-    files: ["src/shared/utils/config/envUtil.ts"],
+    files: ["src/shared/config/envUtil.ts"],
     rules: {
       "no-restricted-syntax": "off",
     },
   },
   // Allowlist: safe-fetch is the one place allowed to call raw fetch
   {
-    files: ["src/shared/services/api/safe-fetch.ts"],
+    files: ["src/shared/api/safe-fetch.ts"],
     rules: {
       "no-restricted-globals": "off",
     },
   },
   // Worker files: browser WebCodecs + Worker globals, raw fetch (asset URLs), console allowed
   {
-    files: ["src/features/editor/engine/**/*.ts"],
+    files: ["src/domains/editor/engine/**/*.ts"],
     languageOptions: {
       globals: {
         self: "readonly",
@@ -203,7 +216,7 @@ export default [
       "dist",
       "node_modules",
       "src/routeTree.gen.ts",
-      "src/shared/components/ui",
+      "src/shared/ui/primitives",
     ],
   },
 ];

@@ -89,7 +89,7 @@ export class MotionTrackingEngine {
   async startTracking(
     clipId: string,
     region: Rectangle,
-    options: TrackingOptions = {},
+    options: TrackingOptions = {}
   ): Promise<TrackingJob> {
     const jobId = generateId("track-job");
     const job: TrackingJob = {
@@ -182,7 +182,7 @@ export class MotionTrackingEngine {
   private simulateTracking(
     region: Rectangle,
     _frame: number,
-    index: number,
+    index: number
   ): {
     position: Point;
     scale: number;
@@ -234,14 +234,14 @@ export class MotionTrackingEngine {
 
   getTrackingDataForClip(clipId: string): TrackingData[] {
     return Array.from(this.trackingData.values()).filter(
-      (d) => d.clipId === clipId,
+      (d) => d.clipId === clipId
     );
   }
   // Tracking Application (Requirement 23.3)
   applyTrackingToElement(
     trackId: string,
     elementId: string,
-    offset: Point = { x: 0, y: 0 },
+    offset: Point = { x: 0, y: 0 }
   ): void {
     const trackingData = this.trackingData.get(trackId);
     if (!trackingData) {
@@ -269,7 +269,7 @@ export class MotionTrackingEngine {
 
   getAttachmentsForTrack(trackId: string): TrackingAttachment[] {
     return Array.from(this.attachments.values()).filter(
-      (a) => a.trackId === trackId,
+      (a) => a.trackId === trackId
     );
   }
 
@@ -296,7 +296,7 @@ export class MotionTrackingEngine {
 
   private getTrackedPositionAtFrame(
     data: TrackingData,
-    frame: number,
+    frame: number
   ): Point | null {
     if (data.keyframes.length === 0) {
       return null;
@@ -356,14 +356,14 @@ export class MotionTrackingEngine {
   correctTrackingPoint(
     trackId: string,
     frameIndex: number,
-    position: Point,
+    position: Point
   ): void {
     const data = this.trackingData.get(trackId);
     if (!data) {
       throw new Error(`Tracking data not found: ${trackId}`);
     }
     const keyframeIndex = data.keyframes.findIndex(
-      (kf) => kf.frame === frameIndex,
+      (kf) => kf.frame === frameIndex
     );
 
     if (keyframeIndex >= 0) {

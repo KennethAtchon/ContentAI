@@ -313,7 +313,10 @@ describe("GraphicsEngine", () => {
         emphasisAnimation: animation,
       });
 
-      expect(updated?.emphasisAnimation?.focusPoint).toEqual({ x: 0.3, y: 0.7 });
+      expect(updated?.emphasisAnimation?.focusPoint).toEqual({
+        x: 0.3,
+        y: 0.7,
+      });
       expect(updated?.emphasisAnimation?.zoomScale).toBe(2.0);
       expect(updated?.emphasisAnimation?.holdDuration).toBe(0.5);
     });
@@ -428,7 +431,7 @@ describe("GraphicsEngine", () => {
         updatedClip,
         1,
         1920,
-        1080,
+        1080
       );
       expect(resultBefore.canvas).toBeDefined();
 
@@ -436,7 +439,7 @@ describe("GraphicsEngine", () => {
         updatedClip,
         3,
         1920,
-        1080,
+        1080
       );
       expect(resultDuring.canvas).toBeDefined();
 
@@ -444,7 +447,7 @@ describe("GraphicsEngine", () => {
         updatedClip,
         6,
         1920,
-        1080,
+        1080
       );
       expect(resultAfter.canvas).toBeDefined();
     });
@@ -488,7 +491,12 @@ describe("GraphicsEngine", () => {
       const times = [0, 0.25, 0.5, 0.75, 1, 2, 5, 9.99];
 
       for (const time of times) {
-        const result = await engine.renderGraphic(updatedClip, time, 1920, 1080);
+        const result = await engine.renderGraphic(
+          updatedClip,
+          time,
+          1920,
+          1080
+        );
         expect(result.canvas).toBeDefined();
       }
     });
@@ -621,7 +629,12 @@ describe("GraphicsEngine", () => {
     });
 
     it("should support different easing types", () => {
-      const easings: EasingType[] = ["linear", "ease-in", "ease-out", "ease-in-out"];
+      const easings: EasingType[] = [
+        "linear",
+        "ease-in",
+        "ease-out",
+        "ease-in-out",
+      ];
 
       for (const easing of easings) {
         const clip = engine.createRectangle("track-1", 0, 5, 100, 50);

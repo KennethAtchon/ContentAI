@@ -5,9 +5,9 @@ import {
   Outlet,
   HeadContent,
 } from "@tanstack/react-router";
-import { ErrorBoundary } from "@/shared/components/layout/error-boundary";
-import { Toaster } from "@/shared/components/ui/sonner";
-import { DebugControlPanel } from "@/shared/components/debug/debug-control-panel";
+import { ErrorBoundary } from "@/shared/ui/layout/error-boundary";
+import { Toaster } from "@/shared/ui/primitives/sonner";
+import { DebugControlPanel } from "@/shared/debug/ui/debug-control-panel";
 import { useTranslation } from "react-i18next";
 
 function RootLayout() {

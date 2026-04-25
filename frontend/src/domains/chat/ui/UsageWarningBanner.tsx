@@ -1,0 +1,78 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/app/query/query-keys";
+import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
+import { useApp } from "@/app/state/app-context";
+import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
+
+interface UsageData {
+  contentGenerated: number;
+  contentGeneratedLimit: number | null;
+}
+
+const WARNING_THRESHOLD = 0.8;
+
+export function UsageWarningBanner() {
+  const { t } = useTranslation();
+  const { user } = useApp();
+  const fetcher = useQueryFetcher<UsageData>();
+  const { hasEnterpriseAccess } = useSubscription();
+
+  const currentMonth = new Date().toISOString().slice(0, 7); // "2026-03"
+  const dismissKey = `usage_warning_dismissed_${currentMonth}`;
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem(dismissKey) === "true"
+  );
+
+  const { data } = useQuery({
+    queryKey: queryKeys.api.reelsUsage(),
+    queryFn: () => fetcher("/api/reels/usage"),
+    enabled: !!user,
+  });
+
+  if (dismissed || !data) return null;
+
+  const { contentGenerated, contentGeneratedLimit } = data;
+  if (!contentGeneratedLimit || contentGeneratedLimit < 0) return null;
+
+  const pct = contentGenerated / contentGeneratedLimit;
+  if (pct < WARNING_THRESHOLD || pct >= 1) return null;
+
+  const pctDisplay = Math.round(pct * 100);
+
+  function handleDismiss() {
+    sessionStorage.setItem(dismissKey, "true");
+    setDismissed(true);
+  }
+
+  return (
+    <div className="mx-4 mb-2 flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-warning/10 border border-warning/20 text-base">
+      <span className="text-warning text-sm font-medium">
+        {t("studio_chat_usageWarning_body", { pct: pctDisplay })}
+      </span>
+      <div className="flex items-center gap-2 shrink-0">
+        {hasEnterpriseAccess ? (
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning">
+            {t("studio_chat_usageWarning_contactSupport")}
+          </span>
+        ) : (
+          <a
+            href="/pricing"
+            className="text-sm font-semibold px-2.5 py-1 rounded-md bg-warning/20 text-warning hover:bg-warning/30 transition-colors"
+          >
+            {t("studio_chat_usageWarning_upgrade")}
+          </a>
+        )}
+        <button
+          onClick={handleDismiss}
+          className="text-warning/60 hover:text-warning transition-colors"
+          aria-label={t("studio_chat_usageWarning_dismiss")}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}

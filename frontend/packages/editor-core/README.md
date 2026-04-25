@@ -1,20 +1,72 @@
 # @contentai/editor-core
 
-editor-core is the domain and media-processing core for ContentAI's editor. It keeps the reusable editor logic outside UI packages: project types, timeline operations, action execution, media import, playback clocks, video/audio/photo/text processing, storage, export, templates, and optional GPU/WASM acceleration.
+editor-core is the reusable editing engine for ContentAI. UI packages should treat it as the source of truth for project vocabulary, timeline rules, action execution, media import, playback timing, rendering, export, storage, templates, and optional acceleration paths.
 
-## Entry Point
+## Main Entry Point
 
-Start at [src/index.ts](src/index.ts). That file is the package barrel: it re-exports the stable public API from the major feature folders and exposes the export engine/settings that downstream packages are expected to import. When you are tracing a feature, jump from src/index.ts into the folder-level index.ts first, then into the concrete engine or type file.
+Start at [src/index.ts](src/index.ts). It is the package-level barrel that downstream packages import from. It re-exports the stable public API from each feature folder and gives export settings/engines their package-level names.
 
-## How To Read This Package
+## Package Architecture
 
-1. Read [src/types](src/types) first. These files define the vocabulary used everywhere else: projects, timelines, clips, actions, effects, templates, transitions, Lottie, shapes, and result objects.
-2. Read [src/timeline](src/timeline) and [src/actions](src/actions) next. Timeline managers describe legal edit operations; action classes validate, execute, serialize, and invert those operations.
-3. Read [src/storage](src/storage) to understand how projects are serialized, persisted, cached, and migrated.
-4. Read media-specific folders by workflow: [src/media](src/media) for import/metadata/waveforms, [src/video](src/video) for rendering and effects, [src/audio](src/audio) for mixing/analysis, [src/text](src/text) for subtitles/transcription/titles, [src/photo](src/photo) for still-image tools, and [src/graphics](src/graphics) for SVG/stickers.
-5. Read [src/playback](src/playback), [src/export](src/export), and [src/device](src/device) when you need end-to-end preview/export behavior and performance adaptation.
-6. Read [src/animation](src/animation), [src/effects](src/effects), [src/template](src/template), [src/ai](src/ai), and [src/wasm](src/wasm) for optional higher-level features and acceleration paths.
-7. Use [src/test](src/test) for reusable generators and property-test configuration before adding new tests.
+- [src/types](src/types) defines the shared domain vocabulary.
+- [src/timeline](src/timeline) defines legal clip/track/sequence operations.
+- [src/actions](src/actions) turns UI commands into validated, reversible project mutations.
+- [src/media](src/media) imports and normalizes source assets.
+- [src/playback](src/playback) provides the master preview timebase.
+- [src/video](src/video), [src/audio](src/audio), [src/text](src/text), [src/photo](src/photo), and [src/graphics](src/graphics) process renderable media.
+- [src/storage](src/storage) persists projects and caches artifacts.
+- [src/export](src/export) renders final output.
+- [src/device](src/device), [src/wasm](src/wasm), and GPU shader folders adapt performance to the current runtime.
+
+## End-To-End Edit Flow
+
+```mermaid
+sequenceDiagram
+  participant UI as Editor UI
+  participant Actions as src/actions
+  participant Timeline as src/timeline
+  participant Project as Project State
+  participant Playback as src/playback
+  participant Render as Video/Audio/Text Engines
+  participant Storage as src/storage
+  UI->>Actions: create and validate typed action
+  Actions->>Timeline: apply timeline rules when needed
+  Actions->>Project: return updated project state
+  UI->>Playback: seek/play using updated timeline
+  Playback->>Render: request preview at current time
+  Render-->>UI: preview frame/audio/text output
+  UI->>Storage: autosave serialized project
+```
+
+## Import-To-Export Flow
+
+```mermaid
+sequenceDiagram
+  participant User as User File
+  participant Media as src/media
+  participant Project as Project Assets/Timeline
+  participant Device as src/device
+  participant Export as src/export
+  participant Render as Video/Audio Renderers
+  User->>Media: import file
+  Media->>Media: inspect metadata, thumbnails, waveform, proxy needs
+  Media-->>Project: normalized media asset
+  Project->>Device: request capability and estimate guidance
+  Project->>Export: exportProject(settings)
+  Export->>Render: render frames and mix audio
+  Render-->>Export: encoded artifact data
+  Export-->>User: ExportResult / Blob
+```
+
+## Recommended Reading Path
+
+1. Read [src/types](src/types) to learn the nouns: project, timeline, clip, action, effect, template, transition, and result.
+2. Read [src/timeline](src/timeline) to learn the structural editing rules.
+3. Read [src/actions](src/actions) to learn how mutations are validated, applied, serialized, and undone.
+4. Read [src/media](src/media) to understand asset ingestion.
+5. Read [src/playback](src/playback) plus [src/video](src/video), [src/audio](src/audio), and [src/text](src/text) to understand preview.
+6. Read [src/storage](src/storage) and [src/export](src/export) to understand durability and final rendering.
+7. Read optional feature folders, such as [src/animation](src/animation), [src/effects](src/effects), [src/template](src/template), [src/ai](src/ai), [src/device](src/device), and [src/wasm](src/wasm), when working in those capabilities.
 
 ## Folder Map
 
@@ -40,16 +92,13 @@ Start at [src/index.ts](src/index.ts). That file is the package barrel: it re-ex
 - [src/wasm](src/wasm) - Optional WebAssembly-backed acceleration for FFT, WAV encoding, and beat detection.
 - [src/video/shaders](src/video/shaders) - WGSL shader modules used by WebGPU video rendering for transforms, compositing, effects, blur, and border radius handling.
 - [src/video/upscaling](src/video/upscaling) - GPU-assisted frame upscaling pipeline, quality presets, and type definitions.
-- [src/wasm/fft](src/wasm/fft), [src/wasm/wav](src/wasm/wav), and [src/wasm/beat-detection](src/wasm/beat-detection) - WebAssembly module wrappers and their AssemblyScript sources.
+- [src/video/upscaling/shaders](src/video/upscaling/shaders) - WGSL shader modules for Lanczos scaling, edge detection, edge-directed interpolation, and sharpening.
+- [src/wasm/fft](src/wasm/fft), [src/wasm/wav](src/wasm/wav), and [src/wasm/beat-detection](src/wasm/beat-detection) - WebAssembly wrappers plus AssemblyScript sources.
 
-## Core Data Flow
+## Public API Rules
 
-A typical edit starts as a UI command that creates an action. The action is validated in actions, applied to project/timeline state, and recorded in history for undo/redo. Media imports flow through media into project assets and timeline clips. Preview playback combines playback clocks with video/audio/text/graphics engines. Save/load flows through storage. Export uses the same project vocabulary plus media/video/audio renderers, optional device recommendations, and worker/GPU/WASM acceleration when available.
-
-## Public API Shape
-
-Most consumers should import from the package root instead of deep paths. Folder-level index.ts files intentionally group exports by feature area, while implementation files keep the operational logic. Types under src/types are the shared contracts; types.ts files inside feature folders are local contracts for that feature.
+Most consumers should import from the package root. Feature folders expose their own barrels so the package root can stay organized. Implementation files should keep behavior local to their folder, while shared contracts should live in [src/types](src/types) or a feature-local `types.ts` when the contract is not package-wide.
 
 ## Testing Notes
 
-Tests live beside the folders they cover, with shared generators in src/test. Prefer adding focused tests near the manager/engine being changed, and use property generators when validating timeline/action invariants or serialization round trips.
+Tests live beside the feature they cover, with shared generators in [src/test](src/test). For timeline/action/storage behavior, prefer tests that verify invariants and round trips because those areas define the package's long-term compatibility.

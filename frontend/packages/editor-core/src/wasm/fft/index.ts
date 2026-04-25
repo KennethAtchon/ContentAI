@@ -15,19 +15,19 @@ export type WasmFFTExports = {
   getMagnitude(
     real: Float32Array,
     imag: Float32Array,
-    magnitude: Float32Array,
+    magnitude: Float32Array
   ): void;
   getMagnitudeAndPhase(
     real: Float32Array,
     imag: Float32Array,
     magnitudes: Float32Array,
-    phases: Float32Array,
+    phases: Float32Array
   ): void;
   fromMagnitudeAndPhase(
     magnitudes: Float32Array,
     phases: Float32Array,
     real: Float32Array,
-    imag: Float32Array,
+    imag: Float32Array
   ): void;
   applyHannWindow(input: Float32Array, output: Float32Array): void;
   allocateF32(length: number): Float32Array;
@@ -173,7 +173,7 @@ export class WasmFFT {
 
   getMagnitudeAndPhase(
     real: Float32Array,
-    imag: Float32Array,
+    imag: Float32Array
   ): { magnitudes: Float32Array; phases: Float32Array } {
     if (this.useWasm && wasmModule) {
       this.ensureWasmSize();
@@ -187,7 +187,7 @@ export class WasmFFT {
 
   fromMagnitudeAndPhase(
     magnitudes: Float32Array,
-    phases: Float32Array,
+    phases: Float32Array
   ): { real: Float32Array; imag: Float32Array } {
     if (this.useWasm && wasmModule) {
       this.ensureWasmSize();

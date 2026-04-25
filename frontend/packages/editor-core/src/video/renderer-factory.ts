@@ -37,7 +37,7 @@ export interface Renderer {
   releaseTexture(texture: GPUTexture | ImageBitmap): void;
   applyEffects(
     texture: GPUTexture | ImageBitmap,
-    effects: Effect[],
+    effects: Effect[]
   ): GPUTexture | ImageBitmap;
   onDeviceLost(callback: () => void): void;
   recreateDevice(): Promise<boolean>;
@@ -144,7 +144,7 @@ export function getRendererFactory(): RendererFactory {
 }
 
 export async function createRenderer(
-  config: RendererConfig,
+  config: RendererConfig
 ): Promise<Renderer> {
   return RendererFactory.getInstance().createRenderer(config);
 }

@@ -10,7 +10,7 @@ interface Navigator {
 }
 interface GPU {
   requestAdapter(
-    options?: GPURequestAdapterOptions,
+    options?: GPURequestAdapterOptions
   ): Promise<GPUAdapter | null>;
   getPreferredCanvasFormat(): GPUTextureFormat;
 }
@@ -74,21 +74,21 @@ interface GPUDevice extends EventTarget {
   createTexture(descriptor: GPUTextureDescriptor): GPUTexture;
   createSampler(descriptor?: GPUSamplerDescriptor): GPUSampler;
   createBindGroupLayout(
-    descriptor: GPUBindGroupLayoutDescriptor,
+    descriptor: GPUBindGroupLayoutDescriptor
   ): GPUBindGroupLayout;
   createPipelineLayout(
-    descriptor: GPUPipelineLayoutDescriptor,
+    descriptor: GPUPipelineLayoutDescriptor
   ): GPUPipelineLayout;
   createBindGroup(descriptor: GPUBindGroupDescriptor): GPUBindGroup;
   createShaderModule(descriptor: GPUShaderModuleDescriptor): GPUShaderModule;
   createComputePipeline(
-    descriptor: GPUComputePipelineDescriptor,
+    descriptor: GPUComputePipelineDescriptor
   ): GPUComputePipeline;
   createRenderPipeline(
-    descriptor: GPURenderPipelineDescriptor,
+    descriptor: GPURenderPipelineDescriptor
   ): GPURenderPipeline;
   createCommandEncoder(
-    descriptor?: GPUCommandEncoderDescriptor,
+    descriptor?: GPUCommandEncoderDescriptor
   ): GPUCommandEncoder;
 }
 
@@ -103,18 +103,18 @@ interface GPUQueue {
     bufferOffset: number,
     data: BufferSource,
     dataOffset?: number,
-    size?: number,
+    size?: number
   ): void;
   writeTexture(
     destination: GPUImageCopyTexture,
     data: BufferSource,
     dataLayout: GPUImageDataLayout,
-    size: GPUExtent3D,
+    size: GPUExtent3D
   ): void;
   copyExternalImageToTexture(
     source: GPUImageCopyExternalImage,
     destination: GPUImageCopyTextureTagged,
-    copySize: GPUExtent3D,
+    copySize: GPUExtent3D
   ): void;
 }
 
@@ -234,7 +234,7 @@ interface GPUBuffer {
   mapAsync(
     mode: GPUMapModeFlags,
     offset?: number,
-    size?: number,
+    size?: number
   ): Promise<void>;
   getMappedRange(offset?: number, size?: number): ArrayBuffer;
   unmap(): void;
@@ -554,29 +554,29 @@ type GPUColorWriteFlags = number;
 interface GPUCommandEncoder {
   beginRenderPass(descriptor: GPURenderPassDescriptor): GPURenderPassEncoder;
   beginComputePass(
-    descriptor?: GPUComputePassDescriptor,
+    descriptor?: GPUComputePassDescriptor
   ): GPUComputePassEncoder;
   copyBufferToBuffer(
     source: GPUBuffer,
     sourceOffset: number,
     destination: GPUBuffer,
     destinationOffset: number,
-    size: number,
+    size: number
   ): void;
   copyBufferToTexture(
     source: GPUImageCopyBuffer,
     destination: GPUImageCopyTexture,
-    copySize: GPUExtent3D,
+    copySize: GPUExtent3D
   ): void;
   copyTextureToBuffer(
     source: GPUImageCopyTexture,
     destination: GPUImageCopyBuffer,
-    copySize: GPUExtent3D,
+    copySize: GPUExtent3D
   ): void;
   copyTextureToTexture(
     source: GPUImageCopyTexture,
     destination: GPUImageCopyTexture,
-    copySize: GPUExtent3D,
+    copySize: GPUExtent3D
   ): void;
   finish(descriptor?: GPUCommandBufferDescriptor): GPUCommandBuffer;
 }
@@ -638,32 +638,32 @@ interface GPURenderPassEncoder {
   setBindGroup(
     index: number,
     bindGroup: GPUBindGroup,
-    dynamicOffsets?: number[],
+    dynamicOffsets?: number[]
   ): void;
   setVertexBuffer(
     slot: number,
     buffer: GPUBuffer,
     offset?: number,
-    size?: number,
+    size?: number
   ): void;
   setIndexBuffer(
     buffer: GPUBuffer,
     indexFormat: GPUIndexFormat,
     offset?: number,
-    size?: number,
+    size?: number
   ): void;
   draw(
     vertexCount: number,
     instanceCount?: number,
     firstVertex?: number,
-    firstInstance?: number,
+    firstInstance?: number
   ): void;
   drawIndexed(
     indexCount: number,
     instanceCount?: number,
     firstIndex?: number,
     baseVertex?: number,
-    firstInstance?: number,
+    firstInstance?: number
   ): void;
   setViewport(
     x: number,
@@ -671,7 +671,7 @@ interface GPURenderPassEncoder {
     width: number,
     height: number,
     minDepth: number,
-    maxDepth: number,
+    maxDepth: number
   ): void;
   setScissorRect(x: number, y: number, width: number, height: number): void;
   end(): void;
@@ -693,12 +693,12 @@ interface GPUComputePassEncoder {
   setBindGroup(
     index: number,
     bindGroup: GPUBindGroup,
-    dynamicOffsets?: number[],
+    dynamicOffsets?: number[]
   ): void;
   dispatchWorkgroups(
     workgroupCountX: number,
     workgroupCountY?: number,
-    workgroupCountZ?: number,
+    workgroupCountZ?: number
   ): void;
   end(): void;
 }

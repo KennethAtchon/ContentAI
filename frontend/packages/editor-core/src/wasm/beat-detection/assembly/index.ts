@@ -10,7 +10,7 @@ export function computeRMSEnergies(
   samples: Float32Array,
   windowSize: i32,
   hopSize: i32,
-  energies: Float32Array,
+  energies: Float32Array
 ): void {
   const numSamples = samples.length;
   const numFrames = energies.length;
@@ -48,7 +48,7 @@ export function computeRMSEnergies(
 export function smoothArray(
   input: Float32Array,
   output: Float32Array,
-  windowSize: i32,
+  windowSize: i32
 ): void {
   const len = input.length;
   const halfWindow = windowSize >> 1;
@@ -127,7 +127,7 @@ export function findPeaks(
   energies: Float32Array,
   threshold: f32,
   minDistance: i32,
-  peaks: Int32Array,
+  peaks: Int32Array
 ): i32 {
   const len = energies.length;
   let peakCount: i32 = 0;

@@ -3,7 +3,7 @@
  * Tests the className merging utility
  */
 import { describe, expect, test } from "bun:test";
-import { cn } from "@/shared/utils/helpers/utils";
+import { cn } from "@/shared/lib/utils";
 
 describe("cn utility function", () => {
   test("should merge class names correctly", () => {

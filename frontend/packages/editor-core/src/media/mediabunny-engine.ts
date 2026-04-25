@@ -55,7 +55,7 @@ export function isSupportedFormat(mimeType: string): boolean {
 }
 
 export function inferMediaType(
-  mimeType: string,
+  mimeType: string
 ): "video" | "audio" | "image" | null {
   const baseMimeType = mimeType.split(";")[0].trim();
   if (SUPPORTED_VIDEO_FORMATS.includes(baseMimeType)) return "video";
@@ -74,7 +74,8 @@ type MediaBunnyInput = {
 
 export class ExportFrameDecoder {
   private input: MediaBunnyInput | null = null;
-  private sink: InstanceType<typeof import("mediabunny").CanvasSink> | null = null;
+  private sink: InstanceType<typeof import("mediabunny").CanvasSink> | null =
+    null;
   private mediabunny: typeof import("mediabunny");
   private file: File | Blob;
   private width?: number;
@@ -82,7 +83,11 @@ export class ExportFrameDecoder {
   private reusableCanvas: OffscreenCanvas | null = null;
   private reusableCtx: OffscreenCanvasRenderingContext2D | null = null;
 
-  constructor(mediabunny: typeof import("mediabunny"), file: File | Blob, width?: number) {
+  constructor(
+    mediabunny: typeof import("mediabunny"),
+    file: File | Blob,
+    width?: number
+  ) {
     this.mediabunny = mediabunny;
     this.file = file;
     this.width = width;
@@ -132,9 +137,15 @@ export class ExportFrameDecoder {
     const w = result.canvas.width;
     const h = result.canvas.height;
 
-    if (!this.reusableCanvas || this.reusableCanvas.width !== w || this.reusableCanvas.height !== h) {
+    if (
+      !this.reusableCanvas ||
+      this.reusableCanvas.width !== w ||
+      this.reusableCanvas.height !== h
+    ) {
       this.reusableCanvas = new OffscreenCanvas(w, h);
-      this.reusableCtx = this.reusableCanvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+      this.reusableCtx = this.reusableCanvas.getContext(
+        "2d"
+      ) as OffscreenCanvasRenderingContext2D;
     }
 
     this.reusableCtx!.clearRect(0, 0, w, h);
@@ -192,7 +203,11 @@ export class MediaBunnyEngine {
     return this.frameCache.size;
   }
 
-  async createExportDecoder(mediaId: string, file: File | Blob, width?: number): Promise<ExportFrameDecoder | null> {
+  async createExportDecoder(
+    mediaId: string,
+    file: File | Blob,
+    width?: number
+  ): Promise<ExportFrameDecoder | null> {
     this.ensureInitialized();
 
     const existing = this.exportDecoders.get(mediaId);
@@ -300,7 +315,7 @@ export class MediaBunnyEngine {
 
   private async extractImageMetadata(
     file: File | Blob,
-    mimeType: string,
+    mimeType: string
   ): Promise<MediaTrackInfo> {
     // Load image to get dimensions
     const img = new Image();
@@ -411,7 +426,7 @@ export class MediaBunnyEngine {
   async generateThumbnails(
     file: File | Blob,
     count: number = 5,
-    width: number = 320,
+    width: number = 320
   ): Promise<ThumbnailResult[]> {
     this.ensureInitialized();
     const { CanvasSink } = this.mediabunny!;
@@ -445,7 +460,7 @@ export class MediaBunnyEngine {
           ? [startTimestamp]
           : Array.from(
               { length: count },
-              (_, i) => startTimestamp + (i / (count - 1)) * duration,
+              (_, i) => startTimestamp + (i / (count - 1)) * duration
             );
 
       const thumbnails: ThumbnailResult[] = [];
@@ -455,7 +470,7 @@ export class MediaBunnyEngine {
           // Clone the canvas since the pool reuses them
           const clone = new OffscreenCanvas(
             result.canvas.width,
-            result.canvas.height,
+            result.canvas.height
           );
           const ctx = clone.getContext("2d");
           if (ctx) {
@@ -488,7 +503,7 @@ export class MediaBunnyEngine {
     file: File | Blob,
     duration: number,
     thumbnailWidth: number = 80,
-    interval: number = 1,
+    interval: number = 1
   ): Promise<ThumbnailResult[]> {
     this.ensureInitialized();
     const { CanvasSink } = this.mediabunny!;
@@ -518,7 +533,7 @@ export class MediaBunnyEngine {
       const startTimestamp = await videoTrack.getFirstTimestamp();
       const timestamps = Array.from(
         { length: count },
-        (_, i) => startTimestamp + i * interval,
+        (_, i) => startTimestamp + i * interval
       );
 
       const thumbnails: ThumbnailResult[] = [];
@@ -528,7 +543,7 @@ export class MediaBunnyEngine {
           // Clone the canvas
           const clone = new OffscreenCanvas(
             result.canvas.width,
-            result.canvas.height,
+            result.canvas.height
           );
           const ctx = clone.getContext("2d");
           if (ctx) {
@@ -560,7 +575,7 @@ export class MediaBunnyEngine {
   async getFrameAtTime(
     file: File | Blob,
     timestamp: number,
-    width?: number,
+    width?: number
   ): Promise<VideoFrameResult | null> {
     this.ensureInitialized();
     const { CanvasSink } = this.mediabunny!;
@@ -609,7 +624,7 @@ export class MediaBunnyEngine {
       // Clone the canvas
       const clone = new OffscreenCanvas(
         result.canvas.width,
-        result.canvas.height,
+        result.canvas.height
       );
       const ctx = clone.getContext("2d");
       if (ctx) {
@@ -653,7 +668,7 @@ export class MediaBunnyEngine {
 
   async generateWaveform(
     file: File | Blob,
-    samplesPerSecond: number = 100,
+    samplesPerSecond: number = 100
   ): Promise<WaveformData> {
     this.ensureInitialized();
     const { AudioSampleSink } = this.mediabunny!;
@@ -678,7 +693,7 @@ export class MediaBunnyEngine {
       const rms: number[] = [];
       const timestamps = Array.from(
         { length: totalSamples },
-        (_, i) => i / samplesPerSecond,
+        (_, i) => i / samplesPerSecond
       );
 
       for await (const sample of sink.samplesAtTimestamps(timestamps)) {
@@ -723,7 +738,7 @@ export class MediaBunnyEngine {
     file: File | Blob,
     settings: ExportSettings,
     onProgress?: (progress: ExportProgress) => void,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Blob> {
     this.ensureInitialized();
     const {
@@ -807,7 +822,7 @@ export class MediaBunnyEngine {
     }
 
     const conversion = await Conversion.init(
-      conversionOptions as ConversionOptions,
+      conversionOptions as ConversionOptions
     );
 
     if (!conversion.isValid) {
@@ -821,7 +836,7 @@ export class MediaBunnyEngine {
     if (conversion.discardedTracks.length > 0) {
       console.warn(
         "Some tracks were discarded during conversion:",
-        conversion.discardedTracks,
+        conversion.discardedTracks
       );
     }
     if (onProgress) {
@@ -866,7 +881,7 @@ export class MediaBunnyEngine {
     file: File | Blob,
     format: "mp3" | "wav" | "aac" = "mp3",
     onProgress?: (progress: ExportProgress) => void,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Blob> {
     return this.convertMedia(
       file,
@@ -877,7 +892,7 @@ export class MediaBunnyEngine {
         channels: 2,
       },
       onProgress,
-      signal,
+      signal
     );
   }
 
@@ -887,7 +902,7 @@ export class MediaBunnyEngine {
     endTime: number,
     settings?: Partial<ExportSettings>,
     onProgress?: (progress: ExportProgress) => void,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Blob> {
     this.ensureInitialized();
     const {
@@ -1008,7 +1023,7 @@ export class MediaBunnyEngine {
 
   async getBestVideoCodec(
     width: number,
-    height: number,
+    height: number
   ): Promise<string | null> {
     this.ensureInitialized();
     const { getFirstEncodableVideoCodec, Mp4OutputFormat } = this.mediabunny!;
@@ -1031,7 +1046,7 @@ export class MediaBunnyEngine {
     file: File | Blob,
     timestamp: number,
     format: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
-    quality: number = 0.8,
+    quality: number = 0.8
   ): Promise<Blob> {
     const frame = await this.getFrameAtTime(file, timestamp);
     if (!frame) {
@@ -1045,7 +1060,7 @@ export class MediaBunnyEngine {
       blob = await canvas.convertToBlob({ type: format, quality });
     } else if (canvas instanceof HTMLCanvasElement) {
       blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, format, quality),
+        canvas.toBlob(resolve, format, quality)
       );
     } else if (canvas instanceof ImageBitmap) {
       const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
@@ -1066,7 +1081,7 @@ export class MediaBunnyEngine {
   async generateProxy(
     file: File | Blob,
     onProgress?: (progress: ExportProgress) => void,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Blob> {
     // Proxy settings: 540p, lower bitrate, faster encoding
     const proxySettings: ExportSettings = {
@@ -1087,7 +1102,7 @@ export class MediaBunnyEngine {
     format: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
     quality: number = 0.8,
     onProgress?: (progress: number) => void,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Blob[]> {
     this.ensureInitialized();
     const { CanvasSink } = this.mediabunny!;
@@ -1108,7 +1123,7 @@ export class MediaBunnyEngine {
       const frameCount = Math.ceil(duration * frameRate);
       const timestamps = Array.from(
         { length: frameCount },
-        (_, i) => startTime + i / frameRate,
+        (_, i) => startTime + i / frameRate
       );
 
       const sink = new CanvasSink(videoTrack, {

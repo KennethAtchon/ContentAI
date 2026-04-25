@@ -20,28 +20,28 @@ export interface ExpressionContext {
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ) => number;
   ease: (
     t: number,
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ) => number;
   easeIn: (
     t: number,
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ) => number;
   easeOut: (
     t: number,
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ) => number;
   clamp: (value: number, min: number, max: number) => number;
   random: (min?: number, max?: number) => number;
@@ -66,7 +66,7 @@ export class ExpressionEngine {
     try {
       return new Function(
         ...Object.keys(safeContext),
-        `return (${expression});`,
+        `return (${expression});`
       ).bind(null, ...Object.values(safeContext));
     } catch (error) {
       console.error("Expression compilation error:", error);
@@ -102,7 +102,7 @@ export class ExpressionEngine {
   private smooth(
     values: number[],
     _width: number = 5,
-    samples: number = 5,
+    samples: number = 5
   ): number {
     let sum = 0;
     for (let i = 0; i < samples; i++) {
@@ -117,7 +117,7 @@ export class ExpressionEngine {
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ): number {
     if (t <= tMin) return value1;
     if (t >= tMax) return value2;
@@ -131,7 +131,7 @@ export class ExpressionEngine {
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ): number {
     if (t <= tMin) return value1;
     if (t >= tMax) return value2;
@@ -146,7 +146,7 @@ export class ExpressionEngine {
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ): number {
     if (t <= tMin) return value1;
     if (t >= tMax) return value2;
@@ -160,7 +160,7 @@ export class ExpressionEngine {
     tMin: number,
     tMax: number,
     value1: number,
-    value2: number,
+    value2: number
   ): number {
     if (t <= tMin) return value1;
     if (t >= tMax) return value2;

@@ -9,7 +9,7 @@ import {
   sanitizeObject,
   safeLogError,
   sanitize,
-} from "@/shared/utils/security/pii-sanitization";
+} from "@/shared/security/pii-sanitization";
 
 describe("pii-sanitization", () => {
   describe("sanitizeString", () => {

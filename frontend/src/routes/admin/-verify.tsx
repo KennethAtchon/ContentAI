@@ -3,19 +3,19 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/shared/contexts/app-context";
-import { useAuthenticatedFetch } from "@/features/auth/hooks/use-authenticated-fetch";
-import { debugLog } from "@/shared/utils/debug";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
+import { useApp } from "@/app/state/app-context";
+import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
+import { debugLog } from "@/shared/debug";
+import { Button } from "@/shared/ui/primitives/button";
+import { Input } from "@/shared/ui/primitives/input";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/shared/components/ui/card";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
+} from "@/shared/ui/primitives/card";
+import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
 import { Shield, Lock, ArrowLeft } from "lucide-react";
 
 /**

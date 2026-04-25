@@ -6,7 +6,7 @@ import {
   isSubscriptionTier,
   toSubscriptionTier,
   assertSubscriptionTier,
-} from "@/shared/utils/type-guards/subscription-type-guards";
+} from "@/shared/type-guards/subscription-type-guards";
 
 describe("subscription type guards", () => {
   describe("isSubscriptionTier", () => {

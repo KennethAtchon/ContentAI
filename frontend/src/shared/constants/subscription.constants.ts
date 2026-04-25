@@ -9,7 +9,7 @@
 import {
   getStripePriceId,
   getStripePriceAmount,
-} from "@/shared/utils/stripe-map-loader";
+} from "@/shared/payments/stripe-map-loader";
 
 export const SUBSCRIPTION_TIERS = {
   BASIC: "basic",
@@ -125,4 +125,4 @@ export function getTierDescription(tier: SubscriptionTier): string {
 export {
   isSubscriptionTier,
   toSubscriptionTier,
-} from "@/shared/utils/type-guards/subscription-type-guards";
+} from "@/shared/type-guards/subscription-type-guards";
