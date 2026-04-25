@@ -1,23 +1,6 @@
 # Frontend Dockerfile
 FROM oven/bun:1.2.14-alpine AS base
 
-RUN apk add --no-cache \
-    build-base \
-    curl \
-    openssl-dev \
-    pkgconfig \
-    tar \
-    xz \
-    gzip
-
-ENV RUSTUP_HOME=/usr/local/rustup
-ENV CARGO_HOME=/usr/local/cargo
-ENV PATH=/usr/local/cargo/bin:$PATH
-
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --target wasm32-unknown-unknown
-RUN cargo install wasm-pack --locked
-RUN cargo install wasm-bindgen-cli --version 0.2.118 --locked
-
 WORKDIR /app
 
 # Install dependencies only when needed

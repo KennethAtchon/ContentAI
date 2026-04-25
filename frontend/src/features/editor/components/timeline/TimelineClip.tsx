@@ -7,7 +7,7 @@ import { TRACK_COLORS } from "../../types/editor";
 import type { Clip, Track, TrackType } from "../../types/editor";
 import { useWaveformData } from "../../hooks/useWaveformData";
 import { WaveformBars } from "./WaveformBars";
-import { useAssetUrlMap } from "../../contexts/asset-url-map-context";
+import { useAssetUrlMap } from "../../context/asset-url-map-context";
 import {
   collectSnapTargets,
   findNearestSnap,

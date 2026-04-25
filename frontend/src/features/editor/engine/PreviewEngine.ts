@@ -4,10 +4,6 @@ import {
   type AudioClipDescriptor,
 } from "./AudioMixer";
 import { DecoderPool, type DecoderPoolMetrics } from "./DecoderPool";
-import {
-  buildCompositorDescriptorsWithRust,
-  preloadEditorCoreWasm,
-} from "./editor-core-wasm";
 import type {
   CompositorClipDescriptor,
   CompositorClipPath,
@@ -32,10 +28,6 @@ const DROPPED_FRAME_DEGRADE_THRESHOLD = 3;
 const STABLE_FRAME_RECOVERY_THRESHOLD = 90;
 const MEMORY_PRESSURE_CHECK_INTERVAL_MS = 1_000;
 const LOG_COMPONENT = "PreviewEngine";
-
-function isMissingDescriptorClipId(clipId: unknown): boolean {
-  return typeof clipId !== "string" || clipId.trim().length === 0;
-}
 
 function formatDescriptorClipIdForLog(clipId: unknown): string {
   if (typeof clipId === "string") {
@@ -624,61 +616,23 @@ export class PreviewEngine {
     const timerId = systemPerformance.start("editor.compositorTick", {
       playheadMs,
     });
-    const rustClips = buildCompositorDescriptorsWithRust(
-      this.tracks,
-      playheadMs,
-      this.effectPreview
-    );
+
     const jsClips = buildCompositorClips(
       this.tracks,
       playheadMs,
       this.effectPreview
     );
-    const rustClipIds = rustClips.map((clip) =>
-      formatDescriptorClipIdForLog(clip.clipId)
-    );
+
     const jsClipIds = jsClips.map((clip) =>
       formatDescriptorClipIdForLog(clip.clipId)
     );
-    const blankRustClipIds = rustClips
-      .map((clip) => clip.clipId)
-      .filter((clipId) => isMissingDescriptorClipId(clipId))
-      .map((clipId) => formatDescriptorClipIdForLog(clipId));
-    const rustRawClipIds = rustClips.map((clip) => clip.clipId);
-    const jsRawClipIds = jsClips.map((clip) => clip.clipId);
-    const mismatchedClipIds =
-      rustRawClipIds.length !== jsRawClipIds.length ||
-      rustRawClipIds.some((clipId, index) => clipId !== jsRawClipIds[index]);
-
     this.logDebug("Built compositor descriptors", {
       playheadMs,
-      rustClipCount: rustClips.length,
-      rustClipIds,
       jsClipCount: jsClips.length,
       jsClipIds,
-      blankRustClipIdCount: blankRustClipIds.length,
-      descriptorMismatch: mismatchedClipIds,
     });
 
-    if (blankRustClipIds.length > 0 || mismatchedClipIds) {
-      this.logInfo("Detected compositor descriptor mismatch", {
-        playheadMs,
-        rustClipIds,
-        jsClipIds,
-        blankRustClipIds,
-        rustFirstClipId: formatDescriptorClipIdForLog(rustClips[0]?.clipId),
-        jsFirstClipId: formatDescriptorClipIdForLog(jsClips[0]?.clipId),
-        rustFirstClipEnabled: rustClips[0]?.enabled ?? null,
-        jsFirstClipEnabled: jsClips[0]?.enabled ?? null,
-        rustFirstClipSourceTimeUs: rustClips[0]?.sourceTimeUs ?? null,
-        jsFirstClipSourceTimeUs: jsClips[0]?.sourceTimeUs ?? null,
-      }, {
-        rustFirstClip: rustClips[0] ?? null,
-        jsFirstClip: jsClips[0] ?? null,
-      });
-    }
-
-    const clips = rustClips;
+    const clips = jsClips;
     const previewClips = this.applyPreviewQualityToClips(clips);
     const textObjects = this.buildTextObjects(playheadMs);
     const captionFrame = this.pendingCaptionFrame;
