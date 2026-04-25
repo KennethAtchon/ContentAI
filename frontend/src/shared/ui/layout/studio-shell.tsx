@@ -6,7 +6,7 @@
  */
 
 import { ReactNode } from "react";
-import { StudioTopBar } from "@/shared/ui/navigation/StudioTopBar";
+import { StudioTopBar } from "@/domains/studio/ui/StudioTopBar";
 import { StudioFooter } from "./studio-footer";
 
 export type ShellVariant = "studio" | "public" | "customer" | "admin" | "auth";

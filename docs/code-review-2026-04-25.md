@@ -176,11 +176,18 @@ Backend is `strict: true`. Asymmetric.
 
 `shared/` should depend on **nothing** in `domains/`. Violations:
 
-- `frontend/src/shared/ui/navigation/StudioTopBar.tsx` imports `@/domains/auth/ui/user-button`, `@/domains/subscriptions/...`
+- `frontend/src/shared/ui/navigation/StudioTopBar.tsx` was a 1-line re-export of `@/domains/studio/ui/StudioTopBar` — deceptive shim that hid the leak. **Deleted in PR 2.**
+- `frontend/src/shared/ui/layout/studio-shell.tsx` still imports `StudioTopBar` from `@/domains/studio/...` (after PR 2, directly instead of via shim). **Leak still present.**
+- `domains/studio/ui/StudioTopBar.tsx` itself imports `UserButton` from `@/domains/auth/...` (cross-domain, separate concern — see F4).
 
-This file looks like a copy of `domains/studio/ui/StudioTopBar.tsx` that drifted. Pick one home.
+**The real fix (deferred to PR 2b):** `studio-shell.tsx` is composition, not pure shared — it combines navigation + footer + auth-aware UI for 19 route consumers. Two options:
 
-**Severity: P1.** Architectural rule violation.
+(a) Move `studio-shell.tsx` + `studio-footer.tsx` to `frontend/src/app/layout/` (app-level composition, mirrors `app/providers/`, `app/state/`).
+(b) Convert `StudioShell` to take a `topBar` slot prop. Each route caller passes `<StudioTopBar variant="..." />`. Keeps `shared/` truly leaf-only.
+
+Option (b) is more architecturally pure but requires updating all 19 callers.
+
+**Severity: P1.** Architectural rule violation. PR 2 removed the misleading shim; PR 2b picks (a) or (b).
 
 ### F4. Cross-domain coupling
 
