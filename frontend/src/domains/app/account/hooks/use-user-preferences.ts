@@ -54,7 +54,7 @@ export function useUserPreferences() {
 
   async function handleChange(
     field: Extract<keyof UserSettingsData, string>,
-    value: string,
+    value: string
   ) {
     setSavingField(field);
     setSavedField(null);

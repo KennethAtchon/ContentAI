@@ -17,7 +17,7 @@ interface UseOrderConfirmationResult {
 }
 
 export function useOrderConfirmation(
-  orderId: string,
+  orderId: string
 ): UseOrderConfirmationResult {
   const { user } = useApp();
   const { authenticatedFetch } = useAuthenticatedFetch();
@@ -53,12 +53,12 @@ export function useOrderConfirmation(
             component: "OrderConfirmation",
             orderId,
           },
-          err,
+          err
         );
 
         setOrderDetails(null);
         setError(
-          err instanceof Error ? err.message : "Failed to load order details",
+          err instanceof Error ? err.message : "Failed to load order details"
         );
       } finally {
         if (!cancelled) {

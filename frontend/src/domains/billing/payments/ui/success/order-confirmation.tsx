@@ -26,7 +26,8 @@ interface OrderConfirmationProps {
 }
 
 export function OrderConfirmation({ orderId }: OrderConfirmationProps) {
-  const { error, isLoading, orderDetails, retry } = useOrderConfirmation(orderId);
+  const { error, isLoading, orderDetails, retry } =
+    useOrderConfirmation(orderId);
 
   if (isLoading) {
     return (

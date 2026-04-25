@@ -1,13 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Loader2,
-  ShieldAlert,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Loader2, ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
 import { invalidateAdminApiKeysStatus } from "@/app/query/query-invalidation";

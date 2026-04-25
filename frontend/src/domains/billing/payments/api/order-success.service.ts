@@ -7,7 +7,7 @@ import type {
 type AuthenticatedFetch = (
   url: string,
   options?: RequestInit,
-  timeout?: number,
+  timeout?: number
 ) => Promise<Response>;
 
 export interface OrderDetails {
@@ -38,7 +38,7 @@ export interface OrderDetails {
 export async function createOrderFromCheckoutSession(
   authenticatedFetch: AuthenticatedFetch,
   sessionId: string,
-  userId: string,
+  userId: string
 ): Promise<string> {
   debugLog.info("OrderCreator: Starting order creation", {
     component: "OrderCreator",
@@ -76,7 +76,7 @@ export async function createOrderFromCheckoutSession(
 
 export async function fetchOrderDetails(
   authenticatedFetch: AuthenticatedFetch,
-  orderId: string,
+  orderId: string
 ): Promise<OrderDetails> {
   debugLog.info("OrderConfirmation: Fetching order details", {
     component: "OrderConfirmation",

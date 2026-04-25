@@ -11,25 +11,26 @@ export function fetchUserSettings(): Promise<UserSettingsData> {
 }
 
 export async function fetchPreferenceVoices(): Promise<Voice[]> {
-  const response =
-    await authenticatedFetchJson<{ voices: Voice[] }>("/api/audio/voices");
+  const response = await authenticatedFetchJson<{ voices: Voice[] }>(
+    "/api/audio/voices"
+  );
   return response.voices;
 }
 
 export function fetchAiDefaults(): Promise<AiDefaultsData> {
   return authenticatedFetchJson<AiDefaultsData>(
-    "/api/customer/settings/ai-defaults",
+    "/api/customer/settings/ai-defaults"
   );
 }
 
 export function fetchVideoDefaults(): Promise<VideoDefaultsData> {
   return authenticatedFetchJson<VideoDefaultsData>(
-    "/api/customer/settings/video-defaults",
+    "/api/customer/settings/video-defaults"
   );
 }
 
 export function updateUserSettings(
-  data: Partial<UserSettingsData>,
+  data: Partial<UserSettingsData>
 ): Promise<UserSettingsData> {
   return authenticatedFetchJson<UserSettingsData>("/api/customer/settings", {
     method: "PUT",

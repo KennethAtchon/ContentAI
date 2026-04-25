@@ -35,7 +35,7 @@ export function useQueueView() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [projectFilter, setProjectFilter] = useState<string>(
-    search.projectId ?? "all",
+    search.projectId ?? "all"
   );
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,15 +71,15 @@ export function useQueueView() {
     queryKey: queryKeys.api.queue(queueParams),
     queryFn: () =>
       queueFetcher(
-        buildQueueListUrl({ projectFilter, searchQuery, statusFilter }),
+        buildQueueListUrl({ projectFilter, searchQuery, statusFilter })
       ),
     enabled: !!user,
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const hasActive = items.some((item) =>
         item.stages?.some(
-          (stage) => stage.status === "running" || stage.status === "pending",
-        ),
+          (stage) => stage.status === "running" || stage.status === "pending"
+        )
       );
       return hasActive ? 6000 : false;
     },
@@ -154,10 +154,7 @@ export function useQueueView() {
     onMissing: clearMissingProjectFilter,
   });
 
-  const versionGroups = useMemo(
-    () => groupQueueItemsByVersion(items),
-    [items],
-  );
+  const versionGroups = useMemo(() => groupQueueItemsByVersion(items), [items]);
   const selectedItem = items.find((item) => item.id === detailItemId) ?? null;
 
   return {

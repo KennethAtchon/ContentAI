@@ -37,7 +37,7 @@ export function useOrderCreation(sessionId: string): UseOrderCreationResult {
         const orderId = await createOrderFromCheckoutSession(
           authenticatedFetch,
           sessionId,
-          user.uid,
+          user.uid
         );
 
         if (cancelled) {
@@ -56,12 +56,10 @@ export function useOrderCreation(sessionId: string): UseOrderCreationResult {
         debugLog.error(
           "OrderCreator: Order creation failed",
           { component: "OrderCreator" },
-          err,
+          err
         );
 
-        setError(
-          err instanceof Error ? err.message : "Failed to create order",
-        );
+        setError(err instanceof Error ? err.message : "Failed to create order");
         setIsCreating(false);
 
         errorTimer = setTimeout(() => {

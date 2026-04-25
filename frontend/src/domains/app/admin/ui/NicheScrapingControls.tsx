@@ -22,7 +22,6 @@ interface ScrapeConfig {
   viralOnly: boolean;
 }
 
-
 interface ScrapeJob {
   jobId: string;
   nicheId: number;

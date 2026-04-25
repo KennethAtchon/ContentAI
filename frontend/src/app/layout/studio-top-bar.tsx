@@ -124,7 +124,7 @@ export function StudioTopBar({
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-studio-ring",
                   isActive(tab.key, tab.path)
                     ? "text-studio-accent border-b-studio-accent"
-                    : "text-dim-2 border-b-transparent hover:text-dim-1",
+                    : "text-dim-2 border-b-transparent hover:text-dim-1"
                 )}
               >
                 {tab.key === "generate" && (
@@ -187,7 +187,7 @@ export function StudioTopBar({
                   "bg-transparent border-0 cursor-pointer font-studio transition-all",
                   isActive(tab.key, tab.path)
                     ? "bg-studio-accent/[0.08] text-studio-accent"
-                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs",
+                    : "text-dim-2 hover:text-dim-1 hover:bg-overlay-xs"
                 )}
               >
                 {t(TAB_LABELS[tab.key] ?? tab.key)}

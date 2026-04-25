@@ -4,6 +4,6 @@ import type { SubscriptionUsageStats } from "@contracts/subscription";
 
 export function fetchSubscriptionUsage(): Promise<SubscriptionUsageStats> {
   return authenticatedFetchJson<SubscriptionUsageStats>(
-    `${CORE_FEATURE_API_PREFIX}/usage`,
+    `${CORE_FEATURE_API_PREFIX}/usage`
   );
 }

@@ -34,7 +34,7 @@ export function useUsageDashboard() {
 
   const historyUrl = useMemo(
     () => buildGenerationHistoryUrl(historyPage),
-    [historyPage],
+    [historyPage]
   );
 
   const {
@@ -74,7 +74,7 @@ export function useUsageDashboard() {
       void invalidateUsageStatsAndGenerationHistory(queryClient);
     } catch (err) {
       setExportError(
-        err instanceof Error ? err.message : "Failed to export usage data",
+        err instanceof Error ? err.message : "Failed to export usage data"
       );
     }
   };
@@ -84,16 +84,17 @@ export function useUsageDashboard() {
   const loading = statsLoading || historyLoading;
   const error = statsError || historyError;
   const reelsPercentage =
-    !isUnlimited(usageStats?.reelsAnalyzedLimit) && usageStats?.reelsAnalyzedLimit
+    !isUnlimited(usageStats?.reelsAnalyzedLimit) &&
+    usageStats?.reelsAnalyzedLimit
       ? Math.round(
-          (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100,
+          (usageStats.reelsAnalyzed / usageStats.reelsAnalyzedLimit) * 100
         )
       : 0;
   const generationPercentage =
     !isUnlimited(usageStats?.contentGeneratedLimit) &&
     usageStats?.contentGeneratedLimit
       ? Math.round(
-          (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100,
+          (usageStats.contentGenerated / usageStats.contentGeneratedLimit) * 100
         )
       : 0;
 
