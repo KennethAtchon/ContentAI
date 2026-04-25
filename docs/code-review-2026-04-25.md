@@ -197,11 +197,11 @@ No composition layer. Either:
 
 - `shared/api/authenticated-fetch.ts` — 465 lines
 - `shared/api/safe-fetch.ts` — 468 lines
-- `domains/auth/hooks/use-authenticated-fetch.ts` — **1,331 lines**
+- `domains/auth/hooks/use-authenticated-fetch.ts` — 52 lines (initial audit reported 1,331; that count was wrong)
 
-That last number is a smell. A hook file should not be 1,300 lines. It almost certainly contains business logic that should be elsewhere.
+Hook is a thin wrapper, fine. Real question is whether the two `shared/api/*-fetch.ts` files (~933 lines combined) need consolidation — different responsibilities (auth+toast vs retry+timeout) but possibly merge-able.
 
-**Severity: P1.** Read it; find what doesn't belong.
+**Severity: P3** (downgraded from P1). Audit when next touched.
 
 ### F6. Form schemas re-created on every render
 
@@ -294,7 +294,7 @@ CSRF middleware on all mutations. PII sanitizer mirrored on both sides. No raw H
 | Frontend strict mode (F1) | Error-handler brittleness (B3) | Param validation dup (B6) |
 | `SystemConfigView` size (F2) | Validation hook dup (B5) | Singletons / global state (B7) |
 | Shared → domain leak (F3) | Cross-domain coupling (F4) | Form schema memo (F6) |
-| `use-authenticated-fetch.ts` 1,331 lines (F5) | State mgmt — chat streaming (F7) | Filename casing (F8) |
+| ~~`use-authenticated-fetch.ts`~~ wrong count (F5) | State mgmt — chat streaming (F7) | Filename casing (F8) |
 | Schema duplication FE↔BE (X1) | Mega-components (F2 cont.) | Barrel files (X2) |
 | | Frontend test coverage (F10) | Folder depth (X4) |
 | | `any` / cast audit (X3) | |
