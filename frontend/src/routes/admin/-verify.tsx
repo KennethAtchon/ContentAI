@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/debug";
 import { Button } from "@/shared/ui/primitives/button";
@@ -26,7 +26,7 @@ export default function AdminVerifyPage() {
   const [adminCode, setAdminCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState("");
-  const { user } = useApp();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { authenticatedFetchJson } = useAuthenticatedFetch();

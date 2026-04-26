@@ -12,7 +12,7 @@ import { I18nextProvider } from "react-i18next";
 import { router } from "./router";
 import { appQueryClient } from "./app-query-client";
 import i18n from "@/app/i18n/i18n";
-import { AppProvider } from "@/app/state/app-context";
+import { AppProvider } from "@/app/state/app-provider";
 
 // Initialize Sentry for error tracking
 import { initializeSentry } from "@/shared/observability/sentry";

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { debugLog } from "@/shared/debug/debug";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { chatService } from "../api/chat.service";
 import {
@@ -45,7 +45,7 @@ export function useProjectSidebar({
   onSessionDeleted,
 }: UseProjectSidebarParams) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const { hasEnterpriseAccess } = useSubscription();
   const usageFetcher = useQueryFetcher<UsageStats>();
 

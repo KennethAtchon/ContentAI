@@ -2,7 +2,7 @@ import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useSearch, Link } from "@tanstack/react-router";
 import { Button } from "@/shared/ui/primitives/button";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useTranslation } from "react-i18next";
 import {
   SUBSCRIPTION_TIERS,
@@ -41,7 +41,7 @@ export function CheckoutInteractive() {
     string | undefined
   >;
   const navigate = useNavigate();
-  const { user } = useApp();
+  const { user } = useAuth();
   const { redirectToAuth } = useSmartRedirect();
   const subscriptionFetcher = useQueryFetcher<{
     subscription: {

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Eye, EyeOff, UserPlus, Sparkles } from "lucide-react";
 import { debugLog } from "@/shared/debug";
@@ -30,7 +30,7 @@ function SignUpPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
-  const { signUp, signInWithGoogle, user, authLoading } = useApp();
+  const { signUp, signInWithGoogle, user, authLoading } = useAuth();
   const { smartRedirect } = useSmartRedirect();
   const search = useSearch({ from: "/(auth)/sign-up" });
   const redirectUrl = (search as Record<string, string | undefined>)

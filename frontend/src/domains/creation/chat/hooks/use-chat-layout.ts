@@ -3,7 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useResolvedParam } from "@/shared/react/use-resolved-param";
 import { REDIRECT_PATHS } from "@/shared/navigation/redirect-util";
 import { useChatSession } from "./use-chat-sessions";
@@ -28,7 +28,7 @@ interface ChatSearch {
 
 export function useChatLayout(projects: Project[]) {
   const search = useSearch({ strict: false }) as ChatSearch;
-  const { user } = useApp();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

@@ -6,7 +6,8 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { AuthGuard } from "@/domains/auth/ui/auth-guard";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { ThemeToggle } from "@/shared/ui/theme-toggle";
@@ -69,7 +70,8 @@ function isNavActive(path: string, pathname: string): boolean {
 
 function StudioTopBar({ pathname }: { pathname: string }) {
   const { t } = useTranslation();
-  const { user, profile, logout, isAdmin } = useApp();
+  const { user, logout } = useAuth();
+  const { profile, isAdmin } = useProfile();
   const { role } = useSubscription();
   const navigate = useNavigate();
 

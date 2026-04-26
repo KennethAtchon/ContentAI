@@ -12,7 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/shared/ui/primitives/tabs";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { Loader2, AlertCircle } from "lucide-react";
 import { SubscriptionsList } from "./subscriptions-list";
 import { SubscriptionAnalytics } from "./subscription-analytics";
@@ -35,7 +35,7 @@ interface SubscriptionStats {
 }
 
 export function SubscriptionsView() {
-  const { user } = useApp();
+  const { user } = useAuth();
   const fetcher = useQueryFetcher<SubscriptionStats>();
 
   // Admin layout wraps with AuthGuard; user is guaranteed when this renders.

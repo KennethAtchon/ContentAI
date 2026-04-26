@@ -19,7 +19,7 @@ import { createSubscriptionCheckout } from "@/domains/payments/api/stripe-checko
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { debugLog } from "@/shared/debug";
 import { BillingCycleCard } from "./subscription/BillingCycleCard";
 import { SelectedPlanCard } from "./subscription/SelectedPlanCard";
@@ -38,7 +38,7 @@ export function SubscriptionCheckout({
   onBillingCycleChange,
 }: SubscriptionCheckoutProps) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetcher = useQueryFetcher<{

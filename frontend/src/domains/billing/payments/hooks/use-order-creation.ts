@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/debug";
 import { createOrderFromCheckoutSession } from "../api/order-success.service";
@@ -15,7 +15,7 @@ interface UseOrderCreationResult {
 }
 
 export function useOrderCreation(sessionId: string): UseOrderCreationResult {
-  const { user } = useApp();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { authenticatedFetch } = useAuthenticatedFetch();
   const [error, setError] = useState<string | null>(null);

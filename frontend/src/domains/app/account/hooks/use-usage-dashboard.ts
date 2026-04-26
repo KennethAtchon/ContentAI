@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
 import { invalidateUsageStatsAndGenerationHistory } from "@/app/query/query-invalidation";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import {
   buildGenerationHistoryUrl,
@@ -25,7 +25,7 @@ export function getContentShortName(type: string): string {
 }
 
 export function useUsageDashboard() {
-  const { user } = useApp();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const usageFetcher = useQueryFetcher<UsageStats>();
   const historyFetcher = useQueryFetcher<GenerationHistoryResponse>();

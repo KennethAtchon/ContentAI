@@ -7,7 +7,7 @@ import { MoreHorizontal, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/debug";
 import { DataTable, type ColumnDef } from "@/shared/ui/data-display/DataTable";
@@ -79,7 +79,7 @@ export function CustomersList({
   selectedUserId,
 }: CustomersListProps) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
   const fetcher = useQueryFetcher<ApiResponse>();
 

@@ -7,7 +7,8 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
 import { Button } from "@/shared/ui/primitives/button";
@@ -20,7 +21,8 @@ export function StudioOverview({
   onNavigate: (s: Section) => void;
 }) {
   const { t } = useTranslation();
-  const { user, profile } = useApp();
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const fetcher = useQueryFetcher<SidebarUsage>();
 
   const { data: usage, isLoading } = useQuery<SidebarUsage>({

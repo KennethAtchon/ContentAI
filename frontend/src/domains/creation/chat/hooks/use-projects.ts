@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { queryKeys } from "@/app/query/query-keys";
 import {
   invalidateChatSessionsQueries,
@@ -20,7 +20,7 @@ import type {
 } from "../model/chat.types";
 
 export const useProjects = () => {
-  const { user } = useApp();
+  const { user } = useAuth();
   return useQuery({
     queryKey: queryKeys.api.projects(),
     queryFn: () => chatService.getProjects(),

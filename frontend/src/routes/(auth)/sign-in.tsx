@@ -6,7 +6,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Eye, EyeOff, LogIn, Sparkles } from "lucide-react";
 import { debugLog } from "@/shared/debug";
@@ -34,7 +34,7 @@ function SignInPage() {
   const search = useSearch({ from: "/(auth)/sign-in" });
   const redirectUrl = (search as any)?.redirect_url;
 
-  const { signIn, signInWithGoogle, user, authLoading } = useApp();
+  const { signIn, signInWithGoogle, user, authLoading } = useAuth();
   const { smartRedirect } = useSmartRedirect();
 
   useEffect(() => {

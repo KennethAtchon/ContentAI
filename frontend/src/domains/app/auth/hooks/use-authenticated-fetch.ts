@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import {
   authenticatedFetch as authFetch,
   authenticatedFetchJson as authFetchJson,
@@ -9,10 +9,10 @@ import { addTimezoneHeader } from "@/shared/api/add-timezone-header";
 /**
  * Hook that provides authenticated fetch functions for React components
  * Uses the centralized authenticated-fetch service with built-in retry logic
- * Gets user from app context (useApp hook)
+ * Gets user from the auth store facade.
  */
 export function useAuthenticatedFetch() {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   const authenticatedFetch = useCallback(
     async (

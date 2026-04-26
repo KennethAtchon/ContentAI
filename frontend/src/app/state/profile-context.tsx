@@ -1,20 +1,14 @@
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useMemo,
-  ReactNode,
-} from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authenticatedFetchJson } from "@/shared/api/authenticated-fetch";
 import { addTimezoneHeader } from "@/shared/api/add-timezone-header";
 import { debugLog } from "@/shared/debug";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
 import { QUERY_STALE } from "@/app/query/query-client";
 import { useAuth } from "./auth-context";
 import type { UserProfile } from "./types";
 
-interface ProfileContextValue {
+export interface ProfileContextValue {
   profile: UserProfile | null;
   profileLoading: boolean;
   profileError: string | null;
@@ -24,17 +18,7 @@ interface ProfileContextValue {
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
-const ProfileContext = createContext<ProfileContextValue | undefined>(
-  undefined
-);
-
 export function useProfile(): ProfileContextValue {
-  const ctx = useContext(ProfileContext);
-  if (!ctx) throw new Error("useProfile must be used inside ProfileProvider");
-  return ctx;
-}
-
-export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user, authLoading, backendReady } = useAuth();
   const queryClient = useQueryClient();
 
@@ -96,8 +80,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (updates: Partial<UserProfile>) => {
-      if (!user || !profile)
+      if (!user || !profile) {
         throw new Error("User must be authenticated to update profile");
+      }
 
       try {
         const response = await authenticatedFetchJson<{
@@ -108,8 +93,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify(updates),
         });
 
-        if (!response.profile)
+        if (!response.profile) {
           throw new Error("Profile data not found in response");
+        }
 
         queryClient.setQueryData(queryKeys.api.profile(), {
           profile: response.profile,
@@ -117,7 +103,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         });
 
         debugLog.info("User profile updated successfully", {
-          service: "profile-context",
+          service: "profile-hook",
           operation: "updateProfile",
           userId: profile.id,
         });
@@ -125,7 +111,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         debugLog.error(
           "Failed to update user profile",
           {
-            service: "profile-context",
+            service: "profile-hook",
             operation: "updateProfile",
             userId: profile.id,
           },
@@ -134,10 +120,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [user, profile, profileResponse, queryClient]
+    [profile, profileResponse?.isOAuthUser, queryClient, user]
   );
 
-  const value = useMemo(
+  return useMemo(
     () => ({
       profile,
       profileLoading,
@@ -156,9 +142,5 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       updateProfile,
     ]
-  );
-
-  return (
-    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
   );
 }

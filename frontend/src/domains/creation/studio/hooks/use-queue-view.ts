@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { invalidateQueueQueries } from "@/app/query/query-invalidation";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { useResolvedParam } from "@/shared/react/use-resolved-param";
@@ -41,7 +41,7 @@ export function useQueueView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { user } = useApp();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const queueFetcher = useQueryFetcher<QueueListResponse>();
   const projectsFetcher = useQueryFetcher<QueueProjectsResponse>();

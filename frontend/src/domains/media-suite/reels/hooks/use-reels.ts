@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { reelsService } from "../api/reels.service";
 
 export function fmtNum(n: number): string {
@@ -10,7 +10,7 @@ export function fmtNum(n: number): string {
 }
 
 export function useReelNiches() {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: queryKeys.api.reelNiches(),
@@ -25,7 +25,7 @@ export function useReels(params: {
   sort?: string;
   offset?: number;
 }) {
-  const { user } = useApp();
+  const { user } = useAuth();
   const { niche, nicheId, sort = "views", offset = 0 } = params;
 
   return useQuery({
@@ -40,7 +40,7 @@ export function useReels(params: {
 }
 
 export function useReel(id: number | null) {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: queryKeys.api.reel(id ?? 0),
@@ -50,7 +50,7 @@ export function useReel(id: number | null) {
 }
 
 export function useReelMediaUrl(reelId: number | null, hasVideo: boolean) {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: [...queryKeys.api.reel(reelId ?? 0), "media-url"],

@@ -27,7 +27,7 @@
  */
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/debug";
 
@@ -120,7 +120,7 @@ export function usePaginatedData<T>(
     ...options,
   };
 
-  const { user, authLoading } = useApp();
+  const { user, authLoading } = useAuth();
   const { authenticatedFetchJson } = useAuthenticatedFetch();
 
   const [currentPage, setCurrentPage] = useState(opts.initialPage);

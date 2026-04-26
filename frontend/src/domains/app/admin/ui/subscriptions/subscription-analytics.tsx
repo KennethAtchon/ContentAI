@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/primitives/card";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
@@ -54,7 +54,7 @@ interface AnalyticsData {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export function SubscriptionAnalytics() {
-  const { user } = useApp();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const fetcher = useQueryFetcher<AnalyticsData>();
 

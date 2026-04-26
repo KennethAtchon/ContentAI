@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/primitives/table";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
 import { useQuery } from "@tanstack/react-query";
@@ -92,7 +92,7 @@ function formatDayLabel(value: string): string {
 
 export function AiCostDashboard() {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const fetcher = useQueryFetcher<AiCostsResponse>();
 
   const { data, error, isLoading } = useQuery({

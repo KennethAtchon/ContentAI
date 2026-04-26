@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { ThemeToggle } from "@/shared/ui/theme-toggle";
 import {
   LayoutDashboard,
@@ -128,7 +129,8 @@ function AdminSidebarPanel({
   onHelpOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const { user, profile, logout } = useApp();
+  const { user, logout } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const adminNavItems = useAdminNavItems();
 
@@ -236,7 +238,8 @@ function AdminSidebarPanel({
 // ─── Mobile nav ───────────────────────────────────────────────────────────────
 
 function AdminMobileNav({ pathname }: { pathname: string }) {
-  const { user, profile } = useApp();
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const adminNavItems = useAdminNavItems();
 
   const name = profile?.name || user?.displayName || "Admin";

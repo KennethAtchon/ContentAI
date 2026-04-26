@@ -7,7 +7,8 @@ import {
   User,
   SlidersHorizontal,
 } from "lucide-react";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { cn } from "@/shared/lib/utils";
 import { getTierDisplay } from "./account-helpers";
@@ -21,7 +22,8 @@ export function MobileNav({
   onNavigate: (s: Section) => void;
 }) {
   const { t } = useTranslation();
-  const { user, profile } = useApp();
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const { role } = useSubscription();
 
   const name = profile?.name || user?.displayName || "—";

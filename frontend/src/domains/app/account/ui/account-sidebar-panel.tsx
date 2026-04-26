@@ -12,7 +12,8 @@ import {
   Shield,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
@@ -29,7 +30,8 @@ export function SidebarPanel({
   onNavigate: (s: Section) => void;
 }) {
   const { t } = useTranslation();
-  const { user, profile, logout, isAdmin } = useApp();
+  const { user, logout } = useAuth();
+  const { profile, isAdmin } = useProfile();
   const navigate = useNavigate();
   const { role } = useSubscription();
   const fetcher = useQueryFetcher<SidebarUsage>();

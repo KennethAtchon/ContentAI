@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import UserButton from "@/domains/auth/ui/user-button";
 import { APP_NAME } from "@/shared/constants/app.constants";
 import { cn } from "@/shared/lib/utils";
@@ -68,7 +68,7 @@ export function StudioTopBar({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const tabs =

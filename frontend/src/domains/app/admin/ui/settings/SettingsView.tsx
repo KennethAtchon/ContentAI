@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/primitives/card";
-import { useApp } from "@/app/state/app-context";
+import { useProfile } from "@/app/state/profile-context";
 import { debugLog } from "@/shared/debug";
 import { User, Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/shared/ui/primitives/alert";
@@ -35,7 +35,7 @@ export function SettingsView() {
     profileLoading: fetching,
     profileError,
     updateProfile,
-  } = useApp();
+  } = useProfile();
 
   useEffect(() => {
     if (profile) {

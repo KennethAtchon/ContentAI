@@ -4,7 +4,6 @@ import { X, FileText, Mic, Film } from "lucide-react";
 import { DraftsList } from "./DraftsList";
 import { DraftDetail } from "./DraftDetail";
 import { AudioPanel } from "@/domains/audio/ui/AudioPanel";
-import { AudioPlaybackProvider } from "@/domains/audio/state/AudioPlaybackContext";
 import { VideoWorkspacePanel } from "@/domains/video/ui/VideoWorkspacePanel";
 import { useSessionDrafts } from "../hooks/use-session-drafts";
 import { cn } from "@/shared/lib/utils";
@@ -201,26 +200,24 @@ export function ContentWorkspace({
           />
         )
       ) : activeTab === "audio" ? (
-        <AudioPlaybackProvider>
-          {isLoading ? (
-            <div className="flex-1 flex flex-col gap-2 px-3 py-3">
-              {[1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-20 bg-muted/50 rounded-lg animate-pulse"
-                />
-              ))}
-            </div>
-          ) : (activeContentId ?? fallbackDraftId) ? (
-            <AudioPanel
-              generatedContentId={activeContentId ?? fallbackDraftId ?? 0}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-base text-muted-foreground px-6 text-center">
-              {t("workspace_audio_no_content")}
-            </div>
-          )}
-        </AudioPlaybackProvider>
+        isLoading ? (
+          <div className="flex-1 flex flex-col gap-2 px-3 py-3">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-20 bg-muted/50 rounded-lg animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (activeContentId ?? fallbackDraftId) ? (
+          <AudioPanel
+            generatedContentId={activeContentId ?? fallbackDraftId ?? 0}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-base text-muted-foreground px-6 text-center">
+            {t("workspace_audio_no_content")}
+          </div>
+        )
       ) : isLoading ? (
         <div className="flex-1 flex flex-col gap-2 px-3 py-3">
           {[1, 2].map((i) => (

@@ -13,7 +13,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { RecentOrdersList } from "@/domains/admin/ui/orders/recent-orders-list";
 import { AiCostDashboard } from "@/domains/admin/ui/dashboard/ai-cost-dashboard";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
 import { useTranslation } from "react-i18next";
@@ -91,7 +92,8 @@ function StatRowSkeleton({ count }: { count: number }) {
 
 export function DashboardView() {
   const { t } = useTranslation();
-  const { user, profile } = useApp();
+  const { user } = useAuth();
+  const { profile } = useProfile();
   const fetcher = useQueryFetcher();
 
   const enabled = !!user;

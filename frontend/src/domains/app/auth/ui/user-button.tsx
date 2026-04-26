@@ -1,6 +1,7 @@
 "use client";
 
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/shared/ui/primitives/button";
 import {
@@ -35,7 +36,8 @@ const ACCOUNT_ROUTE = REDIRECT_PATHS.ACCOUNT;
  */
 export default function UserButton() {
   const { t } = useTranslation();
-  const { user, authLoading: loading, logout, isAdmin } = useApp();
+  const { user, authLoading: loading, logout } = useAuth();
+  const { isAdmin } = useProfile();
   const navigate = useNavigate();
 
   /**

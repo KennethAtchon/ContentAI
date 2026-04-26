@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 
 interface UsageData {
@@ -16,7 +16,7 @@ const WARNING_THRESHOLD = 0.8;
 
 export function UsageWarningBanner() {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const fetcher = useQueryFetcher<UsageData>();
   const { hasEnterpriseAccess } = useSubscription();
 

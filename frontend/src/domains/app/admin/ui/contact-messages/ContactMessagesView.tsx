@@ -15,7 +15,7 @@ import {
 import { DataTable, type ColumnDef } from "@/shared/ui/data-display/DataTable";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 
 interface ContactMessage {
   id: string;
@@ -57,7 +57,7 @@ function formatDate(iso: string) {
 
 export function ContactMessagesView() {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const fetcher = useQueryFetcher<ContactMessagesResponse>();
   const [currentPage, setCurrentPage] = useState(1);
 

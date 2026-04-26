@@ -10,8 +10,8 @@ Open architecture / organization work for `frontend/` and `backend/`. This file 
 2. **Empty `catch {}` blocks remain.** Critical cases were patched, but many silent fallbacks still need an audit. → see B4
 3. **Cross-domain UI imports** (chat → video, video → reels/generation) still lack a clear composition boundary. → see F4
 4. **452 `index.ts` barrel files.** Indirection cost > benefit for internal modules. → see X2
-5. **`domain/` vs `services/` placement is still muddy.** `lib/` is mostly cleaned up, but backend layering rules are still not simple enough. → see B1
-6. **`any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
+5. `**domain/` vs `services/` placement is still muddy.** `lib/` is mostly cleaned up, but backend layering rules are still not simple enough. → see B1
+6. `**any` casts and defensive assertions remain.** Some were cleaned up, but the broader audit is still open. → see X3
 7. **Frontend tests are still thin.** E2E coverage exists, but hooks/utilities and critical paths need real unit coverage. → see F10
 8. **Several large admin/debug components still need decomposition.** The biggest admin/debug surfaces still mix rendering with workflow logic. → see F2
 9. **Route/file naming conventions are still mixed.** The repo still does not follow one naming rule per file kind. → see B2, F8
@@ -30,6 +30,7 @@ Backend placement rules are still not fully settled:
 | ------------------ | ------------------------------------- | ----------------------------------------- |
 | `domain/<area>/`   | Business logic, repositories, schemas | `domain/editor/editor.service.ts`         |
 | `services/<area>/` | Cross-cutting / infra                 | `services/firebase/`, `services/storage/` |
+
 
 The remaining work is clarifying the rule between `domain/` and `services/`.
 
@@ -113,6 +114,7 @@ routes/customer/orders.router.ts:33
 | `domains/admin/ui/niches/NicheDetailView.tsx`  | 584   | P2     |
 | `shared/debug/debug.ts`                        | 554   | P2     |
 | `domains/studio/ui/queue/DetailPanel.tsx`      | 360+  | P2     |
+
 
 Remaining work here is not just line count. The remaining large files still mix rendering with data formatting, state transitions, and workflow logic instead of exposing smaller leaf components or domain hooks.
 
@@ -219,3 +221,5 @@ Worst offenders:
 |                               | Mega-components (F2 cont.)           | Barrel files (X2)              |
 |                               | Frontend test coverage (F10)         | Folder depth (X4)              |
 |                               | `any` / cast audit (X3)              |                                |
+
+

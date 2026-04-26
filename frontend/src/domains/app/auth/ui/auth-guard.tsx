@@ -3,7 +3,7 @@
 import { useEffect, useState, startTransition } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { debugLog } from "@/shared/debug";
 import { Loader2 } from "lucide-react";
@@ -56,7 +56,7 @@ export function AuthGuard({
   publicRoutes,
 }: AuthGuardProps) {
   const { t } = useTranslation();
-  const { user, authLoading: loading } = useApp();
+  const { user, authLoading: loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;

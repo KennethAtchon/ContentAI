@@ -4,11 +4,11 @@ import {
   invalidateGenerationHistoryQueries,
   invalidateQueueAndGenerationHistory,
 } from "@/app/query/query-invalidation";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { generationService } from "../api/generation.service";
 
 export function useGenerationHistory() {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: queryKeys.api.generationHistory(),

@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useApp } from "@/app/state/app-context";
+import { useProfile } from "@/app/state/profile-context";
 import {
   Card,
   CardContent,
@@ -45,7 +45,7 @@ export function ProfileEditor() {
     isOAuthUser,
     updateProfile,
     refreshProfile,
-  } = useApp();
+  } = useProfile();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -69,7 +69,7 @@ export function ProfileEditor() {
     }
   }, [profile]);
 
-  // Set error from app-context
+  // Keep local error state aligned with profile query errors.
   useEffect(() => {
     if (profileError) {
       setError(profileError);

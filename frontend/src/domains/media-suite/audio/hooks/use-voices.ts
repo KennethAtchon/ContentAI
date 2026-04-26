@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { audioService } from "../api/audio.service";
 
 export function useVoices() {
-  const { user } = useApp();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: queryKeys.api.audioVoices(),

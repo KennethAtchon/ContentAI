@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorAlert } from "@/shared/ui/feedback/error-alert";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { ORDER_PRODUCTS } from "@/shared/constants/order.constants";
 import {
   createProductCheckout,
@@ -31,7 +31,7 @@ export function OrderCheckout({
   onItemsChange,
 }: OrderCheckoutProps) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const [items, setItems] = useState<OrderItem[]>(initialItems);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);

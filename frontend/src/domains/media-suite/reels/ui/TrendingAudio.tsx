@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/shared/ui/primitives/collapsible";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { cn } from "@/shared/lib/utils";
 
 interface TrendingAudioItem {
@@ -28,7 +28,7 @@ const TREND_ICON: Record<TrendingAudioItem["trend"], string> = {
 
 export function TrendingAudio({ nicheId }: { nicheId: number | null }) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const [open, setOpen] = useState(true);
   const fetcher = useQueryFetcher<{ audio: TrendingAudioItem[] }>();
 

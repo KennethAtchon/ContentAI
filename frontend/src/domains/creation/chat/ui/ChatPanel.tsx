@@ -19,7 +19,7 @@ import { UsageWarningBanner } from "./UsageWarningBanner";
 import { LimitHitModal } from "./LimitHitModal";
 import { queryKeys } from "@/app/query/query-keys";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import type { ChatMessage as ChatMessageType } from "../model/chat.types";
 import type { Reel } from "@/domains/reels/model/reel.types";
 
@@ -58,7 +58,7 @@ export function ChatPanel({
   onResetLimitReached,
 }: ChatPanelProps) {
   const { t } = useTranslation();
-  const { user } = useApp();
+  const { user } = useAuth();
   const fetcher = useQueryFetcher<{
     defaultProvider: string | null;
     defaultProviderLabel: string | null;

@@ -6,7 +6,8 @@
  */
 
 import { useNavigate } from "@tanstack/react-router";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
+import { useProfile } from "@/app/state/profile-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { debugLog } from "@/shared/debug";
 
@@ -159,7 +160,8 @@ function wouldCreateRedirectLoop(
  */
 export function useSmartRedirect() {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin } = useApp();
+  const { user } = useAuth();
+  const { isAdmin } = useProfile();
   const { role, hasBasicAccess } = useSubscription();
 
   /**
@@ -181,7 +183,7 @@ export function useSmartRedirect() {
     const currentPath = window.location.pathname;
     const hasSubscription = hasBasicAccess && !!role;
     const userContext = getUserContext(
-      isAuthenticated,
+      Boolean(user),
       hasSubscription,
       isAdmin,
       isNewUser
@@ -208,7 +210,7 @@ export function useSmartRedirect() {
       destination,
       userContext,
       hasSubscription,
-      isAuthenticated,
+      isAuthenticated: Boolean(user),
     });
 
     navigate({ to: destination });
@@ -304,7 +306,7 @@ export function useSmartRedirect() {
     redirectToCheckout,
     redirectToAdminVerification,
     userContext: getUserContext(
-      isAuthenticated,
+      Boolean(user),
       hasBasicAccess && !!role,
       isAdmin,
       false

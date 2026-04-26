@@ -25,7 +25,7 @@ import { cn } from "@/shared/lib/utils";
 import { debugLog } from "@/shared/debug";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { usePortalLink } from "@/shared/react/use-portal-link";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";
 import { queryKeys } from "@/app/query/query-keys";
@@ -46,7 +46,7 @@ export function PricingCard({
   const { t } = useTranslation();
   const { role } = useSubscription();
   const { portalUrl, isLoading: portalLoading } = usePortalLink();
-  const { user } = useApp();
+  const { user } = useAuth();
   const { redirectToCheckout, redirectToAuth } = useSmartRedirect();
   const subscriptionFetcher = useQueryFetcher<{
     subscription: {

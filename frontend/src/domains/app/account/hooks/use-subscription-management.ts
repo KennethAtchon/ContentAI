@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/app/query/query-keys";
-import { useApp } from "@/app/state/app-context";
+import { useAuth } from "@/app/state/auth-context";
 import { useSubscription } from "@/domains/subscriptions/hooks/use-subscription";
 import { getTierConfig } from "@/shared/constants/subscription.constants";
 import { fetchSubscriptionUsage } from "../api/subscription-management.service";
 
 export function useSubscriptionManagement() {
-  const { user } = useApp();
+  const { user } = useAuth();
   const {
     role,
     hasEnterpriseAccess,
