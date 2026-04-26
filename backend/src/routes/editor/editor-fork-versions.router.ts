@@ -73,7 +73,7 @@ forkVersionsRouter.post(
       });
 
     if (aiDoc) {
-      await editorRepository.updateProjectDocumentForUser(root.id, auth.user.id, {
+      const saved = await editorRepository.updateProjectDocumentForUser(root.id, auth.user.id, {
         projectDocument: aiDoc,
         projectDocumentVersion: PERSISTED_DOCUMENT_VERSION,
         editorCoreVersion: PERSISTED_DOCUMENT_VERSION,
@@ -83,6 +83,7 @@ forkVersionsRouter.post(
         durationMs: aiDoc.project.timeline.durationMs,
         expectedSaveRevision: root.saveRevision,
       });
+      if (saved === "CONFLICT") throw Errors.conflict("Project was modified concurrently — refresh and retry");
     }
 
     return c.json({ snapshotId });
@@ -133,6 +134,7 @@ forkVersionsRouter.put(
       snapshot,
       validatedRootTracks: rootDoc?.project?.timeline?.tracks ?? [],
       validatedSnapshotTracks: snapshotDoc?.project?.timeline?.tracks ?? [],
+      snapshotDocument: snapshotDoc,
     });
 
     return c.json({ ok: true });

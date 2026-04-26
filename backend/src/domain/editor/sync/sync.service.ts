@@ -360,7 +360,9 @@ export class SyncService {
       }
     }
 
-    return fresh.map((freshTrack) => {
+    const freshTypes = new Set(fresh.map((t) => t.type));
+
+    const mergedFresh = fresh.map((freshTrack) => {
       const existingTrack = existing.find((t) => t.type === freshTrack.type);
 
       // Rule 4: preserve existing video clips if fresh video track is empty.
@@ -409,6 +411,13 @@ export class SyncService {
         }).clips,
       };
     });
+
+    // Preserve any existing tracks whose type was not emitted by deriveTimeline.
+    // Without this, a future track type not covered by emptyTracks() would be
+    // silently destroyed on every sync cycle.
+    const existingOnlyTracks = existing.filter((t) => !freshTypes.has(t.type));
+
+    return [...mergedFresh, ...existingOnlyTracks];
   }
 
   private shotIndex(metadata: unknown): number {

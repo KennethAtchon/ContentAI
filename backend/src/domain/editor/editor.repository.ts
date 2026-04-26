@@ -3,6 +3,7 @@ import {
   assets,
   contentAssets,
   editProjects,
+  editProjectRevisions,
   exportJobs,
   generatedContent,
   queueItems,
@@ -17,6 +18,7 @@ import {
 import {
   applyTracksToDocument,
   computeDocumentHash,
+  PERSISTED_DOCUMENT_VERSION,
   type PersistedProjectFile,
 } from "./project-document";
 
@@ -165,13 +167,28 @@ export interface IEditorRepository {
     snapshot: EditProjectRow;
     validatedRootTracks: unknown;
     validatedSnapshotTracks: unknown;
+    snapshotDocument: PersistedProjectFile | null;
   }): Promise<void>;
 
   countRenderingExportJobsByUser(userId: string): Promise<number>;
 
+  insertExportRevision(params: {
+    projectId: string;
+    userId: string;
+    projectDocument: PersistedProjectFile;
+    documentHash: string;
+  }): Promise<{ id: string; revisionNumber: number }>;
+
+  findRevisionById(
+    revisionId: string,
+    userId: string,
+  ): Promise<{ projectDocument: unknown } | null>;
+
   insertQueuedExportJob(
     editProjectId: string,
     userId: string,
+    projectRevisionId: string,
+    exportSettings: { resolution?: string; fps?: number },
   ): Promise<{ id: string }>;
 
   findLatestExportJobForProject(
@@ -184,8 +201,11 @@ export interface IEditorRepository {
     patch: {
       status?: string;
       progress?: number;
+      progressPhase?: string;
       error?: string | null;
       outputAssetId?: string | null;
+      startedAt?: Date;
+      completedAt?: Date;
     },
   ): Promise<void>;
 
@@ -640,10 +660,23 @@ export class EditorRepository implements IEditorRepository {
     snapshot: EditProjectRow;
     validatedRootTracks: unknown;
     validatedSnapshotTracks: unknown;
+    snapshotDocument: PersistedProjectFile | null;
   }): Promise<void> {
-    const { root, snapshot, validatedRootTracks, validatedSnapshotTracks } =
+    const { root, snapshot, validatedRootTracks, validatedSnapshotTracks, snapshotDocument } =
       params;
+
+    // Build the restored document from the snapshot's tracks so GET returns
+    // the correct state immediately without waiting for an autosave.
+    const restoredDoc = applyTracksToDocument(
+      snapshotDocument,
+      root.id,
+      root.title,
+      validatedSnapshotTracks as Parameters<typeof applyTracksToDocument>[3],
+      snapshot.durationMs,
+    );
+
     await this.db.transaction(async (tx) => {
+      // Preserve current root state as a new snapshot child before overwriting.
       await tx.insert(editProjects).values({
         userId: root.userId,
         generatedContentId: root.generatedContentId,
@@ -661,7 +694,13 @@ export class EditorRepository implements IEditorRepository {
         .set({
           tracks: validatedSnapshotTracks,
           durationMs: snapshot.durationMs,
+          fps: snapshot.fps,
+          resolution: snapshot.resolution,
           status: "draft",
+          projectDocument: restoredDoc as unknown,
+          documentHash: computeDocumentHash(restoredDoc),
+          projectDocumentVersion: restoredDoc.version,
+          saveRevision: sql`${editProjects.saveRevision} + 1`,
         })
         .where(eq(editProjects.id, root.id));
     });
@@ -677,12 +716,82 @@ export class EditorRepository implements IEditorRepository {
     return activeJobs;
   }
 
-  async insertQueuedExportJob(editProjectId: string, userId: string) {
+  async insertExportRevision(params: {
+    projectId: string;
+    userId: string;
+    projectDocument: PersistedProjectFile;
+    documentHash: string;
+  }): Promise<{ id: string; revisionNumber: number }> {
+    const { projectId, userId, projectDocument, documentHash } = params;
+
+    const tryInsert = async (): Promise<{ id: string; revisionNumber: number }> => {
+      return this.db.transaction(async (tx) => {
+        const [{ next }] = await tx.execute<{ next: number }>(
+          sql`SELECT COALESCE(MAX(revision_number), 0) + 1 AS next
+              FROM edit_project_revision
+              WHERE project_id = ${projectId}
+              FOR UPDATE`,
+        );
+        const [row] = await tx
+          .insert(editProjectRevisions)
+          .values({
+            projectId,
+            userId,
+            revisionNumber: next,
+            kind: "export",
+            projectDocument: projectDocument as unknown,
+            projectDocumentVersion: PERSISTED_DOCUMENT_VERSION,
+            editorCoreVersion: PERSISTED_DOCUMENT_VERSION,
+            documentHash,
+          })
+          .returning({ id: editProjectRevisions.id, revisionNumber: editProjectRevisions.revisionNumber });
+        if (!row) throw new Error("Insert export revision returned no row");
+        return row;
+      });
+    };
+
+    try {
+      return await tryInsert();
+    } catch (err) {
+      // Retry once on unique-constraint violation (first-insert race: two concurrent
+      // requests both see MAX=NULL when the table is empty for this project_id).
+      if ((err as { code?: string }).code === "23505") {
+        return tryInsert();
+      }
+      throw err;
+    }
+  }
+
+  async findRevisionById(
+    revisionId: string,
+    userId: string,
+  ): Promise<{ projectDocument: unknown } | null> {
+    const [row] = await this.db
+      .select({ projectDocument: editProjectRevisions.projectDocument })
+      .from(editProjectRevisions)
+      .where(
+        and(
+          eq(editProjectRevisions.id, revisionId),
+          eq(editProjectRevisions.userId, userId),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async insertQueuedExportJob(
+    editProjectId: string,
+    userId: string,
+    projectRevisionId: string,
+    exportSettings: { resolution?: string; fps?: number },
+  ) {
     const [job] = await this.db
       .insert(exportJobs)
       .values({
         editProjectId,
         userId,
+        projectRevisionId,
+        exportSettings,
         status: "queued",
         progress: 0,
       })
@@ -716,8 +825,11 @@ export class EditorRepository implements IEditorRepository {
     patch: {
       status?: string;
       progress?: number;
+      progressPhase?: string;
       error?: string | null;
       outputAssetId?: string | null;
+      startedAt?: Date;
+      completedAt?: Date;
     },
   ): Promise<void> {
     const data = Object.fromEntries(

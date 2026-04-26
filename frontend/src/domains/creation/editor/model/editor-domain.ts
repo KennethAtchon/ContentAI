@@ -124,6 +124,8 @@ export interface EditProject {
 export interface ExportJobStatus {
   status: "idle" | "queued" | "rendering" | "done" | "failed";
   progress: number;
+  progressPhase?: string;
+  projectRevisionId?: string;
   r2Url?: string;
   error?: string;
 }

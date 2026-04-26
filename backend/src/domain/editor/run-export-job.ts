@@ -20,10 +20,16 @@ export type ExportJobDbDeps = {
     patch: {
       status?: string;
       progress?: number;
+      progressPhase?: string;
       error?: string | null;
       outputAssetId?: string | null;
+      startedAt?: Date;
+      completedAt?: Date;
     },
   ) => Promise<void>;
+  loadRevisionDocument: (
+    revisionId: string,
+  ) => Promise<{ projectDocument: unknown } | null>;
 };
 
 function isRenderableMediaClip(
@@ -126,9 +132,10 @@ async function setJobProgress(
   deps: ExportJobDbDeps,
   jobId: string,
   progress: number,
+  progressPhase: string,
   status = "rendering",
 ) {
-  await deps.updateExportJob(jobId, { progress, status });
+  await deps.updateExportJob(jobId, { progress, progressPhase, status });
 }
 
 /**
@@ -138,13 +145,7 @@ async function setJobProgress(
  */
 export async function runExportJob(
   jobId: string,
-  project: {
-    id: string;
-    projectDocument: unknown;
-    durationMs: number;
-    fps: number;
-    resolution: string;
-  },
+  revisionId: string,
   userId: string,
   opts: { resolution?: string; fps?: number },
   deps: ExportJobDbDeps & {
@@ -158,12 +159,37 @@ export async function runExportJob(
   const tmpFiles: string[] = [];
 
   try {
-    await deps.updateExportJob(jobId, { status: "rendering", progress: 5 });
+    await deps.updateExportJob(jobId, {
+      status: "rendering",
+      progress: 5,
+      progressPhase: "starting",
+      startedAt: new Date(),
+    });
 
-    const doc = project.projectDocument as PersistedProjectFile | null;
+    const revisionRow = await deps.loadRevisionDocument(revisionId);
+    if (!revisionRow) {
+      await deps.updateExportJob(jobId, {
+        status: "failed",
+        error: "Export revision not found",
+        completedAt: new Date(),
+      });
+      return;
+    }
+
+    const doc = revisionRow.projectDocument as PersistedProjectFile | null;
+    // TimelineTrackJson (document format) and Track (legacy render types) are
+    // structurally compatible at runtime but declared separately. The double cast
+    // is required because TimelineClipJson uses `Record<string,unknown>` as its
+    // base which prevents direct structural narrowing to the typed Clip union.
+    // TODO: unify TimelineClipJson with the Clip union in timeline.types.ts so
+    // this cast can be replaced by a direct assignment.
     const tracks = (doc?.project?.timeline?.tracks ?? []) as unknown as Track[];
-    const fps = opts.fps ?? project.fps ?? 30;
-    const resolution = opts.resolution ?? project.resolution ?? "1080x1920";
+    const fps = opts.fps ?? doc?.project?.settings?.frameRate ?? 30;
+    const resolution =
+      opts.resolution ??
+      (doc
+        ? `${doc.project.settings.width}x${doc.project.settings.height}`
+        : "1080x1920");
     const resolutionMap: Record<string, [number, number]> = {
       "1080x1920": [1080, 1920],
       "720x1280": [720, 1280],
@@ -189,7 +215,7 @@ export async function runExportJob(
       );
     }
 
-    await setJobProgress(deps, jobId, 20);
+    await setJobProgress(deps, jobId, 20, "downloading");
 
     const videoTracks = tracks.filter((t) => t.type === "video");
     const audioTrack = tracks.find((t) => t.type === "audio" && !t.muted);
@@ -257,7 +283,7 @@ export async function runExportJob(
       videoInputHasAudio.push(await probeHasAudioStream(path));
     }
 
-    await setJobProgress(deps, jobId, 40);
+    await setJobProgress(deps, jobId, 40, "downloading");
 
     for (const clip of [...audioClips, ...musicClips]) {
       const asset = assetsMap[clip.assetId!];
@@ -451,7 +477,7 @@ export async function runExportJob(
 
     ffmpegArgs.push("-y", tmpOut);
 
-    await setJobProgress(deps, jobId, 55);
+    await setJobProgress(deps, jobId, 55, "encoding");
 
     const proc = Bun.spawn(["ffmpeg", ...ffmpegArgs], {
       stderr: "pipe",
@@ -467,10 +493,10 @@ export async function runExportJob(
       );
     }
 
-    await setJobProgress(deps, jobId, 85);
+    await setJobProgress(deps, jobId, 85, "uploading");
 
     const outBuffer = Buffer.from(await Bun.file(tmpOut).arrayBuffer());
-    const r2Key = `exports/${userId}/${project.id}/${jobId}.mp4`;
+    const r2Key = `exports/${userId}/${revisionId}/${jobId}.mp4`;
     const r2Url = await uploadFile(outBuffer, r2Key, "video/mp4");
 
     const outputAsset = await deps.insertAssembledVideoAsset({
@@ -480,19 +506,22 @@ export async function runExportJob(
       r2Key,
       r2Url,
       sizeBytes: outBuffer.length,
-      metadata: { editProjectId: project.id, jobId, resolution, fps },
+      metadata: { revisionId, jobId, resolution, fps },
     });
 
     await deps.updateExportJob(jobId, {
       status: "done",
       progress: 100,
+      progressPhase: "done",
       outputAssetId: outputAsset.id,
+      completedAt: new Date(),
     });
 
     debugLog.info("Export job completed", {
       service: "export-job",
       operation: "runExportJob",
       jobId,
+      revisionId,
       r2Key,
     });
   } catch (err) {
@@ -501,6 +530,7 @@ export async function runExportJob(
       .updateExportJob(jobId, {
         status: "failed",
         error: message.slice(0, 500),
+        completedAt: new Date(),
       })
       .catch(() => {});
 

@@ -16,6 +16,10 @@ import { runExportJob } from "./export-worker";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import { assetsRepository, editorRepository } from "../../domain/singletons";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
+import {
+  computeDocumentHash,
+  type PersistedProjectFile,
+} from "../../domain/editor/project-document";
 
 const exportRouter = new Hono<HonoEnv>();
 
@@ -57,20 +61,36 @@ exportRouter.post(
       );
     }
 
-    const job = await editorRepository.insertQueuedExportJob(id, auth.user.id);
+    const doc = project.projectDocument as PersistedProjectFile | null;
+    if (!doc) throw Errors.badRequest("Project has no document yet");
 
-    runExportJob(job.id, project, auth.user.id, parsed).catch(
+    const revision = await editorRepository.insertExportRevision({
+      projectId: id,
+      userId: auth.user.id,
+      projectDocument: doc,
+      documentHash: computeDocumentHash(doc),
+    });
+
+    const job = await editorRepository.insertQueuedExportJob(
+      id,
+      auth.user.id,
+      revision.id,
+      { resolution: parsed.resolution, fps: parsed.fps },
+    );
+
+    runExportJob(job.id, revision.id, auth.user.id, parsed).catch(
       (err: unknown) => {
         systemLogger.error("Export job failed", {
           service: "editor-route",
           operation: "runExportJob",
           jobId: job.id,
+          revisionId: revision.id,
           error: err instanceof Error ? err.message : "Unknown error",
         });
       },
     );
 
-    return c.json({ exportJobId: job.id }, 202);
+    return c.json({ exportJobId: job.id, projectRevisionId: revision.id }, 202);
   },
 );
 
@@ -113,6 +133,8 @@ exportRouter.get(
     return c.json({
       status: job.status,
       progress: job.progress,
+      progressPhase: job.progressPhase ?? undefined,
+      projectRevisionId: job.projectRevisionId ?? undefined,
       r2Url,
       error: job.error ?? undefined,
     });

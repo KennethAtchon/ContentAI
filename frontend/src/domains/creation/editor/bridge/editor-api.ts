@@ -96,7 +96,13 @@ export const editorApi = {
   },
 
   buildProjectDocument(
-    project: { id: string; title: string | null; fps: number; resolution: string },
+    project: {
+      id: string;
+      title: string | null;
+      fps: number;
+      resolution: string;
+      existingCreatedAt?: string;
+    },
     tracks: Track[],
     durationMs: number,
   ): PersistedProjectFile {
@@ -117,7 +123,7 @@ export const editorApi = {
           channels: 2,
         },
         timeline: { tracks, durationMs },
-        createdAt: now,
+        createdAt: project.existingCreatedAt ?? now,
         modifiedAt: now,
       },
     };

@@ -22,6 +22,7 @@ class EditorBridge {
     fps: number;
     resolution: string;
     saveRevision: number;
+    createdAt: string;
   } | null = null;
 
   initialize(projectId: string, callbacks: EditorBridgeCallbacks): void {
@@ -49,6 +50,7 @@ class EditorBridge {
     fps: number;
     resolution: string;
     saveRevision: number;
+    createdAt: string;
   }): void {
     if (!this.projectId || !this.callbacks) return;
     this.pendingState = state;
@@ -99,32 +101,47 @@ class EditorBridge {
   private async flushAutosave(): Promise<void> {
     if (!this.projectId || !this.callbacks || !this.pendingState || this.isSaving) return;
 
+    // Capture identity and callbacks before the first await. If dispose() or
+    // initialize() runs while the request is in-flight, we detect the stale
+    // response and discard it rather than routing it to the new project's callbacks.
+    const capturedProjectId = this.projectId;
+    const capturedCallbacks = this.callbacks;
+
     const state = this.pendingState;
     this.pendingState = null;
     this.isSaving = true;
 
     try {
       const doc = editorApi.buildProjectDocument(
-        { id: this.projectId, title: state.title, fps: state.fps, resolution: state.resolution },
+        {
+          id: capturedProjectId,
+          title: state.title,
+          fps: state.fps,
+          resolution: state.resolution,
+          existingCreatedAt: state.createdAt,
+        },
         state.tracks,
         state.durationMs,
       );
-      const result = await editorApi.autosave(this.projectId, {
+      const result = await editorApi.autosave(capturedProjectId, {
         expectedSaveRevision: state.saveRevision,
         projectDocument: doc,
         title: state.title ?? undefined,
       });
-      this.callbacks?.onSaveRevisionUpdated(result.saveRevision);
+      // Discard if the bridge has been re-initialized with a different project.
+      if (this.projectId !== capturedProjectId) return;
+      capturedCallbacks.onSaveRevisionUpdated(result.saveRevision);
     } catch (err) {
+      if (this.projectId !== capturedProjectId) return;
       const status = (err as { status?: number }).status;
       if (status === 409) {
-        this.callbacks?.onSaveConflict();
+        capturedCallbacks.onSaveConflict();
       }
       // Non-conflict errors are silent — next autosave will retry
     } finally {
       this.isSaving = false;
       // If more state arrived while we were saving, reschedule
-      if (this.pendingState) {
+      if (this.pendingState && this.projectId === capturedProjectId) {
         this.scheduleAutosave();
       }
     }
