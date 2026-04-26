@@ -63,4 +63,6 @@ Source: `packages/contracts/src`
 
 The repo already uses `@contentai/contracts` for shared request/response schemas in domains such as video, customer, admin, payments, and subscription.
 
-Implication: `packages/contracts` is a plausible home for backend/frontend runtime schemas, while `editor-core` remains the source of editor semantics. This needs an explicit Phase 0 decision.
+Implication: `packages/contracts` remains the right home for non-editor app contracts, but editor-specific runtime schemas should live in `packages/editor-core` because they describe editor domain semantics.
+
+Decision: accepted in [decision-log.md#d-003-decide-schema-ownership-before-phase-1](./decision-log.md#d-003-decide-schema-ownership-before-phase-1).

@@ -18,7 +18,7 @@ In scope:
 - Inventory current persistence fields in `backend/src/infrastructure/database/drizzle/schema.ts`.
 - Inventory canonical `editor-core` fields in `packages/editor-core/src/types` and `packages/editor-core/src/storage`.
 - Decide what belongs in `project_document` versus the relational envelope.
-- Decide whether runtime validation lives in `packages/editor-core` or `packages/contracts`.
+- Define the editor-specific runtime validation boundary in `packages/editor-core`.
 
 Out of scope:
 
@@ -42,14 +42,19 @@ Out of scope:
 
 - Worklog findings and decisions captured under [worklog/](./worklog/).
 - `current-to-core-field-map.md` or equivalent promoted summary once findings are stable.
-- Decision on persisted schema owner:
-  - `packages/editor-core` schema
-  - `packages/contracts` schema
-  - generated schema from core types
+- Editor-specific runtime schemas owned by `packages/editor-core`.
 - Initial `EditorProjectDocument` contract name and version.
 - List of envelope fields derived from the document.
 - List of fields intentionally dropped.
 - List of fields requiring product/engineering decision.
+
+## 4.1 Accepted Decisions
+
+| Decision | Status | Notes |
+|---|---|---|
+| Clean cutover with no runtime backwards compatibility | Accepted | Old `edit_project.tracks` is migration input only. |
+| Persist a JSON-safe core-derived document | Accepted | Do not store raw runtime `Project` objects because media items can contain browser/runtime fields. |
+| Keep editor schema ownership in `packages/editor-core` | Accepted | Editor document/runtime schemas are editor-domain concerns; non-editor app contracts remain in `packages/contracts`. |
 
 ## 5. Field Classification
 
@@ -68,7 +73,7 @@ Every current field should be classified into exactly one bucket:
 
 | Question | Decision Needed |
 |---|---|
-| What is the exact persisted document root shape? | Decide whether the stored object is raw `Project` or `{ version, project, metadata }`. |
+| What is the exact persisted document root shape? | Define the JSON-safe `EditorProjectDocument` shape in `packages/editor-core`; expected starting point is `{ version, project }`. |
 | Are times stored as seconds or milliseconds? | `editor-core` currently uses seconds in several timeline types; current app uses milliseconds. The migration must choose one persisted convention. |
 | How are text, graphics, stickers, and virtual clips represented? | Decide whether these live in timeline clips, feature-specific arrays, or both. |
 | How are source assets represented? | Decide how `mediaLibrary.items[].id` maps to `assets.id` and `edit_project_asset.media_id`. |
@@ -84,7 +89,7 @@ Every current field should be classified into exactly one bucket:
 ## 8. Exit Criteria
 
 - The canonical persisted document shape is written down.
-- Runtime validation ownership is decided.
+- Runtime validation ownership is implemented/planned in `packages/editor-core`.
 - Current fields are mapped to core, envelope, preference, migration-only, or dropped.
 - Phase 1 schema work can proceed without rediscovering contract boundaries.
 

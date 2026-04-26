@@ -15,6 +15,13 @@
       "when": 1775329665496,
       "tag": "0001_mighty_molly_hayes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777174513972,
+      "tag": "0002_phase1_editor_schema",
+      "breakpoints": true
     }
   ]
 }

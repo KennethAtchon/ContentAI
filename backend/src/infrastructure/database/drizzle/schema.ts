@@ -513,6 +513,17 @@ export const editProjects = pgTable(
       { onDelete: "set null" },
     ),
     tracks: jsonb("tracks").notNull().default([]),
+    mergedAssetIds: jsonb("merged_asset_ids").notNull().default([]),
+    projectDocument: jsonb("project_document"),
+    projectDocumentVersion: text("project_document_version"),
+    contractVersion: text("contract_version"),
+    editorCoreVersion: text("editor_core_version"),
+    documentHash: text("document_hash"),
+    saveRevision: integer("save_revision").notNull().default(0),
+    lastSavedRevisionId: text("last_saved_revision_id").references(
+      (): AnyPgColumn => editProjectRevisions.id,
+      { onDelete: "set null" },
+    ),
     durationMs: integer("duration_ms").notNull().default(0),
     fps: integer("fps").notNull().default(30),
     resolution: text("resolution").notNull().default("1080x1920"),
@@ -548,6 +559,141 @@ export const editProjects = pgTable(
   ],
 );
 
+export const editProjectRevisions = pgTable(
+  "edit_project_revision",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    revisionNumber: integer("revision_number").notNull(),
+    kind: text("kind").notNull(),
+    projectDocument: jsonb("project_document").notNull(),
+    projectDocumentVersion: text("project_document_version").notNull(),
+    contractVersion: text("contract_version"),
+    editorCoreVersion: text("editor_core_version").notNull(),
+    rendererVersion: text("renderer_version"),
+    documentHash: text("document_hash").notNull(),
+    sourceRevisionId: text("source_revision_id").references(
+      (): AnyPgColumn => editProjectRevisions.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("edit_project_revisions_project_number_idx").on(
+      t.projectId,
+      t.revisionNumber,
+    ),
+    index("edit_project_revisions_project_created_idx").on(
+      t.projectId,
+      t.createdAt,
+    ),
+    index("edit_project_revisions_user_created_idx").on(t.userId, t.createdAt),
+    index("edit_project_revisions_project_hash_kind_idx").on(
+      t.projectId,
+      t.documentHash,
+      t.kind,
+    ),
+  ],
+);
+
+export const editProjectAssets = pgTable(
+  "edit_project_asset",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "restrict" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mediaId: text("media_id"),
+    revisionId: text("revision_id").references(() => editProjectRevisions.id, {
+      onDelete: "set null",
+    }),
+    role: text("role").notNull(),
+    source: text("source").notNull(),
+    generatedContentId: integer("generated_content_id").references(
+      () => generatedContent.id,
+      { onDelete: "set null" },
+    ),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("edit_project_assets_project_media_source_idx")
+      .on(t.projectId, t.mediaId)
+      .where(
+        sql`media_id IS NOT NULL AND role IN ('source_video', 'source_audio', 'source_image', 'voiceover', 'music')`,
+      ),
+    index("edit_project_assets_project_role_idx").on(t.projectId, t.role),
+    index("edit_project_assets_project_revision_idx").on(
+      t.projectId,
+      t.revisionId,
+    ),
+    index("edit_project_assets_asset_idx").on(t.assetId),
+    index("edit_project_assets_generated_content_idx").on(
+      t.generatedContentId,
+    ),
+  ],
+);
+
+export const editProjectArtifacts = pgTable(
+  "edit_project_artifact",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    revisionId: text("revision_id").references(() => editProjectRevisions.id, {
+      onDelete: "set null",
+    }),
+    sourceMediaId: text("source_media_id"),
+    assetId: text("asset_id").references(() => assets.id, {
+      onDelete: "set null",
+    }),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("pending"),
+    provider: text("provider"),
+    data: jsonb("data").notNull().default({}),
+    dataHash: text("data_hash"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index("edit_project_artifacts_project_kind_status_idx").on(
+      t.projectId,
+      t.kind,
+      t.status,
+    ),
+    index("edit_project_artifacts_project_revision_idx").on(
+      t.projectId,
+      t.revisionId,
+    ),
+    index("edit_project_artifacts_source_media_idx").on(t.sourceMediaId),
+    index("edit_project_artifacts_asset_idx").on(t.assetId),
+  ],
+);
+
 export const exportJobs = pgTable(
   "export_job",
   {
@@ -566,6 +712,20 @@ export const exportJobs = pgTable(
     outputAssetId: text("output_asset_id").references(() => assets.id, {
       onDelete: "set null",
     }),
+    projectRevisionId: text("project_revision_id").references(
+      () => editProjectRevisions.id,
+      { onDelete: "set null" },
+    ),
+    exportSettings: jsonb("export_settings"),
+    inputDocumentHash: text("input_document_hash"),
+    editorCoreVersion: text("editor_core_version"),
+    rendererVersion: text("renderer_version"),
+    workerVersion: text("worker_version"),
+    capabilitySnapshot: jsonb("capability_snapshot"),
+    errorDetails: jsonb("error_details"),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    progressPhase: text("progress_phase"),
     error: text("error"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at")
@@ -576,6 +736,13 @@ export const exportJobs = pgTable(
   (t) => [
     index("export_jobs_project_idx").on(t.editProjectId),
     index("export_jobs_user_idx").on(t.userId),
+    index("export_jobs_revision_idx").on(t.projectRevisionId),
+    index("export_jobs_output_asset_idx").on(t.outputAssetId),
+    index("export_jobs_user_status_created_idx").on(
+      t.userId,
+      t.status,
+      t.createdAt,
+    ),
   ],
 );
 
@@ -668,6 +835,9 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
   user: one(users, { fields: [assets.userId], references: [users.id] }),
   contentAssets: many(contentAssets),
   messageAttachments: many(messageAttachments),
+  editProjectAssets: many(editProjectAssets),
+  editProjectArtifacts: many(editProjectArtifacts),
+  exportJobs: many(exportJobs),
 }));
 
 export const contentAssetsRelations = relations(contentAssets, ({ one }) => ({
@@ -751,6 +921,82 @@ export const editProjectsRelations = relations(
   ({ one, many }) => ({
     user: one(users, { fields: [editProjects.userId], references: [users.id] }),
     exportJobs: many(exportJobs),
+    revisions: many(editProjectRevisions),
+    assets: many(editProjectAssets),
+    artifacts: many(editProjectArtifacts),
+    lastSavedRevision: one(editProjectRevisions, {
+      fields: [editProjects.lastSavedRevisionId],
+      references: [editProjectRevisions.id],
+    }),
+  }),
+);
+
+export const editProjectRevisionsRelations = relations(
+  editProjectRevisions,
+  ({ one, many }) => ({
+    project: one(editProjects, {
+      fields: [editProjectRevisions.projectId],
+      references: [editProjects.id],
+    }),
+    user: one(users, {
+      fields: [editProjectRevisions.userId],
+      references: [users.id],
+    }),
+    sourceRevision: one(editProjectRevisions, {
+      fields: [editProjectRevisions.sourceRevisionId],
+      references: [editProjectRevisions.id],
+    }),
+    exportJobs: many(exportJobs),
+    assets: many(editProjectAssets),
+    artifacts: many(editProjectArtifacts),
+  }),
+);
+
+export const editProjectAssetsRelations = relations(
+  editProjectAssets,
+  ({ one }) => ({
+    project: one(editProjects, {
+      fields: [editProjectAssets.projectId],
+      references: [editProjects.id],
+    }),
+    asset: one(assets, {
+      fields: [editProjectAssets.assetId],
+      references: [assets.id],
+    }),
+    user: one(users, {
+      fields: [editProjectAssets.userId],
+      references: [users.id],
+    }),
+    revision: one(editProjectRevisions, {
+      fields: [editProjectAssets.revisionId],
+      references: [editProjectRevisions.id],
+    }),
+    generatedContent: one(generatedContent, {
+      fields: [editProjectAssets.generatedContentId],
+      references: [generatedContent.id],
+    }),
+  }),
+);
+
+export const editProjectArtifactsRelations = relations(
+  editProjectArtifacts,
+  ({ one }) => ({
+    project: one(editProjects, {
+      fields: [editProjectArtifacts.projectId],
+      references: [editProjects.id],
+    }),
+    user: one(users, {
+      fields: [editProjectArtifacts.userId],
+      references: [users.id],
+    }),
+    revision: one(editProjectRevisions, {
+      fields: [editProjectArtifacts.revisionId],
+      references: [editProjectRevisions.id],
+    }),
+    asset: one(assets, {
+      fields: [editProjectArtifacts.assetId],
+      references: [assets.id],
+    }),
   }),
 );
 
@@ -758,6 +1004,10 @@ export const exportJobsRelations = relations(exportJobs, ({ one }) => ({
   project: one(editProjects, {
     fields: [exportJobs.editProjectId],
     references: [editProjects.id],
+  }),
+  revision: one(editProjectRevisions, {
+    fields: [exportJobs.projectRevisionId],
+    references: [editProjectRevisions.id],
   }),
   outputAsset: one(assets, {
     fields: [exportJobs.outputAssetId],
@@ -847,6 +1097,12 @@ export type MusicTrack = typeof musicTracks.$inferSelect;
 export type NewMusicTrack = typeof musicTracks.$inferInsert;
 export type EditProject = typeof editProjects.$inferSelect;
 export type NewEditProject = typeof editProjects.$inferInsert;
+export type EditProjectRevision = typeof editProjectRevisions.$inferSelect;
+export type NewEditProjectRevision = typeof editProjectRevisions.$inferInsert;
+export type EditProjectAsset = typeof editProjectAssets.$inferSelect;
+export type NewEditProjectAsset = typeof editProjectAssets.$inferInsert;
+export type EditProjectArtifact = typeof editProjectArtifacts.$inferSelect;
+export type NewEditProjectArtifact = typeof editProjectArtifacts.$inferInsert;
 export type ExportJob = typeof exportJobs.$inferSelect;
 export type NewExportJob = typeof exportJobs.$inferInsert;
 export type SystemConfig = typeof systemConfig.$inferSelect;

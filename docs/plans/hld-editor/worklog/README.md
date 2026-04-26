@@ -10,6 +10,7 @@ Use this folder for working material that should not clutter the phase documents
 | File | Purpose |
 |---|---|
 | [phase-0-findings.md](./phase-0-findings.md) | Raw/current findings for Phase 0 inventory and contract freeze. |
+| [phase-1-findings.md](./phase-1-findings.md) | Raw/current findings for Phase 1 target schema coverage. |
 | [decision-log.md](./decision-log.md) | Decision records with status, rationale, and consequences. |
 | [research-notes.md](./research-notes.md) | External/internal research notes and source links. |
 

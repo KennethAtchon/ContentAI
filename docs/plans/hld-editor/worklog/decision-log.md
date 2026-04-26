@@ -28,15 +28,16 @@ Consequences:
 
 ## D-002: Persist A JSON-Safe Core-Derived Document, Not Raw Runtime `Project`
 
-> **Status:** Proposed
+> **Status:** Accepted
 > **Date:** 2026-04-26
+> **Promoted To:** [../00-inventory-contract-freeze.md](../00-inventory-contract-freeze.md)
 > **Related Finding:** [phase-0-findings.md#f-004-raw-editor-core-project-contains-browserruntime-fields](./phase-0-findings.md#f-004-raw-editor-core-project-contains-browserruntime-fields)
 
-Decision proposal: persist a JSON-safe document derived from `editor-core Project`, likely shaped as `{ version, project }`, rather than storing raw runtime `Project` objects.
+Decision: persist a JSON-safe document derived from `editor-core Project`, likely shaped as `{ version, project }`, rather than storing raw runtime `Project` objects.
 
 Rationale: raw `Project.mediaLibrary.items[]` can include `Blob`, `FileSystemFileHandle`, and `Float32Array`, which are runtime/browser objects and not stable durable JSONB.
 
-Consequences if accepted:
+Consequences:
 
 - Phase 0 must define the exact persisted document type.
 - Backend validation must reject runtime-only fields.
@@ -44,19 +45,17 @@ Consequences if accepted:
 
 ## D-003: Decide Schema Ownership Before Phase 1
 
-> **Status:** Proposed
+> **Status:** Accepted
 > **Date:** 2026-04-26
+> **Promoted To:** [../00-inventory-contract-freeze.md](../00-inventory-contract-freeze.md)
 
-Decision proposal: choose one runtime schema owner before target schema migration starts:
+Decision: editor-specific runtime schemas belong in `packages/editor-core`. Broader product/API contracts that are not editor-domain concepts remain in `packages/contracts`.
 
-- Option A: schema lives in `packages/editor-core`.
-- Option B: schema lives in `packages/contracts`.
-- Option C: schema generated from core types.
+Rationale: editor schemas encode editor semantics, persistence shape, timeline/media validity, and serializer versioning. Keeping them in `editor-core` preserves separation of concerns: `editor-core` owns editor domain contracts, while `packages/contracts` owns app-level API contracts for payments, subscriptions, customers, video jobs, and other non-editor domains.
 
-Current leaning: `packages/contracts` is likely best for API/runtime validation, while `editor-core` remains the semantic source of truth. This matches current repo patterns but needs review.
+Consequences:
 
-Consequences if accepted:
-
-- Backend and frontend import the same project document schema.
+- Backend and frontend import editor document schemas from `packages/editor-core`.
+- `packages/contracts` should not grow editor-internal timeline/media schemas.
 - Old backend `editor.schemas.ts` becomes migration-only and is removed during cutover.
 - Phase 1 can safely add `project_document` with a known validator.

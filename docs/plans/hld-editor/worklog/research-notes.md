@@ -31,3 +31,28 @@ Source:
 - Local-first software paper: https://martin.kleppmann.com/papers/local-first.pdf
 
 Working note: The editor should feel local-first for interaction latency, but Phase 0 does not need to solve CRDTs, offline sync, or collaboration. The contract freeze should support local editing plus server-backed durability.
+
+### R-004: WGSL Shaders Are Runtime Code Assets
+
+Source:
+
+- W3C WGSL shader lifecycle: https://www.w3.org/TR/WGSL/#shader-lifecycle
+
+Working note: WGSL source is provided when creating shader modules, and pipeline/shader execution is a runtime renderer concern. For the schema migration, store renderer/export provenance rather than DB rows for bundled shader source.
+
+### R-005: Timed Text Has Its Own Editable Data Model
+
+Sources:
+
+- W3C WebVTT cue model: https://www.w3.org/TR/webvtt1/#webvtt-cues
+- W3C Timed Text Working Group overview: https://www.w3.org/wiki/TimedText
+
+Working note: generated subtitles/captions should be treated as timed text data. Editable subtitles belong in the project document; sidecar exports or raw transcription provider outputs may be assets/artifacts depending on product needs.
+
+### R-006: Editorial Timelines Separate Clips From Media References
+
+Source:
+
+- OpenTimelineIO timeline structure: https://opentimelineio.readthedocs.io/en/v0.16.0/tutorials/otio-timeline-structure.html
+
+Working note: timeline clips should reference media identity and source ranges instead of embedding media binaries. This supports `project_document` plus `edit_project_asset` linkage.
