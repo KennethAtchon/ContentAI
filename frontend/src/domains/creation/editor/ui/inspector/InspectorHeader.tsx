@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
-import type { Track, Transition } from "../../model/editor";
+import type { Track, Transition } from "../../model/editor-domain";
 
 export type InspectorTab = "adjust" | "animate" | "effects" | "project";
 

@@ -1,6 +1,9 @@
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import type { Clip, Track } from "../../model/editor";
+import type { Clip } from "../../model/editor-domain";
+import { useEditorProjectStore } from "../../store/editor-project-store";
+import { useEditorTimelineStore } from "../../store/editor-timeline-store";
+import { useEditorUIStore } from "../../store/editor-ui-store";
 import { Playhead } from "./Playhead";
 import { TimelineClip } from "./TimelineClip";
 import { TimelineRuler } from "./TimelineRuler";
@@ -10,96 +13,28 @@ const TRACK_HEIGHT = 56;
 const RULER_HEIGHT = 32;
 const TIMELINE_MIN_CONTENT_WIDTH_PX = 4000;
 
-const previewTracks: Track[] = [
-  {
-    id: "video",
-    type: "video",
-    name: "Video 1",
-    muted: false,
-    locked: false,
-    transitions: [],
-    clips: [
-      {
-        id: "clip-video",
-        type: "video",
-        label: "Opening shot",
-        startMs: 0,
-        durationMs: 5200,
-        locallyModified: false,
-        enabled: true,
-        speed: 1,
-        opacity: 1,
-        warmth: 0,
-        contrast: 0,
-        positionX: 0,
-        positionY: 0,
-        scale: 1,
-        rotation: 0,
-        assetId: null,
-        trimStartMs: 0,
-        trimEndMs: 0,
-        volume: 1,
-        muted: false,
-      },
-    ],
-  },
-  {
-    id: "audio",
-    type: "audio",
-    name: "Voiceover",
-    muted: false,
-    locked: false,
-    transitions: [],
-    clips: [
-      {
-        id: "clip-audio",
-        type: "audio",
-        label: "Narration",
-        startMs: 600,
-        durationMs: 4200,
-        locallyModified: false,
-        enabled: true,
-        speed: 1,
-        opacity: 1,
-        warmth: 0,
-        contrast: 0,
-        positionX: 0,
-        positionY: 0,
-        scale: 1,
-        rotation: 0,
-        assetId: null,
-        trimStartMs: 0,
-        trimEndMs: 0,
-        volume: 1,
-        muted: false,
-      },
-    ],
-  },
-  {
-    id: "music",
-    type: "music",
-    name: "Music",
-    muted: false,
-    locked: false,
-    transitions: [],
-    clips: [],
-  },
-];
-
 interface Props {
-  tracks?: Track[];
-  durationMs?: number;
-  zoom?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function Timeline({
-  tracks = previewTracks,
-  durationMs = 12_000,
-  zoom = 80,
-  scrollRef,
-}: Props) {
+export function Timeline({ scrollRef }: Props) {
   const { t } = useTranslation();
+  const tracks = useEditorProjectStore((state) => state.tracks);
+  const durationMs = useEditorProjectStore((state) => state.durationMs);
+  const clipboardClip = useEditorProjectStore((state) => state.clipboardClip);
+  const toggleTrackMute = useEditorProjectStore((state) => state.toggleTrackMute);
+  const toggleTrackLock = useEditorProjectStore((state) => state.toggleTrackLock);
+  const renameTrack = useEditorProjectStore((state) => state.renameTrack);
+  const removeClip = useEditorProjectStore((state) => state.removeClip);
+  const moveClip = useEditorProjectStore((state) => state.moveClip);
+  const toggleClipEnabled = useEditorProjectStore((state) => state.toggleClipEnabled);
+  const copyClip = useEditorProjectStore((state) => state.copyClip);
+  const updateClip = useEditorProjectStore((state) => state.updateClip);
+  const zoom = useEditorTimelineStore((state) => state.zoom);
+  const currentTimeMs = useEditorTimelineStore((state) => state.currentTimeMs);
+  const seekTo = useEditorTimelineStore((state) => state.seekTo);
+  const selectedClipId = useEditorUIStore((state) => state.selectedClipId);
+  const selectClip = useEditorUIStore((state) => state.selectClip);
   const totalWidthPx = Math.max(
     (durationMs / 1000) * zoom + 1200,
     TIMELINE_MIN_CONTENT_WIDTH_PX
@@ -122,7 +57,7 @@ export function Timeline({
             <TimelineRuler
               totalWidthPx={totalWidthPx}
               zoom={zoom}
-              onSeek={() => undefined}
+              onSeek={seekTo}
             />
           </div>
         </div>
@@ -137,15 +72,26 @@ export function Timeline({
             <TrackHeader
               key={track.id}
               track={track}
-              onToggleMute={() => undefined}
-              onToggleLock={() => undefined}
-              onDeleteAllClips={() => undefined}
-              onRename={() => undefined}
+              onToggleMute={() => toggleTrackMute(track.id)}
+              onToggleLock={() => toggleTrackLock(track.id)}
+              onDeleteAllClips={() => {
+                track.clips.forEach((clip) => {
+                  if (selectedClipId === clip.id) {
+                    selectClip(null);
+                  }
+                  removeClip(clip.id);
+                });
+              }}
+              onRename={(name) => renameTrack(track.id, name)}
             />
           ))}
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-auto relative">
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-auto relative"
+          onClick={() => selectClip(null)}
+        >
           <div
             style={{
               width: totalWidthPx,
@@ -171,28 +117,43 @@ export function Timeline({
                     track={track}
                     trackType={track.type}
                     zoom={zoom}
-                    isSelected={false}
+                    isSelected={clip.id === selectedClipId}
                     isLocked={track.locked}
                     tracks={tracks}
-                    hasClipboard={false}
-                    onSelect={() => undefined}
-                    onMove={() => undefined}
+                    hasClipboard={clipboardClip !== null}
+                    onSelect={() => selectClip(clip.id)}
+                    onMove={(startMs) => moveClip(clip.id, startMs)}
                     onTrimStart={() => undefined}
                     onTrimEnd={() => undefined}
                     onSplit={() => undefined}
                     onDuplicate={() => undefined}
-                    onCopy={() => undefined}
+                    onCopy={() => copyClip(clip.id)}
                     onPaste={() => undefined}
-                    onToggleEnabled={() => undefined}
-                    onRippleDelete={() => undefined}
-                    onDelete={() => undefined}
-                    onSetSpeed={() => undefined}
+                    onToggleEnabled={() => toggleClipEnabled(clip.id)}
+                    onRippleDelete={() => {
+                      if (selectedClipId === clip.id) {
+                        selectClip(null);
+                      }
+                      removeClip(clip.id);
+                    }}
+                    onDelete={() => {
+                      if (selectedClipId === clip.id) {
+                        selectClip(null);
+                      }
+                      removeClip(clip.id);
+                    }}
+                    onSetSpeed={(speed) => updateClip(clip.id, { speed })}
                   />
                 ))}
               </div>
             ))}
 
-            <Playhead zoom={zoom} height={tracksContentHeight} />
+            <Playhead
+              zoom={zoom}
+              height={tracksContentHeight}
+              currentTimeMs={currentTimeMs}
+              onSeek={seekTo}
+            />
           </div>
         </div>
       </div>

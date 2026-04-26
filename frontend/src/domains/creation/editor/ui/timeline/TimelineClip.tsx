@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { Clock, CircleAlert, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { TRACK_COLORS } from "../../model/editor";
-import type { Clip, Track, TrackType } from "../../model/editor";
+import { TRACK_COLORS } from "../../model/editor-domain";
+import type { Clip, Track, TrackType } from "../../model/editor-domain";
 import { isMediaClip, isVideoClip } from "../../lib/clip-types";
 import { ClipContextMenu, PlaceholderContextMenu } from "./ClipContextMenu";
 

@@ -11,8 +11,8 @@ import {
   Pencil,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { TRACK_COLORS } from "../../model/editor";
-import type { Track } from "../../model/editor";
+import { TRACK_COLORS } from "../../model/editor-domain";
+import type { Track } from "../../model/editor-domain";
 import {
   DropdownMenu,
   DropdownMenuContent,

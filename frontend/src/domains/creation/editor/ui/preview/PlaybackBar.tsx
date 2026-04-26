@@ -11,15 +11,18 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatHHMMSSFF } from "../../lib/timecode";
+import { useEditorProjectStore } from "../../store/editor-project-store";
+import { useEditorTimelineStore } from "../../store/editor-timeline-store";
 
-interface PlaybackBarProps {
-  durationMs?: number;
-  fps?: number;
-}
-
-export function PlaybackBar({ durationMs = 0, fps = 30 }: PlaybackBarProps) {
+export function PlaybackBar() {
   const { t } = useTranslation();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const isPlaying = useEditorTimelineStore((state) => state.isPlaying);
+  const currentTimeMs = useEditorTimelineStore((state) => state.currentTimeMs);
+  const togglePlayback = useEditorTimelineStore((state) => state.togglePlayback);
+  const seekToStart = useEditorTimelineStore((state) => state.seekToStart);
+  const seekToEnd = useEditorTimelineStore((state) => state.seekToEnd);
+  const durationMs = useEditorProjectStore((state) => state.durationMs);
+  const fps = useEditorProjectStore((state) => state.fps);
   const [volume, setVolume] = useState(1);
 
   return (
@@ -31,6 +34,7 @@ export function PlaybackBar({ durationMs = 0, fps = 30 }: PlaybackBarProps) {
         <button
           title={t("editor_transport_jump_start")}
           className="transport-btn"
+          onClick={seekToStart}
         >
           <SkipBack size={14} />
         </button>
@@ -38,7 +42,7 @@ export function PlaybackBar({ durationMs = 0, fps = 30 }: PlaybackBarProps) {
           <Rewind size={14} />
         </button>
         <button
-          onClick={() => setIsPlaying((value) => !value)}
+          onClick={togglePlayback}
           title={
             isPlaying ? t("editor_transport_pause") : t("editor_transport_play")
           }
@@ -52,6 +56,7 @@ export function PlaybackBar({ durationMs = 0, fps = 30 }: PlaybackBarProps) {
         <button
           title={t("editor_transport_jump_end")}
           className="transport-btn"
+          onClick={() => seekToEnd(durationMs)}
         >
           <SkipForward size={14} />
         </button>
@@ -60,7 +65,7 @@ export function PlaybackBar({ durationMs = 0, fps = 30 }: PlaybackBarProps) {
       <div className="w-px h-5 bg-overlay-md mx-1 shrink-0" />
 
       <span className="font-mono text-xs text-dim-2 tabular-nums rounded px-2 py-1">
-        {formatHHMMSSFF(0, fps)} <span className="text-dim-3">/</span>{" "}
+        {formatHHMMSSFF(currentTimeMs, fps)} <span className="text-dim-3">/</span>{" "}
         {formatHHMMSSFF(durationMs, fps)}
       </span>
 

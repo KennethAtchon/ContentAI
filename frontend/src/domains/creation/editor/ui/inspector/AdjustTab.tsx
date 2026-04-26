@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { ClipPatch, Transition } from "../../model/editor";
+import type { Clip, ClipPatch, Transition } from "../../model/editor-domain";
 import {
   InspectorPropRow,
   InspectorSliderRow,
@@ -9,11 +9,13 @@ import { InspectorSection } from "./InspectorSection";
 
 interface AdjustTabProps {
   selectedTransition: Transition | null;
+  selectedClip: Clip | null;
   onEffectPreview?: (patch: ClipPatch | null) => void;
 }
 
 export function AdjustTab({
   selectedTransition,
+  selectedClip,
   onEffectPreview,
 }: AdjustTabProps) {
   const { t } = useTranslation();
@@ -43,27 +45,27 @@ export function AdjustTab({
       <InspectorSection title={t("editor_inspector_tab_adjust")}>
         <InspectorSliderRow
           label={t("editor_opacity_label")}
-          value={100}
+          value={selectedClip ? selectedClip.opacity * 100 : 100}
           min={0}
           max={100}
           step={1}
-          onChange={() => onEffectPreview?.({ opacity: 1 })}
+          onChange={(value) => onEffectPreview?.({ opacity: value / 100 })}
         />
         <InspectorSliderRow
           label={t("editor_contrast_label")}
-          value={0}
+          value={selectedClip?.contrast ?? 0}
           min={-100}
           max={100}
           step={1}
-          onChange={() => onEffectPreview?.({ contrast: 0 })}
+          onChange={(value) => onEffectPreview?.({ contrast: value })}
         />
         <InspectorSliderRow
           label={t("editor_warmth_label")}
-          value={0}
+          value={selectedClip?.warmth ?? 0}
           min={-100}
           max={100}
           step={1}
-          onChange={() => onEffectPreview?.({ warmth: 0 })}
+          onChange={(value) => onEffectPreview?.({ warmth: value })}
         />
       </InspectorSection>
     </div>

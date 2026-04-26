@@ -1,4 +1,4 @@
-import type { Transition, VideoClip } from "../../model/editor";
+import type { Transition, VideoClip } from "../../model/editor-domain";
 import { TransitionContextMenu } from "./ClipContextMenu";
 
 interface Props {

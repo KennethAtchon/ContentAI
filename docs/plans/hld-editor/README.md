@@ -16,8 +16,9 @@ Working notes, raw findings, and decision records live in [worklog/](./worklog/)
 | 2 | [One-Time Data Conversion](./02-one-time-data-conversion.md) | ~~Convert current `tracks` data into canonical `editor-core` project documents.~~ **Skipped** — DB reset before cutover; no legacy data. |
 | 3 | [Runtime Cutover](./03-runtime-cutover.md) | Switch backend and frontend runtime paths to the canonical document shape. |
 | 4 | [Export From Revisions](./04-export-from-revisions.md) | Make export jobs render immutable project revisions. |
-| 5 | [Frontend Runtime Completion](./05-frontend-runtime-completion.md) | Finish moving editor UI behavior through the bridge and `editor-core`. |
+| 5 | [Frontend Runtime Completion](./05-frontend-runtime-completion.md) | Finish moving editor UI behavior through the bridge and Zustand runtime wiring. |
 | 6 | [Cleanup](./06-cleanup.md) | Remove old schemas, columns, models, and temporary migration scaffolding. |
+| 7 | [Editor-Core Package And Frontend Engine Integration](./07-editor-core-package-and-frontend-integration.md) | Turn `editor-core` into a real package and make the frontend editor run on it directly. |
 
 ## Review Order
 

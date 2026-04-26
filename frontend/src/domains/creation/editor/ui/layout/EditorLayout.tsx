@@ -1,41 +1,24 @@
-import type { EditProject } from "../../model/editor";
-import { EditorProviders } from "./EditorProviders";
 import { EditorHeader } from "./EditorHeader";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { TimelineSection } from "../timeline/TimelineSection";
-import { EditorDialogs } from "../dialogs/EditorDialogs";
+import { ExportModal } from "../dialogs/ExportModal";
 
 interface Props {
-  project: EditProject;
   onBack: () => void;
 }
 
-export function EditorLayout({ project, onBack }: Props) {
+export function EditorLayout({ onBack }: Props) {
   return (
-    <EditorProviders project={project} onBack={onBack}>
-      <div
-        className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
-        style={{ height: "100%" }}
-      >
-        <EditorHeader
-          title={project.title ?? "Untitled Edit"}
-          isReadOnly={project.status === "published"}
-          onBack={onBack}
-        />
-        <EditorWorkspace project={project} />
-        <TimelineSection />
-        <EditorStatusBar
-          clipCount={project.tracks.reduce(
-            (count, track) => count + track.clips.length,
-            0
-          )}
-          trackCount={project.tracks.length}
-          resolution={project.resolution}
-          fps={project.fps}
-        />
-        <EditorDialogs />
-      </div>
-    </EditorProviders>
+    <div
+      className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full"
+      style={{ height: "100%" }}
+    >
+      <EditorHeader onBack={onBack} />
+      <EditorWorkspace />
+      <TimelineSection />
+      <EditorStatusBar />
+      <ExportModal />
+    </div>
   );
 }

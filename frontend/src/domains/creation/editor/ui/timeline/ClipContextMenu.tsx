@@ -9,7 +9,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from "@/shared/ui/primitives/context-menu";
-import type { Track, TrackType, Clip, Transition } from "../../model/editor";
+import type { Track, TrackType, Clip, Transition } from "../../model/editor-domain";
 
 interface ClipContextMenuProps {
   clip: Clip;

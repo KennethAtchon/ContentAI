@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { useEditorProjectStore } from "../../store/editor-project-store";
 import { PlaybackBar } from "./PlaybackBar";
 import { PreviewCanvas, type PreviewCanvasHandle } from "./PreviewCanvas";
 import { PreviewTopStrip } from "./PreviewTopStrip";
@@ -6,20 +7,19 @@ import { PreviewTopStrip } from "./PreviewTopStrip";
 type RendererPreference = "auto" | "webgl2" | "canvas2d";
 
 interface PreviewAreaProps {
-  resolution?: string;
-  durationMs?: number;
   previewRef?: RefObject<PreviewCanvasHandle | null>;
   rendererPreference?: RendererPreference;
   onRendererPreferenceChange?: (preference: RendererPreference) => void;
 }
 
 export function PreviewArea({
-  resolution = "1080x1920",
-  durationMs = 0,
   previewRef,
   rendererPreference = "auto",
   onRendererPreferenceChange = () => undefined,
 }: PreviewAreaProps) {
+  const resolution = useEditorProjectStore((state) => state.resolution);
+  const durationMs = useEditorProjectStore((state) => state.durationMs);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 min-w-0">
       <PreviewTopStrip
@@ -32,7 +32,7 @@ export function PreviewArea({
         resolution={resolution}
         durationMs={durationMs}
       />
-      <PlaybackBar durationMs={durationMs} />
+      <PlaybackBar />
     </div>
   );
 }

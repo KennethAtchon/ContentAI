@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import type { EditProject } from "../../model/editor";
+import { shallow } from "zustand/shallow";
+import { useEditorProjectStore } from "../../store/editor-project-store";
+import { useEditorTimelineStore } from "../../store/editor-timeline-store";
+import { useEditorUIStore } from "../../store/editor-ui-store";
 import { EditorLayout } from "./EditorLayout";
 import { EditorProjectList } from "./EditorProjectList";
 import { getEditorBridge, disposeEditorBridge } from "../../bridge";
@@ -13,25 +16,58 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   const [openProjectId, setOpenProjectId] = useState<string | null>(
     search.projectId ?? null,
   );
-  const [activeProject, setActiveProject] = useState<EditProject | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    let unsubscribeProjectStore: (() => void) | null = null;
+
     if (!openProjectId) {
-      setActiveProject(null);
+      setIsReady(false);
       return;
     }
 
+    setIsReady(false);
     setLoadError(null);
 
     const bridge = getEditorBridge();
     bridge.initialize(openProjectId, {
-      onProjectLoaded: setActiveProject,
+      onProjectLoaded: (project) => {
+        useEditorProjectStore.getState().loadProject(project);
+        useEditorTimelineStore.getState().reset();
+        useEditorUIStore.getState().reset();
+
+        unsubscribeProjectStore?.();
+        unsubscribeProjectStore = useEditorProjectStore.subscribe(
+          (state) => [
+            state.tracks,
+            state.title,
+            state.durationMs,
+            state.fps,
+            state.resolution,
+          ] as const,
+          () => {
+            const state = useEditorProjectStore.getState();
+            bridge.notifyStateChanged({
+              tracks: state.tracks,
+              durationMs: state.durationMs,
+              title: state.title,
+              fps: state.fps,
+              resolution: state.resolution,
+              saveRevision: state.saveRevision,
+              createdAt: state.createdAt,
+            });
+          },
+          { equalityFn: shallow },
+        );
+
+        setIsReady(true);
+      },
       onSaveRevisionUpdated: (saveRevision) => {
-        setActiveProject((prev) => (prev ? { ...prev, saveRevision } : prev));
+        useEditorProjectStore.getState().updateSaveRevision(saveRevision);
       },
       onSaveConflict: () => {
-        // TODO: surface conflict dialog when reducer/store wired
+        useEditorProjectStore.getState().setReadOnly();
       },
       onLoadError: (err) => {
         setLoadError(err.message);
@@ -39,11 +75,16 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     });
 
     return () => {
+      unsubscribeProjectStore?.();
       disposeEditorBridge();
+      useEditorProjectStore.getState().reset();
+      useEditorTimelineStore.getState().reset();
+      useEditorUIStore.getState().reset();
+      setIsReady(false);
     };
   }, [openProjectId]);
 
-  if (openProjectId && !activeProject && !loadError) {
+  if (openProjectId && !isReady && !loadError) {
     return (
       <div className="fixed inset-0 z-50 bg-studio-bg flex items-center justify-center text-dim-3 text-sm">
         Loading…
@@ -59,15 +100,17 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     );
   }
 
-  if (activeProject) {
+  if (isReady) {
     return (
       <div className="fixed inset-0 z-50 bg-studio-bg flex flex-col overflow-hidden">
         <EditorLayout
-          project={activeProject}
           onBack={() => {
             disposeEditorBridge();
+            useEditorProjectStore.getState().reset();
+            useEditorTimelineStore.getState().reset();
+            useEditorUIStore.getState().reset();
             setOpenProjectId(null);
-            setActiveProject(null);
+            setIsReady(false);
           }}
         />
       </div>

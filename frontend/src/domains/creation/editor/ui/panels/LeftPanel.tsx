@@ -1,7 +1,7 @@
 import { Image, Music, Search, Sparkles, Video } from "lucide-react";
 import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Clip, TrackType } from "../../model/editor";
+import type { Clip, TrackType } from "../../model/editor-domain";
 
 export type TabKey = "media" | "audio" | "generate";
 
