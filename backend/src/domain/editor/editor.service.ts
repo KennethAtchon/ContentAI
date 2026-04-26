@@ -4,11 +4,16 @@ import { debugLog } from "../../utils/debug/debug";
 import { AppError, Errors } from "../../utils/errors/app-error";
 import type { IContentRepository } from "../content/content.repository";
 import type { IQueueRepository } from "../queue/queue.repository";
-import type { createProjectSchema, patchProjectSchema } from "./editor.schemas";
+import type { createProjectSchema, patchProjectDocumentSchema } from "./editor.schemas";
 import type { IEditorRepository } from "./editor.repository";
 import type { SyncService } from "./sync/sync.service";
-import { sanitizeEditorTrackOverlaps } from "./timeline/track-overlaps";
-import { parseStoredEditorTracks } from "./validate-stored-tracks";
+import {
+  buildInitialProjectDocument,
+  applyTracksToDocument,
+  deriveEnvelope,
+  PERSISTED_DOCUMENT_VERSION,
+  type PersistedProjectFile,
+} from "./project-document";
 
 export class EditorService {
   constructor(
@@ -53,20 +58,6 @@ export class EditorService {
       }
     }
 
-    let tracks: unknown[] = [];
-    let durationMs = 0;
-    if (generatedContentId) {
-      // SyncService.deriveTimeline is the single source of truth for building
-      // editor tracks from content assets — used here for initial project creation
-      // and by syncLinkedProjects for all subsequent re-syncs.
-      const result = await this.syncService.deriveTimeline(
-        userId,
-        generatedContentId,
-      );
-      tracks = result.tracks;
-      durationMs = result.durationMs;
-    }
-
     let insertTitle = title ?? "Untitled Edit";
     let insertAutoTitle = !title;
     if (generatedContentId && !title && contentMeta?.generatedHook) {
@@ -74,16 +65,40 @@ export class EditorService {
       insertAutoTitle = true;
     }
 
+    const projectId = crypto.randomUUID();
+    let projectDocument = buildInitialProjectDocument(projectId, insertTitle);
+
+    if (generatedContentId) {
+      const { tracks, durationMs } = await this.syncService.deriveTimeline(
+        userId,
+        generatedContentId,
+      );
+      projectDocument = applyTracksToDocument(
+        projectDocument,
+        projectId,
+        insertTitle,
+        tracks,
+        durationMs,
+      );
+    }
+
+    const envelope = deriveEnvelope(projectDocument);
+
     try {
       const project = await this.editor.insertProject({
+        id: projectId,
         userId,
         title: insertTitle,
         autoTitle: insertAutoTitle,
         generatedContentId: generatedContentId ?? null,
-        tracks,
-        durationMs,
-        fps: 30,
-        resolution: "1080x1920",
+        projectDocument: projectDocument as unknown,
+        projectDocumentVersion: envelope.projectDocumentVersion,
+        editorCoreVersion: envelope.editorCoreVersion,
+        documentHash: envelope.documentHash,
+        saveRevision: 1,
+        durationMs: envelope.durationMs,
+        fps: envelope.fps,
+        resolution: envelope.resolution,
         status: "draft",
       });
       return { project };
@@ -112,17 +127,16 @@ export class EditorService {
     }
   }
 
-  async getProjectWithParsedTracks(userId: string, projectId: string) {
+  async getProjectWithDocument(userId: string, projectId: string) {
     const project = await this.editor.findByIdAndUserId(projectId, userId);
     if (!project) throw Errors.notFound("Edit project");
-    const tracks = parseStoredEditorTracks(project.tracks);
-    return { project: { ...project, tracks } };
+    return { project };
   }
 
   async patchAutosaveProject(
     userId: string,
     projectId: string,
-    parsed: z.infer<typeof patchProjectSchema>,
+    parsed: z.infer<typeof patchProjectDocumentSchema>,
   ) {
     const existing = await this.editor.findByIdAndUserId(projectId, userId);
     if (!existing) throw Errors.notFound("Edit project");
@@ -131,30 +145,43 @@ export class EditorService {
       throw new AppError("Published projects are read-only", "READ_ONLY", 403);
     }
 
-    const updateData: Record<string, unknown> = { userHasEdited: true };
-    if (parsed.title !== undefined) {
-      updateData.title = parsed.title;
-      if (parsed.title !== existing.title) {
-        updateData.autoTitle = false;
-      }
-    }
-    if (parsed.tracks !== undefined) {
-      updateData.tracks = sanitizeEditorTrackOverlaps(parsed.tracks);
-    }
-    if (parsed.durationMs !== undefined)
-      updateData.durationMs = parsed.durationMs;
-    if (parsed.fps !== undefined) updateData.fps = parsed.fps;
-    if (parsed.resolution !== undefined)
-      updateData.resolution = parsed.resolution;
+    const doc = parsed.projectDocument as PersistedProjectFile;
+    const envelope = deriveEnvelope(doc);
 
-    const updated = await this.editor.updateProjectForUser(
+    const result = await this.editor.updateProjectDocumentForUser(
       projectId,
       userId,
-      updateData,
+      {
+        projectDocument: doc,
+        projectDocumentVersion: envelope.projectDocumentVersion,
+        editorCoreVersion: envelope.editorCoreVersion,
+        documentHash: envelope.documentHash,
+        fps: envelope.fps,
+        resolution: envelope.resolution,
+        durationMs: envelope.durationMs,
+        expectedSaveRevision: parsed.expectedSaveRevision,
+        title: parsed.title,
+      },
     );
-    if (!updated) throw Errors.notFound("Edit project");
 
-    return { id: updated.id, updatedAt: updated.updatedAt };
+    if (result === "CONFLICT") {
+      const current = await this.editor.findByIdAndUserId(projectId, userId);
+      throw new AppError(
+        "Save revision conflict",
+        "SAVE_REVISION_CONFLICT",
+        409,
+        { currentSaveRevision: current?.saveRevision ?? 0 },
+      );
+    }
+
+    debugLog.info("Project autosaved", {
+      service: "editor",
+      operation: "patchAutosaveProject",
+      projectId,
+      saveRevision: result.saveRevision,
+    });
+
+    return { id: result.id, saveRevision: result.saveRevision, updatedAt: result.updatedAt };
   }
 
   async deleteProjectForUser(userId: string, projectId: string) {
@@ -205,16 +232,36 @@ export class EditorService {
       throw Errors.forbidden("Source must be published");
     }
 
-    const validatedTracks = parseStoredEditorTracks(source.tracks);
+    const newId = crypto.randomUUID();
+    const sourceDoc = source.projectDocument as PersistedProjectFile | null;
+
+    const newDoc = sourceDoc
+      ? ({
+          ...sourceDoc,
+          project: {
+            ...sourceDoc.project,
+            id: newId,
+            title: `${source.title} (v2)`,
+            modifiedAt: new Date().toISOString(),
+          },
+        } as PersistedProjectFile)
+      : buildInitialProjectDocument(newId, `${source.title} (v2)`);
+
+    const envelope = deriveEnvelope(newDoc);
 
     const newDraft = await this.editor.insertProject({
+      id: newId,
       userId,
       title: `${source.title} (v2)`,
       generatedContentId: null,
-      tracks: validatedTracks,
-      durationMs: source.durationMs,
-      fps: source.fps,
-      resolution: source.resolution,
+      projectDocument: newDoc as unknown,
+      projectDocumentVersion: PERSISTED_DOCUMENT_VERSION,
+      editorCoreVersion: PERSISTED_DOCUMENT_VERSION,
+      documentHash: envelope.documentHash,
+      saveRevision: 1,
+      durationMs: envelope.durationMs,
+      fps: envelope.fps,
+      resolution: envelope.resolution,
       status: "draft",
       parentProjectId: source.id,
     });

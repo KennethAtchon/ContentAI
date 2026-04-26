@@ -6,6 +6,7 @@ export interface EditorDocumentState {
   durationMs: number;
   fps: number;
   resolution: string;
+  saveRevision: number;
   tracks: Track[];
   clipboardClip: Clip | null;
   clipboardSourceTrackId: string | null;

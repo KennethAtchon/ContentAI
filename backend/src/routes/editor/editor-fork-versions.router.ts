@@ -11,10 +11,16 @@ import {
   editorSnapshotParamSchema,
   forkProjectSchema,
 } from "../../domain/editor/editor.schemas";
-import { parseStoredEditorTracks } from "../../domain/editor/validate-stored-tracks";
 import { Errors } from "../../utils/errors/app-error";
 import { editorRepository, syncService } from "../../domain/singletons";
 import { zodValidationErrorHook } from "../../validation/zod-validation-hook";
+import {
+  applyTracksToDocument,
+  computeDocumentHash,
+  PERSISTED_DOCUMENT_VERSION,
+  type PersistedProjectFile,
+} from "../../domain/editor/project-document";
+import type { TimelineTrackJson } from "../../domain/editor/timeline/merge-placeholders-with-assets";
 
 const forkVersionsRouter = new Hono<HonoEnv>();
 
@@ -44,14 +50,40 @@ forkVersionsRouter.post(
       );
     }
 
-    const validatedRootTracks = parseStoredEditorTracks(root.tracks);
+    const rootDoc = root.projectDocument as PersistedProjectFile | null;
+
+    let aiDoc: PersistedProjectFile | null = null;
+    if (aiTimeline) {
+      aiDoc = applyTracksToDocument(
+        rootDoc,
+        root.id,
+        root.title,
+        aiTimeline.tracks as TimelineTrackJson[],
+        aiTimeline.durationMs,
+      );
+    }
 
     const { snapshotId } =
       await editorRepository.forkRootToSnapshotAndOptionalAiReset({
         root,
-        validatedTracks: validatedRootTracks,
-        aiTimeline,
+        validatedTracks: rootDoc?.project?.timeline?.tracks ?? [],
+        aiTimeline: aiDoc
+          ? { tracks: aiDoc.project.timeline.tracks, durationMs: aiDoc.project.timeline.durationMs }
+          : null,
       });
+
+    if (aiDoc) {
+      await editorRepository.updateProjectDocumentForUser(root.id, auth.user.id, {
+        projectDocument: aiDoc,
+        projectDocumentVersion: PERSISTED_DOCUMENT_VERSION,
+        editorCoreVersion: PERSISTED_DOCUMENT_VERSION,
+        documentHash: computeDocumentHash(aiDoc),
+        fps: aiDoc.project.settings.frameRate,
+        resolution: `${aiDoc.project.settings.width}x${aiDoc.project.settings.height}`,
+        durationMs: aiDoc.project.timeline.durationMs,
+        expectedSaveRevision: root.saveRevision,
+      });
+    }
 
     return c.json({ snapshotId });
   },
@@ -93,14 +125,14 @@ forkVersionsRouter.put(
     if (!root) throw Errors.notFound("Root project");
     if (!snapshot) throw Errors.notFound("Snapshot");
 
-    const validatedRootTracks = parseStoredEditorTracks(root.tracks);
-    const validatedSnapshotTracks = parseStoredEditorTracks(snapshot.tracks);
+    const rootDoc = root.projectDocument as PersistedProjectFile | null;
+    const snapshotDoc = snapshot.projectDocument as PersistedProjectFile | null;
 
     await editorRepository.restoreRootFromSnapshot({
       root,
       snapshot,
-      validatedRootTracks,
-      validatedSnapshotTracks,
+      validatedRootTracks: rootDoc?.project?.timeline?.tracks ?? [],
+      validatedSnapshotTracks: snapshotDoc?.project?.timeline?.tracks ?? [],
     });
 
     return c.json({ ok: true });

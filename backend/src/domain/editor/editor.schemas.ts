@@ -135,6 +135,39 @@ export const editorTrackDataSchema = z
 
 export const editorStoredTracksSchema = z.array(editorTrackDataSchema);
 
+const projectSettingsSchema = z.object({
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  frameRate: z.number().int().positive(),
+  sampleRate: z.number().int().positive(),
+  channels: z.number().int().positive(),
+});
+
+export const projectDocumentSchema = z.object({
+  version: z.string(),
+  project: z.object({
+    id: z.string().min(1),
+    title: z.string(),
+    settings: projectSettingsSchema,
+    timeline: z.object({
+      tracks: z.array(editorTrackDataSchema),
+      durationMs: z.preprocess(roundFiniteMs, z.number().int().min(0)),
+    }),
+    createdAt: z.string().optional(),
+    modifiedAt: z.string().optional(),
+  }),
+});
+
+export const patchProjectDocumentSchema = z.object({
+  expectedSaveRevision: z.number().int().min(0),
+  projectDocument: projectDocumentSchema,
+  title: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.optional(z.string().min(1).max(200)),
+  ),
+});
+
+/** @deprecated Use patchProjectDocumentSchema. Retained for reference only during cutover. */
 export const patchProjectSchema = z.object({
   title: z.preprocess(
     (v) => (v === "" || v === null ? undefined : v),

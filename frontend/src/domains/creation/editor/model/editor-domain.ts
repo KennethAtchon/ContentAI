@@ -109,6 +109,7 @@ export interface EditProject {
   durationMs: number;
   fps: number;
   resolution: string;
+  saveRevision: number;
   createdAt: string;
   updatedAt: string;
   status: "draft" | "published";

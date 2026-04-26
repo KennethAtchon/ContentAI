@@ -62,4 +62,9 @@ export type EditorAction =
   | { type: "REMOVE_TRACK"; trackId: string }
   | { type: "RENAME_TRACK"; trackId: string; name: string }
   | { type: "REORDER_TRACKS"; trackIds: string[] }
-  | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] };
+  | { type: "MERGE_TRACKS_FROM_SERVER"; tracks: Track[] }
+  | {
+      type: "LOAD_PROJECT_DOCUMENT";
+      project: EditProject;
+    }
+  | { type: "SAVE_CONFLICT_DETECTED" };

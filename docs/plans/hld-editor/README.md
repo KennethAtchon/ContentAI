@@ -13,7 +13,7 @@ Working notes, raw findings, and decision records live in [worklog/](./worklog/)
 |---|---|---|
 | 0 | [Inventory And Contract Freeze](./00-inventory-contract-freeze.md) | Freeze the canonical persisted editor document and classify every old field. |
 | 1 | [Target Schema Migration](./01-target-schema-migration.md) | Design the target Drizzle/Postgres schema for project documents, revisions, exports, and assets. |
-| 2 | [One-Time Data Conversion](./02-one-time-data-conversion.md) | Convert current `tracks` data into canonical `editor-core` project documents. |
+| 2 | [One-Time Data Conversion](./02-one-time-data-conversion.md) | ~~Convert current `tracks` data into canonical `editor-core` project documents.~~ **Skipped** — DB reset before cutover; no legacy data. |
 | 3 | [Runtime Cutover](./03-runtime-cutover.md) | Switch backend and frontend runtime paths to the canonical document shape. |
 | 4 | [Export From Revisions](./04-export-from-revisions.md) | Make export jobs render immutable project revisions. |
 | 5 | [Frontend Runtime Completion](./05-frontend-runtime-completion.md) | Finish moving editor UI behavior through the bridge and `editor-core`. |

@@ -68,6 +68,11 @@ import type { TimelineTrackJson } from "../timeline/merge-placeholders-with-asse
 import { sanitizeTrackOverlaps } from "../timeline/track-overlaps";
 import type { TimelineClipJson } from "../timeline/clip-trim";
 import { normalizeMediaClipTrimFields } from "../timeline/clip-trim";
+import {
+  applyTracksToDocument,
+  computeDocumentHash,
+  type PersistedProjectFile,
+} from "../project-document";
 
 type ContentAssetRow = {
   id: string;
@@ -176,11 +181,21 @@ export class SyncService {
     );
 
     for (const project of linkedProjects) {
-      const existingTracks = project.tracks as TimelineTrackJson[];
+      const existingDoc = project.projectDocument as PersistedProjectFile | null;
+      const existingTracks = (existingDoc?.project?.timeline?.tracks ?? project.tracks) as TimelineTrackJson[];
       const mergedTracks = this.mergeTrackSets(freshTracks, existingTracks);
 
-      await this.editor.updateProjectForSync(project.id, userId, {
-        tracks: mergedTracks,
+      const updatedDoc = applyTracksToDocument(
+        existingDoc,
+        project.id,
+        project.title,
+        mergedTracks,
+        durationMs,
+      );
+
+      await this.editor.updateProjectDocumentForSync(project.id, userId, {
+        projectDocument: updatedDoc,
+        documentHash: computeDocumentHash(updatedDoc),
         durationMs,
         generatedContentId: contentId,
       });

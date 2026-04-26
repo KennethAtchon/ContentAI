@@ -12,7 +12,7 @@ export async function runExportJob(
   jobId: string,
   project: {
     id: string;
-    tracks: unknown;
+    projectDocument: unknown;
     durationMs: number;
     fps: number;
     resolution: string;

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import {
   assets,
   contentAssets,
@@ -14,7 +14,11 @@ import {
   type AssetMergeRow,
   type TimelineTrackJson,
 } from "./timeline/merge-placeholders-with-assets";
-import { parseStoredEditorTracks } from "./validate-stored-tracks";
+import {
+  applyTracksToDocument,
+  computeDocumentHash,
+  type PersistedProjectFile,
+} from "./project-document";
 
 export type EditProjectRow = typeof editProjects.$inferSelect;
 export type ExportJobRow = typeof exportJobs.$inferSelect;
@@ -35,7 +39,7 @@ export interface IEditorRepository {
   findProjectsByContentIds(
     userId: string,
     contentIds: number[],
-  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number }>>;
+  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number; projectDocument: unknown; title: string; fps: number; resolution: string }>>;
 
   /**
    * Write synced tracks and denormalized content fields to an editor project.
@@ -199,12 +203,6 @@ export interface IEditorRepository {
     chain: number[],
   ): Promise<EditProjectRow | undefined>;
 
-  setProjectTracksInTx(
-    tx: AppDb,
-    projectId: string,
-    tracks: unknown,
-  ): Promise<void>;
-
   findLatestExportStatusForRootProjectByContentId(
     userId: string,
     generatedContentId: number,
@@ -222,6 +220,33 @@ export interface IEditorRepository {
     options?: {
       placeholderStatus?: "pending" | "generating" | "failed";
       shotIndex?: number;
+    },
+  ): Promise<void>;
+
+  updateProjectDocumentForUser(
+    projectId: string,
+    userId: string,
+    data: {
+      projectDocument: PersistedProjectFile;
+      projectDocumentVersion: string;
+      editorCoreVersion: string;
+      documentHash: string;
+      fps: number;
+      resolution: string;
+      durationMs: number;
+      expectedSaveRevision: number;
+      title?: string;
+    },
+  ): Promise<{ id: string; saveRevision: number; updatedAt: Date } | "CONFLICT">;
+
+  updateProjectDocumentForSync(
+    projectId: string,
+    userId: string,
+    data: {
+      projectDocument: PersistedProjectFile;
+      documentHash: string;
+      durationMs: number;
+      generatedContentId: number;
     },
   ): Promise<void>;
 }
@@ -246,13 +271,17 @@ export class EditorRepository implements IEditorRepository {
   async findProjectsByContentIds(
     userId: string,
     contentIds: number[],
-  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number }>> {
+  ): Promise<Array<{ id: string; tracks: unknown; durationMs: number; projectDocument: unknown; title: string; fps: number; resolution: string }>> {
     if (contentIds.length === 0) return [];
     return this.db
       .select({
         id: editProjects.id,
         tracks: editProjects.tracks,
         durationMs: editProjects.durationMs,
+        projectDocument: editProjects.projectDocument,
+        title: editProjects.title,
+        fps: editProjects.fps,
+        resolution: editProjects.resolution,
       })
       .from(editProjects)
       .where(
@@ -841,9 +870,9 @@ export class EditorRepository implements IEditorRepository {
       const voiceover = assetRows.find((a) => a.role === "voiceover");
       const music = assetRows.find((a) => a.role === "background_music");
 
-      const currentTracks = parseStoredEditorTracks(
-        project.tracks,
-      ) as unknown as TimelineTrackJson[];
+      const existingDoc = project.projectDocument as PersistedProjectFile | null;
+      const currentTracks = (existingDoc?.project?.timeline?.tracks ??
+        (Array.isArray(project.tracks) ? project.tracks : [])) as TimelineTrackJson[];
 
       const incomingVideoIds = new Set(videoClipRows.map((a) => a.id));
       const incomingVoiceoverId = voiceover?.id ?? null;
@@ -907,7 +936,110 @@ export class EditorRepository implements IEditorRepository {
         options,
       );
 
-      await this.setProjectTracksInTx(dbx, project.id, updatedTracks);
+      const updatedDoc = applyTracksToDocument(
+        existingDoc,
+        project.id,
+        project.title,
+        updatedTracks,
+        this.computeTracksDurationMs(updatedTracks),
+      );
+      await this.setProjectDocumentInTx(dbx, project.id, updatedDoc);
     });
+  }
+
+  private computeTracksDurationMs(tracks: TimelineTrackJson[]): number {
+    let maxEnd = 0;
+    for (const track of tracks) {
+      for (const clip of track.clips) {
+        const end = Number(clip.startMs ?? 0) + Number(clip.durationMs ?? 0);
+        if (end > maxEnd) maxEnd = end;
+      }
+    }
+    return Math.min(Math.max(maxEnd, 0), 180_000);
+  }
+
+  private async setProjectDocumentInTx(
+    tx: AppDb,
+    projectId: string,
+    doc: PersistedProjectFile,
+  ): Promise<void> {
+    await tx
+      .update(editProjects)
+      .set({
+        projectDocument: doc as unknown,
+        documentHash: computeDocumentHash(doc),
+        durationMs: doc.project.timeline.durationMs,
+        fps: doc.project.settings.frameRate,
+        resolution: `${doc.project.settings.width}x${doc.project.settings.height}`,
+      })
+      .where(eq(editProjects.id, projectId));
+  }
+
+  async updateProjectDocumentForUser(
+    projectId: string,
+    userId: string,
+    data: {
+      projectDocument: PersistedProjectFile;
+      projectDocumentVersion: string;
+      editorCoreVersion: string;
+      documentHash: string;
+      fps: number;
+      resolution: string;
+      durationMs: number;
+      expectedSaveRevision: number;
+      title?: string;
+    },
+  ): Promise<{ id: string; saveRevision: number; updatedAt: Date } | "CONFLICT"> {
+    const { expectedSaveRevision, title, ...fields } = data;
+    const [updated] = await this.db
+      .update(editProjects)
+      .set({
+        projectDocument: fields.projectDocument as unknown,
+        projectDocumentVersion: fields.projectDocumentVersion,
+        editorCoreVersion: fields.editorCoreVersion,
+        documentHash: fields.documentHash,
+        fps: fields.fps,
+        resolution: fields.resolution,
+        durationMs: fields.durationMs,
+        saveRevision: sql`${editProjects.saveRevision} + 1`,
+        userHasEdited: true,
+        ...(title !== undefined ? { title, autoTitle: false } : {}),
+      })
+      .where(
+        and(
+          eq(editProjects.id, projectId),
+          eq(editProjects.userId, userId),
+          eq(editProjects.saveRevision, expectedSaveRevision),
+        ),
+      )
+      .returning({
+        id: editProjects.id,
+        saveRevision: editProjects.saveRevision,
+        updatedAt: editProjects.updatedAt,
+      });
+    return updated ?? "CONFLICT";
+  }
+
+  async updateProjectDocumentForSync(
+    projectId: string,
+    userId: string,
+    data: {
+      projectDocument: PersistedProjectFile;
+      documentHash: string;
+      durationMs: number;
+      generatedContentId: number;
+    },
+  ): Promise<void> {
+    await this.db
+      .update(editProjects)
+      .set({
+        projectDocument: data.projectDocument as unknown,
+        documentHash: data.documentHash,
+        durationMs: data.durationMs,
+        generatedContentId: data.generatedContentId,
+      })
+      .where(
+        and(eq(editProjects.id, projectId), eq(editProjects.userId, userId)),
+      );
   }
 }

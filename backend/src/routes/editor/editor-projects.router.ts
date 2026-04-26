@@ -9,7 +9,7 @@ import type { HonoEnv } from "../../types/hono.types";
 import { editorService } from "../../domain/singletons";
 import { AppError } from "../../utils/errors/app-error";
 import {
-  patchProjectSchema,
+  patchProjectDocumentSchema,
   createProjectSchema,
   editorProjectIdParamSchema,
 } from "../../domain/editor/editor.schemas";
@@ -53,10 +53,7 @@ projectsRouter.get(
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");
-    const body = await editorService.getProjectWithParsedTracks(
-      auth.user.id,
-      id,
-    );
+    const body = await editorService.getProjectWithDocument(auth.user.id, id);
     return c.json(body);
   },
 );
@@ -67,7 +64,7 @@ projectsRouter.patch(
   csrfMiddleware(),
   authMiddleware("user"),
   zValidator("param", editorProjectIdParamSchema, zodValidationErrorHook),
-  zValidator("json", patchProjectSchema),
+  zValidator("json", patchProjectDocumentSchema, zodValidationErrorHook),
   async (c) => {
     const auth = c.get("auth");
     const { id } = c.req.valid("param");

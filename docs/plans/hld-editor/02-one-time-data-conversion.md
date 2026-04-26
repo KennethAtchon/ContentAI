@@ -1,12 +1,14 @@
 # Phase 2 LLD: One-Time Data Conversion
 
 > **Parent HLD:** [../hld-editor.md](../hld-editor.md)
-> **Status:** Draft
+> **Status:** Skipped — database reset before cutover; no legacy data to convert.
 > **Goal:** Convert current editor rows into canonical `editor-core` project documents.
 
 ## 1. Purpose
 
-This phase builds and validates the one-time conversion from the current `edit_project.tracks` shape into the target canonical project document. The conversion is a cutover prerequisite, not a runtime compatibility layer.
+~~This phase builds and validates the one-time conversion from the current `edit_project.tracks` shape into the target canonical project document. The conversion is a cutover prerequisite, not a runtime compatibility layer.~~
+
+**This phase is skipped.** The database was wiped clean before the cutover, so there are no existing `edit_project.tracks` rows to convert. New projects will be written directly in the target canonical document shape. Proceed to Phase 3.
 
 ## 2. Scope
 

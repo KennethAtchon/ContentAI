@@ -12,7 +12,7 @@ import type {
 import { getFileUrl, uploadFile } from "../../services/storage/r2";
 import { debugLog } from "../../utils/debug/debug";
 import { buildFfmpegAtempoChain } from "./timeline/composition";
-import { parseStoredEditorTracks } from "./validate-stored-tracks";
+import type { PersistedProjectFile } from "./project-document";
 
 export type ExportJobDbDeps = {
   updateExportJob: (
@@ -140,7 +140,7 @@ export async function runExportJob(
   jobId: string,
   project: {
     id: string;
-    tracks: unknown;
+    projectDocument: unknown;
     durationMs: number;
     fps: number;
     resolution: string;
@@ -160,7 +160,8 @@ export async function runExportJob(
   try {
     await deps.updateExportJob(jobId, { status: "rendering", progress: 5 });
 
-    const tracks = parseStoredEditorTracks(project.tracks) as Track[];
+    const doc = project.projectDocument as PersistedProjectFile | null;
+    const tracks = (doc?.project?.timeline?.tracks ?? []) as unknown as Track[];
     const fps = opts.fps ?? project.fps ?? 30;
     const resolution = opts.resolution ?? project.resolution ?? "1080x1920";
     const resolutionMap: Record<string, [number, number]> = {
