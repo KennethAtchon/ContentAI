@@ -22,4 +22,4 @@ export type {
   UserSettingsData,
   VideoDefaultsData,
   Voice,
-} from "@contracts/customer";
+} from "@contentai/contracts/customer";

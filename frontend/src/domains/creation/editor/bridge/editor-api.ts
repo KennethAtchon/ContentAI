@@ -1,29 +1,9 @@
 import { authenticatedFetchJson } from "@/shared/api/authenticated-fetch";
 import type { ExportJobStatus, Track } from "../model/editor-domain";
-
-// Shape of PersistedProjectFile as returned by the backend
-interface PersistedProjectSettings {
-  width: number;
-  height: number;
-  frameRate: number;
-  sampleRate: number;
-  channels: number;
-}
-
-interface PersistedProjectFile {
-  version: string;
-  project: {
-    id: string;
-    title: string;
-    settings: PersistedProjectSettings;
-    timeline: {
-      tracks: Track[];
-      durationMs: number;
-    };
-    createdAt: string;
-    modifiedAt: string;
-  };
-}
+import {
+  type PersistedProjectFile,
+  buildPersistedProjectFileFromEditorSnapshot,
+} from "./project-adapter";
 
 export interface ProjectApiResponse {
   id: string;
@@ -122,26 +102,15 @@ export const editorApi = {
     tracks: Track[],
     durationMs: number,
   ): PersistedProjectFile {
-    const [widthStr, heightStr] = (project.resolution ?? "1080x1920").split("x");
-    const width = parseInt(widthStr ?? "1080", 10);
-    const height = parseInt(heightStr ?? "1920", 10);
-    const now = new Date().toISOString();
-    return {
-      version: "1.0.0",
-      project: {
-        id: project.id,
-        title: project.title ?? "Untitled Edit",
-        settings: {
-          width,
-          height,
-          frameRate: project.fps,
-          sampleRate: 44100,
-          channels: 2,
-        },
-        timeline: { tracks, durationMs },
-        createdAt: project.existingCreatedAt ?? now,
-        modifiedAt: now,
-      },
-    };
+    return buildPersistedProjectFileFromEditorSnapshot({
+      id: project.id,
+      title: project.title,
+      fps: project.fps,
+      resolution: project.resolution,
+      durationMs,
+      createdAt: project.existingCreatedAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tracks,
+    });
   },
 };

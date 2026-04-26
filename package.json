@@ -1,0 +1,12 @@
+{
+  "name": "contentai-monorepo",
+  "private": true,
+  "packageManager": "bun@1.2.14",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "e2e",
+    "automation",
+    "packages/*"
+  ]
+}

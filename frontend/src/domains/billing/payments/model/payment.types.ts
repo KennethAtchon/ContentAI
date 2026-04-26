@@ -3,7 +3,7 @@ import type {
   PaymentSuccessParams,
   PaymentSuccessType,
   SubscriptionSuccessData,
-} from "@contracts/payments";
+} from "@contentai/contracts/payments";
 
 export type PaymentMethod =
   | "credit_card"

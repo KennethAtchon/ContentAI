@@ -13,3 +13,5 @@ Thumbs.db
 # Generated Rust/WASM editor core
 **/editor-core/target/
 frontend/src/features/editor/wasm/
+
+node_modules/

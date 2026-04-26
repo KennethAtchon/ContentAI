@@ -27,8 +27,6 @@
       "@/shared/*": ["./src/shared/*"],
       "@/domains/*": ["./src/domains/*"],
       "@/app/*": ["./src/app/*"],
-      "@contracts": ["../packages/contracts/src/index.ts"],
-      "@contracts/*": ["../packages/contracts/src/*"],
       "zod": ["./node_modules/zod"]
     }
   },

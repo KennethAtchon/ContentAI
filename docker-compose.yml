@@ -47,8 +47,8 @@ services:
   backend:
     <<: *bun-service
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
       target: development
     env_file:
       - ./.env
@@ -63,8 +63,8 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./backend:/app
-      - backend_node_modules:/app/node_modules
+      - ./:/workspace
+      - backend_node_modules:/workspace/node_modules
       - backend_bun_cache:/root/.bun/install/cache
     depends_on:
       postgres:
@@ -80,8 +80,8 @@ services:
   frontend:
     <<: *bun-service
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       target: development
     env_file:
       - ./.env
@@ -97,8 +97,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
+      - ./:/workspace
+      - frontend_node_modules:/workspace/node_modules
       - frontend_bun_cache:/root/.bun/install/cache
     depends_on:
       backend:

@@ -1,35 +1,25 @@
 # Frontend Dockerfile
 FROM oven/bun:1.2.14-alpine AS base
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Install dependencies only when needed
 FROM base AS deps
+COPY . .
+RUN if [ -f bun.lock ]; then bun install --frozen-lockfile; else bun install; fi
 
-# Copy package files
-COPY package.json bun.lock bunfig.toml ./
-RUN bun install --frozen-lockfile
-
-# Development stage
 FROM base AS development
 ENV NODE_ENV=development
 
-COPY package.json bun.lock bunfig.toml ./
-COPY scripts ./scripts
-COPY editor-core ./editor-core
-
-# Expose port
-EXPOSE 3000
-
-# Keep dependencies inside a Linux volume instead of reusing host-built modules.
-CMD ["sh", "scripts/docker-entrypoint-dev.sh"]
-
-# Build stage
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build environment variables
+EXPOSE 3000
+
+CMD ["sh", "frontend/scripts/docker-entrypoint-dev.sh"]
+
+FROM base AS builder
+COPY --from=deps /workspace/node_modules ./node_modules
+COPY . .
+
 ARG VITE_API_URL
 ARG VITE_FIREBASE_API_KEY
 ARG VITE_FIREBASE_AUTH_DOMAIN
@@ -54,14 +44,12 @@ ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
 ENV VITE_APP_NAME=$VITE_APP_NAME
 ENV VITE_APP_URL=$VITE_APP_URL
 
-# Build the application
-RUN bun run build
+RUN cd frontend && bun run build
 
-# Production stage
 FROM nginx:alpine AS production
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 

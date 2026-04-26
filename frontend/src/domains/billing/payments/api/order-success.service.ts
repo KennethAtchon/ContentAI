@@ -2,7 +2,7 @@ import { debugLog } from "@/shared/debug";
 import type {
   CreateOrderFromCheckoutInput,
   CreateOrderFromCheckoutResponse,
-} from "@contracts/customer";
+} from "@contentai/contracts/customer";
 
 type AuthenticatedFetch = (
   url: string,

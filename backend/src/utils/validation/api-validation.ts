@@ -2,7 +2,7 @@ import { systemLogger } from "@/utils/system/system-logger";
 import {
   createCustomerOrderSchema as sharedCreateCustomerOrderSchema,
   updateCustomerProfileSchema as sharedUpdateCustomerProfileSchema,
-} from "@contracts/customer";
+} from "@contentai/contracts/customer";
 import { z } from "zod";
 
 /**

@@ -4,7 +4,7 @@ import {
   adminOrderIdParamSchema,
   adminOrdersQuerySchema,
   adminUpdateOrderBodySchema,
-} from "@contracts/admin";
+} from "@contentai/contracts/admin";
 export {
   adminCreateOrderBodySchema,
   adminOrderIdParamSchema,

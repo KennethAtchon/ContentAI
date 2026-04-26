@@ -1,5 +1,5 @@
 import { authenticatedFetchJson } from "@/shared/api/authenticated-fetch";
-export type { UsageStats } from "@contracts/customer";
+export type { UsageStats } from "@contentai/contracts/customer";
 
 export type ContentType = string;
 

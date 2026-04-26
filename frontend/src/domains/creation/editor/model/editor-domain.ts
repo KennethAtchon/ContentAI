@@ -119,6 +119,7 @@ export interface EditProject {
   generatedHook?: string | null;
   postCaption?: string | null;
   autoTitle?: boolean;
+  projectDocument?: unknown | null;
 }
 
 export interface ExportJobStatus {

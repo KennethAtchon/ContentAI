@@ -1,0 +1,36 @@
+{
+  "name": "@contentai/editor-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./actions": "./src/actions/index.ts",
+    "./ai": "./src/ai/index.ts",
+    "./animation": "./src/animation/index.ts",
+    "./audio": "./src/audio/index.ts",
+    "./device": "./src/device/index.ts",
+    "./effects": "./src/effects/index.ts",
+    "./graphics": "./src/graphics/index.ts",
+    "./media": "./src/media/index.ts",
+    "./playback": "./src/playback/index.ts",
+    "./storage": "./src/storage/index.ts",
+    "./template": "./src/template/index.ts",
+    "./text": "./src/text/index.ts",
+    "./timeline": "./src/timeline/index.ts",
+    "./types": "./src/types/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./video": "./src/video/index.ts",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "mediabunny": "^1.41.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

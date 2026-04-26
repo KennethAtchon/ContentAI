@@ -4,4 +4,4 @@ export type {
   SubscriptionBillingInfo,
   SubscriptionUsageStats,
   UpdateSubscriptionRequest,
-} from "@contracts/subscription";
+} from "@contentai/contracts/subscription";

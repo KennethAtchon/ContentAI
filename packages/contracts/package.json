@@ -2,5 +2,17 @@
   "name": "@contentai/contracts",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./admin": "./src/admin.ts",
+    "./customer": "./src/customer.ts",
+    "./payments": "./src/payments.ts",
+    "./subscription": "./src/subscription.ts",
+    "./video": "./src/video.ts",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "zod": "^4.3.5"
+  }
 }

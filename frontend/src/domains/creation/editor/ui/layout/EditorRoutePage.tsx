@@ -6,6 +6,7 @@ import { useEditorUIStore } from "../../store/editor-ui-store";
 import { EditorLayout } from "./EditorLayout";
 import { EditorProjectList } from "./EditorProjectList";
 import { getEditorBridge, disposeEditorBridge } from "../../bridge";
+import { getEditorRuntime, disposeEditorRuntime } from "../../runtime/editor-runtime";
 
 export interface EditorRouteSearch {
   projectId?: string;
@@ -36,6 +37,7 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
         useEditorProjectStore.getState().loadProject(project);
         useEditorTimelineStore.getState().reset();
         useEditorUIStore.getState().reset();
+        getEditorRuntime().loadProject(project);
 
         unsubscribeProjectStore?.();
         unsubscribeProjectStore = useEditorProjectStore.subscribe(
@@ -48,6 +50,7 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
           ] as const,
           () => {
             const state = useEditorProjectStore.getState();
+            getEditorRuntime().syncFromEditorState(state);
             bridge.notifyStateChanged({
               tracks: state.tracks,
               durationMs: state.durationMs,
@@ -77,6 +80,7 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     return () => {
       unsubscribeProjectStore?.();
       disposeEditorBridge();
+      disposeEditorRuntime();
       useEditorProjectStore.getState().reset();
       useEditorTimelineStore.getState().reset();
       useEditorUIStore.getState().reset();
@@ -106,6 +110,7 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
         <EditorLayout
           onBack={() => {
             disposeEditorBridge();
+            disposeEditorRuntime();
             useEditorProjectStore.getState().reset();
             useEditorTimelineStore.getState().reset();
             useEditorUIStore.getState().reset();

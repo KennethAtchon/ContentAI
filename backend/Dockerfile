@@ -1,10 +1,8 @@
 # Backend Dockerfile
-# Shared Bun base keeps frontend/backend layers aligned while staying lightweight on Alpine.
 FROM oven/bun:1.2.14-alpine AS base
 
-WORKDIR /app
+WORKDIR /workspace
 
-# fontconfig + DejaVu: drawtext in editor export; curl/psql for ops / debugging.
 RUN apk add --no-cache \
     curl \
     ffmpeg \
@@ -13,48 +11,33 @@ RUN apk add --no-cache \
     postgresql16-client \
     tzdata
 
-# Install dependencies only when needed
 FROM base AS deps
-COPY package.json bun.lock bunfig.toml ./
-RUN bun install --frozen-lockfile
+COPY . .
+RUN if [ -f bun.lock ]; then bun install --frozen-lockfile; else bun install; fi
 
-# Development stage
 FROM base AS development
 ENV NODE_ENV=development
 
-COPY package.json bun.lock bunfig.toml ./
-COPY scripts ./scripts
-
-# Expose port
-EXPOSE 3001
-
-# Keep dependencies inside a Linux volume instead of reusing host-built modules.
-CMD ["sh", "scripts/docker-entrypoint-dev.sh"]
-
-# Build stage
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
-RUN bun run build
+EXPOSE 3001
 
-# Production stage
+CMD ["sh", "backend/scripts/docker-entrypoint-dev.sh"]
+
+FROM base AS builder
+COPY --from=deps /workspace/node_modules ./node_modules
+COPY . .
+
+RUN cd backend && bun run build
+
 FROM base AS production
 ENV NODE_ENV=production
 
-COPY package.json bun.lock bunfig.toml ./
+COPY . .
+RUN if [ -f bun.lock ]; then bun install --frozen-lockfile --production; else bun install --production; fi
 
-# Install production dependencies
-RUN bun install --frozen-lockfile --production
+COPY --from=builder /workspace/backend/dist ./backend/dist
 
-# Copy built application
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/scripts ./scripts
-
-# Expose port
 EXPOSE 3001
 
-# Seed and start production server
-CMD ["sh", "scripts/start.sh"]
+CMD ["sh", "backend/scripts/start.sh"]

@@ -33,7 +33,6 @@ export default defineConfig({
       "@/shared": path.resolve(__dirname, "./src/shared"),
       "@/domains": path.resolve(__dirname, "./src/domains"),
       "@/app": path.resolve(__dirname, "./src/app"),
-      "@contracts": path.resolve(__dirname, "../packages/contracts/src"),
     },
   },
   server: {

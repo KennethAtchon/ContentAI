@@ -73,6 +73,7 @@ class EditorBridge {
         generatedHook: response.generatedHook,
         postCaption: response.postCaption,
         autoTitle: response.autoTitle,
+        projectDocument: response.projectDocument,
       };
       this.callbacks?.onProjectLoaded(project);
     } catch (err) {

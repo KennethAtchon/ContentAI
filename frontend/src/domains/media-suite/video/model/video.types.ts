@@ -6,4 +6,4 @@ export type {
   VideoJobResult,
   VideoJobStatus,
   VideoRenderJob,
-} from "@contracts/video";
+} from "@contentai/contracts/video";

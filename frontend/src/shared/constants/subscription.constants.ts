@@ -16,7 +16,7 @@ import {
   type SubscriptionTier,
   type SubscriptionTierConfig,
   type SubscriptionTierFeatures,
-} from "@contracts/subscription";
+} from "@contentai/contracts/subscription";
 import {
   getStripePriceId,
   getStripePriceAmount,

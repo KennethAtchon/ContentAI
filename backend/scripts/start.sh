@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+APP_DIR="${APP_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+cd "$APP_DIR"
+
 echo "=== ContentAI Backend Starting ==="
 echo "NODE_ENV: ${NODE_ENV}"
 echo "PORT: ${PORT:-3001}"

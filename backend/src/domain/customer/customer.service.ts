@@ -1,5 +1,5 @@
 import type { ICustomerRepository } from "./customer.repository";
-import type { UsageStats } from "@contracts/customer";
+import type { UsageStats } from "@contentai/contracts/customer";
 import { Errors } from "../../utils/errors/app-error";
 import type { CustomerProfile } from "./customer.types";
 

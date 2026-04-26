@@ -18,7 +18,7 @@ Working notes, raw findings, and decision records live in [worklog/](./worklog/)
 | 4 | [Export From Revisions](./04-export-from-revisions.md) | Make export jobs render immutable project revisions. |
 | 5 | [Frontend Runtime Completion](./05-frontend-runtime-completion.md) | Finish moving editor UI behavior through the bridge and Zustand runtime wiring. |
 | 6 | [Cleanup](./06-cleanup.md) | Remove old schemas, columns, models, and temporary migration scaffolding. |
-| 7 | [Editor-Core Package And Frontend Engine Integration](./07-editor-core-package-and-frontend-integration.md) | Turn `editor-core` into a real package and make the frontend editor run on it directly. |
+| 7 | [Internal Package Wiring And Frontend Engine Integration](./07-editor-core-package-and-frontend-integration.md) | Turn `editor-core` and `contracts` into real internal packages, update Docker/compose for Railway’s two-service model, and make the frontend editor run on `editor-core` directly. |
 
 ## Review Order
 

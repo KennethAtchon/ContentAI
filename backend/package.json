@@ -27,6 +27,8 @@
     "test:ci": "bun test __tests__/unit --coverage && bun test __tests__/integration"
   },
   "dependencies": {
+    "@contentai/contracts": "workspace:*",
+    "@contentai/editor-core": "workspace:*",
     "@ai-sdk/anthropic": "^3.0.58",
     "@ai-sdk/openai": "^3.0.41",
     "@aws-sdk/client-s3": "^3.946.0",

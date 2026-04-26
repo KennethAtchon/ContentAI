@@ -1,1 +1,1 @@
-export { createCheckoutSessionBodySchema } from "@contracts/payments";
+export { createCheckoutSessionBodySchema } from "@contentai/contracts/payments";

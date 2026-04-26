@@ -6,4 +6,4 @@ export {
   orderBySessionQuerySchema,
   updateCustomerProfileSchema,
   updateCustomerSettingsSchema,
-} from "@contracts/customer";
+} from "@contentai/contracts/customer";

@@ -1,4 +1,4 @@
-import { aspectRatioSchema, providerSchema } from "@contracts/video";
+import { aspectRatioSchema, providerSchema } from "@contentai/contracts/video";
 import { z } from "zod";
 import { MAX_SCRIPT_SHOT_DURATION_SECONDS } from "./video-shot-durations";
 

@@ -5,4 +5,4 @@ export type {
   PortalLinkRequest,
   PortalLinkResult,
   StripeWebhookEvent,
-} from "@contracts/payments";
+} from "@contentai/contracts/payments";

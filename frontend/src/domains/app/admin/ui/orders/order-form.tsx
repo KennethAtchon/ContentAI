@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   adminOrderStatusSchema,
   type AdminOrderStatus,
-} from "@contracts/admin";
+} from "@contentai/contracts/admin";
 
 import { useAuthenticatedFetch } from "@/domains/auth/hooks/use-authenticated-fetch";
 import { useQueryFetcher } from "@/shared/react/use-query-fetcher";

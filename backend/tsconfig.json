@@ -20,8 +20,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@contracts": ["../packages/contracts/src/index.ts"],
-      "@contracts/*": ["../packages/contracts/src/*"],
       "zod": ["./node_modules/zod"]
     },
     "outDir": "./dist"
