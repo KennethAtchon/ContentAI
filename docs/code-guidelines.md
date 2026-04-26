@@ -3,6 +3,7 @@
 The hard rulebrick. Every PR is reviewed against this. If a rule must be broken, the PR description must say why.
 
 Rules ladder by severity:
+
 - **MUST** — non-negotiable. Block the PR.
 - **SHOULD** — strong default. Deviation needs justification in the PR.
 - **PREFER** — taste / consistency. Reviewer's call.
@@ -15,14 +16,16 @@ This doc supersedes any contradicting habit in older code. When you touch old co
 
 **1.1 (MUST) Backend folders have one job.** Each file belongs to exactly one of:
 
-| Folder | Holds | Rule of thumb |
-|---|---|---|
-| `routes/` | Hono route definitions, request parsing, response shaping | No business logic. No raw Drizzle. |
-| `domain/<area>/` | Business logic, repositories, schemas, types for one area | All multi-step business operations live here. |
-| `services/<area>/` | Cross-cutting infrastructure (firebase, storage, redis, http, tts) | No business rules. Reusable across domains. |
-| `lib/` | Tiny pure helpers (`cost-tracker.ts`, `chat-tools.ts`) | If it grows past ~150 lines or has stateful clients, promote to `services/` or `domain/`. |
-| `middleware/` | Hono middleware (auth, csrf, rate-limit, error handling) | One concern per file. |
-| `utils/` | Stateless, no-deps helpers (date, error class, validation primitives) | If it imports a service or repo, it's not a util. |
+
+| Folder             | Holds                                                                 | Rule of thumb                                                                             |
+| ------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `routes/`          | Hono route definitions, request parsing, response shaping             | No business logic. No raw Drizzle.                                                        |
+| `domain/<area>/`   | Business logic, repositories, schemas, types for one area             | All multi-step business operations live here.                                             |
+| `services/<area>/` | Cross-cutting infrastructure (firebase, storage, redis, http, tts)    | No business rules. Reusable across domains.                                               |
+| `lib/`             | Tiny pure helpers (`cost-tracker.ts`, `chat-tools.ts`)                | If it grows past ~150 lines or has stateful clients, promote to `services/` or `domain/`. |
+| `middleware/`      | Hono middleware (auth, csrf, rate-limit, error handling)              | One concern per file.                                                                     |
+| `utils/`           | Stateless, no-deps helpers (date, error class, validation primitives) | If it imports a service or repo, it's not a util.                                         |
+
 
 **1.2 (MUST) Frontend dependency direction.** `shared/` MUST NOT import from `domains/` or `app/`. `domains/X/` MAY import from `shared/`. `domains/X/` SHOULD NOT import from `domains/Y/` — if you need composition, expose a slot prop and let the route compose.
 
@@ -65,11 +68,13 @@ Empty `catch {}` with no comment, no log, no re-throw is a bug. Reference: B4.
 
 `debugLog` only fires when `NODE_ENV=development` (`backend/src/utils/debug/debug.ts`). If your log needs to be visible in production (errors, warnings, security events, degradation signals), use `systemLogger`. Reference: B10.
 
-| Use | Logger | Example |
-|---|---|---|
-| Decryption failure, auth failure, security event | `systemLogger.error` / `.security` | Encrypted config could not be decrypted |
-| DB unavailable, cache miss for hot path, fallback to ENV | `systemLogger.warn` | API key DB lookup fell back to env |
-| Per-request trace, parameter dump, hot-path verbose | `debugLog.debug` | Logging the request shape |
+
+| Use                                                      | Logger                             | Example                                 |
+| -------------------------------------------------------- | ---------------------------------- | --------------------------------------- |
+| Decryption failure, auth failure, security event         | `systemLogger.error` / `.security` | Encrypted config could not be decrypted |
+| DB unavailable, cache miss for hot path, fallback to ENV | `systemLogger.warn`                | API key DB lookup fell back to env      |
+| Per-request trace, parameter dump, hot-path verbose      | `debugLog.debug`                   | Logging the request shape               |
+
 
 **2.3 (MUST) Throw `AppError`, not raw `Error`, in domain code.** Use `Errors.notFound("Reel")`, `Errors.unauthorized()`, etc. The error handler relies on `AppError`'s `code` and `statusCode` fields.
 
@@ -107,12 +112,14 @@ Empty `catch {}` with no comment, no log, no re-throw is a bug. Reference: B4.
 
 **5.2 (SHOULD) Zustand for cross-cutting client state, Context for set-once config, `useState` for local.**
 
-| Use | Tool |
-|---|---|
-| User auth/profile/locale (set once, rarely updates) | React Context (existing pattern) |
+
+| Use                                                                                                              | Tool                                        |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| User auth/profile/locale (set once, rarely updates)                                                              | React Context (existing pattern)            |
 | Editor selection/playhead/clip state, chat streaming buffer, audio playback (many subscribers, frequent updates) | Zustand store under `domains/<area>/state/` |
-| Component-local form state, toggles, local UI flags | `useState` |
-| Cached server data | TanStack Query |
+| Component-local form state, toggles, local UI flags                                                              | `useState`                                  |
+| Cached server data                                                                                               | TanStack Query                              |
+
 
 **5.3 (MUST) All authenticated requests go through `useAuthenticatedFetch()` or the `authenticated-fetch` module.** No bespoke `fetch()` calls in components.
 
@@ -165,6 +172,7 @@ systemLogger.warn("AI provider DB lookup failed; using default", {
 **9.2 (SHOULD) Backend route files end in `.router.ts`.** Existing `*.ts` route files get renamed when touched.
 
 **9.3 (MUST) Domain file naming follows the pattern:**
+
 ```
 domain/<area>/
   <area>.service.ts
