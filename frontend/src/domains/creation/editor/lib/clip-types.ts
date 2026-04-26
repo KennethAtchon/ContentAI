@@ -5,7 +5,7 @@ import type {
   MusicClip,
   TextClip,
   VideoClip,
-} from "../model/editor";
+} from "../model/editor-domain";
 
 export function isVideoClip(clip: Clip): clip is VideoClip {
   return clip.type === "video";

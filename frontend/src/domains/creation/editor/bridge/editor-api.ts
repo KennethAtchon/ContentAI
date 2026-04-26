@@ -1,5 +1,5 @@
 import { authenticatedFetchJson } from "@/shared/api/authenticated-fetch";
-import type { Track } from "../model/editor-domain";
+import type { ExportJobStatus, Track } from "../model/editor-domain";
 
 // Shape of PersistedProjectFile as returned by the backend
 interface PersistedProjectSettings {
@@ -89,6 +89,22 @@ export const editorApi = {
 
   listProjects(): Promise<ProjectListItem[]> {
     return authenticatedFetchJson<ProjectListItem[]>("/api/editor");
+  },
+
+  startExport(
+    projectId: string,
+    opts: { resolution?: string; fps?: number },
+  ): Promise<{ exportJobId: string; projectRevisionId: string }> {
+    return authenticatedFetchJson(`/api/editor/${projectId}/export`, {
+      method: "POST",
+      body: JSON.stringify(opts),
+    });
+  },
+
+  getExportStatus(projectId: string): Promise<ExportJobStatus> {
+    return authenticatedFetchJson<ExportJobStatus>(
+      `/api/editor/${projectId}/export/status`,
+    );
   },
 
   extractTracks(response: ProjectApiResponse): Track[] {

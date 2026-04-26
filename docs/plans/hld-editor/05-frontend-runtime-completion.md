@@ -2,7 +2,7 @@
 
 > **Parent HLD:** [../hld-editor.md](../hld-editor.md)
 > **Status:** Ready for implementation
-> **Goal:** Wire the editor Zustand store + reducer so every UI component reads real project state instead of hardcoded preview data.
+> **Goal:** Wire Zustand stores + methods so every UI component reads real project state instead of hardcoded preview data. Patterns taken directly from `openreel-video/apps/web`.
 
 ---
 
@@ -15,221 +15,256 @@
 | `PlaybackBar.tsx` | Local `isPlaying` useState; never reads duration from project |
 | `Inspector.tsx` | `selectedClipId: null` hardcoded; no clip data shown |
 | `ExportModal.tsx` | Placeholder — no API calls, no progress |
-| `EditorHeader.tsx` | Title input is `readOnly`; undo/redo buttons disabled; export button is an unconnected stub |
-| `EditorStatusBar.tsx` | Clip/track counts drilled from `project` prop in `EditorLayout`; doesn't read from store |
-| `EditorProviders.tsx` | Passthrough — does nothing (`return <>{children}</>`) |
-| `EditorRoutePage.tsx` | Bridge loaded, but `onSaveConflict` is a TODO comment |
+| `EditorHeader.tsx` | Title input is `readOnly`; undo/redo buttons disabled; export is an unconnected stub |
+| `EditorStatusBar.tsx` | Clip/track counts drilled as props from `EditorLayout` |
+| `EditorProviders.tsx` | Dead wrapper — delete it; stores are module singletons |
+| `EditorRoutePage.tsx` | `onSaveConflict` is a TODO comment |
 
-**`editor-core` package** (`/packages/editor-core`): NOT imported by the frontend. Not in `package.json`. Out of scope for this phase entirely.
+**No Zustand stores exist.** `EditorState` and `EditorAction` types are defined in `model/`, but no store has been created. The `editor-core` package (`/packages/editor-core`) is NOT in the frontend's `package.json` — out of scope entirely.
 
-**No Zustand store exists.** `EditorState` and `EditorAction` types are defined in `model/`, but no store, no reducer, no context has been created.
+**`model/editor.ts` exports `EditorAction` (a Redux-style action union) and `EditorState`.** These are dead code — nothing dispatches or reduces them. They contradict the project-wide Zustand migration ([frontend-zustand-migration.md](../frontend-zustand-migration.md)) and must be deleted in this phase.
 
 ---
 
-## 2. Scope
+## 2. Store Architecture
+
+Follow the OpenReel pattern: **three focused stores, each with methods co-located, all module-level singletons using `subscribeWithSelector`**. No reducer, no dispatch, no React context.
+
+```
+openreel-video pattern          ContentAI equivalent
+─────────────────────────────   ─────────────────────────────
+useProjectStore                 useEditorProjectStore
+useTimelineStore                useEditorTimelineStore
+useUIStore                      useEditorUIStore
+```
+
+Bridges and services call `useXxxStore.getState().method()` imperatively — same as how `render-bridge.ts` calls `useProjectStore.getState().project`.
+
+Autosave wiring: `useEditorProjectStore.subscribe(selector, callback)` via `subscribeWithSelector` — same pattern as `autoSaveManager` in `project-store.ts:2539`.
+
+---
+
+## 3. Scope
 
 **In scope:**
-- Create a Zustand store + reducer covering all `EditorAction` types
-- Wire bridge callbacks in `EditorRoutePage` to dispatch into the store
+- **Delete `model/editor.ts`** — removes the `EditorAction` union and `EditorState` composite type (dead reducer/dispatch artifacts)
+- **Delete `model/editor-document.ts`, `model/editor-playback.ts`, `model/editor-ui.ts`** — state shapes are inlined into the three stores; these separate interface files are no longer needed
+- Create `useEditorProjectStore`, `useEditorTimelineStore`, `useEditorUIStore`
+- Wire bridge callbacks in `EditorRoutePage` to call store methods
+- Subscribe to project store changes for autosave (forwarded to `EditorBridge.notifyStateChanged`)
 - Connect all stub UI components to real store state
 - Implement `ExportModal` with real API calls + progress polling
-- Add `SAVE_REVISION_UPDATED` action to `EditorAction`
-- Add `createdAt` field to `EditorDocumentState` (required by bridge autosave)
 - Add `startExport` and `getExportStatus` to `editor-api.ts`
 
 **Out of scope:**
 - `editor-core` package integration
 - Playback preview rendering (canvas / frame decode)
-- Drag-to-trim / drag-to-move clip implementation
-- Undo/redo history (wire the `UNDO`/`REDO` actions but skip the snapshot logic — `past`/`future` stay empty arrays for now)
+- Drag-to-trim / drag-to-move implementation
+- Undo/redo history (`undo()`/`redo()` are stubs — `past`/`future` stay empty arrays)
 - Collaboration / offline sync
-- Visual redesign
 
 ---
 
-## 3. Architecture
+## 4. Reducer/Dispatch Purge (Delete First)
 
-### Store ownership model
+### Why this pattern is wrong here
 
-A **module-level singleton store** (same pattern as the bridge). Created once per project session, destroyed when the user closes the editor.
+`model/editor.ts` introduced a Redux-style `EditorAction` discriminated union with 40+ variants and an `EditorState` composite type — the same pattern you'd use if you were calling `useReducer`. **This contradicts the project-wide Zustand migration** ([frontend-zustand-migration.md](../frontend-zustand-migration.md)) whose explicit goal is to stop using context + reducer patterns for shared state.
 
+The problems:
+
+- **Indirection with no benefit.** `dispatch({ type: "TOGGLE_TRACK_MUTE", trackId })` is strictly worse than calling `useEditorProjectStore.getState().toggleTrackMute(trackId)`. You gain a string-keyed action type that TypeScript can't autocomplete at the call site, a switch statement to maintain, and no additional testability.
+- **It was never wired.** The action union is dead code — nothing in the codebase dispatches or reduces it. It exists purely as a blueprint that would have pulled the editor toward a Redux architecture the project is actively moving away from.
+- **The correct alternative is already proven.** OpenReel's editor (`openreel-video/apps/web`) uses `useProjectStore`, `useTimelineStore`, and `useUIStore` — all Zustand stores with methods co-located. `moveClip(clipId, startMs)` is a method on the store. No action type, no switch case, no dispatch call anywhere.
+
+### 4.1 Delete `model/editor.ts`
+
+This file exports:
+- `EditorAction` — 40-variant Redux-style action union (never dispatched)
+- `EditorState` — composite type alias over three sub-interfaces (never instantiated)
+- Re-exports from `editor-domain` — move any needed re-exports to the store files directly
+
+**Delete the file.** Any `import ... from "../../model/editor"` that only imported domain types should be redirected to `"../../model/editor-domain"`.
+
+### 4.2 Delete `model/editor-document.ts`, `model/editor-playback.ts`, `model/editor-ui.ts`
+
+These interfaces were the "shape" for a reducer's state slices. State shape now lives inline in each store (sections 5.1–5.3). Delete all three files.
+
+Exception: `model/editor-domain.ts` stays — it defines the domain value types (`Track`, `Clip`, `EditProject`, `Transition`, `ExportJobStatus`, etc.) used by stores, the bridge, and the API layer.
+
+### 4.3 Fix import fallout
+
+After deleting the files, grep for remaining imports and redirect:
+
+```bash
+# Find all consumers
+rg "from ['\"].*model/editor['\"]" frontend/src --include="*.ts" --include="*.tsx"
 ```
-EditorRoutePage
-  ├── bridge.initialize() → onProjectLoaded → initEditorStore(project)
-  │                                         → store.subscribe() → bridge.notifyStateChanged()
-  ├── onSaveRevisionUpdated → getEditorStore().dispatch(SAVE_REVISION_UPDATED)
-  ├── onSaveConflict        → getEditorStore().dispatch(SAVE_CONFLICT_DETECTED)
-  └── renders EditorLayout (only after store is ready)
-        └── EditorProviders (provides store via context for hook access)
-              └── all child components → useEditorStore(selector)
-```
 
-### Data ownership summary
-
-| Layer | Owns |
-|---|---|
-| `editor-store.ts` singleton | All persisted editor state (tracks, title, playback, UI selection, export) |
-| `EditorBridge` singleton | API transport: load, autosave, export trigger, revision tracking |
-| React components | Read from store via selector; dispatch actions; no local state for shared editor state |
-| `EditorRoutePage` | `openProjectId` + `isReady` + `loadError` — lifecycle only, not editor state |
+Expected consumers: `EditorRoutePage`, `EditorLayout`, `EditorWorkspace`, bridge files, a few UI components. All should move to either `model/editor-domain` (for type imports) or the new store files (for state/methods).
 
 ---
 
-## 4. Files to Create
+## 5. Files to Create
 
-### 4.1 `store/editor-reducer.ts`
-
-Pure function — no side effects, no imports from bridge or API.
+### 5.1 `store/editor-project-store.ts`
 
 ```typescript
-import type { EditorState } from "../model/editor-document";
-import type { EditorAction } from "../model/editor";
-import type { Track, Clip, VisualClip } from "../model/editor-domain";
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+import type { Clip, ClipPatch, EditProject, Track } from "../model/editor-domain";
+import type { EditorHistorySnapshot } from "../model/editor-domain";
 
-export function editorReducer(state: EditorState, action: EditorAction): EditorState {
-  switch (action.type) {
+export interface EditorProjectState {
+  editProjectId: string | null;
+  title: string;
+  durationMs: number;
+  fps: number;
+  resolution: string;
+  saveRevision: number;
+  createdAt: string;
+  tracks: Track[];
+  clipboardClip: Clip | null;
+  clipboardSourceTrackId: string | null;
+  past: EditorHistorySnapshot[];
+  future: EditorHistorySnapshot[];
+  isReadOnly: boolean;
 
-    // ── Document ──────────────────────────────────────────────────────────
-    case "LOAD_PROJECT":
-      // Not used in normal flow (store is seeded at init time), but guard anyway
-      return buildDocumentState(action.project);
-
-    case "LOAD_PROJECT_DOCUMENT":
-      return buildDocumentState(action.project);
-
-    case "SET_TITLE":
-      return { ...state, title: action.title };
-
-    case "SET_RESOLUTION":
-      return { ...state, resolution: action.resolution };
-
-    case "SET_FPS":
-      return { ...state, fps: action.fps };
-
-    case "SAVE_REVISION_UPDATED":
-      return { ...state, saveRevision: action.saveRevision };
-
-    case "SAVE_CONFLICT_DETECTED":
-      return { ...state, isReadOnly: true };
-
-    case "MERGE_TRACKS_FROM_SERVER":
-      return { ...state, tracks: mergeTracks(state.tracks, action.tracks) };
-
-    // ── Playback ──────────────────────────────────────────────────────────
-    case "SET_CURRENT_TIME":
-      return { ...state, currentTimeMs: action.ms };
-
-    case "SET_PLAYING":
-      return { ...state, isPlaying: action.playing };
-
-    case "SET_PLAYBACK_RATE":
-      return { ...state, playbackRate: action.rate };
-
-    case "SET_ZOOM":
-      return { ...state, zoom: action.zoom };
-
-    // ── Selection ─────────────────────────────────────────────────────────
-    case "SELECT_CLIP":
-      return { ...state, selectedClipId: action.clipId };
-
-    // ── Clip mutations ────────────────────────────────────────────────────
-    case "UPDATE_CLIP":
-      return { ...state, tracks: updateClipInTracks(state.tracks, action.clipId, action.patch) };
-
-    case "TOGGLE_CLIP_ENABLED":
-      return {
-        ...state,
-        tracks: updateClipInTracks(state.tracks, action.clipId, (c) => ({
-          enabled: !("enabled" in c && c.enabled),
-        })),
-      };
-
-    case "REMOVE_CLIP":
-      return { ...state, tracks: removeClipFromTracks(state.tracks, action.clipId) };
-
-    case "MOVE_CLIP":
-      return {
-        ...state,
-        tracks: updateClipInTracks(state.tracks, action.clipId, { startMs: action.startMs }),
-      };
-
-    // ── Track mutations ───────────────────────────────────────────────────
-    case "TOGGLE_TRACK_MUTE":
-      return {
-        ...state,
-        tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, muted: !t.muted } : t,
-        ),
-      };
-
-    case "TOGGLE_TRACK_LOCK":
-      return {
-        ...state,
-        tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, locked: !t.locked } : t,
-        ),
-      };
-
-    case "RENAME_TRACK":
-      return {
-        ...state,
-        tracks: state.tracks.map((t) =>
-          t.id === action.trackId ? { ...t, name: action.name } : t,
-        ),
-      };
-
-    // ── Export ────────────────────────────────────────────────────────────
-    case "SET_EXPORT_JOB":
-      return { ...state, exportJobId: action.jobId };
-
-    case "SET_EXPORT_STATUS":
-      return { ...state, exportStatus: action.status };
-
-    // ── Clipboard ─────────────────────────────────────────────────────────
-    case "COPY_CLIP": {
-      const clip = findClip(state.tracks, action.clipId);
-      const trackId = findTrackForClip(state.tracks, action.clipId)?.id ?? null;
-      return clip
-        ? { ...state, clipboardClip: clip, clipboardSourceTrackId: trackId }
-        : state;
-    }
-
-    // ── Undo/Redo (history stubs — snapshots not implemented yet) ─────────
-    case "UNDO":
-    case "REDO":
-      return state; // no-op until history snapshots are implemented
-
-    default:
-      return state;
-  }
+  loadProject: (project: EditProject) => void;
+  updateSaveRevision: (saveRevision: number) => void;
+  setReadOnly: () => void;
+  setTitle: (title: string) => void;
+  setResolution: (resolution: string) => void;
+  setFps: (fps: number) => void;
+  updateClip: (clipId: string, patch: ClipPatch) => void;
+  toggleClipEnabled: (clipId: string) => void;
+  removeClip: (clipId: string) => void;
+  moveClip: (clipId: string, startMs: number) => void;
+  toggleTrackMute: (trackId: string) => void;
+  toggleTrackLock: (trackId: string) => void;
+  renameTrack: (trackId: string, name: string) => void;
+  mergeTracksFromServer: (tracks: Track[]) => void;
+  copyClip: (clipId: string) => void;
+  undo: () => void;
+  redo: () => void;
+  reset: () => void;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function buildDocumentState(project: import("../model/editor-domain").EditProject): EditorState {
-  return {
-    editProjectId: project.id,
-    title: project.title ?? "Untitled Edit",
-    durationMs: project.durationMs,
-    fps: project.fps,
-    resolution: project.resolution,
-    saveRevision: project.saveRevision,
-    createdAt: project.createdAt,
-    tracks: project.tracks,
+export const useEditorProjectStore = create<EditorProjectState>()(
+  subscribeWithSelector((set, get) => ({
+    editProjectId: null,
+    title: "Untitled Edit",
+    durationMs: 0,
+    fps: 30,
+    resolution: "1080x1920",
+    saveRevision: 0,
+    createdAt: "",
+    tracks: [],
     clipboardClip: null,
     clipboardSourceTrackId: null,
     past: [],
     future: [],
-    isReadOnly: project.status === "published",
-    currentTimeMs: 0,
-    isPlaying: false,
-    playbackRate: 1,
-    zoom: 80,
-    selectedClipId: null,
-    exportJobId: null,
-    exportStatus: null,
-  };
-}
+    isReadOnly: false,
+
+    loadProject: (project) =>
+      set({
+        editProjectId: project.id,
+        title: project.title ?? "Untitled Edit",
+        tracks: project.tracks,
+        durationMs: project.durationMs,
+        fps: project.fps,
+        resolution: project.resolution,
+        saveRevision: project.saveRevision,
+        createdAt: project.createdAt,
+        isReadOnly: project.status === "published",
+        past: [],
+        future: [],
+        clipboardClip: null,
+        clipboardSourceTrackId: null,
+      }),
+
+    updateSaveRevision: (saveRevision) => set({ saveRevision }),
+
+    setReadOnly: () => set({ isReadOnly: true }),
+
+    setTitle: (title) => set({ title }),
+
+    setResolution: (resolution) => set({ resolution }),
+
+    setFps: (fps) => set({ fps }),
+
+    updateClip: (clipId, patch) =>
+      set((s) => ({ tracks: updateClipInTracks(s.tracks, clipId, patch) })),
+
+    toggleClipEnabled: (clipId) =>
+      set((s) => ({
+        tracks: updateClipInTracks(s.tracks, clipId, (c) => ({
+          enabled: !("enabled" in c && c.enabled),
+        })),
+      })),
+
+    removeClip: (clipId) =>
+      set((s) => ({
+        tracks: s.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.filter((c) => c.id !== clipId),
+        })),
+      })),
+
+    moveClip: (clipId, startMs) =>
+      set((s) => ({ tracks: updateClipInTracks(s.tracks, clipId, { startMs }) })),
+
+    toggleTrackMute: (trackId) =>
+      set((s) => ({
+        tracks: s.tracks.map((t) =>
+          t.id === trackId ? { ...t, muted: !t.muted } : t,
+        ),
+      })),
+
+    toggleTrackLock: (trackId) =>
+      set((s) => ({
+        tracks: s.tracks.map((t) =>
+          t.id === trackId ? { ...t, locked: !t.locked } : t,
+        ),
+      })),
+
+    renameTrack: (trackId, name) =>
+      set((s) => ({
+        tracks: s.tracks.map((t) =>
+          t.id === trackId ? { ...t, name } : t,
+        ),
+      })),
+
+    mergeTracksFromServer: (fresh) =>
+      set((s) => ({ tracks: mergeTracks(s.tracks, fresh) })),
+
+    copyClip: (clipId) => {
+      const { tracks } = get();
+      const clip = tracks.flatMap((t) => t.clips).find((c) => c.id === clipId) ?? null;
+      const trackId = tracks.find((t) => t.clips.some((c) => c.id === clipId))?.id ?? null;
+      if (clip) set({ clipboardClip: clip, clipboardSourceTrackId: trackId });
+    },
+
+    undo: () => undefined, // stub — history not implemented in this phase
+    redo: () => undefined,
+
+    reset: () =>
+      set({
+        editProjectId: null,
+        title: "Untitled Edit",
+        tracks: [],
+        durationMs: 0,
+        saveRevision: 0,
+        past: [],
+        future: [],
+        isReadOnly: false,
+        clipboardClip: null,
+        clipboardSourceTrackId: null,
+      }),
+  })),
+);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function updateClipInTracks(
   tracks: Track[],
@@ -246,148 +281,131 @@ function updateClipInTracks(
   }));
 }
 
-function removeClipFromTracks(tracks: Track[], clipId: string): Track[] {
-  return tracks.map((track) => ({
-    ...track,
-    clips: track.clips.filter((c) => c.id !== clipId),
-  }));
-}
-
-function findClip(tracks: Track[], clipId: string): Clip | null {
-  for (const track of tracks) {
-    const clip = track.clips.find((c) => c.id === clipId);
-    if (clip) return clip;
-  }
-  return null;
-}
-
-function findTrackForClip(tracks: Track[], clipId: string): Track | null {
-  return tracks.find((t) => t.clips.some((c) => c.id === clipId)) ?? null;
-}
-
 function mergeTracks(existing: Track[], fresh: Track[]): Track[] {
   const freshMap = new Map(fresh.map((t) => [t.id, t]));
   const merged = existing.map((t) => freshMap.get(t.id) ?? t);
   const existingIds = new Set(existing.map((t) => t.id));
-  const newTracks = fresh.filter((t) => !existingIds.has(t.id));
-  return [...merged, ...newTracks];
+  return [...merged, ...fresh.filter((t) => !existingIds.has(t.id))];
 }
 ```
 
-### 4.2 `store/editor-store.ts`
+### 5.2 `store/editor-timeline-store.ts`
+
+Mirrors `openreel-video` `useTimelineStore` — same method names, same clamping logic.
 
 ```typescript
 import { create } from "zustand";
-import type { EditorState } from "../model/editor-document";
-import type { EditorAction } from "../model/editor";
-import { editorReducer } from "./editor-reducer";
-import type { EditProject } from "../model/editor-domain";
+import { subscribeWithSelector } from "zustand/middleware";
 
-type EditorStore = EditorState & { dispatch: (action: EditorAction) => void };
+export interface EditorTimelineState {
+  currentTimeMs: number;
+  isPlaying: boolean;
+  playbackRate: number;
+  zoom: number; // pixels per second (matches OpenReel pixelsPerSecond)
 
-let _store: ReturnType<typeof create<EditorStore>> | null = null;
-
-export function initEditorStore(project: EditProject) {
-  const initial = editorReducer(
-    {} as EditorState, // seed — buildDocumentState called inside reducer
-    { type: "LOAD_PROJECT_DOCUMENT", project },
-  );
-  _store = create<EditorStore>((set) => ({
-    ...initial,
-    dispatch: (action) =>
-      set((s) => ({ ...editorReducer(s, action), dispatch: s.dispatch })),
-  }));
-  return _store;
+  play: () => void;
+  pause: () => void;
+  togglePlayback: () => void;
+  seekTo: (ms: number) => void;
+  seekToStart: () => void;
+  seekToEnd: (durationMs: number) => void;
+  setPlaybackRate: (rate: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  setZoom: (zoom: number) => void;
+  zoomToFit: (durationMs: number, viewportWidthPx: number) => void;
+  reset: () => void;
 }
 
-export function getEditorStore(): ReturnType<typeof create<EditorStore>> {
-  if (!_store) throw new Error("EditorStore not initialized");
-  return _store;
-}
+const ZOOM_MIN = 20;
+const ZOOM_MAX = 400;
+const ZOOM_DEFAULT = 80;
 
-export function destroyEditorStore(): void {
-  _store = null;
-}
+export const useEditorTimelineStore = create<EditorTimelineState>()(
+  subscribeWithSelector((set, get) => ({
+    currentTimeMs: 0,
+    isPlaying: false,
+    playbackRate: 1,
+    zoom: ZOOM_DEFAULT,
 
-export function useEditorStore<T>(selector: (s: EditorStore) => T): T {
-  return getEditorStore()(selector);
-}
+    play: () => set({ isPlaying: true }),
+    pause: () => set({ isPlaying: false }),
+    togglePlayback: () => set((s) => ({ isPlaying: !s.isPlaying })),
+    seekTo: (ms) => set({ currentTimeMs: Math.max(0, ms) }),
+    seekToStart: () => set({ currentTimeMs: 0 }),
+    seekToEnd: (durationMs) => set({ currentTimeMs: durationMs }),
+    setPlaybackRate: (rate) =>
+      set({ playbackRate: Math.max(0.1, Math.min(4.0, rate)) }),
+
+    zoomIn: () =>
+      set((s) => ({ zoom: Math.min(s.zoom * 1.25, ZOOM_MAX) })),
+    zoomOut: () =>
+      set((s) => ({ zoom: Math.max(s.zoom / 1.25, ZOOM_MIN) })),
+    setZoom: (zoom) =>
+      set({ zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom)) }),
+    zoomToFit: (durationMs, viewportWidthPx) => {
+      if (durationMs > 0) {
+        const zoom = Math.max(
+          ZOOM_MIN,
+          Math.min(ZOOM_MAX, (viewportWidthPx - 100) / (durationMs / 1000)),
+        );
+        set({ zoom });
+      }
+    },
+
+    reset: () =>
+      set({ currentTimeMs: 0, isPlaying: false, playbackRate: 1, zoom: ZOOM_DEFAULT }),
+  })),
+);
 ```
 
-### 4.3 `store/editor-context.tsx`
+### 5.3 `store/editor-ui-store.ts`
 
 ```typescript
-import { createContext, useContext, type ReactNode } from "react";
-import type { EditorAction } from "../model/editor";
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+import type { ExportJobStatus } from "../model/editor-domain";
 
-interface EditorContextValue {
-  dispatch: (action: EditorAction) => void;
+export interface EditorUIState {
+  selectedClipId: string | null;
+  exportModalOpen: boolean;
+  exportJobId: string | null;
+  exportStatus: ExportJobStatus | null;
+
+  selectClip: (clipId: string | null) => void;
+  openExportModal: () => void;
+  closeExportModal: () => void;
+  setExportJob: (jobId: string | null) => void;
+  setExportStatus: (status: ExportJobStatus | null) => void;
+  reset: () => void;
 }
 
-const EditorContext = createContext<EditorContextValue | null>(null);
+export const useEditorUIStore = create<EditorUIState>()(
+  subscribeWithSelector((set) => ({
+    selectedClipId: null,
+    exportModalOpen: false,
+    exportJobId: null,
+    exportStatus: null,
 
-export function EditorStoreProvider({
-  dispatch,
-  children,
-}: {
-  dispatch: (action: EditorAction) => void;
-  children: ReactNode;
-}) {
-  return (
-    <EditorContext.Provider value={{ dispatch }}>
-      {children}
-    </EditorContext.Provider>
-  );
-}
-
-export function useEditorDispatch(): (action: EditorAction) => void {
-  const ctx = useContext(EditorContext);
-  if (!ctx) throw new Error("useEditorDispatch must be used inside EditorStoreProvider");
-  return ctx.dispatch;
-}
+    selectClip: (clipId) => set({ selectedClipId: clipId }),
+    openExportModal: () => set({ exportModalOpen: true }),
+    closeExportModal: () =>
+      set({ exportModalOpen: false, exportStatus: null, exportJobId: null }),
+    setExportJob: (jobId) => set({ exportJobId: jobId }),
+    setExportStatus: (status) => set({ exportStatus: status }),
+    reset: () =>
+      set({ selectedClipId: null, exportModalOpen: false, exportJobId: null, exportStatus: null }),
+  })),
+);
 ```
-
-> **Why context for dispatch but not state?** Zustand subscriptions (`useEditorStore`) are
-> already reactive and don't need context. Dispatch goes through context so components can
-> be tested without the module singleton.
 
 ---
 
-## 5. Files to Modify
+## 6. Files to Modify
 
-### 5.1 `model/editor-document.ts`
+### 6.1 `bridge/editor-api.ts`
 
-Add `createdAt` — required by `bridge.notifyStateChanged`.
-
-```typescript
-export interface EditorDocumentState {
-  editProjectId: string | null;
-  title: string;
-  durationMs: number;
-  fps: number;
-  resolution: string;
-  saveRevision: number;
-  createdAt: string;           // ← add this
-  tracks: Track[];
-  clipboardClip: Clip | null;
-  clipboardSourceTrackId: string | null;
-  past: EditorHistorySnapshot[];
-  future: EditorHistorySnapshot[];
-  isReadOnly: boolean;
-}
-```
-
-### 5.2 `model/editor.ts`
-
-Add `SAVE_REVISION_UPDATED` to `EditorAction`:
-
-```typescript
-| { type: "SAVE_REVISION_UPDATED"; saveRevision: number }
-```
-
-### 5.3 `bridge/editor-api.ts`
-
-Add two new methods:
+Add two methods:
 
 ```typescript
 startExport(
@@ -409,50 +427,18 @@ getExportStatus(projectId: string): Promise<ExportJobStatus> {
 
 Import `ExportJobStatus` from `../model/editor-domain`.
 
-### 5.4 `ui/layout/EditorProviders.tsx`
+### 6.2 `ui/layout/EditorRoutePage.tsx`
 
-Provide the store context. The store itself is already initialized by the time `EditorProviders` mounts (initialized in `EditorRoutePage`'s `onProjectLoaded`).
-
-```typescript
-import type { ReactNode } from "react";
-import { EditorStoreProvider } from "../../store/editor-context";
-import { getEditorStore } from "../../store/editor-store";
-
-interface EditorProvidersProps {
-  children: ReactNode;
-}
-
-export function EditorProviders({ children }: EditorProvidersProps) {
-  const dispatch = getEditorStore().getState().dispatch;
-  return (
-    <EditorStoreProvider dispatch={dispatch}>
-      {children}
-    </EditorStoreProvider>
-  );
-}
-```
-
-Remove the `project` and `onBack` props (nothing inside needs them via props anymore — they either read from store or receive callbacks directly).
-
-### 5.5 `ui/layout/EditorRoutePage.tsx`
-
-Replace `activeProject` local state with `isReady` boolean. Wire all bridge callbacks to dispatch into the store.
+Replace `activeProject` local state with `isReady` boolean. Wire bridge callbacks to store methods. Set up autosave subscription.
 
 ```typescript
 import { useEffect, useState } from "react";
 import { EditorLayout } from "./EditorLayout";
 import { EditorProjectList } from "./EditorProjectList";
 import { getEditorBridge, disposeEditorBridge } from "../../bridge";
-import {
-  initEditorStore,
-  destroyEditorStore,
-  getEditorStore,
-} from "../../store/editor-store";
-
-export interface EditorRouteSearch {
-  projectId?: string;
-  contentId?: number;
-}
+import { useEditorProjectStore } from "../../store/editor-project-store";
+import { useEditorTimelineStore } from "../../store/editor-timeline-store";
+import { useEditorUIStore } from "../../store/editor-ui-store";
 
 export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
   const [openProjectId, setOpenProjectId] = useState<string | null>(
@@ -463,7 +449,6 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
 
   useEffect(() => {
     if (!openProjectId) {
-      destroyEditorStore();
       setIsReady(false);
       return;
     }
@@ -472,47 +457,51 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     setLoadError(null);
 
     const bridge = getEditorBridge();
+
     bridge.initialize(openProjectId, {
       onProjectLoaded: (project) => {
-        const store = initEditorStore(project);
-        // Forward relevant mutations to bridge for autosave
-        store.subscribe((state, prev) => {
-          if (
-            state.tracks !== prev.tracks ||
-            state.durationMs !== prev.durationMs ||
-            state.title !== prev.title
-          ) {
+        useEditorProjectStore.getState().loadProject(project);
+        useEditorTimelineStore.getState().reset();
+        useEditorUIStore.getState().reset();
+
+        // Forward project mutations to bridge for autosave.
+        // Uses subscribeWithSelector to detect only track/title/duration changes
+        // — same pattern as project-store.ts:2539 in openreel-video.
+        useEditorProjectStore.subscribe(
+          (s) => ({ tracks: s.tracks, title: s.title, durationMs: s.durationMs }),
+          () => {
+            const s = useEditorProjectStore.getState();
             bridge.notifyStateChanged({
-              tracks: state.tracks,
-              durationMs: state.durationMs,
-              title: state.title,
-              fps: state.fps,
-              resolution: state.resolution,
-              saveRevision: state.saveRevision,
-              createdAt: state.createdAt,
+              tracks: s.tracks,
+              durationMs: s.durationMs,
+              title: s.title,
+              fps: s.fps,
+              resolution: s.resolution,
+              saveRevision: s.saveRevision,
+              createdAt: s.createdAt,
             });
-          }
-        });
+          },
+        );
+
         setIsReady(true);
       },
+
       onSaveRevisionUpdated: (saveRevision) => {
-        getEditorStore()
-          .getState()
-          .dispatch({ type: "SAVE_REVISION_UPDATED", saveRevision });
+        useEditorProjectStore.getState().updateSaveRevision(saveRevision);
       },
+
       onSaveConflict: () => {
-        getEditorStore()
-          .getState()
-          .dispatch({ type: "SAVE_CONFLICT_DETECTED" });
+        useEditorProjectStore.getState().setReadOnly();
       },
-      onLoadError: (err) => {
-        setLoadError(err.message);
-      },
+
+      onLoadError: (err) => setLoadError(err.message),
     });
 
     return () => {
       disposeEditorBridge();
-      destroyEditorStore();
+      useEditorProjectStore.getState().reset();
+      useEditorTimelineStore.getState().reset();
+      useEditorUIStore.getState().reset();
       setIsReady(false);
     };
   }, [openProjectId]);
@@ -539,7 +528,9 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
         <EditorLayout
           onBack={() => {
             disposeEditorBridge();
-            destroyEditorStore();
+            useEditorProjectStore.getState().reset();
+            useEditorTimelineStore.getState().reset();
+            useEditorUIStore.getState().reset();
             setOpenProjectId(null);
             setIsReady(false);
           }}
@@ -548,166 +539,135 @@ export function EditorRoutePage({ search }: { search: EditorRouteSearch }) {
     );
   }
 
-  return (
-    <EditorProjectList onOpen={(id) => setOpenProjectId(id)} />
-  );
+  return <EditorProjectList onOpen={(id) => setOpenProjectId(id)} />;
 }
 ```
 
-### 5.6 `ui/layout/EditorLayout.tsx`
+### 6.3 Delete `ui/layout/EditorProviders.tsx`
 
-Remove `project` prop — all data comes from store.
+There is no context to provide. The three editor stores are Zustand module singletons, and every component reads them directly. `EditorProviders` would be a dead wrapper that suggests a provider architecture still exists when it does not.
+
+**Delete the file.** Remove its import from `EditorLayout` and render the layout tree directly.
+
+### 6.4 `ui/layout/EditorLayout.tsx`
+
+Remove `project` prop and remove the `EditorProviders` wrapper entirely — components read from stores directly.
 
 ```typescript
-import { EditorProviders } from "./EditorProviders";
-import { EditorHeader } from "./EditorHeader";
-import { EditorWorkspace } from "./EditorWorkspace";
-import { EditorStatusBar } from "./EditorStatusBar";
-import { TimelineSection } from "../timeline/TimelineSection";
-import { EditorDialogs } from "../dialogs/EditorDialogs";
-
-interface Props {
-  onBack: () => void;
-}
+interface Props { onBack: () => void; }
 
 export function EditorLayout({ onBack }: Props) {
   return (
-    <EditorProviders>
-      <div className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full" style={{ height: "100%" }}>
-        <EditorHeader onBack={onBack} />
-        <EditorWorkspace />
-        <TimelineSection />
-        <EditorStatusBar />
-        <EditorDialogs />
-      </div>
-    </EditorProviders>
+    <div className="flex flex-col bg-studio-bg overflow-hidden min-w-0 w-full" style={{ height: "100%" }}>
+      <EditorHeader onBack={onBack} />
+      <EditorWorkspace />
+      <TimelineSection />
+      <EditorStatusBar />
+      <EditorDialogs />
+    </div>
   );
 }
 ```
 
-### 5.7 `ui/layout/EditorWorkspace.tsx`
+### 6.5 `ui/layout/EditorWorkspace.tsx`
 
 Remove `project` prop.
 
 ```typescript
 export function EditorWorkspace() {
-  const generatedContentId = useEditorStore((s) => s.editProjectId); // or remove LeftPanel prop
-  // ...
-}
-```
-
-`LeftPanel` needs `generatedContentId` — read from store if needed, or pass `null` for now.
-
-### 5.8 `ui/layout/EditorHeader.tsx`
-
-Wire title, undo/redo, export button. Remove `readOnly` prop (read `isReadOnly` from store).
-
-```typescript
-import { useEditorStore } from "../../store/editor-store";
-import { useEditorDispatch } from "../../store/editor-context";
-
-export function EditorHeader({ onBack }: { onBack?: () => void }) {
-  const title = useEditorStore((s) => s.title);
-  const isReadOnly = useEditorStore((s) => s.isReadOnly);
-  const canUndo = useEditorStore((s) => s.past.length > 0);
-  const canRedo = useEditorStore((s) => s.future.length > 0);
-  const dispatch = useEditorDispatch();
-
-  // Open export modal by setting exportJobId to a sentinel (e.g. "open")
-  // or add a dedicated OPEN_EXPORT_MODAL action to EditorUIState
-  const openExportModal = () => dispatch({ type: "SET_EXPORT_JOB", jobId: "__modal_open__" });
-
+  const generatedContentId = useEditorProjectStore((s) => s.editProjectId);
   return (
-    // ... existing JSX, replace stubs:
-    // title input: value={title}, onChange={(e) => dispatch({ type: "SET_TITLE", title: e.target.value })}
-    // undo button: disabled={!canUndo}, onClick={() => dispatch({ type: "UNDO" })}
-    // redo button: disabled={!canRedo}, onClick={() => dispatch({ type: "REDO" })}
-    // export button onClick={openExportModal}
+    <div className="flex flex-1 overflow-hidden min-h-0">
+      <LeftPanel generatedContentId={null} />
+      <PreviewArea />
+      <Inspector />
+    </div>
   );
 }
 ```
 
-**Export modal open signal:** Add `exportModalOpen: boolean` to `EditorUIState`, toggled by a `OPEN_EXPORT_MODAL` / `CLOSE_EXPORT_MODAL` action (or reuse `exportJobId === "__modal_open__"`). Using a dedicated boolean is cleaner:
+`PreviewArea` reads resolution/durationMs from stores.
 
-Add to `model/editor-ui.ts`:
+### 6.6 `ui/layout/EditorHeader.tsx`
+
+Wire title, save status, undo/redo, export button.
+
 ```typescript
-exportModalOpen: boolean;
+export function EditorHeader({ onBack }: { onBack?: () => void }) {
+  const title = useEditorProjectStore((s) => s.title);
+  const isReadOnly = useEditorProjectStore((s) => s.isReadOnly);
+  const canUndo = useEditorProjectStore((s) => s.past.length > 0);
+  const canRedo = useEditorProjectStore((s) => s.future.length > 0);
+  const { setTitle, undo, redo } = useEditorProjectStore.getState();
+  const openExportModal = useEditorUIStore((s) => s.openExportModal);
+
+  // ... same JSX, replace stubs:
+  // title input: value={title}, onChange={(e) => setTitle(e.target.value)}
+  // undo: disabled={!canUndo}, onClick={undo}
+  // redo: disabled={!canRedo}, onClick={redo}
+  // export button: onClick={openExportModal}
+}
 ```
 
-Add to `EditorAction`:
-```typescript
-| { type: "OPEN_EXPORT_MODAL" }
-| { type: "CLOSE_EXPORT_MODAL" }
-```
+### 6.7 `ui/layout/EditorStatusBar.tsx`
 
-### 5.9 `ui/layout/EditorStatusBar.tsx`
-
-Remove props — read from store.
+Remove props — read from stores.
 
 ```typescript
 export function EditorStatusBar() {
-  const tracks = useEditorStore((s) => s.tracks);
-  const resolution = useEditorStore((s) => s.resolution);
-  const fps = useEditorStore((s) => s.fps);
+  const tracks = useEditorProjectStore((s) => s.tracks);
+  const resolution = useEditorProjectStore((s) => s.resolution);
+  const fps = useEditorProjectStore((s) => s.fps);
   const clipCount = tracks.reduce((n, t) => n + t.clips.length, 0);
-  const trackCount = tracks.length;
   // ... same JSX
 }
 ```
 
-### 5.10 `ui/timeline/Timeline.tsx`
+### 6.8 `ui/timeline/Timeline.tsx`
 
-Replace hardcoded `previewTracks` with store data. Wire handlers to dispatch.
+Replace hardcoded `previewTracks`. Wire all handlers to store methods.
 
 ```typescript
 export function Timeline({ scrollRef }: { scrollRef?: RefObject<HTMLDivElement | null> }) {
-  const tracks = useEditorStore((s) => s.tracks);
-  const durationMs = useEditorStore((s) => s.durationMs);
-  const zoom = useEditorStore((s) => s.zoom);
-  const selectedClipId = useEditorStore((s) => s.selectedClipId);
-  const clipboardClip = useEditorStore((s) => s.clipboardClip);
-  const dispatch = useEditorDispatch();
+  const tracks = useEditorProjectStore((s) => s.tracks);
+  const durationMs = useEditorProjectStore((s) => s.durationMs);
+  const zoom = useEditorTimelineStore((s) => s.zoom);
+  const currentTimeMs = useEditorTimelineStore((s) => s.currentTimeMs);
+  const selectedClipId = useEditorUIStore((s) => s.selectedClipId);
+  const clipboardClip = useEditorProjectStore((s) => s.clipboardClip);
 
-  // Replace previewTracks → tracks
-  // Replace zoom = 80 → zoom
-  // Replace durationMs = 12_000 → durationMs
-  // Wire TrackHeader callbacks:
-  //   onToggleMute: (trackId) => dispatch({ type: "TOGGLE_TRACK_MUTE", trackId })
-  //   onToggleLock: (trackId) => dispatch({ type: "TOGGLE_TRACK_LOCK", trackId })
-  //   onDeleteAllClips: out of scope — leave () => undefined
-  //   onRename: (trackId, name) => dispatch({ type: "RENAME_TRACK", trackId, name })
-  // Wire TimelineClip callbacks:
-  //   onSelect: (clipId) => dispatch({ type: "SELECT_CLIP", clipId })
-  //   onMove: (clipId, startMs) => dispatch({ type: "MOVE_CLIP", clipId, startMs })
-  //   onToggleEnabled: (clipId) => dispatch({ type: "TOGGLE_CLIP_ENABLED", clipId })
-  //   onRippleDelete / onDelete: (clipId) => dispatch({ type: "REMOVE_CLIP", clipId })
-  //   onCopy: (clipId) => dispatch({ type: "COPY_CLIP", clipId })
-  //   isSelected: clip.id === selectedClipId
-  //   hasClipboard: clipboardClip !== null
-  // Wire TimelineRuler onSeek: (ms) => dispatch({ type: "SET_CURRENT_TIME", ms })
-  // Wire Playhead: currentTimeMs from store
+  const { toggleTrackMute, toggleTrackLock, renameTrack, removeClip, moveClip,
+          toggleClipEnabled, copyClip } = useEditorProjectStore.getState();
+  const { seekTo } = useEditorTimelineStore.getState();
+  const { selectClip } = useEditorUIStore.getState();
+
+  // Remove previewTracks constant and Props interface tracks? optional field.
+  // TrackHeader: onToggleMute, onToggleLock, onRename wired.
+  // TimelineClip: onSelect={selectClip}, onMove, onToggleEnabled, onDelete={removeClip}, onCopy={copyClip}
+  //               isSelected={clip.id === selectedClipId}, hasClipboard={clipboardClip !== null}
+  // TimelineRuler: onSeek={seekTo}
+  // Playhead: currentTimeMs, zoom
 }
 ```
 
-Remove the `previewTracks` constant and the `Props` interface `tracks?` optional (always from store now).
+Delete the `previewTracks` constant. Remove `tracks?`, `durationMs?`, `zoom?` from `Props` (all from stores now).
 
-### 5.11 `ui/timeline/TimelineSection.tsx`
+### 6.9 `ui/timeline/TimelineSection.tsx`
 
-Wire zoom actions.
+Wire zoom methods.
 
 ```typescript
 export function TimelineSection() {
-  const zoom = useEditorStore((s) => s.zoom);
-  const dispatch = useEditorDispatch();
+  const { zoomIn, zoomOut, setZoom } = useEditorTimelineStore.getState();
   const [snap, setSnap] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
     <div style={{ height: 340 }} className="flex flex-col shrink-0">
       <TimelineToolstrip
-        onZoomIn={() => dispatch({ type: "SET_ZOOM", zoom: Math.min(zoom * 1.25, 400) })}
-        onZoomOut={() => dispatch({ type: "SET_ZOOM", zoom: Math.max(zoom * 0.8, 20) })}
-        onZoomFit={() => dispatch({ type: "SET_ZOOM", zoom: 80 })}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onZoomFit={() => setZoom(80)}
         onSyncTimeline={() => undefined}
         snap={snap}
         onSnapChange={setSnap}
@@ -720,51 +680,41 @@ export function TimelineSection() {
 }
 ```
 
-### 5.12 `ui/timeline/Playhead.tsx`
+### 6.10 `ui/preview/PlaybackBar.tsx`
 
-Read `currentTimeMs` and `zoom` from store (instead of props, if it currently uses props). Adjust as needed per file.
-
-### 5.13 `ui/preview/PlaybackBar.tsx`
-
-Replace local `isPlaying` useState with store.
+Replace local `isPlaying` useState with store. Remove `durationMs`/`fps` props.
 
 ```typescript
 export function PlaybackBar() {
-  const isPlaying = useEditorStore((s) => s.isPlaying);
-  const currentTimeMs = useEditorStore((s) => s.currentTimeMs);
-  const durationMs = useEditorStore((s) => s.durationMs);
-  const fps = useEditorStore((s) => s.fps);
-  const dispatch = useEditorDispatch();
+  const isPlaying = useEditorTimelineStore((s) => s.isPlaying);
+  const currentTimeMs = useEditorTimelineStore((s) => s.currentTimeMs);
+  const durationMs = useEditorProjectStore((s) => s.durationMs);
+  const fps = useEditorProjectStore((s) => s.fps);
+  const { play, pause, togglePlayback, seekToStart, seekToEnd } =
+    useEditorTimelineStore.getState();
 
-  return (
-    // ... same JSX, replace:
-    // isPlaying — from store
-    // onClick play/pause: dispatch({ type: "SET_PLAYING", playing: !isPlaying })
-    // currentTimeMs display: formatHHMMSSFF(currentTimeMs, fps)
-    // durationMs: from store
-    // jump-start: dispatch({ type: "SET_CURRENT_TIME", ms: 0 })
-    // jump-end: dispatch({ type: "SET_CURRENT_TIME", ms: durationMs })
-  );
+  // play/pause button: onClick={togglePlayback}
+  // jump-start: onClick={seekToStart}
+  // jump-end: onClick={() => seekToEnd(durationMs)}
+  // timecode: formatHHMMSSFF(currentTimeMs, fps) / formatHHMMSSFF(durationMs, fps)
+  // volume: keep local useState (master volume is UI-only, not persisted)
 }
 ```
 
-Remove `durationMs` and `fps` props (now from store).
+### 6.11 `ui/inspector/Inspector.tsx`
 
-### 5.14 `ui/inspector/Inspector.tsx`
-
-Wire selected clip to real data.
+Wire selected clip to real data. Pass real values to `AdjustTab`.
 
 ```typescript
 export function Inspector() {
-  const selectedClipId = useEditorStore((s) => s.selectedClipId);
-  const tracks = useEditorStore((s) => s.tracks);
-  const dispatch = useEditorDispatch();
+  const selectedClipId = useEditorUIStore((s) => s.selectedClipId);
+  const tracks = useEditorProjectStore((s) => s.tracks);
+  const { updateClip } = useEditorProjectStore.getState();
   const [activeTab, setActiveTab] = useState<InspectorTab>("adjust");
 
   const selectedClip = selectedClipId
     ? tracks.flatMap((t) => t.clips).find((c) => c.id === selectedClipId) ?? null
     : null;
-
   const selectedTrack = selectedClipId
     ? tracks.find((t) => t.clips.some((c) => c.id === selectedClipId)) ?? null
     : null;
@@ -772,13 +722,12 @@ export function Inspector() {
   return (
     // ...
     // InspectorHeader: selectedClipLabel={selectedClip?.label ?? null}, selectedTrack
-    // AdjustTab: selectedClip — pass opacity/contrast/warmth values; onChange dispatches UPDATE_CLIP
-    // ...
+    // AdjustTab: pass selectedClip values; onChange → updateClip(selectedClipId, patch)
   );
 }
 ```
 
-**`AdjustTab` wiring example** (pass real values, dispatch on change):
+**`AdjustTab` — real values example:**
 ```typescript
 <InspectorSliderRow
   label={t("editor_opacity_label")}
@@ -788,64 +737,67 @@ export function Inspector() {
   step={1}
   onChange={(v) =>
     selectedClipId &&
-    dispatch({ type: "UPDATE_CLIP", clipId: selectedClipId, patch: { opacity: v / 100 } })
+    updateClip(selectedClipId, { opacity: v / 100 })
   }
 />
 ```
 
-### 5.15 `ui/dialogs/ExportModal.tsx`
+### 6.12 `ui/dialogs/ExportModal.tsx`
 
-Full implementation with real API calls and progress polling.
+Full implementation. Export progress state is local (same as OpenReel `Toolbar.tsx` pattern — local `exportState` useState, synced to global store for status bar).
 
 ```typescript
 import { useState, useEffect, useRef } from "react";
-import { useEditorStore } from "../../store/editor-store";
-import { useEditorDispatch } from "../../store/editor-context";
+import { useEditorProjectStore } from "../../store/editor-project-store";
+import { useEditorUIStore } from "../../store/editor-ui-store";
 import { editorApi } from "../../bridge/editor-api";
 import { ResolutionPicker } from "./ResolutionPicker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/primitives/dialog";
 import type { ExportJobStatus } from "../../model/editor-domain";
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_MS = 2000;
 
 export function ExportModal() {
-  const exportModalOpen = useEditorStore((s) => s.exportModalOpen);
-  const exportStatus = useEditorStore((s) => s.exportStatus);
-  const projectId = useEditorStore((s) => s.editProjectId);
-  const defaultResolution = useEditorStore((s) => s.resolution);
-  const defaultFps = useEditorStore((s) => s.fps);
-  const dispatch = useEditorDispatch();
+  const exportModalOpen = useEditorUIStore((s) => s.exportModalOpen);
+  const projectId = useEditorProjectStore((s) => s.editProjectId);
+  const defaultResolution = useEditorProjectStore((s) => s.resolution);
+  const defaultFps = useEditorProjectStore((s) => s.fps);
+  const { closeExportModal, setExportStatus } = useEditorUIStore.getState();
 
   const [resolution, setResolution] = useState(defaultResolution);
-  const [fps, setFps] = useState<24 | 25 | 30 | 60>(defaultFps as 24 | 25 | 30 | 60);
+  const [fps, setFps] = useState(defaultFps);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [exportState, setExportState] = useState<ExportJobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Poll status while rendering or queued
+  // Sync local export state to global store (so status bar can show progress)
+  useEffect(() => {
+    setExportStatus(exportState);
+  }, [exportState, setExportStatus]);
+
+  // Poll while active
   useEffect(() => {
     if (!projectId) return;
-    const isActive =
-      exportStatus?.status === "queued" || exportStatus?.status === "rendering";
-    if (!isActive) {
+    const active =
+      exportState?.status === "queued" || exportState?.status === "rendering";
+    if (!active) {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
     pollRef.current = setInterval(async () => {
       try {
         const status = await editorApi.getExportStatus(projectId);
-        dispatch({ type: "SET_EXPORT_STATUS", status });
+        setExportState(status);
         if (status.status === "done" || status.status === "failed") {
           clearInterval(pollRef.current!);
         }
       } catch {
-        // silent — next poll will retry
+        // silent retry next poll
       }
-    }, POLL_INTERVAL_MS);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [exportStatus?.status, projectId, dispatch]);
+    }, POLL_MS);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [exportState?.status, projectId]);
 
   async function handleStartExport() {
     if (!projectId) return;
@@ -853,10 +805,7 @@ export function ExportModal() {
     setError(null);
     try {
       await editorApi.startExport(projectId, { resolution, fps });
-      dispatch({
-        type: "SET_EXPORT_STATUS",
-        status: { status: "queued", progress: 0 },
-      });
+      setExportState({ status: "queued", progress: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed");
     } finally {
@@ -864,12 +813,18 @@ export function ExportModal() {
     }
   }
 
-  const close = () => dispatch({ type: "CLOSE_EXPORT_MODAL" });
-  const isActive = exportStatus?.status === "queued" || exportStatus?.status === "rendering";
-  const isDone = exportStatus?.status === "done";
+  function handleClose() {
+    if (exportState?.status === "queued" || exportState?.status === "rendering") return;
+    setExportState(null);
+    closeExportModal();
+  }
+
+  const isActive =
+    exportState?.status === "queued" || exportState?.status === "rendering";
+  const isDone = exportState?.status === "done";
 
   return (
-    <Dialog open={exportModalOpen} onOpenChange={(open) => { if (!open) close(); }}>
+    <Dialog open={exportModalOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Export Video</DialogTitle>
@@ -878,13 +833,8 @@ export function ExportModal() {
         {!isActive && !isDone && (
           <div className="flex flex-col gap-4 pt-2">
             <ResolutionPicker value={resolution} onChange={setResolution} />
-            {/* fps picker — simple select */}
             {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button
-              onClick={handleStartExport}
-              disabled={isSubmitting}
-              className="..."
-            >
+            <button onClick={handleStartExport} disabled={isSubmitting}>
               {isSubmitting ? "Starting…" : "Export"}
             </button>
           </div>
@@ -893,22 +843,22 @@ export function ExportModal() {
         {isActive && (
           <div className="flex flex-col gap-2 pt-2">
             <p className="text-sm text-dim-2">
-              {exportStatus?.progressPhase ?? "Rendering…"}
+              {exportState?.progressPhase ?? "Rendering…"}
             </p>
             <div className="h-2 bg-overlay-sm rounded-full overflow-hidden">
               <div
                 className="h-full bg-studio-accent transition-all"
-                style={{ width: `${exportStatus?.progress ?? 0}%` }}
+                style={{ width: `${exportState?.progress ?? 0}%` }}
               />
             </div>
-            <p className="text-xs text-dim-3">{exportStatus?.progress ?? 0}%</p>
+            <p className="text-xs text-dim-3">{exportState?.progress ?? 0}%</p>
           </div>
         )}
 
-        {isDone && exportStatus?.r2Url && (
+        {isDone && exportState?.r2Url && (
           <div className="flex flex-col gap-2 pt-2">
             <p className="text-sm text-green-400">Export complete!</p>
-            <a href={exportStatus.r2Url} download className="text-studio-accent underline text-sm">
+            <a href={exportState.r2Url} download className="text-studio-accent underline text-sm">
               Download video
             </a>
           </div>
@@ -919,9 +869,9 @@ export function ExportModal() {
 }
 ```
 
-### 5.16 `ui/dialogs/EditorDialogs.tsx`
+### 6.13 `ui/dialogs/EditorDialogs.tsx`
 
-Wire `ExportModal` (currently it likely passes `open={false}` hardcoded). Change to use store:
+`ExportModal` reads from stores directly — no props needed.
 
 ```typescript
 export function EditorDialogs() {
@@ -929,70 +879,71 @@ export function EditorDialogs() {
 }
 ```
 
-`ExportModal` now reads `exportModalOpen` from the store directly — no props needed.
-
 ---
 
-## 6. Export Flow
+## 7. Data Flow Diagrams
+
+### Autosave
+
+```
+User moves a clip
+  → useEditorProjectStore.getState().moveClip(clipId, startMs)
+  → Zustand set() → tracks reference changes
+  → subscribeWithSelector callback fires (EditorRoutePage useEffect)
+  → bridge.notifyStateChanged({ tracks, durationMs, title, ... })
+  → EditorBridge debounces 2s → flushAutosave()
+  → PATCH /api/editor/:id
+  ← { saveRevision: n+1 }
+  → bridge.onSaveRevisionUpdated(n+1)
+  → useEditorProjectStore.getState().updateSaveRevision(n+1)
+```
+
+### Export
 
 ```
 User clicks "Export" in EditorHeader
-  → dispatch(OPEN_EXPORT_MODAL)
-  → EditorDialogs renders ExportModal with open=true
+  → useEditorUIStore.getState().openExportModal()
+  → ExportModal renders (open=true)
 
 User picks settings, clicks "Export"
   → editorApi.startExport(projectId, { resolution, fps })
   ← { exportJobId, projectRevisionId }
-  → dispatch(SET_EXPORT_STATUS, { status: "queued", progress: 0 })
+  → setExportState({ status: "queued", progress: 0 })
 
-Poll loop every 2s:
+Poll every 2s:
   → editorApi.getExportStatus(projectId)
-  → dispatch(SET_EXPORT_STATUS, { status: "rendering", progress: 45, progressPhase: "encoding" })
+  → setExportState({ status: "rendering", progress: 45, progressPhase: "encoding" })
 
-When status === "done":
-  → dispatch(SET_EXPORT_STATUS, { ..., r2Url: "..." })
-  → ExportModal shows download link
-  → poll loop stops
-```
-
----
-
-## 7. Autosave Flow
-
-```
-User edits (e.g. moves a clip)
-  → dispatch(MOVE_CLIP)
-  → Zustand set() → new state
-  → store.subscribe() fires in EditorRoutePage
-  → state.tracks !== prev.tracks → true
-  → bridge.notifyStateChanged({ tracks, durationMs, title, ... })
-  → EditorBridge debounces 2s → flushAutosave()
-  → PATCH /api/editor/:id with { expectedSaveRevision, projectDocument }
-  ← { saveRevision: n+1 }
-  → bridge calls onSaveRevisionUpdated(n+1)
-  → dispatch(SAVE_REVISION_UPDATED, n+1)
-  → store.saveRevision = n+1
+status === "done":
+  → setExportState({ ..., r2Url: "..." })
+  → ExportModal shows download link, poll stops
 ```
 
 ---
 
 ## 8. Validation Checklist
 
-- [ ] Opening a project shows real tracks in the timeline (not hardcoded preview data)
-- [ ] Moving/toggling a clip triggers autosave within 2s
-- [ ] Saving increments `saveRevision` in the store (visible via devtools)
-- [ ] Concurrent save (open two tabs, edit both) shows `isReadOnly: true` on the losing tab
-- [ ] Play/Pause button in `PlaybackBar` reads from and writes to store
-- [ ] Selecting a clip in the timeline shows real clip values in Inspector
-- [ ] Changing opacity in Inspector dispatches `UPDATE_CLIP` and the clip reflects the change
-- [ ] `EditorHeader` undo/redo buttons are enabled/disabled based on `past`/`future` lengths
+- [ ] `model/editor.ts` is deleted — `rg "from.*model/editor['\"]"` returns 0 results
+- [ ] `model/editor-document.ts`, `model/editor-playback.ts`, `model/editor-ui.ts` are deleted
+- [ ] `rg "EditorAction|useReducer|dispatch\(" frontend/src/domains/creation/editor` returns 0 results
+- [ ] Opening a project shows real tracks in Timeline (not hardcoded `previewTracks`)
+- [ ] Moving/toggling a clip triggers autosave within 2s (check Network tab)
+- [ ] Save revision increments in store after each autosave (Zustand devtools)
+- [ ] Concurrent-save conflict (two tabs, edit both) renders editor read-only on losing tab
+- [ ] Play/Pause in PlaybackBar reads `isPlaying` from `useEditorTimelineStore`
+- [ ] Zoom in/out buttons change timeline scale
+- [ ] Selecting a clip in Timeline sets `selectedClipId` in `useEditorUIStore`
+- [ ] Inspector AdjustTab shows real opacity/contrast/warmth for selected clip
+- [ ] Changing a slider in Inspector calls `updateClip` and the Timeline clip reflects it
+- [ ] EditorHeader title input is editable; change triggers autosave
+- [ ] EditorStatusBar shows real clip and track counts
 - [ ] Clicking "Export" opens the modal
-- [ ] Export progress bar updates every 2s while rendering
-- [ ] Export "done" state shows a download link
-- [ ] Closing the editor and reopening a different project loads fresh data (store is destroyed and re-initialized)
+- [ ] Export progress bar updates every 2s
+- [ ] Export "done" shows download link
+- [ ] Closing editor and reopening a different project resets all three stores (no stale data)
 
 ---
 
 ## 9. Rollback
 
-Phase 5 is additive — it creates new files and wires existing type definitions. If reverted, the hardcoded `previewTracks` can be restored in `Timeline.tsx` and `EditorProviders` can return to its passthrough. No database migrations are involved.
+All changes are additive except deleting dead reducer types and the dead `EditorProviders` wrapper. To revert: restore `previewTracks` in `Timeline.tsx`, restore `isPlaying` local state in `PlaybackBar.tsx`, recreate `EditorProviders` only if a real provider layer returns, and remove the three store files. No database migrations involved.

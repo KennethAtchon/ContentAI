@@ -10,20 +10,22 @@ export type EditorBridgeCallbacks = {
   onLoadError: (error: Error) => void;
 };
 
+type PendingAutosaveState = {
+  tracks: Track[];
+  durationMs: number;
+  title: string | null;
+  fps: number;
+  resolution: string;
+  saveRevision: number;
+  createdAt: string;
+};
+
 class EditorBridge {
   private callbacks: EditorBridgeCallbacks | null = null;
   private projectId: string | null = null;
   private pendingAutosaveTimer: ReturnType<typeof setTimeout> | null = null;
   private isSaving = false;
-  private pendingState: {
-    tracks: Track[];
-    durationMs: number;
-    title: string | null;
-    fps: number;
-    resolution: string;
-    saveRevision: number;
-    createdAt: string;
-  } | null = null;
+  private pendingState: PendingAutosaveState | null = null;
 
   initialize(projectId: string, callbacks: EditorBridgeCallbacks): void {
     this.dispose();
@@ -43,15 +45,7 @@ class EditorBridge {
     this.isSaving = false;
   }
 
-  notifyStateChanged(state: {
-    tracks: Track[];
-    durationMs: number;
-    title: string | null;
-    fps: number;
-    resolution: string;
-    saveRevision: number;
-    createdAt: string;
-  }): void {
+  notifyStateChanged(state: PendingAutosaveState): void {
     if (!this.projectId || !this.callbacks) return;
     this.pendingState = state;
     this.scheduleAutosave();
@@ -130,6 +124,18 @@ class EditorBridge {
       });
       // Discard if the bridge has been re-initialized with a different project.
       if (this.projectId !== capturedProjectId) return;
+      const pendingState = this.pendingState as PendingAutosaveState | null;
+      if (pendingState !== null) {
+        this.pendingState = {
+          tracks: pendingState.tracks,
+          durationMs: pendingState.durationMs,
+          title: pendingState.title,
+          fps: pendingState.fps,
+          resolution: pendingState.resolution,
+          saveRevision: result.saveRevision,
+          createdAt: pendingState.createdAt,
+        };
+      }
       capturedCallbacks.onSaveRevisionUpdated(result.saveRevision);
     } catch (err) {
       if (this.projectId !== capturedProjectId) return;
